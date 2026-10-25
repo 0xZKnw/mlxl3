@@ -1,0 +1,16 @@
+import runpy
+import sys
+from pathlib import Path
+
+engine, model, output, mode, prompt = sys.argv[1:]
+runpy.run_path("scripts/benchmark-flash-bridge.py")["run"](
+    Path(engine),
+    Path(model),
+    Path(output),
+    mtp=mode == "mtp",
+    tokens=128,
+    repeats=2,
+    timeout=120,
+    cache_gib=3,
+    prompt=prompt,
+)

@@ -1,0 +1,333 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 16b5d13e..ba819b7f 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -41,6 +41,7 @@ jobs:
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness qmv_half_output_preserves_raw_multisplit_and_slot_contract_for_all_inputs
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..cbb617b6 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,51 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn expert_qmv_half_output(
++    enabled: bool,
++    slot_major: bool,
++    raw: bool,
++    splits: i32,
++) -> bool {
++    enabled && slot_major && !raw && splits == 1
++}
++
++#[test]
++fn qmv_half_output_never_changes_raw_multisplit_or_ordinary_paths() {
++    for enabled in [false, true] {
++        for slot_major in [false, true] {
++            for raw in [false, true] {
++                for splits in [i32::MIN, -1, 0, 1, 2, 4, i32::MAX] {
++                    let actual = expert_qmv_half_output(enabled, slot_major, raw, splits);
++                    assert_eq!(
++                        actual,
++                        (enabled, slot_major, raw, splits) == (true, true, false, 1)
++                    );
++                }
++            }
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn qmv_half_output_preserves_raw_multisplit_and_slot_contract_for_all_inputs() {
++    let enabled: bool = kani::any();
++    let slot_major: bool = kani::any();
++    let raw: bool = kani::any();
++    let splits: i32 = kani::any();
++    let half = expert_qmv_half_output(enabled, slot_major, raw, splits);
++    if half {
++        assert!(enabled && slot_major && !raw);
++        assert_eq!(splits, 1);
++    }
++    if enabled && slot_major && !raw && splits == 1 {
++        assert!(half);
++    }
++    kani::cover!(half);
++    kani::cover!(enabled && raw && !half);
++    kani::cover!(enabled && splits == 2 && !half);
++    kani::cover!(enabled && !slot_major && !half);
++}
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index ed2f9e31..d0f0f0cd 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1080,6 +1080,7 @@ pub fn expert_mapped(
+         false,
+         None,
+         false,
++        false,
+     )
+ }
+ 
+@@ -1221,6 +1222,7 @@ pub(crate) fn expert_slots(
+     k: usize,
+     cb: Codebook,
+     stable_shapes: bool,
++    half_output: bool,
+ ) -> Result<Array> {
+     ensure!(
+         trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
+@@ -1243,6 +1245,7 @@ pub(crate) fn expert_slots(
+         selected.masked,
+         selected.groups.as_ref(),
+         stable_shapes,
++        half_output,
+     )
+ }
+ 
+@@ -1264,6 +1267,7 @@ fn expert_mapped_layout(
+     masked: bool,
+     groups: Option<&GroupedRoutes>,
+     stable_shapes: bool,
++    half_output: bool,
+ ) -> Result<Array> {
+     codec::check_k(k)?;
+     ensure!(k != 7, "mapped K=7 is not supported");
+@@ -1334,6 +1338,8 @@ fn expert_mapped_layout(
+     } else {
+         split_count(tiles_k, local_tiles)
+     };
++    let half_output =
++        crate::flash_support::expert_qmv_half_output(half_output, slot_major, return_raw, splits);
+     let m5 = array::is_m5_gpu()?;
+     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
+     let mut nt = if slot_major {
+@@ -1426,6 +1432,11 @@ fn expert_mapped_layout(
+             String::new()
+         },
+     );
++    let name = if half_output {
++        format!("{name}_f16")
++    } else {
++        name
++    };
+     let dispatch = |group: Option<(i32, &Array)>| -> Result<Array> {
+         let (route_rows, work_tiles) = group.map_or((rows, local_tiles), |(width, origins)| {
+             let grouped_rows = origins.shape()[0] * projections_per_route;
+@@ -1461,7 +1472,11 @@ fn expert_mapped_layout(
+                 group.map_or(selected, |(_, origins)| origins),
+             ],
+             &[vec![splits, route_rows, output_dims]],
+-            &[Dtype::Float32],
++            &[if half_output {
++                Dtype::Float16
++            } else {
++                Dtype::Float32
++            }],
+             [
+                 (work_tiles / nt)
+                     .checked_mul(simdgroups * 32)
+@@ -1498,6 +1513,8 @@ fn expert_mapped_layout(
+     };
+     #[cfg(test)]
+     crate::flash_profile::stage("exl3_trellis_qmv", &partials)?;
++    #[cfg(test)]
++    half_output_tests::observe(&partials)?;
+     let yhat = if splits == 1 {
+         partials.reshape(&[rows, output_dims])?
+     } else {
+@@ -1713,6 +1730,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), before);
+                             assert_eq!(actual.shape(), [rows as i32, output as i32]);
+@@ -1733,6 +1751,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
+                             assert_eq!(grouped.shape(), actual.shape());
+@@ -1763,6 +1782,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     changed.to_bytes()?,
+@@ -1832,6 +1852,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_eq!(masked.shape(), actual.shape());
+                                 let values = masked.to_f32()?;
+@@ -1867,6 +1888,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     actual.to_bytes()?,
+@@ -2061,6 +2083,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )?;
+             assert_eq!(
+                 Array::host_readbacks_for_test(),
+@@ -2117,6 +2140,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )
+             .is_err()
+         );
+@@ -2443,3 +2467,7 @@ mod tests {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++#[path = "linear_half_output_tests.rs"]
++pub(crate) mod half_output_tests;
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..e7daf08f 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -3852,6 +3852,51 @@ mod tests {
+         );
+         Ok(())
+     }
++
++    #[test]
++    #[ignore = "physical Apple GPU; F01 flag0/1 target logits and semantic states"]
++    fn half_output_target_differential_preserves_all_layers() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++        let tokens = [EOS, 78768, 11, 261];
++        let mut golden: Vec<(Vec<u8>, Vec<Vec<u8>>)> = Vec::new();
++        ensure!(target.layers.len() == 48);
++        for enabled in [false, true] {
++            target.reset();
++            for layer in &mut target.layers {
++                ensure!(
++                    layer.moe.replace_half_output_for_test(enabled) != enabled,
++                    "F01 load/toggle not exercised"
++                );
++            }
++            for (step, &token) in tokens.iter().enumerate() {
++                let logits = target.forward(token)?;
++                ensure!(logits.shape() == [1, 248320]);
++                let values = logits.to_f32()?;
++                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                let bytes = logits.to_bytes()?;
++                let states = state_bytes(&target)?;
++                ensure!(states.len() > 48 && states.iter().all(|v| !v.is_empty()));
++                if enabled {
++                    ensure!(
++                        bytes == golden[step].0,
++                        "F01 target logits differ at step{step}"
++                    );
++                    ensure!(
++                        states == golden[step].1,
++                        "F01 target states differ at step{step}"
++                    );
++                } else {
++                    golden.push((bytes, states));
++                }
++            }
++        }
++        println!(
++            "FLASH_HALF_TARGET tokens=4 layers=48 logits=byte_exact states=byte_exact one_model=true"
++        );
++        Ok(())
++    }
+ }
+ 
+ #[cfg(all(test, feature = "chat"))]
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..695b7780 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -49,6 +49,7 @@ pub struct SsdMoe {
+     unique_cohorts: bool,
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
++    qmv_half_output: bool,
+     shared_batch: bool,
+     pub(crate) prefetch_pipeline: bool,
+     #[cfg(test)]
+@@ -128,6 +129,9 @@ impl SsdMoe {
+             "0",
+         )?)
+         .context("MLXL3_SSD_STABLE_EXPERT_KERNELS must be 0 or 1")?;
++        let qmv_half_output =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_QMV_HALF_OUTPUT", "0")?)
++                .context("MLXL3_SSD_QMV_HALF_OUTPUT must be 0 or 1")?;
+         let shared_batch =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
+@@ -233,6 +237,7 @@ impl SsdMoe {
+             unique_cohorts,
+             shared_exl3,
+             stable_expert_kernels,
++            qmv_half_output,
+             shared_batch,
+             prefetch_pipeline,
+             #[cfg(test)]
+@@ -362,6 +367,7 @@ impl SsdMoe {
+             2,
+             Codebook::Mul1,
+             self.stable_expert_kernels,
++            self.qmv_half_output,
+         )?
+         .reshape(&[n, 2, I])?;
+         #[cfg(test)]
+@@ -383,6 +389,7 @@ impl SsdMoe {
+             2,
+             Codebook::Mul1,
+             self.stable_expert_kernels,
++            self.qmv_half_output,
+         )?;
+         #[cfg(test)]
+         crate::flash_profile::stage("expert_down_completion", &down)?;
+@@ -1194,6 +1201,11 @@ impl SsdMoe {
+         slots
+     }
+ 
++    #[cfg(test)]
++    pub(crate) fn replace_half_output_for_test(&mut self, enabled: bool) -> bool {
++        std::mem::replace(&mut self.qmv_half_output, enabled)
++    }
++
+     #[cfg(test)]
+     pub(crate) fn gate_for_test(&self) -> &Projection {
+         &self.gate
+@@ -2281,3 +2293,7 @@ mod tests {
+ #[cfg(test)]
+ #[path = "ssd_moe/grouped_micro.rs"]
+ mod grouped_micro;
++
++#[cfg(test)]
++#[path = "ssd_moe/half_output_tests.rs"]
++mod half_output_tests;

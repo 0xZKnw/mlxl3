@@ -1,0 +1,110 @@
+{
+  "experiment": "82F05",
+  "status": "prepared_not_applied_not_compiled_not_tested",
+  "base_commit": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "preregistration": "W/opti.md FLASHSSD-2026-10-24-82T",
+  "flag": {
+    "name": "MLXL3_SSD_BATCH_ROUTES",
+    "default": "0",
+    "accepted": [
+      "0",
+      "1"
+    ],
+    "load_once": true
+  },
+  "files": {
+    "native/src/ssd_moe.rs": {
+      "base_sha256": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+      "candidate_sha256": "b0fb6c0c4e6899ad95f531035bb208eac7dbea8beea9a311240a7b998ce6330b"
+    },
+    "native/src/flash_support.rs": {
+      "base_sha256": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+      "candidate_sha256": "430fbdea5ff62b03758b787ad988d5eb4dbb7a3404ee5ed554abda5492d5e2bf"
+    },
+    "native/src/ssd_moe/batch_route_tests.rs": {
+      "base_sha256": null,
+      "candidate_sha256": "975dbcd27cbf7f5edff96652d10072654f35408ded867bbc282c6cc3fc37ebc8"
+    },
+    ".github/workflows/rust.yml": {
+      "base_sha256": "8c02337d7ca11b93ee7bea3baf7c50306451582eb933260719e1204714672296",
+      "candidate_sha256": "39491a91da2dc6de3b195dae9da5d669af57f6781a9b2a844de97c9d50daf72d"
+    }
+  },
+  "physical_coverage_prepared": {
+    "real_gate_cases": 1004,
+    "real_gate_fast_cases": 404,
+    "real_gate_matrices": 48,
+    "extra_resident_gate_layer": 0,
+    "edge_cases": 28,
+    "MoE_cases": 24,
+    "CPU_shape_cases": 148,
+    "existing_unique_pending_and_failure_oracle_required": true,
+    "hot_before_readback_unique_overflow_checks": 4,
+    "other_MoE_cases_without_hot_ordering_assertion": 20,
+    "fixed_environment_loader_processes": 9,
+    "accepted_loader_routing_calls": 6,
+    "dynamic_post_load_env_mutation_checks": 0,
+    "nonunicode_launcher_case_prepared": false
+  },
+  "formal_domain": "Actual production eligibility helper; 4symbolic i32 dimensions, rank0..4, arbitrary fp32 boolean, unwind5,5covers. No GEMV/softmax/topk/Metal proof.",
+  "format": {
+    "copies_only": true,
+    "rustfmt_exit_code": 0,
+    "rustfmt_check_exit_code": 0
+  },
+  "source_applicability": {
+    "zero_fuzz": true,
+    "candidate_matches_applied_patch": true,
+    "directory": "application-check-v3-fixed-env",
+    "patch_exit_code": 0
+  },
+  "executed": {
+    "build": 0,
+    "tests": 0,
+    "Kani": 0,
+    "GPU": 0,
+    "benchmarks": 0
+  },
+  "artifacts": {
+    "source.patch": {
+      "sha256": "1d0672b983cad14242e7683cb9ecd82e28f12bec8a2e7273f0c3885aa1d021d1",
+      "bytes": 28325
+    },
+    "ci.patch": {
+      "sha256": "c99b2db5060099c0210c2f24b4c7a48df9f60b44f6596cfccfce8a5cc99dc42b",
+      "bytes": 598
+    },
+    "combined.patch": {
+      "sha256": "629ac64110e85ca2310b7f8f9862e9c6afc7929c47fd56494109418afa819621",
+      "bytes": 28923
+    },
+    "commands.json": {
+      "sha256": "5d68fd84f57d1631946cfd45c4d42532162ad6acc183ffac3c8ae0926d272dc4",
+      "bytes": 8437
+    },
+    "mutations/admit-B1.patch": {
+      "sha256": "adce2dd0ea44ac030e094df8f4d05de3f47317ba31146874c3d970282db51dec",
+      "bytes": 370
+    },
+    "mutations/drop-normalization.patch": {
+      "sha256": "8b1a4b29d017128994824ae08334b366178f2fd2b32aac7e6b2578c001aab3ac",
+      "bytes": 452
+    },
+    "mutations/replace-scalar-GEMVs.patch": {
+      "sha256": "2dac26ff4b9006d7e27ad0afbd386ab6b56e273ba060f94709be313d96e9f595",
+      "bytes": 573
+    },
+    "README.md": {
+      "sha256": "3e760d1f716c5737a9e25d3b22b9f563fc6afe5f34db73b3954c0466f5bcf8a4",
+      "bytes": 10365
+    }
+  },
+  "revision": "v3-fixed-environment-processes",
+  "review_changes": [
+    "Retired unexecuted post-load Rust environment mutations: MLX workers can read environment concurrently.",
+    "Loader test now requires9 separate fixed-environment processes; valid modes each perform2 actual route_rows comparisons.",
+    "Hot chronology remains limited to4 overflowing unique windows.",
+    "Previous source/combined/manifest/commands/README archived under superseded-v2-post-load-env."
+  ],
+  "load_once_evidence": "Stored field + actual routing wiring + static source review. No environment mutation after MLX load."
+}

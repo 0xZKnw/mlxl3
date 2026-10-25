@@ -1,0 +1,25 @@
+
+running 20 tests
+test bridge_memory_saver_is_opt_in_and_requires_boolean ... ok
+test mtp_tune::runtime_key_distinguishes_smallm_options ... ok
+test mtp_tune::runtime_key_separates_allocator_policies_and_rejects_invalid_limits ... ok
+test mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy ... ignored, requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU
+test mtp_tune::tests::dflash_tune_measures_code_and_french_while_mtp_keeps_its_prompts ... ok
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+test tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix ... ignored, requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU
+test tests::bridge_draft_suffix_keeps_full_prefill_and_replay ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_lookup_seeds_prompt_and_preserves_budget_and_prefix ... ignored, requires local Qwen/MTP checkpoints, MLXL3_MTP_LOOKUP=1 and Apple GPU
+test tests::bridge_prefix_cache_replays_cold_logits_exactly ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_stats_aggregate_work_not_rates_and_keep_latest_context ... ok
+test tests::bridge_token_hash_uses_ordered_token_ids ... ok
+test tests::dflash_copy_accepts_rejects_and_preserves_draft_cache ... ignored, requires local Qwen/DFlash checkpoints and Apple GPU
+test tests::dflash_output_budget_matches_target_and_skips_unused_work ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::dflash_runtime_key_distinguishes_copy_policy ... ok
+test tests::dflash_width_tracks_recent_acceptance ... ok
+test tests::long_prompt_dflash_blocks_match_target ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::native_sampler_respects_greedy_argmax ... ok
+
+test result: ok. 12 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 0.10s
+

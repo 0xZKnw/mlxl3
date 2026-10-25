@@ -1,0 +1,29 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error: the loop variable `k` is only used to index `h`
+   --> native/src/flash_draft_budget.rs:221:30
+    |
+221 |                     for k in col..8 {
+    |                              ^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator
+    |
+221 -                     for k in col..8 {
+221 +                     for <item> in h.iter_mut().skip(col) {
+    |
+
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: using `chunks_exact` with a constant chunk size
+  --> native/src/flash_draft_splash_tests.rs:52:31
+   |
+52 |     for (g, group) in weights.chunks_exact(64).enumerate() {
+   |                               ^^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<64>().0.iter()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+   = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

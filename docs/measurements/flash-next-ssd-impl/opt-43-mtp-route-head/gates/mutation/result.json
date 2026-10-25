@@ -1,0 +1,47 @@
+{
+  "status": "detected_and_restored",
+  "original_sha256": "d628966435f0ac37ed6bd4719cafa941a6a6a8a44622246a90919150f71a9cd7",
+  "property": "exactly one explicit gate weight promotion per pair, two unchanged scalar GEMVs",
+  "steps": [
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "timeout_seconds": 180,
+      "status": "completed",
+      "pid": 57313,
+      "exit_code": 0,
+      "reaped": true
+    },
+    {
+      "name": "counterexample",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "lfm2::flash_hc_tests::paired_projection_matches_scalar_cpu_and_rejects_invalid_rows",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "timeout_seconds": 45,
+      "status": "completed",
+      "pid": 57507,
+      "exit_code": 101,
+      "reaped": true
+    }
+  ],
+  "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t93%; discharging; 7:18 remaining present: true\n",
+  "vm_before": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   343097.\nPages active:                                 369406.\nPages inactive:                               354077.\nPages speculative:                             17163.\nPages throttled:                                   0.\nPages wired down:                             189030.\nPages purgeable:                               16900.\n\"Translation faults\":                      850080782.\nPages copy-on-write:                        25493961.\nPages zero filled:                        1091255027.\nPages reactivated:                          79155638.\nPages purged:                                9081442.\nFile-backed pages:                            413576.\nAnonymous pages:                              327070.\nPages stored in compressor:                   462515.\nPages occupied by compressor:                 245925.\nDecompressions:                            235753823.\nCompressions:                              283751465.\nPageins:                                   692056760.\nPageouts:                                      96694.\nSwapins:                                     3926132.\nSwapouts:                                    4876049.\nPages tagged:                                 102744.\nPages tagged resident:                         74500.\nPages tagged compressed:                       28244.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3657.\nPages tag-storage free:                         4335.\nPages tag-storage non-tag pageable:            40988.\nPages tag-storage non-tag wired:                  86.\nBytes of compressed tags:                    4507456.\nTagged compressions:                         3764684.\nTagged decompressions:                       3561271.\n",
+  "mutant_binary_sha256": "6566a38cbaf84fa8cb0a065a23fd13e4904e4e67edc5ac9d0e3ef4e65a41d5dd",
+  "vm_after": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   339386.\nPages active:                                 367172.\nPages inactive:                               354248.\nPages speculative:                             17354.\nPages throttled:                                   0.\nPages wired down:                             194922.\nPages purgeable:                               15296.\n\"Translation faults\":                      850089051.\nPages copy-on-write:                        25494476.\nPages zero filled:                        1091261696.\nPages reactivated:                          79155650.\nPages purged:                                9081442.\nFile-backed pages:                            415351.\nAnonymous pages:                              323423.\nPages stored in compressor:                   461858.\nPages occupied by compressor:                 245616.\nDecompressions:                            235754483.\nCompressions:                              283751465.\nPageins:                                   692058064.\nPageouts:                                      96694.\nSwapins:                                     3926132.\nSwapouts:                                    4876049.\nPages tagged:                                 102832.\nPages tagged resident:                         74725.\nPages tagged compressed:                       28107.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3658.\nPages tag-storage free:                         4326.\nPages tag-storage non-tag pageable:            40996.\nPages tag-storage non-tag wired:                  87.\nBytes of compressed tags:                    4479872.\nTagged compressions:                         3764684.\nTagged decompressions:                       3561408.\n",
+  "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t93%; discharging; 7:18 remaining present: true\n",
+  "restored_sha256": "d628966435f0ac37ed6bd4719cafa941a6a6a8a44622246a90919150f71a9cd7"
+}

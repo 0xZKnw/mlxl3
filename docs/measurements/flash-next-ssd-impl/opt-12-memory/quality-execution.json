@@ -1,0 +1,116 @@
+{
+  "status": "failed",
+  "parity": false,
+  "runs": [
+    {
+      "name": "numerical-original-mtp",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "expected_tests": 11,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 51.48110485076904
+    },
+    {
+      "name": "target-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 7.216183185577393
+    },
+    {
+      "name": "components-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 8.47648286819458
+    },
+    {
+      "name": "ssd-cohorts",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 1.4912912845611572
+    },
+    {
+      "name": "slots",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.08350825309753418
+    },
+    {
+      "name": "disk-records",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": null,
+      "status": "passed",
+      "exit_code": 0,
+      "seconds": 0.039373159408569336
+    },
+    {
+      "name": "allocator-default",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": null,
+      "status": "failed",
+      "exit_code": 101,
+      "seconds": 0.047930240631103516
+    }
+  ],
+  "error": "AssertionError: docs/measurements/flash-next-ssd-impl/opt-12-memory/quality-allocator-default.log"
+}

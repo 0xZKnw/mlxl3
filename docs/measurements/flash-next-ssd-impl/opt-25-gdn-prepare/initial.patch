@@ -1,0 +1,160 @@
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index d665e871..45147633 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -148,6 +148,34 @@ struct Gdn {
+     state: Option<Array>,
+     history: Option<Array>,
+ }
++fn flash_gdn_prepare(qkv: &Array, history: &Array, weight: &Array) -> Result<[Array; 5]> {
++    ensure!(
++        qkv.shape() == [1, 1, 10240]
++            && history.shape() == [1, 3, 10240]
++            && weight.shape() == [10240, 4, 1]
++            && [qkv, history, weight].iter().all(|a| a.dtype() == Dtype::Float16),
++        "invalid Flash GDN preparation tensors"
++    );
++    array::metal_kernel(
++        "mlxl3_flash_gdn_prepare",
++        &["qkv", "history", "weight"],
++        &["conv", "q", "k", "v", "state_out"],
++        "",
++        include_str!("../shaders/flash_gdn_prepare.metal"),
++        &[qkv, history, weight],
++        &[
++            vec![1, 1, 10240],
++            vec![1, 1, 16, 128],
++            vec![1, 1, 16, 128],
++            vec![1, 1, 48, 128],
++            vec![1, 3, 10240],
++        ],
++        &[Dtype::Float16; 5],
++        [32, 80, 1],
++        [32, 1, 1],
++    )?.try_into().map_err(|_| anyhow::anyhow!("incomplete Flash GDN preparation"))
++}
++
+ impl Gdn {
+     fn load(c: &Checkpoint, p: &str, eps: f32) -> Result<Self> {
+         let proj =
+@@ -190,25 +218,9 @@ impl Gdn {
+             Some(h) => h.try_clone()?,
+             None => Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?,
+         };
+-        let input = Array::concatenate(&[&history, &qkv], 1)?;
+-        self.history = Some(input.slice(1, 1, 4)?);
+-        let conv = input
+-            .astype(Dtype::Float32)?
+-            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
+-            .sum(1, true)?
+-            .astype(Dtype::Float16)?
+-            .silu()?;
+-        stage!("conv", conv);
+-        let q = conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?;
+-        let k = conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?;
+-        let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
+-        let norm = |value: &Array, scale: f32| -> Result<Array> {
+-            let eps = Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?;
+-            let inverse = value.mul(value)?.sum(3, true)?.add(&eps)?.rsqrt()?;
+-            value.mul(&inverse)?.scalar_mul(scale)
+-        };
+-        let q = norm(&q, 1. / 128f32.sqrt())?;
+-        let k = norm(&k, 1.)?;
++        let [_conv, q, k, v, history] = flash_gdn_prepare(&qkv, &history, &self.conv)?;
++        self.history = Some(history);
++        stage!("conv", _conv);
+         stage!("q", q);
+         stage!("k", k);
+         stage!("v", v);
+@@ -2321,6 +2333,91 @@ mod tests {
+         }
+         Ok(())
+     }
++    fn check_flash_gdn_prepare(qkv: &Array, history: &Array, weight: &Array) -> Result<()> {
++        let input = Array::concatenate(&[history, qkv], 1)?;
++        let expected_history = input.slice(1, 1, 4)?;
++        let conv = input.astype(Dtype::Float32)?
++            .mul(&weight.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
++            .sum(1, true)?.astype(Dtype::Float16)?.silu()?;
++        let norm = |value: &Array, scale: f32| -> Result<Array> {
++            let eps = Array::from_f16_bits(&[f16::from_f32(1e-6).to_bits()], &[])?;
++            value.mul(&value.mul(value)?.sum(3, true)?.add(&eps)?.rsqrt()?)?.scalar_mul(scale)
++        };
++        let q = norm(&conv.slice(2, 0, 2048)?.reshape(&[1, 1, 16, 128])?, 1. / 128f32.sqrt())?;
++        let k = norm(&conv.slice(2, 2048, 4096)?.reshape(&[1, 1, 16, 128])?, 1.)?;
++        let v = conv.slice(2, 4096, 10240)?.reshape(&[1, 1, 48, 128])?;
++        let expected = [conv, q, k, v, expected_history];
++        let actual = flash_gdn_prepare(qkv, history, weight)?;
++        let mut count = 0;
++        for (i, (a, e)) in actual.iter().zip(&expected).enumerate() {
++            let values = a.astype(Dtype::Float32)?.to_f32()?;
++            ensure!(a.shape() == e.shape() && a.dtype() == e.dtype()
++                && !values.is_empty() && values.iter().all(|v| v.is_finite())
++                && a.to_bytes()? == e.to_bytes()?, "Flash fused GDN output {i} differs");
++            count += values.len();
++        }
++        ensure!(count == 51200, "incomplete Flash GDN output coverage");
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; fused preparation and all state bytes"]
++    fn flash_fused_gdn_prepare_matches_chain_and_boundaries() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let weight = half_weight(&c, "model.language_model.layers.2.linear_attn.conv1d.weight", Some(&[10240, 1, 4]))?
++            .transpose(&[0, 2, 1])?;
++        let values = (0..40960).map(|i| ((i * 31 % 127) as f32 - 63.) / 64.).collect::<Vec<_>>();
++        for strided in [false, true] {
++            let (qkv, history) = if strided {
++                (Array::from_f32(&values[..20480], &[1, 10240, 2])?.astype(Dtype::Float16)?.transpose(&[0, 2, 1])?.slice(1, 0, 1)?,
++                 Array::from_f32(&values[..30720], &[1, 10240, 3])?.astype(Dtype::Float16)?.transpose(&[0, 2, 1])?)
++            } else {
++                (Array::from_f32(&values[..10240], &[1, 1, 10240])?.astype(Dtype::Float16)?,
++                 Array::from_f32(&values[..30720], &[1, 3, 10240])?.astype(Dtype::Float16)?)
++            };
++            check_flash_gdn_prepare(&qkv, &history, &weight)?;
++            check_flash_gdn_prepare(&qkv, &Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?, &weight)?;
++            ensure!(flash_gdn_prepare(&qkv.astype(Dtype::Float32)?, &history, &weight).is_err());
++            ensure!(flash_gdn_prepare(&qkv, &history.astype(Dtype::Float32)?, &weight).is_err());
++            ensure!(flash_gdn_prepare(&qkv, &history, &weight.astype(Dtype::Float32)?).is_err());
++            ensure!(flash_gdn_prepare(&qkv, &history.slice(1, 0, 2)?, &weight).is_err());
++            ensure!(flash_gdn_prepare(&qkv, &history, &weight.transpose(&[0, 2, 1])?).is_err());
++        }
++        for scale in [0.000001, 100.] {
++            let scaled = values.iter().map(|x| x * scale).collect::<Vec<_>>();
++            check_flash_gdn_prepare(
++                &Array::from_f32(&scaled[..10240], &[1, 1, 10240])?.astype(Dtype::Float16)?,
++                &Array::from_f32(&scaled[..30720], &[1, 3, 10240])?.astype(Dtype::Float16)?,
++                &weight,
++            )?;
++        }
++        let constant = |v, shape: &[i32]| -> Result<Array> {
++            Array::from_f32(&[v], &[1])?.astype(Dtype::Float16)?.broadcast_to(shape)
++        };
++        // The reference deliberately rounds the norm sum to half, even on overflow.
++        check_flash_gdn_prepare(&constant(100., &[1, 1, 10240])?,
++            &constant(100., &[1, 3, 10240])?, &constant(0.25, &[10240, 4, 1])?)?;
++        let zeros = Array::zeros_dtype(&[1, 1, 10240], Dtype::Float16)?;
++        let history = Array::zeros_dtype(&[1, 3, 10240], Dtype::Float16)?;
++        check_flash_gdn_prepare(&zeros, &history, &weight)?;
++        for shape in [vec![2, 1, 10240], vec![1, 0, 10240], vec![1, 2, 10240], vec![1, 1, 10239], vec![10240]] {
++            ensure!(flash_gdn_prepare(&Array::zeros_dtype(&shape, Dtype::Float16)?, &history, &weight).is_err());
++        }
++        println!("Flash fused GDN: 8 cases, 409600 finite bit-exact output/state values, invalid tensors rejected");
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_flash_gdn_prepare_matches_chain() {
++        let x = f32::from(kani::any::<i8>()) / 128.;
++        let h = f32::from(kani::any::<i8>()) / 128.;
++        let w = f32::from(kani::any::<i8>()) / 128.;
++        let fill = |v, shape: &[i32]| Array::from_f32(&[v], &[1]).unwrap()
++            .astype(Dtype::Float16).unwrap().broadcast_to(shape).unwrap();
++        check_flash_gdn_prepare(&fill(x, &[1, 1, 10240]), &fill(h, &[1, 3, 10240]), &fill(w, &[10240, 4, 1])).unwrap();
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU and independent attention-stage fixture"]
+     fn flash_attention_stages_match_upstream() -> Result<()> {

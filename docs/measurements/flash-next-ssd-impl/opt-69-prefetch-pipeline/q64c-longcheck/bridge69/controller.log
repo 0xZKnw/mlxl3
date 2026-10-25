@@ -1,0 +1,21 @@
+{'name': 'bridge', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 0.0033202919985342305, 'swapouts_bytes': None}
+{'status': 'failed_or_interrupted', 'parity': False, 'phase': 'bridge69', 'baseline': {'Swapins': 0, 'Swapouts': 157024256}, 'allocator_mib': 64, 'expert_cache_gib': 3, 'old_69_failed_swapout_bytes': 106037248, 'identity': '../../opt-70-pre-draft/identity-v3.json', 'error': 'AssertionError()'}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c-longcheck/quality-command.txt", line 35, in <module>
+    sub=dest/item['name'];sub.mkdir();(sub/'run.json').write_text(json.dumps([item],indent=2)+'\n');source_check();api['run_sampler'](sub/'run.json',baseline)
+                                                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 423, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 63, in main
+    record["exit_code"] = previous["monitor"](child, record, parse_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/profile_flash.py", line 365, in guarded
+    return monitor(child, record, zero_swapout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 40, in monitor
+    assert type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

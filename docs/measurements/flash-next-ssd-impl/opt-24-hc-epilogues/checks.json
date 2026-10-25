@@ -1,0 +1,99 @@
+[
+  {
+    "name": "fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 0.24674979201518,
+    "reaped": true
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 4.4643019999493845,
+    "reaped": true
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 1.5147223750245757,
+    "reaped": true
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 0.08474291698075831,
+    "reaped": true
+  },
+  {
+    "name": "kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_mixed_hc_path_matches_mlx"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 1,
+    "status": "failed",
+    "seconds": 3.9910991250071675,
+    "reaped": true
+  },
+  {
+    "name": "cbmc-metal",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/shaders/flash_hc_gemv.metal",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "81"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "failed",
+    "seconds": 0.006305084039922804,
+    "reaped": true
+  }
+]

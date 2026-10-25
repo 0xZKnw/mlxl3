@@ -1,0 +1,139 @@
+[
+  {
+    "name": "final-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.2891457080040709
+  },
+  {
+    "name": "final-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 2.8141196249998757
+  },
+  {
+    "name": "final-cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 120,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.7152309160010191
+  },
+  {
+    "name": "final-cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 3.094459583000571
+  },
+  {
+    "name": "final-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 43.766532333000214
+  },
+  {
+    "name": "final-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 32.20293500000116
+  },
+  {
+    "name": "kani-ready",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "ready_experts_overlap_real_ssd_path"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "unverified",
+    "reaped": true,
+    "seconds": 4.420958290997078
+  },
+  {
+    "name": "kani-light-profile",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "physical_light_profile_preserves_real_path"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "unverified",
+    "reaped": true,
+    "seconds": 3.801187791999837
+  }
+]

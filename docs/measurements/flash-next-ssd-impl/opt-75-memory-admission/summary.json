@@ -1,0 +1,55 @@
+{
+  "status": "validated_cpu_campaign_admission_only",
+  "not_engine_ram_reduction": true,
+  "not_tps_gain": true,
+  "source_identity": "source-identity-v5.json",
+  "focused": {
+    "passed": 174,
+    "seconds": 6.99
+  },
+  "full": {
+    "passed": 1078,
+    "skipped": 4,
+    "seconds": 107.57,
+    "excluded_unrelated": "tests/test_flash_grouped_diagnostics.py"
+  },
+  "mutations": {
+    "detected": 4,
+    "historical_v4_detected": 3,
+    "null_budget_v5_mutant_failures": 2,
+    "null_budget_v5_nonaffected_passed": 4,
+    "null_budget_v5_normal_passed": 6,
+    "null_budget_v5_restored_passed": 6,
+    "production_source_unchanged_by_mutations": true
+  },
+  "cpu_vm": {
+    "original_model_anchor_bytes": 157155328,
+    "prior_swap_incident_bytes": 49479680,
+    "start_and_end_swapouts_bytes": [
+      206635008,
+      206635008
+    ],
+    "additional_swapouts_observed_bytes": 0,
+    "sample_count": 212,
+    "sampled_python_rss_max_bytes": 194560000,
+    "scope": "sampled CPU process RSS and global VM, not physical peak nor full-model memory"
+  },
+  "formal": {
+    "crosshair": "v5 attempted: unavailable No module named crosshair /exit1",
+    "rust_changed_in_75M": false,
+    "gpu_or_kernel_proof": false
+  },
+  "github_ci": "not_run_for_unpublished_sources",
+  "model_revalidation": "not_run_in_this_CPU_only_75M_scope",
+  "future_model_steps": "must pre-register explicit load_headroom_bytes/ minimum_live_free_bytes/ maximum_compressor_bytes and cumulative baseline; prior failure remains failed",
+  "source_archive": "sources-v5.tar.gz",
+  "source_archive_sha256": "1ebc83a81a5b805158f563916041c5b4eb3b6b873fc8c48bdbccdd7de4162301",
+  "independent_review": {
+    "finding": "explicit load_headroom_bytes:null with empty model env could skip validation",
+    "fix": "test presence of load_headroom_bytes rather than value being None",
+    "regression_cases": 6,
+    "remaining_blocking_findings": 0,
+    "report": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-75-review.md"
+  },
+  "user_memory_preference": "75M preserves its existing explicit strict protocol. Global swap is not treated as an absolute user prohibition;77 separately investigates per-process attribution before future campaign policy changes."
+}

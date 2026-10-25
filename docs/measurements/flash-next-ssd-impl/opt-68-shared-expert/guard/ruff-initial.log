@@ -1,0 +1,16 @@
+ISC004 Unparenthesized implicit string concatenation in collection
+   --> tests/test_flash_profile.py:482:25
+    |
+480 |                           sys.executable,
+481 |                           "-c",
+482 | /                         "import time; from pathlib import Path; Path('child-started').touch(); "
+483 | |                         f"time.sleep({30 if delta == 'live' else 0})",
+    | |_____________________________________________________________________^
+484 |                       ],
+485 |                       "env": {},
+    |
+help: Did you forget a comma?
+help: Wrap implicitly concatenated strings in parentheses
+
+Found 1 error.
+No fixes available (1 hidden fix can be enabled with the `--unsafe-fixes` option).

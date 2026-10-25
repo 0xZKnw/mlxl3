@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.29s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+running 1 test
+test flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes ... FAILED
+
+failures:
+
+---- flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes stdout ----
+
+thread 'flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes' (3434923) panicked at native/src/flash_support.rs:795:9:
+assertion `left == right` failed
+  left: 1
+ right: 4294967295
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `--lib`

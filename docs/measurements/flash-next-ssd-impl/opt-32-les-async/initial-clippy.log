@@ -1,0 +1,45 @@
+    Checking pin-project-lite v0.2.17
+    Checking bytes v1.11.1
+    Checking futures-core v0.3.34
+    Checking mio v1.2.0
+    Checking socket2 v0.6.3
+    Checking fnv v1.0.7
+    Checking tracing-core v0.1.36
+    Checking equivalent v1.0.2
+    Checking futures-task v0.3.34
+    Checking futures-sink v0.3.32
+    Checking hashbrown v0.16.1
+    Checking onig_sys v69.9.3
+    Checking try-lock v0.2.5
+    Checking slab v0.4.12
+    Checking esaxx-rs v0.1.10
+    Checking futures-util v0.3.34
+    Checking want v0.3.1
+    Checking onig v6.5.3
+    Checking futures-channel v0.3.32
+    Checking httparse v1.10.1
+    Checking socket2 v0.5.10
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Checking tracing v0.1.44
+    Checking tower-service v0.3.3
+    Checking httpdate v1.0.3
+    Checking http v0.2.12
+    Checking tokio v1.50.0
+    Checking indexmap v2.13.0
+    Checking tokenizers v0.23.2
+    Checking http-body v0.4.6
+    Checking tokio-util v0.7.18
+    Checking h2 v0.3.27
+    Checking hyper v0.14.32
+error[E0433]: cannot find module or crate `metal` in this scope
+   --> native/src/array.rs:407:18
+    |
+407 |     let device = metal::Device::system_default().context("no Metal device")?;
+    |                  ^^^^^ use of unresolved module or unlinked crate `metal`
+    |
+    = help: if you wanted to use a crate named `metal`, use `cargo add metal` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

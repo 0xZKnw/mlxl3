@@ -1,0 +1,77 @@
+[
+  {
+    "name": "clang-strict-v2",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-isystem",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+      "-isystem",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/metal_cpp",
+      "-fsyntax-only",
+      "native/ffi/mlx_bridge.cpp",
+      "native/tests/indirect_metal.cpp"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "build-asan-v2",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-isystem",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+      "-isystem",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/metal_cpp",
+      "-O1",
+      "-g",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "native/ffi/mlx_bridge.cpp",
+      "native/tests/indirect_metal.cpp",
+      "-L",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib",
+      "-lmlx",
+      "-framework",
+      "Metal",
+      "-framework",
+      "Foundation",
+      "-Wl,-rpath,/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib",
+      "-o",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-58/indirect-asan-v2"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "cbmc-indirect-v2",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "--cpp",
+      "--cpp-standard",
+      "c++20",
+      "--64",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "21",
+      "-I",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+      "-I",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include/metal_cpp",
+      "native/ffi/mlx_bridge.cpp",
+      "native/tests/indirect_metal.cpp",
+      "--function",
+      "main"
+    ],
+    "exit": 64
+  }
+]

@@ -1,0 +1,72 @@
+{
+  "status": "passed",
+  "physical_tests": 6,
+  "production_bridge_processes": 1,
+  "all_reaped": true,
+  "head_components": {
+    "blocks": [
+      {
+        "joint": 0.0077328385,
+        "order": [
+          "original",
+          "joint"
+        ],
+        "original": 0.0083889921875
+      },
+      {
+        "joint": 0.0077459895625,
+        "order": [
+          "joint",
+          "original"
+        ],
+        "original": 0.008053877625
+      },
+      {
+        "joint": 0.007849885375,
+        "order": [
+          "original",
+          "joint"
+        ],
+        "original": 0.0081672890625
+      },
+      {
+        "joint": 0.0077075989375,
+        "order": [
+          "joint",
+          "original"
+        ],
+        "original": 0.008169364625
+      },
+      {
+        "joint": 0.0078737083125,
+        "order": [
+          "original",
+          "joint"
+        ],
+        "original": 0.008164041625
+      }
+    ],
+    "checked_logits": 1986560,
+    "head_rows": 2,
+    "input_cases": 4,
+    "limits": "materialized inputs, unchanged mono-row graphs and same log_probs/argmax consumer; component wall-clock, not release throughput",
+    "memory": {
+      "mlx_active_bytes": 7664071076,
+      "mlx_cache_bytes": 18536572,
+      "mlx_peak_bytes": 7673481304,
+      "process_footprint_bytes": 8022268096,
+      "process_lifetime_peak_bytes": 8023185600
+    },
+    "status": "passed_exact_head_components"
+  },
+  "component_paired_speedups": [
+    1.0848528890781826,
+    1.0397480605951954,
+    1.040434181180639,
+    1.0599104456841102,
+    1.0368737703985145
+  ],
+  "new_swapout_bytes": 0,
+  "swapin_bytes_global": 24903680,
+  "limits": "component speed only; original scalar head oracle, all target states and production bridge parity; no release speed gain measured"
+}

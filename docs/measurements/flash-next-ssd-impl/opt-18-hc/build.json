@@ -1,0 +1,85 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "status": "passed",
+      "exit": 0,
+      "seconds": 0.4000433749752119
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "exit": 0,
+      "seconds": 4.085434708977118
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "exit": 0,
+      "seconds": 4.700074249994941
+    },
+    {
+      "name": "release-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "exit": 0,
+      "seconds": 40.19029508403037
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "exit": 0,
+      "seconds": 0.12771074997726828
+    }
+  ],
+  "source_head": "f4d97231617fc3eb9db6f84b59a944e556a6d84a",
+  "binaries": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-18/hc/mlxl3-rs": "7dc3cd145ec71fe7789d69c69ed03c5bc9ced78c694bf9b486d3a2d9d920d53d",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-18/hc/mlxl3_native-28585053ede733ec": "14b0b89d4d5fdbcb31274fbec0312011d82401ba2300224a1413fe9fc898da35"
+  },
+  "source_files": {
+    "native/src/qwen4.rs": "7d2a0acb30b5ff6ca228dbb0e80a9b3aca02e891641f6fb165f9b4fb696362c8",
+    "native/shaders/flash_hc_write.metal": "486213958d9056f92b2b781782b435897fcd9622d575825a6c84660810bb33c3"
+  }
+}

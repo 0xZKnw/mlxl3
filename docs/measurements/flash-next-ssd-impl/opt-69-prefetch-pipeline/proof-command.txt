@@ -1,0 +1,34 @@
+import hashlib,json,os,signal,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline');source=Path('native/src/ssd_prefetch.rs');original=source.read_bytes();results=[]
+def run(label,harness,mlx=False):
+ command=['cargo','kani','--lib']+(['--features','mlx,chat','--tests'] if mlx else ['--no-default-features'])+['--harness',harness,'--output-format','regular','-Z','unstable-options','--export-json',str(base/(label+'.json'))]
+ started=time.monotonic();peak=0;reason=None;child=None
+ try:
+  with (base/(label+'.log')).open('x') as log:
+   child=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+   while child.poll() is None:
+    if time.monotonic()-started>=120:reason='timeout_120s';break
+    table=subprocess.check_output(['ps','-axo','pid=,pgid=,rss='],text=True,timeout=5)
+    rss=sum(int(r[2])*1024 for line in table.splitlines() if len(r:=line.split())==3 and int(r[1])==child.pid);peak=max(peak,rss)
+    if rss>4<<30:reason='memory_4GiB';break
+    time.sleep(.5)
+ finally:
+  if child is not None:
+   if child.poll() is None:
+    os.killpg(child.pid,signal.SIGTERM)
+    try:child.wait(timeout=5)
+    except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait(timeout=5)
+   row={'label':label,'harness':harness,'command':command,'exit':child.returncode,'reason':reason,'seconds':time.monotonic()-started,'peak_group_rss_bytes':peak,'reaped':child.poll() is not None};results.append(row)
+   (base/'proof-results.json').write_text(json.dumps(results,indent=2)+'\n');print(row,flush=True)
+ return row
+try:
+ good=run('geometry','draft_prediction_geometry_is_bounded_for_all_usize');assert good['exit']==0 and good['reason'] is None
+ changed=original.replace(b'then_some(rows.min(2))',b'then_some(rows.min(3))');assert changed!=original
+ source.write_bytes(changed)
+ bad=run('geometry-mutant','draft_prediction_geometry_is_bounded_for_all_usize');assert bad['exit']!=0 and bad['reason'] is None
+ log=(base/'geometry-mutant.log').read_text();assert 'VERIFICATION:- FAILED' in log or 'VERIFICATION: FAILED' in log
+finally:
+ source.write_bytes(original);assert hashlib.sha256(source.read_bytes()).digest()==hashlib.sha256(original).digest()
+restored=run('geometry-restored','draft_prediction_geometry_is_bounded_for_all_usize');assert restored['exit']==0 and restored['reason'] is None
+run('actual-pipeline','actual_draft_prefetch_pipeline_preserves_outputs',True)

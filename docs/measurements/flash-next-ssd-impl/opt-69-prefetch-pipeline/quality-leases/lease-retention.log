@@ -1,0 +1,30 @@
+
+running 1 test
+test ssd_prefetch::gpu::demand_tests::pending_leases_release_every_batch_without_retaining_allocations ... Error: Condition failed: `crate::array::memory_stats(false)?.mlx_active_bytes == active` (98304 vs 98305)
+FAILED
+
+failures:
+
+failures:
+    ssd_prefetch::gpu::demand_tests::pending_leases_release_every_batch_without_retaining_allocations
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.03s
+
+        0.03 real         0.02 user         0.01 sys
+            20660224  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1597  page reclaims
+                  12  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   1  voluntary context switches
+                 126  involuntary context switches
+           420781257  instructions retired
+           122981251  cycles elapsed
+            41452216  peak memory footprint

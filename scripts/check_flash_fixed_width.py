@@ -1,0 +1,45 @@
+"""Validate the real generation width and describe fixed DFlash costs."""
+
+import math
+
+
+def metrics(entry, width):
+    assert type(width) is int and width in (1, 3, 7)
+    mode, stats = entry["generation_mode"], entry["stats"]
+    assert mode["dflash_active"] is True and mode["mtp_active"] is False
+    assert type(mode["dflash_proposals"]) is int and mode["dflash_proposals"] == width
+    assert stats["generated_tokens"] == 128 and stats["decode_tokens"] == 127
+    assert stats["context_limit"] == 4096
+    assert type(stats["prompt_tokens"]) is int and 0 < stats["prompt_tokens"] < 4096 - 128
+    proposed, accepted, blocks = [
+        stats[key] for key in ["dflash_proposed_tokens", "dflash_accepted_tokens", "dflash_blocks"]
+    ]
+    assert all(type(n) is int for n in [proposed, accepted, blocks])
+    assert 0 < blocks <= 127 and 0 <= accepted <= proposed
+    tail_deficit = width * (width - 1) // 2
+    assert max(blocks, width * blocks - tail_deficit) <= proposed <= width * blocks
+    emitted = accepted + blocks
+    assert 127 - emitted in (0, 1)
+    profile = stats["dflash_profile"]
+    assert type(profile["verified_rows"]) is int
+    assert profile["verified_rows"] == proposed + blocks
+    times = [
+        profile[key] for key in ["draft_seconds", "verification_seconds", "commit_cache_seconds"]
+    ]
+    assert all(type(t) in (int, float) and math.isfinite(t) and t >= 0 for t in times)
+    block_seconds = stats["dflash_block_seconds"]
+    assert (
+        type(block_seconds) in (int, float) and math.isfinite(block_seconds) and block_seconds > 0
+    )
+    assert 0 < times[1] and sum(times) <= block_seconds + 1e-6
+    size = profile["expert_demand_bytes"]
+    assert type(size) is int and size >= 0 and size % 1248012 == 0
+    return {
+        "verified_width": width + 1,
+        "verified_rows": profile["verified_rows"],
+        "acceptance_percent": 100 * accepted / proposed,
+        "verification_ms_per_emitted": 1000 * times[1] / emitted,
+        "verification_ms_per_row": 1000 * times[1] / profile["verified_rows"],
+        "expert_bytes_per_decode_token": size / 127,
+        "verified_rows_per_decode_token": profile["verified_rows"] / 127,
+    }

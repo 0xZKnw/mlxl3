@@ -1,0 +1,227 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:381:17
+    |
+381 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:534:17
+    |
+534 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.37s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 8`
+Checking harness flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/cfb6b11404f91673/out/mlxl3_native-cfb6b11404f91673__RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support62flash_top10_early_exit_is_confined_to_requested_flash_geometry.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.00379329s
+size of program expression: 604 steps
+slicing removed 272 assignments
+Generated 18 VCC(s), 18 remaining after simplification
+Runtime Postprocess Equation: 6.225e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000373042s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 4.666e-06s
+Solving with CaDiCaL 3.0.0
+370 variables, 957 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 3.4958e-05s
+Runtime decision procedure: 0.000446083s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+371 variables, 958 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 1.7208e-05s
+Runtime decision procedure: 3.3583e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+372 variables, 959 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.2416e-05s
+Runtime decision procedure: 3.9125e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+373 variables, 960 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.125e-05s
+Runtime decision procedure: 3.5583e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+374 variables, 961 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.2e-05s
+Runtime decision procedure: 3.6625e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+375 variables, 962 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000166333s
+Runtime decision procedure: 0.000177542s
+
+RESULTS:
+Check 1: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: requested"
+	 - Location: native/src/flash_support.rs:2526:9 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 2: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: experts == 512"
+	 - Location: native/src/flash_support.rs:2527:9 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 3: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: top_k == 10"
+	 - Location: native/src/flash_support.rs:2528:9 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 4: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: enabled"
+	 - Location: native/src/flash_support.rs:2533:9 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 5: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: !enabled"
+	 - Location: native/src/flash_support.rs:2531:9 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 6: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: enabled"
+	 - Location: native/src/flash_support.rs:2535:5 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 7: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: requested && experts == 512 && top_k == 9 && !enabled"
+	 - Location: native/src/flash_support.rs:2536:5 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 8: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: requested && experts == 511 && top_k == 10 && !enabled"
+	 - Location: native/src/flash_support.rs:2537:5 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+Check 9: flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: !requested && experts == 512 && top_k == 10 && !enabled"
+	 - Location: native/src/flash_support.rs:2538:5 in function flash_support::flash_top10_early_exit_is_confined_to_requested_flash_geometry
+
+
+SUMMARY:
+ ** 0 of 5 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.024045292s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

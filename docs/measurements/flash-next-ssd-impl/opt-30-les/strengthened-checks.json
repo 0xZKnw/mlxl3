@@ -1,0 +1,67 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.3966317500016885
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 3.4601959999999963
+  },
+  {
+    "name": "compile-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 32.378810165995674
+  },
+  {
+    "name": "ssd-strong-oracle",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "ssd_moe::tests::",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "timeout_seconds": 90,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 3.8627692500012927
+  }
+]

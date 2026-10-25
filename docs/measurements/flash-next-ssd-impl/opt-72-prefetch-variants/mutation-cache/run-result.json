@@ -1,0 +1,65 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+  "matrix_sha256": "64ab070b730ce24603f73648c2a638990a64d89f76bd4a2f7b05bf0634f43309",
+  "commands": [
+    {
+      "name": "pre20",
+      "command": [
+        "/bin/sleep",
+        "20"
+      ],
+      "env": {},
+      "expected_exit": 0,
+      "timeout_seconds": 25,
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   158439.\nPages active:                                 479017.\nPages inactive:                               478287.\nPages speculative:                              3656.\nPages throttled:                                   0.\nPages wired down:                             169569.\nPages purgeable:                               11507.\n\"Translation faults\":                      214719983.\nPages copy-on-write:                        10413292.\nPages zero filled:                         229712910.\nPages reactivated:                          15548645.\nPages purged:                                2894416.\nFile-backed pages:                            398958.\nAnonymous pages:                              562002.\nPages stored in compressor:                   343279.\nPages occupied by compressor:                 229730.\nDecompressions:                             36888430.\nCompressions:                               42674449.\nPageins:                                   328416153.\nPageouts:                                      48326.\nSwapins:                                        1957.\nSwapouts:                                       9592.\nPages tagged:                                 100921.\nPages tagged resident:                         91032.\nPages tagged compressed:                        9889.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3749.\nPages tag-storage free:                          500.\nPages tag-storage non-tag pageable:            44623.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1362304.\nTagged compressions:                          910680.\nTagged decompressions:                        865259.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 1024.00M  used = 125.88M  free = 898.12M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 2595864576,
+          "File-backed pages": 6536527872,
+          "Pages occupied by compressor": 3763896320,
+          "Swapins": 32063488,
+          "Swapouts": 157155328
+        }
+      },
+      "preflight_guard": {
+        "status": "passed",
+        "scope": "cumulative_campaign",
+        "baseline": {
+          "Swapins": 0,
+          "Swapouts": 157155328
+        },
+        "limit_bytes": 268435456,
+        "swapout_limit_bytes": 0,
+        "deltas": {
+          "Swapins": 32063488,
+          "Swapouts": 0
+        }
+      },
+      "executable_sha256": "893755f8d083a5d37b2759ba4c88736479c507ac627972670ab71433abe63290",
+      "pid": 16881,
+      "live_guard_basis": {
+        "scope": "cumulative_campaign",
+        "Swapins": 0,
+        "Swapouts": 157155328
+      },
+      "last_live_vm_bytes": {
+        "Pages free": 2477850624,
+        "File-backed pages": 6548963328,
+        "Pages occupied by compressor": 3760111616,
+        "Swapins": 32194560,
+        "Swapouts": 157155328
+      },
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 32194560,
+      "error": "AssertionError('live power changed')",
+      "reaped": true,
+      "seconds": 12.160617666999315
+    }
+  ],
+  "error": "AssertionError('live power changed')"
+}

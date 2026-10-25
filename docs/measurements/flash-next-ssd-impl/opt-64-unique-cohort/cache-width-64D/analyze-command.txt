@@ -1,0 +1,18 @@
+from pathlib import Path
+import gzip, hashlib, json
+from scripts.analyze_flash_cache_width import summarize
+p = Path("docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/cache-width-64D")
+rows = []
+for name in ("MAIN-U0", "MAIN-U1", "HOLD-U1", "HOLD-U0"):
+    for phase in ("trace_1", "trace_2"):
+        f = p / name / (phase + "-decode.json.gz")
+        s = json.loads((p / name / (phase + "-summary.json")).read_text())
+        counts = [[a-b for a,b in zip(after,before)] for after,before in zip(s["after_counts"],s["prefill_counts"])]
+        row = summarize(json.loads(gzip.decompress(f.read_bytes())),counts,63)
+        assert row["requested_record_bytes"] == s["dflash_profile"]["expert_demand_bytes"]
+        assert row["target_rows"] == s["dflash_profile"]["verified_rows"] + row["ordinary_target_steps"]
+        row.update(prompt=name.split("-")[0], unique=int(name[-1]), phase=phase,source=str(f.resolve()),source_sha256=hashlib.sha256(f.read_bytes()).hexdigest())
+        rows.append(row)
+saved = json.loads((p / "cache-width-analysis.json").read_text())
+assert json.loads(json.dumps(rows)) == saved["rows"]
+print("8 traces reproduced, 48 backend counters and full route coverage exact")

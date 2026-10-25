@@ -1,0 +1,11 @@
+Diff in /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/router/flash_top10_tests.rs:87:
+                     let represented = input.to_f32()?;
+                     ensure!(represented.len() == rows as usize * 512);
+                     let expected = represented
+-                        .as_chunks::<512>().0.iter()
++                        .as_chunks::<512>()
++                        .0
++                        .iter()
+                         .flat_map(expected_ids)
+                         .collect::<Vec<_>>();
+                     for normalize in [false, true] {

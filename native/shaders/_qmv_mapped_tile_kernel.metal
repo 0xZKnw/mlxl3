@@ -5,6 +5,14 @@
 #define MLXL3_QMV_MB 1u
 #endif
 
+#ifndef MLXL3_SLOT_MAJOR
+#define MLXL3_SLOT_MAJOR 0
+#endif
+
+#ifndef MLXL3_REFERENCE_ACCUMULATION
+#define MLXL3_REFERENCE_ACCUMULATION 0
+#endif
+
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
@@ -17,6 +25,9 @@
             uint split = threadgroup_position_in_grid.z;
             threadgroup float partials
                 [MLXL3_QMV_MB][MLXL3_QMV_SG][MLXL3_QMV_NT * 16u];
+#if MLXL3_REFERENCE_ACCUMULATION
+            threadgroup float reference_partials[MLXL3_QMV_MB][MLXL3_QMV_NT][MLXL3_QMV_SG][256];
+#endif
 
 #if MLXL3_K3_WINDOW_DECODE
             int k3_bit_end = int((lane * 8u + 257u) * 3u + 21u);
@@ -51,6 +62,10 @@
             uint tile_begin = split * tiles_per_split;
             uint tile_end = min(tile_begin + tiles_per_split, uint(TILES_K));
             uint sub;
+#if MLXL3_GROUPED_ROUTES
+            uint original_rows[MLXL3_QMV_MB];
+            uint compact_rows[MLXL3_QMV_MB];
+#endif
             uint tile_ns[MLXL3_QMV_NT];
             if (EXPERT_MAP) {
                 uint groups_per_row = uint(OUTPUT_TILES) / MLXL3_QMV_NT;
@@ -58,10 +73,21 @@
                 uint group_in_row = tile_group - sub * groups_per_row;
                 uint route = sub / uint(ROUTING_REPEAT);
                 uint projection = sub - route * uint(ROUTING_REPEAT);
+#if MLXL3_GROUPED_ROUTES
+                for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                    original_rows[batch_row] = tile_sub[route * MLXL3_QMV_MB + batch_row] * uint(ROUTING_REPEAT) + projection;
+                    compact_rows[batch_row] = (route * MLXL3_QMV_MB + batch_row) * uint(ROUTING_REPEAT) + projection;
+                }
+                sub = original_rows[0];
+#endif
                 uint source_base =
+#if MLXL3_SLOT_MAJOR
+                    group_in_row * MLXL3_QMV_NT;
+#else
                     tile_map[route] * uint(OUTPUT_TILES)
                     + projection * uint(PROJECTION_STRIDE_TILES)
                     + group_in_row * MLXL3_QMV_NT;
+#endif
                 for (
                     uint output_tile = 0u;
                     output_tile < MLXL3_QMV_NT;
@@ -81,6 +107,14 @@
                         IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
                 }
             }
+#if MLXL3_MASKED_SLOTS
+            if (tile_map[sub / uint(ROUTING_REPEAT)] >= uint(MLXL3_SLOT_CAPACITY)) {
+                if (tid < 16u * MLXL3_QMV_NT) {
+                    yhat[split * uint(LOCAL_OUTPUT_DIMS) + local_tile * 16u + tid] = 0.0f;
+                }
+                return;
+            }
+#endif
             for (
                 uint tile_k = tile_begin + simd;
                 tile_k < tile_end;
@@ -121,7 +155,12 @@
 #if MLXL3_BATCH_ROWS
                         + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
 #endif
-                        + sub * uint(INPUT_DIMS) + tile_k * 16u
+#if MLXL3_GROUPED_ROUTES
+                        + original_rows[batch_row] * uint(INPUT_DIMS)
+#else
+                        + sub * uint(INPUT_DIMS)
+#endif
+                        + tile_k * 16u
                     );
                     x_pair = x_pairs[lane & 7u];
 #if MLXL3_BATCH_ROWS
@@ -141,7 +180,13 @@
                     ++output_tile
                 ) {
                     const device uint* words = trellis +
+#if MLXL3_SLOT_MAJOR
+                        ((tile_map[sub / uint(ROUTING_REPEAT)] * uint(ROUTING_REPEAT)
+                            + sub % uint(ROUTING_REPEAT)) * uint(TILES_K) * uint(TILES_N)
+                            + tile_k * uint(TILES_N) + tile_ns[output_tile])
+#else
                         (tile_k * uint(TILES_N) + tile_ns[output_tile])
+#endif
                         * uint(PACKED_U32);
 #if MLXL3_K3_WINDOW_DECODE
                     ulong merged = (ulong(words[k3_word0]) << 32)
@@ -178,26 +223,50 @@
                         uint cw0 = MLXL3_K_BITS <= 5u
                             ? (window >> (3u * MLXL3_K_BITS)) & 0xffffu
                             : uint(merged >> (shift + 3u * MLXL3_K_BITS)) & 0xffffu;
+#if MLXL3_GROUPED_ROUTES
+                        float decoded[4] = {
+                            float(mlxl3_decode_codeword(cw0, CB)),
+                            float(mlxl3_decode_codeword(cw1, CB)),
+                            float(mlxl3_decode_codeword(cw2, CB)),
+                            float(mlxl3_decode_codeword(cw3, CB))
+                        };
+#endif
                         for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                             uint j = group * 4u;
                             acc[batch_row][output_tile][j] = fma(
                                 x_values[batch_row][0],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[0],
+#else
                                 float(mlxl3_decode_codeword(cw0, CB)),
+#endif
                                 acc[batch_row][output_tile][j]
                             );
                             acc[batch_row][output_tile][j + 1u] = fma(
                                 x_values[batch_row][1],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[1],
+#else
                                 float(mlxl3_decode_codeword(cw1, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 1u]
                             );
                             acc[batch_row][output_tile][j + 2u] = fma(
                                 x_values[batch_row][2],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[2],
+#else
                                 float(mlxl3_decode_codeword(cw2, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 2u]
                             );
                             acc[batch_row][output_tile][j + 3u] = fma(
                                 x_values[batch_row][3],
+#if MLXL3_GROUPED_ROUTES
+                                decoded[3],
+#else
                                 float(mlxl3_decode_codeword(cw3, CB)),
+#endif
                                 acc[batch_row][output_tile][j + 3u]
                             );
                         }
@@ -208,6 +277,11 @@
 
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                 for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
+#if MLXL3_REFERENCE_ACCUMULATION
+                    for (uint j = 0u; j < 8u; ++j) {
+                        reference_partials[batch_row][output_tile][simd][mlxl3_reference_positions[lane * 8u + j]] = acc[batch_row][output_tile][j];
+                    }
+#else
                     float column0 = quad_sum(
                         acc[batch_row][output_tile][0] + acc[batch_row][output_tile][1]
                     ) + quad_sum(
@@ -223,6 +297,7 @@
                         partials[batch_row][simd][output_tile * 16u + column] = column0;
                         partials[batch_row][simd][output_tile * 16u + column + 8u] = column1;
                     }
+#endif
                 }
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -234,13 +309,27 @@
                     uint output_tile = tid >> 4u;
                     uint column = tid & 15u;
                     float sum = 0.0f;
+#if MLXL3_REFERENCE_ACCUMULATION
+                    for (uint r = 0u; r < 16u; ++r) {
+                        for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
+                            sum += reference_partials[batch_row][output_tile][group][r * 16u + column];
+                        }
+                    }
+#else
                     for (uint group = 0u; group < MLXL3_QMV_SG; ++group) {
                         sum += partials[batch_row][group][output_tile * 16u + column];
                     }
+#endif
                     yhat[
+#if MLXL3_GROUPED_ROUTES
+                        split * uint(MLXL3_GROUP_OUTPUT_DIMS)
+                        + compact_rows[batch_row] * uint(OUTPUT_TILES) * 16u
+                        + (tile_ns[output_tile] * 16u) + column
+#else
                         ((row_base + batch_row) * uint(N_SPLITS) + split)
                         * uint(LOCAL_OUTPUT_DIMS)
                         + (local_tile + output_tile) * 16u + column
+#endif
                     ] = sum;
                 }
             }

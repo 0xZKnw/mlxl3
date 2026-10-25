@@ -1,5 +1,27 @@
 # Third-party notices
 
+## Flash Next architecture and SSD integration
+
+`native/src/qwen4.rs` and its independent verification script follow Qwen's
+released Flash Next configuration and the MIT-licensed MLX-VLM 0.7.3 text
+architecture, including HyperConnections, sparse attention and PLE.
+`native/shaders/flash_rope.metal` adapts the text half-split MRoPE body from
+MLX-VLM `models/rope_utils.py` under the same MIT license:
+<https://github.com/Blaizzy/mlx-vlm/tree/main/mlx_vlm/models/qwen4_exp>.
+Copyright © 2025 Prince Canuma. The MIT license is provided in
+`LICENSES/MLX-VLM-MIT.txt`. Existing EXL3 kernels retain their PonyExl3
+attribution and Apache-2.0 license.
+
+The SSD design was compared with the user's `localqwen3.8flash` project and
+Sushi <https://github.com/beamivalice/sushi> at
+`eaaca12c5508e6a24a01671384a9a41089370058` (HC, QSA, EXL3 and n-gram kernels).
+Sushi kernel source has not been copied; its compiled bank/n-gram format and
+optional approximate expert selection are not used by this implementation.
+
+MLXL3 is an independent implementation that adapts algorithms and kernel
+structures from the following projects.
+
+
 MLXL3 is an independent implementation that adapts algorithms and kernel
 structures from the following projects.
 
@@ -30,6 +52,30 @@ from `mtplx/qwen_row_owned_router.py` to FP16 monotone keys, legacy tie order
 and half accumulation. Copyright MTPLX contributors; Apache-2.0. The small
 EXL3 verify batching uses MLXL3's own trellis kernels and arithmetic.
 
+## OpenBMB LES
+
+Source: <https://github.com/OpenBMB/llama.cpp-omni>, revision
+`a64932ec615e1463158129feaf2f0752d0c07a2e`, especially
+`docs/les/lookahead-expert-scheduling.md`, `src/models/qwen35moe.cpp`, and
+`src/llama-moe-slot.cpp`. Cross-layer routing prediction and expert loading
+overlapped with current-layer computation informed MLXL3's independent
+experimental Rust implementation. It uses the existing EXL3 banks and
+checked readers, preserving actual routing and reduction order. OpenBMB's
+quantization and DSpark results are separate from MLXL3 measurements.
+
+## Strata
+
+Sources: <https://github.com/Niko1221/Strata>, revision
+`cbfd5b926b794b356195d3cb600191b0c3567540`, and the distinct MLX project
+<https://github.com/yibie/strata-mlx>, revision
+`295c96594dd79cbd080052da8740b1a8e44d7d76`.
+Their GPU expert planning, grouped weight reuse, streamed-cache scheduling
+and host/GPU overlap informed the independently implemented Flash Next
+resident-routing experiment. The comparison of implemented and outstanding
+mechanisms is recorded in `docs/flash-next-ssd-strata-56-2026-10-20.md`.
+MLXL3 preserves its EXL3 arithmetic and routing contract; Strata's source
+and performance results are references, not bundled kernels or local timings.
+
 ## TensorFold
 
 Source: <https://github.com/ashhart/TensorFold>, revision
@@ -52,13 +98,32 @@ upstream throughput is not an MLXL3 measurement.
 
 ## IncoAI Splash
 
-Source: <https://github.com/inco-ai/splash>.
+Source: <https://github.com/incoai/splash>.
 
 MLXL3 reads Splash's public DFlash 2 draft package ABI and uses its published
 geometry as a compatibility reference. Runtime kernels remain independently
 benchmarked MLXL3 implementations and may differ from Splash. Splash is
 licensed under the Apache License, Version 2.0; a copy is provided in
 `LICENSES/Apache-2.0.txt`.
+
+`native/shaders/flash_draft_ring.h` adapts the split attention and fixed-order
+reduction from `runtime/metal/kernels/decode/draft.metal` at revision
+`1482f6bbc2abf12375332725302019594150b6cb`. MLXL3 changes its bindings to
+immutable MLX inputs, separate partial buffers, one lane and variable query
+counts. `native/src/flash_draft_budget.rs` adapts that revision's single-lane
+VerifyBudget cost/acceptance model to Rust, with bounded labels and verified
+prefix updates. Upstream performance figures do not describe these ports.
+
+## SGLang DFlash2 and DSpark
+
+The experimental Flash Next draft tests in `native/src/flash_draft.rs` and
+the independent NumPy oracle in `scripts/check_flash_drafts.py` implement
+the DFlash2 and vanilla DSpark equations documented by SGLang, revision
+`e00930c5489053f26d86b179cee0d087f846acbb`:
+<https://github.com/sgl-project/sglang/tree/e00930c5489053f26d86b179cee0d087f846acbb/python/sglang/srt/models>.
+SGLang is licensed under Apache-2.0 (`LICENSES/Apache-2.0.txt`).
+The locally downloaded IncoAI DFlash2 and shadowpa0327 DSpark checkpoints
+are not bundled; their respective model cards document their weight licenses.
 
 ## ExLlamaV3
 
@@ -152,7 +217,9 @@ The packed Gated DeltaNet Metal kernel in
 behavior during the native Rust migration. MLX LM is licensed under the MIT
 License. The dense verification gate in `native/src/lfm2.rs` reproduces MLX's
 GEMV reduction geometry so multi-row verification remains bit-exact; MLX is
-also licensed under the MIT License.
+also licensed under the MIT License. The mixed HC GEMV in
+`native/shaders/flash_hc_gemv.metal` adapts the same MLX 0.32.2 GEMV
+geometry and accumulation order, with FP16 weight loads and FP32 outputs.
 
 Copyright © 2023 Apple Inc.
 

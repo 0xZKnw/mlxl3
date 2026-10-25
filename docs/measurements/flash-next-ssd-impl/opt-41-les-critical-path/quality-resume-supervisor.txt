@@ -1,0 +1,26 @@
+import json
+import runpy
+from pathlib import Path
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path")
+runpy.run_path(str(p / "quality-remaining/quality-supervisor.txt"))
+initial = json.loads((p / "quality-initial.json").read_text())
+records = [dict(r, evidence_directory=".") for r in initial if r["status"] == "passed"]
+ref = json.loads((p / "memory-diagnostic/quality.json").read_text())[1]
+assert ref["status"] == "passed" and ref["reaped"] and ref["observed_tests"] == 1
+records.append(
+    dict(
+        ref,
+        name="flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+        evidence_directory="memory-diagnostic",
+        evidence_log="C41-mtp-pressure.log",
+    )
+)
+records.extend(
+    dict(r, evidence_directory="quality-remaining")
+    for r in json.loads((p / "quality-remaining/quality.json").read_text())
+)
+assert len(records) == 25 and len({r["name"] for r in records}) == 25
+assert all(r["status"] == "passed" and r["reaped"] for r in records)
+(p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+print("All25qualityprocessespassed; initialfailurepreserved", flush=True)

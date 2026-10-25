@@ -1,0 +1,134 @@
+import hashlib
+import json
+import os
+import re
+import resource
+import runpy
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+def main(path):
+    destination = path.parent
+    output = destination / (path.stem + "-result.json")
+    assert not output.exists(), "refusing to overwrite a run"
+    matrix = json.loads(path.read_text())
+    assert matrix and len({item["name"] for item in matrix}) == len(matrix)
+    previous = runpy.run_path(
+        "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+    )
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+    records = []
+    result = {
+        "status": "incomplete",
+        "source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "matrix_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "commands": records,
+    }
+
+    def save():
+        output.write_text(json.dumps(result, indent=2) + "\n")
+
+    save()
+    try:
+        for item in matrix:
+            record = {**item, "status": "running", "before": previous["snapshot"](parse_vm)}
+            records.append(record)
+            child = None
+            started = time.monotonic()
+            try:
+                assert (
+                    record["before"]["pmset -g batt"].splitlines()[0]
+                    == "Now drawing from 'AC Power'"
+                )
+                if "before_launch" in previous:
+                    previous["before_launch"](record)
+                binary = Path(item["command"][0])
+                record["executable_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+                save()
+                logfile = destination / (item["name"] + ".log")
+                with logfile.open("x") as stream:
+                    child = subprocess.Popen(
+                        item["command"],
+                        env={**os.environ, **item["env"]},
+                        stdout=stream,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    record["pid"] = child.pid
+                    save()
+                    record["exit_code"] = previous["monitor"](child, record, parse_vm)
+                record["after"] = previous["snapshot"](parse_vm)
+                assert record["exit_code"] == item["expected_exit"]
+                record["children_maximum_rss_bytes"] = int(
+                    resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+                ) * (1 if sys.platform == "darwin" else 1024)
+                assert 0 < record["children_maximum_rss_bytes"] <= 10 << 30
+                for key in ("Swapins", "Swapouts"):
+                    delta = record["after"]["vm_bytes"][key] - record["before"]["vm_bytes"][key]
+                    assert 0 <= delta <= 256 << 20
+                    record[key.lower() + "_bytes"] = delta
+                assert (
+                    record["after"]["pmset -g batt"].splitlines()[0]
+                    == record["before"]["pmset -g batt"].splitlines()[0]
+                )
+                log = logfile.read_text()
+                if item.get("native_test"):
+                    expected = "ok" if item["expected_exit"] == 0 else "FAILED"
+                    assert re.search(r"running 1 test\s", log)
+                    assert re.search(
+                        r"(?m)^test " + re.escape(item["native_test"]) + r" \.\.\. ", log
+                    )
+                    assert (
+                        "1 passed; 0 failed" if expected == "ok" else "0 passed; 1 failed"
+                    ) in log
+                for text in item.get("required_text", []):
+                    assert text in log, text
+                if item.get("native_head_reference"):
+                    reference = json.loads(Path(item["native_head_reference"]).read_text())
+                    chain = reference["native_chain"]
+                    assert (
+                        reference["status"] == "complete"
+                        and chain["status"] == "passed_native_chain"
+                    )
+                    assert chain["logit_count"] in [n * 248320 for n in range(1, 8)]
+                    assert reference["draft_head"]["logits"]["count"] == chain["logit_count"]
+                record["status"] = "completed_expected_outcome"
+            except BaseException as error:
+                record.update(status="failed_or_interrupted", error=repr(error))
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGTERM)
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.wait(timeout=5)
+                record["reaped"] = child is None or child.poll() is not None
+                record["seconds"] = time.monotonic() - started
+                save()
+                with Path("opti.md").open("a") as stream:
+                    stream.write(
+                        f"\n- 45-Q/R processus {item['name']} : **{record['status']}**, joint={record['reaped']} ; {output}.\n"
+                    )
+                print(
+                    {
+                        k: record.get(k)
+                        for k in ("name", "status", "reaped", "seconds", "swapouts_bytes")
+                    },
+                    flush=True,
+                )
+        result["status"] = "completed_expected_outcomes_not_speed"
+    except BaseException as error:
+        result.update(status="failed_or_interrupted", error=repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]))

@@ -1,0 +1,184 @@
+name: Native Rust checks
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  kani-flash-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Flash offsets, partition and greedy commits independently
+        uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.68.0'
+          command: cargo kani
+          args: >-
+            --lib --no-default-features
+            --harness pair_commit_preserves_exact_valid_prefix_without_overflow
+            --harness tensor_source_interval_is_ordered_and_cannot_wrap
+            --harness disk_destinations_cannot_wrap_or_exceed_owned_storage
+            --harness cpu_slot_validation_preserves_bounds_for_real_route_widths
+            --harness expert_cohorts_never_exceed_live_slot_capacity
+            --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+            --harness draft_scheduler_cannot_exceed_available_prefix_or_accept_invalid_costs
+            --harness failed_fill_invalidates_ready_keys_without_releasing_pending_slots
+            --harness slot_tiles_preserve_complete_shapes_and_fallbacks
+            --harness les_control_parsers_accept_only_the_documented_literals
+            --harness pending_publish_rejects_stale_failed_and_duplicate_records
+            --harness speculative_claim_excludes_pending_and_preserves_pair_space
+            --harness predictive_victims_exclude_pending_and_fall_back_only_when_needed
+            --harness free_slots_precede_all_ready_victims_in_both_policies
+            --harness les_lru_uses_age_without_penalizing_zero_frequency_prefetches
+            --harness reference_partition
+            --harness automatic_cache_cannot_spend_reserved_memory
+            --harness automatic_cache_is_monotone
+            --harness mtp_depth_one_commits_only_target_tokens_inside_budgets
+            --harness mtp_all_depths_commit_target_prefix_within_budgets
+            --harness greedy_acceptance_is_the_maximal_matching_prefix
+  kani:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Rust safety contracts with Kani
+        uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.68.0'
+          command: cargo kani
+          args: --lib --no-default-features --jobs 1 --output-format terse
+
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust tooling
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets --features chat -- -D warnings
+      - run: cargo test --locked --features chat
+      - run: cargo build --locked --features chat
+      - name: Check Metal cache key ordering and allocation regressions
+        run: |
+          mkdir -p build/ci
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
+          build/ci/kernel-cache-key
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
+      - name: Check SSD ranges, actual I/O bytes and failure draining
+        if: matrix.os == 'macos-26'
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader
+          build/ci/disk-reader
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader-tsan
+          build/ci/disk-reader-tsan
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_reader_proof.cpp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+      - name: Lint native verification scripts and regressions
+        run: |
+          for verification_source in docs/measurements/flash-next-ssd-impl/opt-30-les/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-32-les-async/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-33-les-admission/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-34-les-ready/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/*/*supervisor.txt; do
+            ruff format --check --stdin-filename flash-les-verification.py < "$verification_source"
+            ruff check --select F,E9 --stdin-filename flash-les-verification.py < "$verification_source"
+          done
+          python < docs/measurements/flash-next-ssd-impl/opt-34-les-ready/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/profile/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/components/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-mtp/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/heads/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/heads-les/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts-speed/guards-supervisor.txt
+          for verification_source in docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/mutations/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-*/*supervisor.txt; do
+            ruff format --check --stdin-filename flash-draft-verification.py < "$verification_source"
+            ruff check --select F,E9 --stdin-filename flash-draft-verification.py < "$verification_source"
+          done
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-off/guards-supervisor.txt
+          python < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-on/guards-supervisor.txt
+          ruff format --check --stdin-filename flash-audit45.py < docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt
+          ruff check --select F,E9 --stdin-filename flash-audit45.py < docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt
+          ruff format --check tests/test_flash_quality_run.py
+          ruff check tests/test_flash_quality_run.py
+          python -m pytest -q tests/test_flash_quality_run.py
+          ruff format --check --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt
+          ruff check --select F,E9 --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt
+          ruff format --check --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt
+          ruff check --select F,E9 --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt
+          ruff format --check tests/test_flash_slot_benchmark.py
+          ruff check tests/test_flash_slot_benchmark.py
+          python -m pytest -q tests/test_flash_slot_benchmark.py
+          ruff check --select F,E9 tests/fake-desktop-engine.py
+          python -m py_compile tests/fake-desktop-engine.py
+          ruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          ruff check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py
+          python -m py_compile benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py
+          ruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
+          ruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py
+          python -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py
+          ruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          ruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py
+          python -m py_compile scripts/experimental-draft-head.py
+          ruff format --check scripts/check_dflash2.py tests/test_dflash2_check.py
+          ruff check scripts/check_dflash2.py tests/test_dflash2_check.py
+          python -m py_compile scripts/check_dflash2.py
+          ruff format --check scripts/check_flash_drafts.py tests/test_flash_drafts.py
+          ruff check scripts/check_flash_drafts.py tests/test_flash_drafts.py
+          ruff format --check scripts/calibrate_flash_draft.py tests/test_flash_calibration.py
+          ruff check scripts/calibrate_flash_draft.py tests/test_flash_calibration.py
+          python -m pytest -q tests/test_flash_calibration.py
+          python -m py_compile scripts/check_flash_drafts.py
+      - name: Check bridge and QMM validation tools
+        run: python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_drafts.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
+      - name: Check idle-memory benchmark failure and parity gates
+        run: |
+          ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+          ruff format --check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          ruff check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+          python -m pytest -q tests/test_flash_memory.py
+          ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+          ruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+          python -m pytest -q tests/test_idle_memory_benchmark.py
+          ruff format --check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          python -m py_compile docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py
+          ruff format --check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          ruff check docs/measurements/tune-feedback-20261010/diagnose-tune.py
+          python docs/measurements/tune-feedback-20261010/diagnose-tune.py --self-test
+      - name: Compile and lint the shipped MLX bridge
+        if: matrix.os == 'macos-26'
+        run: |
+          python -m pip install mlx==0.32.2
+          mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+          cargo build --locked --release --features mlx,chat
+          cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
+          python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path("build/ci/raw-draft-reader.log").read_text()'
+      # Physical Apple GPU tests remain explicitly #[ignore]. Hosted jobs do
+      # not run inference or numeric GPU checks; the macOS build uses pinned libmlx.

@@ -1,0 +1,151 @@
+{
+  "status": "failed",
+  "qualification": null,
+  "limits": {
+    "process_lifetime_peak_bytes": 12000000000,
+    "process_compressed_logical_bytes": 536870912,
+    "process_compressed_peak_logical_bytes": 536870912,
+    "compressed_lifetime_delta_bytes": 1073741824,
+    "ledger_swapins_delta_logical_bytes": 0
+  },
+  "samples": [
+    {
+      "label": "ready",
+      "memory": {
+        "process_id": 1216,
+        "process_start_abstime": 820122760412,
+        "process_footprint_bytes": 3751514768,
+        "process_compressed_logical_bytes": 193265664,
+        "process_lifetime_peak_bytes": 3751514768,
+        "process_compressed_peak_logical_bytes": 193265664,
+        "process_compressed_lifetime_logical_bytes": 193265664,
+        "process_decompressions": 0,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 0,
+        "process_compressed_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 0,
+        "process_compressed_lifetime_logical_bytes": 0,
+        "process_decompressions": 0,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    },
+    {
+      "label": "warmup[0]",
+      "memory": {
+        "process_id": 1216,
+        "process_start_abstime": 820122760412,
+        "process_footprint_bytes": 7738857832,
+        "process_compressed_logical_bytes": 2855305216,
+        "process_lifetime_peak_bytes": 7849826664,
+        "process_compressed_peak_logical_bytes": 2859008000,
+        "process_compressed_lifetime_logical_bytes": 2906570752,
+        "process_decompressions": 161948,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 3987343064,
+        "process_compressed_logical_bytes": 2662039552,
+        "process_lifetime_peak_bytes": 4098311896,
+        "process_compressed_peak_logical_bytes": 2665742336,
+        "process_compressed_lifetime_logical_bytes": 2713305088,
+        "process_decompressions": 161948,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    },
+    {
+      "label": "runs[0]",
+      "memory": {
+        "process_id": 1216,
+        "process_start_abstime": 820122760412,
+        "process_footprint_bytes": 7737399656,
+        "process_compressed_logical_bytes": 2858369024,
+        "process_lifetime_peak_bytes": 7849826664,
+        "process_compressed_peak_logical_bytes": 2861039616,
+        "process_compressed_lifetime_logical_bytes": 2915975168,
+        "process_decompressions": 192651,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 3985884888,
+        "process_compressed_logical_bytes": 2665103360,
+        "process_lifetime_peak_bytes": 4098311896,
+        "process_compressed_peak_logical_bytes": 2667773952,
+        "process_compressed_lifetime_logical_bytes": 2722709504,
+        "process_decompressions": 192651,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    }
+  ],
+  "maxima": {
+    "process_footprint_bytes": 7738857832,
+    "process_compressed_logical_bytes": 2858369024,
+    "process_lifetime_peak_bytes": 7849826664,
+    "process_compressed_peak_logical_bytes": 2861039616,
+    "process_compressed_lifetime_logical_bytes": 2915975168,
+    "process_decompressions": 192651,
+    "process_ledger_swapins_logical_bytes": 0
+  },
+  "final_deltas_since_ready": {
+    "process_footprint_bytes": 3985884888,
+    "process_compressed_logical_bytes": 2665103360,
+    "process_lifetime_peak_bytes": 4098311896,
+    "process_compressed_peak_logical_bytes": 2667773952,
+    "process_compressed_lifetime_logical_bytes": 2722709504,
+    "process_decompressions": 192651,
+    "process_ledger_swapins_logical_bytes": 0
+  },
+  "startup_ledger_swapins_logical_bytes": 0,
+  "startup_already_affected": false,
+  "budget_violations": [
+    {
+      "sample": "warmup[0]",
+      "metric": "process_compressed_logical_bytes",
+      "observed": 2855305216,
+      "limit": 536870912,
+      "message": "process_compressed_logical_bytes exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "warmup[0]",
+      "metric": "process_compressed_peak_logical_bytes",
+      "observed": 2859008000,
+      "limit": 536870912,
+      "message": "process_compressed_peak_logical_bytes exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "warmup[0]",
+      "metric": "compressed_lifetime_delta_bytes",
+      "observed": 2713305088,
+      "limit": 1073741824,
+      "message": "compressed lifetime delta exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "process_compressed_logical_bytes",
+      "observed": 2858369024,
+      "limit": 536870912,
+      "message": "process_compressed_logical_bytes exceeds budget at runs[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "process_compressed_peak_logical_bytes",
+      "observed": 2861039616,
+      "limit": 536870912,
+      "message": "process_compressed_peak_logical_bytes exceeds budget at runs[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "compressed_lifetime_delta_bytes",
+      "observed": 2722709504,
+      "limit": 1073741824,
+      "message": "compressed lifetime delta exceeds budget at runs[0]"
+    }
+  ],
+  "scope": "ready through complete; cleanup, process swap-outs and physical SSD I/O unmeasured",
+  "source_errors": [],
+  "error": "AnalysisError: process_compressed_logical_bytes exceeds budget at warmup[0]; process_compressed_peak_logical_bytes exceeds budget at warmup[0]; compressed lifetime delta exceeds budget at warmup[0]; process_compressed_logical_bytes exceeds budget at runs[0]; process_compressed_peak_logical_bytes exceeds budget at runs[0]; compressed lifetime delta exceeds budget at runs[0]",
+  "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/weighted-HOLD-0-H/report.json",
+  "source_sha256": "d492b064242b97596b8125139abb934a16e91c5b7219c191df266d0b4f17c527"
+}

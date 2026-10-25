@@ -1,0 +1,14 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "wide_cohorts_exclude_pending_slots_before_reserving",
+    "--",
+    "--nocapture"
+  ],
+  "mutation": "available_slots returns nominal capacity",
+  "exit": 101,
+  "detected": true
+}

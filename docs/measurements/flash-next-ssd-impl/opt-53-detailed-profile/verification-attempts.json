@@ -1,0 +1,70 @@
+[
+  {
+    "name": "kani-cpu",
+    "command": [
+      "cargo",
+      "kani",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "real_profile_scope_lifecycle"
+    ],
+    "timeout": 60,
+    "seconds": 1.5382004999846686,
+    "exit": 1,
+    "status": "inspect_log"
+  },
+  {
+    "name": "kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_detailed_profile_path"
+    ],
+    "timeout": 120,
+    "seconds": 4.130183417000808,
+    "exit": 1,
+    "status": "inspect_log"
+  },
+  {
+    "name": "cbmc-disk",
+    "command": [
+      "cbmc",
+      "native/tests/disk_reader_proof.cpp",
+      "-I",
+      "native/ffi",
+      "--function",
+      "proof",
+      "--unwind",
+      "5",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check"
+    ],
+    "timeout": 30,
+    "seconds": 0.0015281249943654984,
+    "status": "unverified",
+    "error": "FileNotFoundError(2, 'No such file or directory')"
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "scripts/profile_flash.py",
+      "--analysis_kind=asserts"
+    ],
+    "timeout": 30,
+    "seconds": 0.020107165997615084,
+    "exit": 1,
+    "status": "inspect_log"
+  }
+]

@@ -1,0 +1,41 @@
+I001 [*] Import block is un-sorted or un-formatted
+   --> scripts/check-flash-reference.py:118:5
+    |
+116 |       tokens = parse_tokens(args.tokens)
+117 |       sys.path.insert(0, str(args.pony.resolve()))
+118 | /     import mlx.core as mx
+119 | |     from mlx import nn
+120 | |     from ponyexl3.mlx.exl3_linear import EXL3Linear
+121 | |     from ponyexl3.mlx.layer_state import clear_layer_caches
+122 | |     from ponyexl3.ref.layer import EXL3Layer
+123 | |     from mlx_vlm.models.qwen4_exp.language import (
+124 | |         ArraysCache, QSAKVCache, Qwen4ExpDecoderLayer, Qwen4ExpGatedResidual, TextConfig,
+125 | |     )
+126 | |     from mlx_vlm.models.activations import swiglu
+    | |_________________________________________________^
+127 |
+128 |       args.output.mkdir(parents=True, exist_ok=False)
+    |
+help: Organize imports
+    |
+119 |     from mlx import nn
+120 +     from mlx_vlm.models.activations import swiglu
+121 +     from mlx_vlm.models.qwen4_exp.language import (
+122 +         ArraysCache,
+123 +         QSAKVCache,
+124 +         Qwen4ExpDecoderLayer,
+125 +         Qwen4ExpGatedResidual,
+126 +         TextConfig,
+127 +     )
+128 |     from ponyexl3.mlx.exl3_linear import EXL3Linear
+129 |     from ponyexl3.mlx.layer_state import clear_layer_caches
+130 |     from ponyexl3.ref.layer import EXL3Layer
+    -     from mlx_vlm.models.qwen4_exp.language import (
+    -         ArraysCache, QSAKVCache, Qwen4ExpDecoderLayer, Qwen4ExpGatedResidual, TextConfig,
+    -     )
+    -     from mlx_vlm.models.activations import swiglu
+131 |
+    |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.

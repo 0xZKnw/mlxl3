@@ -1,0 +1,46 @@
+[
+  {
+    "name": "format-02",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.238578125
+  },
+  {
+    "name": "clippy-02",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 2.463326208
+  },
+  {
+    "name": "compile-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 28.760478792
+  }
+]

@@ -1,0 +1,187 @@
+{
+  "task": "79R-B",
+  "status": "revue_statique_terminee",
+  "date": "2026-10-23",
+  "head": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+  "runtime_commit": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+  "source_root": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "findings": [
+    {
+      "id": "79B-01",
+      "priority": 1,
+      "title": "Convertir FP16 avant duplication routée",
+      "kind": "redondance_graphe_confirmee_optimisation_non_mesuree",
+      "active": "OFF_MTP1_DFlash_B2_sans_prefetch_et_prefetch",
+      "locations": [
+        "native/src/ssd_moe.rs:523",
+        "native/src/qwen4.rs:131",
+        "native/ffi/mlx_bridge.cpp:467",
+        "native/ffi/mlx_bridge.cpp:530"
+      ],
+      "scenario": "x FP32 [2,2560], take vers [20,2560] puis cast FP16",
+      "static_counts": {
+        "old_gather_f32_bytes": 204800,
+        "new_precast_f16_bytes": 10240,
+        "nominal_intermediate_difference_bytes_per_layer": 194560,
+        "nominal_difference_48_layers_bytes": 9338880
+      },
+      "minimal_fix": "Déplacer seulement astype(F16) avant take ; ne pas changer simultanément indices/broadcast.",
+      "oracle": "Duplication CPU indépendante et octets exacts F16/F32 B1..8, strides/sign0/frontières FP16 ; MoE et préfixes réels ensuite.",
+      "history": "Pas de déplacement dédié retrouvé dans 56/64/65/69/70/72/73/74 lus ; distinct du shared batching68 et early_shared73.",
+      "limits": "Pas de mesure allocations/pic/TPS ; comptage nominal de graphe, pas économie RAM permanente."
+    },
+    {
+      "id": "79B-02",
+      "priority": 2,
+      "title": "Copieur Hot/Cold direct sans concat/take",
+      "kind": "copies_confirmees_backlog74_non_mesure",
+      "active": "B2_GPUHot_sans_prefetch_inclus",
+      "locations": [
+        "native/src/ssd_moe.rs:976",
+        "native/src/ssd_moe.rs:990",
+        "native/src/ssd_moe.rs:1002",
+        "native/src/ssd_moe.rs:1010"
+      ],
+      "scenario": "Snapshot Hot non vide et au moins une occurrence Cold en B2 ; tableau Hot masqué contient aussi des lignes inutilisées.",
+      "minimal_fix": "Choisir Hot ou Cold à la même position de sortie, conserver ensuite cast/poids normalisés/somme par rang strictement identiques.",
+      "oracle": "Partitions Hot/Cold déterministes et réelles B1..8, tout chaud/zéro Hot sélectionné/pending/repli64L, préfixes byte exacts.",
+      "history": "74 A06 connu ; ni grouped65/66 avec concat/take ni compact57 rejeté ne qualifient ce seul copieur.",
+      "limits": "Aucune fusion de réduction FP32 dans ce premier palier ; aucun gain mesuré."
+    },
+    {
+      "id": "79B-03",
+      "priority": 3,
+      "title": "Deux métadonnées fichier par expert froid",
+      "kind": "redondance_cpu_confirmee_backlog74",
+      "active": "toute_demande_froide_sans_prefetch_incluse",
+      "locations": [
+        "native/src/ssd_moe.rs:296",
+        "native/src/checkpoint.rs:96",
+        "native/src/checkpoint.rs:105",
+        "native/src/array.rs:785",
+        "native/src/array.rs:801"
+      ],
+      "scenario": "N experts froids distincts ; source une fois par expert puis read_records une fois par expert, pas 12 fois.",
+      "static_counts": {
+        "metadata_queries_per_batch": "2*N",
+        "all_cold_B2_N_max": 20,
+        "all_cold_B2_metadata_per_layer_max": 40,
+        "all_cold_B2_metadata_48_layers_max": 1920,
+        "all_cold_OFF_metadata_48_layers_max": 960,
+        "prefetch_metadata_per_expert": 2,
+        "prefetch_file_try_clone_per_expert": 1
+      },
+      "minimal_fix": "Séparer offset vérifié et contrôle de taille ; valider tous les intervalles complets une fois par handle ouvert distinct dans le batch seulement.",
+      "oracle": "Pathname remplacé atomiquement, inode inspecté conservé, troncature avant batch, second record invalide sans première écriture, short read et retry.",
+      "history": "74 A22/A23/A24 et first-review09 déjà connus ; ici décompte et contrat inode/batch précisés.",
+      "limits": "Ne jamais mettre en cache persistant une taille sans contrat ; coût exclusif non mesuré."
+    },
+    {
+      "id": "79B-04",
+      "priority": 4,
+      "title": "Neuf Vec Rust reconstruits par batch froid",
+      "kind": "allocations_et_preparation_repetees_confirmees_backlog74",
+      "active": "toute_demande_froide_sans_prefetch_incluse",
+      "locations": [
+        "native/src/ssd_moe.rs:296",
+        "native/src/array.rs:809",
+        "native/ffi/mlx_bridge.cpp:290"
+      ],
+      "static_counts": {
+        "rust_collections_per_nonempty_batch": 9,
+        "shared_banks": 7,
+        "segments_per_expert": 12
+      },
+      "scenario": "Même schéma de banques/destinations, listes sources/destinations/views puis ptrs/fds/offsets/indices/starts/lengths et listes C++ refaites.",
+      "minimal_fix": "Recycler capacités d’un espace de travail borné par instance, sans payload expert ni plan expert*slot.",
+      "oracle": "Métadonnées réelles n0/1/20/80/512, workers1..4, changement de banques, alias, dernier record invalide, absence croissance répétée.",
+      "history": "74 A22/A23/A24 ; PreparedRead existe déjà, ne pas le recréer comme innovation.",
+      "limits": "Byte_len est pur Rust ; nombre de Vec ne donne pas un pourcentage de débit."
+    },
+    {
+      "id": "79B-05",
+      "priority": 5,
+      "title": "Traîne possible due à affectation statique des lecteurs",
+      "kind": "limite_ordonnancement_confirmee_effet_non_mesure",
+      "active": "demande_synchrone_sans_prefetch_incluse",
+      "locations": [
+        "native/ffi/disk_reader.h:128",
+        "native/ffi/disk_reader.h:130",
+        "native/tests/disk_reader.cpp:116"
+      ],
+      "scenario": "Un worker reçoit deux records lents, les autres terminent plus tôt sans pouvoir reprendre son second record.",
+      "minimal_fix": "Même1..4lecteurs, index atomique de prochain record ; terminer et joindre tous les siblings sur erreur.",
+      "oracle": "Lecteur injectable déterministe avec délai, chaque job exactement une fois, écritures disjointes, erreurs et jointure ; vraie traîne à mesurer avant TPS.",
+      "history": "56 note déjà cette affectation sans la remplacer ; changement distinct d’ajouter des lecteurs.",
+      "limits": "Peut ne rien apporter pour1..4misses ; assertion worker=i%workers dans test est stratégie, pas contrat de sûreté."
+    },
+    {
+      "id": "79B-06",
+      "priority": 6,
+      "title": "Budget de lecteurs séparé demande et spéculation",
+      "kind": "concurrence_structurelle_pas_course",
+      "active": "prefetch_experimental_seulement_inactif_meilleur_B2",
+      "locations": [
+        "native/src/ssd_prefetch.rs:98",
+        "native/src/ssd_prefetch.rs:224",
+        "native/ffi/disk_reader.h:117"
+      ],
+      "static_counts": {
+        "async_pool_workers": 4,
+        "sync_workers_max": 4,
+        "logical_readers_in_flight_upper_bound": 8
+      },
+      "scenario": "Lectures spéculatives d’une autre couche ou après timeout encore actives pendant un batch demandé à4lecteurs.",
+      "minimal_fix": "Futur budget commun et priorité d’admission urgente, sans annuler/réaffecter les writes déjà commencés.",
+      "oracle": "Compteur activité OS contrôlé, priorités/famine/erreurs/cancel/jointure, puis protections slots et parité physique.",
+      "history": "69 réutilisation déjà présente ;72/73 retirés, ne pas relancer leurs variantes. Mécanisme scheduler commun non mesuré.",
+      "limits": "Pas8I/Ophysiques observées ; pas un défaut du B2 sans prélecture ni une garantie de gain."
+    },
+    {
+      "id": "79B-07",
+      "priority": 7,
+      "title": "Octets synchrones perdus après échec partiel de batch",
+      "kind": "limite_observabilite_confirmee_sur_erreur",
+      "active": "erreurs_IO_et_retry_seulement",
+      "locations": [
+        "native/src/ssd_moe.rs:319",
+        "native/src/ssd_moe.rs:324",
+        "native/src/ssd_prefetch.rs:107",
+        "native/tests/disk_reader.cpp:103",
+        "native/src/qwen4.rs:1651"
+      ],
+      "scenario": "Un record échoue après lecture partielle, siblings réussissent ; fill_many propage erreur avant read_bytes, contrairement au compteur async.",
+      "minimal_fix": "Exposer séparément octets réellement lus par batch CABI même en erreur, ou préciser le compteur successful-only.",
+      "oracle": "7siblings réussis+1lecture partielle, octets non nuls même en échec, clés invalides et tous lecteurs joints, retry exact.",
+      "history": "Test C++ d’erreur partielle existant ; transfert du compteur jusqu’à io_stats non présent dans chemin relu.",
+      "limits": "Diagnostic des échecs ; pas un gain TPS et jamais octets SSD physiques."
+    }
+  ],
+  "source_sha256": {
+    "native/src/ssd_moe.rs": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+    "native/src/ssd_prefetch.rs": "3f2aa1cf942a8d00c53efa8c42510013491bd5632279abba0b656d653efa82b3",
+    "native/src/flash_support.rs": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+    "native/src/array.rs": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "native/src/checkpoint.rs": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1",
+    "native/src/qwen4.rs": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "native/src/flash_draft.rs": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803",
+    "native/src/flash_draft_runtime.rs": "f62a2b98eb9d9dc61c28b18efc545a9ddc853bfa82a78e8811eed834167cc920",
+    "native/src/main.rs": "4cf39e7804554cd93307ae93b0f60fdc6fb3c5beba0a24e9d80b6713c018ab1d",
+    "native/ffi/mlx_bridge.cpp": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a",
+    "native/ffi/disk_reader.h": "c191ee3c887010df2b007f5a0d68c9ae01d7d080cd77cb897518626e2ef355f8",
+    "native/tests/disk_reader.cpp": "5a395637d4ef3eb4f5ed07d9f645bf118942a71e83650e5fb1ef4f2ef72d39f0"
+  },
+  "commands_executed": "Lectures rg/sed/nl/git, génération documentaire et SHA seulement ; aucun test/build/proveur/GPU/benchmark.",
+  "source_changes": false,
+  "new_throughput_gain": false,
+  "confirmed_numerical_or_concurrency_bug": false,
+  "confirmed_memory_leak": false,
+  "prototypes_72_73": "retirés, non réactivés",
+  "upstream_mlx": {
+    "commit": "1f8e74e3f12f31365464a6867c6579f0e9b29d85",
+    "tag": "v0.32.2",
+    "local_primary_sources": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-78-gdn-constants/sources",
+    "web_attempt": "indexing.cpp cache-miss, aucune inférence additionnelle"
+  },
+  "memory_limits": "Compression privée logique ≠ I/O SSD ; ledger_swapins delta0 ne prouve pas zéro écriture swap privée ; swap global pas attribué au moteur."
+}

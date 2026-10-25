@@ -1,0 +1,25 @@
+
+running 1 test
+test ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback ... SSD_UNIQUE_WINDOW cases=32 rows=6..8 capacities=20,24,53 fallback=6+2/4+4 readbacks=1 hot_before_readback=true hot_demand_counted=true hot_survives_eviction=true cold_cache_hits_recomputed=true pending=excluded io_recovery=true parity=byte_exact
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 257 filtered out; finished in 1.44s
+
+        1.45 real         0.79 user         0.49 sys
+           851361792  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               52972  page reclaims
+                 158  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 148  voluntary context switches
+                3200  involuntary context switches
+         21500896724  instructions retired
+          5589556146  cycles elapsed
+           630506576  peak memory footprint

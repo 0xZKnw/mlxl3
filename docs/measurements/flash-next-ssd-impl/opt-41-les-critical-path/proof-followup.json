@@ -1,0 +1,65 @@
+[
+  {
+    "name": "kani-actual-mlx-tests",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_slot_dispatch_and_optional_prediction_schedule"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 42262,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 2.4477531669981545
+  },
+  {
+    "name": "cpp-proof-syntax",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++20",
+      "-fsyntax-only",
+      "-I",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+      "-I",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/ffi",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/availability-proof.cpp"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 42295,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.4604366249986924
+  },
+  {
+    "name": "cbmc-availability",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "--cpp11",
+      "--function",
+      "availability_probe_proof",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwind",
+      "17",
+      "--unwinding-assertions",
+      "-I",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+      "-I",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/ffi",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-41/availability-proof.cpp"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 42299,
+    "exit_code": 6,
+    "joined": true,
+    "elapsed_seconds": 0.13127945900487248
+  }
+]

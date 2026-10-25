@@ -87,7 +87,7 @@ extension StudioModel {
     }
     // Exhaust every Boolean intent and tri-state capability on real computed properties.
     // The independent oracle keeps the documented legacy Qwen fallback explicit.
-    let types = ["lfm2", "lfm2_moe", "unknown", "qwen3_5", "qwen3_5_moe"]
+    let types = ["lfm2", "lfm2_moe", "unknown", "qwen3_5", "qwen3_5_moe", "qwen4_exp"]
     let capabilities: [Bool?] = [nil, false, true]
     for type in types {
       for mtp in [false, true] {
@@ -104,7 +104,7 @@ extension StudioModel {
               let data = try JSONSerialization.data(withJSONObject: ready)
               try model.samplingFixtureEvent(String(decoding: data, as: UTF8.self))
               model.samplingFixtureIntent(mtp: mtp, dflash: flash)
-              let wantsMTP = mtp && (mtpCapability ?? ["qwen3_5", "qwen3_5_moe"].contains(type))
+              let wantsMTP = mtp && (mtpCapability ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(type))
               let wantsFlash = flash && (flashCapability ?? (type == "qwen3_5_moe"))
               let locked = wantsMTP || wantsFlash
               try check(

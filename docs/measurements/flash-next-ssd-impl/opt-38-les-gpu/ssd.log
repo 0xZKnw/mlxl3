@@ -1,0 +1,13 @@
+
+running 8 tests
+test ssd_moe::tests::batched_prediction_selects_top_sixteen_values_without_changing_real_routing ... ok
+test ssd_moe::tests::cached_top_four_predictions_do_not_starve_useful_cold_prefetches ... ok
+test ssd_moe::tests::completed_prefetches_compute_while_other_experts_are_read ... ok
+test ssd_moe::tests::completed_previous_layer_reads_do_not_block_next_prefetch_cohort ... ok
+test ssd_moe::tests::disk_batches_reject_aliases_and_validate_every_record_before_writing ... ok
+test ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources ... ok
+test ssd_moe::tests::lookahead_preserves_exact_routes_and_invalidates_failed_predictions ... ok
+test ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 174 filtered out; finished in 6.25s
+

@@ -1,0 +1,70 @@
+{
+  "status": "passed_six_real_cli_rejections",
+  "parity": true,
+  "checks": [
+    {
+      "name": "two",
+      "expected_error": "MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1",
+      "peak_physical_bytes": 617071528,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "true",
+      "expected_error": "MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1",
+      "peak_physical_bytes": 617055144,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "empty",
+      "expected_error": "MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1",
+      "peak_physical_bytes": 616170408,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "space",
+      "expected_error": "MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1",
+      "peak_physical_bytes": 617087936,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "negative",
+      "expected_error": "MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1",
+      "peak_physical_bytes": 617137064,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "nonunicode",
+      "expected_error": "unicode",
+      "peak_physical_bytes": 617120704,
+      "reaped": true,
+      "before_ready": true
+    }
+  ],
+  "before": {
+    "epoch": 1792683257.680969,
+    "vm_bytes": {
+      "Pages free": 6421495808,
+      "File-backed pages": 6416678912,
+      "Pages occupied by compressor": 5163384832,
+      "Swapins": 7421952,
+      "Swapouts": 157024256
+    },
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+  },
+  "after": {
+    "epoch": 1792683283.6398048,
+    "vm_bytes": {
+      "Pages free": 6258376704,
+      "File-backed pages": 6668533760,
+      "Pages occupied by compressor": 4977000448,
+      "Swapins": 7421952,
+      "Swapouts": 157024256
+    },
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+  }
+}

@@ -1,0 +1,19 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 1 test
+norm/0: count=10240, relative_rmse=0.000009, max_abs=0.000977
+Error: norm 0 differs bitwise
+test qwen4::tests::flash_norms_match_upstream_rounding ... FAILED
+
+failures:
+
+failures:
+    qwen4::tests::flash_norms_match_upstream_rounding
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 90 filtered out; finished in 6.38s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,27 @@
+{
+  "status": "design_only_not_implemented_or_measured",
+  "baseline_native": "309d7b63706a5e4d4d739f7347efba5d9fba11a9",
+  "findings": [
+    "Strata moe_plan writes compact origin entries and indirect threadgroup counts on GPU",
+    "Strata mtl_rt.mm calls dispatchThreadgroupsWithIndirectBuffer directly",
+    "Installed MLX0.32.2 fast.CustomKernelFunction accepts host grid tuple; CustomKernel.eval_gpu dispatches that fixed grid",
+    "CommandEncoder exposes fixed dispatch and hides raw compute encoder; private access or CPU count readback would defeat the design contract",
+    "Public get_command_buffer, end_encoding, signal_event and wait_event offer a candidate integration boundary; correctness and cost must be tested"
+  ],
+  "candidate_to_investigate": "MLX Primitive with a manual indirect compute encoder on the same MLX command buffer, explicit event boundaries and retained arrays/pipeline until completion; reuse MLX error handling/residency, no custom queue or CPU read of active count",
+  "not_yet_validated": [
+    "exported symbols and Metal C++ headers/build",
+    "event ordering and readback overlap",
+    "array and pipeline lifetime with unretained command buffer",
+    "error propagation/cancel/recovery",
+    "empty compact plan and original-output initialization",
+    "whole-model benefit after extra event and encoder cost"
+  ],
+  "arithmetic": "Keep existing NT1/SG4 shader arithmetic and FP16 Hadamard boundaries; scatter by original route, preserve top10 contribution order",
+  "later_grouping": "Separate singleton and true-pair plans/pipelines; old48 used MB2 layout for all groups when any pair existed, with sentinel skips but larger scratch/inner checks",
+  "sources": [
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp",
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/custom_kernel.cpp",
+    "https://github.com/Niko1221/Strata/blob/cbfd5b926b794b356195d3cb600191b0c3567540/metal/src/mtl_rt.mm"
+  ]
+}

@@ -1,0 +1,33 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error[E0282]: type annotations needed for `Vec<_>`
+   --> native/src/flash_support.rs:714:17
+    |
+714 |             let mut singles = Vec::new();
+    |                 ^^^^^^^^^^^   ---------- type must be known at this point
+    |
+help: consider giving `singles` an explicit type, where the type for type parameter `T` is specified
+    |
+714 |             let mut singles: Vec<T> = Vec::new();
+    |                            ++++++++
+
+error[E0283]: type annotations needed for `Vec<_>`
+   --> native/src/flash_support.rs:714:17
+    |
+714 |             let mut singles = Vec::new();
+    |                 ^^^^^^^^^^^
+...
+728 |             assert_eq!(&actual[2..2 + singles.len()], singles);
+    |             -------------------------------------------------- type must be known at this point
+    |
+    = note: multiple `impl`s satisfying `u32: PartialEq<_>` found in the following crates: `core`, `serde_json`:
+            - impl PartialEq for u32;
+            - impl PartialEq<serde_json::Value> for u32;
+    = note: required for `&[u32]` to implement `PartialEq<Vec<_>>`
+help: consider giving `singles` an explicit type, where the placeholder `_` is specified
+    |
+714 |             let mut singles: Vec<T> = Vec::new();
+    |                            ++++++++
+
+Some errors have detailed explanations: E0282, E0283.
+For more information about an error, try `rustc --explain E0282`.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

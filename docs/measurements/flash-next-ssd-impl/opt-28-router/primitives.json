@@ -1,0 +1,34 @@
+[
+  {
+    "name": "compile-oracle",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "limit": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 29.980861958989408
+  },
+  {
+    "name": "oracle",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "router::tests::flash_top10_matches_legacy_cpu_and_boundaries",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "limit": 60,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 1.0863403339753859
+  }
+]

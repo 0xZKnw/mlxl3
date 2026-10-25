@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "commit_sha": "09113b6f2accdd008e8c39d457b45c9a4d95002a",
+  "workflow_run_id": 39823981330,
+  "workflow_status": "completed",
+  "workflow_conclusion": "failure",
+  "event": "push",
+  "run_attempt": 1,
+  "target_job": {
+    "id": 119982266545,
+    "status": "completed",
+    "conclusion": "failure",
+    "started_at": "2026-10-22T17:35:05Z",
+    "completed_at": "2026-10-22T17:41:14Z",
+    "wall_seconds": 369,
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-22T17:35:06Z",
+        "completed_at": "2026-10-22T17:35:07Z"
+      },
+      {
+        "name": "Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-22T17:35:07Z",
+        "completed_at": "2026-10-22T17:35:20Z"
+      },
+      {
+        "name": "Verify Rust safety contracts with Kani",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "number": 3,
+        "started_at": "2026-10-22T17:35:20Z",
+        "completed_at": "2026-10-22T17:41:13Z"
+      },
+      {
+        "name": "Post Run actions/checkout@v4",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 6,
+        "started_at": "2026-10-22T17:41:13Z",
+        "completed_at": "2026-10-22T17:41:13Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-22T17:41:13Z",
+        "completed_at": "2026-10-22T17:41:13Z"
+      }
+    ],
+    "runner_name": "GitHub Actions 1000003811",
+    "labels": [
+      "ubuntu-22.04"
+    ]
+  },
+  "command": "cargo kani --lib --no-default-features --jobs 1 --output-format terse",
+  "kani_version": "0.68.0",
+  "workflow_job_timeout_seconds": 3600,
+  "flash_job_timeout_seconds": 1800,
+  "per_harness_timeout_seconds": null,
+  "last_harness": {
+    "name": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+    "start_utc": "2026-10-22T17:38:40.7375301Z",
+    "shutdown_utc": "2026-10-22T17:41:12.4288869Z",
+    "elapsed_to_shutdown_seconds": 151.6913568,
+    "verdict": "not_observed"
+  },
+  "completed_successful_harnesses": 31,
+  "started_harnesses": 32,
+  "nonzero_failed_property_summaries": [],
+  "exit_143_present": false,
+  "shutdown_signal": true,
+  "timeout_evidence": false,
+  "counterexample_evidence": false,
+  "cause": "Runner shutdown explicitly reported; root cause undetermined. OOM, manual cancellation and infrastructure loss not distinguishable from available logs.",
+  "workflow_lines_at_commit": {
+    "concurrency_cancel": 9,
+    "flash_timeout_minutes": 17,
+    "global_job_start": 63,
+    "global_timeout_minutes": 65,
+    "global_command_args": 73
+  },
+  "local_uncommitted_workflow_lines": {
+    "global_job_start": 66,
+    "global_timeout_minutes": 68,
+    "global_command_args": 76
+  },
+  "attempted_retrievals": [
+    {
+      "tool": "github_fetch_workflow_job_logs",
+      "job_id": 119982266545,
+      "status": "success"
+    },
+    {
+      "tool": "github_fetch_workflow_job_steps",
+      "job_id": 119982266545,
+      "status": "success"
+    },
+    {
+      "tool": "github_fetch_workflow_run_jobs",
+      "run_id": 39823981330,
+      "status": "success"
+    },
+    {
+      "tool": "github_fetch",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/39823981330/jobs?filter=latest&per_page=100",
+      "status": "success"
+    },
+    {
+      "tool": "github_fetch",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/check-runs/119982266545",
+      "status": "rejected unsupported endpoint"
+    },
+    {
+      "tool": "github_fetch",
+      "url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/jobs/119982266545",
+      "status": "rejected unsupported endpoint"
+    }
+  ],
+  "rerun_dispatched": false,
+  "local_build_or_verification_executed": false,
+  "worktree_modified": false
+}

@@ -1,0 +1,46 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________________ test_identity_changes_are_rejected[process_id] ________________
+
+field = 'process_id'
+
+    @pytest.mark.parametrize("field", ("process_id", "process_start_abstime"))
+    def test_identity_changes_are_rejected(field):
+>       assert_failed(checker(memory(), memory(**{field: 999})), "identity changed")
+
+tests/test_flash_process_memory.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'status': 'complete', 'parity': True, 'ready': {'type': 'ready', 'memory': {'process_id': 123, 'process_start_abstime...9, 'process_start_abstime': 456, 'process_footprint_bytes': 7800000000, 'process_compressed_logical_bytes': 0, ...}}}]}
+message = 'identity changed'
+
+    def assert_failed(document, message=None):
+>       with pytest.raises(analysis.AnalysisError, match=message) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AnalysisError
+
+tests/test_flash_process_memory.py:66: Failed
+__________ test_identity_changes_are_rejected[process_start_abstime] ___________
+
+field = 'process_start_abstime'
+
+    @pytest.mark.parametrize("field", ("process_id", "process_start_abstime"))
+    def test_identity_changes_are_rejected(field):
+>       assert_failed(checker(memory(), memory(**{field: 999})), "identity changed")
+
+tests/test_flash_process_memory.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+document = {'status': 'complete', 'parity': True, 'ready': {'type': 'ready', 'memory': {'process_id': 123, 'process_start_abstime...3, 'process_start_abstime': 999, 'process_footprint_bytes': 7800000000, 'process_compressed_logical_bytes': 0, ...}}}]}
+message = 'identity changed'
+
+    def assert_failed(document, message=None):
+>       with pytest.raises(analysis.AnalysisError, match=message) as error:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AnalysisError
+
+tests/test_flash_process_memory.py:66: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_process_memory.py::test_identity_changes_are_rejected[process_id]
+FAILED tests/test_flash_process_memory.py::test_identity_changes_are_rejected[process_start_abstime]
+2 failed in 0.05s

@@ -1,0 +1,241 @@
+[
+  {
+    "status": "failed_or_interrupted",
+    "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+    "matrix_sha256": "000cb843279e26700b3054751e2d5e30c1499b49e5e52b8299cb5ac16d624bd4",
+    "commands": [
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+          "-c",
+          "import time; from pathlib import Path; Path('child-started').touch(); time.sleep(0)"
+        ],
+        "env": {
+          "MLXL3_FLASH_MODEL": "path-never-loaded"
+        },
+        "load_headroom_bytes": 4294967296,
+        "minimum_live_free_bytes": 536870912,
+        "maximum_compressor_bytes": 7000000000,
+        "name": "admission",
+        "expected_exit": 0,
+        "timeout_seconds": 5,
+        "status": "failed_or_interrupted",
+        "before": {
+          "vm_bytes": {
+            "Swapins": 100,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          },
+          "pmset -g batt": "Now drawing from 'AC Power'"
+        },
+        "preflight_guard": {
+          "status": "passed",
+          "scope": "cumulative_campaign",
+          "baseline": {
+            "Swapins": 100,
+            "Swapouts": 100
+          },
+          "limit_bytes": 268435456,
+          "swapout_limit_bytes": 0,
+          "deltas": {
+            "Swapins": 0,
+            "Swapouts": 0
+          }
+        },
+        "memory_guard": {
+          "status": "passed",
+          "stage": "before_launch",
+          "policy": {
+            "load_headroom_bytes": 4294967296,
+            "minimum_live_free_bytes": 536870912,
+            "maximum_compressor_bytes": 7000000000
+          },
+          "free_bytes": 4294967296,
+          "minimum_free_bytes": 4294967296,
+          "compressor_bytes": 7000000000,
+          "maximum_compressor_bytes": 7000000000
+        },
+        "executable_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "pid": 68526,
+        "live_guard_basis": {
+          "scope": "cumulative_campaign",
+          "Swapins": 100,
+          "Swapouts": 100
+        },
+        "last_live_vm_bytes": {
+          "Swapins": 268435557,
+          "Swapouts": 100,
+          "Pages free": 4294967296,
+          "Pages occupied by compressor": 7000000000
+        },
+        "live_memory_samples": [
+          {
+            "epoch": 1792756913.277705,
+            "Swapins": 268435557,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          }
+        ],
+        "maximum_live_swapout_bytes": 0,
+        "maximum_live_swapin_bytes": 268435457,
+        "error": "AssertionError('cumulative live swapin limit exceeded')",
+        "reaped": true,
+        "seconds": 0.020306041002186248
+      }
+    ],
+    "error": "AssertionError('cumulative live swapin limit exceeded')"
+  },
+  {
+    "status": "failed_or_interrupted",
+    "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+    "matrix_sha256": "000cb843279e26700b3054751e2d5e30c1499b49e5e52b8299cb5ac16d624bd4",
+    "commands": [
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+          "-c",
+          "import time; from pathlib import Path; Path('child-started').touch(); time.sleep(0)"
+        ],
+        "env": {
+          "MLXL3_FLASH_MODEL": "path-never-loaded"
+        },
+        "load_headroom_bytes": 4294967296,
+        "minimum_live_free_bytes": 536870912,
+        "maximum_compressor_bytes": 7000000000,
+        "name": "admission",
+        "expected_exit": 0,
+        "timeout_seconds": 5,
+        "status": "failed_or_interrupted",
+        "before": {
+          "vm_bytes": {
+            "Swapins": 100,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          },
+          "pmset -g batt": "Now drawing from 'AC Power'"
+        },
+        "preflight_guard": {
+          "status": "passed",
+          "scope": "cumulative_campaign",
+          "baseline": {
+            "Swapins": 100,
+            "Swapouts": 100
+          },
+          "limit_bytes": 268435456,
+          "swapout_limit_bytes": 0,
+          "deltas": {
+            "Swapins": 0,
+            "Swapouts": 0
+          }
+        },
+        "memory_guard": {
+          "status": "passed",
+          "stage": "before_launch",
+          "policy": {
+            "load_headroom_bytes": 4294967296,
+            "minimum_live_free_bytes": 536870912,
+            "maximum_compressor_bytes": 7000000000
+          },
+          "free_bytes": 4294967296,
+          "minimum_free_bytes": 4294967296,
+          "compressor_bytes": 7000000000,
+          "maximum_compressor_bytes": 7000000000
+        },
+        "executable_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "pid": 68525,
+        "live_guard_basis": {
+          "scope": "cumulative_campaign",
+          "Swapins": 100,
+          "Swapouts": 100
+        },
+        "last_live_vm_bytes": {
+          "Swapins": 100,
+          "Swapouts": 101,
+          "Pages free": 4294967296,
+          "Pages occupied by compressor": 7000000000
+        },
+        "live_memory_samples": [
+          {
+            "epoch": 1792756913.245864,
+            "Swapins": 100,
+            "Swapouts": 101,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          }
+        ],
+        "maximum_live_swapout_bytes": 1,
+        "error": "AssertionError('live Swapouts changed')",
+        "reaped": true,
+        "seconds": 0.020194458000332816
+      }
+    ],
+    "error": "AssertionError('live Swapouts changed')"
+  },
+  {
+    "status": "failed_or_interrupted",
+    "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+    "matrix_sha256": "000cb843279e26700b3054751e2d5e30c1499b49e5e52b8299cb5ac16d624bd4",
+    "commands": [
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+          "-c",
+          "import time; from pathlib import Path; Path('child-started').touch(); time.sleep(0)"
+        ],
+        "env": {
+          "MLXL3_FLASH_MODEL": "path-never-loaded"
+        },
+        "load_headroom_bytes": 4294967296,
+        "minimum_live_free_bytes": 536870912,
+        "maximum_compressor_bytes": 7000000000,
+        "name": "admission",
+        "expected_exit": 0,
+        "timeout_seconds": 5,
+        "status": "failed_or_interrupted",
+        "before": {
+          "vm_bytes": {
+            "Swapins": 100,
+            "Swapouts": 100,
+            "Pages free": 4294967295,
+            "Pages occupied by compressor": 7000000000
+          },
+          "pmset -g batt": "Now drawing from 'AC Power'"
+        },
+        "preflight_guard": {
+          "status": "failed",
+          "scope": "cumulative_campaign",
+          "baseline": {
+            "Swapins": 100,
+            "Swapouts": 100
+          },
+          "limit_bytes": 268435456,
+          "swapout_limit_bytes": 0,
+          "deltas": {
+            "Swapins": 0,
+            "Swapouts": 0
+          }
+        },
+        "memory_guard": {
+          "status": "failed",
+          "stage": "before_launch",
+          "policy": {
+            "load_headroom_bytes": 4294967296,
+            "minimum_live_free_bytes": 536870912,
+            "maximum_compressor_bytes": 7000000000
+          },
+          "free_bytes": 4294967295,
+          "minimum_free_bytes": 4294967296,
+          "compressor_bytes": 7000000000,
+          "maximum_compressor_bytes": 7000000000
+        },
+        "error": "AssertionError('memory headroom below admission budget')",
+        "reaped": true,
+        "seconds": 9.709001460578293e-06
+      }
+    ],
+    "error": "AssertionError('memory headroom below admission budget')"
+  }
+]

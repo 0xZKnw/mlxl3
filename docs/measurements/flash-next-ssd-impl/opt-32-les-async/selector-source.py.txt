@@ -1,0 +1,48 @@
+import math
+import statistics
+
+def choose(arms: list) -> int | None:
+    if len(arms) != 8 or any((a.get('status') != 'validated' for a in arms)):
+        return None
+    gains = {d: [] for d in [2, 4]}
+    for prompt in ['MAIN', 'HOLD']:
+        cells = [a for a in arms if a['prompt'] == prompt]
+        if sorted((a['depth'] for a in cells)) != [0, 0, 2, 4]:
+            return None
+        if any((type(a['tps']) not in [int, float] or not math.isfinite(a['tps']) or a['tps'] <= 0 for a in cells)):
+            return None
+        controls = [a for a in cells if a['depth'] == 0]
+        if max((a['tps'] for a in controls)) / min((a['tps'] for a in controls)) > 1.05:
+            return None
+        baseline = statistics.mean((a['tps'] for a in controls))
+        peak = max((a['peak_bytes'] for a in controls))
+        for depth in gains:
+            c = next((a for a in cells if a['depth'] == depth))
+            if c['peak_bytes'] > peak + (256 << 20):
+                gains[depth].append(0)
+            else:
+                gains[depth].append(c['tps'] / baseline)
+    eligible = [d for d, v in gains.items() if len(v) == 2 and all((x >= 1.01 for x in v))]
+    return max(eligible, key=lambda d: (math.prod(gains[d]), -d)) if eligible else None
+
+def choose_mtp(arms: list) -> int | None:
+    if len(arms) != 4 or any((a.get('status') != 'validated' for a in arms)):
+        return None
+    depth = None
+    for prompt in ['MAIN', 'HOLD']:
+        cells = [a for a in arms if a['prompt'] == prompt]
+        if len(cells) != 2:
+            return None
+        controls = [a for a in cells if a['depth'] == 0]
+        candidates = [a for a in cells if a['depth'] > 0]
+        if len(controls) != 1 or len(candidates) != 1:
+            return None
+        h, c = (controls[0], candidates[0])
+        if any((type(a['tps']) not in [int, float] or not math.isfinite(a['tps']) or a['tps'] <= 0 for a in cells)):
+            return None
+        if c['tps'] / h['tps'] < 1.01 or c['peak_bytes'] > h['peak_bytes'] + (256 << 20):
+            return None
+        if depth is not None and depth != c['depth']:
+            return None
+        depth = c['depth']
+    return depth

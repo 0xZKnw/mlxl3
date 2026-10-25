@@ -1,0 +1,20 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: the borrowed expression implements the required traits
+   --> native/src/flash_cache_profile.rs:259:55
+    |
+259 |         ensure!((1..=16 << 20).contains(&fs::metadata(&input)?.len()));
+    |                                                       ^^^^^^ help: change this to: `input`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_borrows_for_generic_args
+    = note: `-D clippy::needless-borrows-for-generic-args` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_borrows_for_generic_args)]`
+
+error: the borrowed expression implements the required traits
+   --> native/src/flash_cache_profile.rs:260:66
+    |
+260 |         let trace: CacheTrace = serde_json::from_slice(&fs::read(&input)?)?;
+    |                                                                  ^^^^^^ help: change this to: `input`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_borrows_for_generic_args
+
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

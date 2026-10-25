@@ -1,0 +1,13 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/router.rs:550:37
+    |
+550 |                     for row in host.chunks_exact(512) {
+    |                                     ^^^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<512>().0`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+    = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

@@ -1,0 +1,344 @@
+{
+  "schema": "mlxl3.optimization-audit.79R-C.v1",
+  "date": "2026-10-23",
+  "language": "fr",
+  "scope": "Revue statique uniquement ; aucun exécutable, modèle, test, build, preuveur ou benchmark lancé.",
+  "checkout": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "head": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+  "runtime_base": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+  "source_sha256": {
+    "native/src/qwen4.rs": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "native/src/linear.rs": "35c6f59372b8555ef208729cef26492e5aadd3a93cab6331732a372681068e4b",
+    "native/src/lfm2.rs": "a1586737903bd18e04024f7b5bb4d25939de3c480dc6a6ad0be61880c0799f89",
+    "native/src/qwen35.rs": "e71a30d193019d1d6f3ac8d6a9457862004713bbf54445ede15bb451ef4f4bd7",
+    "native/src/array.rs": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "native/src/flash_draft.rs": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803",
+    "native/src/flash_support.rs": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+    "native/src/gated_delta.rs": "a99e9198f9cf454caafa8e7e5b974797ad4929109f0a462c93d409e31f5e9347",
+    "native/shaders/flash_draft_ring.h": "80d3fd4bd36d999f6e505f226dba292342292628a9fd3c9e9b432476768379ff",
+    "native/ffi/mlx_bridge.cpp": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a"
+  },
+  "model": "Qwen3.8 Flash Next EXL3 2.05 bpw 65c89531 ; draft Q4 a22a1744 ; M5 utilisateur 24 Gio ; cache expert 3 Gio.",
+  "header_only_checkpoint_observations": {
+    "method": "Lecture CPU des en-têtes safetensors uniquement pour formes/dtypes ; aucun chargementGPU ni nouveau test numérique. Les hashesSU déjà lus par root sont dans input-scale-sha.json.",
+    "gdn_layer0_a_weight": {
+      "dtype": "F16",
+      "shape": [
+        48,
+        2560
+      ]
+    },
+    "gdn_layer0_b_weight": {
+      "dtype": "F16",
+      "shape": [
+        48,
+        2560
+      ]
+    },
+    "qsa_layer3_index_trellis": {
+      "dtype": "I16",
+      "shape": [
+        160,
+        40,
+        32
+      ]
+    },
+    "qsa_layer3_index_svh": {
+      "dtype": "F16",
+      "shape": [
+        640
+      ]
+    }
+  },
+  "findings": [
+    {
+      "id": "79C-01",
+      "priority": 1,
+      "title": "Calculer seulement la tête clé de l’index QSA quand les quatre requêtes ne sont pas utilisées",
+      "classification": "Travail cible redondant démontré statiquement ; optimisation non mesurée",
+      "sources": [
+        {
+          "path": "native/src/qwen4.rs",
+          "lines": [
+            591,
+            606,
+            616,
+            649,
+            659,
+            664,
+            1764,
+            1771
+          ]
+        },
+        {
+          "path": "native/src/linear.rs",
+          "lines": [
+            347,
+            357,
+            389,
+            409,
+            441
+          ]
+        },
+        {
+          "path": "native/src/flash_support.rs",
+          "lines": [
+            284
+          ]
+        }
+      ],
+      "production": "FlashNext/verify_draft → Layer::prepare_rows → Qsa::forward → append_cache ; MtpHead::extend_cache → append_cache.",
+      "scenario": "append_cache produit cinq têtes de128. Seule la dernière est nécessaire au cache. Les quatre premières ne sont lues par Qsa::forward que lorsque (ancien_offset+1)/4>512, soit à partir du 2052e token. extend_cache abandonne toujours le résultat qk et ne nécessite jamais ces quatre requêtes.",
+      "actual_shapes": "Entrée F16[1,2560], sortie 640. Checkpoint réel index layer 3 : trellis I16[160,40,32], suh F16[2560], svh F16[640], K2/Mul1 ; les128 sorties utiles occupent les tuiles 32..40 et un bloc Hadamard entier.",
+      "minimum_fix": "Ajouter un chemin EXL3 de plage de sorties 512..640, avec stride physique 40 inchangé et décalage de tuile 32. Conserver toute la transformation d’entrée 2560 et les splits calculés pour la projection640 d’origine. Employer la projection complète quand Qsa::forward utilise effectivement ses requêtes ; employer la plage clé seule dans extend_cache. Repli dense/full projection+slice.",
+      "work_removed": "32 des 40 tuiles de sortie de cette seule petite projection ; ni 80 % du QSA entier, ni 80 % du modèle. Applicable aux 12 couchesQSA et au cache de tête MTP.",
+      "novelty": "La sélection sparse évitée aux contextes courts était connue ; elle ne supprime pas la projection d’index 640 actuellement exécutée. Différent du regroupement QSA général de 63/64R.",
+      "risks": [
+        "Ne pas remplacer le stride 40 par 8.",
+        "Ne pas recalculer les splits d’après la largeur réduite ; le cas réel a split 1.",
+        "Préserver SG4/NT1, partition de sommes FP32, cast F16, Hadamard 128 et svh[512..640].",
+        "Conserver toutes les clés historiques pour franchir ultérieurement le seuil 2052.",
+        "Distinguer besoin de requêtes du forward et absence de besoin dans extend_cache."
+      ],
+      "oracle": "Comparaison bit à bit full 640.slice(512..640) contre range sur les poids réels, entrées finies F16/F32/strides et B1/B2/B4/B8 ; logits et états index_tail/blocks/KV à 2051/2052/2053, tous préfixes et rollback/cancel/reprise, cache-only MTP.",
+      "discriminant_protocol": "Préenregistrer d’abord la plage exacte et ses oracles. Compter les tuiles réellement lancées et profiler la seule projection, puis OFF/MTP1/DFlash B2 MAIN/HOLD avec même cache3Gio et contrôle mémoire. Aucun débit prévu."
+    },
+    {
+      "id": "79C-02",
+      "priority": 3,
+      "title": "Réutiliser le chemin dense exact multi-lignes pour les deux portes GDN de48 sorties",
+      "classification": "Appels de projection ligne par ligne confirmés ; adaptation numérique à vérifier",
+      "sources": [
+        {
+          "path": "native/src/qwen4.rs",
+          "lines": [
+            166,
+            349,
+            352
+          ]
+        },
+        {
+          "path": "native/src/lfm2.rs",
+          "lines": [
+            249,
+            258,
+            273,
+            304
+          ]
+        },
+        {
+          "path": "native/src/qwen35.rs",
+          "lines": [
+            311,
+            3451
+          ]
+        }
+      ],
+      "production": "DFlash verify_draft / verify_pair multi-token → Gdn::forward_rows → verification_projection(a/b).",
+      "scenario": "verification_projection ne groupe que les projections EXL3. a et b du checkpoint sont denses F16[48,2560], donc chaque fenêtre B exécute B projections puis concatenate pour chacune des deux portes, sur36 couchesGDN.",
+      "actual_shapes": "Entrée F16[B,2560], poids F16[48,2560], sortie F16[B,48], B2..8. Ces formes satisfont les critères dimensionnels du helper forward_dense_rows_exact déjà utilisé par Qwen3.5, mais jamais par Qwen4.",
+      "minimum_fix": "Branchement étroit a/b denses sans biais vers le helper existant pour 2..8 lignes, après validation dtypes et oracle réel. Garder B1 et formes non admissibles sur le chemin actuel. Pas de GEMM arbitraire, pas de réécriture du scan.",
+      "work_removed": "Réduit les appels de construction des portes de 2B à 2 par couche : 72(B−1) appels de projection potentiellement évités par fenêtre sur36 couches, plus les concatenations. Le helper garde une grille Y par ligne : ce constat ne prouve pas un partage des chargements de poids.",
+      "novelty": "63 groupe les projections EXL3 ; le helper dense exact existant reste inutilisé ici. Différent de HC MB2(22), de la fusion GDN mono-ligne 25 et du shared EXL3 (68).",
+      "risks": [
+        "Le nom exact du helper ne prouve pas l’égalité avec le GEMV MLX pour 48 sorties.",
+        "Préserver l’ordre FP32 et le cast F16 ; vérifier les strides/dtypes plutôt que se fier seulement aux dimensions.",
+        "Ne pas confondre le nombre d’appels Rust avec le nombre final de soumissions Metal."
+      ],
+      "oracle": "Poids a/b réels 48×2560, B2..8 et strides, oracle B×T1, finitude et nombre de valeurs, états GDN complets et chaque préfixe ; mutation d’indice de ligne détectée. Bridge DFlash et MTP séparément.",
+      "discriminant_protocol": "Compter appels/nœuds/dispatchs puis coût exclusif portes avant une campagne globale. Si ce coût est faible, arrêter après mesure composant ; le profil 64 ne justifie pas une campagne entière sur GDN."
+    },
+    {
+      "id": "79C-03",
+      "priority": 2,
+      "title": "Éviter de reconstruire les métadonnées immuables avant chaque cache hit de kernel",
+      "classification": "Allocations et copies hôte confirmées ; coût exposé non mesuré",
+      "sources": [
+        {
+          "path": "native/src/linear.rs",
+          "lines": [
+            357,
+            517,
+            1401,
+            1536,
+            1540,
+            1546
+          ]
+        },
+        {
+          "path": "native/src/array.rs",
+          "lines": [
+            1366,
+            1395,
+            1403,
+            1412
+          ]
+        },
+        {
+          "path": "native/ffi/mlx_bridge.cpp",
+          "lines": [
+            646,
+            660,
+            661,
+            669
+          ]
+        }
+      ],
+      "production": "Projections EXL3 denses et experts → reference_reduction_header/codebook_header → array::metal_kernel → FFI C++ → cache.find.",
+      "scenario": "Chaque appel référence construit 256 String par to_string, joint les positions dans une nouvelle chaîne, reconstruit les headers, et convertit la sourceMSL complète ainsi que les noms en CString avant le cache.find C++. Le cache de factories ne peut pas éviter ce travail déjà effectué côté Rust.",
+      "actual_shapes": "Toutes les fenêtresB1/B2/B4/B8 ; shaders tile/mapped d’environ 10/14 Ko copiés en CString à l’appel. Aucune donnée tenseur n’est nécessaire pour mémoriser ces seules chaînes.",
+      "minimum_fix": "Commencer par un OnceLock du préfixe de réduction de référence immuable ; conserver le suffixe propre à chaque géométrie. Ensuite seulement, si le profil l’exige, des descripteurs CString immuables par signature complète. Ne mémoriser ni pointeur d’array, ni slot expert, ni budget.",
+      "work_removed": "Construction de 256 petites String par appel de référence, jointure puis allocations/copies de métadonnées ; aucun calcul GPU supprimé. Ce coût Rust précède le lookup C++ du profil 19.",
+      "novelty": "19 mesure lookup/factory C++ (~0,4 % historique) et 67 stabilise les signatures. Ce constat vise le travail Rust situé avant ces intervalles, pas une nouvelle politique de cache factory.",
+      "risks": [
+        "Conserver la clé complète nom+noms I/O+header+source ; ne pas créer de collision de variantes.",
+        "Conserver erreurs de NUL, validations de tailles et durées de vie FFI.",
+        "Le compilateur/allocateur peut déjà rendre ce coût négligeable : pas de gain présumé."
+      ],
+      "oracle": "Identité octet par octet des descripteurs, tests des variantes et collisions, mêmes graphes/sorties/logits ; aucun changement numérique attendu.",
+      "discriminant_protocol": "Profiler les spans CPU formatage et CString avant FFI, sans eval ajouté. Comparer coût au token et temps effectivement exposé. Ne pas construire un graphe persistant général avant preuve que ce coût compte."
+    },
+    {
+      "id": "79C-04",
+      "priority": 4,
+      "title": "Conserver une vue FP32 dérivée des blocs d’index QSA aux contextes longs",
+      "classification": "Conversion répétée confirmée ; précision d’un reliquat long contexte, pas un boost des prompts courts",
+      "sources": [
+        {
+          "path": "native/src/qwen4.rs",
+          "lines": [
+            616,
+            622,
+            667,
+            677,
+            704
+          ]
+        }
+      ],
+      "production": "Qsa::forward, uniquement lorsque (offset+1)/4>512.",
+      "scenario": "Chaque token convertit l’ensemble des blocs d’index F16 en FP32 pour le produit des scores. Un nouveau bloc 128 est ajouté tous les4 tokens ; les anciens blocs immuables sont reconvertis dans une nouvelle expression.",
+      "actual_shapes": "Blocs F16[1,1,count,128]. À count 513..1024, une vue FP32 matérialisée représente environ 0,25..0,5 Mio parQSA, soit environ 3..6 Mio pour 12 couches.",
+      "minimum_fix": "Cache dérivé FP32 mis à jour seulement après ajout d’un nouveau bloc, en convertissant APRÈS l’arrondi F16 canonique. Garder l’état F16 de référence ; reconstruire/invalider la vue sur restore/reset/cancel.",
+      "work_removed": "Conversions répétées des blocs existants, pas les copies de concaténation ni le calcul des scores ou les readbacks de sélection.",
+      "novelty": "L’optimisation QSA long contexte est un reliquat déjà connu ; la conversion complète bloc→FP32 est une frontière concrète à isoler plutôt qu’un nouveau port QSA générique.",
+      "risks": [
+        "Un cache dérivé incorrect au rollback contamine les scores.",
+        "Ajouter quelques Mio persistants et davantage de snapshots peut annuler le bénéfice.",
+        "Confirmer une matérialisation GPU réelle plutôt qu’attribuer seulement un nœud astype."
+      ],
+      "oracle": "Blocs F16 inchangés, vue FP32 égale à astype intégral, logits et états à 2051/2052/2053 et 4096, restaurations de tous préfixes et annulation/reprise.",
+      "discriminant_protocol": "Mesurer uniquement sur contextes >2051 avec même KV et trace d’allocations/casts. Ne pas lancer MAIN/HOLD courts pour attendre un gain sur un chemin inactif."
+    },
+    {
+      "id": "79C-05",
+      "priority": 5,
+      "title": "Éviter les groupes vides et les lignes de requêtes rembourrées du ring draft B2",
+      "classification": "Géométrie surdimensionnée confirmée ; priorité secondaire car draft≈ 4,5 % du décodage",
+      "sources": [
+        {
+          "path": "native/src/flash_draft.rs",
+          "lines": [
+            600,
+            634,
+            896,
+            925,
+            946,
+            959
+          ]
+        },
+        {
+          "path": "native/shaders/flash_draft_ring.h",
+          "lines": [
+            18,
+            22,
+            33,
+            37,
+            42,
+            197
+          ]
+        }
+      ],
+      "production": "Draft DFlash2 Q4, cinq couches, attention circulaire → ring_attention. Pas le vérificateur cible.",
+      "scenario": "B2 est rembourré à 8 positions ; 4 têtes Q par tête KV donnent M32 alors que 8 lignes Q suffisent. La grille garde 8 splits par tête KV. À contexte ancien ≤ 128, seuls split 0 et split 7 sont utiles, les 6 autres ne font qu’écrire des maxima −inf puis retournent.",
+      "actual_shapes": "Q BF16[1,32,B,128], K/V cache[1,8,2048,128]/[1,8,128,2048]. Partials FP32[8,8,4160], soit 1 064 960 octets logiques, puis sortie BF16[1,32,8,128] découpée à B.",
+      "minimum_fix": "Premier essai limité : liste CPU des splits actifs déduite de position connue, conserver leurs indices logiques et l’ordre de réduction à 8 splits. Réduction doit ignorer les slots jamais écrits AVANT lecture. Garder d’abord le layout partials. Un M compact 4B est un second mécanisme distinct, à qualifier séparément.",
+      "work_removed": "Groupes vides et éventuellement calculs de lignes Q rembourrées ; pas de réduction prouvée de durée. Les groupes vides ont déjà un early-return.",
+      "novelty": "Différent d’un nouvel A/B ring ON/OFF 60/61 inchangé : géométrie active et indexation proposées changent réellement le travail. Ne pas simplement réduire le nombre logique de splits, ce qui changerait l’ordre des sommes.",
+      "risks": [
+        "Lire des partials non initialisés si la réduction ne saute pas les slots absents.",
+        "Modifier le nombre de splits ou la géométrie MPP peut changer l’arrondiFP32/softmax et les propositions.",
+        "Les 1 Mio sont une taille logique temporaire, pas un pic physique ajouté cinq fois.",
+        "Gain idéal de tout le draft gratuit seulement ≈ 4,7–4,8 % sur les témoins B2 récents."
+      ],
+      "oracle": "Ancien ring contre nouveau bit à bit B1/B2/B4/B8, positions 0/1/127/128/255/1024/2047/2048/2049/4096 ; cache wrap, partials empoisonnés et mutant omettant split 7, oracle attention BF16 indépendant, commit et tous préfixes.",
+      "discriminant_protocol": "Mesurer coût du ring et dispatchs actifs avant TPS global. Priorité après les chantiers cible : le témoin H72W-R attribue seulement 4,46–4,59 % au draft."
+    }
+  ],
+  "exploratory_appendix": [
+    {
+      "id": "79C-X1",
+      "title": "LUT exacteMul1 de 1021half, mécanisme distinct d’une quantificationint8",
+      "sources": [
+        {
+          "path": "native/src/linear.rs",
+          "lines": [
+            1546,
+            1554,
+            1555
+          ]
+        }
+      ],
+      "status": "Idée arithmétique non mesurée, basse priorité ; aucun shader créé.",
+      "reasoning": "Après le hash 32 bits, Mul1 additionne quatre octets :S∈[0,1020]. La suite réinterprète les bitsF16(0x6400+S) puis applique les constantesF16 inv0x1eee et bias0xc931. Une table exacte1021half≈2042octets peut remplacer uniquement cette dernière expression. Hash et somme SWAR demeurent.",
+      "history": "PERF89 a rejeté une LUT8 entréesK3 qui confondait bits de transition et état16bits ; ce n’est pas cette proposition. Les décodeurs/layouts54 n’ont pas démontré de gain global. StrataPR3299 discute int8LUT pour des formatsTQ différents, sans prouver un bénéficeEXL3.",
+      "future_oracle": "Générer les valeurs avec la même expressionMetal et vérifier tous les 65536 états16bits, au niveau des bitsfloat produits ; ne pas calculer une tableCPU avec un ordreFMA différent puis la déclarer exacte.",
+      "limit": "Une lookup aléatoire peut coûter plus que le half-muladd ; aucune hypothèseALU-boundEXL3 établie. Pas de TPSprévu."
+    }
+  ],
+  "performance_context": {
+    "source": "Ancien témoinH deP72/speed-72W-R/screen, relu par root ; aucune nouvelle mesure.",
+    "MAIN": {
+      "decode_seconds": 11.237738458,
+      "draft_seconds": 0.515504669,
+      "verification_seconds": 10.494344293,
+      "commit_seconds": 0.226343752
+    },
+    "HOLD": {
+      "decode_seconds": 11.850775625,
+      "draft_seconds": 0.528575581,
+      "verification_seconds": 10.984327375,
+      "commit_seconds": 0.233488996
+    },
+    "interpretation": "Le draft ne représente que4,46–4,59 % du décodage ; priorité au vérificateur. Les pourcentages de profil 64 sont des intervalles hôte inclusifs, pas des coûtsGPU exclusifs."
+  },
+  "not_new_or_not_supported": [
+    "CachePLE déquantifié déjà proposé par45/70R ; PLE n’est présente que sur une couche.",
+    "ConstanteconvGDN déjà préenregistrée78, non appliquée ici.",
+    "FusionGDN mono-ligne 25, HCMB2(22), groupedEXL3 (65/66), sharedEXL3 (68) rejetés/non qualifiés ; aucun essai inchangé proposé.",
+    "Un seul FHT d’entrée partagé entre gate/up, qkv/z ou q/k/v est incompatible avec lesSU distincts du checkpoint.",
+    "Broadcast des exp/portes uniformesGDN : redondance source possible, mais uniformisation/CSE du compilateur non inspectée ; pas un gain établi.",
+    "72/73 retirés ; 71P/78 restent non appliqués."
+  ],
+  "upstream": {
+    "metadata": "upstream.json",
+    "splash_main": "3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+    "strata_main": "7ddc17a38fe7f31637e895ecfba58c2cd43d65ec",
+    "splash_pr569": {
+      "url": "https://github.com/incoai/splash/pull/569",
+      "head": "2c12b35eb036fd3462dcbe1216d12985d238ed28",
+      "applicability": "GGUFApple9/M4 ; Apple10 inchangé, pas de gain direct M5EXL3."
+    },
+    "strata_pr3299": {
+      "url": "https://github.com/Niko1221/Strata/pull/3299",
+      "head": "dd0c130fe9a4370f148f30b25cd546434c5182c5",
+      "applicability": "Gyrotrellis TQ2_T/TQK6/TQK7, pasEXL3 ; conceptLUT seulement, pas un port exact."
+    }
+  },
+  "claims": {
+    "speedup_measured": false,
+    "numerical_parity_verified": false,
+    "formal_proof_executed": false,
+    "new_code": false,
+    "fifteen_tps_promised": false
+  }
+}

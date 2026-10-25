@@ -28,11 +28,21 @@ def equal(reference, candidate):
 
 
 def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_draft=None):
-    report = {"status": "running", "parity": None, "checks": 0, "events": []}
+    report = {
+        "status": "running",
+        "parity": None,
+        "checks": 0,
+        "events": [],
+        "requests": [],
+        "active_request": None,
+    }
 
     def save():
         if output:
-            Path(output).write_text(json.dumps(report, indent=2) + "\n")
+            path = Path(output)
+            temporary = path.with_name(path.name + ".tmp")
+            temporary.write_text(json.dumps(report, indent=2) + "\n")
+            temporary.replace(path)
 
     save()
     deadline = time.monotonic() + timeout
@@ -93,6 +103,23 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                     "reuse_prompt_cache": False,
                 }
                 value.update(options)
+                progress = {
+                    key: value[key]
+                    for key in (
+                        "type",
+                        "request_id",
+                        "max_tokens",
+                        "dflash2",
+                        "dflash_mode",
+                        "reuse_prompt_cache",
+                        "memory_saver",
+                    )
+                    if key in value
+                }
+                progress.update(status="running", started_epoch=time.time(), cancel_at=cancel_at)
+                report["requests"].append(progress)
+                report["active_request"] = progress
+                save()
                 bridge.send(value, deadline)
                 result = until(
                     terminal
@@ -109,10 +136,16 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                     cancel_at,
                 )
                 report["checks"] += 1
+                progress.update(status="complete", finished_epoch=time.time())
+                report["active_request"] = None
+                save()
                 return result
 
             ready = until("ready")
-            assert ready["dflash_supported"] is True and ready["dflash_tune_supported"] is True
+            assert (
+                ready["dflash_supported"] is True and type(ready["dflash_tune_supported"]) is bool
+            )
+            online = not ready["dflash_tune_supported"]
             report["ready"] = ready
             assert request("set_dflash", enabled=True)["dflash_active"] is True
             for budget in (1, 2, 3, 8, 17, 64):
@@ -139,13 +172,19 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
             for phase in ("context_usage", "delta"):
                 request(mode=3, budget=256, cancel_at=phase)
                 equal(golden, request(mode=3))
-            prompt = "Explain this table in detail.\n" + "1 2 3 4 5 6 7 8 9 10\n" * 18
+            prompt = "Explain this table in detail.\n" + "1 2 3 4 5 6 7 8 9 10\n" * (
+                1 if online else 18
+            )
             messages = [{"role": "user", "content": prompt}]
             cold = request(mode=2, messages=messages)
             request(mode=2, messages=messages, reuse_prompt_cache=True)
             warm = request(mode=3, messages=messages, reuse_prompt_cache=True)
             equal(cold, warm)
-            assert warm["stats"]["cached_prompt_tokens"] >= 256
+            assert (
+                warm["stats"]["cached_prompt_tokens"] == 0
+                if online
+                else warm["stats"]["cached_prompt_tokens"] >= 256
+            )
             miss = request(
                 mode=3, messages=messages, reuse_prompt_cache=True, conversation_id="other"
             )
@@ -158,7 +197,9 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                 equal(cold, saved)
                 assert saved["stats"]["cached_prompt_tokens"] == 0
             assert request("set_dflash", enabled=False)["dflash_active"] is False
-            if tune:
+            if online:
+                request("tune_dflash", terminal="error")
+            elif tune:
                 request("tune_dflash", cancel_at="dflash_tune_progress")
                 equal(golden, request(mode=3))
                 result = request("tune_dflash", memory_saver=True)
@@ -185,6 +226,10 @@ def run(engine, model, draft, *, timeout=900, tune=True, output=None, foreign_dr
                 equal(golden, request(mode=best))
         report.update(status="complete", parity=True)
     except BaseException as error:
+        if report["active_request"] is not None:
+            report["active_request"].update(
+                status="failed_or_interrupted", finished_epoch=time.time()
+            )
         report.update(status="failed", parity=None, error=f"{type(error).__name__}: {error}")
         raise
     finally:
@@ -202,6 +247,11 @@ if __name__ == "__main__":
     parser.add_argument("--output", required=True)
     parser.add_argument("--foreign-draft")
     args = parser.parse_args()
+
+    def interrupted(signum, _frame):
+        raise RuntimeError(f"checker interrupted by signal {signum}")
+
+    signal.signal(signal.SIGTERM, interrupted)
     result = run(
         args.engine,
         args.model,
@@ -212,5 +262,11 @@ if __name__ == "__main__":
         foreign_draft=args.foreign_draft,
     )
     print(
-        json.dumps({key: value for key, value in result.items() if key not in ("events", "tuning")})
+        json.dumps(
+            {
+                key: value
+                for key, value in result.items()
+                if key not in ("events", "requests", "tuning")
+            }
+        )
     )

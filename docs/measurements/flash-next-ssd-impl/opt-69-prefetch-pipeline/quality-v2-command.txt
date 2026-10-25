@@ -1,0 +1,68 @@
+import hashlib,json,os,re,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline')
+phase=os.environ['FLASH_SHARED_PHASE']
+phases=['quality-component-v2','quality-native','quality-bridge'];assert phase in phases
+for previous in phases[:phases.index(phase)]:
+ assert json.loads((base/previous/'campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s'
+prior=json.loads((base/'quality-component/run-result.json').read_text())
+assert all(r['status']=='completed_expected_outcome' and r['reaped'] for r in prior['commands'][:2]) and len(prior['commands'])==3
+assert 'SSD_DEMAND_REUSE cases=4 identity_checks=12 records=real timeout_pending=true duplicate_rejected=true' in (base/'quality-component/demand-reuse.log').read_text()
+identity=json.loads((base/'identity-v2.json').read_text());dest=base/phase
+api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+def source_check():
+ old=json.loads((base/'identity-v1.json').read_text());key=lambda r:r['path'].endswith('/ssd_prefetch.rs')
+ assert next(filter(key,old['files']))==next(filter(key,identity['files']))
+ mutation=json.loads((base/'mutation-identity.json').read_text())
+ assert hashlib.sha256(Path(mutation['path']).read_bytes()).hexdigest()==mutation['sha256']
+
+ for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256'],row['path']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)), 'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+origin=json.loads((base/'origin.json').read_text());baseline={k:origin['vm_bytes'][k] for k in ['Swapins','Swapouts']};assert baseline['Swapouts']==0
+power=origin['power'].splitlines()[0];assert power=="Now drawing from 'AC Power'"
+result={'status':'incomplete','parity':False,'phase':phase,'identity':'identity-v2.json','original_vm_baseline':baseline,'power':power,'prior_67_swapout_bytes':397737984,'new_boot':True}
+def watch(seconds,path):
+ rows=[]
+ try:
+  end=time.monotonic()+seconds
+  while True:
+   row=take();rows.append(row)
+   assert row['power'].splitlines()[0]==power,'power changed'
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'],'new Swapout'
+   assert 0<=row['vm_bytes']['Swapins']-baseline['Swapins']<=256<<20
+   if time.monotonic()>=end:break
+   time.sleep(min(2,end-time.monotonic()))
+ finally:path.write_text(json.dumps({'samples':rows},indent=2)+'\n')
+try:
+ source_check();watch(20,dest/'preflight.json');api['run_sampler'](dest/'run.json',baseline)
+ raw=json.loads((dest/'run-result.json').read_text());expected={'quality-component-v2':2,'quality-native':4,'quality-bridge':1}[phase]
+ assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==expected
+ assert all(row['reaped'] and row['status']=='completed_expected_outcome' and row['swapouts_bytes']==0 for row in raw['commands'])
+ if phase=='quality-bridge':
+  checks=json.loads((dest/'checks.json').read_text());assert checks['status']=='complete' and checks['checks']==43 and checks['parity'] is True
+  peaks=[event.get('stats',{}).get('memory',{}).get('process_lifetime_peak_bytes',0) for event in checks['events']]
+ else:
+  peaks=[int(re.search(r'(\d+)\s+peak memory footprint',(dest/(row['name']+'.log')).read_text())[1]) for row in raw['commands']]
+  if phase=='quality-component-v2':
+   assert 'SSD_DRAFT_PIPELINE cases=16' in (dest/'pipeline-moe.log').read_text()
+   assert 'verification did not issue its own prediction window' in (dest/'missing-wiring-mutant.log').read_text()
+   assert 'wide target logits differ' not in (dest/'missing-wiring-mutant.log').read_text()
+  if phase=='quality-native':
+   assert 'SSD_UNIQUE_WINDOW cases=32' in (dest/'unique-window.log').read_text()
+   line=next(s.split('FLASH_DRAFT_PREFIX ',1)[1] for s in (dest/'target-prefixes.log').read_text().splitlines() if 'FLASH_DRAFT_PREFIX ' in s)
+   prefix=json.loads(line);assert prefix['status']=='passed' and prefix['prefix_cases']==36 and prefix['target_logits_and_states']=='byte_exact' and prefix['captures']['count']==64000 and prefix['captures']['byte_equal'] is True
+  if phase=='micro':
+   data=json.loads((dest/'shared-micro.json').read_text());assert data['status']=='complete' and data['parity']=='byte_exact' and len(data['samples'])==20 and len(data['profiles'])==12
+ assert all(type(n) is int and 0<=n<=12_000_000_000 for n in peaks) and max(peaks)>0
+ result['peak_physical_bytes']=max(peaks);source_check();result.update(status='passed_quality_pending_postflight',parity=True)
+except BaseException as error:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+finally:
+ try:
+  watch(30,dest/'postflight.json')
+  if result['parity']:result['status']='passed_quality_and_postflight30s'
+ except BaseException as error:
+  result.update(status='failed_postflight',parity=False,postflight_error=repr(error));raise
+ finally:
+  (dest/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n');print(result,flush=True)

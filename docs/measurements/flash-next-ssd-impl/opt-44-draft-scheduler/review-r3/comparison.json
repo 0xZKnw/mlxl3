@@ -1,0 +1,178 @@
+{
+  "status": "completed_read_only_audit_comparison",
+  "source_commit": "1f38776f64e917e699e3554a97ce3caae78a222a",
+  "audit_documents": [
+    {
+      "path": "/Users/justin/Downloads/MLXL3_PR34_FLASH_NEXT_SSD_DFLASH2_DSPARK_RECHERCHE_2026-10-20.md",
+      "bytes": 86167,
+      "sha256": "412c4898b7805442e581b95b57eb9c07b93b9b2fc069704064a439c765bd5337"
+    },
+    {
+      "path": "/Users/justin/Downloads/MLXL3_FLASH_NEXT_SSD_DECODE_AUDIT_2026-10-20.md",
+      "bytes": 76464,
+      "sha256": "3ca99fa4c1a70ac6476e2875156060d7ac4e9f17292b7bff4b326ffae756b742"
+    }
+  ],
+  "confidence_observation": {
+    "native_log": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/dspark-coupled.log",
+      "bytes": 2482,
+      "sha256": "24c5812c0cbeed309afd56da47a368fa174dccec25c1a206e311d54aa90f7acc"
+    },
+    "independent_reference": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dspark-3/reference.json",
+      "bytes": 763,
+      "sha256": "27944713f8132b907f0cf18137fa4d56412db9323ca32cd5a921eaa9f2dbe014"
+    },
+    "archived_reference": "reference-dspark.json",
+    "count_each": 3,
+    "all_finite_in_unit_interval": true,
+    "native_hidden_confidence": [
+      0.3406761586666107,
+      0.27567100524902344,
+      0.22809147834777832
+    ],
+    "cpu_hidden_reference_confidence": [
+      0.34187148300333575,
+      0.27528166767762796,
+      0.2265536513839447
+    ],
+    "absolute_differences": [
+      0.0011953243367250344,
+      0.0003893375713954761,
+      0.0015378269638336162
+    ],
+    "max_absolute_difference": 0.0015378269638336162,
+    "same_proposals": true,
+    "tokens": [
+      16,
+      15,
+      11007
+    ],
+    "native_hidden_relative_rmse": 0.00987207139030249,
+    "interpretation": "Different hidden inputs. Descriptive observed differences, not a same-input selector oracle, an acceptance tolerance, or demonstrated source of low throughput. Native-hidden confidence numerical coverage is incomplete."
+  },
+  "speed_off": {
+    "status": "completed_no_qualified_gain",
+    "parity_complete": true,
+    "arms": 16,
+    "generations128": 48,
+    "measured_generations128": 32,
+    "new_swapout_bytes": 0,
+    "global_swapin_bytes": 284999680,
+    "maximum_process_peak_bytes": 8977865664,
+    "adaptive_over_fixed": [
+      {
+        "prompt": "MAIN",
+        "ratios_adaptive_over_fixed": [
+          0.7185125343769622,
+          1.5068877226124107
+        ],
+        "geometric_mean": 1.0405372249928264,
+        "all_pairs_nonnegative": false,
+        "limits": "MAIN adaptive arm has warmup/measurement drift; no causal regression inferred"
+      },
+      {
+        "prompt": "HOLD",
+        "ratios_adaptive_over_fixed": [
+          1.1518977478809016,
+          1.183767253277029
+        ],
+        "geometric_mean": 1.1677237828634692,
+        "all_pairs_nonnegative": true,
+        "limits": "MAIN adaptive arm has warmup/measurement drift; no causal regression inferred"
+      }
+    ],
+    "all_prompt_scheduler_gain": false,
+    "limits": "test prototype, not installed app; draft additional peaks also exceed preregistered1.5GiB vsOFF; no15tok/s"
+  },
+  "speed_on": {
+    "result": {
+      "status": "failed",
+      "parity_complete": false,
+      "delivered_gain": false,
+      "error": "AssertionError('live swap limit exceeded')",
+      "completed_arms": 2,
+      "planned_arms": 12,
+      "not_started_arms": 9
+    },
+    "arms": [
+      {
+        "name": "MAIN-0-off",
+        "status": "validated",
+        "reaped": true,
+        "error": null,
+        "maximum_live_swapout_bytes": 0,
+        "maximum_live_swapin_bytes": 68206592,
+        "seconds": 82.03048199997284
+      },
+      {
+        "name": "MAIN-1-dflash2",
+        "status": "validated",
+        "reaped": true,
+        "error": null,
+        "maximum_live_swapout_bytes": 0,
+        "maximum_live_swapin_bytes": 2490368,
+        "seconds": 89.4980526669824
+      },
+      {
+        "name": "MAIN-2-mtp",
+        "status": "failed",
+        "reaped": true,
+        "error": "AssertionError('live swap limit exceeded')",
+        "maximum_live_swapout_bytes": 469221376,
+        "maximum_live_swapin_bytes": 18939904,
+        "seconds": 74.67523804100347
+      }
+    ]
+  },
+  "sources": {
+    "native/src/linear.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/linear.rs",
+      "bytes": 64255,
+      "sha256": "17f0ea8d5bfc7b3d165477bd288e1d4df2350de78f3a2ffc47401caa200aeb13"
+    },
+    "native/src/flash_draft.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/flash_draft.rs",
+      "bytes": 84005,
+      "sha256": "8ce58d70d32fee6465fa8ac8f24949ced2ab20a85f7706bfdc192fd729ea1bd4"
+    },
+    "native/src/ssd_moe.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/ssd_moe.rs",
+      "bytes": 57547,
+      "sha256": "9457c8419727ebef901f04d98a890ce4925a3ccf48a511a493044e5af445f123"
+    },
+    "native/src/qwen4.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/qwen4.rs",
+      "bytes": 121446,
+      "sha256": "bc7ca786ebb82877c418fd40cc86e78622f349b71081f84583721a60855220d6"
+    },
+    "native/src/speculative.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/speculative.rs",
+      "bytes": 29125,
+      "sha256": "3250fcbf2ec81c46e87f8423daf56febbb3353078de1fcefb62144be4eb09e38"
+    },
+    "native/src/main.rs": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/native/src/main.rs",
+      "bytes": 172368,
+      "sha256": "830eb9a63340e3f89a9fe6d095bb910c298d748a9677776006b0202e1652b625"
+    },
+    "scripts/check_flash_drafts.py": {
+      "path": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/check_flash_drafts.py",
+      "bytes": 25444,
+      "sha256": "f6d2e87c44af1c1906f7b999276e0e962c17377e1e908854eb2588e608f85244"
+    }
+  },
+  "new_model_executions": 0,
+  "native_code_changed": false,
+  "new_gain_qualified": false,
+  "unverified": [
+    "same-native-hidden independent full logits/confidence oracle",
+    "hot compute/async reservation failure reproduction",
+    "cost attribution target versus commit/draft KV versus exposed I/O",
+    "performance of merged optimization proposals",
+    "complete thinking speed campaign",
+    "long-context QSA boundaries",
+    "physical per-process SSD I/O attribution"
+  ]
+}

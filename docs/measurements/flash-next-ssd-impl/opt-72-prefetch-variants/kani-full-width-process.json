@@ -1,0 +1,59 @@
+{
+  "command": "PATH=/Users/justin/.cargo/bin:$PATH CARGO_TARGET_DIR=/Users/justin/Documents/mix-stq1_0/target cargo kani --lib --no-default-features --jobs 1 --harness prediction_protection_is_bounded_by_available_work --harness unused_prefetch_priority_excludes_pending_and_preserves_free_slots --harness prediction_protection_preserves_the_explicit_cache_policy -Z unstable-options --harness-timeout 180s --export-json docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/kani-full-width.json > docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/kani-full-width.log 2>&1",
+  "status": "completed",
+  "stop": null,
+  "exit_code": 0,
+  "session_id": null,
+  "samples": [
+    {
+      "seconds": 0.053,
+      "rss_bytes": 248152064,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 6.106,
+      "rss_bytes": 268910592,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 12.159,
+      "rss_bytes": 404324352,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 18.212,
+      "rss_bytes": 494960640,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 24.28,
+      "rss_bytes": 1132003328,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 30.334,
+      "rss_bytes": 1377402880,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 36.39,
+      "rss_bytes": 1372684288,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 42.457,
+      "rss_bytes": 2451226624,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 48.513,
+      "rss_bytes": 3049537536,
+      "swapout_pages": 9592
+    },
+    {
+      "seconds": 54.577,
+      "rss_bytes": 3614736384,
+      "swapout_pages": 9592
+    }
+  ]
+}

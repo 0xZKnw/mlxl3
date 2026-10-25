@@ -1,0 +1,72 @@
+{
+  "status": "numeric_bridge43_passed_memory_caps_failed_variant_withdrawn_by_user",
+  "candidate": "weighted",
+  "checks": 43,
+  "requests_complete": 43,
+  "complete_events": 33,
+  "expected_error_events": 6,
+  "expected_cancelled_events": 2,
+  "active_request": null,
+  "quality_parity": true,
+  "memory_qualification": null,
+  "memory_analysis_status": "failed",
+  "memory_budget_failures": 99,
+  "memory_data_valid": true,
+  "source_errors": [],
+  "peak_bytes": 7935597000,
+  "compressed_peak_logical_bytes": 2652569600,
+  "delta_ledger_swapins_logical_bytes": 0,
+  "prefetch_profiles_nonzero": 19,
+  "prefetch_counters_maxima_per_complete": {
+    "submitted": 2646,
+    "completed": 2646,
+    "used": 1914,
+    "demand_reused": 0,
+    "demand_timeouts": 1,
+    "demand_wait_ns": 1277583,
+    "bytes": 3302239752,
+    "late_needed": 1
+  },
+  "pre20_post30": "passed_AC",
+  "all_supervised_children_reaped": true,
+  "native_bridge_reaped": "JsonProcess context exit waits/kills-and-waits before checker complete; no reader thread (unbufferedselector)",
+  "sampler_joined": true,
+  "global_swapouts_by_phase": [
+    0,
+    0,
+    0
+  ],
+  "global_swapins_by_phase": [
+    0,
+    0,
+    0
+  ],
+  "binary_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "plan_sha256": "7adaab6adb467a6a7d5d2a2a6bda1af0249b2279014b684a1e2c9104302b97b9",
+  "checks_sha256": "26fdb05713ff9439b3123681414298f708e808794cad4ba97dddf1d3ed510beb",
+  "source_files_checked": 165,
+  "changes_from_reference": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/.github/workflows/rust.yml",
+      "before": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+      "after": "7a9e1c665d6d80d9e30735920fdba4e1dd1e2631ba527139dcb11cc8e0cbbbd8"
+    }
+  ],
+  "integration_decision": {
+    "id": "72W-WITHDRAW",
+    "date": "2026-10-23",
+    "origin": "latest explicit user instruction after actual no-prefetch A/B",
+    "state": "withdrawn_by_user_no_runtime_gain_to_publish",
+    "reason": "User expected improvement over best no-prefetch reference; HC72W-R gives MAIN-1.55717225896% and HOLD-18.11164387267%. One screen, not a universal causal regression proof. Variability gates are not the reason for the withdrawal.",
+    "previous_72W_KEEP": "historical only, revoked by latest instruction",
+    "CH_confirmation": "cancelled_by_user_not_run",
+    "memory77B": "failed caps retained, valid data; no requalification",
+    "publication": "documentation/evidence only; parent withdraws runtimeprototypes, installedapp unchanged"
+  },
+  "new_72W_R": "HCcomplete negative versus no-prefetch, CHcancelledbyuser/notrun",
+  "limitations": "43 finite functional API tests do not prove all contexts, MLX/Metal/concurrency or private swapout attribution. Compression77B caps remainfailed; no requalification.",
+  "historical_status_before_user_withdrawal": "numeric_bridge43_passed_weighted_retained_by_user_memory_caps_not_qualified",
+  "integration_decision_history": [
+    "Retained by explicit user72WKEEP; ownbridge43 passed; ready for optional runtime publication by parent"
+  ]
+}

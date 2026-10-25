@@ -1,0 +1,27 @@
+
+running 1 test
+test linear::tests::flash_slot_shapes_match_resident_reference_for_every_route ... FLASH_SHARED_SLOT_SHAPES cases=88 enabled=56 fallback=32 widths=1..4 routes=1..80 wrong_origin_controls=8 parity=byte_exact no_added_host_readback=true
+FLASH_SLOT_SHAPES cases=88 wrong_slot_controls=8 parity=byte_exact
+FLASH_MASKED_SLOT_SHAPES cases=264 masks=all_cold,mixed,all_hot parity=byte_exact
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 252 filtered out; finished in 2.76s
+
+        2.93 real         0.38 user         0.43 sys
+            92078080  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                6018  page reclaims
+                 221  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                  13  voluntary context switches
+               37384  involuntary context switches
+          7338127421  instructions retired
+          3332092051  cycles elapsed
+           114639664  peak memory footprint

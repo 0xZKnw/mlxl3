@@ -78,7 +78,7 @@ def emit(kind, **fields):
 if behavior == 'silent': time.sleep(60)
 if behavior == 'invalid': print('not JSON', flush=True); time.sleep(60)
 if behavior == 'eof': sys.exit(0)
-emit('ready', dflash_supported=behavior != 'unsupported', dflash_tune_supported=True)
+emit('ready', dflash_supported=behavior != 'unsupported', dflash_tune_supported=behavior != 'flash')
 cancelled = False
 rid = None
 def cancel(*_):
@@ -88,6 +88,9 @@ signal.signal(signal.SIGUSR1, cancel)
 for line in sys.stdin:
     request = json.loads(line)
     rid = request['request_id']
+    if behavior == 'flash' and request['type'] == 'tune_dflash':
+        emit('error', request_id=rid, message='online verification budget')
+        continue
     if request['type'] == 'set_dflash':
         if request['dflash_draft_path'].endswith(('missing', 'foreign')):
             emit('error', request_id=rid, message='missing draft')
@@ -109,7 +112,7 @@ for line in sys.stdin:
     if behavior == 'request_silent': time.sleep(60)
     stats = dict(generated_tokens=request['max_tokens'], decode_seconds=.1,
                  ttft_seconds=.1, elapsed_seconds=.2,
-                 cached_prompt_tokens=256 if request.get('reuse_prompt_cache')
+                 cached_prompt_tokens=256 if behavior != 'flash' and request.get('reuse_prompt_cache')
                      and not request.get('memory_saver')
                      and request['conversation_id'] == 'dflash2-check' else 0)
     if behavior == 'empty': stats['generated_tokens'] = 0
@@ -126,6 +129,7 @@ for line in sys.stdin:
     "behavior",
     [
         "valid",
+        "flash",
         "cancel_during_write",
         "divergent",
         "empty",
@@ -140,7 +144,7 @@ for line in sys.stdin:
 def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, behavior):
     engine, output = tmp_path / "engine", tmp_path / "report.json"
     write_bridge(engine, behavior)
-    if behavior in ("valid", "cancel_during_write"):
+    if behavior in ("valid", "flash", "cancel_during_write"):
         result = run(
             str(engine),
             "model",
@@ -151,7 +155,10 @@ def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, beha
             foreign_draft="foreign",
         )
         assert result["status"] == "complete" and result["parity"] is True
-        assert result["checks"] == 43
+        assert result["checks"] == (44 if behavior == "flash" else 43)
+        assert result["active_request"] is None
+        assert len(result["requests"]) == result["checks"]
+        assert all(request["status"] == "complete" for request in result["requests"])
     else:
         with pytest.raises((AssertionError, RuntimeError, TimeoutError)):
             run(str(engine), "model", "draft", timeout=0.5, tune=False, output=output)
@@ -161,3 +168,75 @@ def test_checker_bounds_failures_preserves_report_and_reaps_child(tmp_path, beha
     pid = int(engine.with_suffix(".pid").read_text())
     with pytest.raises(ProcessLookupError):
         os.kill(pid, 0)
+
+
+@pytest.mark.parametrize("behavior", ["silent", "request_silent"])
+def test_cli_sigterm_preserves_progress_and_reaps_native_child(tmp_path, behavior):
+    import signal
+    import subprocess
+    import time
+
+    engine, output = tmp_path / "engine", tmp_path / "report.json"
+    write_bridge(engine, behavior)
+    script = Path(__file__).resolve().parents[1] / "scripts/check_dflash2.py"
+    process = None
+    child_pid = None
+    with (tmp_path / "cli.log").open("w") as log:
+        try:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(script),
+                    str(engine),
+                    "model",
+                    "draft",
+                    "--timeout",
+                    "30",
+                    "--skip-tune",
+                    "--output",
+                    str(output),
+                ],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                marker = engine.with_suffix(".pid")
+                if marker.exists() and output.exists():
+                    child_pid = int(marker.read_text())
+                    try:
+                        progress = json.loads(output.read_text())
+                    except json.JSONDecodeError:
+                        continue
+                    if behavior == "silent" or (
+                        (progress.get("active_request") or {}).get("type") == "generate"
+                        and progress["checks"] == 1
+                    ):
+                        break
+                time.sleep(0.01)
+            else:
+                raise AssertionError("checker never persisted the interrupted phase")
+            process.send_signal(signal.SIGTERM)
+            assert process.wait(timeout=8) != 0
+            report = json.loads(output.read_text())
+            assert report["status"] == "failed" and report["parity"] is None
+            assert (
+                report["error"] == f"RuntimeError: checker interrupted by signal {signal.SIGTERM}"
+            )
+            if behavior == "request_silent":
+                assert report["checks"] == 1
+                assert report["requests"][0]["status"] == "complete"
+                assert report["active_request"]["status"] == "failed_or_interrupted"
+                assert report["active_request"]["type"] == "generate"
+                assert report["active_request"]["started_epoch"] > 0
+            assert child_pid is not None
+            with pytest.raises(ProcessLookupError):
+                os.kill(child_pid, 0)
+        finally:
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=5)

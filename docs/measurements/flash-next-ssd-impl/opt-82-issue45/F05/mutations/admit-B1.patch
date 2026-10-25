@@ -1,0 +1,11 @@
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2496,7 +2496,7 @@
+ 
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn flash_route_batch_eligible(shape: &[i32], fp32: bool) -> bool {
+-    matches!(shape, [rows, 2560] if fp32 && (2..=8).contains(rows))
++    matches!(shape, [rows, 2560] if fp32 && (1..=8).contains(rows))
+ }
+ 
+ #[cfg(test)]

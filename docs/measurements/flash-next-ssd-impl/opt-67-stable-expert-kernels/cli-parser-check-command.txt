@@ -1,0 +1,30 @@
+import ast,contextlib,hashlib,io,json,runpy,sys
+from pathlib import Path
+from unittest.mock import patch
+p=Path("docs/measurements/flash-next-ssd-impl/opt-67-stable-expert-kernels")
+source=Path("scripts/benchmark-flash-bridge.py")
+tree=ast.parse(source.read_text());guard=next(n for n in tree.body if isinstance(n,ast.If) and "__name__" in ast.unparse(n.test))
+program=compile(ast.Module(body=guard.body,type_ignores=[]),str(source),"exec")
+namespace=runpy.run_path(str(source));calls=[]
+namespace["run"]=lambda *args,**options:calls.append((args,options))
+def parse(command):
+ with patch.object(sys,"argv",[str(source)]+command[2:]),contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):exec(program,namespace)
+old=json.loads((p.parent/'opt-66-fixed-width-real/B2/screen/run.json').read_text())[0]['command']
+try:parse(old)
+except SystemExit as error:assert error.code==2
+else:raise AssertionError('unsupported timeout was not rejected')
+count=0
+for folder in ["OFF","MTP","ADAPT"]:
+ for phase in ["screen","validation"]:
+  for row in json.loads((p/folder/phase/"run.json").read_text()):
+   before=len(calls);parse(row["command"]);assert len(calls)==before+1
+   args,options=calls[-1]
+   assert options['tokens']==128 and options['repeats']==1 and options['cache_gib']==3
+   assert args[3] is (folder=='MTP')
+   assert (options['dflash_draft'] is not None) is (folder=='ADAPT')
+   assert 'MLXL3_FLASH_DRAFT_WIDTH' not in row['env']
+   assert row['env']['MLXL3_SSD_SHARED_EXL3']=='0'
+   assert row['env']['MLXL3_SSD_STABLE_EXPERT_KERNELS']==str(int(row['variant']=='C'))
+   count+=1
+result={"status":"passed_parser_only","accepted_commands":count,"old_command_rejected":True,"inference_intercepted":True,"source_sha256":hashlib.sha256(source.read_bytes()).hexdigest()}
+(p/"cli-parser-check.json").write_text(json.dumps(result,indent=2)+"\n");print(result)

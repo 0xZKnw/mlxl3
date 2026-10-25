@@ -1,0 +1,45 @@
+TRY004 Prefer `TypeError` exception for invalid type
+  --> scripts/analyze_flash_process_memory.py:58:17
+   |
+56 |         for index, event in enumerate(events):
+57 |             if not isinstance(event, dict):
+58 |                 raise ValueError(f"invalid event at {index}")
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+59 |             if event.get("type") == "complete":
+60 |                 stats = event.get("stats")
+   |
+
+TRY004 Prefer `TypeError` exception for invalid type
+  --> scripts/analyze_flash_process_memory.py:90:13
+   |
+88 |     try:
+89 |         if not isinstance(document, dict):
+90 |             raise ValueError("source report must be an object")
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+91 |         issues = []
+92 |         report["source_errors"] = issues
+   |
+
+TRY004 Prefer `TypeError` exception for invalid type
+   --> scripts/analyze_flash_process_memory.py:112:17
+    |
+110 |             report["final_deltas_since_ready"] = None
+111 |             if not isinstance(memory, dict):
+112 |                 raise ValueError(f"missing memory at {label}")
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+113 |             values = sample["memory"]
+114 |             for key in FIELDS:
+    |
+
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> tests/test_flash_process_memory.py:295:12
+    |
+294 | def cli(source, output):
+295 |     return subprocess.run(
+    |            ^^^^^^^^^^^^^^
+296 |         [sys.executable, str(SCRIPT), str(source), str(output)],
+297 |         capture_output=True,
+    |
+help: Add explicit `check=False`
+
+Found 4 errors.

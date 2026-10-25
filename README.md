@@ -639,3 +639,37 @@ Local model weights, build products and benchmark artifacts are not committed.
 MLXL3 is released under the [MIT License](LICENSE). Components and algorithms
 adapted from upstream projects retain their respective notices in
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `LICENSES/`.
+
+## Flash Next 2.05 bpw with SSD streaming
+
+The native text bridge now supports the pinned Qwen3.8 Flash Next EXL3
+`2.05bpw_h4_ng4` checkpoint with a bounded expert cache, direct SSD reads and
+GPU/I/O overlap. The automatic expert cache is capped at 6 GiB and reduced
+when system memory is limited. Flash also sets the MLX buffer cache target to 512 MiB.
+Explicit cache environment settings remain available.
+Cold expert records now use up to four concurrent SSD readers, writing directly
+into the existing banks. `MLXL3_SSD_READERS=1` selects sequential reads (valid range: 1–4).
+On the M5 at a fixed 5 GiB expert budget, twelve paired comparisons measured
+5.5–10.4% faster decoding with exact outputs and no new system swap writes.
+Median decode was 7.29/7.05 tok/s OFF and 7.13/6.89 tok/s with MTP1 on two prompts.
+See the [reader protocol, full results and earlier inconclusive campaign](docs/flash-ssd-readers-2026-10-12.md).
+On the 24 GiB M5 with other applications open, the automatic budget reduced
+measured process peaks from 12.98 GiB to 9.31–10.60 GiB across two runs.
+Outputs remained exact; system swap writes were zero in those runs, but this
+is not a guarantee against future system-wide swap or a throughput improvement.
+See [setup, verification and numerical limits](docs/flash-next-ssd-implementation.md).
+The corrected path matches the independent inference reference bit for bit on
+16 checked positions, including full logits and recurrent states. The first
+M5 baseline measured about 7 tokens/s before this correction. The built-in
+MTP head now supports depth-one greedy decoding through Desktop and the bridge,
+with exact target verification and rollback. Numerical and bridge checks pass.
+With an effective automatic cache of 5.24 GiB, median decode was
+6.93/6.96 tok/s without MTP and 6.96/6.76 tok/s with MTP1 on two fixed prompts
+(three runs of 64 tokens each, 63 decode tokens, alternating modes on one binary).
+These are separate throughput measurements of RAM-stage binary `938e2aa7`;
+prior measurements at 8 GiB remain in the linked report. No consistent MTP
+speedup is established, so MTP stays OFF by default.
+An exact two-token grouped MTP prototype was subsequently tested and withdrawn:
+its independent confirmation included a 2.29% paired gain, below the predeclared
+3% retention threshold. The validated four-reader engine is retained.
+See the [complete trials, rejected prototype and restoration checks](docs/flash-mtp-pairs-2026-10-12.md).

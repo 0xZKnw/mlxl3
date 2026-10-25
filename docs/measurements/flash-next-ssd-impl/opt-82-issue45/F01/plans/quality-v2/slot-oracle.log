@@ -1,0 +1,10 @@
+
+running 1 test
+test linear::tests::flash_slot_shapes_match_resident_reference_for_every_route ... FLASH_STABLE_KERNEL_KEYS baseline=64 stable=12 equality=full_metadata no_timing_claim=true
+FLASH_SHARED_SLOT_SHAPES cases=176 enabled=112 fallback=64 widths=1..4 routes=1..80 wrong_origin_controls=16 parity=byte_exact no_added_host_readback=true
+FLASH_SLOT_SHAPES cases=176 wrong_slot_controls=16 parity=byte_exact
+FLASH_MASKED_SLOT_SHAPES cases=528 masks=all_cold,mixed,all_hot parity=byte_exact
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 278 filtered out; finished in 7.29s
+

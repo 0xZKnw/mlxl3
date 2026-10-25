@@ -1,0 +1,28 @@
+[
+  {
+    "name": "47-speed-1-mtp-MAIN-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-47/runtime/mlxl3-rs",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/speed-1-mtp-MAIN-C-bridge",
+      "mtp",
+      "MAIN"
+    ],
+    "expected_exit": 0,
+    "env": {
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_SSD_LAYER_SLOTS": "64,52,52,36,56,44,68,84,44,40,64,48,72,52,56,36,48,48,76,64,60,68,72,44,52,36,56,56,68,64,48,36,44,56,76,48,48,68,72,28,32,36,56,36,52,36,48,44"
+    },
+    "required_text": [
+      "\"repeat\": 2"
+    ]
+  }
+]

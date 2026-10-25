@@ -1,0 +1,78 @@
+
+running 1 test
+test qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states ... Flash Next: loading layer 1/48, 53 exact expert slots
+Flash Next: loading layer 2/48, 53 exact expert slots
+Flash Next: loading layer 3/48, 53 exact expert slots
+Flash Next: loading layer 4/48, 53 exact expert slots
+Flash Next: loading layer 5/48, 53 exact expert slots
+Flash Next: loading layer 6/48, 53 exact expert slots
+Flash Next: loading layer 7/48, 53 exact expert slots
+Flash Next: loading layer 8/48, 53 exact expert slots
+Flash Next: loading layer 9/48, 53 exact expert slots
+Flash Next: loading layer 10/48, 53 exact expert slots
+Flash Next: loading layer 11/48, 53 exact expert slots
+Flash Next: loading layer 12/48, 53 exact expert slots
+Flash Next: loading layer 13/48, 53 exact expert slots
+Flash Next: loading layer 14/48, 53 exact expert slots
+Flash Next: loading layer 15/48, 53 exact expert slots
+Flash Next: loading layer 16/48, 53 exact expert slots
+Flash Next: loading layer 17/48, 53 exact expert slots
+Flash Next: loading layer 18/48, 53 exact expert slots
+Flash Next: loading layer 19/48, 53 exact expert slots
+Flash Next: loading layer 20/48, 53 exact expert slots
+Flash Next: loading layer 21/48, 53 exact expert slots
+Flash Next: loading layer 22/48, 53 exact expert slots
+Flash Next: loading layer 23/48, 53 exact expert slots
+Flash Next: loading layer 24/48, 53 exact expert slots
+Flash Next: loading layer 25/48, 53 exact expert slots
+Flash Next: loading layer 26/48, 53 exact expert slots
+Flash Next: loading layer 27/48, 53 exact expert slots
+Flash Next: loading layer 28/48, 53 exact expert slots
+Flash Next: loading layer 29/48, 53 exact expert slots
+Flash Next: loading layer 30/48, 53 exact expert slots
+Flash Next: loading layer 31/48, 53 exact expert slots
+Flash Next: loading layer 32/48, 53 exact expert slots
+Flash Next: loading layer 33/48, 53 exact expert slots
+Flash Next: loading layer 34/48, 53 exact expert slots
+Flash Next: loading layer 35/48, 53 exact expert slots
+Flash Next: loading layer 36/48, 53 exact expert slots
+Flash Next: loading layer 37/48, 53 exact expert slots
+Flash Next: loading layer 38/48, 53 exact expert slots
+Flash Next: loading layer 39/48, 53 exact expert slots
+Flash Next: loading layer 40/48, 53 exact expert slots
+Flash Next: loading layer 41/48, 53 exact expert slots
+Flash Next: loading layer 42/48, 53 exact expert slots
+Flash Next: loading layer 43/48, 53 exact expert slots
+Flash Next: loading layer 44/48, 53 exact expert slots
+Flash Next: loading layer 45/48, 53 exact expert slots
+Flash Next: loading layer 46/48, 53 exact expert slots
+Flash Next: loading layer 47/48, 53 exact expert slots
+Flash Next: loading layer 48/48, 53 exact expert slots
+FLASH_DETAILED_PHASE {"decode_seconds":6.012596,"diagnostic_tps":10.478003178660265,"epoch":1792596632.387451,"events":0,"phase":"sequential_oracle"}
+FLASH_DETAILED_PHASE {"decode_seconds":6.03409425,"diagnostic_tps":10.440672185390541,"epoch":1792596646.562,"events":0,"phase":"warmup"}
+FLASH_DETAILED_PHASE {"decode_seconds":6.125313875,"diagnostic_tps":10.285187222344586,"epoch":1792596661.284147,"events":0,"phase":"control_before"}
+FLASH_DETAILED_PHASE {"decode_seconds":6.10083525,"diagnostic_tps":10.326454889926751,"epoch":1792596675.887139,"events":108183,"phase":"trace_1"}
+FLASH_DETAILED_PHASE {"decode_seconds":6.132215834,"diagnostic_tps":10.273610992407871,"epoch":1792596690.680991,"events":108174,"phase":"trace_2"}
+FLASH_DETAILED_PHASE {"decode_seconds":6.180454292,"diagnostic_tps":10.193425438247703,"epoch":1792596705.263419,"events":0,"phase":"control_after"}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 247 filtered out; finished in 89.75s
+
+       89.84 real        25.60 user        27.38 sys
+          3821797376  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              533225  page reclaims
+                1026  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+              101772  voluntary context switches
+             1054411  involuntary context switches
+        542480487930  instructions retired
+        215862443504  cycles elapsed
+          7433394392  peak memory footprint

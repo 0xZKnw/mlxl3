@@ -1,0 +1,64 @@
+use mlxl3_native::flash_support::ExpertCache;
+#[derive(Clone, Copy, PartialEq)]
+enum Slot { Empty, Ready(u32), Pending(u32) }
+fn random(rng: &mut u64) -> u64 { *rng ^= *rng << 13; *rng ^= *rng >> 7; *rng ^= *rng << 17; *rng }
+fn main() {
+    let mut violated = false;
+    for capacity in [24, 89] {
+        let mut cache = ExpertCache::new(capacity).unwrap();
+        let mut slots = vec![Slot::Empty; capacity];
+        let mut rng = 39_u64;
+        let mut trace = Vec::new();
+        let mut found = false;
+        for step in 0..10_000 {
+            match random(&mut rng) % 5 {
+                0 | 1 => {
+                    let ids = (0..10).map(|_| (random(&mut rng) % 128) as u32).collect::<Vec<_>>();
+                    let routes = cache.reserve(&ids).unwrap();
+                    trace.push(format!("reserve {ids:?} {routes:?}"));
+                    for (&id, &(slot, hit)) in ids.iter().zip(&routes) {
+                        if hit { assert!(slots[slot] == Slot::Ready(id)); }
+                        slots[slot] = Slot::Ready(id);
+                    }
+                }
+                2 => {
+                    let ids = (0..16).map(|_| (random(&mut rng) % 128) as u32).collect::<Vec<_>>();
+                    cache.protect_predictions(&ids).unwrap();
+                    trace.push(format!("predict {ids:?}"));
+                }
+                3 if slots.iter().filter(|s| matches!(s, Slot::Pending(_))).count() < 4 => {
+                    let id = (random(&mut rng) % 128) as u32;
+                    let free = slots.iter().position(|s| matches!(s, Slot::Empty));
+                    if let Some(slot) = cache.claim_prefetch(id).unwrap() {
+                        trace.push(format!("claim {id} slot={slot} free={free:?}"));
+                        if matches!(slots[slot], Slot::Ready(_)) && free.is_some() {
+                            println!("{{\"capacity\":{capacity},\"step\":{step},\"victim\":{slot},\"free\":{},\"seed\":39,\"property\":\"free_before_ready\"}}",free.unwrap());
+                            for line in trace.iter().rev().take(64).rev() { eprintln!("{line}"); }
+                            found = true;
+                            violated = true;
+                            break;
+                        }
+                        slots[slot] = Slot::Pending(id);
+                    }
+                }
+                4 => {
+                    let choices = slots.iter().enumerate().filter_map(|(i,s)| matches!(s,Slot::Pending(_)).then_some(i)).collect::<Vec<_>>();
+                    if !choices.is_empty() {
+                        let slot = choices[(random(&mut rng) as usize) % choices.len()];
+                        let Slot::Pending(id) = slots[slot] else { unreachable!() };
+                        let valid = random(&mut rng) % 4 != 0;
+                        let published = cache.publish_prefetch(slot,id,valid);
+                        trace.push(format!("publish {id} slot={slot} valid={valid} published={published}"));
+                        slots[slot] = if published { Slot::Ready(id) } else { Slot::Empty };
+                    }
+                }
+                _ => {}
+            }
+            for slot in &slots {
+                if let Slot::Ready(id) = slot { assert!(cache.contains(*id)); }
+            }
+        }
+        if !found { println!("{{\"capacity\":{capacity},\"steps\":10000,\"counterexample\":false,\"seed\":39}}"); }
+    }
+    assert!(!violated, "a free cache slot must be used before evicting a valid record");
+}

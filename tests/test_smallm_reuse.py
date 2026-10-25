@@ -42,11 +42,60 @@ def test_shared_decode_moves_each_conversion_outside_the_row_loop():
         declaration = f"float weight{i} = float(mlxl3_decode_codeword(cw{i}, CB));"
         assert candidate.count(declaration) == 1
         assert body.index(declaration) < body.index(marker)
-        assert f"x_values[batch_row][{i}],\n                                weight{i}," in candidate
+        assert f"#else\n                                weight{i},\n#endif" in candidate
     assert candidate.count("fma(") == source.count("fma(")
     for broken in ["", source + source, candidate]:
         with pytest.raises(ValueError):
             SCREEN.shared_decode(broken)
+
+
+@pytest.mark.parametrize("transform", [SCREEN.shared_decode, SCREEN.lookup_decode])
+def test_decode_transform_preserves_grouped_k3_and_all_outside_loop_bytes(transform):
+    source = (ROOT / "native/shaders/_qmv_mapped_tile_kernel.metal").read_text()
+    grouped = source[
+        source.index("#if MLXL3_GROUPED_ROUTES\n                        float decoded[4]") :
+    ]
+    grouped = grouped[: grouped.index("#endif") + len("#endif")]
+    start = source.index("                    for (uint group = 0u; group < 2u; ++group)")
+    prefix, suffix = (
+        source[:start],
+        source[source.index("\n            for (uint batch_row", start) :],
+    )
+    candidate = transform(source)
+    assert grouped in candidate
+    assert candidate.startswith(prefix) and candidate.endswith(suffix)
+    for i in range(4):
+        assert (
+            candidate.count(f"float(mlxl3_decode_codeword(cw{i}, CB)),")
+            == source.count(f"float(mlxl3_decode_codeword(cw{i}, CB)),") - 1
+        )
+        assert f"                                decoded[{i}],\n#else" in candidate
+    assert candidate.count("fma(") == source.count("fma(")
+    assert "#if !MLXL3_GROUPED_ROUTES\n                        float weight0" in candidate
+
+
+@pytest.mark.parametrize("transform", [SCREEN.shared_decode, SCREEN.lookup_decode])
+@pytest.mark.parametrize("corruption", ["missing", "duplicate", "closing", "nested", "extra_fma"])
+def test_decode_transform_rejects_changed_loop_instead_of_matching_other_branches(
+    transform, corruption
+):
+    source = (ROOT / "native/shaders/_qmv_mapped_tile_kernel.metal").read_text()
+    old = "#else\n                                float(mlxl3_decode_codeword(cw0, CB)),\n#endif"
+    assert source.count(old) == 1
+    if corruption == "missing":
+        source = source.replace(old, old.replace("cw0", "cw1"))
+    elif corruption == "duplicate":
+        source = source.replace(
+            old, old.replace(",\n#endif", ", float(mlxl3_decode_codeword(cw0, CB)),\n#endif")
+        )
+    elif corruption == "closing":
+        source = source.replace("                        }\n                    }\n#endif\n", "", 1)
+    elif corruption == "nested":
+        source = source.replace(old, "{" + old + "}")
+    else:
+        source = source.replace(old, old.replace("cw0, CB)),", "cw0, CB)), fma(0.0f, 0.0f, 0.0f),"))
+    with pytest.raises(ValueError):
+        transform(source)
 
 
 def test_complete_mul1_table_matches_every_scalar_codeword_with_one_half_rounding():

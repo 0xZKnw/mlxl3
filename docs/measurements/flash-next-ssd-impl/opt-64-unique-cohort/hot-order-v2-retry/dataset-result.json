@@ -1,0 +1,145 @@
+{
+  "status": "complete_validated_diagnostic",
+  "parity": true,
+  "plan_sha256": "af7bf711f0c24390ed8ddd50982c4148ea5083fb0ba84394fc8f3ef35c59e93e",
+  "phases": [
+    {
+      "phase": "sequential_oracle",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 183685,
+          "Decompressions": 305292,
+          "Swapins": 100,
+          "Swapouts": 0,
+          "Pages occupied by compressor": -146355
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 59184,
+          "Decompressions": 46791,
+          "Swapins": 0,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 3032
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 9.584380867938775,
+      "prefill_seconds": 10.055526666,
+      "decode_seconds": 6.573194541
+    },
+    {
+      "phase": "warmup",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 165096,
+          "Decompressions": 109810,
+          "Swapins": 100,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 19066
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 191226,
+          "Decompressions": 193394,
+          "Swapins": 104,
+          "Swapouts": 0,
+          "Pages occupied by compressor": -11205
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 10.329933499654455,
+      "prefill_seconds": 9.758979041,
+      "decode_seconds": 6.098780791
+    },
+    {
+      "phase": "control_before",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 195237,
+          "Decompressions": 127530,
+          "Swapins": 1,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 39433
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 132017,
+          "Decompressions": 151274,
+          "Swapins": 92,
+          "Swapouts": 0,
+          "Pages occupied by compressor": -36092
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 10.549925986198813,
+      "prefill_seconds": 9.997037167,
+      "decode_seconds": 5.971605875
+    },
+    {
+      "phase": "trace_1",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 266576,
+          "Decompressions": 225210,
+          "Swapins": 4,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 40484
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 249513,
+          "Decompressions": 194591,
+          "Swapins": 0,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 16009
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 10.096318611925193,
+      "prefill_seconds": 10.607388,
+      "decode_seconds": 6.239898167
+    },
+    {
+      "phase": "trace_2",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 165834,
+          "Decompressions": 151166,
+          "Swapins": 92,
+          "Swapouts": 6336,
+          "Pages occupied by compressor": 7060
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 24662,
+          "Decompressions": 64241,
+          "Swapins": 0,
+          "Swapouts": 0,
+          "Pages occupied by compressor": -37758
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 11.475108065805648,
+      "prefill_seconds": 10.016680375,
+      "decode_seconds": 5.490144375
+    },
+    {
+      "phase": "control_after",
+      "vm": {
+        "prefill_vm_counter_pages_delta": {
+          "Compressions": 70410,
+          "Decompressions": 29663,
+          "Swapins": 52,
+          "Swapouts": 0,
+          "Pages occupied by compressor": 38258
+        },
+        "decode_vm_counter_pages_delta": {
+          "Compressions": 30076,
+          "Decompressions": 69493,
+          "Swapins": 64,
+          "Swapouts": 0,
+          "Pages occupied by compressor": -39427
+        },
+        "limits": "global VM pages/events, not model-exclusive compressed bytes; compressor occupancy is a gauge"
+      },
+      "diagnostic_tps": 11.408961812629833,
+      "prefill_seconds": 9.504236792,
+      "decode_seconds": 5.521974833
+    }
+  ]
+}

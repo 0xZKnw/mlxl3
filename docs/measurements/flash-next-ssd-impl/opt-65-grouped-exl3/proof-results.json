@@ -1,0 +1,46 @@
+[
+  {
+    "harness": "grouped_expert_routes_cover_eight_symbolic_origins_exactly",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "grouped_expert_routes_cover_eight_symbolic_origins_exactly",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/grouped_expert_routes_cover_eight_symbolic_origins_exactly.json"
+    ],
+    "exit": -15,
+    "reason": "timeout_180s",
+    "seconds": 180.50421316700522,
+    "peak_group_rss_bytes": 2066268160,
+    "reaped": true
+  },
+  {
+    "harness": "grouped_expert_routes_eighty_symbolic_inputs_are_bounded",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "grouped_expert_routes_eighty_symbolic_inputs_are_bounded",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/grouped_expert_routes_eighty_symbolic_inputs_are_bounded.json"
+    ],
+    "exit": -15,
+    "reason": "timeout_180s",
+    "seconds": 180.20305866698618,
+    "peak_group_rss_bytes": 1647427584,
+    "reaped": true
+  }
+]

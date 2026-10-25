@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 1 test
+test ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads ... 
+thread 'ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads' (8871261) panicked at native/src/checkpoint.rs:110:19:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 100 filtered out; finished in 6.64s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,13 @@
+
+running 1 test
+test ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending ... SSD_GPU_HOT_SCHEDULE {"events":[["routes_cpu",0.147423208],["demand_begin",0.147429042],["demand_end",0.147755208]],"hits":5,"misses":5,"read_bytes":12480120,"ready_at_demand":true,"ready_at_routes":true,"submissions":1}
+Error: routes waited for resident compute
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 227 filtered out; finished in 1.11s
+

@@ -1,0 +1,1166 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.46s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 6 tests
+test qwen4::tests::flash_attention_stages_match_upstream ... GDN/0/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/0/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/1/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/2/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/3/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/qkv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/conv: count=10240, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/q: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/k: count=2048, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/v: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/a: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/b: count=48, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/delta: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/z: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/normed: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/gated: count=6144, relative_rmse=0.000000, max_abs=0.000000
+GDN/4/out: count=2560, relative_rmse=0.000000, max_abs=0.000000
+ok
+test qwen4::tests::flash_components_match_reference_on_identical_inputs ... Flash Next: loading layer 1/48, 143 exact expert slots
+Flash Next: loading layer 2/48, 143 exact expert slots
+Flash Next: loading layer 3/48, 143 exact expert slots
+Flash Next: loading layer 4/48, 143 exact expert slots
+Flash Next: loading layer 5/48, 143 exact expert slots
+Flash Next: loading layer 6/48, 143 exact expert slots
+Flash Next: loading layer 7/48, 143 exact expert slots
+Flash Next: loading layer 8/48, 143 exact expert slots
+Flash Next: loading layer 9/48, 143 exact expert slots
+Flash Next: loading layer 10/48, 143 exact expert slots
+Flash Next: loading layer 11/48, 143 exact expert slots
+Flash Next: loading layer 12/48, 143 exact expert slots
+Flash Next: loading layer 13/48, 143 exact expert slots
+Flash Next: loading layer 14/48, 143 exact expert slots
+Flash Next: loading layer 15/48, 143 exact expert slots
+Flash Next: loading layer 16/48, 143 exact expert slots
+Flash Next: loading layer 17/48, 143 exact expert slots
+Flash Next: loading layer 18/48, 143 exact expert slots
+Flash Next: loading layer 19/48, 143 exact expert slots
+Flash Next: loading layer 20/48, 143 exact expert slots
+Flash Next: loading layer 21/48, 143 exact expert slots
+Flash Next: loading layer 22/48, 143 exact expert slots
+Flash Next: loading layer 23/48, 143 exact expert slots
+Flash Next: loading layer 24/48, 143 exact expert slots
+Flash Next: loading layer 25/48, 143 exact expert slots
+Flash Next: loading layer 26/48, 143 exact expert slots
+Flash Next: loading layer 27/48, 143 exact expert slots
+Flash Next: loading layer 28/48, 143 exact expert slots
+Flash Next: loading layer 29/48, 143 exact expert slots
+Flash Next: loading layer 30/48, 143 exact expert slots
+Flash Next: loading layer 31/48, 143 exact expert slots
+Flash Next: loading layer 32/48, 143 exact expert slots
+Flash Next: loading layer 33/48, 143 exact expert slots
+Flash Next: loading layer 34/48, 143 exact expert slots
+Flash Next: loading layer 35/48, 143 exact expert slots
+Flash Next: loading layer 36/48, 143 exact expert slots
+Flash Next: loading layer 37/48, 143 exact expert slots
+Flash Next: loading layer 38/48, 143 exact expert slots
+Flash Next: loading layer 39/48, 143 exact expert slots
+Flash Next: loading layer 40/48, 143 exact expert slots
+Flash Next: loading layer 41/48, 143 exact expert slots
+Flash Next: loading layer 42/48, 143 exact expert slots
+Flash Next: loading layer 43/48, 143 exact expert slots
+Flash Next: loading layer 44/48, 143 exact expert slots
+Flash Next: loading layer 45/48, 143 exact expert slots
+Flash Next: loading layer 46/48, 143 exact expert slots
+Flash Next: loading layer 47/48, 143 exact expert slots
+Flash Next: loading layer 48/48, 143 exact expert slots
+s0/l0/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l0/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l1/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l2/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l3/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l4/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l5/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l6/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l7/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l8/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l9/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l10/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l11/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l12/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l13/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l14/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l15/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l16/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l17/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l18/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l19/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l20/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l21/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l22/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l23/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l24/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l25/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l26/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l27/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l28/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l29/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l30/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l31/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l32/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l33/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l34/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l35/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l36/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l37/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l38/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l39/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l40/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l41/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l42/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l43/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l44/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l45/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l46/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s0/l47/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l0/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l1/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l2/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l3/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l4/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l5/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l6/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l7/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l8/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l9/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l10/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l11/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l12/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l13/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l14/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l15/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l16/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l17/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l18/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l19/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l20/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l21/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l22/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l23/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l24/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l25/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l26/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l27/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l28/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l29/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l30/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l31/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l32/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l33/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l34/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l35/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l36/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l37/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l38/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l39/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l40/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l41/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l42/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l43/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l44/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l45/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l46/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s1/l47/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l0/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l1/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l2/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l3/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l4/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l5/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l6/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l7/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l8/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l9/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l10/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/self_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l11/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l12/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l13/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/linear_attn: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l14/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l15/attn_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l15/attn_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l15/mlp_hyper_connection: count=2560, relative_rmse=0.000000, max_abs=0.000000
+s2/l15/mlp_hyper_connection/gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+s2/l15/self_attn: count=2560, relative_rmse=0.000565, max_abs=0.000244
+Error: attention differs bitwise at s2/l15/self_attn
+FAILED
+test qwen4::tests::flash_hc_write_matches_upstream_rounding ... ok
+test qwen4::tests::flash_matches_independent_reference_states_and_logits ... Flash Next: loading layer 1/48, 143 exact expert slots
+Flash Next: loading layer 2/48, 143 exact expert slots
+Flash Next: loading layer 3/48, 143 exact expert slots
+Flash Next: loading layer 4/48, 143 exact expert slots
+Flash Next: loading layer 5/48, 143 exact expert slots
+Flash Next: loading layer 6/48, 143 exact expert slots
+Flash Next: loading layer 7/48, 143 exact expert slots
+Flash Next: loading layer 8/48, 143 exact expert slots
+Flash Next: loading layer 9/48, 143 exact expert slots
+Flash Next: loading layer 10/48, 143 exact expert slots
+Flash Next: loading layer 11/48, 143 exact expert slots
+Flash Next: loading layer 12/48, 143 exact expert slots
+Flash Next: loading layer 13/48, 143 exact expert slots
+Flash Next: loading layer 14/48, 143 exact expert slots
+Flash Next: loading layer 15/48, 143 exact expert slots
+Flash Next: loading layer 16/48, 143 exact expert slots
+Flash Next: loading layer 17/48, 143 exact expert slots
+Flash Next: loading layer 18/48, 143 exact expert slots
+Flash Next: loading layer 19/48, 143 exact expert slots
+Flash Next: loading layer 20/48, 143 exact expert slots
+Flash Next: loading layer 21/48, 143 exact expert slots
+Flash Next: loading layer 22/48, 143 exact expert slots
+Flash Next: loading layer 23/48, 143 exact expert slots
+Flash Next: loading layer 24/48, 143 exact expert slots
+Flash Next: loading layer 25/48, 143 exact expert slots
+Flash Next: loading layer 26/48, 143 exact expert slots
+Flash Next: loading layer 27/48, 143 exact expert slots
+Flash Next: loading layer 28/48, 143 exact expert slots
+Flash Next: loading layer 29/48, 143 exact expert slots
+Flash Next: loading layer 30/48, 143 exact expert slots
+Flash Next: loading layer 31/48, 143 exact expert slots
+Flash Next: loading layer 32/48, 143 exact expert slots
+Flash Next: loading layer 33/48, 143 exact expert slots
+Flash Next: loading layer 34/48, 143 exact expert slots
+Flash Next: loading layer 35/48, 143 exact expert slots
+Flash Next: loading layer 36/48, 143 exact expert slots
+Flash Next: loading layer 37/48, 143 exact expert slots
+Flash Next: loading layer 38/48, 143 exact expert slots
+Flash Next: loading layer 39/48, 143 exact expert slots
+Flash Next: loading layer 40/48, 143 exact expert slots
+Flash Next: loading layer 41/48, 143 exact expert slots
+Flash Next: loading layer 42/48, 143 exact expert slots
+Flash Next: loading layer 43/48, 143 exact expert slots
+Flash Next: loading layer 44/48, 143 exact expert slots
+Flash Next: loading layer 45/48, 143 exact expert slots
+Flash Next: loading layer 46/48, 143 exact expert slots
+Flash Next: loading layer 47/48, 143 exact expert slots
+Flash Next: loading layer 48/48, 143 exact expert slots
+s0/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s0/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s0/layer_1: count=10240, relative_rmse=0.000205, max_abs=0.000032
+s0/gdn_state_1: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s0/layer_2: count=10240, relative_rmse=0.000411, max_abs=0.000086
+s0/layer_3: count=10240, relative_rmse=0.000508, max_abs=0.000085
+s0/layer_4: count=10240, relative_rmse=0.000566, max_abs=0.000092
+s0/layer_5: count=10240, relative_rmse=0.000681, max_abs=0.000429
+s0/layer_6: count=10240, relative_rmse=0.000728, max_abs=0.000429
+s0/layer_7: count=10240, relative_rmse=0.000752, max_abs=0.000439
+s0/layer_8: count=10240, relative_rmse=0.000760, max_abs=0.000443
+s0/layer_9: count=10240, relative_rmse=0.000762, max_abs=0.000441
+s0/layer_10: count=10240, relative_rmse=0.000748, max_abs=0.000464
+s0/layer_11: count=10240, relative_rmse=0.000755, max_abs=0.000478
+s0/layer_12: count=10240, relative_rmse=0.000754, max_abs=0.000437
+s0/layer_13: count=10240, relative_rmse=0.000762, max_abs=0.000446
+s0/layer_14: count=10240, relative_rmse=0.000761, max_abs=0.000457
+s0/layer_15: count=10240, relative_rmse=0.000804, max_abs=0.000414
+s0/layer_16: count=10240, relative_rmse=0.000787, max_abs=0.000484
+s0/layer_17: count=10240, relative_rmse=0.000783, max_abs=0.000476
+s0/layer_18: count=10240, relative_rmse=0.000793, max_abs=0.000476
+s0/layer_19: count=10240, relative_rmse=0.000806, max_abs=0.000490
+s0/layer_20: count=10240, relative_rmse=0.000779, max_abs=0.000684
+s0/layer_21: count=10240, relative_rmse=0.000786, max_abs=0.000694
+s0/layer_22: count=10240, relative_rmse=0.000793, max_abs=0.000694
+s0/layer_23: count=10240, relative_rmse=0.000801, max_abs=0.000688
+s0/layer_24: count=10240, relative_rmse=0.000802, max_abs=0.000719
+s0/layer_25: count=10240, relative_rmse=0.000810, max_abs=0.000701
+s0/layer_26: count=10240, relative_rmse=0.000784, max_abs=0.000722
+s0/layer_27: count=10240, relative_rmse=0.000829, max_abs=0.000703
+s0/layer_28: count=10240, relative_rmse=0.000864, max_abs=0.000715
+s0/layer_29: count=10240, relative_rmse=0.000879, max_abs=0.000742
+s0/layer_30: count=10240, relative_rmse=0.000844, max_abs=0.000661
+s0/layer_31: count=10240, relative_rmse=0.000956, max_abs=0.000650
+s0/layer_32: count=10240, relative_rmse=0.000938, max_abs=0.000562
+s0/layer_33: count=10240, relative_rmse=0.000946, max_abs=0.000650
+s0/layer_34: count=10240, relative_rmse=0.000963, max_abs=0.000645
+s0/layer_35: count=10240, relative_rmse=0.000995, max_abs=0.000674
+s0/layer_36: count=10240, relative_rmse=0.000882, max_abs=0.001550
+s0/layer_37: count=10240, relative_rmse=0.000900, max_abs=0.001516
+s0/layer_38: count=10240, relative_rmse=0.000895, max_abs=0.001519
+s0/layer_39: count=10240, relative_rmse=0.001035, max_abs=0.001666
+s0/layer_40: count=10240, relative_rmse=0.001039, max_abs=0.001697
+s0/layer_41: count=10240, relative_rmse=0.001048, max_abs=0.001544
+s0/layer_42: count=10240, relative_rmse=0.001015, max_abs=0.001535
+s0/layer_43: count=10240, relative_rmse=0.001099, max_abs=0.001544
+s0/layer_44: count=10240, relative_rmse=0.001090, max_abs=0.006742
+s0/layer_45: count=10240, relative_rmse=0.001166, max_abs=0.007068
+s0/layer_46: count=10240, relative_rmse=0.001078, max_abs=0.011847
+s0/layer_47: count=10240, relative_rmse=0.000884, max_abs=0.012558
+s0/logits: count=248320, relative_rmse=0.001120, max_abs=0.023438
+s1/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s1/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s1/layer_1: count=10240, relative_rmse=0.000224, max_abs=0.000027
+s1/gdn_state_1: count=786432, relative_rmse=0.000230, max_abs=0.000049
+s1/layer_2: count=10240, relative_rmse=0.000463, max_abs=0.000047
+s1/layer_3: count=10240, relative_rmse=0.000603, max_abs=0.000061
+s1/layer_4: count=10240, relative_rmse=0.000760, max_abs=0.000087
+s1/layer_5: count=10240, relative_rmse=0.000945, max_abs=0.000119
+s1/layer_6: count=10240, relative_rmse=0.001080, max_abs=0.000135
+s1/layer_7: count=10240, relative_rmse=0.001128, max_abs=0.000134
+s1/layer_8: count=10240, relative_rmse=0.001147, max_abs=0.000138
+s1/layer_9: count=10240, relative_rmse=0.001162, max_abs=0.000133
+s1/layer_10: count=10240, relative_rmse=0.001246, max_abs=0.000143
+s1/layer_11: count=10240, relative_rmse=0.001260, max_abs=0.000143
+s1/layer_12: count=10240, relative_rmse=0.001289, max_abs=0.000158
+s1/layer_13: count=10240, relative_rmse=0.001321, max_abs=0.000167
+s1/layer_14: count=10240, relative_rmse=0.001349, max_abs=0.000192
+s1/layer_15: count=10240, relative_rmse=0.001422, max_abs=0.000170
+s1/layer_16: count=10240, relative_rmse=0.001477, max_abs=0.000193
+s1/layer_17: count=10240, relative_rmse=0.001530, max_abs=0.000260
+s1/layer_18: count=10240, relative_rmse=0.001538, max_abs=0.000241
+s1/layer_19: count=10240, relative_rmse=0.001597, max_abs=0.000196
+s1/layer_20: count=10240, relative_rmse=0.001594, max_abs=0.000196
+s1/layer_21: count=10240, relative_rmse=0.001678, max_abs=0.000201
+s1/layer_22: count=10240, relative_rmse=0.001768, max_abs=0.000211
+s1/layer_23: count=10240, relative_rmse=0.001803, max_abs=0.000221
+s1/layer_24: count=10240, relative_rmse=0.001853, max_abs=0.000243
+s1/layer_25: count=10240, relative_rmse=0.001911, max_abs=0.000258
+s1/layer_26: count=10240, relative_rmse=0.002087, max_abs=0.000709
+s1/layer_27: count=10240, relative_rmse=0.002237, max_abs=0.000474
+s1/layer_28: count=10240, relative_rmse=0.002281, max_abs=0.000524
+s1/layer_29: count=10240, relative_rmse=0.002290, max_abs=0.000575
+s1/layer_30: count=10240, relative_rmse=0.002374, max_abs=0.000627
+s1/layer_31: count=10240, relative_rmse=0.002671, max_abs=0.000760
+s1/layer_32: count=10240, relative_rmse=0.002834, max_abs=0.000854
+s1/layer_33: count=10240, relative_rmse=0.002920, max_abs=0.001048
+s1/layer_34: count=10240, relative_rmse=0.002873, max_abs=0.001059
+s1/layer_35: count=10240, relative_rmse=0.002940, max_abs=0.001197
+s1/layer_36: count=10240, relative_rmse=0.002697, max_abs=0.002255
+s1/layer_37: count=10240, relative_rmse=0.002673, max_abs=0.002260
+s1/layer_38: count=10240, relative_rmse=0.002719, max_abs=0.002257
+s1/layer_39: count=10240, relative_rmse=0.003221, max_abs=0.002361
+s1/layer_40: count=10240, relative_rmse=0.003219, max_abs=0.002439
+s1/layer_41: count=10240, relative_rmse=0.003177, max_abs=0.002583
+s1/layer_42: count=10240, relative_rmse=0.003103, max_abs=0.002498
+s1/layer_43: count=10240, relative_rmse=0.003180, max_abs=0.002715
+s1/layer_44: count=10240, relative_rmse=0.003110, max_abs=0.005057
+s1/layer_45: count=10240, relative_rmse=0.003001, max_abs=0.005334
+s1/layer_46: count=10240, relative_rmse=0.003168, max_abs=0.020081
+s1/layer_47: count=10240, relative_rmse=0.003512, max_abs=0.026557
+s1/logits: count=248320, relative_rmse=0.002631, max_abs=0.043945
+s2/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s2/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s2/layer_1: count=10240, relative_rmse=0.000263, max_abs=0.000030
+s2/gdn_state_1: count=786432, relative_rmse=0.000244, max_abs=0.000082
+s2/layer_2: count=10240, relative_rmse=0.000483, max_abs=0.000058
+s2/layer_3: count=10240, relative_rmse=0.000578, max_abs=0.000060
+s2/layer_4: count=10240, relative_rmse=0.000689, max_abs=0.000074
+s2/layer_5: count=10240, relative_rmse=0.000804, max_abs=0.000116
+s2/layer_6: count=10240, relative_rmse=0.000934, max_abs=0.000121
+s2/layer_7: count=10240, relative_rmse=0.000973, max_abs=0.000113
+s2/layer_8: count=10240, relative_rmse=0.001027, max_abs=0.000128
+s2/layer_9: count=10240, relative_rmse=0.001059, max_abs=0.000130
+s2/layer_10: count=10240, relative_rmse=0.001250, max_abs=0.000157
+s2/layer_11: count=10240, relative_rmse=0.001297, max_abs=0.000155
+s2/layer_12: count=10240, relative_rmse=0.001335, max_abs=0.000173
+s2/layer_13: count=10240, relative_rmse=0.001482, max_abs=0.000185
+s2/layer_14: count=10240, relative_rmse=0.001613, max_abs=0.000217
+s2/layer_15: count=10240, relative_rmse=0.001887, max_abs=0.000262
+s2/layer_16: count=10240, relative_rmse=0.001974, max_abs=0.000255
+s2/layer_17: count=10240, relative_rmse=0.002110, max_abs=0.000269
+s2/layer_18: count=10240, relative_rmse=0.002107, max_abs=0.000265
+s2/layer_19: count=10240, relative_rmse=0.002276, max_abs=0.000340
+s2/layer_20: count=10240, relative_rmse=0.002259, max_abs=0.000318
+s2/layer_21: count=10240, relative_rmse=0.002403, max_abs=0.000509
+s2/layer_22: count=10240, relative_rmse=0.002323, max_abs=0.000554
+s2/layer_23: count=10240, relative_rmse=0.002326, max_abs=0.000552
+s2/layer_24: count=10240, relative_rmse=0.002311, max_abs=0.000539
+s2/layer_25: count=10240, relative_rmse=0.002335, max_abs=0.000538
+s2/layer_26: count=10240, relative_rmse=0.002534, max_abs=0.000538
+s2/layer_27: count=10240, relative_rmse=0.002646, max_abs=0.000538
+s2/layer_28: count=10240, relative_rmse=0.002799, max_abs=0.000538
+s2/layer_29: count=10240, relative_rmse=0.003045, max_abs=0.000614
+s2/layer_30: count=10240, relative_rmse=0.003160, max_abs=0.000822
+s2/layer_31: count=10240, relative_rmse=0.003172, max_abs=0.000831
+s2/layer_32: count=10240, relative_rmse=0.003247, max_abs=0.000767
+s2/layer_33: count=10240, relative_rmse=0.003289, max_abs=0.000727
+s2/layer_34: count=10240, relative_rmse=0.003238, max_abs=0.000729
+s2/layer_35: count=10240, relative_rmse=0.003403, max_abs=0.000822
+s2/layer_36: count=10240, relative_rmse=0.002899, max_abs=0.001936
+s2/layer_37: count=10240, relative_rmse=0.002902, max_abs=0.001925
+s2/layer_38: count=10240, relative_rmse=0.002942, max_abs=0.001932
+s2/layer_39: count=10240, relative_rmse=0.003118, max_abs=0.002406
+s2/layer_40: count=10240, relative_rmse=0.003063, max_abs=0.002376
+s2/layer_41: count=10240, relative_rmse=0.003018, max_abs=0.002440
+s2/layer_42: count=10240, relative_rmse=0.002817, max_abs=0.002753
+s2/layer_43: count=10240, relative_rmse=0.002872, max_abs=0.002968
+s2/layer_44: count=10240, relative_rmse=0.002792, max_abs=0.005249
+s2/layer_45: count=10240, relative_rmse=0.002477, max_abs=0.005612
+s2/layer_46: count=10240, relative_rmse=0.002300, max_abs=0.007253
+s2/layer_47: count=10240, relative_rmse=0.002051, max_abs=0.011113
+s2/logits: count=248320, relative_rmse=0.001981, max_abs=0.028320
+s3/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s3/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s3/layer_1: count=10240, relative_rmse=0.000534, max_abs=0.000087
+s3/gdn_state_1: count=786432, relative_rmse=0.000235, max_abs=0.000048
+s3/layer_2: count=10240, relative_rmse=0.000834, max_abs=0.000436
+s3/layer_3: count=10240, relative_rmse=0.000948, max_abs=0.000435
+s3/layer_4: count=10240, relative_rmse=0.001038, max_abs=0.000434
+s3/layer_5: count=10240, relative_rmse=0.001288, max_abs=0.000431
+s3/layer_6: count=10240, relative_rmse=0.001287, max_abs=0.000429
+s3/layer_7: count=10240, relative_rmse=0.001306, max_abs=0.000427
+s3/layer_8: count=10240, relative_rmse=0.001335, max_abs=0.000426
+s3/layer_9: count=10240, relative_rmse=0.001328, max_abs=0.000426
+s3/layer_10: count=10240, relative_rmse=0.001324, max_abs=0.000427
+s3/layer_11: count=10240, relative_rmse=0.001332, max_abs=0.000427
+s3/layer_12: count=10240, relative_rmse=0.001338, max_abs=0.000427
+s3/layer_13: count=10240, relative_rmse=0.001339, max_abs=0.000427
+s3/layer_14: count=10240, relative_rmse=0.001369, max_abs=0.000424
+s3/layer_15: count=10240, relative_rmse=0.001391, max_abs=0.000415
+s3/layer_16: count=10240, relative_rmse=0.001385, max_abs=0.000415
+s3/layer_17: count=10240, relative_rmse=0.001392, max_abs=0.000414
+s3/layer_18: count=10240, relative_rmse=0.001387, max_abs=0.000414
+s3/layer_19: count=10240, relative_rmse=0.001411, max_abs=0.000414
+s3/layer_20: count=10240, relative_rmse=0.001397, max_abs=0.000414
+s3/layer_21: count=10240, relative_rmse=0.001414, max_abs=0.000414
+s3/layer_22: count=10240, relative_rmse=0.001422, max_abs=0.000505
+s3/layer_23: count=10240, relative_rmse=0.001434, max_abs=0.000508
+s3/layer_24: count=10240, relative_rmse=0.001514, max_abs=0.000508
+s3/layer_25: count=10240, relative_rmse=0.001512, max_abs=0.000508
+s3/layer_26: count=10240, relative_rmse=0.001604, max_abs=0.000508
+s3/layer_27: count=10240, relative_rmse=0.001648, max_abs=0.000508
+s3/layer_28: count=10240, relative_rmse=0.001691, max_abs=0.000508
+s3/layer_29: count=10240, relative_rmse=0.001779, max_abs=0.000508
+s3/layer_30: count=10240, relative_rmse=0.001907, max_abs=0.000569
+s3/layer_31: count=10240, relative_rmse=0.002121, max_abs=0.000738
+s3/layer_32: count=10240, relative_rmse=0.002270, max_abs=0.000810
+s3/layer_33: count=10240, relative_rmse=0.002371, max_abs=0.000811
+s3/layer_34: count=10240, relative_rmse=0.002448, max_abs=0.000837
+s3/layer_35: count=10240, relative_rmse=0.002610, max_abs=0.000866
+s3/layer_36: count=10240, relative_rmse=0.002903, max_abs=0.001552
+s3/layer_37: count=10240, relative_rmse=0.003009, max_abs=0.001612
+s3/layer_38: count=10240, relative_rmse=0.003200, max_abs=0.001619
+s3/layer_39: count=10240, relative_rmse=0.004142, max_abs=0.002895
+s3/layer_40: count=10240, relative_rmse=0.004303, max_abs=0.003522
+s3/layer_41: count=10240, relative_rmse=0.004378, max_abs=0.003406
+s3/layer_42: count=10240, relative_rmse=0.004475, max_abs=0.003352
+s3/layer_43: count=10240, relative_rmse=0.004735, max_abs=0.003517
+s3/layer_44: count=10240, relative_rmse=0.005134, max_abs=0.005273
+s3/layer_45: count=10240, relative_rmse=0.005080, max_abs=0.005872
+s3/layer_46: count=10240, relative_rmse=0.005406, max_abs=0.013229
+s3/layer_47: count=10240, relative_rmse=0.006137, max_abs=0.019349
+s3/logits: count=248320, relative_rmse=0.005309, max_abs=0.078125
+s4/layer_0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+s4/gdn_state_0: count=786432, relative_rmse=0.000000, max_abs=0.000000
+s4/layer_1: count=10240, relative_rmse=0.000249, max_abs=0.000056
+s4/gdn_state_1: count=786432, relative_rmse=0.000309, max_abs=0.000065
+s4/layer_2: count=10240, relative_rmse=0.000631, max_abs=0.000060
+s4/layer_3: count=10240, relative_rmse=0.000790, max_abs=0.000088
+s4/layer_4: count=10240, relative_rmse=0.000991, max_abs=0.000106
+s4/layer_5: count=10240, relative_rmse=0.001207, max_abs=0.000161
+s4/layer_6: count=10240, relative_rmse=0.001416, max_abs=0.000178
+s4/layer_7: count=10240, relative_rmse=0.001465, max_abs=0.000199
+s4/layer_8: count=10240, relative_rmse=0.001484, max_abs=0.000193
+s4/layer_9: count=10240, relative_rmse=0.001503, max_abs=0.000200
+s4/layer_10: count=10240, relative_rmse=0.001548, max_abs=0.000198
+s4/layer_11: count=10240, relative_rmse=0.001558, max_abs=0.000199
+s4/layer_12: count=10240, relative_rmse=0.001625, max_abs=0.000197
+s4/layer_13: count=10240, relative_rmse=0.001672, max_abs=0.000205
+s4/layer_14: count=10240, relative_rmse=0.001749, max_abs=0.000204
+s4/layer_15: count=10240, relative_rmse=0.001781, max_abs=0.000202
+s4/layer_16: count=10240, relative_rmse=0.001780, max_abs=0.000204
+s4/layer_17: count=10240, relative_rmse=0.001822, max_abs=0.000216
+s4/layer_18: count=10240, relative_rmse=0.001874, max_abs=0.000243
+s4/layer_19: count=10240, relative_rmse=0.001920, max_abs=0.000237
+s4/layer_20: count=10240, relative_rmse=0.001880, max_abs=0.000284
+s4/layer_21: count=10240, relative_rmse=0.001944, max_abs=0.000287
+s4/layer_22: count=10240, relative_rmse=0.001966, max_abs=0.000290
+s4/layer_23: count=10240, relative_rmse=0.002039, max_abs=0.000372
+s4/layer_24: count=10240, relative_rmse=0.002116, max_abs=0.000374
+s4/layer_25: count=10240, relative_rmse=0.002259, max_abs=0.000347
+s4/layer_26: count=10240, relative_rmse=0.002551, max_abs=0.000373
+s4/layer_27: count=10240, relative_rmse=0.002655, max_abs=0.000444
+s4/layer_28: count=10240, relative_rmse=0.002723, max_abs=0.000487
+s4/layer_29: count=10240, relative_rmse=0.003055, max_abs=0.000713
+s4/layer_30: count=10240, relative_rmse=0.003608, max_abs=0.001127
+s4/layer_31: count=10240, relative_rmse=0.003933, max_abs=0.001244
+s4/layer_32: count=10240, relative_rmse=0.004205, max_abs=0.001309
+s4/layer_33: count=10240, relative_rmse=0.004183, max_abs=0.001101
+s4/layer_34: count=10240, relative_rmse=0.004016, max_abs=0.001079
+s4/layer_35: count=10240, relative_rmse=0.004109, max_abs=0.001377
+s4/layer_36: count=10240, relative_rmse=0.003604, max_abs=0.002778
+s4/layer_37: count=10240, relative_rmse=0.003574, max_abs=0.002888
+s4/layer_38: count=10240, relative_rmse=0.003566, max_abs=0.002883
+s4/layer_39: count=10240, relative_rmse=0.003943, max_abs=0.006316
+s4/layer_40: count=10240, relative_rmse=0.003943, max_abs=0.006349
+s4/layer_41: count=10240, relative_rmse=0.003933, max_abs=0.006264
+s4/layer_42: count=10240, relative_rmse=0.003862, max_abs=0.006601
+s4/layer_43: count=10240, relative_rmse=0.003894, max_abs=0.006515
+s4/layer_44: count=10240, relative_rmse=0.004126, max_abs=0.006358
+s4/layer_45: count=10240, relative_rmse=0.003692, max_abs=0.006593
+s4/layer_46: count=10240, relative_rmse=0.004073, max_abs=0.008277
+s4/layer_47: count=10240, relative_rmse=0.004133, max_abs=0.009861
+s4/logits: count=248320, relative_rmse=0.003272, max_abs=0.041992
+reset/logits: count=248320, relative_rmse=0.001120, max_abs=0.023438
+ok
+test qwen4::tests::flash_norms_match_upstream_rounding ... norm/0: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/1: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/2: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/3: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/4: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/5: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/6: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/7: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/8: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/9: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/10: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/11: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/12: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/13: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/14: count=256, relative_rmse=0.000000, max_abs=0.000000
+norm/15: count=768, relative_rmse=0.000000, max_abs=0.000000
+norm/16: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/17: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/18: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/19: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/20: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/21: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/22: count=128, relative_rmse=0.000000, max_abs=0.000000
+norm/23: count=384, relative_rmse=0.000000, max_abs=0.000000
+norm/24: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/25: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/26: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/27: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/28: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/29: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/30: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/31: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/32: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/33: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/34: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/35: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/36: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/37: count=30720, relative_rmse=0.000000, max_abs=0.000000
+norm/38: count=10240, relative_rmse=0.000000, max_abs=0.000000
+norm/39: count=30720, relative_rmse=0.000000, max_abs=0.000000
+ok
+test qwen4::tests::flash_projections_match_upstream_rounding ... projection/0: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/1: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/2: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/3: count=48, relative_rmse=0.000000, max_abs=0.000000
+projection/4: count=10240, relative_rmse=0.000000, max_abs=0.000000
+projection/5: count=10240, relative_rmse=0.000000, max_abs=0.000000
+projection/6: count=6144, relative_rmse=0.000000, max_abs=0.000000
+projection/7: count=6144, relative_rmse=0.000000, max_abs=0.000000
+projection/8: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/9: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/10: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/11: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/12: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/13: count=640, relative_rmse=0.000000, max_abs=0.000000
+projection/14: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/15: count=2560, relative_rmse=0.000000, max_abs=0.000000
+projection/16: count=12288, relative_rmse=0.000000, max_abs=0.000000
+projection/17: count=12288, relative_rmse=0.000000, max_abs=0.000000
+projection/18: count=248320, relative_rmse=0.000000, max_abs=0.000000
+projection/19: count=248320, relative_rmse=0.000000, max_abs=0.000000
+ok
+
+failures:
+
+failures:
+    qwen4::tests::flash_components_match_reference_on_identical_inputs
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 39.47s
+
+error: test failed, to rerun pass `--lib`

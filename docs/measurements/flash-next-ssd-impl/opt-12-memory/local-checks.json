@@ -1,0 +1,105 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 0.26925086975097656
+  },
+  {
+    "name": "clippy-cpu",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 2.069159984588623
+  },
+  {
+    "name": "clippy-mlx",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 3.2080399990081787
+  },
+  {
+    "name": "rust-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 8.776364088058472
+  },
+  {
+    "name": "python-full",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 83.61599707603455
+  },
+  {
+    "name": "release-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 28.917870044708252
+  },
+  {
+    "name": "release-engine",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 29.296059131622314
+  }
+]

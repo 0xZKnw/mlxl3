@@ -1,0 +1,29 @@
+{
+  "status": "failed_or_interrupted",
+  "original_sha256": "a8aedf9ebbcdab889516b6dd2123a71f79c0c5906bafacc08d8eb75573eab460",
+  "property": "one explicit head evaluation per verification pair, two unchanged scalar head graphs",
+  "steps": [
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "timeout_seconds": 180,
+      "status": "completed",
+      "pid": 60674,
+      "exit_code": 0,
+      "reaped": true
+    }
+  ],
+  "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t78%; AC attached; not charging present: true\n",
+  "vm_before": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   369113.\nPages active:                                 351318.\nPages inactive:                               324434.\nPages speculative:                             27960.\nPages throttled:                                   0.\nPages wired down:                             175446.\nPages purgeable:                                4345.\n\"Translation faults\":                      871324497.\nPages copy-on-write:                        26076184.\nPages zero filled:                        1110615144.\nPages reactivated:                          82771061.\nPages purged:                                9362442.\nFile-backed pages:                            416460.\nAnonymous pages:                              287252.\nPages stored in compressor:                   502349.\nPages occupied by compressor:                 270427.\nDecompressions:                            244221688.\nCompressions:                              293008721.\nPageins:                                   740852221.\nPageouts:                                     106704.\nSwapins:                                     3938084.\nSwapouts:                                    4876049.\nPages tagged:                                  98769.\nPages tagged resident:                         73619.\nPages tagged compressed:                       25150.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 3573.\nPages tag-storage free:                         3008.\nPages tag-storage non-tag pageable:            42405.\nPages tag-storage non-tag wired:                  84.\nBytes of compressed tags:                    3852096.\nTagged compressions:                         3938022.\nTagged decompressions:                       3737311.\n",
+  "error": "AssertionError()",
+  "restored_sha256": "a8aedf9ebbcdab889516b6dd2123a71f79c0c5906bafacc08d8eb75573eab460"
+}

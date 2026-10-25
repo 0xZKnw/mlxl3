@@ -21,10 +21,13 @@ extension UpdateManager {
         let suite = "io.mlxl3.check." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
-        func make(_ name: String) async throws -> StudioModel {
+        let flashModel = root.appendingPathComponent("flash-model")
+        try FileManager.default.createDirectory(at: flashModel, withIntermediateDirectories: true)
+        try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
+        func make(_ name: String, type: String = "audit") async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            let path = name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path
-            model.models = [LocalModel(name: name, path: path, modelType: "audit", format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+            let path = type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path
+            model.models = [LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
             for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
@@ -583,6 +586,65 @@ extension UpdateManager {
         renamed.ejectModel()
         precondition(!renamed.mtpAvailable, "Ejection must discard the MTP capability")
         precondition(!renamed.dflash2Available && renamed.runtimeIdentity == nil)
+        prefs.set(true, forKey: "studio.mtpEnabled")
+        let legacyHead = prefs.string(forKey: "studio.mtpHeadPath")!
+        let flashNext = try await make("flash", type: "qwen4_exp")
+        precondition(flashNext.mtpBuiltIn && flashNext.mtpAvailable && flashNext.mtpMaxDepth == 1 && !flashNext.canTuneMTP)
+        precondition(!flashNext.mtpEnabled && flashNext.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+        let flashReady = flashNext.engineState
+        flashNext.engineState = .loading("flash")
+        flashNext.setMTPEnabled(true)
+        precondition(!flashNext.mtpEnabled && !flashNext.mtpDownloading, "Built-in MTP activated before the runtime was ready")
+        flashNext.engineState = flashReady
+        flashNext.temperature = 0.73; flashNext.topK = 47; flashNext.repetitionPenalty = 1.17
+        flashNext.setMTPEnabled(true)
+        precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath.isEmpty)
+        precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
+        precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
+        precondition(flashNext.samplingTemperature == 0 && flashNext.samplingTopK == 1 && flashNext.samplingRepetitionPenalty == 1)
+        precondition(flashNext.temperature == 0.73 && flashNext.topK == 47 && flashNext.repetitionPenalty == 1.17,
+            "Built-in MTP must preserve ordinary sampling settings")
+        flashNext.setMTPDepth(3); precondition(flashNext.mtpDepth == 1)
+        flashNext.draft = "salut"; flashNext.send()
+        for _ in 0..<200 where flashNext.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        let request = try JSONSerialization.jsonObject(with: Data(flashNext.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+        precondition(request["mtp"] as? Bool == true && request["mtp_depth"] as? Int == 1)
+        precondition(request["mtp_head_path"] as? String == flashModel.path, "Built-in head path did not reach the bridge")
+        precondition(request["temperature"] as? Double == 0 && request["top_k"] as? Int == 1
+            && request["repetition_penalty"] as? Double == 1, "Built-in MTP must send greedy sampling")
+        flashNext.setMTPEnabled(false)
+        precondition(flashNext.samplingTemperature == 0.73 && flashNext.samplingTopK == 47
+            && flashNext.samplingRepetitionPenalty == 1.17, "MTP OFF must restore ordinary sampling")
+        flashNext.setMTPEnabled(true)
+        flashNext.ejectModel()
+        prefs.removeObject(forKey: "studio.mtpHeadPath")
+        let flashRestored = try await make("flash", type: "qwen4_exp")
+        precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath.isEmpty, "Built-in MTP required an external head after restart")
+        flashRestored.setMTPEnabled(false); flashRestored.ejectModel()
+        let flashOff = try await make("flash", type: "qwen4_exp")
+        precondition(!flashOff.mtpEnabled && flashOff.mtpDepth == 1, "Built-in MTP OFF selection did not persist")
+        flashOff.ejectModel()
+        let flashConfigured = try await make("flash-config", type: "qwen4_exp")
+        flashConfigured.setMTPEnabled(true)
+        for _ in 0..<200 where flashConfigured.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashConfigured.mtpEnabled && flashConfigured.mtpActive == true, "Built-in head was not configured")
+        flashConfigured.setMTPEnabled(false)
+        for _ in 0..<200 where flashConfigured.mtpActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!flashConfigured.mtpEnabled && flashConfigured.mtpActive == false, "Built-in head was not released")
+        let flashOperations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
+            .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+            .filter { $0["model"] as? String == "flash-config" }
+        let flashOn = flashOperations.first { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }!
+        precondition((flashOn["request"] as! [String: Any])["mtp_head_path"] as? String == flashModel.path)
+        flashConfigured.ejectModel()
+        let flashCancelled = try await make("flash-config", type: "qwen4_exp")
+        let flashOperationCount = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        flashCancelled.setMTPEnabled(true)
+        flashCancelled.ejectModel()
+        try await Task.sleep(for: .milliseconds(100))
+        precondition(!flashCancelled.mtpDownloading && flashCancelled.engineState == .idle)
+        let flashAfterCancel = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        precondition(flashAfterCancel == flashOperationCount, "Cancelled built-in preparation reached the bridge")
         let complete = try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"complete","stats":{"ttft_seconds":0.4,"prefill_tps":300,"decode_tps":16,"prompt_tokens":300,"generated_tokens":42,"model_size_gb":12.5,"elapsed_seconds":8,"end_to_end_ttft_seconds":0.5,"tool_rounds":1,"dflash_proposed_tokens":50,"dflash_accepted_tokens":28,"memory":{"mlx_active_bytes":12000000000,"mlx_cache_bytes":500000000,"mlx_peak_bytes":13000000000,"process_footprint_bytes":14000000000,"process_lifetime_peak_bytes":15000000000}}}"#.utf8))
         precondition(complete.stats?.peakMemoryGB == nil && complete.stats?.modelSizeGB == 12.5)
         precondition(complete.stats?.memory?.processFootprintBytes == 14_000_000_000)

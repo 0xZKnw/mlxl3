@@ -1,0 +1,16 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error[E0063]: missing field `ssd_prefetch` in initializer of `mlxl3_native::qwen4::FlashDraftProfile`
+    --> native/src/main.rs:3564:34
+     |
+3564 |             dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+     |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `ssd_prefetch`
+
+error[E0063]: missing field `ssd_prefetch` in initializer of `mlxl3_native::qwen4::FlashDraftProfile`
+    --> native/src/main.rs:3589:34
+     |
+3589 |             dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+     |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `ssd_prefetch`
+
+For more information about this error, try `rustc --explain E0063`.
+error: could not compile `mlxl3-native` (bin "mlxl3-rs" test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

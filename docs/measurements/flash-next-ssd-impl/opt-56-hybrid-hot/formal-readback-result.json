@@ -1,0 +1,25 @@
+{
+  "CBMC": {
+    "status": "parse_error_not_verified",
+    "exit_code": 6,
+    "version": "6.11.0",
+    "source": "native/ffi/mlx_bridge.cpp",
+    "entry": "mlxl3_array_copy_bytes",
+    "unwind": 21,
+    "checks": [
+      "bounds",
+      "pointer",
+      "signed-overflow",
+      "unwinding assertions"
+    ],
+    "include": "MLX 0.32.2 installed headers",
+    "diagnostic": "Apple libc++ type traits parsing fails",
+    "log": "cbmc-readback.log"
+  },
+  "Kani_MLX": {
+    "status": "compiler_internal_error_not_verified",
+    "exit_code": 1,
+    "harness": "actual_scheduled_raw_readback_preserves_bytes_and_source_event",
+    "log": "kani-readback-v2.log"
+  }
+}

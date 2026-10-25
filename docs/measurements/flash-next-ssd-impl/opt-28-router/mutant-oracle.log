@@ -1,0 +1,17 @@
+
+running 1 test
+test router::tests::flash_top10_matches_legacy_cpu_and_boundaries ... 
+thread 'router::tests::flash_top10_matches_legacy_cpu_and_boundaries' (10007392) panicked at native/src/router.rs:574:29:
+assertion `left == right` failed: CPU IDs 1/Float16/0
+  left: [480, 481, 482, 483, 484, 485, 486, 487, 488, 489]
+ right: [502, 503, 504, 505, 506, 507, 508, 509, 510, 511]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    router::tests::flash_top10_matches_legacy_cpu_and_boundaries
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 167 filtered out; finished in 0.11s
+

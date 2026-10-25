@@ -1,0 +1,26 @@
+[
+  {
+    "harness": "actual_shared_batches_preserve_serial_outputs",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "actual_shared_batches_preserve_serial_outputs",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-68-shared-expert/actual_shared_batches_preserve_serial_outputs.json"
+    ],
+    "exit": 1,
+    "reason": null,
+    "seconds": 5.673797874999991,
+    "peak_group_rss_bytes": 676855808,
+    "reaped": true
+  }
+]

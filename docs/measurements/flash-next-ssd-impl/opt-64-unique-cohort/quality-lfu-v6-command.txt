@@ -1,0 +1,60 @@
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 - <<'PY'
+import json, runpy, subprocess, time, os
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort')
+p=base/'quality-lfu-v6'
+plan=p/'run.json'
+api=runpy.run_path('scripts/profile_flash.py')
+parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)), 'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+start=json.loads((base/'quality-hot-v3/origin.json').read_text()); baseline={k:start['vm_bytes'][k] for k in ('Swapins','Swapouts')}
+origin=p/'origin.json'; assert not origin.exists(); origin.write_text(json.dumps(start,indent=2)+'\n')
+result={'status':'incomplete','parity':False,'original_vm_baseline':baseline,'source_identity':'identity-v6.json','source_commit':'bde5e44f + 64L v6'}
+identity=json.loads((base/'identity-v6.json').read_text())
+import hashlib
+for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+def watch(seconds,path):
+ records=[]
+ try:
+  deadline=time.monotonic()+seconds
+  while True:
+   row=take(); records.append(row)
+   assert row['power'].splitlines()[0]==start['power'].splitlines()[0]
+   assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+   for key in baseline:
+    assert 0<=row['vm_bytes'][key]-baseline[key]<=256<<20
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts'], 'new Swapout'
+   if time.monotonic()>=deadline: break
+   time.sleep(min(2,deadline-time.monotonic()))
+ finally:
+  path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+try:
+ watch(20,p/'preflight.json')
+ reproduction=json.loads((base/'lfu-reproduction/campaign-result.json').read_text())
+ assert reproduction['status']=='detected_omitted_hot_demand_and_postflight30s' and reproduction['bug_detected']
+ old=json.loads((base/'quality-hot-v4/campaign-result.json').read_text()); assert old['status']=='passed_quality_and_postflight30s'
+ old_id=json.loads((base/'identity-v5.json').read_text()); hashes={r['path']:r['sha256'] for r in old_id['files']}
+ changed=[r['path'] for r in identity['files'] if hashes[r['path']]!=r['sha256']]; assert len(changed)==1 and changed[0].endswith('/hybrid_tests.rs')
+ assert old_id['artifacts'][0]['sha256']==identity['artifacts'][0]['sha256']
+ print('64L v6 quality: 32 MoE cases, 36 target prefixes, real bridge; MTP B1/B2 outside changed fallback',flush=True)
+ api['run_sampler'](plan,baseline)
+ raw=json.loads(plan.with_name('run-result.json').read_text())
+ assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==3
+ assert all(r['reaped'] and r['status']=='completed_expected_outcome' and r['swapouts_bytes']==0 for r in raw['commands'])
+ module=(p/'unique-window.log').read_text(); assert 'test result: ok. 1 passed; 0 failed;' in module and 'SSD_UNIQUE_WINDOW cases=32 ' in module
+ checks=json.loads((p/'checks.json').read_text()); assert checks['status']=='complete' and checks['checks']==43 and checks['parity'] is True
+ for f in identity['files']+identity['artifacts']: assert hashlib.sha256(Path(f['path']).read_bytes()).hexdigest()==f['sha256'],f['path']
+ result.update(status='passed_quality_pending_postflight',parity=True,old_bug_detected=True,reused_mtp_numeric='quality-hot-v4')
+except BaseException as e:
+ result.update(status='failed_or_interrupted',parity=False,error=repr(e)); raise
+finally:
+ try:
+  watch(30,p/'postflight.json')
+  if result['parity']: result['status']='passed_quality_and_postflight30s'
+ except BaseException as e:
+  result.update(status='failed_postflight',parity=False,postflight_error=repr(e)); raise
+ finally:
+  (p/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n')
+  print(result,flush=True)
+PY

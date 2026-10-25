@@ -1,0 +1,22 @@
+{'name': 'pre20', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 20.10134441700211, 'swapouts_bytes': 0}
+{'name': 'MAIN-0-C', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 42.36268691699661, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py", line 27, in <module>
+    load(sampler)['main'](plan)
+  File "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 63, in main
+    record["exit_code"] = previous["monitor"](child, record, parse_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py", line 21, in captured
+    return original(child,record,parse)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 47, in monitor
+    return child.wait(timeout=min(2, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2047, in _wait
+    time.sleep(delay)
+KeyboardInterrupt

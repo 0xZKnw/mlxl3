@@ -1,0 +1,46 @@
+$ date -u
+Mon Oct 12 09:04:44 UTC 2026
+$ pmset -g batt
+Now drawing from 'AC Power'
+ -InternalBattery-0 (id=23461987)	94%; charging; 0:39 remaining present: true
+$ pmset -g therm
+Note: No thermal warning level has been recorded
+Note: No performance warning level has been recorded
+Note: No CPU power status has been recorded
+$ sysctl vm.swapusage
+vm.swapusage: total = 5120.00M  used = 4246.38M  free = 873.62M  (encrypted)
+$ vm_stat
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                   548839.
+Pages active:                                 328283.
+Pages inactive:                               281952.
+Pages speculative:                             48206.
+Pages throttled:                                   0.
+Pages wired down:                             190855.
+Pages purgeable:                                5697.
+"Translation faults":                     3415685633.
+Pages copy-on-write:                        96650379.
+Pages zero filled:                        5647180176.
+Pages reactivated:                         337692900.
+Pages purged:                               35623624.
+File-backed pages:                            351984.
+Anonymous pages:                              306457.
+Pages stored in compressor:                   207897.
+Pages occupied by compressor:                 120568.
+Decompressions:                            792025995.
+Compressions:                              965707105.
+Pageins:                                   393425070.
+Pageouts:                                     222517.
+Swapins:                                    37175560.
+Swapouts:                                   51351170.
+Pages tagged:                                 112431.
+Pages tagged resident:                         91523.
+Pages tagged compressed:                       20908.
+Pages tag-storage:                             49152.
+Pages tag-storage holding tags:                 6598.
+Pages tag-storage free:                         6455.
+Pages tag-storage non-tag pageable:            35926.
+Pages tag-storage non-tag wired:                  94.
+Bytes of compressed tags:                    3160256.
+Tagged compressions:                        14380448.
+Tagged decompressions:                      13630815.

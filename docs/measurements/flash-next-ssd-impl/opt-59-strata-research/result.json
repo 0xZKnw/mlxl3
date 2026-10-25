@@ -1,0 +1,40 @@
+{
+  "status": "research_completed_not_a_speed_validation",
+  "source_commits": {
+    "Niko1221/Strata": "9de04cd44e927a9a3df6bbc0e94fc1be8b844ba4",
+    "yibie/strata-mlx": "992d5f16dcaffe4831735a158e0db054fc4f9160",
+    "incoai/splash": "1482f6bbc2abf12375332725302019594150b6cb"
+  },
+  "head": "79e605fab417a5f844bc6dd49f6d35eee436a757",
+  "local_modified_57_58": true,
+  "report": "docs/flash-next-ssd-strata-splash-59-2026-10-21.md",
+  "report_sha256": "235f0e9e771bc5689334cdd25f3b2a4cd9e4384aadc5e0ebfd288a7b1c2e77b9",
+  "report_local_links_checked": 9,
+  "native_58_source_and_binaries_unchanged": true,
+  "new_gpu_runs": 0,
+  "new_quantizations": 0,
+  "new_speed_claims": 0,
+  "published": false,
+  "dflash_findings": [
+    "latest same checkpoint a22a1744; test fixture is not a smaller released head",
+    "BF16 draft projections vs Splash AF4G64; 683950080B tensor-payload savings estimate, not measured RAM",
+    "ring2048 and implicit attention masks vs local CPU mask and concatenate",
+    "cost-aware GPU verify-row selection not implemented in local DFlash2 path",
+    "target mostly per-row except MoE; compact GDN tape absent from Flash path"
+  ],
+  "backbone_findings": [
+    "prefetch and GPUHot currently mutually exclusive; cannot combine without late-ready classification",
+    "join pending experts and urgent work sharing",
+    "page-aligned source+destination staging distinct from rejected naked F_NOCACHE",
+    "GPU resume diagnostic: Splash keep-awake kernel uses Metal internals with runtime compatibility fallback",
+    "global adaptive ARC with prefill scan protection distinct from rejected static layer budget55"
+  ],
+  "deferred": "58 physical oracles/micros/TPS remain unexecuted; preserve preregistration and new stable campaign origin before resuming",
+  "ci_published_79": {
+    "regressions": "success",
+    "native_linux": "success",
+    "native_macos_mlx": "success",
+    "kani_flash_contracts": "success",
+    "kani_global": "failure; step cancelled after runner shutdown, no full proof"
+  }
+}

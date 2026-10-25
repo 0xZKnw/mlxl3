@@ -1,0 +1,66 @@
+[
+  {
+    "name": "47-capture-guard-after",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-47/metrology-guard/mlxl3_native",
+      "qwen4::tests::flash_cache_calibration_captures_prefill_decode_and_identical_states",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "native_test": "qwen4::tests::flash_cache_calibration_captures_prefill_decode_and_identical_states",
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/metrology-guard/absent-model",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_LAYER_SLOTS": "64,52,52,36,56,44,68,84,44,40,64,48,72,52,56,36,48,48,76,64,60,68,72,44,52,36,56,56,68,64,48,36,44,56,76,48,48,68,72,28,32,36,56,36,52,36,48,44",
+      "MLXL3_FLASH_CACHE_TRACE": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/metrology-guard/after-trace.json"
+    },
+    "expected_exit": 101,
+    "required_text": [
+      "calibration trace requires uniform cache"
+    ]
+  },
+  {
+    "name": "47-capture-guard-uniform",
+    "native_test": "qwen4::tests::flash_cache_calibration_captures_prefill_decode_and_identical_states",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-47/metrology-guard/mlxl3_native",
+      "qwen4::tests::flash_cache_calibration_captures_prefill_decode_and_identical_states",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_CACHE_TRACE": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/metrology-guard/uniform-trace.json",
+      "MLXL3_FLASH_CACHE_BRIDGE_REFERENCE": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge/report.json",
+      "MLXL3_FLASH_CACHE_ALLOCATION": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/allocation.json"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_CACHE_TRACE phases=2 tokens_per_phase=128 layers=48 shape=10 status=complete"
+    ]
+  }
+]

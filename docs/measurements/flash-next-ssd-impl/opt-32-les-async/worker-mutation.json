@@ -1,0 +1,41 @@
+[
+  {
+    "name": "mutant",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "ssd_prefetch::tests::staging_is_bounded_exact_and_recovers_after_failed_or_wrong_predictions",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "status": "detected",
+    "reason": "empty poll blocked before any speculative job was sent",
+    "reaped": true,
+    "seconds": 12.00795037500211
+  },
+  {
+    "name": "restored",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--lib",
+      "ssd_prefetch::tests::staging_is_bounded_exact_and_recovers_after_failed_or_wrong_predictions",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "exit_code": 0,
+    "seconds": 1.202391541999532,
+    "status": "passed"
+  }
+]

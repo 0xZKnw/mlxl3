@@ -1,0 +1,39 @@
+{
+  "status": "validated_cpu_campaign_admission_only",
+  "not_engine_ram_reduction": true,
+  "not_tps_gain": true,
+  "source_identity": "source-identity-v4.json",
+  "focused": {
+    "passed": 168,
+    "seconds": 6.67
+  },
+  "full": {
+    "passed": 1072,
+    "skipped": 4,
+    "seconds": 91.74,
+    "excluded_unrelated": "tests/test_flash_grouped_diagnostics.py"
+  },
+  "mutations": {
+    "detected": 3,
+    "normal_passed": 3,
+    "restored_passed": 3,
+    "production_source_unchanged": true
+  },
+  "cpu_vm": {
+    "original_model_anchor_bytes": 157155328,
+    "prior_swap_incident_bytes": 49479680,
+    "start_and_end_swapouts_bytes": 206635008,
+    "additional_swapouts_observed_bytes": 0,
+    "sample_count": 180,
+    "sampled_python_rss_max_bytes": 194707456,
+    "scope": "sampled CPU process RSS, not physical peak nor full-model memory"
+  },
+  "formal": {
+    "crosshair": "unavailable: No module named crosshair",
+    "rust_changed_in_75M": false,
+    "gpu_or_kernel_proof": false
+  },
+  "github_ci": "not_run_for_unpublished_sources",
+  "model_revalidation": "not_run_no_GPU_authorized",
+  "future_model_steps": "must pre-register explicit load_headroom_bytes/ minimum_live_free_bytes/ maximum_compressor_bytes and cumulative baseline; prior failure remains failed"
+}

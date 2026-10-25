@@ -1,0 +1,14 @@
+{'name': 'splash_q4_matches_scalar_quantization_and_independent_dot', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.47746279201237485, 'swapouts_bytes': 0}
+{'name': 'splash_ring_matches_chronological_cache_after_multiple_wraps', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 0.41961329101468436, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 446, in <module>
+    run_sampler(Path(sys.argv[2]), baseline)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 399, in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 65, in main
+    assert record["exit_code"] == item["expected_exit"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

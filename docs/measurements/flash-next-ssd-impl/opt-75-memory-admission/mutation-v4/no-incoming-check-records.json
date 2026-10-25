@@ -1,0 +1,101 @@
+[
+  {
+    "status": "completed_expected_outcomes_not_speed",
+    "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+    "matrix_sha256": "000cb843279e26700b3054751e2d5e30c1499b49e5e52b8299cb5ac16d624bd4",
+    "commands": [
+      {
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+          "-c",
+          "import time; from pathlib import Path; Path('child-started').touch(); time.sleep(0)"
+        ],
+        "env": {
+          "MLXL3_FLASH_MODEL": "path-never-loaded"
+        },
+        "load_headroom_bytes": 4294967296,
+        "minimum_live_free_bytes": 536870912,
+        "maximum_compressor_bytes": 7000000000,
+        "name": "admission",
+        "expected_exit": 0,
+        "timeout_seconds": 5,
+        "status": "completed_expected_outcome",
+        "before": {
+          "vm_bytes": {
+            "Swapins": 100,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          },
+          "pmset -g batt": "Now drawing from 'AC Power'"
+        },
+        "preflight_guard": {
+          "status": "passed",
+          "scope": "cumulative_campaign",
+          "baseline": {
+            "Swapins": 100,
+            "Swapouts": 100
+          },
+          "limit_bytes": 268435456,
+          "swapout_limit_bytes": 0,
+          "deltas": {
+            "Swapins": 0,
+            "Swapouts": 0
+          }
+        },
+        "memory_guard": {
+          "status": "passed",
+          "stage": "live",
+          "policy": {
+            "load_headroom_bytes": 4294967296,
+            "minimum_live_free_bytes": 536870912,
+            "maximum_compressor_bytes": 7000000000
+          },
+          "free_bytes": 4294967296,
+          "minimum_free_bytes": 536870912,
+          "compressor_bytes": 7000000000,
+          "maximum_compressor_bytes": 7000000000
+        },
+        "executable_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "pid": 68523,
+        "live_guard_basis": {
+          "scope": "cumulative_campaign",
+          "Swapins": 100,
+          "Swapouts": 100
+        },
+        "last_live_vm_bytes": {
+          "Swapins": 268435557,
+          "Swapouts": 100,
+          "Pages free": 4294967296,
+          "Pages occupied by compressor": 7000000000
+        },
+        "live_memory_samples": [
+          {
+            "epoch": 1792756913.0750551,
+            "Swapins": 268435557,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          }
+        ],
+        "maximum_live_swapout_bytes": 0,
+        "maximum_live_swapin_bytes": 268435457,
+        "exit_code": 0,
+        "after": {
+          "vm_bytes": {
+            "Swapins": 100,
+            "Swapouts": 100,
+            "Pages free": 4294967296,
+            "Pages occupied by compressor": 7000000000
+          },
+          "pmset -g batt": "Now drawing from 'AC Power'"
+        },
+        "children_maximum_rss_bytes": 14270464,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0,
+        "reaped": true,
+        "seconds": 0.020928292000462534
+      }
+    ]
+  }
+]

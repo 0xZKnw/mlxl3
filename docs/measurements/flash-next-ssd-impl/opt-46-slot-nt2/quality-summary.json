@@ -1,0 +1,137 @@
+{
+  "status": "validated_quality_not_speed",
+  "all_frozen_hashes_unchanged": true,
+  "files_checked": 127,
+  "processes": [
+    {
+      "name": "real-slot-shapes",
+      "status": "completed_expected_outcome",
+      "seconds": 1.0034604170068633,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 35454976
+    },
+    {
+      "name": "legacy-slot-shapes",
+      "status": "completed_expected_outcome",
+      "seconds": 0.26671508300933056,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 35454976
+    },
+    {
+      "name": "46-quality-0-failed_hot_compute_invalidates_reserved_routes_and_recovers",
+      "status": "completed_expected_outcome",
+      "seconds": 1.033496375021059,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 704200704
+    },
+    {
+      "name": "46-quality-1-failed_prediction_invalidates_reserved_routes_and_recovers",
+      "status": "completed_expected_outcome",
+      "seconds": 1.331196875020396,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 743555072
+    },
+    {
+      "name": "46-quality-2-two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+      "status": "completed_expected_outcome",
+      "seconds": 3.5297560839971993,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 890077184
+    },
+    {
+      "name": "46-quality-3-flash_matches_independent_reference_states_and_logits",
+      "status": "completed_expected_outcome",
+      "seconds": 3.388923499995144,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 131072,
+      "children_maximum_rss_bytes": 2659680256
+    },
+    {
+      "name": "46-quality-4-flash_pair_verification_preserves_serial_logits_and_all_states",
+      "status": "completed_expected_outcome",
+      "seconds": 10.475704290991416,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 262144,
+      "children_maximum_rss_bytes": 6425280512
+    },
+    {
+      "name": "46-quality-5-flash_mtp_head_matches_reference_and_cache_only",
+      "status": "completed_expected_outcome",
+      "seconds": 2.003945458011003,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 6425280512
+    },
+    {
+      "name": "46-quality-6-flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "status": "completed_expected_outcome",
+      "seconds": 9.92777570799808,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 98304,
+      "children_maximum_rss_bytes": 6945095680
+    },
+    {
+      "name": "46-dflash2-greedy",
+      "status": "completed_expected_outcome",
+      "seconds": 112.70975216699298,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 3784704,
+      "children_maximum_rss_bytes": 6945095680
+    },
+    {
+      "name": "46-dspark-greedy",
+      "status": "completed_expected_outcome",
+      "seconds": 72.63741854199907,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 983040,
+      "children_maximum_rss_bytes": 6945095680
+    },
+    {
+      "name": "46-dspark-policies",
+      "status": "completed_expected_outcome",
+      "seconds": 52.594658208981855,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 65536,
+      "children_maximum_rss_bytes": 6945095680
+    },
+    {
+      "name": "46-bridge-release45",
+      "status": "completed_expected_outcome",
+      "seconds": 182.33731683299993,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 9175040,
+      "children_maximum_rss_bytes": 6945095680
+    }
+  ],
+  "bridge_peak_process_bytes": 8313182688,
+  "rust": {
+    "passed": 127,
+    "ignored": 122
+  },
+  "kani": {
+    "guard_checks": 18,
+    "covers": 6,
+    "unreachable": 0,
+    "domains": "all bool, usize and i32 inputs, no assumes",
+    "gpu": "actual MLX attempt hits compiler ICE, unverified"
+  },
+  "scope": "32 real-shape slot cases and 8 wrong-slot controls, independent target/full states, native MTP, draft greedy/policies and real release bridge; unchanged draft backbone and same-hidden head fixtures reused from45"
+}

@@ -1,0 +1,557 @@
+{
+  "experiment": "82F06",
+  "review": "independent_quality_v1_v2_read_only",
+  "generated_utc": "2026-10-24T23:50:52.494491+00:00",
+  "status": "completed_quality_audit_bridge_and_speed_not_in_scope",
+  "review_actions": "File reads, source tracing, SHA-256 and data extraction only. No build, tests, prover, model load or benchmark launched by this review.",
+  "identity": {
+    "source_commit": "62cae0b3a51db760185d65eee61f1da79c9b19c7",
+    "source_note": "62cae baseline plus local F06; compiled F01 removed. This is not a clean-commit binary claim.",
+    "source_files_checked": 85,
+    "source_mismatches": [],
+    "driver_files_checked": 8,
+    "driver_mismatches": [],
+    "engine_sha256": "cbc03630aa08fd8dcdb949b905896ec1dc7f37888a7e984059c12624ec6743e7",
+    "native_tests_sha256": "f83049e4e77202ef01f7d96b5ed24bc14b8897ab992db501eaca06eb2d927431",
+    "identity_sha256": "552e2659b5f95431d5f5ed5ace695fd64d394f65962806626badc5495500de75",
+    "quality_v2_plan_sha256": "773bb1fd65b115241072236b84fd04e2ee0a5df503c004242dda3b4a5f29e5cf"
+  },
+  "quality_v1": {
+    "runner_status": "failed_or_interrupted",
+    "runner_error": "AssertionError()",
+    "commands_executed": 2,
+    "all_children_reaped": true,
+    "sampler_joined": true,
+    "native_suite": {
+      "exit_code": 0,
+      "passed": 130,
+      "failed": 0,
+      "ignored": 150,
+      "filtered_out": 0,
+      "elapsed_seconds_from_harness": 1.32
+    },
+    "reason": "Parent-added full-suite record retained native_test metadata for a single exact test; runner rejected aggregate counts. Failure retained; v2 excludes already-passed suite.",
+    "post30_executed": false
+  },
+  "quality_v2": {
+    "runner_status": "completed_expected_outcomes_not_speed",
+    "commands_executed": 19,
+    "all_commands_expected": true,
+    "all_children_reaped": true,
+    "sampler_status": "completed_observations_not_attribution",
+    "sampler_joined": true,
+    "sampler_samples": 59,
+    "sampler_error_count": 0,
+    "native_test_invocations": 8,
+    "native_invocations_each_passed": 1,
+    "native_invocations_each_failed": 0,
+    "native_invocations_each_ignored": 0,
+    "native_invocations_each_filtered": 279,
+    "command_summary": [
+      {
+        "name": "pre20",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 20.06600299999991,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-0",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 1.4455906660004985,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-1",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9674235830025282,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-2",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9230382909954642,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-3",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9226695839970489,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-4",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9513637499985634,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-5",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9144541659989045,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-6",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9239622919994872,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-7",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9146759999930509,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-top10-flag-8",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 0.9641765409978689,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-component",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.33636174999992363,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-metadata",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.2793319589982275,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-real-routes",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 1.8422401669959072,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-loader-default",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.9672302920007496,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-loader-0",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.9668272080016322,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "top10-loader-1",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.9607956249965355,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "dflash-prefixes",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 26.183172625002044,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "mtp-session",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 9.332479249998869,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "post30",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 30.05393745800393,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      }
+    ]
+  },
+  "coverage": {
+    "component_cases": 256,
+    "component_dimensions": {
+      "rows": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "dtypes": [
+        "Float16",
+        "Float32"
+      ],
+      "layouts": [
+        "contiguous",
+        "strided"
+      ],
+      "fixtures": 8,
+      "normalization": [
+        false,
+        true
+      ]
+    },
+    "independent_oracle": "CPU sort of actually represented input: NaNs above numbers, equal value ordered by expert index. Independent of modified shader output index. IDs checked for legacy/disabled/enabled; score bytes checked against legacy.",
+    "intentional_nonfinite_fixtures": true,
+    "all_fixture_finitude_not_claimed": true,
+    "finite_assertions": "Finite expected fixtures and all real probabilities/weights checked; shapes and byte lengths explicitly checked.",
+    "metadata_rejections": 5,
+    "other_domain_fallback_cases": 6,
+    "real_route_input_cases": 384,
+    "real_route_enabled_disabled_calls": 768,
+    "real_route_dimensions": {
+      "layers": 48,
+      "captured_inputs": 2,
+      "dtypes": [
+        "Float16",
+        "Float32"
+      ],
+      "layouts": [
+        "contiguous",
+        "strided"
+      ]
+    },
+    "real_route_scope": "Production SsdMoe::route vs legacy topk scores/IDs; actual EXL3 gate probabilities; per-layer one input row each.",
+    "loader_processes": 3,
+    "loader_configurations": [
+      "absent",
+      "0",
+      "1"
+    ],
+    "environment_mutations_after_mlx": false,
+    "loader_load_once_scope": "Field loaded once verified by source tracing and separate-process read-only tests; no dynamic environment mutation claim.",
+    "invalid_cli_processes": 9,
+    "invalid_cli_expected_exit": 2,
+    "invalid_cli_values": [
+      "''",
+      "'2'",
+      "'true'",
+      "'false'",
+      "'01'",
+      "'-1'",
+      "' 1'",
+      "'1 '",
+      "'\\udcff'"
+    ],
+    "prefix": {
+      "captures": {
+        "byte_equal": true,
+        "count": 64000,
+        "name": "captured",
+        "relative_rmse": 0.0,
+        "tolerance": 0.004
+      },
+      "kind": "Dflash2",
+      "memory": {
+        "mlx_active_bytes": 6460060960,
+        "mlx_cache_bytes": 67109168,
+        "mlx_peak_bytes": 6783453948,
+        "process_compressed_lifetime_logical_bytes": 3396861952,
+        "process_compressed_logical_bytes": 3358900224,
+        "process_compressed_peak_logical_bytes": 3360112640,
+        "process_decompressions": 198476,
+        "process_footprint_bytes": 7358830712,
+        "process_id": 90130,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7395956880,
+        "process_start_abstime": 1391950878349
+      },
+      "prefix_cases": 36,
+      "status": "passed",
+      "target_logits_and_states": "byte_exact",
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    "prefix_scope": "Serial vs multi-row target and prefix commits under common flag1. Captures match independent NumPy oracle within0.004 (observed byte-equal); target logits/states byte-exact to serial. This is NOT a full-target flag0/1 differential. Includes invalid verification/commit and abandoned verification reset.",
+    "mtp_budgets": [
+      {
+        "budget": 1,
+        "proposed": 0,
+        "accepted": 0,
+        "blocks": 0
+      },
+      {
+        "budget": 2,
+        "proposed": 1,
+        "accepted": 0,
+        "blocks": 1
+      },
+      {
+        "budget": 3,
+        "proposed": 2,
+        "accepted": 0,
+        "blocks": 2
+      },
+      {
+        "budget": 17,
+        "proposed": 12,
+        "accepted": 5,
+        "blocks": 12
+      }
+    ],
+    "mtp_proposed_total": 15,
+    "mtp_accepted_total": 5,
+    "mtp_scope": "Greedy sequence, target/head states, pending-empty, budget/cache alignment and invalid requests versus serial under common flag1; accepts and rejects exercised."
+  },
+  "mutation": {
+    "gpu": {
+      "normal_release_exit": 0,
+      "mutant_debug_exit": 101,
+      "reaped": true,
+      "first_failure": "independent rank oracle rows=1 fixture=0",
+      "mutant": "Output IDs (tid+1)%512 affect both baseline and candidate; independent CPU rank oracle detects it despite shared baseline corruption.",
+      "scope": "MSL body shared; mutant Rust build debug versus normal release, no TPS claim."
+    },
+    "cpu": {
+      "mutant_exit": 101,
+      "restored_exit": 0,
+      "domain": "E511 erroneous admission is detected by CPU test; actual guard restored."
+    }
+  },
+  "proof": {
+    "cpu": {
+      "tool": "Kani",
+      "harness": "flash_top10_early_exit_is_confined_to_requested_flash_geometry",
+      "obligations_passed": 5,
+      "covers_satisfied": 4,
+      "assumptions": 0,
+      "symbolic_domain": "i32 experts, usize top_k, bool requested; loop-free real production eligibility predicate",
+      "scope": "Exact geometry/request confinement only; does not prove MSL, MLX, driver, concurrency or inference."
+    },
+    "mlx": {
+      "status": "unverified_tool_internal_compiler_error",
+      "harness": "actual_flash_top10_early_exit_preserves_a_symbolic_input",
+      "command_json": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/evidence/kani-mlx.json",
+      "exit_code": 1,
+      "elapsed_seconds": 4.020177500002319,
+      "rss_group_peak_bytes": 684474368,
+      "limit_seconds": 180,
+      "limit_rss_bytes": 4294967296,
+      "diagnostic": "Kani panic kani-compiler/src/intrinsics.rs:243:17",
+      "no_stub": true
+    }
+  },
+  "memory": {
+    "global_scope": "System counters; no causal attribution to model.",
+    "global_phase_count": 19,
+    "all_phase_swapin_deltas_zero": true,
+    "all_phase_swapout_deltas_zero": true,
+    "maximum_live_swapin_bytes": 0,
+    "maximum_live_swapout_bytes": 0,
+    "vm_curve_samples": 39,
+    "vm_curve_phase_counts": {
+      "pre20": 9,
+      "dflash-prefixes": 12,
+      "mtp-session": 4,
+      "post30": 14
+    },
+    "vm_curve_summary_bytes": {
+      "Pages free": {
+        "minimum": 114638848,
+        "maximum": 7802781696,
+        "first": 784089088,
+        "last": 7277395968
+      },
+      "File-backed pages": {
+        "minimum": 4343119872,
+        "maximum": 6972424192,
+        "first": 6971670528,
+        "last": 4751720448
+      },
+      "Pages occupied by compressor": {
+        "minimum": 3779690496,
+        "maximum": 8007434240,
+        "first": 3780296704,
+        "last": 6554910720
+      },
+      "Swapins": {
+        "minimum": 53329920,
+        "maximum": 53329920,
+        "first": 53329920,
+        "last": 53329920
+      },
+      "Swapouts": {
+        "minimum": 475791360,
+        "maximum": 475791360,
+        "first": 475791360,
+        "last": 475791360
+      }
+    },
+    "system_power": "AC Power in every phase before/after snapshot",
+    "qa_prefix_process_snapshot": {
+      "mlx_active_bytes": 6460060960,
+      "mlx_cache_bytes": 67109168,
+      "mlx_peak_bytes": 6783453948,
+      "process_compressed_lifetime_logical_bytes": 3396861952,
+      "process_compressed_logical_bytes": 3358900224,
+      "process_compressed_peak_logical_bytes": 3360112640,
+      "process_decompressions": 198476,
+      "process_footprint_bytes": 7358830712,
+      "process_id": 90130,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7395956880,
+      "process_start_abstime": 1391950878349
+    },
+    "process_snapshot_count": 1,
+    "process_pid_and_start": "One valid positive PID/start identity; no within-process time series in quality logs.",
+    "process_lifetime_peak_under_12_decimal_GB": true,
+    "ledger_swapins_observed_zero": true,
+    "ledger_swapins_delta": null,
+    "compressed_lifetime_delta": null,
+    "decompressions_below_int32_saturation": true,
+    "caps77B": {
+      "status": "failed_compressed_current_and_peak",
+      "compressed_current_cap_bytes": 536870912,
+      "compressed_peak_cap_bytes": 536870912,
+      "current_over_budget_bytes": 2822029312,
+      "peak_over_budget_bytes": 2823241728,
+      "lifetime_delta_cap_bytes": 1073741824,
+      "lifetime_delta_status": "unknown_single_snapshot",
+      "caps_unchanged": true
+    },
+    "limitations": [
+      "QA prefix process materializes independent oracles, captured arrays and CPU logits, and writes state snapshots to temporary files. Its measured pressure is not a throughput-process measurement.",
+      "Presence of QA allocations does not establish their exclusive causal contribution to compression; no decomposition was measured.",
+      "One final process counter sample cannot establish counter deltas. A zero cumulative ledger swap-in value does not prove no private swap-out.",
+      "Peak allocated MLX bytes, process footprint, lifetime footprint peak and children ru_maxrss are different metrics.",
+      "Global compression grew while global swap counters remained constant; this does not identify page ownership.",
+      "F06 does not claim to solve memory pressure or qualify old77B caps. Real bridge and future HC/CH processes require their own observations."
+    ]
+  },
+  "limits": [
+    "Bridge43 started by parent but not reviewed in this artifact.",
+    "No TPS measured or gain qualified by quality results.",
+    "No full-target flag0/1 differential performed; only direct component/routes differential and common-flag serial/wide target checks.",
+    "Hosted CI run of future F06 commit not inspected; no CI-green claim.",
+    "Non-ignored suite leaves150 hardware/other tests ignored; eight relevant physical invocations explicitly run separately."
+  ],
+  "findings": [],
+  "decision": "Completed checks show no new correctness blocker in tested domain. Keep bridge/HC/CH gating and unchanged memory policy; do not promote from component success alone.",
+  "evidence_sha256": {
+    "identity-frozen-v2.json": "552e2659b5f95431d5f5ed5ace695fd64d394f65962806626badc5495500de75",
+    "plans/quality/run.json": "f4f05d6ac4a131c53a9dc108e54561587c767c07eb5ea0be35b2bff88e7f8a39",
+    "plans/quality/run-result.json": "26a24ba995c8392910418c6a0b2f0ad88572a7ccacd9a4bf4bd24a3e4e173d01",
+    "plans/quality/native-suite.log": "bd9b317fad111dec721c027d92a09962a68b7ef620aa810a53715c00b4f96f37",
+    "plans/quality/system-samples.json": "d48df6dfef320b07cb0e7681ba40e4950561a96258c77b487cbdf767368479e4",
+    "plans/quality-v2/run.json": "773bb1fd65b115241072236b84fd04e2ee0a5df503c004242dda3b4a5f29e5cf",
+    "plans/quality-v2/run-result.json": "028ec5d9dce8df45d8ad4602ae8270a9e612c224176225986caec0fa6c49b492",
+    "plans/quality-v2/vm-curve.json": "03710b3e113d6dc1bcd9969827adb99487141b015f609c6b170e3a09f1242aa7",
+    "plans/quality-v2/system-samples.json": "79ffcc5f7fb6ead9b69027c899febf32480d7ef0d84c0da81d71e7298a8c5032",
+    "plans/quality-v2/pre20.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "plans/quality-v2/reject-top10-flag-0.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-1.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-2.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-3.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-4.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-5.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-6.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-7.log": "bc507112baab6941dcfddf51a803f510964551b3ff7a16e81e89e3a68f07e78a",
+    "plans/quality-v2/reject-top10-flag-8.log": "e27121d7b645b479f2e3e1e5be9f5c617bf6b1b232edffab0b4815594041746a",
+    "plans/quality-v2/top10-component.log": "d62d5dffeeac59f2a81684c75c6bcc3186324a5ab36e0751aa2746d2f10af7c7",
+    "plans/quality-v2/top10-metadata.log": "484cc9f1cda17c4f9be3c837d81b8092d85864db5153d575e764d9cbb4d05d0a",
+    "plans/quality-v2/top10-real-routes.log": "06f4e90210822d298f2e100a737b42b0f7d605afad857cbd92b5dca877dd91a5",
+    "plans/quality-v2/top10-loader-default.log": "5f846cd8ff284de25e9cd0c166261f0744ae0a1c3ea3a32d8a6d06a48405ae20",
+    "plans/quality-v2/top10-loader-0.log": "5f846cd8ff284de25e9cd0c166261f0744ae0a1c3ea3a32d8a6d06a48405ae20",
+    "plans/quality-v2/top10-loader-1.log": "ac5afeec30d15dd6c1cd4586495aac674fa0738e20e4e4619d283145c917db80",
+    "plans/quality-v2/dflash-prefixes.log": "12b204bdd09397c5965ccfefc3894a07d705ba9c753b81b766819ea696149628",
+    "plans/quality-v2/mtp-session.log": "88b5d20d4b9b9462d6e46575b980e07811159a588ebbb8f5a697b8f21feed3d0",
+    "plans/quality-v2/post30.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/component-mutant.json": "662b44c4f96df7753db582a7bf00d42d212e84cc6d5e6a373a306a26908032a1",
+    "evidence/component-mutant.log": "83b88831ad0dd6269cd950ca4155dc0a03507af23010bc79101699ed96787b1a",
+    "evidence/component-normal-before-mutation.json": "146ed8078d3656cbd9f97e47938bca440a72402114583f65226059b19bb17374",
+    "evidence/component-normal-before-mutation.log": "204fab9675df1b15a5f87553172d452c88036912b1b5cd8c3fa21519b550d492",
+    "evidence/cpu-suite.log": "f679959ac5b6e0f9b048efe5f3ce835f7135b63bd1977c0b01acb19197e98dc8",
+    "evidence/restored-kani.json": "52c381ec169babaf6f1ae7452ae154dde447dbcb00b71da430ed9f2d90a43d86",
+    "evidence/restored-kani.log": "4d8f7dbbc8f7041c87df81e1a022e009bd76d4d2d1dfb43ce009b690ab05a023",
+    "evidence/mutation-cpu.json": "8ea7cfe8022ca40be6f732d4791b15fd0b717ffb51566d01fd4207ba4732c13e",
+    "evidence/mutation-cpu.log": "959863657e992ee5cb385e2d5f65151d97cd836dbfa3b4869c6ecf701a0073e2",
+    "evidence/restored-cpu.json": "6c6294a0ffbb68233a4ad33400a9791403f57474b30f4902ffd0cd2e2130ce5c",
+    "evidence/restored-cpu.log": "465137ac4a582dd39b606bec03c7ebbf539d8cc6746fa92a7b6895f5123cfcfb",
+    "evidence/kani-mlx.json": "85cbb2ec581ad7419c5f1fe3ea390d2de4a123de3f1828c25d2b4dc5cf958c8d",
+    "evidence/kani-mlx.log": "e0d9c2a011ed3479e44b1a9ed2d3ca5cfa77cd6c63048c516a079503f20d1c26",
+    "evidence/clippy-cpu.log": "10c70cb1e4577ff5754eaed7e309d4ec17e8447b683bf08c001c526efc51af66",
+    "evidence/clippy-mlx.log": "2b3dea48250e74a4df112e79c626cf7b2e202c564b69008f48c8dfe557deb912",
+    "evidence/clippy-mlx-v2.log": "2ee511785f22c43121c9fc7eb2011017c8c20f3e0a85cde22522c3cd59df30f9",
+    "evidence/clippy-mlx-v3.log": "c447928050191f69397b7b10b059ed15e77dfc7650572e3ce32d5991a83486b3"
+  }
+}

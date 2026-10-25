@@ -1,0 +1,11 @@
+--- a/scripts/analyze_flash_process_memory.py
++++ b/scripts/analyze_flash_process_memory.py
+@@ -133,7 +133,7 @@
+                 report["startup_ledger_swapins_logical_bytes"] = incoming
+                 report["startup_already_affected"] = incoming > 0
+             else:
+-                if any(values[key] != baseline[key] for key in IDENTITY):
++                if False:  # temporary mutant: ignore changed process identity
+                     raise ValueError(f"process identity changed at {label}")
+                 if any(values[key] < previous[key] for key in CUMULATIVE):
+                     raise ValueError(f"cumulative counter reversed at {label}")

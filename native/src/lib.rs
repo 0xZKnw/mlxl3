@@ -13,6 +13,13 @@ pub use contracts::{
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
+#[cfg(any(test, kani))]
+mod flash_cache_profile;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod flash_draft_budget;
+#[cfg(test)]
+pub(crate) mod flash_profile;
+pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
 #[cfg(feature = "mlx")]
@@ -33,10 +40,16 @@ pub mod moe;
 pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
+#[cfg(feature = "mlx")]
+pub mod qwen4;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;
 pub mod speculative;
+#[cfg(feature = "mlx")]
+pub mod ssd_moe;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod ssd_prefetch;
 pub mod streaming;
 pub mod structured;
 #[cfg(feature = "chat")]

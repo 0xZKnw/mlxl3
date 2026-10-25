@@ -1,0 +1,62 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 28.790188500000003
+  },
+  {
+    "name": "mutant-real-matrices",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "lfm2::flash_hc_tests::mixed_gemv_matches_every_flash_hc_weight",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "failed",
+    "exit": 101,
+    "seconds": 1.0996903750000016
+  },
+  {
+    "name": "restored-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 29.279221417000002
+  },
+  {
+    "name": "restored-real-matrices",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "lfm2::flash_hc_tests::mixed_gemv_matches_every_flash_hc_weight",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 1.2696383330000032
+  }
+]

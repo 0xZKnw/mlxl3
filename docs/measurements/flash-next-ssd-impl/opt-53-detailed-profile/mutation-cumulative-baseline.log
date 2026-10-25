@@ -1,0 +1,52 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot[False] _
+
+fails = False
+
+    @pytest.mark.parametrize("fails", [False, True])
+    def test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot(fails):
+        before = {"Swapins": 200, "Swapouts": 300, "other": 7}
+        record = {"before": {"vm_bytes": before}}
+        baseline = {"Swapins": 20, "Swapouts": 30}
+    
+        def monitor(child, record, parse):
+            assert record["before"]["vm_bytes"] == {"Swapins": 20, "Swapouts": 30, "other": 7}
+            if fails:
+                raise TimeoutError("guard exceeded")
+            return 0
+    
+        wrapped = API["cumulative_monitor"](monitor, baseline)
+        baseline["Swapouts"] = 999
+        if fails:
+            with pytest.raises(TimeoutError):
+                wrapped(None, record, None)
+        else:
+>           assert wrapped(None, record, None) == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_profile.py:318: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/profile_flash.py:343: in guarded
+    return monitor(child, record, parse_vm)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+child = None
+record = {'before': {'vm_bytes': {'Swapins': 200, 'Swapouts': 300, 'other': 7}}, 'live_guard_basis': {'scope': 'cumulative_campaign', 'Swapins': 20, 'Swapouts': 30}}
+parse = None
+
+    def monitor(child, record, parse):
+>       assert record["before"]["vm_bytes"] == {"Swapins": 20, "Swapouts": 30, "other": 7}
+E       AssertionError: assert {'Swapins': 2...0, 'other': 7} == {'Swapins': 2...0, 'other': 7}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'Swapins': 200} != {'Swapins': 20}
+E         {'Swapouts': 300} != {'Swapouts': 30}
+E         Use -v to get more diff
+
+tests/test_flash_profile.py:307: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_cumulative_guard_uses_campaign_vm_but_restores_per_case_snapshot[False]
+1 failed in 0.03s

@@ -1,0 +1,69 @@
+{
+  "status": "detected_and_restored",
+  "restored_binary_sha256": "cee96230c41becd50f5c54695f7ca91329bc1770ac0027f9794b881bce0431f7",
+  "shader_sha256": "bf5ec29d4a741680ad10cb0f68c674327ac2052aff474f39012804fb3843834c",
+  "records": [
+    {
+      "name": "mutant-build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 38.88786595797865,
+      "reaped": true
+    },
+    {
+      "name": "mutant-test",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "lfm2::flash_hc_tests::mixed_gemv_matches_mlx_cpu_and_fallbacks",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_exit": 101,
+      "exit_code": 101,
+      "seconds": 0.541016666975338,
+      "reaped": true
+    },
+    {
+      "name": "restored-build",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--no-run"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 39.831808332994115,
+      "reaped": true
+    },
+    {
+      "name": "restored-test",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "lfm2::flash_hc_tests::mixed_gemv_matches_mlx_cpu_and_fallbacks",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "expected_exit": 0,
+      "exit_code": 0,
+      "seconds": 0.43531958298990503,
+      "reaped": true
+    }
+  ]
+}

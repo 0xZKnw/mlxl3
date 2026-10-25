@@ -1,0 +1,865 @@
+{
+  "status": "passed",
+  "source_hashes": {
+    "quality-supervisor.txt": "7b133892ca333f766cbcef6435da2a23d3ecd76c011f70f980cb959d6c9076d6",
+    "guards-supervisor.txt": "97dd842408795f8473cdae817d6d0004785002f5f99546a8f7ff0777bd575efc"
+  },
+  "event_delta_cases": 12,
+  "component_cases": [
+    {
+      "case": "valid",
+      "accepted": true
+    },
+    {
+      "case": "absent",
+      "accepted": false
+    },
+    {
+      "case": "duplicate",
+      "accepted": false
+    },
+    {
+      "case": "['status']'incomplete'",
+      "accepted": false
+    },
+    {
+      "case": "['gate_layers']0",
+      "accepted": false
+    },
+    {
+      "case": "['gate_logit_count']0",
+      "accepted": false
+    },
+    {
+      "case": "['head_logit_count']0",
+      "accepted": false
+    },
+    {
+      "case": "['warmup_sweeps']True",
+      "accepted": false
+    },
+    {
+      "case": "['samples']0",
+      "accepted": false
+    },
+    {
+      "case": "['sweeps_per_sample']0",
+      "accepted": false
+    },
+    {
+      "case": "['route_pair_48_layers_seconds'][]",
+      "accepted": false
+    },
+    {
+      "case": "['head_pair_seconds'][0.01, 0.01, 0.01, 0.01]",
+      "accepted": false
+    },
+    {
+      "case": "['route_pair_48_layers_seconds', 0]nan",
+      "accepted": false
+    },
+    {
+      "case": "['head_pair_seconds', 0]inf",
+      "accepted": false
+    },
+    {
+      "case": "['head_pair_seconds', 0]True",
+      "accepted": false
+    },
+    {
+      "case": "['head_pair_seconds', 0]0",
+      "accepted": false
+    },
+    {
+      "case": "['head_pair_seconds', 0]-1",
+      "accepted": false
+    },
+    {
+      "case": "['memory']{}",
+      "accepted": false
+    },
+    {
+      "case": "['memory', 'process_lifetime_peak_bytes']0",
+      "accepted": false
+    },
+    {
+      "case": "['memory', 'process_lifetime_peak_bytes']True",
+      "accepted": false
+    },
+    {
+      "case": "['memory', 'process_lifetime_peak_bytes']10737418241",
+      "accepted": false
+    },
+    {
+      "case": "no-vm",
+      "accepted": false
+    },
+    {
+      "case": "missing-vm",
+      "accepted": false
+    },
+    {
+      "case": "duplicate-vm",
+      "accepted": false
+    },
+    {
+      "case": "('phase', 'wrong')",
+      "accepted": false
+    },
+    {
+      "case": "('seconds', -1)",
+      "accepted": false
+    },
+    {
+      "case": "('seconds', True)",
+      "accepted": false
+    },
+    {
+      "case": "('seconds', nan)",
+      "accepted": false
+    },
+    {
+      "case": "('seconds', -0.1)",
+      "accepted": false
+    },
+    {
+      "case": "('raw', '')",
+      "accepted": false
+    },
+    {
+      "case": "clock-reversed",
+      "accepted": false
+    }
+  ],
+  "head_cases": [
+    {
+      "case": "valid",
+      "accepted": true
+    },
+    {
+      "case": "absent",
+      "accepted": false
+    },
+    {
+      "case": "duplicate",
+      "accepted": false
+    },
+    {
+      "case": "['status']'incomplete'",
+      "accepted": false
+    },
+    {
+      "case": "['checked_logits']0",
+      "accepted": false
+    },
+    {
+      "case": "['head_rows']0",
+      "accepted": false
+    },
+    {
+      "case": "['input_cases']True",
+      "accepted": false
+    },
+    {
+      "case": "['blocks'][]",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'order']['joint', 'original']",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'original']0",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'joint']True",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'joint']nan",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'joint']inf",
+      "accepted": false
+    },
+    {
+      "case": "['blocks', 0, 'joint']-1",
+      "accepted": false
+    },
+    {
+      "case": "['memory']{}",
+      "accepted": false
+    },
+    {
+      "case": "['memory', 'process_lifetime_peak_bytes']0",
+      "accepted": false
+    },
+    {
+      "case": "['memory', 'process_lifetime_peak_bytes']1152921504606846976",
+      "accepted": false
+    }
+  ],
+  "supervisor_integration_cases": [
+    {
+      "scenario": "complete",
+      "exit_code": 0,
+      "records": 1
+    },
+    {
+      "scenario": "zero-tests",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "crash",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "deadline",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "swapout",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "swapin",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "changed-power",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "initial-power",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "probe-error",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "interrupt",
+      "exit_code": -2,
+      "records": 1
+    },
+    {
+      "scenario": "stale-proof",
+      "exit_code": 1,
+      "records": 0
+    },
+    {
+      "scenario": "missing-proof",
+      "exit_code": 1,
+      "records": 0
+    },
+    {
+      "scenario": "component-valid",
+      "exit_code": 0,
+      "records": 1
+    },
+    {
+      "scenario": "component-invalid",
+      "exit_code": 1,
+      "records": 1
+    },
+    {
+      "scenario": "head-valid",
+      "exit_code": 0,
+      "records": 1
+    },
+    {
+      "scenario": "head-invalid",
+      "exit_code": 1,
+      "records": 1
+    }
+  ],
+  "cases": [
+    {
+      "case": "light-baseline-MAIN-0:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-baseline-MAIN-0:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['prefetch']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 3]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-baseline-MAIN-4:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['prefetch', 'completed']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-MAIN-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-baseline-HOLD-0:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['prefetch']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 3]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-baseline-HOLD-4:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['prefetch', 'completed']",
+      "accepted": false
+    },
+    {
+      "case": "light-baseline-HOLD-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-mtp-MAIN-0:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['prefetch']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 3]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-mtp-MAIN-4:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['prefetch', 'completed']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-MAIN-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-mtp-HOLD-0:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['prefetch']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-0:['candidate_scanned_hot_admitted_imported_overlap_rows', 3]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:valid",
+      "accepted": true
+    },
+    {
+      "case": "light-mtp-HOLD-4:empty",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:incomplete",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['phase']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['tokens', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['text']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['logit_count']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['logits_finite']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['route_fill_import_seconds', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['candidate_scanned_hot_admitted_imported_overlap_rows', 0]",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['mtp']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['mtp_proposed_tokens']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['prefetch', 'completed']",
+      "accepted": false
+    },
+    {
+      "case": "light-mtp-HOLD-4:['memory', 'process_lifetime_peak_bytes']",
+      "accepted": false
+    }
+  ],
+  "limits": "actual parent checker, finite mutations of physical profile records; not proof"
+}

@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "--cpp11",
+    "-I",
+    "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/include",
+    "--function",
+    "proof",
+    "--unwind",
+    "16",
+    "--unwinding-assertions",
+    "--bounds-check",
+    "--pointer-check",
+    "--signed-overflow-check",
+    "native/ffi/mlx_bridge.cpp",
+    "native/tests/uninitialized_bank_proof.cpp"
+  ],
+  "exit_code": 6,
+  "reason": null,
+  "seconds": 0.1454087919992162,
+  "reaped": true
+}

@@ -621,6 +621,44 @@ pub(crate) fn qmv_batch_layout(rows: i32, grouped: bool, wide: bool) -> Option<(
     Some((mb, (rows + mb - 1) / mb))
 }
 
+/// Reference EXL3 reduction with two independent rows sharing each decoded tile.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn flash_reference_batch_layout(rows: i32) -> Option<(i32, i32)> {
+    if !(2..=8).contains(&rows) {
+        return None;
+    }
+    Some((2, (rows + 1) / 2))
+}
+
+#[test]
+fn flash_reference_batch_covers_odd_rows_without_extra_outputs() {
+    for rows in 2..=8 {
+        let (mb, groups) = flash_reference_batch_layout(rows).unwrap();
+        assert_eq!(mb, 2);
+        assert!(groups * mb >= rows && groups * mb < rows + mb);
+    }
+    for rows in [i32::MIN, -1, 0, 1, 9, 24, i32::MAX] {
+        assert_eq!(flash_reference_batch_layout(rows), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_reference_batch_has_exact_bounded_coverage() {
+    let rows: i32 = kani::any();
+    match flash_reference_batch_layout(rows) {
+        Some((mb, groups)) => {
+            assert!((2..=8).contains(&rows));
+            assert_eq!(mb, 2);
+            assert!(groups * mb >= rows && groups * mb < rows + mb);
+            assert!((1..=4).contains(&groups));
+            kani::cover!(rows == 3);
+            kani::cover!(rows == 8);
+        }
+        None => assert!(!(2..=8).contains(&rows)),
+    }
+}
+
 /// Experimental M3 geometry, restricted to the checkpoint shapes measured on M5.
 #[cfg(any(feature = "mlx", test, kani))]
 #[allow(clippy::too_many_arguments)]
@@ -837,6 +875,35 @@ pub(crate) fn array_bytes(shape: &[i32], item_size: usize) -> Option<usize> {
 
 pub(crate) fn valid_data_range(start: u64, end: u64, payload: u64, bytes: u64) -> bool {
     end >= start && end <= payload && end - start == bytes
+}
+
+pub(crate) fn absolute_data_range(payload: u64, [start, end]: [u64; 2]) -> Option<[u64; 2]> {
+    if start > end {
+        return None;
+    }
+    Some([payload.checked_add(start)?, payload.checked_add(end)?])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn tensor_source_interval_is_ordered_and_cannot_wrap() {
+    let payload: u64 = kani::any();
+    let start: u64 = kani::any();
+    let end: u64 = kani::any();
+    let result = absolute_data_range(payload, [start, end]);
+    assert_eq!(
+        result.is_some(),
+        start <= end && u128::from(payload) + u128::from(end) <= u128::from(u64::MAX)
+    );
+    if let Some([first, last]) = result {
+        assert!(first <= last && first >= payload);
+        assert_eq!(u128::from(first), u128::from(payload) + u128::from(start));
+        assert_eq!(u128::from(last), u128::from(payload) + u128::from(end));
+        kani::cover!(first == u64::MAX && last == u64::MAX);
+        kani::cover!(first == last && first == 0);
+    }
+    kani::cover!(start > end && result.is_none());
+    kani::cover!(payload == u64::MAX && end == 1 && result.is_none());
 }
 
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), kani))]

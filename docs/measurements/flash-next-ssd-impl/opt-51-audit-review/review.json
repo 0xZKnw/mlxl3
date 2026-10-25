@@ -1,0 +1,122 @@
+{
+  "status": "complete_static_review_no_new_kernel_run",
+  "date": "2026-10-20",
+  "source_document": {
+    "path": "/Users/justin/Downloads/MLXL3_PR34_NOUVEL_AUDIT_COMPLET_FLASH_SSD_2026-10-20 (1).md",
+    "sha256": "8d4cf71879853259595bd02723b17542cf8da5a1ab730982a4af1611c771d082",
+    "bytes": 159978,
+    "lines": 1717,
+    "read_scope": "all1717lines including appended49 notes and references",
+    "audited_head": "8884c5ad1dfa11c0f7818586c3e83de50df2a847"
+  },
+  "current_source_head": "cefa2defe223909f50b9382748cb1f1d60cdcc6e+trial50 benchmark only",
+  "verified": [
+    {
+      "claim": "NT1/SG4 active; reference scratch order group,r,column; per-column reduction r then group",
+      "source": "native/shaders/_qmv_mapped_tile_kernel.metal:209,241; native/src/linear.rs:1211,1227",
+      "decision": "layout-only experiment is distinct from NT2 and shared-occurrence MB2; exactness and GPU benefit unmeasured"
+    },
+    {
+      "claim": "profile47 adds9cohorts for B4; not an explanation of AR or MTP1 trial47",
+      "cohorts": [
+        {
+          "rows": 1,
+          "uniform53": 48,
+          "profile47": 48
+        },
+        {
+          "rows": 2,
+          "uniform53": 48,
+          "profile47": 48
+        },
+        {
+          "rows": 3,
+          "uniform53": 48,
+          "profile47": 49
+        },
+        {
+          "rows": 4,
+          "uniform53": 48,
+          "profile47": 57
+        },
+        {
+          "rows": 5,
+          "uniform53": 48,
+          "profile47": 71
+        },
+        {
+          "rows": 6,
+          "uniform53": 96,
+          "profile47": 82
+        },
+        {
+          "rows": 7,
+          "uniform53": 96,
+          "profile47": 100
+        },
+        {
+          "rows": 8,
+          "uniform53": 96,
+          "profile47": 105
+        }
+      ],
+      "decision": "union-aware partitioning useful for B3/B4 at small capacities; no cohort guard triggered for rows2 at53or107slots"
+    },
+    {
+      "claim": "MB2 prototype48 had weak sharing in2of3fixtures and activates MB2 for singleton groups",
+      "density_from_actual_archived_routes": [
+        {
+          "layer": 0,
+          "pairs": 1,
+          "unique": 19,
+          "singletons": 18
+        },
+        {
+          "layer": 23,
+          "pairs": 4,
+          "unique": 16,
+          "singletons": 12
+        },
+        {
+          "layer": 47,
+          "pairs": 1,
+          "unique": 19,
+          "singletons": 18
+        }
+      ],
+      "source": "opt-48-paired-experts/candidate-source/native/src/ssd_moe.rs,linear.rs,shaders/_qmv_mapped_tile_kernel.metal",
+      "decision": "new singleton/pair dispatch needs A/A qualification, not re-enabling retired48"
+    },
+    {
+      "claim": "disk reader dispatch is static worker-stride",
+      "source": "native/ffi/disk_reader.h:121",
+      "decision": "dynamic queue is a separate mechanism; no physical gain measured"
+    },
+    {
+      "claim": "build_profile validates only combined prompt set, not equal prompt distribution per width",
+      "source": "scripts/calibrate_flash_draft.py:97,114,145",
+      "decision": "interface validation gap; historical balanced44campaign not invalidated; no change or counterexample run during review"
+    },
+    {
+      "claim": "forward_tokens computes unused intermediate logits; MTP1 GDN journal does not inherit B4 memory arithmetic",
+      "source": "native/src/qwen4.rs:1294,2757",
+      "decision": "prefill/TTFT and B4 memory need separate experiments; neither is a direct established decode boost"
+    }
+  ],
+  "new_context_not_in_report": {
+    "trial49D": "complete; routing boundary grew while misses declined; initial variance cause not identified",
+    "trial50": "6GiB passes numeric/bridge/MTP quality and <=12GB footprint,0newSwapout; OFF/MTP performance inconclusive under preregistered drift thresholds",
+    "compression": "large system compression/decompression captured; more on6GiB, whole-process campaign windows; not model-exclusive or decode-exclusive"
+  },
+  "next_priorities": [
+    "bound and attribute compression/residency before promising bigger-cache gains",
+    "profile reference-reduction GPU exposure if tools available, then isolated layout candidate",
+    "treat union-aware B4/singleton-pair splitting and DSpark calibration as separate scopes"
+  ],
+  "limits": [
+    "no audit recommendation executed as an instruction",
+    "no new prototype, GPU capture, kernel timing or full source-level proof for this review",
+    "external papers summarized by report; not independently revalidated in this review",
+    "xcrun finds neither xctrace nor metal in selected CommandLineTools installation"
+  ]
+}

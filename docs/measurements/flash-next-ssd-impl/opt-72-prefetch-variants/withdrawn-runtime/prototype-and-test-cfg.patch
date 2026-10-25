@@ -1,0 +1,1036 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 98031fb3..192d2c95 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -33,6 +33,9 @@ jobs:
+             --harness fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals
+             --harness expert_output_stride_cannot_wrap_and_matches_wide_arithmetic
+             --harness draft_prediction_geometry_is_bounded_for_all_usize
++            --harness prediction_protection_is_bounded_by_available_work
++            --harness unused_prefetch_priority_excludes_pending_and_preserves_free_slots
++            --harness prediction_protection_preserves_the_explicit_cache_policy
+             --harness slot_reads_initialize_exact_disjoint_bank_regions
+             --harness pre_draft_choice_is_bounded_for_all_states
+             --harness pre_draft_observation_is_atomic_and_checked
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index a6b76b87..56355dc8 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -1940,8 +1940,16 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
+                     .iter()
+                     .map(|l| l.moe.prefetch_profile[0])
+                     .sum::<u64>();
++                let prediction_rows = if verification.target.layers[0]
++                    .moe
++                    .pooled_predictions_for_test()
++                {
++                    1
++                } else {
++                    width.min(2)
++                };
+                 ensure!(
+-                    predictions_after - predictions_before == 47 * 16 * width.min(2) as u64,
++                    predictions_after - predictions_before == 47 * 16 * prediction_rows as u64,
+                     "verification did not issue its own prediction window"
+                 );
+             }
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..2f68320f 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -849,12 +849,85 @@ pub struct ExpertCache {
+     prefetched: Vec<bool>,
+     predicted: [bool; 512],
+     predictive_lru: bool,
++    pub(crate) prefer_unused_prefetch: bool,
+     counts: [u32; 512],
+     ages: Vec<u64>,
+     clock: u64,
+     pub prefetch_hits: u64,
+ }
+ 
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(12)]
++fn unused_prefetch_priority_excludes_pending_and_preserves_free_slots() {
++    let mut cache = ExpertCache::new(10).unwrap();
++    cache.prefer_unused_prefetch = true;
++    for i in 0..10 {
++        let occupied: bool = kani::any();
++        let pending: bool = kani::any();
++        cache.keys[i] = (occupied && !pending).then_some(i as u32);
++        cache.pending[i] = pending.then_some(511);
++        cache.prefetched[i] = cache.keys[i].is_some() && kani::any::<bool>();
++        cache.predicted[i] = kani::any();
++        cache.counts[i] = kani::any();
++        cache.ages[i] = kani::any();
++    }
++    let routed: u8 = kani::any();
++    let routed = [u32::from(routed)];
++    let victim = cache.victim(&routed);
++    if let Some(slot) = victim {
++        assert!(slot < 10 && cache.pending[slot].is_none());
++        assert!(cache.keys[slot].is_none_or(|id| !routed.contains(&id)));
++        for i in 0..10 {
++            if cache.pending[i].is_some() || cache.keys[i].is_some_and(|id| routed.contains(&id)) {
++                continue;
++            }
++            if cache.keys[i].is_none() {
++                assert!(cache.keys[slot].is_none());
++            }
++            if let (Some(id), Some(chosen)) = (cache.keys[i], cache.keys[slot]) {
++                if cache.predicted[id as usize] == cache.predicted[chosen as usize]
++                    && cache.prefetched[i]
++                {
++                    assert!(cache.prefetched[slot]);
++                }
++            }
++        }
++        kani::cover!(cache.keys[slot].is_some() && cache.prefetched[slot]);
++        kani::cover!(cache.keys[slot].is_none());
++    } else {
++        for i in 0..10 {
++            assert!(
++                cache.pending[i].is_some() || cache.keys[i].is_some_and(|id| routed.contains(&id))
++            );
++        }
++    }
++    kani::cover!(victim.is_none());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(514)]
++fn prediction_protection_preserves_the_explicit_cache_policy() {
++    let mut cache = ExpertCache::new(10).unwrap();
++    let original: bool = kani::any();
++    let enable: bool = kani::any();
++    cache.predictive_lru = original;
++    let ids: [u32; 2] = kani::any();
++    let result = cache.protect_predictions_with_lru(&ids, enable);
++    let valid = ids[0] < 512 && ids[1] < 512;
++    assert_eq!(result.is_ok(), valid);
++    assert_eq!(cache.predictive_lru, original || (valid && enable));
++    assert_eq!(cache.clock, 0);
++    assert_eq!(cache.prefetch_hits, 0);
++    if valid {
++        assert!(cache.predicted[ids[0] as usize] && cache.predicted[ids[1] as usize]);
++    }
++    kani::cover!(valid && !original && !enable && !cache.predictive_lru);
++    kani::cover!(valid && !original && enable && cache.predictive_lru);
++    kani::cover!(!valid && !original && enable && !cache.predictive_lru);
++}
++
+ /// Unfilled demand reservations must never survive an error or unwind.
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) struct ExpertFill {
+@@ -895,6 +968,7 @@ impl ExpertCache {
+             prefetched: vec![false; slots],
+             predicted: [false; 512],
+             predictive_lru: false,
++            prefer_unused_prefetch: false,
+             counts: [0; 512],
+             ages: vec![0; slots],
+             clock: 0,
+@@ -983,6 +1057,7 @@ impl ExpertCache {
+                 (
+                     u8::from(self.keys[i].is_some()),
+                     u8::from(self.keys[i].is_some_and(|key| self.predicted[key as usize])),
++                    u8::from(self.prefer_unused_prefetch && !self.prefetched[i]),
+                     if self.predictive_lru {
+                         0
+                     } else {
+@@ -1000,11 +1075,21 @@ impl ExpertCache {
+     }
+ 
+     pub fn protect_predictions(&mut self, ids: &[u32]) -> Result<(), CacheError> {
++        self.protect_predictions_with_lru(ids, true)
++    }
++
++    pub(crate) fn protect_predictions_with_lru(
++        &mut self,
++        ids: &[u32],
++        enable_lru: bool,
++    ) -> Result<(), CacheError> {
+         if ids.len() > 32 || ids.iter().any(|&id| id >= 512) {
+             return Err(CacheError::InvalidIds);
+         }
+         self.predicted.fill(false);
+-        self.enable_predictive_lru();
++        if enable_lru {
++            self.enable_predictive_lru();
++        }
+         for &id in ids {
+             self.predicted[id as usize] = true;
+         }
+@@ -1055,6 +1140,16 @@ impl ExpertCache {
+         self.keys.len()
+     }
+ 
++    #[cfg(all(test, feature="mlx"))]
++    pub(crate) fn predictive_lru_for_test(&self) -> bool {
++        self.predictive_lru
++    }
++
++    #[cfg(all(test, feature="mlx"))]
++    pub(crate) fn prediction_count_for_test(&self) -> usize {
++        self.predicted.iter().filter(|&&p| p).count()
++    }
++
+     pub(crate) fn available_slots(&self) -> usize {
+         self.pending.iter().filter(|p| p.is_none()).count()
+     }
+@@ -1450,6 +1545,56 @@ mod tests {
+         Ok(())
+     }
+ 
++    #[test]
++    fn prediction_protection_can_preserve_the_requested_demand_policy() -> Result<()> {
++        let mut cache = ExpertCache::new(10)?;
++        cache.reserve(&(0..10).collect::<Vec<_>>())?;
++        cache.counts.fill(10);
++        cache.counts[0] = 20;
++        cache.counts[1] = 0;
++        for (i, age) in cache.ages.iter_mut().enumerate() {
++            *age = i as u64;
++        }
++        cache.protect_predictions_with_lru(&[], false)?;
++        assert!(!cache.predictive_lru);
++        assert_eq!(cache.victim(&[]), Some(1));
++        cache.protect_predictions_with_lru(&[], true)?;
++        assert!(cache.predictive_lru);
++        assert_eq!(cache.victim(&[]), Some(0));
++        cache.protect_predictions_with_lru(&[0], false)?;
++        assert!(cache.predictive_lru, "explicit LRU must remain enabled");
++        let predicted = cache.predicted;
++        assert!(cache.protect_predictions_with_lru(&[512], false).is_err());
++        assert_eq!(cache.predicted, predicted);
++        Ok(())
++    }
++
++    #[test]
++    fn unused_prefetch_eviction_preserves_demand_and_leases() -> Result<()> {
++        let mut cache = ExpertCache::new(24)?;
++        cache.reserve(&(0..24).collect::<Vec<_>>())?;
++        cache.prefer_unused_prefetch = true;
++        cache.prefetched[23] = true;
++        cache.ages[23] = u64::MAX;
++        cache.counts[23] = u32::MAX;
++        assert_eq!(cache.victim(&[]), Some(23));
++        cache.predicted[23] = true;
++        assert_ne!(cache.victim(&[]), Some(23));
++        cache.predicted[23] = false;
++        cache.pending[23] = Some(511);
++        assert_ne!(cache.victim(&[]), Some(23));
++        cache.pending[23] = None;
++        assert_ne!(cache.victim(&[23]), Some(23));
++        cache.keys[5] = None;
++        assert_eq!(cache.victim(&[]), Some(5));
++        cache.keys[5] = Some(5);
++        assert_eq!(cache.reserve(&[23])?, [(23, true)]);
++        assert!(!cache.prefetched[23]);
++        assert_ne!(cache.victim(&[]), Some(23));
++        assert_eq!(cache.prefetch_hits, 1);
++        Ok(())
++    }
++
+     #[test]
+     fn predictive_victims_replay_symbolic_case_and_all_protection_masks() -> Result<()> {
+         let mut cache = ExpertCache::new(10)?;
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..112398b4 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -6,7 +6,9 @@ use crate::{
+     flash_support::{EXPERT_BYTES, ExpertCache, ExpertFill, expert_slot_destinations},
+     lfm2::Projection,
+     linear, router,
+-    ssd_prefetch::{PREDICTION_RANKS, ReaderPool, order_predictions},
++    ssd_prefetch::{
++        PREDICTION_RANKS, PrefetchVariant, ReaderPool, order_predictions, prediction_protection_len,
++    },
+ };
+ use anyhow::{Context, Result, ensure};
+ use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
+@@ -51,6 +53,8 @@ pub struct SsdMoe {
+     stable_expert_kernels: bool,
+     shared_batch: bool,
+     pub(crate) prefetch_pipeline: bool,
++    prefetch_variant: PrefetchVariant,
++    early_shared: bool,
+     #[cfg(test)]
+     cohort_sizes: Vec<usize>,
+     #[cfg(test)]
+@@ -134,6 +138,12 @@ impl SsdMoe {
+         let prefetch_pipeline =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
+                 .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
++        let prefetch_variant =
++            PrefetchVariant::parse(&control("MLXL3_SSD_PREFETCH_VARIANT", "legacy")?)
++                .context("invalid MLXL3_SSD_PREFETCH_VARIANT")?;
++        let early_shared =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_EARLY_SHARED", "0")?)
++                .context("MLXL3_SSD_EARLY_SHARED must be 0 or 1")?;
+         let readers = std::env::var("MLXL3_SSD_READERS")
+             .unwrap_or_else(|_| "4".into())
+             .parse::<usize>()
+@@ -188,6 +198,7 @@ impl SsdMoe {
+         }
+         let s = i32::try_from(slots)?;
+         let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
++        cache.borrow_mut().prefer_unused_prefetch = prefetch_variant == PrefetchVariant::Unused;
+         if force_lru {
+             cache.borrow_mut().enable_predictive_lru();
+         }
+@@ -235,6 +246,8 @@ impl SsdMoe {
+             stable_expert_kernels,
+             shared_batch,
+             prefetch_pipeline,
++            prefetch_variant,
++            early_shared,
+             #[cfg(test)]
+             cohort_sizes: Vec::new(),
+             #[cfg(test)]
+@@ -409,7 +422,16 @@ impl SsdMoe {
+             router::topk(&probabilities, 10, true)
+         }
+     }
++    #[cfg(test)]
++    pub(crate) fn pooled_predictions_for_test(&self) -> bool {
++        self.prefetch_variant == PrefetchVariant::Weighted
++    }
++
+     fn predict(&self, x: &Array) -> Result<Array> {
++        self.predict_with_pooling(x, false)
++    }
++
++    fn predict_with_pooling(&self, x: &Array, weighted: bool) -> Result<Array> {
+         let x = if self.predictor_half {
+             x.astype(Dtype::Float16)?
+         } else {
+@@ -428,9 +450,20 @@ impl SsdMoe {
+         } else {
+             scores
+         };
+-        scores
++        let scores = if weighted {
++            scores.softmax_precise()?.sum(0, true)?
++        } else {
++            scores
++        };
++        let ids = scores
+             .argsort()?
+-            .slice(1, 512 - PREDICTION_RANKS as i32, 512)
++            .slice(1, 512 - PREDICTION_RANKS as i32, 512)?;
++        if self.prefetch_variant == PrefetchVariant::Packed {
++            // Materialize the strided rows before later work can delay their readback.
++            ids.reshape(&[ids.shape()[0] * PREDICTION_RANKS as i32])
++        } else {
++            Ok(ids)
++        }
+     }
+     pub fn forward(&mut self, x: &Array) -> Result<Array> {
+         self.forward_many(x)
+@@ -490,9 +523,15 @@ impl SsdMoe {
+         );
+         let rows = crate::ssd_prefetch::prediction_rows(usize::try_from(x.shape()[0])?)
+             .context("invalid draft prediction rows")?;
++        if self.prefetch_variant == PrefetchVariant::Late
++            && self.cache.borrow().available_slots() >= x.shape()[0] as usize * 10
++        {
++            return self.forward_rows(x, next, depth, 8);
++        }
++        let weighted = self.prefetch_variant == PrefetchVariant::Weighted;
+         let prediction = next
+             .as_ref()
+-            .map(|next| next.predict(&x.slice(0, 0, rows as i32)?))
++            .map(|next| next.predict_with_pooling(&x.slice(0, 0, rows as i32)?, weighted))
+             .transpose()?;
+         if let Some(prediction) = &prediction {
+             prediction.async_eval()?;
+@@ -502,7 +541,7 @@ impl SsdMoe {
+             output.async_eval()?;
+             let mut ids = prediction.to_u32()?;
+             ensure!(
+-                order_predictions(&mut ids, rows),
++                order_predictions(&mut ids, if weighted { 1 } else { rows }),
+                 "invalid draft predictions"
+             );
+             next.prefetch(&ids, depth)?;
+@@ -692,6 +731,9 @@ impl SsdMoe {
+             "invalid streamed MoE route shape or dtype"
+         );
+         let rows = x.shape()[0];
++        let late_draft = row_limit == 8
++            && self.prefetch_pipeline
++            && self.prefetch_variant == PrefetchVariant::Late;
+         if let Some((_, pool)) = &self.prefetcher {
+             pool.borrow_mut().poll();
+         }
+@@ -739,7 +781,7 @@ impl SsdMoe {
+         let hybrid = self.gpu_hot
+             && self.overlap
+             && (rows <= 2 || self.gpu_hot_wide)
+-            && depth == 0
++            && (depth == 0 || late_draft)
+             && (self.prefetcher.is_none() || self.prefetch_pipeline);
+         let (selected, weights, host_ids, hot) = match prepared {
+             Some(prepared) => (
+@@ -775,6 +817,18 @@ impl SsdMoe {
+         };
+         let early_hot = gpu_hot.is_some();
+         #[cfg(test)]
++        if early_hot {
++            self.schedule_events
++                .push(("hot_submitted", route_start.elapsed().as_secs_f64()));
++        }
++        let shared = if self.early_shared {
++            let shared = self.shared(x)?;
++            shared.async_eval()?;
++            Some(shared)
++        } else {
++            None
++        };
++        #[cfg(test)]
+         let readback = crate::flash_profile::span("route_readback_inclusive");
+         let ids = match host_ids {
+             Some(ids) => ids,
+@@ -817,7 +871,9 @@ impl SsdMoe {
+         #[cfg(test)]
+         let import_start = std::time::Instant::now();
+         if let Some((layer, pool)) = &self.prefetcher {
+-            self.cache.borrow_mut().enable_predictive_lru();
++            if self.prefetch_variant != PrefetchVariant::Lfu {
++                self.cache.borrow_mut().enable_predictive_lru();
++            }
+             let mut pool = pool.borrow_mut();
+             pool.poll();
+             pool.note_late(*layer, &ids);
+@@ -915,8 +971,13 @@ impl SsdMoe {
+             None
+         };
+         let prediction = (|| -> Result<Option<Array>> {
++            let draft_input = (late_draft && depth > 0)
++                .then(|| x.slice(0, 0, rows.min(2)))
++                .transpose()?;
+             let prediction = if depth > 0 {
+-                next.as_ref().map(|next| next.predict(x)).transpose()?
++                next.as_ref()
++                    .map(|next| next.predict(draft_input.as_ref().unwrap_or(x)))
++                    .transpose()?
+             } else {
+                 None
+             };
+@@ -1014,7 +1075,11 @@ impl SsdMoe {
+             .sum(1, false)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
+-        let output = routed.add(&self.shared(x)?)?;
++        let shared = match shared {
++            Some(value) => value,
++            None => self.shared(x)?,
++        };
++        let output = routed.add(&shared)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("moe_add_completion", &output)?;
+         self.last = Some(output.try_clone()?);
+@@ -1022,7 +1087,10 @@ impl SsdMoe {
+             .map(|p| -> Result<Vec<u32>> {
+                 let mut ids = p.to_u32()?;
+                 ensure!(
+-                    order_predictions(&mut ids, rows as usize),
++                    order_predictions(
++                        &mut ids,
++                        if late_draft { rows.min(2) } else { rows } as usize
++                    ),
+                     "invalid lookahead prediction shape or IDs"
+                 );
+                 #[cfg(test)]
+@@ -1112,7 +1180,15 @@ impl SsdMoe {
+         };
+         let mut pool = pool.borrow_mut();
+         pool.poll();
+-        self.cache.borrow_mut().protect_predictions(ids)?;
++        let protected = if self.prefetch_variant == PrefetchVariant::Bounded {
++            &ids[..prediction_protection_len(ids.len(), budget, pool.has_room())]
++        } else {
++            ids
++        };
++        self.cache.borrow_mut().protect_predictions_with_lru(
++            protected,
++            self.prefetch_variant != PrefetchVariant::Lfu,
++        )?;
+         let mut cold = Vec::new();
+         #[cfg(test)]
+         {
+@@ -1214,7 +1290,8 @@ mod prefetch_tests;
+ 
+ #[cfg(test)]
+ mod tests {
+-    fn resident_gate_fixture() -> anyhow::Result<Vec<(super::SsdMoe, [crate::array::Array; 2])>> {
++    pub(super) fn resident_gate_fixture()
++    -> anyhow::Result<Vec<(super::SsdMoe, [crate::array::Array; 2])>> {
+         use super::*;
+         use serde_json::Value;
+         use std::{fs::File, path::Path};
+diff --git a/native/src/ssd_moe/prefetch_tests.rs b/native/src/ssd_moe/prefetch_tests.rs
+index dd962246..be673a5e 100644
+--- a/native/src/ssd_moe/prefetch_tests.rs
++++ b/native/src/ssd_moe/prefetch_tests.rs
+@@ -11,126 +11,284 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
+         SsdMoe::load(&checkpoint, "model.language_model.layers.1.mlp", 80, false)?;
+     let mut cases = 0;
+     let mut split_cases = 0;
+-    for capacity in [24, 53] {
+-        let pool = Rc::new(RefCell::new(ReaderPool::new()?));
+-        let mut current = SsdMoe::load(
+-            &checkpoint,
+-            "model.language_model.layers.0.mlp",
+-            capacity,
+-            true,
+-        )?;
+-        let mut next = SsdMoe::load(
+-            &checkpoint,
+-            "model.language_model.layers.1.mlp",
+-            capacity,
+-            true,
+-        )?;
+-        for (index, moe) in [&mut current, &mut next].into_iter().enumerate() {
+-            for bank in &mut moe.banks {
+-                // An accidental read of an unfilled scale becomes NaN, not a plausible zero.
+-                *bank =
+-                    Array::from_bytes(&vec![0xff; bank.byte_len()?], bank.shape(), bank.dtype())?;
++    for variant in [
++        PrefetchVariant::Legacy,
++        PrefetchVariant::Late,
++        PrefetchVariant::Bounded,
++        PrefetchVariant::Unused,
++        PrefetchVariant::Lfu,
++        PrefetchVariant::Weighted,
++        PrefetchVariant::Packed,
++    ] {
++        let mut used_by_variant = 0;
++        for capacity in [24, 53] {
++            let pool = Rc::new(RefCell::new(ReaderPool::new()?));
++            let mut current = SsdMoe::load(
++                &checkpoint,
++                "model.language_model.layers.0.mlp",
++                capacity,
++                true,
++            )?;
++            let mut next = SsdMoe::load(
++                &checkpoint,
++                "model.language_model.layers.1.mlp",
++                capacity,
++                true,
++            )?;
++            for (index, moe) in [&mut current, &mut next].into_iter().enumerate() {
++                for bank in &mut moe.banks {
++                    // An accidental read of an unfilled scale becomes NaN, not a plausible zero.
++                    *bank = Array::from_bytes(
++                        &vec![0xff; bank.byte_len()?],
++                        bank.shape(),
++                        bank.dtype(),
++                    )?;
++                }
++                moe.prefetch_pipeline = true;
++                moe.prefetch_variant = variant;
++                moe.cache.borrow_mut().prefer_unused_prefetch = variant == PrefetchVariant::Unused;
++                moe.gpu_hot = true;
++                moe.gpu_hot_wide = true;
++                moe.unique_cohorts = true;
++                moe.prefetcher = Some((index, Rc::clone(&pool)));
+             }
+-            moe.prefetch_pipeline = true;
+-            moe.gpu_hot = true;
+-            moe.gpu_hot_wide = true;
+-            moe.unique_cohorts = true;
+-            moe.prefetcher = Some((index, Rc::clone(&pool)));
+-        }
+-        for rows in 1..=8 {
+-            pool.borrow_mut().wait_for_test()?;
+-            current.drain()?;
+-            next.drain()?;
+-            current.cache.borrow_mut().invalidate();
+-            next.cache.borrow_mut().invalidate();
+-            current.cohort_sizes.clear();
+-            let values = (0..rows)
+-                .flat_map(|r| {
+-                    base.iter().enumerate().map(move |(c, &v)| {
+-                        if r == 0 {
+-                            v
+-                        } else {
+-                            ((r * 73 + c * 29) % 1021) as f32 / 256. - 2.
+-                        }
++            for rows in 1..=8 {
++                pool.borrow_mut().wait_for_test()?;
++                current.drain()?;
++                next.drain()?;
++                current.cache.borrow_mut().invalidate();
++                next.cache.borrow_mut().invalidate();
++                current.cohort_sizes.clear();
++                let values = (0..rows)
++                    .flat_map(|r| {
++                        base.iter().enumerate().map(move |(c, &v)| {
++                            if r == 0 {
++                                v
++                            } else {
++                                ((r * 73 + c * 29) % 1021) as f32 / 256. - 2.
++                            }
++                        })
+                     })
+-                })
+-                .collect::<Vec<_>>();
+-            let x = Array::from_f32(&values, &[rows as i32, H])?;
+-            let expected = reference.forward_draft_rows(&x)?;
+-            ensure!(expected.slice(0, 0, 1)?.to_bytes()? == expected_first);
+-            let expected_next = next_reference.forward_draft_rows(&x)?;
+-            let ids = current.route(&input)?.0.to_u32()?;
+-            let routes = current.cache.borrow_mut().reserve(&ids[..5])?;
+-            current.fill_many(
+-                &ids[..5]
+-                    .iter()
+-                    .zip(routes)
+-                    .map(|(&id, (slot, _))| (id, slot))
+-                    .collect::<Vec<_>>(),
+-            )?;
+-            let submitted = pool
+-                .borrow()
+-                .counters
+-                .submitted
+-                .load(std::sync::atomic::Ordering::Relaxed);
+-            let predicted = next.prefetch_profile[0];
+-            let hot = current.hybrid_submissions;
+-            let actual = current.forward_draft_lookahead(&x, Some(&mut next), 2)?;
+-            ensure!(actual.shape() == [rows as i32, H]);
+-            let actual_values = actual.to_f32()?;
+-            ensure!(
+-                actual_values.len() == rows * H as usize
+-                    && actual_values.iter().all(|v| v.is_finite())
+-            );
+-            ensure!(
+-                actual.to_bytes()? == expected.to_bytes()?,
+-                "draft prefetch changed routed values"
+-            );
+-            ensure!(
+-                current.hybrid_submissions > hot,
+-                "prefetch disabled early Hot"
+-            );
+-            ensure!(next.prefetch_profile[0] - predicted == (rows.min(2) * 16) as u64);
+-            ensure!(
+-                pool.borrow()
++                    .collect::<Vec<_>>();
++                let x = Array::from_f32(&values, &[rows as i32, H])?;
++                let expected = reference.forward_draft_rows(&x)?;
++                ensure!(expected.slice(0, 0, 1)?.to_bytes()? == expected_first);
++                let expected_next = next_reference.forward_draft_rows(&x)?;
++                let ids = current.route(&input)?.0.to_u32()?;
++                let routes = current.cache.borrow_mut().reserve(&ids[..5])?;
++                current.fill_many(
++                    &ids[..5]
++                        .iter()
++                        .zip(routes)
++                        .map(|(&id, (slot, _))| (id, slot))
++                        .collect::<Vec<_>>(),
++                )?;
++                let submitted = pool
++                    .borrow()
+                     .counters
+                     .submitted
+-                    .load(std::sync::atomic::Ordering::Relaxed)
+-                    - submitted
+-                    == 2
+-            );
+-            split_cases += usize::from(current.cohort_sizes.len() > 1);
+-            pool.borrow_mut().wait_for_test()?;
+-            let used = pool
+-                .borrow()
+-                .counters
+-                .used
+-                .load(std::sync::atomic::Ordering::Relaxed);
+-            let actual_next = next.forward_draft_rows(&x)?;
+-            ensure!(
+-                actual_next.shape() == [rows as i32, H]
+-                    && actual_next.to_bytes()? == expected_next.to_bytes()?
+-            );
+-            ensure!(
+-                pool.borrow()
++                    .load(std::sync::atomic::Ordering::Relaxed);
++                let predicted = next.prefetch_profile[0];
++                let hot = current.hybrid_submissions;
++                let actual = current.forward_draft_lookahead(&x, Some(&mut next), 2)?;
++                let protected = next.cache.borrow().prediction_count_for_test();
++                ensure!(
++                    if variant == PrefetchVariant::Bounded {
++                        (1..=2).contains(&protected)
++                    } else {
++                        protected >= 16
++                    },
++                    "prediction protection did not use the selected variant"
++                );
++                if variant == PrefetchVariant::Late && rows * 10 <= capacity {
++                    let hot = current
++                        .schedule_events
++                        .iter()
++                        .position(|p| p.0 == "hot_submitted");
++                    let prediction = current
++                        .schedule_events
++                        .iter()
++                        .position(|p| p.0 == "prediction_submitted");
++                    ensure!(
++                        hot.zip(prediction).is_some_and(|(h, p)| h < p),
++                        "prediction ran before Hot"
++                    );
++                }
++                ensure!(actual.shape() == [rows as i32, H]);
++                let actual_values = actual.to_f32()?;
++                ensure!(
++                    actual_values.len() == rows * H as usize
++                        && actual_values.iter().all(|v| v.is_finite())
++                );
++                ensure!(
++                    actual.to_bytes()? == expected.to_bytes()?,
++                    "draft prefetch changed routed values"
++                );
++                ensure!(
++                    current.hybrid_submissions > hot,
++                    "prefetch disabled early Hot"
++                );
++                let prediction_rows = if variant == PrefetchVariant::Weighted {
++                    1
++                } else {
++                    rows.min(2)
++                };
++                ensure!(next.prefetch_profile[0] - predicted == (prediction_rows * 16) as u64);
++                ensure!(
++                    pool.borrow()
++                        .counters
++                        .submitted
++                        .load(std::sync::atomic::Ordering::Relaxed)
++                        - submitted
++                        == 2
++                );
++                split_cases += usize::from(current.cohort_sizes.len() > 1);
++                pool.borrow_mut().wait_for_test()?;
++                let used = pool
++                    .borrow()
++                    .counters
++                    .used
++                    .load(std::sync::atomic::Ordering::Relaxed);
++                let actual_next = next.forward_draft_rows(&x)?;
++                let requested_lru =
++                    std::env::var("MLXL3_SSD_CACHE_POLICY").ok().as_deref() == Some("lru");
++                ensure!(
++                    next.cache.borrow().predictive_lru_for_test()
++                        == (variant != PrefetchVariant::Lfu || requested_lru),
++                    "prefetch demand changed the requested LFU policy"
++                );
++                ensure!(
++                    actual_next.shape() == [rows as i32, H]
++                        && actual_next.to_bytes()? == expected_next.to_bytes()?
++                );
++                let consumed = pool
++                    .borrow()
+                     .counters
+                     .used
+                     .load(std::sync::atomic::Ordering::Relaxed)
+-                    > used
+-            );
+-            cases += 1;
++                    - used;
++                ensure!(consumed <= 2);
++                if variant != PrefetchVariant::Weighted {
++                    ensure!(consumed > 0);
++                }
++                used_by_variant += consumed;
++                cases += 1;
++            }
++            current.drain()?;
++            next.drain()?;
++            pool.borrow_mut().wait_for_test()?;
+         }
+-        current.drain()?;
+-        next.drain()?;
+-        pool.borrow_mut().wait_for_test()?;
++        ensure!(used_by_variant > 0, "predictions were never used");
++        println!("PREFETCH_VARIANT variant={variant:?} cases=16 used={used_by_variant}");
+     }
+-    ensure!(cases == 16 && split_cases > 0);
++    ensure!(cases == 112 && split_cases > 0);
+     println!(
+         "SSD_DRAFT_PIPELINE cases={cases} split_cases={split_cases} hot_preserved=true predictions=verified next_outputs=byte_exact"
+     );
+     Ok(())
+ }
+ 
++#[test]
++#[ignore = "physical Apple GPU and Flash checkpoint; one variant per process"]
++fn environment_controls_reach_the_production_moe_cache() -> Result<()> {
++    let (checkpoint, _, _) = super::tests::admission_fixture()?;
++    let moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
++    let name = std::env::var("MLXL3_SSD_PREFETCH_VARIANT")?;
++    let expected = PrefetchVariant::parse(&name).context("invalid test variant")?;
++    ensure!(moe.prefetch_variant == expected);
++    ensure!(moe.cache.borrow().prefer_unused_prefetch == (expected == PrefetchVariant::Unused));
++    ensure!(moe.pooled_predictions_for_test() == (expected == PrefetchVariant::Weighted));
++    ensure!(
++        moe.early_shared == (std::env::var("MLXL3_SSD_EARLY_SHARED").ok().as_deref() == Some("1"))
++    );
++    println!(
++        "PREFETCH_CONFIG variant={expected:?} cache_wiring=true early_shared={}",
++        moe.early_shared
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU and real Flash router weights; run alone"]
++fn pooled_predictions_match_independent_probability_sums() -> Result<()> {
++    let (moe, x) = super::tests::resident_gate_fixture()?.remove(0);
++    let x = Array::concatenate(&[&x[0], &x[1]], 0)?;
++    let scores = moe.gate.forward(&x)?;
++    let probabilities = scores.softmax_precise()?.to_f32()?;
++    ensure!(probabilities.len() == 1024 && probabilities.iter().all(|p| p.is_finite()));
++    let sums = (0..512)
++        .map(|i| probabilities[i] + probabilities[512 + i])
++        .collect::<Vec<_>>();
++    let ids = moe.predict_with_pooling(&x, true)?.to_u32()?;
++    ensure!(ids.len() == 16 && ids.iter().all(|&id| id < 512));
++    let unique = ids
++        .iter()
++        .copied()
++        .collect::<std::collections::BTreeSet<_>>();
++    ensure!(unique.len() == 16);
++    let minimum = ids
++        .iter()
++        .map(|&id| sums[id as usize])
++        .fold(f32::INFINITY, f32::min);
++    ensure!(
++        (0..512)
++            .filter(|id| !unique.contains(id))
++            .all(|id| sums[id as usize] <= minimum)
++    );
++    ensure!(
++        ids.windows(2)
++            .all(|pair| sums[pair[0] as usize] <= sums[pair[1] as usize])
++    );
++    println!("POOLED_PREDICTIONS rows=2 unique=16 cpu_sum_oracle=true");
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; delayed independent graph checks prediction readback"]
++fn packed_prediction_readback_preserves_ids_without_waiting_for_later_work() -> Result<()> {
++    let (mut moe, inputs) = super::tests::resident_gate_fixture()?.remove(0);
++    let x = Array::concatenate(&[&inputs[0], &inputs[1]], 0)?;
++    let value = Array::from_f32(&[1.0], &[1])?.astype(Dtype::Float16)?;
++    let mut oracle = None;
++    let mut observed = Vec::new();
++    for variant in [PrefetchVariant::Legacy, PrefetchVariant::Packed] {
++        moe.prefetch_variant = variant;
++        let prediction = moe.predict(&x)?;
++        ensure!(
++            prediction.shape()
++                == if variant == PrefetchVariant::Packed {
++                    &[32][..]
++                } else {
++                    &[2, 16][..]
++                }
++        );
++        prediction.eval()?;
++        let delayed = hybrid_tests::delay(&value)?;
++        let ids = prediction.to_u32();
++        let ready = delayed.is_available_for_test();
++        let completion = delayed.eval();
++        let ids = ids?;
++        let ready = ready?;
++        completion?;
++        ensure!(ids.len() == 32 && ids.iter().all(|&id| id < 512));
++        match &oracle {
++            Some(expected) => ensure!(&ids == expected, "packing changed predicted IDs"),
++            None => oracle = Some(ids),
++        }
++        observed.push((variant, ready));
++    }
++    println!("PREDICTION_READBACK ids=32 exact=true later_ready={observed:?}");
++    ensure!(
++        observed
++            == [
++                (PrefetchVariant::Legacy, true),
++                (PrefetchVariant::Packed, false)
++            ],
++        "prediction readback did not reproduce the expected queue behavior"
++    );
++    Ok(())
++}
++
+ #[cfg(kani)]
+ #[kani::proof]
+ fn actual_uninitialized_slot_reads_preserve_outputs() {
+diff --git a/native/src/ssd_moe/shared_tests.rs b/native/src/ssd_moe/shared_tests.rs
+index a073f31b..00454107 100644
+--- a/native/src/ssd_moe/shared_tests.rs
++++ b/native/src/ssd_moe/shared_tests.rs
+@@ -1,6 +1,10 @@
+ use super::*;
+ 
+ fn fixtures() -> Result<Vec<(SsdMoe, Vec<f32>)>> {
++    fixtures_with_slots(10)
++}
++
++fn fixtures_with_slots(slots: usize) -> Result<Vec<(SsdMoe, Vec<f32>)>> {
+     let root = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_REFERENCE")?);
+     let reference: serde_json::Value =
+         serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+@@ -25,7 +29,7 @@ fn fixtures() -> Result<Vec<(SsdMoe, Vec<f32>)>> {
+             let moe = SsdMoe::load(
+                 &checkpoint,
+                 &format!("model.language_model.layers.{layer}.mlp"),
+-                10,
++                slots,
+                 true,
+             )?;
+             ensure!(
+@@ -79,6 +83,46 @@ fn exact(actual: &Array, expected: &Array, shape: &[i32]) -> Result<()> {
+     Ok(())
+ }
+ 
++#[test]
++#[ignore = "physical Apple GPU and real Flash checkpoint; run alone"]
++fn early_shared_preserves_streamed_moe_with_hot_cold_splits_and_retry() -> Result<()> {
++    let mut cases = 0;
++    for (mut moe, base) in fixtures_with_slots(53)? {
++        moe.gpu_hot = true;
++        moe.gpu_hot_wide = true;
++        moe.unique_cohorts = true;
++        moe.shared_batch = false;
++        for rows in 1..=8 {
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for strided in [false, true] {
++                    let x = input(&base, rows, dtype, strided)?;
++                    moe.early_shared = false;
++                    let expected = moe.forward_draft_rows(&x)?;
++                    expected.eval()?;
++                    moe.early_shared = true;
++                    exact(&moe.forward_draft_rows(&x)?, &expected, &[rows, H])?;
++                    cases += 1;
++                }
++            }
++        }
++        let x = input(&base, 2, Dtype::Float32, false)?;
++        let expected = moe.forward_draft_rows(&x)?;
++        expected.eval()?;
++        moe.drain()?;
++        moe.cache.borrow_mut().invalidate();
++        let expert = moe.route(&x.slice(0, 0, 1)?)?.0.to_u32()?[0] as usize;
++        let saved = moe.records[expert].data_offsets;
++        moe.records[expert].data_offsets[0] = u64::MAX;
++        ensure!(moe.forward_draft_rows(&x).is_err());
++        moe.records[expert].data_offsets = saved;
++        exact(&moe.forward_draft_rows(&x)?, &expected, &[2, H])?;
++        moe.drain()?;
++    }
++    ensure!(cases == 96);
++    println!("EARLY_SHARED cases={cases} full_moe=byte_exact failed_read_retry=3");
++    Ok(())
++}
++
+ #[test]
+ #[ignore = "physical Apple GPU; exact shared-expert batches on real Flash weights"]
+ fn shared_batches_match_single_row_projections_and_scalar_gates() -> Result<()> {
+diff --git a/native/src/ssd_prefetch.rs b/native/src/ssd_prefetch.rs
+index f70ed59b..3215b7e9 100644
+--- a/native/src/ssd_prefetch.rs
++++ b/native/src/ssd_prefetch.rs
+@@ -1,6 +1,37 @@
+ //! Bounded reads into persistent GPU slots; only the inference thread owns MLX.
+ pub(crate) const PREDICTION_RANKS: usize = 16;
+ 
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub(crate) enum PrefetchVariant {
++    #[default]
++    Legacy,
++    Late,
++    Bounded,
++    Unused,
++    Lfu,
++    Weighted,
++    Packed,
++}
++
++impl PrefetchVariant {
++    pub(crate) fn parse(value: &str) -> Option<Self> {
++        Some(match value {
++            "legacy" => Self::Legacy,
++            "late" => Self::Late,
++            "bounded" => Self::Bounded,
++            "unused" => Self::Unused,
++            "lfu" => Self::Lfu,
++            "weighted" => Self::Weighted,
++            "packed" => Self::Packed,
++            _ => return None,
++        })
++    }
++}
++
++pub(crate) fn prediction_protection_len(ids: usize, budget: usize, room: bool) -> usize {
++    if room { ids.min(budget).min(4) } else { 0 }
++}
++
+ pub(crate) fn prediction_rows(rows: usize) -> Option<usize> {
+     (1..=8).contains(&rows).then_some(rows.min(2))
+ }
+@@ -42,6 +73,53 @@ fn draft_prediction_geometry_is_bounded_for_all_usize() {
+     kani::cover!(rows == usize::MAX && selected.is_none());
+ }
+ 
++#[cfg(kani)]
++#[kani::proof]
++fn prediction_protection_is_bounded_by_available_work() {
++    let ids: usize = kani::any();
++    let budget: usize = kani::any();
++    let room: bool = kani::any();
++    let keep = prediction_protection_len(ids, budget, room);
++    assert!(keep <= ids && keep <= budget && keep <= 4);
++    assert_eq!(keep == 0, !room || ids == 0 || budget == 0);
++    kani::cover!(room && ids == usize::MAX && budget == usize::MAX && keep == 4);
++    kani::cover!(!room && ids > 0 && budget > 0 && keep == 0);
++    kani::cover!(room && ids == 2 && budget == 1 && keep == 1);
++}
++
++#[cfg(test)]
++#[test]
++fn prefetch_variants_and_protection_reject_unrequested_work() {
++    let names = [
++        ("legacy", PrefetchVariant::Legacy),
++        ("late", PrefetchVariant::Late),
++        ("bounded", PrefetchVariant::Bounded),
++        ("unused", PrefetchVariant::Unused),
++        ("lfu", PrefetchVariant::Lfu),
++        ("weighted", PrefetchVariant::Weighted),
++        ("packed", PrefetchVariant::Packed),
++    ];
++    for (name, expected) in names {
++        assert_eq!(PrefetchVariant::parse(name), Some(expected));
++        assert!(PrefetchVariant::parse(&format!("{name} ")).is_none());
++        assert!(PrefetchVariant::parse(&format!("{name}\0")).is_none());
++    }
++    for bad in ["", "1", "true", "Late", "all", "lfu,late"] {
++        assert!(PrefetchVariant::parse(bad).is_none());
++    }
++    assert_eq!(
++        PrefetchVariant::parse("legacy"),
++        Some(PrefetchVariant::default())
++    );
++    for ids in [0, 1, 2, 4, 16, 32, usize::MAX] {
++        for budget in [0, 1, 2, 4, 10, usize::MAX] {
++            let expected = (0..4).filter(|&i| i < ids && i < budget).count();
++            assert_eq!(prediction_protection_len(ids, budget, true), expected);
++            assert_eq!(prediction_protection_len(ids, budget, false), 0);
++        }
++    }
++}
++
+ #[cfg(feature = "mlx")]
+ mod gpu {
+     use anyhow::Result;

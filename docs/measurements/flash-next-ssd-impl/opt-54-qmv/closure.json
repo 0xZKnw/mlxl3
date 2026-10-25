@@ -1,0 +1,254 @@
+{
+  "status": "closed_no_runtime_gain_both_prototypes_retired",
+  "base_head": "33f27ddfcbd6f281ab54bca9f98f9d76838214ed",
+  "candidate_sources": {
+    "native/src/flash_support.rs": {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/src/flash_support.rs",
+      "sha256": "1c8f343a6d1c49bd3af06049c535c90df3f0cf73db34cb0e0f084dd626e5cdc5"
+    },
+    "native/src/linear.rs": {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/src/linear.rs",
+      "sha256": "f7d6488d63922a349f2b432cb4574a1a8b1317f7601673fb0eaca91b6f47e7dc"
+    },
+    "native/src/ssd_moe.rs": {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/src/ssd_moe.rs",
+      "sha256": "082b751364ca8051cd54e9595d19527581f8d7852742313c1957a579fd943d1a"
+    },
+    "native/shaders/_qmv_mapped_tile_kernel.metal": {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/shaders/_qmv_mapped_tile_kernel.metal",
+      "sha256": "266fa9962add3f394367de52f7a27d6974f7df56497287db2e6d057ae35e909e"
+    },
+    "native/src/ssd_moe/qmv_micro.rs": {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-54-qmv/candidate-source/native/src/ssd_moe/qmv_micro.rs",
+      "sha256": "b010f411ea37a1c3940d422a37a570a72040108457030d97b1ac682a60b6cf47"
+    }
+  },
+  "micro": {
+    "AA": {
+      "qualification": {
+        "status": "inconclusive_drift",
+        "full_model_eligible": false,
+        "throughput_gain_confirmed": false,
+        "cells": [
+          {
+            "layer": 0,
+            "rows": 1,
+            "gain_percent": -0.45895203921797467,
+            "drift_percent": [
+              1.244184304141993,
+              0.5306538100466218
+            ]
+          },
+          {
+            "layer": 0,
+            "rows": 2,
+            "gain_percent": 0.4496637627832589,
+            "drift_percent": [
+              2.1438538801243245,
+              4.212215940854103
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 1,
+            "gain_percent": -0.8397393583890467,
+            "drift_percent": [
+              0.5971807076785351,
+              3.7007711025250023
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 2,
+            "gain_percent": -0.03698767765858424,
+            "drift_percent": [
+              0.23212368176477316,
+              1.1343245474202845
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 1,
+            "gain_percent": 0.4280753439700469,
+            "drift_percent": [
+              2.6414826043964723,
+              1.456891550661532
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 2,
+            "gain_percent": 1.5456586260197414,
+            "drift_percent": [
+              6.003518956164289,
+              1.4944422866982165
+            ]
+          }
+        ]
+      },
+      "process": [
+        {
+          "status": "completed_expected_outcome",
+          "seconds": 27.44569112500176,
+          "swapins_bytes": 0,
+          "swapouts_bytes": 0,
+          "children_maximum_rss_bytes": 728842240
+        }
+      ]
+    },
+    "layout": {
+      "qualification": {
+        "status": "inconclusive_drift",
+        "full_model_eligible": false,
+        "throughput_gain_confirmed": false,
+        "cells": [
+          {
+            "layer": 0,
+            "rows": 1,
+            "gain_percent": 0.013295167948901288,
+            "drift_percent": [
+              0.76808891108886,
+              0.4620031981583228
+            ]
+          },
+          {
+            "layer": 0,
+            "rows": 2,
+            "gain_percent": -0.07060177137442336,
+            "drift_percent": [
+              1.0626458583635756,
+              1.0601214392094827
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 1,
+            "gain_percent": 0.3565341712425285,
+            "drift_percent": [
+              2.894962252088673,
+              0.6570814868594788
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 2,
+            "gain_percent": -0.042015537082795706,
+            "drift_percent": [
+              13.293095456137305,
+              2.9144276466030794
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 1,
+            "gain_percent": 0.1358255868288527,
+            "drift_percent": [
+              0.15817182982935662,
+              1.3979952061803802
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 2,
+            "gain_percent": 0.14261110259652376,
+            "drift_percent": [
+              2.174136808170535,
+              2.017556371129592
+            ]
+          }
+        ]
+      },
+      "process": [
+        {
+          "status": "completed_expected_outcome",
+          "seconds": 27.062240583996754,
+          "swapins_bytes": 65536,
+          "swapouts_bytes": 0,
+          "children_maximum_rss_bytes": 714080256
+        }
+      ]
+    },
+    "decode": {
+      "qualification": {
+        "status": "rejected_micro",
+        "full_model_eligible": false,
+        "throughput_gain_confirmed": false,
+        "cells": [
+          {
+            "layer": 0,
+            "rows": 1,
+            "gain_percent": 0.6352585164067781,
+            "drift_percent": [
+              0.14247347306122204,
+              0.5189514619744928
+            ]
+          },
+          {
+            "layer": 0,
+            "rows": 2,
+            "gain_percent": 1.5085097442935513,
+            "drift_percent": [
+              2.132577448882622,
+              0.19233578588682132
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 1,
+            "gain_percent": 1.1209993991981415,
+            "drift_percent": [
+              1.100182583956233,
+              1.343635614521288
+            ]
+          },
+          {
+            "layer": 23,
+            "rows": 2,
+            "gain_percent": 1.2843937383842263,
+            "drift_percent": [
+              0.4148064015775832,
+              0.21142792125634635
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 1,
+            "gain_percent": 0.946756132633686,
+            "drift_percent": [
+              0.6199341373483325,
+              0.9235991176330893
+            ]
+          },
+          {
+            "layer": 47,
+            "rows": 2,
+            "gain_percent": 0.2890128899446731,
+            "drift_percent": [
+              1.2894943980503948,
+              2.315974384457231
+            ]
+          }
+        ]
+      },
+      "process": [
+        {
+          "status": "completed_expected_outcome",
+          "seconds": 26.917703500017524,
+          "swapins_bytes": 1507328,
+          "swapouts_bytes": 0,
+          "children_maximum_rss_bytes": 713687040
+        }
+      ]
+    }
+  },
+  "full_model_speed": "not_launched_ineligible",
+  "hadamard_fusion": "static_review_only: input reuse duplicated per output tile; output128 needs8 NT1 tiles and cross-group coordination, outside this exact-layout experiment",
+  "proof": "CPU parser287obligations4covers length0..6u8/unwind8; MLX Kani ICE; Metal not proved; CrossHair absent",
+  "production_files_restored_to_base": [
+    "native/src/flash_support.rs",
+    "native/src/linear.rs",
+    "native/src/ssd_moe.rs",
+    "native/shaders/_qmv_mapped_tile_kernel.metal"
+  ],
+  "postprocess_correction": "first closure assertion expected status complete, but supervisor correctly uses completed_expected_outcomes_not_speed; no benchmark or artifact changed"
+}

@@ -1,0 +1,70 @@
+{
+  "status": "passed_six_real_cli_rejections",
+  "parity": true,
+  "checks": [
+    {
+      "name": "two",
+      "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+      "peak_physical_bytes": 616956840,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "true",
+      "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+      "peak_physical_bytes": 616907688,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "empty",
+      "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+      "peak_physical_bytes": 615990208,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "space",
+      "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+      "peak_physical_bytes": 616022952,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "negative",
+      "expected_error": "MLXL3_SSD_SHARED_BATCH must be 0 or 1",
+      "peak_physical_bytes": 617038760,
+      "reaped": true,
+      "before_ready": true
+    },
+    {
+      "name": "nonunicode",
+      "expected_error": "unicode",
+      "peak_physical_bytes": 616006568,
+      "reaped": true,
+      "before_ready": true
+    }
+  ],
+  "before": {
+    "epoch": 1792676491.681389,
+    "vm_bytes": {
+      "Pages free": 1293877248,
+      "File-backed pages": 7449165824,
+      "Pages occupied by compressor": 4232118272,
+      "Swapins": 0,
+      "Swapouts": 0
+    },
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+  },
+  "after": {
+    "epoch": 1792676518.0117471,
+    "vm_bytes": {
+      "Pages free": 1417740288,
+      "File-backed pages": 7453196288,
+      "Pages occupied by compressor": 4176281600,
+      "Swapins": 0,
+      "Swapouts": 0
+    },
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n"
+  }
+}

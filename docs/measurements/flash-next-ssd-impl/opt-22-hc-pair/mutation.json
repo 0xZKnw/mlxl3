@@ -1,0 +1,66 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "seconds": 30.231003334047273,
+    "reaped": true
+  },
+  {
+    "name": "mutant-pair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "lfm2::flash_hc_tests::mixed_gemv_pair_preserves_every_hc_matrix_and_strides",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 101,
+    "seconds": 1.2758090420393273,
+    "reaped": true
+  },
+  {
+    "name": "restored-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "seconds": 29.52300883299904,
+    "reaped": true
+  },
+  {
+    "name": "restored-pair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "lfm2::flash_hc_tests::mixed_gemv_pair_preserves_every_hc_matrix_and_strides",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 0,
+    "seconds": 1.8541326250415295,
+    "reaped": true
+  }
+]

@@ -1,0 +1,43 @@
+[
+  {
+    "name": "fenced-MTP-c3-HOLD",
+    "command": [
+      "/usr/bin/time",
+      "-l",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-53/mlxl3_native",
+      "qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_PROFILE_OUTPUT": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-HOLD/profile",
+      "MLXL3_PROFILE_KIND": "fenced",
+      "MLXL3_FLASH_PROFILE_MTP": "1",
+      "MLXL3_FLASH_PROFILE_PROMPT": "HOLD"
+    },
+    "expected_exit": 0,
+    "native_test": "qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states",
+    "profile_directory": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/fenced-MTP-c3-HOLD/profile",
+    "profile_kind": "fenced",
+    "golden": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/confirmation/reference128-HOLD.json",
+    "natural_oracle": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile/natural-MTP-c3-HOLD/profile/complete.json"
+  }
+]

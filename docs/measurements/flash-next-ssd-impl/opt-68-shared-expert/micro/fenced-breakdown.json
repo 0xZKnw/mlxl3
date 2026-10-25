@@ -1,0 +1,77 @@
+{
+  "meaning": "diagnostic fenced wall times; one trace per layer, not native latency or exclusive GPU time",
+  "rows": [
+    {
+      "rows": 2,
+      "candidate": false,
+      "layers": [
+        0,
+        23,
+        47
+      ],
+      "fenced_ms_per_layer": {
+        "shared_gate_projection": 0.760667,
+        "shared_up_projection": 0.8513743333333333,
+        "shared_swiglu": 0.636194,
+        "shared_down_projection": 0.8270416666666667,
+        "shared_expert_completion": 0.8958613333333333
+      },
+      "outside_stage_wall_ms_per_layer": 0.43844533333333335,
+      "total_fenced_wall_ms_per_layer": 4.409583666666666
+    },
+    {
+      "rows": 2,
+      "candidate": true,
+      "layers": [
+        0,
+        23,
+        47
+      ],
+      "fenced_ms_per_layer": {
+        "shared_gate_projection": 0.4392776666666667,
+        "shared_up_projection": 0.7879306666666667,
+        "shared_swiglu": 0.5177496666666667,
+        "shared_down_projection": 0.34727766666666665,
+        "shared_expert_completion": 1.8187223333333333
+      },
+      "outside_stage_wall_ms_per_layer": 0.3120003333333333,
+      "total_fenced_wall_ms_per_layer": 4.222958333333334
+    },
+    {
+      "rows": 4,
+      "candidate": false,
+      "layers": [
+        0,
+        23,
+        47
+      ],
+      "fenced_ms_per_layer": {
+        "shared_gate_projection": 0.8544173333333334,
+        "shared_up_projection": 0.9483056666666667,
+        "shared_swiglu": 0.9876116666666667,
+        "shared_down_projection": 0.9043193333333334,
+        "shared_expert_completion": 1.0263746666666667
+      },
+      "outside_stage_wall_ms_per_layer": 0.36634633333333333,
+      "total_fenced_wall_ms_per_layer": 5.087375
+    },
+    {
+      "rows": 4,
+      "candidate": true,
+      "layers": [
+        0,
+        23,
+        47
+      ],
+      "fenced_ms_per_layer": {
+        "shared_gate_projection": 0.254611,
+        "shared_up_projection": 0.42397233333333334,
+        "shared_swiglu": 0.32197233333333336,
+        "shared_down_projection": 0.308514,
+        "shared_expert_completion": 0.9120973333333333
+      },
+      "outside_stage_wall_ms_per_layer": 0.264833,
+      "total_fenced_wall_ms_per_layer": 2.486
+    }
+  ]
+}

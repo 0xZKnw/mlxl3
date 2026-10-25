@@ -1,0 +1,46 @@
+{
+  "status": "validated",
+  "parity": true,
+  "readers_environment": "absent: production default4",
+  "runs": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": true,
+      "seconds": 3.9432652079999997,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-flash_matches_independent_reference_states_and_logits.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_mtp_head_matches_reference_and_cache_only",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": true,
+      "seconds": 2.3079350410000004,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-flash_mtp_head_matches_reference_and_cache_only.log"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "passed": true,
+      "seconds": 12.879541500000002,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/default4-flash_mtp_session_preserves_greedy_sequence_target_and_head_states.log"
+    }
+  ]
+}

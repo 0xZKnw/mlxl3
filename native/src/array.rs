@@ -11,6 +11,11 @@ use std::{
     sync::OnceLock,
 };
 
+#[cfg(test)]
+thread_local! {
+    static HOST_READBACKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Dtype {
@@ -60,6 +65,10 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    #[cfg(test)]
+    fn mlxl3_disk_profile_enable(enabled: bool);
+    #[cfg(test)]
+    fn mlxl3_disk_profile_copy(output: *mut u64, capacity: usize) -> usize;
     fn mlxl3_start_capture(path: *const c_char) -> i32;
     fn mlxl3_stop_capture() -> i32;
     fn mlxl3_set_cache_limit(bytes: u64) -> i32;
@@ -74,9 +83,23 @@ unsafe extern "C" {
         indices: *mut c_void,
         out: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_quantize4(
+        input: *mut c_void,
+        weight: *mut *mut c_void,
+        scales: *mut *mut c_void,
+        biases: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_array_slice_update(
+        input: *mut c_void,
+        update: *mut c_void,
+        start: *const i32,
+        stop: *const i32,
+        rank: usize,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_mlx_error() -> *const c_char;
     fn mlxl3_mlx_init(metallib: *const c_char) -> i32;
-    fn mlxl3_memory_stats(out: *mut u64, reset_peak: bool) -> i32;
+    fn mlxl3_memory_stats(out: *mut u64, count: usize, reset_peak: bool) -> i32;
     fn mlxl3_synchronize() -> i32;
     fn mlxl3_clear_cache() -> i32;
     fn mlxl3_array_free(p: *mut c_void);
@@ -114,7 +137,52 @@ unsafe extern "C" {
         out: *mut *mut c_void,
     ) -> i32;
     fn mlxl3_array_zeros(dims: *const i32, rank: usize, dtype: i32, out: *mut *mut c_void) -> i32;
+    fn mlxl3_array_uninitialized(
+        dims: *const i32,
+        rank: usize,
+        dtype: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
+    #[cfg(test)]
+    fn mlxl3_array_is_available(p: *mut c_void, out: *mut i32) -> i32;
+    fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
+    fn mlxl3_arrays_preadv(
+        fds: *const i32,
+        offsets: *const u64,
+        records: usize,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+        workers: usize,
+    ) -> i32;
+    fn mlxl3_disk_read_prepare(
+        fd: i32,
+        offset: u64,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_disk_read_run(handle: *mut c_void, bytes: *mut u64) -> i32;
+    fn mlxl3_disk_read_free(handle: *mut c_void);
+    #[cfg(test)]
+    fn mlxl3_arrays_copy_record(
+        bytes: *const u8,
+        count: usize,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+    ) -> i32;
     fn mlxl3_arrays_async_eval(inputs: *const *mut c_void, count: usize) -> i32;
     fn mlxl3_array_copy_bytes(p: *mut c_void, out: *mut u8, count: usize) -> i32;
     fn mlxl3_array_unary(
@@ -181,6 +249,21 @@ unsafe extern "C" {
     ) -> i32;
 }
 
+#[cfg(test)]
+pub(crate) fn disk_profile_enable(enabled: bool) {
+    unsafe { mlxl3_disk_profile_enable(enabled) };
+}
+#[cfg(test)]
+pub(crate) fn disk_profile() -> Result<Vec<[u64; 6]>> {
+    let mut values = [0u64; 512 * 6];
+    let count = unsafe { mlxl3_disk_profile_copy(values.as_mut_ptr(), values.len()) };
+    ensure!(
+        count <= values.len() && count.is_multiple_of(6),
+        "invalid disk profile length"
+    );
+    Ok(values[..count].as_chunks::<6>().0.to_vec())
+}
+
 fn checked(status: i32) -> Result<()> {
     if status == 0 {
         return Ok(());
@@ -234,6 +317,8 @@ fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
         .context("negative tensor dimension or tensor byte size overflow")
 }
 
+const MEMORY_STATS_VALUES: usize = 12;
+
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct MemoryStats {
     pub mlx_active_bytes: u64,
@@ -241,25 +326,57 @@ pub struct MemoryStats {
     pub mlx_peak_bytes: u64,
     pub process_footprint_bytes: Option<u64>,
     pub process_lifetime_peak_bytes: Option<u64>,
+    pub process_id: u32,
+    pub process_start_abstime: Option<u64>,
+    pub process_compressed_logical_bytes: Option<u64>,
+    pub process_compressed_peak_logical_bytes: Option<u64>,
+    pub process_compressed_lifetime_logical_bytes: Option<u64>,
+    /// Counts pages, saturating at i32::MAX; it does not count disk reads.
+    pub process_decompressions: Option<u64>,
+    /// Logical bytes consumed from swapped-in segments, not SSD bytes or swap-outs.
+    pub process_ledger_swapins_logical_bytes: Option<u64>,
+}
+
+impl MemoryStats {
+    fn from_raw(values: [u64; MEMORY_STATS_VALUES], process_id: u32) -> Self {
+        let field = |index: usize, mask: u64| (values[11] & mask != 0).then_some(values[index]);
+        Self {
+            mlx_active_bytes: values[0],
+            mlx_cache_bytes: values[1],
+            mlx_peak_bytes: values[2],
+            process_footprint_bytes: field(3, 1),
+            process_lifetime_peak_bytes: field(4, 1),
+            process_id,
+            process_start_abstime: field(10, 1),
+            process_compressed_logical_bytes: field(5, 2),
+            process_compressed_peak_logical_bytes: field(6, 2),
+            process_compressed_lifetime_logical_bytes: field(7, 2),
+            process_decompressions: field(8, 4),
+            process_ledger_swapins_logical_bytes: field(9, 8),
+        }
+    }
 }
 
 pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
     initialize()?;
-    let mut values = [0u64; 5];
-    checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), reset_peak) })?;
-    Ok(MemoryStats {
-        mlx_active_bytes: values[0],
-        mlx_cache_bytes: values[1],
-        mlx_peak_bytes: values[2],
-        process_footprint_bytes: (values[3] != 0).then_some(values[3]),
-        process_lifetime_peak_bytes: (values[4] != 0).then_some(values[4]),
-    })
+    let mut values = [0u64; MEMORY_STATS_VALUES];
+    checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), values.len(), reset_peak) })?;
+    Ok(MemoryStats::from_raw(values, std::process::id()))
 }
 
 /// Release unused allocator buffers; live arrays and their graphs are retained.
 pub fn clear_cache() -> Result<()> {
     initialize()?;
     checked(unsafe { mlxl3_clear_cache() })
+}
+
+/// Select a model's default without overriding the explicit allocator setting.
+pub fn set_default_cache_limit(bytes: u64) -> Result<()> {
+    initialize()?;
+    if std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none() {
+        checked(unsafe { mlxl3_set_cache_limit(bytes) })?;
+    }
+    Ok(())
 }
 
 /// Finish submitted GPU work before reporting a settled load/unload state.
@@ -384,6 +501,31 @@ pub struct Array {
     dtype: Dtype,
     // MLX graph handles stay on the creating thread; no unverified Send/Sync.
     _thread: PhantomData<Rc<()>>,
+}
+
+/// Allocations and file stay on the inference thread until the worker is joined.
+pub(crate) struct PreparedRead {
+    handle: NonNull<c_void>,
+    _file: File,
+    _not_send: PhantomData<Rc<()>>,
+}
+impl PreparedRead {
+    pub(crate) fn token(&self) -> usize {
+        self.handle.as_ptr() as usize
+    }
+
+    /// # Safety
+    /// Keep the owning lease alive until return; run once with exclusive destinations.
+    pub(crate) unsafe fn run(token: usize) -> (bool, u64) {
+        let mut bytes = 0;
+        let status = unsafe { mlxl3_disk_read_run(token as *mut c_void, &mut bytes) };
+        (status == 0, bytes)
+    }
+}
+impl Drop for PreparedRead {
+    fn drop(&mut self) {
+        unsafe { mlxl3_disk_read_free(self.handle.as_ptr()) };
+    }
 }
 impl Drop for Array {
     fn drop(&mut self) {
@@ -563,6 +705,15 @@ impl Array {
             mlxl3_array_zeros(shape.as_ptr(), shape.len(), dtype as i32, out)
         })
     }
+    /// # Safety
+    /// Every region read by the CPU or GPU must first be completely initialized.
+    pub(crate) unsafe fn uninitialized(shape: &[i32], dtype: Dtype) -> Result<Self> {
+        bytes_for(shape, dtype)?;
+        initialize()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_uninitialized(shape.as_ptr(), shape.len(), dtype as i32, out)
+        })
+    }
     pub fn shape(&self) -> &[i32] {
         &self.shape
     }
@@ -600,6 +751,210 @@ impl Array {
     pub fn eval(&self) -> Result<()> {
         checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
     }
+    pub fn async_eval(&self) -> Result<()> {
+        checked(unsafe { mlxl3_array_async_eval(self.handle.as_ptr()) })
+    }
+
+    /// Fill persistent storage after the caller has evaluated every GPU consumer
+    /// of the replaced slots. Aliasing views must not escape that ownership.
+    #[cfg(test)]
+    pub(crate) fn read_record(
+        file: &File,
+        offset: u64,
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<()> {
+        Self::read_records(&[(file, offset)], buffers, &[destinations], 1)
+    }
+
+    /// As above, with disjoint destinations and all readers joined before return.
+    pub(crate) fn read_records(
+        sources: &[(&File, u64)],
+        buffers: &mut [Self],
+        destinations: &[&[(usize, usize, usize)]],
+        workers: usize,
+    ) -> Result<()> {
+        ensure!(
+            (1..=512).contains(&sources.len())
+                && sources.len() == destinations.len()
+                && (1..=4).contains(&workers),
+            "invalid disk reader batch"
+        );
+        let segments = destinations[0].len();
+        ensure!((1..=64).contains(&segments), "invalid disk record");
+        for (&(file, offset), ranges) in sources.iter().zip(destinations) {
+            ensure!(
+                ranges.len() == segments,
+                "inconsistent disk record segments"
+            );
+            let mut total = 0u64;
+            for &(index, start, length) in *ranges {
+                let buffer = buffers.get(index).context("invalid disk buffer index")?;
+                ensure!(
+                    crate::flash_support::disk_destination_fits(start, length, buffer.byte_len()?),
+                    "invalid disk destination range"
+                );
+                total = total
+                    .checked_add(u64::try_from(length)?)
+                    .context("disk record size overflow")?;
+            }
+            let file_len = file.metadata()?.len();
+            ensure!(
+                offset
+                    .checked_add(total)
+                    .is_some_and(|end| end <= i64::MAX as u64 && end <= file_len),
+                "invalid disk source range"
+            );
+        }
+        let ptrs = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let fds = sources.iter().map(|s| s.0.as_raw_fd()).collect::<Vec<_>>();
+        let offsets = sources.iter().map(|s| s.1).collect::<Vec<_>>();
+        let indices = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.0))
+            .collect::<Vec<_>>();
+        let starts = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.1))
+            .collect::<Vec<_>>();
+        let lengths = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.2))
+            .collect::<Vec<_>>();
+        checked(unsafe {
+            mlxl3_arrays_preadv(
+                fds.as_ptr(),
+                offsets.as_ptr(),
+                sources.len(),
+                ptrs.as_ptr(),
+                buffers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                segments,
+                workers,
+            )
+        })
+    }
+    /// Caller drains prior consumers and excludes these slots until publication.
+    pub(crate) fn prepare_read(
+        file: &File,
+        offset: u64,
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<PreparedRead> {
+        ensure!(
+            (1..=64).contains(&destinations.len()),
+            "invalid persistent disk segments"
+        );
+        let mut total = 0u64;
+        for &(index, start, length) in destinations {
+            ensure!(
+                crate::flash_support::disk_destination_fits(
+                    start,
+                    length,
+                    buffers
+                        .get(index)
+                        .context("invalid persistent bank")?
+                        .byte_len()?
+                ),
+                "invalid persistent disk destination"
+            );
+            total = total
+                .checked_add(length as u64)
+                .context("persistent record overflow")?;
+        }
+        let file = file.try_clone()?;
+        let length = file.metadata()?.len();
+        ensure!(
+            offset
+                .checked_add(total)
+                .is_some_and(|end| end <= i64::MAX as u64 && end <= length),
+            "invalid persistent disk source"
+        );
+        let pointers = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
+        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
+        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        let mut handle = std::ptr::null_mut();
+        checked(unsafe {
+            mlxl3_disk_read_prepare(
+                file.as_raw_fd(),
+                offset,
+                pointers.as_ptr(),
+                pointers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                destinations.len(),
+                &mut handle,
+            )
+        })?;
+        Ok(PreparedRead {
+            handle: NonNull::new(handle).context("missing persistent disk read")?,
+            _file: file,
+            _not_send: PhantomData,
+        })
+    }
+
+    /// Copy a completed CPU record into disjoint cold slots; the caller drains consumers first.
+    #[cfg(test)]
+    pub(crate) fn write_record(
+        bytes: &[u8],
+        buffers: &mut [Self],
+        destinations: &[(usize, usize, usize)],
+    ) -> Result<()> {
+        ensure!(
+            (1..=64).contains(&destinations.len()),
+            "invalid staged record segments"
+        );
+        let mut total = 0usize;
+        for &(index, start, length) in destinations {
+            ensure!(
+                crate::flash_support::disk_destination_fits(
+                    start,
+                    length,
+                    buffers
+                        .get(index)
+                        .context("invalid staging bank")?
+                        .byte_len()?
+                ),
+                "invalid staged destination"
+            );
+            total = total
+                .checked_add(length)
+                .context("staged record overflow")?;
+        }
+        ensure!(
+            total == bytes.len() && total > 0,
+            "invalid staged record size"
+        );
+        let pointers = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations.iter().map(|d| d.0).collect::<Vec<_>>();
+        let starts = destinations.iter().map(|d| d.1).collect::<Vec<_>>();
+        let lengths = destinations.iter().map(|d| d.2).collect::<Vec<_>>();
+        checked(unsafe {
+            mlxl3_arrays_copy_record(
+                bytes.as_ptr(),
+                bytes.len(),
+                pointers.as_ptr(),
+                pointers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                destinations.len(),
+            )
+        })
+    }
     /// Submit graphs together; reading an output still waits for completion.
     pub fn async_eval_all(inputs: &[&Self]) -> Result<()> {
         let pointers: Vec<_> = inputs.iter().map(|value| value.handle.as_ptr()).collect();
@@ -610,10 +965,22 @@ impl Array {
     }
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         let mut bytes = vec![0; bytes_for(&self.shape, self.dtype)?];
+        #[cfg(test)]
+        HOST_READBACKS.set(HOST_READBACKS.get().saturating_add(1));
         checked(unsafe {
             mlxl3_array_copy_bytes(self.handle.as_ptr(), bytes.as_mut_ptr(), bytes.len())
         })?;
         Ok(bytes)
+    }
+    #[cfg(test)]
+    pub(crate) fn host_readbacks_for_test() -> u64 {
+        HOST_READBACKS.get()
+    }
+    #[cfg(test)]
+    pub(crate) fn is_available_for_test(&self) -> Result<bool> {
+        let mut ready = 0;
+        checked(unsafe { mlxl3_array_is_available(self.handle.as_ptr(), &mut ready) })?;
+        Ok(ready != 0)
     }
     pub fn to_f32(&self) -> Result<Vec<f32>> {
         let bytes = if self.dtype == Dtype::Float32 {
@@ -721,6 +1088,52 @@ impl Array {
             )
         })
     }
+    pub(crate) fn quantize4(&self) -> Result<(Self, Self, Self)> {
+        ensure!(
+            self.dtype() == Dtype::BFloat16
+                && self.shape().len() == 2
+                && self.shape().iter().all(|&n| n > 0)
+                && self.shape()[1] % 64 == 0,
+            "invalid Q4 source"
+        );
+        let (mut w, mut s, mut b) = (
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        checked(unsafe { mlxl3_array_quantize4(self.handle.as_ptr(), &mut w, &mut s, &mut b) })?;
+        let (w, s, b) = (Self::owned(w), Self::owned(s), Self::owned(b));
+        Ok((w?, s?, b?))
+    }
+    pub(crate) fn slice_update(&self, update: &Self, start: &[i32]) -> Result<Self> {
+        let shape = self.shape();
+        ensure!(
+            start.len() == shape.len()
+                && update.shape().len() == shape.len()
+                && self.dtype() == update.dtype(),
+            "invalid slice update rank/type"
+        );
+        let stop = start
+            .iter()
+            .zip(update.shape())
+            .zip(shape)
+            .map(|((&a, &n), &limit)| {
+                a.checked_add(n)
+                    .filter(|&end| a >= 0 && end <= limit)
+                    .context("slice update outside destination")
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Self::output(|out| unsafe {
+            mlxl3_array_slice_update(
+                self.handle.as_ptr(),
+                update.handle.as_ptr(),
+                start.as_ptr(),
+                stop.as_ptr(),
+                start.len(),
+                out,
+            )
+        })
+    }
     pub fn log_probs(&self) -> Result<Self> {
         self.unary(9, &[], 0., 0)
     }
@@ -740,6 +1153,9 @@ impl Array {
     }
     pub fn exp(&self) -> Result<Self> {
         self.unary(12, &[], 0., 0)
+    }
+    pub fn rsqrt(&self) -> Result<Self> {
+        self.unary(22, &[], 0., 0)
     }
     pub fn rms_norm_without_weight(&self, eps: f32) -> Result<Self> {
         self.unary(13, &[], eps, 0)
@@ -801,6 +1217,24 @@ impl Array {
     }
     pub fn rms_norm(&self, weight: &Self, eps: f32) -> Result<Self> {
         self.binary(weight, 4, 0, eps)
+    }
+    pub(crate) fn qwen4_rms_norm(&self, raw_weight: &Self, eps: f32) -> Result<Self> {
+        self.binary(raw_weight, 11, 0, eps)
+    }
+    pub(crate) fn qwen4_hc_activate(&self) -> Result<Self> {
+        self.unary(23, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_gate(&self) -> Result<Self> {
+        self.unary(24, &[], 0., 0)
+    }
+    pub(crate) fn qwen4_hc_mix(&self, normalized: &Self) -> Result<Self> {
+        self.binary(normalized, 12, 0, 0.)
+    }
+    pub(crate) fn qwen4_ple_gate(&self) -> Result<Self> {
+        self.unary(25, &[], 0., 0)
+    }
+    pub(crate) fn compiled_silu(&self) -> Result<Self> {
+        self.unary(26, &[], 0., 0)
     }
     pub fn conv1d(&self, weight: &Self, groups: i32) -> Result<Self> {
         self.binary(weight, 5, groups, 0.)
@@ -867,6 +1301,9 @@ impl Array {
     pub fn div(&self, other: &Self) -> Result<Self> {
         self.binary(other, 9, 0, 0.)
     }
+    pub(crate) fn pow(&self, exponent: &Self) -> Result<Self> {
+        self.binary(exponent, 13, 0, 0.)
+    }
     pub fn geglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 10, 0, 0.)
     }
@@ -900,6 +1337,25 @@ impl Array {
                 out,
             )
         })
+    }
+}
+
+#[cfg(kani)]
+mod splash_verification {
+    use super::*;
+    #[kani::proof]
+    #[kani::unwind(10)]
+    fn actual_flash_q4_and_slice_update_validate_mlx_shapes() {
+        let rows: i32 = kani::any();
+        kani::assume((1..=8).contains(&rows));
+        let input = Array::zeros_dtype(&[rows, 64], Dtype::BFloat16).unwrap();
+        let (w, s, b) = input.quantize4().unwrap();
+        assert_eq!(w.shape(), &[rows, 8]);
+        assert_eq!(s.shape(), &[rows, 1]);
+        assert_eq!(b.shape(), &[rows, 1]);
+        assert!(input.slice_update(&input, &[-1, 0]).is_err());
+        assert!(input.slice_update(&input, &[0, 0]).is_ok());
+        kani::cover!(rows == 8);
     }
 }
 pub fn concatenate(inputs: &[&Array], axis: i32) -> Result<Array> {
@@ -980,7 +1436,349 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn memory_stats_decode_keeps_zero_valid_and_preserves_all_fields() {
+        for fill in [0, u64::MAX] {
+            for mask in 0..16u64 {
+                let mut values = [fill; MEMORY_STATS_VALUES];
+                values[11] = mask;
+                let stats = MemoryStats::from_raw(values, u32::MAX);
+                assert_eq!(stats.process_id, u32::MAX);
+                assert_eq!(
+                    (
+                        stats.mlx_active_bytes,
+                        stats.mlx_cache_bytes,
+                        stats.mlx_peak_bytes
+                    ),
+                    (fill, fill, fill)
+                );
+                for (field, bit) in [
+                    (stats.process_footprint_bytes, 1),
+                    (stats.process_lifetime_peak_bytes, 1),
+                    (stats.process_start_abstime, 1),
+                    (stats.process_compressed_logical_bytes, 2),
+                    (stats.process_compressed_peak_logical_bytes, 2),
+                    (stats.process_compressed_lifetime_logical_bytes, 2),
+                    (stats.process_decompressions, 4),
+                    (stats.process_ledger_swapins_logical_bytes, 8),
+                ] {
+                    assert_eq!(field, (mask & bit != 0).then_some(fill));
+                }
+                let json = serde_json::to_value(stats).unwrap();
+                assert_eq!(
+                    json["process_compressed_logical_bytes"].is_null(),
+                    mask & 2 == 0
+                );
+                assert_eq!(
+                    json["process_ledger_swapins_logical_bytes"].is_null(),
+                    mask & 8 == 0
+                );
+            }
+        }
+        let stats = MemoryStats::from_raw([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 15], 21);
+        assert_eq!(stats.process_footprint_bytes, Some(13));
+        assert_eq!(stats.process_lifetime_peak_bytes, Some(14));
+        assert_eq!(stats.process_compressed_logical_bytes, Some(15));
+        assert_eq!(stats.process_compressed_peak_logical_bytes, Some(16));
+        assert_eq!(stats.process_compressed_lifetime_logical_bytes, Some(17));
+        assert_eq!(stats.process_decompressions, Some(18));
+        assert_eq!(stats.process_ledger_swapins_logical_bytes, Some(19));
+        assert_eq!(stats.process_start_abstime, Some(20));
+    }
+
+    #[test]
+    fn memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work() {
+        let mut output = [0xabad1dea; MEMORY_STATS_VALUES + 1];
+        for count in [0, 5, MEMORY_STATS_VALUES - 1] {
+            assert_ne!(
+                unsafe { mlxl3_memory_stats(output.as_mut_ptr(), count, true) },
+                0
+            );
+            assert_eq!(output, [0xabad1dea; MEMORY_STATS_VALUES + 1]);
+        }
+        assert_ne!(
+            unsafe { mlxl3_memory_stats(std::ptr::null_mut(), MEMORY_STATS_VALUES, true) },
+            0
+        );
+    }
+
+    #[test]
+    #[ignore = "requires Apple MLX runtime; run explicitly outside concurrent builds"]
+    fn native_process_memory_stats_are_available_and_monotone() -> Result<()> {
+        let first = memory_stats(false)?;
+        ensure!(first.process_id == std::process::id());
+        ensure!(first.process_start_abstime.is_some());
+        ensure!(first.process_compressed_logical_bytes.is_some());
+        ensure!(first.process_compressed_peak_logical_bytes.is_some());
+        ensure!(first.process_compressed_lifetime_logical_bytes.is_some());
+        ensure!(first.process_decompressions.is_some());
+        ensure!(first.process_ledger_swapins_logical_bytes.is_some());
+        let mut previous = first;
+        for reset_peak in [false, true, false, true, false, true, false, true] {
+            let current = memory_stats(reset_peak)?;
+            ensure!(current.process_id == first.process_id);
+            ensure!(current.process_start_abstime == first.process_start_abstime);
+            ensure!(
+                current.process_compressed_peak_logical_bytes
+                    >= current.process_compressed_logical_bytes
+            );
+            ensure!(
+                current.process_compressed_peak_logical_bytes
+                    >= previous.process_compressed_peak_logical_bytes
+            );
+            ensure!(
+                current.process_compressed_lifetime_logical_bytes
+                    >= previous.process_compressed_lifetime_logical_bytes
+            );
+            ensure!(current.process_decompressions >= previous.process_decompressions);
+            ensure!(
+                current.process_ledger_swapins_logical_bytes
+                    >= previous.process_ledger_swapins_logical_bytes
+            );
+            previous = current;
+        }
+        eprintln!(
+            "77T process memory first={} final={}",
+            serde_json::to_string(&first)?,
+            serde_json::to_string(&previous)?
+        );
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; isolated allocation and direct-read diagnostic"]
+    fn uninitialized_storage_is_ready_and_reads_only_filled_ranges() -> Result<()> {
+        use std::io::Write;
+        for raw in [true, false, false, true] {
+            synchronize()?;
+            clear_cache()?;
+            let before = memory_stats(false)?;
+            let bank = if raw {
+                // No element of this diagnostic buffer is ever read.
+                unsafe { Array::uninitialized(&[32 * 1024 * 1024], Dtype::UInt16)? }
+            } else {
+                Array::zeros_dtype(&[32 * 1024 * 1024], Dtype::UInt16)?
+            };
+            if raw {
+                ensure!(
+                    bank.is_available_for_test()?,
+                    "allocation submitted a GPU fill"
+                );
+            }
+            bank.eval()?;
+            synchronize()?;
+            println!(
+                "FLASH_EMPTY_BANK {}",
+                serde_json::json!({
+                    "raw":raw,"before":before,"after":memory_stats(false)?,
+                    "logical_bytes":bank.byte_len()?,"retained_bytes":bank.retained_bytes()?
+                })
+            );
+            drop(bank);
+        }
+        let mut file = tempfile::tempfile()?;
+        let expected = (0..128u8).collect::<Vec<_>>();
+        file.write_all(&expected)?;
+        // Only the two fully initialized views below are exposed to a reader.
+        let mut banks = [unsafe { Array::uninitialized(&[64], Dtype::UInt16)? }];
+        Array::read_record(&file, 9, &mut banks, &[(0, 16, 32), (0, 80, 16)])?;
+        ensure!(banks[0].slice(0, 8, 24)?.to_bytes()? == expected[9..41]);
+        ensure!(banks[0].slice(0, 40, 48)?.to_bytes()? == expected[41..57]);
+        ensure!(Array::read_record(&file, u64::MAX, &mut banks, &[(0, 0, 8)]).is_err());
+        Array::read_record(&file, 0, &mut banks, &[(0, 0, 128)])?;
+        ensure!(banks[0].to_bytes()? == expected);
+        ensure!(unsafe { Array::uninitialized(&[-1], Dtype::UInt16) }.is_err());
+        ensure!(unsafe { Array::uninitialized(&[i32::MAX; 4], Dtype::Float32) }.is_err());
+        let shape = [1];
+        ensure!(
+            checked(unsafe {
+                mlxl3_array_uninitialized(shape.as_ptr(), 1, 2, std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; readback must wait only for the scheduled source event"]
+    fn scheduled_route_readback_does_not_wait_for_later_gpu_work() -> anyhow::Result<()> {
+        use super::*;
+        let expected = [0, 511, 7, u32::MAX];
+        let ids = metal_kernel(
+            "mlxl3_test_scheduled_route_ids",
+            &["ids"],
+            &["out"],
+            "",
+            "uint i=thread_position_in_grid.x; out[i]=ids[i];",
+            &[&Array::from_u32(&expected, &[4])?],
+            &[vec![4]],
+            &[Dtype::UInt32],
+            [4, 1, 1],
+            [32, 1, 1],
+        )?
+        .remove(0);
+        ids.async_eval()?;
+        let slow = metal_kernel(
+            "mlxl3_test_later_gpu_work", &["seed"], &["out"], "",
+            "uint i=thread_position_in_grid.x; uint v=seed[0]+i+1u; for(uint j=0;j<4000000u;++j) { v^=v<<13; v^=v>>17; v^=v<<5; } out[i]=v;",
+            &[&Array::from_u32(&[19],&[1])?], &[vec![512]], &[Dtype::UInt32],
+            [512,1,1], [128,1,1],
+        )?.remove(0);
+        slow.async_eval()?;
+        let actual = ids.to_u32()?;
+        let pending = !slow.is_available_for_test()?;
+        slow.eval()?;
+        assert_eq!(actual, expected);
+        assert!(pending, "contiguous readback waited for later GPU work");
+        println!("MLX_SCHEDULED_READBACK later_gpu_pending=true ids=4 parity=byte_exact");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; raw readback layouts, bits, empty buffers and errors"]
+    fn scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges() -> anyhow::Result<()>
+    {
+        use super::*;
+        let mut checked_cases = 0;
+        for dtype in [
+            Dtype::UInt8,
+            Dtype::Bool,
+            Dtype::Int8,
+            Dtype::Int16,
+            Dtype::UInt16,
+            Dtype::Int32,
+            Dtype::UInt32,
+            Dtype::UInt64,
+            Dtype::Int64,
+            Dtype::Float16,
+            Dtype::BFloat16,
+            Dtype::Float32,
+            Dtype::Complex64,
+        ] {
+            let width = bytes_for(&[1], dtype)?;
+            for n in [0usize, 1, 6] {
+                let bytes = (0..n * width)
+                    .map(|i| {
+                        if dtype == Dtype::Bool {
+                            (i % 2) as u8
+                        } else {
+                            (i * 37 + 129) as u8
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let array = Array::from_bytes(&bytes, &[n as i32], dtype)?;
+                assert_eq!(array.to_bytes()?, bytes);
+                if n == 1 {
+                    assert_eq!(Array::from_bytes(&bytes, &[], dtype)?.to_bytes()?, bytes);
+                }
+                let copied = array.take(
+                    &Array::from_u32(&(0..n as u32).collect::<Vec<_>>(), &[n as i32])?,
+                    0,
+                )?;
+                copied.async_eval()?;
+                assert_eq!(copied.to_bytes()?, bytes);
+                if n > 0 {
+                    if n == 6 {
+                        let transposed = array.reshape(&[2, 3])?.transpose(&[1, 0])?;
+                        transposed.async_eval()?;
+                        let oracle = [0usize, 3, 1, 4, 2, 5]
+                            .iter()
+                            .flat_map(|&i| bytes[i * width..(i + 1) * width].iter().copied())
+                            .collect::<Vec<_>>();
+                        assert_eq!(transposed.to_bytes()?, oracle);
+                    }
+                    let offset = array.slice(0, n as i32 - 1, n as i32)?;
+                    offset.async_eval()?;
+                    assert_eq!(offset.to_bytes()?, bytes[(n - 1) * width..]);
+                    assert!(
+                        checked(unsafe {
+                            mlxl3_array_copy_bytes(
+                                array.handle.as_ptr(),
+                                std::ptr::null_mut(),
+                                bytes.len(),
+                            )
+                        })
+                        .is_err()
+                    );
+                }
+                let mut out = vec![0u8; bytes.len() + 1];
+                assert!(
+                    checked(unsafe {
+                        mlxl3_array_copy_bytes(array.handle.as_ptr(), out.as_mut_ptr(), out.len())
+                    })
+                    .is_err()
+                );
+                checked_cases += 1;
+            }
+        }
+        assert_eq!(checked_cases, 39);
+        // Float64 has no Metal execution path; its already available raw buffers are supported.
+        for n in [0usize, 1, 6] {
+            let bytes = (0..n * 8).map(|i| (i * 19 + 128) as u8).collect::<Vec<_>>();
+            assert_eq!(
+                Array::from_bytes(&bytes, &[n as i32], Dtype::Float64)?.to_bytes()?,
+                bytes
+            );
+        }
+        println!(
+            "MLX_READBACK_BITS cases={checked_cases} gpu_dtypes=13 cpu_float64_cases=3 strided=true offset=true errors=true parity=byte_exact"
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_scheduled_raw_readback_preserves_bytes_and_source_event() {
+        scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges().unwrap();
+        scheduled_route_readback_does_not_wait_for_later_gpu_work().unwrap();
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; nonblocking availability probe and host readback accounting"]
+    fn availability_probe_does_not_submit_a_host_readback() -> anyhow::Result<()> {
+        use super::*;
+        let array = Array::from_u32(&[7], &[1])?;
+        let before = Array::host_readbacks_for_test();
+        assert!(array.is_available_for_test()?);
+        assert!(
+            checked(unsafe {
+                mlxl3_array_is_available(array.handle.as_ptr(), std::ptr::null_mut())
+            })
+            .is_err()
+        );
+        assert_eq!(Array::host_readbacks_for_test(), before);
+        assert_eq!(array.to_u32()?, [7]);
+        assert_eq!(Array::host_readbacks_for_test(), before + 1);
+        Ok(())
+    }
+
     use super::*;
+    #[test]
+    #[ignore = "physical Apple GPU; exact staged copies and atomic invalid inputs"]
+    fn staged_records_copy_exact_disjoint_bytes_and_reject_invalid_ranges() -> Result<()> {
+        let mut banks = [Array::from_bytes(&[0xa5; 32], &[32], Dtype::UInt8)?];
+        let data = [1, 2, 3, 4, 5, 6, 7, 8];
+        Array::write_record(&data, &mut banks, &[(0, 2, 3), (0, 17, 5)])?;
+        let mut expected = vec![0xa5; 32];
+        expected[2..5].copy_from_slice(&data[..3]);
+        expected[17..22].copy_from_slice(&data[3..]);
+        ensure!(banks[0].to_bytes()? == expected);
+        for ranges in [
+            vec![],
+            vec![(1, 0, 8)],
+            vec![(0, 0, 0)],
+            vec![(0, 31, 8)],
+            vec![(0, usize::MAX, 8)],
+            vec![(0, 0, 7)],
+            vec![(0, 0, 5), (0, 4, 3)],
+        ] {
+            ensure!(Array::write_record(&data, &mut banks, &ranges).is_err());
+            ensure!(
+                banks[0].to_bytes()? == expected,
+                "invalid copy changed bank"
+            );
+        }
+        Ok(())
+    }
     #[test]
     #[ignore = "physical Apple GPU; run alone, compaction enabled"]
     fn compact_cache_views_preserve_all_bits_and_release_parent_storage() -> Result<()> {
@@ -1075,6 +1873,7 @@ mod tests {
     fn allocator_cache_limit_preserves_live_arrays() -> Result<()> {
         let limit = std::env::var("MLXL3_ALLOCATOR_CACHE_MIB")?.parse::<usize>()?;
         ensure!(limit <= 1, "run this check with cache limit0 or1");
+        set_default_cache_limit(512 << 20)?;
         let input = Array::from_f16_bits(&vec![0x3c00; 512 * 512], &[512, 512])?;
         let live = input.try_clone()?;
         for _ in 0..3 {
@@ -1083,6 +1882,29 @@ mod tests {
         synchronize()?;
         assert!(memory_stats(false)?.mlx_cache_bytes <= (limit * 1_048_576) as u64);
         assert!(live.to_f16_bits()?.iter().all(|&word| word == 0x3c00));
+        Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; run alone without MLXL3_ALLOCATOR_CACHE_MIB"]
+    fn model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays() -> Result<()> {
+        ensure!(
+            std::env::var_os("MLXL3_ALLOCATOR_CACHE_MIB").is_none(),
+            "run without allocator override"
+        );
+        set_default_cache_limit(1 << 20)?;
+        let live = Array::from_f32(&[1.25, -3.5, 0.0], &[3])?;
+        live.eval()?;
+        {
+            let temporary = Array::from_f32(&vec![3.25; 8 * 1024 * 1024], &[8 * 1024 * 1024])?;
+            temporary.eval()?;
+        }
+        // MLX reclaims excess cached buffers on the next allocation, not free().
+        let next = live.add(&live)?;
+        next.eval()?;
+        synchronize()?;
+        assert!(memory_stats(false)?.mlx_cache_bytes <= 1 << 20);
+        assert_eq!(next.to_f32()?, [2.5, -7.0, 0.0]);
+        assert_eq!(live.to_f32()?, [1.25, -3.5, 0.0]);
         Ok(())
     }
     #[test]
@@ -1526,6 +2348,16 @@ mod tests {
 mod verification {
     use super::*;
     #[kani::proof]
+    fn disk_batch_reads_real_owned_storage() {
+        use std::io::Write;
+        let value: u8 = kani::any();
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&[value]).unwrap();
+        let mut banks = [Array::zeros_dtype(&[1], Dtype::UInt8).unwrap()];
+        Array::read_records(&[(&file, 0)], &mut banks, &[&[(0, 0, 1)]], 1).unwrap();
+        assert_eq!(banks[0].to_bytes().unwrap(), [value]);
+    }
+    #[kani::proof]
     fn async_group_preserves_values() {
         let values: [u32; 2] = kani::any();
         let input = Array::from_u32(&values, &[2]).unwrap();
@@ -1534,4 +2366,84 @@ mod verification {
         assert_eq!(input.to_u32().unwrap(), values);
         assert_eq!(other.to_u32().unwrap(), values);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn memory_stats_decoder_preserves_validity_and_values() {
+    let values: [u64; MEMORY_STATS_VALUES] = kani::any();
+    let process_id: u32 = kani::any();
+    let stats = MemoryStats::from_raw(values, process_id);
+    assert_eq!(stats.process_id, process_id);
+    assert_eq!(stats.mlx_active_bytes, values[0]);
+    assert_eq!(stats.mlx_cache_bytes, values[1]);
+    assert_eq!(stats.mlx_peak_bytes, values[2]);
+    assert_eq!(
+        stats.process_footprint_bytes,
+        if values[11] & 1 != 0 {
+            Some(values[3])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_lifetime_peak_bytes,
+        if values[11] & 1 != 0 {
+            Some(values[4])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_start_abstime,
+        if values[11] & 1 != 0 {
+            Some(values[10])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[5])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_peak_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[6])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_compressed_lifetime_logical_bytes,
+        if values[11] & 2 != 0 {
+            Some(values[7])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_decompressions,
+        if values[11] & 4 != 0 {
+            Some(values[8])
+        } else {
+            None
+        }
+    );
+    assert_eq!(
+        stats.process_ledger_swapins_logical_bytes,
+        if values[11] & 8 != 0 {
+            Some(values[9])
+        } else {
+            None
+        }
+    );
+    kani::cover!(values[11] == 0);
+    kani::cover!(values[11] == 15 && values[5] == 0 && values[9] == 0);
+    kani::cover!(values[11] == 15 && values[5] == u64::MAX);
 }

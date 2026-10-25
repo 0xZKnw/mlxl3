@@ -1,0 +1,84 @@
+{
+  "status": "passed",
+  "source_hashes": {
+    "bench-supervisor.txt": "ad19ce3c198631795d6fc78088b9912d75aad6245eb26ba0ebcc389aac83bd5a",
+    "quality-supervisor.txt": "d4f2054aa46a7ef2aa5f902aeba792b321ea94b1f058a32446526d3e5422addb",
+    "guards-supervisor.txt": "82c087944c19f63a90740b391426574643d49694fa0184bdc92811301b787496"
+  },
+  "selection_and_pair_cases": 26,
+  "deterministic_scaling_cases": 200,
+  "seed": 41,
+  "live_memory_cases": [
+    {
+      "source": "quality-supervisor.txt",
+      "case": "complete",
+      "observed": "ok"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "silent-then-complete",
+      "observed": "ok"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "limit-boundary",
+      "observed": "ok"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "over-limit",
+      "observed": "AssertionError"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "reversed",
+      "observed": "AssertionError"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "deadline",
+      "observed": "TimeoutExpired"
+    },
+    {
+      "source": "quality-supervisor.txt",
+      "case": "observer-timeout",
+      "observed": "TimeoutExpired"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "complete",
+      "observed": "ok"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "silent-then-complete",
+      "observed": "ok"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "limit-boundary",
+      "observed": "ok"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "over-limit",
+      "observed": "AssertionError"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "reversed",
+      "observed": "AssertionError"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "deadline",
+      "observed": "TimeoutExpired"
+    },
+    {
+      "source": "bench-supervisor.txt",
+      "case": "observer-timeout",
+      "observed": "TimeoutExpired"
+    }
+  ],
+  "artifact_preflight_cases": 4
+}

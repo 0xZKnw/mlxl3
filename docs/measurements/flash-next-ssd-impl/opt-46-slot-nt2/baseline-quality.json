@@ -1,0 +1,19 @@
+[
+  {
+    "name": "baseline-real-slot-shapes",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-46/baseline-test/mlxl3_native",
+      "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "native_test": "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+    "expected_exit": 0,
+    "env": {},
+    "required_text": [
+      "FLASH_SLOT_SHAPES cases=32 wrong_slot_controls=8 parity=byte_exact"
+    ]
+  }
+]

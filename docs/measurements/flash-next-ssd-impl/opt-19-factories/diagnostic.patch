@@ -1,0 +1,74 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index fbd260ec..1d389ea8 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -3,6 +3,9 @@
+ #include <array>
+ #include <atomic>
+ #include <cerrno>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
+@@ -527,18 +530,58 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
+       if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+     for (size_t i = 0; i < noutputs; ++i)
+       if (!output_names[i]) throw std::invalid_argument("null Metal output name");
++    struct Profile {
++      bool enabled = std::getenv("MLXL3_PROFILE_KERNEL_KEYS") != nullptr;
++      uint64_t calls = 0, misses = 0, evictions = 0, key_ns = 0, factory_ns = 0;
++      uint64_t maximum = 0, hc_calls = 0, hc_misses = 0, hc_factory_ns = 0;
++      ~Profile() {
++        if (enabled) std::fprintf(stderr,
++          "{\"kernel_keys\":{\"calls\":%llu,\"misses\":%llu,\"evictions\":%llu,\"key_ns\":%llu,\"factory_ns\":%llu,\"max_entries\":%llu,\"hc_calls\":%llu,\"hc_misses\":%llu,\"hc_factory_ns\":%llu}}\n",
++          (unsigned long long)calls, (unsigned long long)misses,
++          (unsigned long long)evictions, (unsigned long long)key_ns,
++          (unsigned long long)factory_ns, (unsigned long long)maximum,
++          (unsigned long long)hc_calls, (unsigned long long)hc_misses,
++          (unsigned long long)hc_factory_ns);
++      }
++    };
++    thread_local Profile profile;
++    const auto started = profile.enabled ? std::chrono::steady_clock::now()
++      : std::chrono::steady_clock::time_point{};
++    const bool hc = profile.enabled && std::strcmp(name, "mlxl3_flash_hc_write") == 0;
+     thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+                           mlxl3::KernelKeyOrder> cache;
+     mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
+     auto found = cache.find(key);
++    if (profile.enabled) {
++      ++profile.calls;
++      profile.key_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
++        std::chrono::steady_clock::now() - started).count();
++      if (hc) ++profile.hc_calls;
++      if (found == cache.end()) {
++        ++profile.misses;
++        if (hc) ++profile.hc_misses;
++      }
++    }
+     if (found == cache.end()) {
++      const auto factory_started = profile.enabled ? std::chrono::steady_clock::now()
++        : std::chrono::steady_clock::time_point{};
+       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
+-      if (cache.size() >= 128) cache.erase(cache.begin());
++      if (cache.size() >= 128) {
++        cache.erase(cache.begin());
++        if (profile.enabled) ++profile.evictions;
++      }
+       mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                   strings(output_names, noutputs), header, source};
+       auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                              source, header, true, false, mx::CompileOptions{});
+       found = cache.emplace(std::move(owned), std::move(function)).first;
++      if (profile.enabled) {
++        const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
++          std::chrono::steady_clock::now() - factory_started).count();
++        profile.factory_ns += elapsed;
++        if (hc) profile.hc_factory_ns += elapsed;
++        profile.maximum = std::max<uint64_t>(profile.maximum, cache.size());
++      }
+     }
+     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+     for (size_t i = 0; i < noutputs; ++i) {

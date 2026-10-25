@@ -1,0 +1,27 @@
+[
+  {
+    "label": "actual-runtime",
+    "harness": "actual_pre_draft_runtime_preserves_serial_generation",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "actual_pre_draft_runtime_preserves_serial_generation",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/actual-runtime.json"
+    ],
+    "exit": 1,
+    "reason": null,
+    "seconds": 5.659358750000138,
+    "peak_group_rss_bytes": 689143808,
+    "reaped": true
+  }
+]

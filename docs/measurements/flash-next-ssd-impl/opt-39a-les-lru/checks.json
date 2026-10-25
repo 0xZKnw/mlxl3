@@ -1,0 +1,230 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 35243,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.23883158300304785
+  },
+  {
+    "name": "cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 35246,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 1.2570836670056451
+  },
+  {
+    "name": "cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 35315,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.4728011659899494
+  },
+  {
+    "name": "mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 35406,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.7368724170082714
+  },
+  {
+    "name": "release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 35458,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 44.21638445799181
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 35613,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 33.306631250001374
+  },
+  {
+    "name": "kani-publish",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pending_publish_rejects_stale_failed_and_duplicate_records"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 35683,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 4.879630499999621
+  },
+  {
+    "name": "kani-claim",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "speculative_claim_excludes_pending_and_preserves_pair_space"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 35781,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 24.689836583012948
+  },
+  {
+    "name": "kani-victims",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "predictive_victims_exclude_pending_and_fall_back_only_when_needed"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 35880,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 20.513760500005446
+  },
+  {
+    "name": "kani-free",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "free_slots_precede_all_ready_victims_in_both_policies"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 35975,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 15.218877542007249
+  },
+  {
+    "name": "kani-lru",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "les_lru_uses_age_without_penalizing_zero_frequency_prefetches"
+    ],
+    "timeout_seconds": 120,
+    "status": "passed",
+    "pid": 36065,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 75.62514554199879
+  },
+  {
+    "name": "kani-reserve",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "two_routes_preserve_hits_and_never_alias_distinct_experts"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 36233,
+    "error": "TimeoutExpired(['cargo', 'kani', '--lib', '--no-default-features', '--harness', 'two_routes_preserve_hits_and_never_alias_distinct_experts'], 120)",
+    "joined": true,
+    "elapsed_seconds": 120.00367820799875
+  },
+  {
+    "name": "python",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_flash_benchmark.py",
+      "tests/test_flash_memory.py",
+      "tests/test_mtp_bridge.py",
+      "tests/test_native_json_process.py"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 36377,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 16.585270291994675
+  }
+]

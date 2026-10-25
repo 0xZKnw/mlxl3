@@ -1,0 +1,23 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.58s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-816832e2e4c1e227)
+
+running 1 test
+
+thread 'linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes' (8721011) panicked at native/src/linear.rs:1193:21:
+assertion `left == right` failed: slot=2, projection=0
+  left: [13207, 15269, 14429, 47484, 45506, 14152, 14101, 46911, 15385, 45644, 14559, 15762, 15491, 15817, 49245, 12766, 9412, 12289, 10038, 49335, 47013, 14344, 13032, 15027, 11285, 14333, 48614, 49237, 10506, 16811, 45344, 15549, 49155, 48689, 15428, 10724, 46885, 49039, 46774, 48187, 15598, 48937, 14907, 16145, 15098, 15330, 15978, 15745, 15671, 15490, 15448, 49335, 48455, 47599, 15148, 47773, 46514, 49370, 46624, 48067, 16781, 15863, 13376, 49389, 13753, 13159, 11897, 15769, 45643, 15721, 47556, 15067, 47223, 48398, 13353, 43120, 15479, 47545, 48439, 13582, 15825, 16534, 15145, 46331, 15711, 46900, 15924, 15641, 17262, 47290, 15776, 47687, 15655, 48003, 13528, 16092, 15680, 17013, 45292, 15266, 48533, 45111, 11340, 46371, 49053, 16524, 16472, 14952, 45548, 44960, 14872, 16005, 47385, 49491, 46255, 15405, 49306, 14856, 14448, 14967, 17347, 47688, 15960, 41319, 48153, 16483, 10617, 16257]
+ right: [12738, 13416, 45902, 14906, 9753, 13646, 47423, 47263, 44760, 47677, 47760, 13936, 47474, 45032, 49719, 14132, 14933, 48114, 16059, 48177, 48209, 46174, 48245, 46863, 16022, 44207, 16153, 49315, 14957, 16056, 15269, 15394, 46893, 48279, 49009, 15544, 14660, 15333, 15554, 13278, 44449, 48529, 50223, 48486, 48124, 14665, 41067, 49268, 47725, 47495, 47527, 14462, 49479, 46141, 48998, 49360, 49383, 14407, 46284, 47811, 14307, 15354, 15711, 49217, 46063, 48195, 48387, 44076, 48945, 48294, 15627, 16124, 14192, 16522, 49851, 14438, 14796, 13906, 44049, 15605, 16793, 45025, 15560, 46957, 49232, 13718, 16381, 16686, 45995, 49243, 15812, 15784, 14497, 15402, 14023, 16679, 47872, 15374, 48684, 15460, 13677, 12405, 14493, 45573, 47238, 14767, 16382, 15484, 49145, 43937, 14933, 47818, 14455, 49530, 48339, 44355, 47431, 17447, 15818, 14733, 48670, 48438, 14415, 16800, 50323, 16056, 16429, 13730]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes ... FAILED
+
+failures:
+
+failures:
+    linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 88 filtered out; finished in 0.52s
+
+error: test failed, to rerun pass `--lib`

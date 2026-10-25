@@ -1,0 +1,89 @@
+from pathlib import Path
+import ast
+import copy
+import json
+import math
+import textwrap
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-34-les-ready")
+source = (p / "quality-supervisor.txt").read_text()
+tree = ast.parse(source)
+node = next(
+    n
+    for n in ast.walk(tree)
+    if isinstance(n, ast.If) and ast.unparse(n.test) == "name.startswith('light-')"
+)
+lines = source.splitlines(keepends=True)
+body = textwrap.dedent("".join(lines[node.body[0].lineno - 1 : node.body[-1].end_lineno]))
+namespace = {"p": p, "json": json, "math": math}
+exec("def checked(log, prev, records, name, r):\n" + textwrap.indent(body, "    "), namespace)
+checked = namespace["checked"]
+records = json.loads((p / "quality.json").read_text())
+cases = []
+
+
+def check(prev, profiles, accepted, case):
+    log = "\n".join("SSD_LIGHT_PROFILE " + json.dumps(v) for v in profiles)
+    result = {}
+    try:
+        checked(log, prev, records, prev["name"], result)
+        observed = True
+    except (AssertionError, ValueError, TypeError, KeyError, StopIteration, OverflowError):
+        observed = False
+    assert observed is accepted, case
+    assert observed == ("diagnostics" in result), "partial validation leaked"
+    cases.append({"case": prev["name"] + ":" + case, "accepted": observed})
+
+
+for prev in records:
+    if not prev["name"].startswith("light-") or prev["status"] != "passed":
+        continue
+    profiles = prev["diagnostics"]
+    check(prev, profiles, True, "valid")
+    check(prev, [], False, "empty")
+    check(prev, profiles[:1], False, "incomplete")
+    mutations = [
+        (["phase"], "wrong"),
+        (["tokens"], []),
+        (["tokens", 0], True),
+        (["tokens", 0], 248320),
+        (["text"], ""),
+        (["text"], "wrong"),
+        (["logit_count"], 0),
+        (["logits_finite"], False),
+        (["route_fill_import_seconds", 0], float("nan")),
+        (["candidate_scanned_hot_admitted_imported_overlap_rows", 0], -1),
+        (["memory", "process_lifetime_peak_bytes"], 0),
+        (["mtp"], not profiles[0]["mtp"]),
+        (["mtp_proposed_tokens"], 999999),
+    ]
+    if profiles[0]["lookahead_depth"]:
+        mutations += [
+            (["prefetch", "completed"], -1),
+            (["memory", "process_lifetime_peak_bytes"], 1 << 60),
+        ]
+    else:
+        mutations += [
+            (["prefetch"], {}),
+            (["candidate_scanned_hot_admitted_imported_overlap_rows", 3], 1),
+        ]
+    for keys, value in mutations:
+        altered = copy.deepcopy(profiles)
+        target = altered[0]
+        for key in keys[:-1]:
+            target = target[key]
+        target[keys[-1]] = value
+        check(prev, altered, False, str(keys))
+assert len(cases) >= 18, "no actual diagnostic exercised"
+(p / "diagnostic-guards.json").write_text(
+    json.dumps(
+        {
+            "status": "passed",
+            "cases": cases,
+            "limits": "actual parent checker, finite mutations of physical profile records; not proof",
+        },
+        indent=2,
+    )
+    + "\n"
+)
+print({"status": "passed", "cases": len(cases)})

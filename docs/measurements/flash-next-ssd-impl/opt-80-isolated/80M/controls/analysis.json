@@ -1,0 +1,40 @@
+{
+  "status": "non_regression_observed_single_pair_each_mode_prompt",
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "H_tps": 10.451473300266146,
+      "C_tps": 10.715883867825974,
+      "ratio": 1.0252988798768778
+    },
+    {
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "H_tps": 10.88961638528852,
+      "C_tps": 11.106460098752171,
+      "ratio": 1.019912888185538
+    },
+    {
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "H_tps": 9.96536675358317,
+      "C_tps": 10.237543660201576,
+      "ratio": 1.0273122819609766
+    },
+    {
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "H_tps": 9.679507044046892,
+      "C_tps": 10.137811743697018,
+      "ratio": 1.0473479380266575
+    }
+  ],
+  "responses_checked": 16,
+  "parity_gold60": true,
+  "process_lifetime_peak_max_bytes": 8221743608,
+  "process_ledger_swapins_max_bytes": 0,
+  "system_swapouts_max_delta_bytes": 0,
+  "mtp_states": "1physicaltestpassed;budgets1/2/3/17;acceptanceandrejection;statesexact",
+  "scope_note": "Native MTP state test has childRSS only, not process ledger JSON; bridge memory observations separate."
+}

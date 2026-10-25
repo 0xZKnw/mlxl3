@@ -1,0 +1,32 @@
+{
+  "status": "static_audit_passed",
+  "at_utc": "2026-10-19T13:46:28.028636+00:00",
+  "report": "docs/flash-les-upstream-audit-2026-10-19.md",
+  "report_sha256": "0c23ede110d2a9dd36ac53ca979aef535e40688f48dc9fd48ad52d108a5348d0",
+  "checks": {
+    "source_hashes_and_frozen_c34_identities": "passed",
+    "app_engine_pin_and_openbmb_engine_equal_files": 22,
+    "target_records_inspected_headers_only": 24576,
+    "segments_per_record": 12,
+    "layers": 48,
+    "f16_gate_shapes_512x2560": 48,
+    "logical_io_counter_comparisons": 4,
+    "local_report_links_resolved": 6,
+    "whitespace_and_git_diff_check": "passed"
+  },
+  "commands": [
+    "git clone --filter=blob:none https://github.com/OpenBMB/llama.cpp-omni.git <research-les-37>",
+    "git clone --filter=blob:none --no-checkout https://github.com/OpenBMB/MiniCPM-V-Apps.git <research-les-app-37>",
+    "git fetch --no-tags https://github.com/tc-mb/llama.cpp-omni.git 96bbf61710d44421ea54e63f5194f9b17c20d877",
+    "git ls-remote origin refs/heads/main; git show <pin>:<source>; rg; nl",
+    "Python3.12 stdlib: hashlib/json/structural assertions over saved diagnostics, source bytes and checkpoint headers; no payload reads",
+    "git diff --check"
+  ],
+  "failures_and_limits": [
+    "App submodule pin initially not found on OpenBMB remote; resolved from declared tc-mb remote; all22 selected engine sources equal",
+    "No new runtime tests, GPU inference, benchmark or formal-verifier run",
+    "36B test instrumentation remains uncompiled/unexecuted; no gain validation",
+    "Actual physical SSD bytes and causal speed gains remain unmeasured for missing mechanisms"
+  ],
+  "published": false
+}

@@ -1,0 +1,21 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+running 1 test
+
+thread 'flash_support::draft_contract_tests::unique_prefix_matches_set_oracle_and_respects_pending_ownership' (5048205) panicked at native/src/flash_support.rs:379:13:
+assertion `left == right` failed
+  left: Some(0)
+ right: Some(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test flash_support::draft_contract_tests::unique_prefix_matches_set_oracle_and_respects_pending_ownership ... FAILED
+
+failures:
+
+failures:
+    flash_support::draft_contract_tests::unique_prefix_matches_set_oracle_and_respects_pending_ownership
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 101 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

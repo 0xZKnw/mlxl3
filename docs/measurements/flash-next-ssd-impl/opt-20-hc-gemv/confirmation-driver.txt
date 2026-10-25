@@ -1,0 +1,20 @@
+import sys,runpy,json
+from pathlib import Path
+engine,model,dest,mode,prompt,reference,old_reference=sys.argv[1:]
+flash=runpy.run_path('scripts/benchmark-flash-bridge.py')
+original=flash['validate']
+ref=Path(reference)
+old=json.loads(Path(old_reference).read_text())['runs'][0]
+def checked(event, generation_mode, mtp, budget):
+ original(event,generation_mode,mtp,budget)
+ response={key:event[key] for key in ['token_hash','cache_context']}
+ if not response['cache_context'].startswith(old['text']):
+  raise ValueError('128-token output does not preserve the validated 64-token prefix')
+ if ref.exists():
+  if json.loads(ref.read_text()) != response:
+   raise ValueError('128-token baseline/candidate token or text divergence')
+ else:
+  if mode != 'baseline': raise ValueError('missing OFF oracle before MTP')
+  ref.write_text(json.dumps(response,ensure_ascii=False))
+flash['run'].__globals__['validate']=checked
+flash['run'](Path(engine),Path(model),Path(dest),mtp=mode=='mtp',tokens=128,repeats=3,timeout=120,cache_gib=5,prompt=prompt)

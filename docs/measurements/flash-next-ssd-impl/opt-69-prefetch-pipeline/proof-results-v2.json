@@ -1,0 +1,27 @@
+[
+  {
+    "label": "actual-pipeline-v2",
+    "harness": "actual_draft_prefetch_pipeline_preserves_outputs",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "actual_draft_prefetch_pipeline_preserves_outputs",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/actual-pipeline-v2.json"
+    ],
+    "exit": 1,
+    "reason": null,
+    "seconds": 6.18735554199975,
+    "peak_group_rss_bytes": 691879936,
+    "reaped": true
+  }
+]

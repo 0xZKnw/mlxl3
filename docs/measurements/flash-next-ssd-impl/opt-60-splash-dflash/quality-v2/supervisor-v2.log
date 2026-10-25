@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 446, in <module>
+    run_sampler(Path(sys.argv[2]), baseline)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 385, in run_sampler
+    cumulative_monitor(lambda *_: None, baseline)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 332, in cumulative_monitor
+    assert set(baseline) == {"Swapins", "Swapouts"}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

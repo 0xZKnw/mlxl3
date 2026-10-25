@@ -246,8 +246,10 @@ final class StudioModel: ObservableObject {
     }
 
     var mtpAvailable: Bool {
-        mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
+        mtpSupported ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(selectedModel?.modelType ?? "")
     }
+    var mtpBuiltIn: Bool { selectedModel?.modelType == "qwen4_exp" }
+    var mtpEffectiveHeadPath: String { mtpBuiltIn ? selectedModel?.path ?? "" : mtpHeadPath }
     // Saved intent can survive an incompatible model; applicability is not engine activity.
     var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
     var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
@@ -744,7 +746,7 @@ final class StudioModel: ObservableObject {
                     dflashDraftPath: dflashDraftPath,
                     dflashMode: dflashMode,
                     mtp: mtpApplicable,
-                    mtpHeadPath: mtpHeadPath,
+                    mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
                     memorySaver: memorySaverEnabled && memorySaverSupported,
                     allowedTools: currentProject?.allowedTools,
@@ -974,41 +976,51 @@ final class StudioModel: ObservableObject {
         cancelMTPPreparation()
         let operation = mtpOperationID
         preferences.set(true, forKey: "studio.mtpEnabled")
+        if mtpBuiltIn {
+            mtpError = nil
+            mtpDepth = 1
+            activateMTP()
+            if !mtpConfigureSupported { return }
+        }
         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
         mtpDownloading = true
         mtpDownloadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                var data: Data?
-                let target = mtpConfigureSupported ? ["--target", model.path] : []
-                if !mtpHeadPath.isEmpty {
-                    do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
-                    catch is CancellationError { throw CancellationError() }
-                    catch { if !mtpAutomaticDownloadAvailable { throw error } }
-                }
-                if data == nil {
-                    guard mtpAutomaticDownloadAvailable else {
-                        throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
-                    }
-                    data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
-                        guard let self, operation == self.mtpOperationID,
-                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
-                        self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
-                        self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
-                    }
-                }
                 try Task.checkCancellation()
                 guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
-                guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
-                      event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
-                mtpHeadPath = path
-                preferences.set(path, forKey: "studio.mtpHeadPath")
-                preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
-                dflash2Enabled = false
-                mtpEnabled = true
-                preferences.set(true, forKey: "studio.mtpEnabled")
-                saveMTPSelection()
-                schedulePersistence()
+                let path: String
+                if mtpBuiltIn {
+                    path = model.path
+                } else {
+                    var data: Data?
+                    let target = mtpConfigureSupported ? ["--target", model.path] : []
+                    if !mtpHeadPath.isEmpty {
+                        do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
+                        catch is CancellationError { throw CancellationError() }
+                        catch { if !mtpAutomaticDownloadAvailable { throw error } }
+                    }
+                    if data == nil {
+                        guard mtpAutomaticDownloadAvailable else {
+                            throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
+                        }
+                        data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
+                            guard let self, operation == self.mtpOperationID,
+                                  let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                            self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
+                            self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
+                        }
+                    }
+                    try Task.checkCancellation()
+                    guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
+                    guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                          event.type == "installed", let installedPath = event.path, !installedPath.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                    path = installedPath
+                    mtpHeadPath = path
+                    preferences.set(path, forKey: "studio.mtpHeadPath")
+                    preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
+                }
+                activateMTP()
                 if mtpConfigureSupported {
                     try configureMTP(requestID: operation.uuidString, enabled: true, headPath: path)
                     try await Task.sleep(for: .seconds(30))
@@ -1031,8 +1043,17 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    private func activateMTP() {
+        dflash2Enabled = false
+        mtpEnabled = true
+        // Greedy request values are derived without changing saved ordinary sampling.
+        preferences.set(true, forKey: "studio.mtpEnabled")
+        saveMTPSelection()
+        schedulePersistence()
+    }
+
     func chooseMTPHead() {
-        guard !isGenerating, !mtpDownloading else { return }
+        guard !isGenerating, !mtpDownloading, !mtpBuiltIn else { return }
         let picker = NSOpenPanel()
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
@@ -1044,8 +1065,8 @@ final class StudioModel: ObservableObject {
     }
 
     private var currentMTPConfiguration: MTPConfigurationKey? {
-        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpHeadPath.isEmpty else { return nil }
-        return MTPConfigurationKey(modelPath: model.path, headPath: mtpHeadPath, runtime: runtime)
+        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpEffectiveHeadPath.isEmpty else { return nil }
+        return MTPConfigurationKey(modelPath: model.path, headPath: mtpEffectiveHeadPath, runtime: runtime)
     }
 
     var canTuneMTP: Bool {
@@ -1071,7 +1092,8 @@ final class StudioModel: ObservableObject {
         guard let key = currentMTPConfiguration,
               let saved = MTPTuning.load(key: key, preferences: preferences), saved.depth <= mtpMaxDepth else { return }
         mtpDepth = max(1, saved.depth)
-        // The global switch owns ON/OFF; saved tuning only restores the depth.
+        // Integrated heads retain their per-model choice; external heads use the global switch.
+        if mtpBuiltIn { mtpEnabled = saved.depth > 0 }
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
     }
 
@@ -1414,6 +1436,7 @@ final class StudioModel: ObservableObject {
                 residentGB: event.residentGB ?? 0
             )
             readyInfo = info
+            if mtpBuiltIn { mtpEnabled = false }
             restoreMTPSelection()
             restoreDFlashSelection()
             mcpServerCount = event.mcpServers ?? 0

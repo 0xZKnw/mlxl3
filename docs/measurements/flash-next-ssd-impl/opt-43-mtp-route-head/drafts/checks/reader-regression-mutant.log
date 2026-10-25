@@ -1,0 +1,27 @@
+   Compiling core-foundation-sys v0.8.7
+   Compiling malloc_buf v0.0.6
+   Compiling foreign-types-shared v0.3.1
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+   Compiling block v0.1.6
+   Compiling foreign-types v0.5.0
+   Compiling objc v0.2.7
+   Compiling core-foundation v0.10.1
+   Compiling core-graphics-types v0.2.0
+   Compiling metal v0.33.0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.87s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-7aee9471d60a77ba)
+
+running 1 test
+Error: raw BF16 reader failed before configuration validation: No such file or directory (os error 2)
+test qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config ... FAILED
+
+failures:
+
+failures:
+    qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

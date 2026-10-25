@@ -1,0 +1,71 @@
+[
+  {
+    "name": "corrected-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 44787,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2837231250014156
+  },
+  {
+    "name": "corrected-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 44790,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.8242800000007264
+  },
+  {
+    "name": "corrected-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 44856,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 42.57741016699583
+  },
+  {
+    "name": "corrected-release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 45031,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.12987345799047034
+  }
+]

@@ -140,7 +140,7 @@ struct GenerationInspector: View {
                         .disabled(studio.samplingLocked)
 
                         if studio.mtpAvailable || studio.mtpEnabled || studio.mtpDownloading {
-                            SettingCard(title: "MTP · Qwen3.5 / Qwen3.6", icon: "bolt") {
+                            SettingCard(title: "MTP · Qwen", icon: "bolt") {
                                 Toggle(studio.mtpAvailable
                                        ? L("Prédiction native de tokens", "Native token prediction")
                                        : L("Préférence MTP (inactive pour ce modèle)", "MTP preference (inactive for this model)"), isOn: Binding(
@@ -172,13 +172,18 @@ struct GenerationInspector: View {
                                 if let error = studio.mtpError {
                                     Text(error).font(.caption).foregroundStyle(.red)
                                 }
-                                Button(L("Choisir la tête MTP…", "Choose MTP head…")) { studio.chooseMTPHead() }
-                                    .buttonStyle(GlassPillButtonStyle())
-                                    .disabled(!studio.mtpAvailable || studio.mtpDownloading || studio.isGenerating)
-                                Text(studio.mtpHeadPath.isEmpty
-                                     ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
-                                     : studio.mtpHeadPath)
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet).lineLimit(2).textSelection(.enabled)
+                                if studio.mtpBuiltIn {
+                                    Text(L("Tête MTP intégrée au modèle, profondeur 1.", "Built-in MTP head, depth 1."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                } else {
+                                    Button(L("Choisir la tête MTP…", "Choose MTP head…")) { studio.chooseMTPHead() }
+                                        .buttonStyle(GlassPillButtonStyle())
+                                        .disabled(!studio.mtpAvailable || studio.mtpDownloading || studio.isGenerating)
+                                    Text(studio.mtpHeadPath.isEmpty
+                                         ? L("Qwen3.6-35B-A3B : tête 4 bits (~453 MiB) téléchargée à l’activation.", "Qwen3.6-35B-A3B: 4-bit head (~453 MiB) downloads when enabled.")
+                                         : studio.mtpHeadPath)
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet).lineLimit(2).textSelection(.enabled)
+                                }
                                 Text(L("Cette version utilise le mode greedy. Chaque proposition est vérifiée par le modèle cible. Pour les autres Qwen3.5/3.6, choisis une tête MTP MLX 4 bits adaptée.",
                                        "This version uses greedy sampling. The target model verifies every proposal. For other Qwen3.5/3.6 models, choose a matching MLX 4-bit MTP head."))
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)

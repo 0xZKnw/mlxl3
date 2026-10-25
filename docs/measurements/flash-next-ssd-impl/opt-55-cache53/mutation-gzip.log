@@ -1,0 +1,36 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_reads_compressed_events_through_the_existing_loader ___________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-84/test_reads_compressed_events_t0')
+
+    def test_reads_compressed_events_through_the_existing_loader(tmp_path):
+        events, _ = FIXTURE()
+        (tmp_path / "trace_1-decode.json.gz").write_bytes(gzip.compress(json.dumps(events).encode()))
+>       assert API["read_routes"](tmp_path, "decode") == [[list(range(20))] for _ in range(48)]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_flash_cache53.py:25: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/replay_flash_cache53.py:34: in read_routes
+    return routes(API["load_events"](directory / f"trace_1-{part}.json.gz"), part)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/profile_flash.py:222: in load_events
+    return json.loads(path.read_text())
+                      ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1028: in read_text
+    return f.read()
+           ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <encodings.utf_8.IncrementalDecoder object at 0x106fe6540>
+input = b'\x1f\x8b\x08\x00~\xb7\xd7j\x02\xff\xed\x9d\xdbn\xdb8\x10\x86_\xc5\xf0u\xb0\xe0\x90\xd4i_%(\x04\xc5V6\xde8\x96!)\r\x8...f\xae1\xaf\xc55\xe6\x952\x7f\\e\xde\xb3\xcc\xbc\xe2\xcb\xcc+\xba\xcc\xbc\xbb}?\xfe\x03\xe3\x85\xb3\x14\x96\x7f\x00\x00'
+final = True
+
+>   ???
+E   UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte
+
+<frozen codecs>:322: UnicodeDecodeError
+=========================== short test summary info ============================
+FAILED tests/test_flash_cache53.py::test_reads_compressed_events_through_the_existing_loader
+1 failed, 10 deselected in 0.06s

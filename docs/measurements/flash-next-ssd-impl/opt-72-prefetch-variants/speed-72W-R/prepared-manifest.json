@@ -1,0 +1,135 @@
+{
+  "status": "prepared_not_executed",
+  "prepared_utc": "2026-10-23T19:44:28.804227+00:00",
+  "protocol": "72W-R",
+  "preregistration": {
+    "document": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/opti.md",
+    "header": "### FLASHSSD-2026-10-23-72W-R — nouveau vrai A/B weighted contre B2sansprélecture, avant lancement",
+    "start_line": 14907,
+    "sha256": "31a74bbb739098b98860a0b0ded5af702400d4d30014162a09f1f8c42b9f66a0",
+    "text": "### FLASHSSD-2026-10-23-72W-R — nouveau vrai A/B weighted contre B2sansprélecture, avant lancement\n\n- Demande utilisateur «bah retest mtn que c'est fix nan ?» après acceptation explicite de la variabilité. Raison nouvelle : comparer enfin weighted au meilleur modeB2sansprélecture dansune nouvellepaire temporelle, au lieu de comparer auvieuxlegacyprélectureouauxréférencesnonappariées. Même codebinaire69b919 depuis les oracles72/77, pasdenouveaucorrectifarithmétiqueannoncé entrecesmesures. Les anciensHCCHvslegacy etleursverdictsstrictsrestentconservés ; lescompteursmémoireetladécision72W-KEEPrestentvisibles.\n- Ordre : terminercontrôlesaprès47346/post30 ; bridgeweighted43 propre dansbridge-weighted-v4 depuisplanv3nonexécuté, mêmeCLI/optionsADAPTIVE1/poids, pré20/checker840s/post30,gardesstock ;43requêtesréellesOFF/DFlash/erreurs/annulation/reprise/cachesetgoldens. Ne paslancerTPScandidatavant43exacts. PuisABneufH-CMAIN/HOLD, etC-HMAIN/HOLD dans lot distinct, même CLI77v1etGPUHotWide/63/UNIQUE1/draftQ4ring/B2WIDTH1ADAPTIVE0, modèle65c89531/drafta22a1744,3Gio53slots/allocator64Mio/ctx4096/greedy/128sorties127decode, unchauffage128+mesure128 parenfant. H=pipeline0/lookahead0/variantlegacy ; C=pipeline1/lookahead2/variantweighted,autresoptionsidentiques.\n- Qualitégolden60texte/hash/comptes128nonvides pourtouswarmups/mesures, modes/acceptations/largeursvalides, mêmesétatscibleconstatésdans288préfixesdont36weighted ; enfants/lecteurs/samplerjoints, pré20/post30secteur, unmodèle etpascompilation/proveurconcurrent. Empreinteprocess≤12Go, deltalogiqueledgerobservé0, globalin/outstock≤256Mio/phase enregistré sansattributionprivée ; compression77Bfailedrestefailed,sesdonnéesneprétendentpasqu'unpiclogiqueestdel'IOSS D.\n- Conformémentàladernièreconsigneutilisateur, lesseuilsHdrift5%/étendue3points ne serventplusàécarterweighted danscenouvelAB ; toutesvaleursbrutes/plagesmoyennes sontconservéesetcomparaisonparprompt, aucunedérivecachée. Siunpromptperd, le dire etgarder l'option sansrevendiquerungainuniversel. AucunboostcontreMTPni15tok/sprésumé ; nepasadditionnerlesgainsvslegacyetvsnofetch.\n- Étatpréenregistrement : aucunGPUbridgev4niAB72W-Rlancé, contrôlesaprèsencours. Leplanbridgev3originalresteprepared/nonexécuté ; nouveauv4iden tifiéavantlancement. Garderweightedopt-inpourpublicationaprèsqualité etmesure, autresprototypesexpérimentaux,défaultpipeline0/legacyinchangés/appnonremplacée."
+  },
+  "source_old_screen_manifest": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/screens-v3-72S-prepared.json",
+  "source_old_screen_manifest_sha256": "f2e232afdf08394ab9ee2ff8c7680b89440898323baee8fa2350038c57edcaba",
+  "cli": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-process-memory/v1/mlxl3-rs",
+  "cli_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "observer": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+  "observer_sha256": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac",
+  "benchmark_driver": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+  "benchmark_driver_sha256": "3f7c8680773c357328e08a793e091c8e6f84c3270b0d8fe24442dd6dfa7fcb98",
+  "source_identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/plans-v3-source-identity.json",
+  "source_identity_sha256": "5a1ab2bf70eb1155250fa748cf7b06396f721ed6e0812e8d844d3dd1860427f9",
+  "source_files_rechecked": 165,
+  "only_current_identity_difference": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/.github/workflows/rust.yml",
+      "previous_sha256": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+      "current_sha256": "7a9e1c665d6d80d9e30735920fdba4e1dd1e2631ba527139dcb11cc8e0cbbbd8"
+    }
+  ],
+  "goldens60": {
+    "MAIN": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/MAIN-0-OFF/report.json",
+      "sha256": "70d89eec4e73a77a0a5e5034a5056d2e4c358120c1d26638b1acd63c3aab8094",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "text_nonempty": true,
+      "all_warmup_and_measurement_outputs_must_match": true
+    },
+    "HOLD": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/HOLD-0-OFF/report.json",
+      "sha256": "6e929c552c29985ba8c9b389de6b0bdd990beb6db54ef6c88172c6dc0f1af244",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "text_nonempty": true,
+      "all_warmup_and_measurement_outputs_must_match": true
+    }
+  },
+  "cwd_required": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "required_before_first_speed_child": "Own weighted bridge43 in bridge-weighted-v4 must finish exact; parent inspects before launch. This preparation does not infer its result.",
+  "bridge43_expected_report": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-weighted-v4/checks.json",
+  "comparison": "B2 no-prefetch H versus B2 weighted-prefetch C",
+  "H_flags": {
+    "MLXL3_SSD_PREFETCH_PIPELINE": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_PREFETCH_VARIANT": "legacy"
+  },
+  "C_flags": {
+    "MLXL3_SSD_PREFETCH_PIPELINE": "1",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "2",
+    "MLXL3_SSD_PREFETCH_VARIANT": "weighted"
+  },
+  "H_C_environment_differences_only": [
+    "MLXL3_SSD_PREFETCH_PIPELINE",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH",
+    "MLXL3_SSD_PREFETCH_VARIANT"
+  ],
+  "two_lots_planned_unconditionally": true,
+  "old_one_percent_trigger_applies": false,
+  "H_drift5percent_or_gain_spread3points_blocking": false,
+  "variation_policy": "User explicitly accepts variability; keep all raw values, ranges, means and per-prompt losses. Do not erase prior strict verdicts or claim universal gain.",
+  "memory77B": "failed compression caps remain failed; no retrospective requalification",
+  "no_auto_launch": true,
+  "no_model_build_test_prover_or_gpu_executed_by_preparation": true,
+  "no_executable_code_modified": true,
+  "plans": [
+    {
+      "kind": "screen",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run.json",
+      "plan_sha256": "8399bdb6b6bf932bbe751bc0bbbdd6c31a80d3392c82541d71e112ae0ad0448d",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/identity.json",
+      "identity_sha256": "779b4e09c8a9f9b2d06f03853d5bc008537828a4a75435096f385e1f099d5e03",
+      "source_plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/screen/run.json",
+      "source_plan_sha256": "c468e56c2256727efe8743c47c2007683997cb7272d8d178546aa4762baf161e",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run.json"
+      ],
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/weighted-MAIN-0-H/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/weighted-MAIN-1-C/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/weighted-HOLD-0-H/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/screen/weighted-HOLD-1-C/report.json"
+      ],
+      "model_children": 4,
+      "warmup_responses": 4,
+      "measured_responses": 4,
+      "execution": "parent explicitly chooses; not executed or chained automatically by preparation"
+    },
+    {
+      "kind": "confirmation",
+      "status": "prepared_not_executed",
+      "plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/run.json",
+      "plan_sha256": "19dc7c361fb52d6514da980edd3e0057f4e66578967866dd54a0cb075fb412b4",
+      "identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/identity.json",
+      "identity_sha256": "cfe187032c49c7bd7d77e7d7912354dcb92e8d5aa88c2d5b080fa388cae4564c",
+      "source_plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run.json",
+      "source_plan_sha256": "711f1c348d09ad6ba4f999b6fe22c04ae8dd407273d09bada6e1fd86507c06b7",
+      "launch_argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/run.json"
+      ],
+      "expected_outputs": [
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/run-result.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/system-samples.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/vm-curve.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/weighted-MAIN-2-C/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/weighted-MAIN-3-H/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/weighted-HOLD-2-C/report.json",
+        "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-72W-R/confirmation/weighted-HOLD-3-H/report.json"
+      ],
+      "model_children": 4,
+      "warmup_responses": 4,
+      "measured_responses": 4,
+      "execution": "parent explicitly chooses; not executed or chained automatically by preparation"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "exit_code": 0,
+    "seconds": 0.3154639170097653,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 3.4129412079928443,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 48.34077924999292,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 0.08568654200644232,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+      "--output-format",
+      "regular"
+    ],
+    "exit_code": 124,
+    "seconds": 180.02533479200792,
+    "reaped": true
+  },
+  {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "qwen4::tests::actual_flash_cache_capture_preserves_all_routes_and_states",
+      "--output-format",
+      "terse"
+    ],
+    "exit_code": 1,
+    "seconds": 6.571956207975745,
+    "reaped": true
+  }
+]

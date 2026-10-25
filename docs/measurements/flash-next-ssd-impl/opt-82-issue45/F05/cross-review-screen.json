@@ -1,0 +1,724 @@
+{
+  "experiment": "82F05 HC independent documentary audit",
+  "generated_utc": "2026-10-25T12:16:47.432549+00:00",
+  "status": "screen_closed_exact_outputs_no_positive_signal_runtime_withdrawn",
+  "gold60_responses_checked": 8,
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 10.180175139502241,
+      "C_tps": 9.807009791014018,
+      "gain_percent": -3.665608335560222,
+      "counter_trajectory_exact": true
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.652618751047475,
+      "C_tps": 8.869685411898157,
+      "gain_percent": -8.111097717024784,
+      "counter_trajectory_exact": true
+    }
+  ],
+  "records": [
+    {
+      "name": "MAIN-0-H",
+      "prompt": "MAIN",
+      "arm": "H",
+      "report_sha256": "4cda0190c9ea6326a859e183f7939e760cde12e577307c0860709922a1100200",
+      "samples": {
+        "warmup": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.70174335879106,
+          "decode_seconds": 13.090430792000001,
+          "counts": {
+            "dflash_proposed_tokens": 69,
+            "dflash_accepted_tokens": 58,
+            "dflash_blocks": 69,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "expert_demand_bytes": 23664803544,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.219257161,
+            "draft_seconds": 0.5816718319999999,
+            "commit_cache_seconds": 0.2869575019999999
+          },
+          "memory": {
+            "mlx_active_bytes": 7144352896,
+            "mlx_cache_bytes": 66276754,
+            "mlx_peak_bytes": 7289783300,
+            "process_compressed_lifetime_logical_bytes": 3973120000,
+            "process_compressed_logical_bytes": 3942957056,
+            "process_compressed_peak_logical_bytes": 3946201088,
+            "process_decompressions": 229732,
+            "process_footprint_bytes": 7738005768,
+            "process_id": 3109,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7827675400,
+            "process_start_abstime": 1482653292107
+          }
+        },
+        "runs": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 10.180175139502241,
+          "decode_seconds": 12.475227416000001,
+          "counts": {
+            "dflash_proposed_tokens": 69,
+            "dflash_accepted_tokens": 58,
+            "dflash_blocks": 69,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "expert_demand_bytes": 23930630100,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 11.651249002000002,
+            "draft_seconds": 0.5506587890000004,
+            "commit_cache_seconds": 0.27064437300000005
+          },
+          "memory": {
+            "mlx_active_bytes": 7144348800,
+            "mlx_cache_bytes": 66678522,
+            "mlx_peak_bytes": 7290032756,
+            "process_compressed_lifetime_logical_bytes": 3987161088,
+            "process_compressed_logical_bytes": 3947593728,
+            "process_compressed_peak_logical_bytes": 3949428736,
+            "process_decompressions": 260599,
+            "process_footprint_bytes": 7737776392,
+            "process_id": 3109,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7830198536,
+            "process_start_abstime": 1482653292107
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 4.931400089837035,
+      "warm_to_measure_compressed_logical_bytes": 4636672,
+      "warm_to_measure_decompressions": 30867
+    },
+    {
+      "name": "MAIN-1-C",
+      "prompt": "MAIN",
+      "arm": "C",
+      "report_sha256": "457511b68b35762074e57d5c2cc2abd79ff624cf0664aac10fb9fadbe885a4b4",
+      "samples": {
+        "warmup": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.871192563292992,
+          "decode_seconds": 12.865720042,
+          "counts": {
+            "dflash_proposed_tokens": 69,
+            "dflash_accepted_tokens": 58,
+            "dflash_blocks": 69,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "expert_demand_bytes": 23664803544,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.009204292,
+            "draft_seconds": 0.5910379949999999,
+            "commit_cache_seconds": 0.263170169
+          },
+          "memory": {
+            "mlx_active_bytes": 7144336512,
+            "mlx_cache_bytes": 66449422,
+            "mlx_peak_bytes": 7290593060,
+            "process_compressed_lifetime_logical_bytes": 2391801856,
+            "process_compressed_logical_bytes": 2351054848,
+            "process_compressed_peak_logical_bytes": 2353004544,
+            "process_decompressions": 135587,
+            "process_footprint_bytes": 7720409352,
+            "process_id": 3370,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7824283936,
+            "process_start_abstime": 1483832406478
+          }
+        },
+        "runs": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.807009791014018,
+          "decode_seconds": 12.949920791999999,
+          "counts": {
+            "dflash_proposed_tokens": 69,
+            "dflash_accepted_tokens": 58,
+            "dflash_blocks": 69,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              69,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 138,
+            "verified_rows": 138,
+            "expert_demand_bytes": 23930630100,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.049356248999997,
+            "draft_seconds": 0.6098910389999999,
+            "commit_cache_seconds": 0.28803729499999997
+          },
+          "memory": {
+            "mlx_active_bytes": 7144338560,
+            "mlx_cache_bytes": 66230058,
+            "mlx_peak_bytes": 7289903380,
+            "process_compressed_lifetime_logical_bytes": 2482864128,
+            "process_compressed_logical_bytes": 2421260288,
+            "process_compressed_peak_logical_bytes": 2425421824,
+            "process_decompressions": 167215,
+            "process_footprint_bytes": 7717476616,
+            "process_id": 3370,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7824283936,
+            "process_start_abstime": 1483832406478
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": -0.6502028186304853,
+      "warm_to_measure_compressed_logical_bytes": 70205440,
+      "warm_to_measure_decompressions": 31628
+    },
+    {
+      "name": "HOLD-0-H",
+      "prompt": "HOLD",
+      "arm": "H",
+      "report_sha256": "23b902249bebb41f502620775c3324ff2dcde89bdccbb5146c2b9ff3ef4dbe1a",
+      "samples": {
+        "warmup": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.585170699389812,
+          "decode_seconds": 13.249633625,
+          "counts": {
+            "dflash_proposed_tokens": 70,
+            "dflash_accepted_tokens": 56,
+            "dflash_blocks": 70,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "expert_demand_bytes": 25765207740,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.305427163999996,
+            "draft_seconds": 0.5782123699999999,
+            "commit_cache_seconds": 0.257719041
+          },
+          "memory": {
+            "mlx_active_bytes": 7144211584,
+            "mlx_cache_bytes": 67600540,
+            "mlx_peak_bytes": 7289492576,
+            "process_compressed_lifetime_logical_bytes": 2300198912,
+            "process_compressed_logical_bytes": 2258829312,
+            "process_compressed_peak_logical_bytes": 2282733568,
+            "process_decompressions": 133792,
+            "process_footprint_bytes": 7734270288,
+            "process_id": 3600,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7843305808,
+            "process_start_abstime": 1485019216430
+          }
+        },
+        "runs": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.652618751047475,
+          "decode_seconds": 13.157051291000002,
+          "counts": {
+            "dflash_proposed_tokens": 70,
+            "dflash_accepted_tokens": 56,
+            "dflash_blocks": 70,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "expert_demand_bytes": 25474420944,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.168838339,
+            "draft_seconds": 0.5777817540000003,
+            "commit_cache_seconds": 0.29654108000000007
+          },
+          "memory": {
+            "mlx_active_bytes": 7144209536,
+            "mlx_cache_bytes": 67548788,
+            "mlx_peak_bytes": 7289514224,
+            "process_compressed_lifetime_logical_bytes": 2457337856,
+            "process_compressed_logical_bytes": 2409529344,
+            "process_compressed_peak_logical_bytes": 2411446272,
+            "process_decompressions": 164469,
+            "process_footprint_bytes": 7734827320,
+            "process_id": 3600,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7843305808,
+            "process_start_abstime": 1485019216430
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": 0.7036708450268714,
+      "warm_to_measure_compressed_logical_bytes": 150700032,
+      "warm_to_measure_decompressions": 30677
+    },
+    {
+      "name": "HOLD-1-C",
+      "prompt": "HOLD",
+      "arm": "C",
+      "report_sha256": "4e945ce4bd15652010d233f662afe6f95c9271f9af5704b48c57e44da958b80d",
+      "samples": {
+        "warmup": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 9.431001181983072,
+          "decode_seconds": 13.466226707999999,
+          "counts": {
+            "dflash_proposed_tokens": 70,
+            "dflash_accepted_tokens": 56,
+            "dflash_blocks": 70,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "expert_demand_bytes": 25765207740,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 12.458466210999994,
+            "draft_seconds": 0.5736110039999999,
+            "commit_cache_seconds": 0.31095499400000004
+          },
+          "memory": {
+            "mlx_active_bytes": 7144217728,
+            "mlx_cache_bytes": 67461034,
+            "mlx_peak_bytes": 7289625360,
+            "process_compressed_lifetime_logical_bytes": 1966505984,
+            "process_compressed_logical_bytes": 1922695168,
+            "process_compressed_peak_logical_bytes": 1946681344,
+            "process_decompressions": 114033,
+            "process_footprint_bytes": 7738972448,
+            "process_id": 3776,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7846877496,
+            "process_start_abstime": 1486170865837
+          }
+        },
+        "runs": {
+          "gold60_text_hash_exact": true,
+          "generated_decode_tokens": [
+            128,
+            127
+          ],
+          "decode_tps": 8.869685411898157,
+          "decode_seconds": 14.318433417000001,
+          "counts": {
+            "dflash_proposed_tokens": 70,
+            "dflash_accepted_tokens": 56,
+            "dflash_blocks": 70,
+            "dflash_lookup_blocks": 0
+          },
+          "profile_counts": {
+            "drafted_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "verified_widths": [
+              0,
+              70,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "drafted_rows": 140,
+            "verified_rows": 140,
+            "expert_demand_bytes": 25474420944,
+            "ssd_prefetch": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          "host_inclusive_seconds": {
+            "verification_seconds": 13.201307789,
+            "draft_seconds": 0.6392576630000002,
+            "commit_cache_seconds": 0.352780168
+          },
+          "memory": {
+            "mlx_active_bytes": 7144215680,
+            "mlx_cache_bytes": 67341656,
+            "mlx_peak_bytes": 7289032424,
+            "process_compressed_lifetime_logical_bytes": 2142945280,
+            "process_compressed_logical_bytes": 2089189376,
+            "process_compressed_peak_logical_bytes": 2092728320,
+            "process_decompressions": 144951,
+            "process_footprint_bytes": 7737923848,
+            "process_id": 3776,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7846877496,
+            "process_start_abstime": 1486170865837
+          }
+        }
+      },
+      "warm_to_measure_tps_percent": -5.951815287196116,
+      "warm_to_measure_compressed_logical_bytes": 166494208,
+      "warm_to_measure_decompressions": 30918
+    }
+  ],
+  "phases": [
+    {
+      "name": "pre20",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    },
+    {
+      "name": "MAIN-0-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    },
+    {
+      "name": "MAIN-1-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 131072,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 131072,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    },
+    {
+      "name": "HOLD-0-H",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    },
+    {
+      "name": "HOLD-1-C",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    },
+    {
+      "name": "post30",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "power_before": "Now drawing from 'AC Power'",
+      "power_after": "Now drawing from 'AC Power'"
+    }
+  ],
+  "sampler": {
+    "status": "completed_observations_not_attribution",
+    "joined": true,
+    "samples": 131,
+    "error_samples": 0
+  },
+  "memory": {
+    "snapshot_count": 12,
+    "process_lifetime_peak_bytes": 7846877496,
+    "current_footprint_max_bytes": 7738972448,
+    "compressed_current_max_bytes": 3947593728,
+    "ledger_swapins_max": 0,
+    "system_swapouts_bytes": 0,
+    "system_swapins_bytes": 131072,
+    "attribution": "Unknown; globalin131072B only MAIN-C, no modelownershipproved; ledger0notproofnoprivateout; caps77Bfailed retained."
+  },
+  "identity": {
+    "archive_members": 86,
+    "archive_mismatches": [],
+    "archive_sha256": "2886c2859001b309bce82dd3fde24221323fa2b9a8a550556713e3ec21709258",
+    "engine_actual_sha256": "bb7d25de91d4e5d78afd508aab4f96bb769a3262a3754a46af4ff275379fb4cb",
+    "engine_expected_sha256": "bb7d25de91d4e5d78afd508aab4f96bb769a3262a3754a46af4ff275379fb4cb",
+    "driver_actual_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "driver_expected_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "frozen_identity_sha256": "273e84cad60ead74018eb7c3e664eca15f417ae3904edfea97c370029c4f88c0",
+    "activeW": "Withdrawn; pre-K1withdrawalproofseparate. Do not treatfutureK1 editsasF05residue."
+  },
+  "profile_scope": "Verify/draft/commit are host-inclusive, not exclusiveGPU; no addition to decode/block. Logicaldemandbytes not physicalSSDtraffic.",
+  "decision": "No positive HCsignal, conservativelywithdrawn. No CH/OFF/MTPspeed or replayexecuted. Single measuredpair and HOLD-Cwarmdrift-5.95% do not prove universalcausalregression.",
+  "review_actions": "Reads/hashes/documents only. No native/opti/index/Gitmutation/GPU/test/build/prover."
+}

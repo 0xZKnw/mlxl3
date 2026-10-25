@@ -1,0 +1,25 @@
+
+running 1 test
+test ssd_prefetch::gpu::demand_tests::pending_leases_release_every_batch_without_retaining_allocations ... SSD_PREFETCH_LEASES batches=64 reads=256 peak_pending=4 cache_owners=1_to_5_to_1 initial_active=98305 min_active=98304 max_active=98304 retained_after_drop=false
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 267 filtered out; finished in 0.05s
+
+        0.26 real         0.03 user         0.02 sys
+            21020672  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                1628  page reclaims
+                   6  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                 674  involuntary context switches
+           426784116  instructions retired
+           139879435  cycles elapsed
+            41730720  peak memory footprint

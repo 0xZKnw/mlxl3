@@ -1,0 +1,30 @@
+    #[kani::proof]
+    #[kani::unwind(27)]
+    fn failed_fill_invalidates_ready_keys_without_releasing_pending_slots() {
+        let id: u32 = kani::any();
+        kani::assume(id < 512);
+        let complete: bool = kani::any();
+        let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
+        let pending_id = id ^ 1;
+        let pending = cache
+            .borrow_mut()
+            .claim_prefetch(pending_id)
+            .unwrap()
+            .unwrap();
+        {
+            let fill = ExpertFill::new(&cache);
+            cache.borrow_mut().reserve(&[id]).unwrap();
+            if complete {
+                fill.commit();
+            }
+        }
+        assert_eq!(cache.borrow().contains(id), complete);
+        assert_eq!(cache.borrow().pending[pending], Some(pending_id));
+        assert!(
+            cache
+                .borrow_mut()
+                .publish_prefetch(pending, pending_id, true)
+        );
+        kani::cover!(complete);
+        kani::cover!(!complete);
+    }

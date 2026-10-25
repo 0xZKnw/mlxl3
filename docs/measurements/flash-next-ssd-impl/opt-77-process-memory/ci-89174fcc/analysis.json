@@ -1,0 +1,493 @@
+{
+  "77": {
+    "log": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-ci/global-kani.log",
+    "sha256": "b445fd33ca5ce4cc0c4d2a7232c4031d963d2ffa41f64f8a21901264c0385214",
+    "started_harnesses": 32,
+    "successful": 31,
+    "failed": 0,
+    "last": {
+      "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+      "started": "2026-10-23T13:10:19.7095853Z"
+    },
+    "unfinished": [
+      {
+        "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+        "started": "2026-10-23T13:10:19.7095853Z"
+      }
+    ],
+    "shutdown_errors": [
+      "2026-10-23T13:12:17.3805330Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+      "2026-10-23T13:12:17.6588334Z ##[error]The operation was canceled."
+    ],
+    "explicit_exit_lines": [],
+    "last_harness_seconds_before_shutdown": 117.670948,
+    "verification_failed_line": false,
+    "events": [
+      {
+        "harness": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+        "started": "2026-10-23T13:08:06.4393125Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:48.5638564Z"
+      },
+      {
+        "harness": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+        "started": "2026-10-23T13:09:48.6559053Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:48.9665273Z"
+      },
+      {
+        "harness": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+        "started": "2026-10-23T13:09:49.0507201Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:49.3098392Z"
+      },
+      {
+        "harness": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+        "started": "2026-10-23T13:09:49.3861987Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:49.4662711Z"
+      },
+      {
+        "harness": "contracts::memory_saver_releases_every_unused_buffer",
+        "started": "2026-10-23T13:09:49.5340685Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:49.5798455Z"
+      },
+      {
+        "harness": "contracts::idle_cache_release_preserves_small_working_sets",
+        "started": "2026-10-23T13:09:49.6458762Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:49.6823483Z"
+      },
+      {
+        "harness": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+        "started": "2026-10-23T13:09:49.7985385Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:51.5385596Z"
+      },
+      {
+        "harness": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+        "started": "2026-10-23T13:09:51.6538388Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:54.1292681Z"
+      },
+      {
+        "harness": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+        "started": "2026-10-23T13:09:54.1988774Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:09:54.3350190Z"
+      },
+      {
+        "harness": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+        "started": "2026-10-23T13:09:54.7996040Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:01.2571849Z"
+      },
+      {
+        "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+        "started": "2026-10-23T13:10:01.7144555Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:09.6665220Z"
+      },
+      {
+        "harness": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+        "started": "2026-10-23T13:10:10.3669882Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:13.0428758Z"
+      },
+      {
+        "harness": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+        "started": "2026-10-23T13:10:13.1199824Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:13.2020921Z"
+      },
+      {
+        "harness": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+        "started": "2026-10-23T13:10:13.2817579Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:13.3741612Z"
+      },
+      {
+        "harness": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+        "started": "2026-10-23T13:10:13.4590738Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:13.5507870Z"
+      },
+      {
+        "harness": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+        "started": "2026-10-23T13:10:13.6202423Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:13.6553253Z"
+      },
+      {
+        "harness": "contracts::tensor_source_interval_is_ordered_and_cannot_wrap",
+        "started": "2026-10-23T13:10:13.7409338Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:14.0374112Z"
+      },
+      {
+        "harness": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+        "started": "2026-10-23T13:10:14.1519352Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:14.7054377Z"
+      },
+      {
+        "harness": "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
+        "started": "2026-10-23T13:10:14.8349441Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:15.2653551Z"
+      },
+      {
+        "harness": "contracts::flash_reference_batch_has_exact_bounded_coverage",
+        "started": "2026-10-23T13:10:15.3567511Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:15.5283433Z"
+      },
+      {
+        "harness": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+        "started": "2026-10-23T13:10:15.6149446Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:15.7186848Z"
+      },
+      {
+        "harness": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+        "started": "2026-10-23T13:10:15.7978826Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:15.8648886Z"
+      },
+      {
+        "harness": "contracts::mtp_add_norm_launch_bounds",
+        "started": "2026-10-23T13:10:15.9619381Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:16.1860195Z"
+      },
+      {
+        "harness": "contracts::pipeline_layer_has_no_final_or_outside_submission",
+        "started": "2026-10-23T13:10:16.2635860Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:16.3853501Z"
+      },
+      {
+        "harness": "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+        "started": "2026-10-23T13:10:16.4550966Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:16.5022965Z"
+      },
+      {
+        "harness": "contracts::dense_mlp_batch_stays_within_supported_domain",
+        "started": "2026-10-23T13:10:16.5922048Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:16.7776840Z"
+      },
+      {
+        "harness": "contracts::smallm_kernel_key_is_injective",
+        "started": "2026-10-23T13:10:16.8619975Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:16.9226935Z"
+      },
+      {
+        "harness": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+        "started": "2026-10-23T13:10:17.0050750Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:17.5606371Z"
+      },
+      {
+        "harness": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+        "started": "2026-10-23T13:10:17.6301837Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:17.6824124Z"
+      },
+      {
+        "harness": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+        "started": "2026-10-23T13:10:17.7614431Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:17.9225589Z"
+      },
+      {
+        "harness": "dflash::dflash_layouts_have_bounded_published_geometry",
+        "started": "2026-10-23T13:10:18.0117417Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T13:10:18.1536527Z"
+      },
+      {
+        "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+        "started": "2026-10-23T13:10:19.7095853Z"
+      }
+    ]
+  },
+  "75": {
+    "log": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-75-ci/job-120410093061-kani.log",
+    "sha256": "cf640f35c3e334c2a99826a8dcb18994751765d5320de2d7b371e2baff8d1764",
+    "started_harnesses": 32,
+    "successful": 31,
+    "failed": 0,
+    "last": {
+      "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+      "started": "2026-10-23T12:22:29.2726277Z"
+    },
+    "unfinished": [
+      {
+        "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+        "started": "2026-10-23T12:22:29.2726277Z"
+      }
+    ],
+    "shutdown_errors": [
+      "2026-10-23T12:23:51.8414202Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+      "2026-10-23T12:23:51.8431101Z ##[error]Process completed with exit code 143."
+    ],
+    "explicit_exit_lines": [
+      "2026-10-23T12:23:51.8431101Z ##[error]Process completed with exit code 143."
+    ],
+    "last_harness_seconds_before_shutdown": 82.568793,
+    "verification_failed_line": false,
+    "events": [
+      {
+        "harness": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+        "started": "2026-10-23T12:20:50.0106724Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.1835033Z"
+      },
+      {
+        "harness": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+        "started": "2026-10-23T12:22:09.2369610Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.4143031Z"
+      },
+      {
+        "harness": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+        "started": "2026-10-23T12:22:09.4661492Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.6237941Z"
+      },
+      {
+        "harness": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+        "started": "2026-10-23T12:22:09.6683395Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.7153257Z"
+      },
+      {
+        "harness": "contracts::memory_saver_releases_every_unused_buffer",
+        "started": "2026-10-23T12:22:09.7570795Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.7834877Z"
+      },
+      {
+        "harness": "contracts::idle_cache_release_preserves_small_working_sets",
+        "started": "2026-10-23T12:22:09.8244217Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:09.8526251Z"
+      },
+      {
+        "harness": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+        "started": "2026-10-23T12:22:09.9177747Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:11.1618491Z"
+      },
+      {
+        "harness": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+        "started": "2026-10-23T12:22:11.2365036Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:12.9552375Z"
+      },
+      {
+        "harness": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+        "started": "2026-10-23T12:22:12.9947078Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:13.0824184Z"
+      },
+      {
+        "harness": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+        "started": "2026-10-23T12:22:13.3418897Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:17.7805370Z"
+      },
+      {
+        "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+        "started": "2026-10-23T12:22:18.0037528Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:23.4585435Z"
+      },
+      {
+        "harness": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+        "started": "2026-10-23T12:22:23.8181121Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.3310998Z"
+      },
+      {
+        "harness": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+        "started": "2026-10-23T12:22:25.3745952Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.4224635Z"
+      },
+      {
+        "harness": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+        "started": "2026-10-23T12:22:25.4661744Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.5169865Z"
+      },
+      {
+        "harness": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+        "started": "2026-10-23T12:22:25.5649680Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.6227302Z"
+      },
+      {
+        "harness": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+        "started": "2026-10-23T12:22:25.6617337Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.6808858Z"
+      },
+      {
+        "harness": "contracts::tensor_source_interval_is_ordered_and_cannot_wrap",
+        "started": "2026-10-23T12:22:25.7276735Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:25.9135992Z"
+      },
+      {
+        "harness": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+        "started": "2026-10-23T12:22:25.9791328Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:26.2891302Z"
+      },
+      {
+        "harness": "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
+        "started": "2026-10-23T12:22:26.3683305Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:26.6234100Z"
+      },
+      {
+        "harness": "contracts::flash_reference_batch_has_exact_bounded_coverage",
+        "started": "2026-10-23T12:22:26.7081726Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:26.8094865Z"
+      },
+      {
+        "harness": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+        "started": "2026-10-23T12:22:26.8601954Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:26.9119392Z"
+      },
+      {
+        "harness": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+        "started": "2026-10-23T12:22:26.9544515Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:26.9940473Z"
+      },
+      {
+        "harness": "contracts::mtp_add_norm_launch_bounds",
+        "started": "2026-10-23T12:22:27.0536846Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:27.1849419Z"
+      },
+      {
+        "harness": "contracts::pipeline_layer_has_no_final_or_outside_submission",
+        "started": "2026-10-23T12:22:27.2319314Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:27.3126605Z"
+      },
+      {
+        "harness": "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+        "started": "2026-10-23T12:22:27.3545399Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:27.3834003Z"
+      },
+      {
+        "harness": "contracts::dense_mlp_batch_stays_within_supported_domain",
+        "started": "2026-10-23T12:22:27.4330136Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:27.5279724Z"
+      },
+      {
+        "harness": "contracts::smallm_kernel_key_is_injective",
+        "started": "2026-10-23T12:22:27.5675669Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:27.6038346Z"
+      },
+      {
+        "harness": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+        "started": "2026-10-23T12:22:27.6502135Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:28.0414023Z"
+      },
+      {
+        "harness": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+        "started": "2026-10-23T12:22:28.0839048Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:28.1135856Z"
+      },
+      {
+        "harness": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+        "started": "2026-10-23T12:22:28.1610775Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:28.2567596Z"
+      },
+      {
+        "harness": "dflash::dflash_layouts_have_bounded_published_geometry",
+        "started": "2026-10-23T12:22:28.3084495Z",
+        "verdict": "SUCCESSFUL",
+        "verdict_at": "2026-10-23T12:22:28.3980700Z"
+      },
+      {
+        "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+        "started": "2026-10-23T12:22:29.2726277Z"
+      }
+    ]
+  },
+  "run": {
+    "id": 39958506522,
+    "head_sha": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+    "head_branch": "codex/flash-next-ssd-205",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "run_attempt": 1,
+    "created_at": "2026-10-23T13:06:37Z",
+    "run_started_at": "2026-10-23T13:06:37Z",
+    "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39958506522",
+    "actor": "0xZKnw",
+    "triggering_actor": "0xZKnw"
+  },
+  "jobs": [
+    {
+      "id": 120430259174,
+      "name": "native (ubuntu-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39958506522/job/120430259174",
+      "started_at": "2026-10-23T13:06:39Z",
+      "completed_at": "2026-10-23T13:12:14Z"
+    },
+    {
+      "id": 120430259523,
+      "name": "kani-flash-contracts",
+      "status": "in_progress",
+      "conclusion": null,
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39958506522/job/120430259523",
+      "started_at": "2026-10-23T13:06:39Z",
+      "completed_at": null
+    },
+    {
+      "id": 120430259562,
+      "name": "native (macos-26)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39958506522/job/120430259562",
+      "started_at": "2026-10-23T13:06:40Z",
+      "completed_at": "2026-10-23T13:15:14Z"
+    },
+    {
+      "id": 120430259721,
+      "name": "kani",
+      "status": "completed",
+      "conclusion": "failure",
+      "html_url": "https://github.com/0xZKnw/mlxl3/actions/runs/39958506522/job/120430259721",
+      "started_at": "2026-10-23T13:06:40Z",
+      "completed_at": "2026-10-23T13:12:20Z"
+    }
+  ],
+  "same_harness_sequence": true,
+  "same_last_harness": true,
+  "workflow_blob_sha": "98031fb381183070edde3c96ba8648fad8a06d89",
+  "workflow_sha256": "14388c6e88e925593b167cfda8fd304a70ebf8353ac06b1873b2d6bf971dd3e2",
+  "limitation": "Runner shutdown observed twice at same unfinished harness; no OOM/human cancellation/timeout cause established;77 log has no explicit exit143"
+}

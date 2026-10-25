@@ -1,0 +1,94 @@
+{
+  "status": "completed_native_bridge_experiment",
+  "runtime_source_commit": "dc33e3e48c472dfd875923679304ab3114e55ad0",
+  "runtime_identity": "identity-v7.json",
+  "source_and_artifact_hashes_rechecked": true,
+  "target_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "draft_revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+  "splash_revision": "1482f6bbc2abf12375332725302019594150b6cb",
+  "confirmed_memory_gain_bytes": [
+    490013056,
+    486769000,
+    487620968,
+    486785480
+  ],
+  "confirmed_global_tps_gain": false,
+  "target_15_tps_reached": false,
+  "stage_outcomes": {
+    "speed-v6-BQ": {
+      "status": "inconclusive_drift",
+      "confirmed_gain": false,
+      "memory_status": "passed_postflight30s_zero_new_swapout"
+    },
+    "speed-v7-QR": {
+      "status": "inconclusive_drift",
+      "confirmed_gain": false,
+      "memory_status": "passed_postflight30s_zero_new_swapout"
+    },
+    "speed-v7-RA": {
+      "status": "inconclusive_drift",
+      "confirmed_gain": false,
+      "memory_status": "passed_postflight30s_zero_new_swapout"
+    },
+    "speed-v7-final": {
+      "status": "inconclusive_drift",
+      "confirmed_gain": false,
+      "memory_status": "passed_postflight30s_zero_new_swapout"
+    }
+  },
+  "numeric_native_cases": 20,
+  "byte_exact_semantic_states_per_case": 136,
+  "bridge_checks": 43,
+  "speed_generations_with_equal_text_and_token_hash_to_fresh_OFF": 68,
+  "cpu_tests": {
+    "no_default_features": {
+      "passed": 110,
+      "ignored": 3
+    },
+    "release_mlx_chat": {
+      "passed": 139,
+      "ignored": 138
+    },
+    "python_full": {
+      "passed": 915,
+      "skipped": 4
+    }
+  },
+  "source_verification": {
+    "ring": {
+      "tool": "Kani0.68.0",
+      "domain": "symbolic i32 start and rows, checked real helper",
+      "unwind": 3,
+      "obligations": 41,
+      "covers": 2,
+      "status": "passed_bounded_model_checking"
+    },
+    "prefix": {
+      "tool": "Kani0.68.0",
+      "domain": "7 symbolic f64 probabilities and 8 symbolic f64 costs",
+      "unwind": 9,
+      "obligations": 270,
+      "unreachable": 1,
+      "covers": 2,
+      "status": "passed_bounds_and_rejection_properties"
+    },
+    "MLX_Kani": "unverified_compiler_ICE",
+    "CABI_CBMC": "unverified_Apple_SDK_parse_failure",
+    "Python_CrossHair": "unverified_tool_absent",
+    "GPU_concurrency": "not_formally_proved"
+  },
+  "CI_code_commit": {
+    "regression": "success",
+    "native_linux": "success",
+    "native_macos_mlx": "success",
+    "kani_flash_contracts": "success",
+    "kani_global": "failure_runner_shutdown_143_on_unchanged_preexisting_cache_allocation_harness"
+  },
+  "desktop_app_replaced": false,
+  "desktop_flash_auto_installer": "not_extended_or_validated",
+  "draft_q4_kernel": "MLX affine QMM, not Splash specialized Q4 MPP",
+  "gpu_campaign_cumulative_delta_bytes": {
+    "Swapins": 240009216,
+    "Swapouts": 0
+  }
+}

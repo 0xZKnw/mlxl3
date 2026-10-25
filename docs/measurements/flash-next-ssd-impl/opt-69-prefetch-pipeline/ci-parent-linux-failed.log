@@ -1,0 +1,649 @@
+native (ubuntu-latest)	Lint native verification scripts and regressions	﻿2026-10-22T13:49:32.2603244Z ##[group]Run for verification_source in docs/measurements/flash-next-ssd-impl/opt-30-les/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-32-les-async/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-33-les-admission/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-34-les-ready/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/*/*supervisor.txt; do
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2608799Z ^[[36;1mfor verification_source in docs/measurements/flash-next-ssd-impl/opt-30-les/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-32-les-async/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-33-les-admission/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-34-les-ready/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/*/*supervisor.txt; do^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2611663Z ^[[36;1m  ruff format --check --stdin-filename flash-les-verification.py < "$verification_source"^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2612329Z ^[[36;1m  ruff check --select F,E9 --stdin-filename flash-les-verification.py < "$verification_source"^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2612799Z ^[[36;1mdone^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2613192Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-34-les-ready/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2613826Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2614447Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2615112Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2616043Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/profile/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2616794Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/components/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2617535Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/gates/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2618262Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2619268Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-mtp/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2619991Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/heads/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2620713Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/heads-les/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2621454Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2622227Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts4-quality/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2623001Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts-speed/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2624758Z ^[[36;1mfor verification_source in docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/mutations/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-*/*supervisor.txt; do^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2626725Z ^[[36;1m  ruff format --check --stdin-filename flash-draft-verification.py < "$verification_source"^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2627412Z ^[[36;1m  ruff check --select F,E9 --stdin-filename flash-draft-verification.py < "$verification_source"^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2627888Z ^[[36;1mdone^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2628550Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/quality1/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2629546Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/calibration-off/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2630327Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-off/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2631074Z ^[[36;1mpython < docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler/speed-on/guards-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2631966Z ^[[36;1mruff format --check --stdin-filename flash-audit45.py < docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2633003Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-audit45.py < docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2633735Z ^[[36;1mruff format --check tests/test_flash_quality_run.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2634112Z ^[[36;1mruff check tests/test_flash_quality_run.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2634480Z ^[[36;1mpython -m pytest -q tests/test_flash_quality_run.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2635204Z ^[[36;1mruff format --check --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2636252Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-slot46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2637280Z ^[[36;1mruff format --check --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2638565Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-bridge46.py < docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/bridge-driver.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2639314Z ^[[36;1mruff format --check tests/test_flash_slot_benchmark.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2639907Z ^[[36;1mruff check tests/test_flash_slot_benchmark.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2640297Z ^[[36;1mpython -m pytest -q tests/test_flash_slot_benchmark.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2641027Z ^[[36;1mruff format --check --stdin-filename flash-calibration47.py < docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2642070Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-calibration47.py < docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2642804Z ^[[36;1mruff format --check tests/test_flash_cache_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2643186Z ^[[36;1mruff check tests/test_flash_cache_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2643566Z ^[[36;1mpython -m pytest -q tests/test_flash_cache_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2644338Z ^[[36;1mruff format --check --stdin-filename flash-cache47.py < docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/speed-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2645396Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-cache47.py < docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/runtime/speed-supervisor.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2646116Z ^[[36;1mruff format --check tests/test_flash_pair_kernel.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2646485Z ^[[36;1mruff check tests/test_flash_pair_kernel.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2646849Z ^[[36;1mpython -m pytest -q tests/test_flash_pair_kernel.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2647530Z ^[[36;1mruff format --check --stdin-filename flash-pair48.py < docs/measurements/flash-next-ssd-impl/opt-48-paired-experts/qualify-micro.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2648789Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-pair48.py < docs/measurements/flash-next-ssd-impl/opt-48-paired-experts/qualify-micro.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2649667Z ^[[36;1mruff format --check tests/test_flash_resident_gate.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2650041Z ^[[36;1mruff check tests/test_flash_resident_gate.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2650419Z ^[[36;1mpython -m pytest -q tests/test_flash_resident_gate.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2651103Z ^[[36;1mruff format --check --stdin-filename flash-gate49.py < docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/qualify-micro.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2652074Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-gate49.py < docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/qualify-micro.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2652795Z ^[[36;1mruff format --check tests/test_flash_variance_diagnostic.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2653218Z ^[[36;1mruff check tests/test_flash_variance_diagnostic.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2653630Z ^[[36;1mpython -m pytest -q tests/test_flash_variance_diagnostic.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2654369Z ^[[36;1mruff format --check --stdin-filename flash-variance49.py < docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2655407Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-variance49.py < docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2656139Z ^[[36;1mruff format --check tests/test_flash_larger_cache.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2656519Z ^[[36;1mruff check tests/test_flash_larger_cache.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2656903Z ^[[36;1mpython -m pytest -q tests/test_flash_larger_cache.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2657376Z ^[[36;1mruff format --check scripts/profile_flash.py tests/test_flash_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2657890Z ^[[36;1mruff check scripts/profile_flash.py tests/test_flash_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2658552Z ^[[36;1mpython -m pytest -q tests/test_flash_profile.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2659076Z ^[[36;1mruff format --check scripts/analyze_flash_cache_width.py tests/test_flash_cache_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2659692Z ^[[36;1mruff check scripts/analyze_flash_cache_width.py tests/test_flash_cache_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2660205Z ^[[36;1mpython -m py_compile scripts/analyze_flash_cache_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2660790Z ^[[36;1mpython -m pytest -q tests/test_flash_cache_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2661542Z ^[[36;1mruff format --check tests/test_flash_grouped65.py tests/test_flash_monitor_timeout.py docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/qualify.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2662613Z ^[[36;1mruff check tests/test_flash_grouped65.py tests/test_flash_monitor_timeout.py docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/qualify.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2663434Z ^[[36;1mpython -m pytest -q tests/test_flash_grouped65.py tests/test_flash_monitor_timeout.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2664053Z ^[[36;1mruff format --check scripts/check_flash_fixed_width.py tests/test_flash_fixed_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2664648Z ^[[36;1mruff check scripts/check_flash_fixed_width.py tests/test_flash_fixed_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2665138Z ^[[36;1mpython -m pytest -q tests/test_flash_fixed_width.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2665657Z ^[[36;1mruff format --check scripts/summarize_flash_profile.py tests/test_flash_profile_export.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2666287Z ^[[36;1mruff check scripts/summarize_flash_profile.py tests/test_flash_profile_export.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2666797Z ^[[36;1mpython -m pytest -q tests/test_flash_profile_export.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2667404Z ^[[36;1mruff format --check tests/test_flash_qmv54.py docs/measurements/flash-next-ssd-impl/opt-54-qmv/qualify-micro.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2668178Z ^[[36;1mruff check tests/test_flash_qmv54.py docs/measurements/flash-next-ssd-impl/opt-54-qmv/qualify-micro.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2669036Z ^[[36;1mpython -m pytest -q tests/test_flash_qmv54.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2669402Z ^[[36;1mruff format --check tests/test_flash_gpu_hot.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2669747Z ^[[36;1mruff check tests/test_flash_gpu_hot.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2670249Z ^[[36;1mpython -m pytest -q tests/test_flash_gpu_hot.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2670840Z ^[[36;1mruff format --check tests/test_flash_hybrid56.py docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2671632Z ^[[36;1mruff check tests/test_flash_hybrid56.py docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2672214Z ^[[36;1mpython -m pytest -q tests/test_flash_hybrid56.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2672830Z ^[[36;1mruff format --check tests/test_flash_splash60.py docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/qualify.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2673666Z ^[[36;1mruff check tests/test_flash_splash60.py docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/qualify.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2674264Z ^[[36;1mpython -m pytest -q tests/test_flash_splash60.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2674739Z ^[[36;1mruff format --check scripts/replay_flash_cache53.py tests/test_flash_cache53.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2675295Z ^[[36;1mruff check scripts/replay_flash_cache53.py tests/test_flash_cache53.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2675749Z ^[[36;1mpython -m pytest -q tests/test_flash_cache53.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2676389Z ^[[36;1mruff format --check --stdin-filename flash-cache50.py < docs/measurements/flash-next-ssd-impl/opt-50-larger-cache/bench.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2677307Z ^[[36;1mruff check --select F,E9 --stdin-filename flash-cache50.py < docs/measurements/flash-next-ssd-impl/opt-50-larger-cache/bench.txt^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2677980Z ^[[36;1mruff check --select F,E9 tests/fake-desktop-engine.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2678611Z ^[[36;1mpython -m py_compile tests/fake-desktop-engine.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2680605Z ^[[36;1mruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2686937Z ^[[36;1mruff check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2691714Z ^[[36;1mpython -m py_compile benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2693691Z ^[[36;1mruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2694919Z ^[[36;1mruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2695940Z ^[[36;1mpython -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2696726Z ^[[36;1mruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2697397Z ^[[36;1mruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2697945Z ^[[36;1mpython -m py_compile scripts/experimental-draft-head.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2698988Z ^[[36;1mruff format --check scripts/check_dflash2.py tests/test_dflash2_check.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2699502Z ^[[36;1mruff check scripts/check_dflash2.py tests/test_dflash2_check.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2699935Z ^[[36;1mpython -m py_compile scripts/check_dflash2.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2700384Z ^[[36;1mruff format --check scripts/check_flash_drafts.py tests/test_flash_drafts.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2700926Z ^[[36;1mruff check scripts/check_flash_drafts.py tests/test_flash_drafts.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2701486Z ^[[36;1mruff format --check scripts/calibrate_flash_draft.py tests/test_flash_calibration.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2702071Z ^[[36;1mruff check scripts/calibrate_flash_draft.py tests/test_flash_calibration.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2702557Z ^[[36;1mpython -m pytest -q tests/test_flash_calibration.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2702951Z ^[[36;1mpython -m py_compile scripts/check_flash_drafts.py^[[0m
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2756602Z shell: /usr/bin/bash -e {0}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2757038Z env:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2757460Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2758187Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2759190Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2759832Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2760448Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2761022Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2761351Z ##[endgroup]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.2943586Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3022301Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3110972Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3203381Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3287445Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3384949Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3485026Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3573812Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3673423Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3769671Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3855053Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.3944859Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4067633Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4150276Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4232126Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4333898Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4413924Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4496736Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4577524Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4654609Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4732953Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4811803Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.4909716Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5009389Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5087233Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5163937Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5243531Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5335752Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5414035Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5498573Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5592877Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5691089Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5766748Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5844314Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5922374Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.5999720Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6086178Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6171158Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6249638Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6325731Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6399845Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6478788Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6564633Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6644215Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6723297Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6802860Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6883986Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.6963744Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7043419Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7122586Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7199914Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7301519Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7392486Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7487181Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7564480Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7642738Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7739021Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7832894Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.7933237Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8027655Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8107025Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8211756Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8307024Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8386762Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8491443Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8574521Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8667795Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8744511Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8842484Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.8923539Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9014828Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9115740Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9211799Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9288917Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9387198Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9480772Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9563175Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9660015Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9749944Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9837383Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:32.9932536Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.0019871Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.0115205Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.0203457Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.0302253Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.0388816Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.1202618Z {'status': 'passed', 'cases': 144}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.2386723Z {"status": "passed", "live_memory_cases": 21, "selection_cases": 216}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.3337418Z {"status": "passed", "live_memory_cases": 21, "selection_cases": 216}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:33.4289368Z {"status": "passed", "source_hashes": {"bench-supervisor.txt": "ad19ce3c198631795d6fc78088b9912d75aad6245eb26ba0ebcc389aac83bd5a", "quality-supervisor.txt": "d4f2054aa46a7ef2aa5f902aeba792b321ea94b1f058a32446526d3e5422addb", "guards-supervisor.txt": "82c087944c19f63a90740b391426574643d49694fa0184bdc92811301b787496"}, "selection_and_pair_cases": 26, "deterministic_scaling_cases": 200, "seed": 41, "artifact_preflight_cases": 4}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:44.5289105Z {'status': 'passed', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'supervisor_integration_cases': 12}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:49:55.4820286Z {'status': 'passed', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'supervisor_integration_cases': 14}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:06.8426005Z {'status': 'passed', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'route_cases': 17, 'supervisor_integration_cases': 16}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:06.9378851Z {'status': 'passed', 'decision_cases': 42, 'scaling_cases': 200, 'monitor_cases': 7, 'preflight_cases': 4}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:07.0316970Z {'status': 'passed', 'decision_cases': 42, 'scaling_cases': 200, 'monitor_cases': 7, 'preflight_cases': 4}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:18.3458164Z {'status': 'passed', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'head_cases': 17, 'supervisor_integration_cases': 16}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:29.6132682Z {'status': 'passed', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'head_cases': 17, 'supervisor_integration_cases': 16}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:29.7078282Z {'status': 'passed', 'decision_cases': 48, 'scaling_cases': 200, 'monitor_cases': 8, 'preflight_cases': 4}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.7492037Z {'status': 'incomplete', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'head_cases': 17, 'supervisor_integration_cases': 18}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.7492858Z {'status': 'passed', 'native_validator_regressions': 76}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8255087Z {"status": "passed", "source_hashes": {"bench-supervisor.txt": "c4267e827c8d05e51edd5e6fdbf5a68f4a6cac100ecc7f87eb3cae5252da98fb", "guards-supervisor.txt": "83ae440bbf16df37e463241184f4ba7ab4d2fc10fc51702de80916e59923fbad"}, "diagnostics": {"status": "passed", "diagnostic_cases": 25, "scope": "finite CPU mutations, not a proof"}, "qualification_cases": 9, "decision_cases": 7, "monitor": "unchanged actual monitor/snapshot from speed-heads; eight CPU monitor cases qualified in its guard-checks.json"}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8430630Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8524676Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8628759Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8721922Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8796909Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8892479Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.8967591Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.9068785Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:42.9146893Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:55.5473643Z {'status': 'incomplete', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'head_cases': 17, 'supervisor_integration_cases': 18}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:50:55.5474889Z {'status': 'passed', 'native_validator_regressions': 76}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.2346685Z {'status': 'incomplete', 'diagnostic_cases': 144, 'event_delta_cases': 12, 'component_cases': 31, 'head_cases': 17, 'supervisor_integration_cases': 18}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.2347956Z {'status': 'passed', 'native_validator_regressions': 76}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.3308002Z {"status": "passed", "source_hashes": {"bench-supervisor.txt": "a06e1fde6c8c43cc9b79645c74f5b54eb8c2b8bc370a3ed920e790ddacc92d23", "guards-supervisor.txt": "e92a345003fce678b6e332adb97ce51aa020029d3272e0d2ffb0e7d65ad01246"}, "diagnostics": {"status": "passed", "diagnostic_cases": 41, "scope": "finite CPU mutations, not a proof"}, "qualification_cases": 9, "decision_cases": 7, "monitor": "unchanged actual monitor/snapshot from speed-heads; eight CPU monitor cases qualified in its guard-checks.json"}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.4075088Z {"status": "passed", "source_hashes": {"bench-supervisor.txt": "6f0ab2533c4abd327a241ad55db5a65190fe61d9e5b6239a02ec9fc4c5a87e7b", "guards-supervisor.txt": "845ea49e6ed3b85d14f33034e93e49aa3469cbe35227ffb575d8b3571846ef2e"}, "diagnostics": {"status": "passed", "diagnostic_cases": 41, "scope": "finite CPU mutations, not a proof"}, "qualification_cases": 9, "decision_cases": 7, "monitor": "unchanged actual monitor/snapshot from speed-heads; eight CPU monitor cases qualified in its guard-checks.json"}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.4223985Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.4286267Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:08.4350876Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.4447144Z ...............                                                          [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.4448196Z 15 passed in 0.81s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.4916839Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.4987985Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.5058654Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.5130628Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.9429247Z .........................................                                [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.9429903Z 41 passed in 0.24s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.9934247Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:09.9996451Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.0062548Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.2454268Z .............                                                            [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.2455053Z 13 passed in 0.05s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.2961456Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.3024385Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:10.3091665Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.1673998Z ..................                                                       [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.1676947Z 18 passed in 8.66s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.1987086Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.2047344Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.2110881Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.4399173Z ..................                                                       [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.4399854Z 18 passed in 0.04s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.4692381Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.4758734Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.4828193Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.7099412Z ........                                                                 [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.7100148Z 8 passed in 0.04s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.7452013Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.7520168Z 1 file already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:19.7591606Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:20.5319069Z .............................................                            [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:20.5319809Z 45 passed in 0.58s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:20.5709358Z 2 files already formatted
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:20.5808126Z All checks passed!
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:21.1883808Z ........................................................................ [ 84%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5845052Z .......F.....                                                            [100%]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5845773Z =================================== FAILURES ===================================
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5846667Z _ test_real_sampler_rejects_exhausted_budget_before_starting_child[Swapouts-live] _
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5847346Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5847816Z child = <Popen: returncode: -15 args: ['/opt/hostedtoolcache/Python/3.12.15/x64/bin/...>
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5849935Z r = {'before': {'pmset -g batt': "Now drawing from 'AC Power'", 'vm_bytes': {'Swapins': 100, 'Swapouts': 100}}, 'command':...hild-started').touch(); time.sleep(30)"], 'env': {}, 'error': "FileNotFoundError(2, 'No such file or directory')", ...}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5851860Z parse_vm = <function cumulative_monitor.<locals>.guarded.<locals>.zero_swapout at 0x7f0b4b546520>
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5852524Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5852690Z     def monitor(child, r, parse_vm):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5853147Z         seconds = r.get("timeout_seconds", 360)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5853985Z         assert type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5855000Z         deadline = time.monotonic() + seconds
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5855614Z         while True:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5856143Z             remaining = deadline - time.monotonic()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5856845Z             if remaining <= 0:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5857557Z                 raise subprocess.TimeoutExpired(r["command"], seconds)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5859014Z             try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5859553Z >               return child.wait(timeout=min(2, remaining))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5860137Z                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5860494Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5861435Z /tmp/pytest-of-runner/pytest-8/test_real_sampler_rejects_exha14/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt:47: 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5862814Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5863631Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:1264: in wait
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5864370Z     return self._wait(timeout=timeout)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5864820Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5865295Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5865549Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5865793Z self = <Popen: returncode: -15 args: ['/opt/hostedtoolcache/Python/3.12.15/x64/bin/...>
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5866223Z timeout = 2
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5866332Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5866432Z     def _wait(self, timeout):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5866724Z         """Internal implementation of wait() on POSIX."""
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5867050Z         if self.returncode is not None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5867324Z             return self.returncode
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5867562Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5867752Z         if timeout is not None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5867996Z             endtime = _time() + timeout
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5868833Z             # Enter a busy loop if we have a timeout.  This busy loop was
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5869749Z             # cribbed from Lib/threading.py in Thread.wait() at r71065.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5870419Z             delay = 0.0005 # 500 us -> initial delay of 1 ms
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5871228Z             while True:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5871641Z                 if self._waitpid_lock.acquire(False):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5872129Z                     try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5872549Z                         if self.returncode is not None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5873086Z                             break  # Another thread waited.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5873568Z                         (pid, sts) = self._try_wait(os.WNOHANG)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5873909Z                         assert pid == self.pid or pid == 0
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5874217Z                         if pid == self.pid:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5874511Z                             self._handle_exitstatus(sts)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5874800Z                             break
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5875042Z                     finally:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5875297Z                         self._waitpid_lock.release()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5875616Z                 remaining = self._remaining_time(endtime)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5875932Z                 if remaining <= 0:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5876226Z >                   raise TimeoutExpired(self.args, timeout)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5877122Z E                   subprocess.TimeoutExpired: Command '['/opt/hostedtoolcache/Python/3.12.15/x64/bin/python', '-c', "import time; from pathlib import Path; Path('child-started').touch(); time.sleep(30)"]' timed out after 2 seconds
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5877905Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5878157Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:2045: TimeoutExpired
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5878830Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5879016Z During handling of the above exception, another exception occurred:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5879295Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5879532Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-8/test_real_sampler_rejects_exha14')
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5880076Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0b4b5c60f0>
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5880486Z counter = 'Swapouts', delta = 'live'
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5880669Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5880775Z     @pytest.mark.parametrize(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5881021Z         "counter,delta",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5881233Z         [
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5881424Z             (counter, delta)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5881872Z             for counter in ("Swapins", "Swapouts")
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5882255Z             for delta in (0, 1, 256 << 20, (256 << 20) + 1, -1, "missing", "bool")
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5882598Z         ]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5882792Z         + [("Swapouts", "live")],
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5883033Z     )
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5883319Z     def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5883716Z         tmp_path, monkeypatch, counter, delta
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5883983Z     ):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5884163Z         import shutil
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5884372Z         import sys
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5884575Z         import threading
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5884813Z         from types import SimpleNamespace
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5885067Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5885331Z         api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5885734Z         base = Path("docs/measurements/flash-next-ssd-impl")
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5886113Z         monkeypatch.setattr(sys, "path", sys.path.copy())
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5886426Z         paths = {
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5886727Z             "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5887205Z             "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5887723Z             "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5888198Z             "parser": Path("benchmarks/benchmark_flash_memory.py"),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5888884Z             "process": Path("scripts/native_json_process.py"),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5889268Z             "bridge": Path("scripts/benchmark-flash-bridge.py"),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5889590Z         }
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5889792Z         for path in paths.values():
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5890207Z             target = tmp_path / path
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5890523Z             target.parent.mkdir(parents=True, exist_ok=True)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5890865Z             shutil.copyfile(ROOT / path, target)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5891188Z         baseline = {"Swapins": 100, "Swapouts": 100}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5891491Z         current = baseline.copy()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5891745Z         if delta == "missing":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5891986Z             del current[counter]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5892227Z         elif delta == "bool":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5892473Z             current[counter] = True
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5892726Z         elif delta != "live":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5892967Z             current[counter] += delta
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5893215Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5893416Z         class FastEvent(threading.Event):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5893701Z             def wait(self, timeout=None):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5894096Z                 return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5894498Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5894688Z         original = runpy.run_path
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5894929Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5895117Z         def load(path):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5895365Z             namespace = original(path)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5895649Z             selected = Path(path).resolve()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5895984Z             if selected == (tmp_path / paths["sample"]).resolve():
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5896336Z                 glob = namespace["main"].__globals__
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5896714Z                 glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5897225Z                 glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5897703Z             if selected == (tmp_path / paths["monitor"]).resolve():
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5898055Z                 namespace["snapshot"] = lambda _: {
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5898727Z                     "vm_bytes": current.copy(),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5899140Z                     "pmset -g batt": "Now drawing from 'AC Power'",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5899446Z                 }
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5899755Z             if selected == (tmp_path / paths["parser"]).resolve() and delta == "live":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5900397Z                 namespace["parse_vm"] = lambda _: {"Swapins": 100, "Swapouts": 101}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5900774Z             return namespace
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5901000Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5901203Z         glob = api["run_sampler"].__globals__
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5901514Z         monkeypatch.setitem(glob, "ROOT", tmp_path)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5901914Z         monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5902308Z         monkeypatch.chdir(tmp_path)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5902584Z         marker = tmp_path / "child-started"
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5902866Z         plan = tmp_path / "run.json"
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5903129Z         plan.write_text(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5903358Z             json.dumps(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5903572Z                 [
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5903767Z                     {
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5903990Z                         "name": "preflight",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5904260Z                         "command": [
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5904525Z                             sys.executable,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5904800Z                             "-c",
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5905036Z                             (
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5905416Z                                 "import time; from pathlib import Path; Path('child-started').touch(); "
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5905886Z                                 f"time.sleep({30 if delta == 'live' else 0})"
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5920673Z                             ),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5921070Z                         ],
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5921431Z                         "env": {},
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5921808Z                         "expected_exit": 0,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5922106Z                         "timeout_seconds": 5,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5922603Z                     }
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5922822Z                 ]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5923018Z             )
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5923202Z         )
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5923444Z         maximum = 0 if counter == "Swapouts" else 256 << 20
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5923827Z         allowed = type(delta) is int and 0 <= delta <= maximum
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5924148Z         if allowed:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5924382Z             api["run_sampler"](plan, baseline)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5924654Z         else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5924904Z             with pytest.raises((AssertionError, KeyError)):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5925246Z >               api["run_sampler"](plan, baseline)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5925452Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5925629Z /home/runner/work/mlxl3/mlxl3/tests/test_flash_profile.py:500: 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5926038Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5926485Z /home/runner/work/mlxl3/mlxl3/scripts/profile_flash.py:423: in run_sampler
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5926896Z     return load(sampler_path)["main"](plan)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5927175Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5927867Z /tmp/pytest-of-runner/pytest-8/test_real_sampler_rejects_exha14/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5928978Z     runpy.run_path(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5929630Z /tmp/pytest-of-runner/pytest-8/test_real_sampler_rejects_exha14/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:63: in main
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5930478Z     record["exit_code"] = previous["monitor"](child, record, parse_vm)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5930862Z                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5931250Z /home/runner/work/mlxl3/mlxl3/scripts/profile_flash.py:365: in guarded
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5931651Z     return monitor(child, record, zero_swapout)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5931946Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5932682Z /tmp/pytest-of-runner/pytest-8/test_real_sampler_rejects_exha14/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt:49: in monitor
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5933738Z     current = parse_vm(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5934190Z                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5934675Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:466: in check_output
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5935198Z     return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5935686Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:548: in run
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5936127Z     with Popen(*popenargs, **kwargs) as process:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5936423Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5936812Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:1026: in __init__
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5937309Z     self._execute_child(args, executable, preexec_fn, close_fds,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5937695Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5937944Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5938115Z self = <Popen: returncode: 255 args: ['vm_stat']>, args = ['vm_stat']
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5938862Z executable = b'vm_stat', preexec_fn = None, close_fds = True, pass_fds = ()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5939355Z cwd = None, env = None, startupinfo = None, creationflags = 0, shell = False
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5939847Z p2cread = -1, p2cwrite = -1, c2pread = 12, c2pwrite = 13, errread = -1
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5940321Z errwrite = -1, restore_signals = True, gid = None, gids = None, uid = None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5940770Z umask = -1, start_new_session = False, process_group = -1
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5941014Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5941203Z     def _execute_child(self, args, executable, preexec_fn, close_fds,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5941582Z                        pass_fds, cwd, env,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5942041Z                        startupinfo, creationflags, shell,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5942350Z                        p2cread, p2cwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5942622Z                        c2pread, c2pwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5942899Z                        errread, errwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5943174Z                        restore_signals,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5943445Z                        gid, gids, uid, umask,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5943747Z                        start_new_session, process_group):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5944062Z         """Execute program (POSIX version)"""
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5944325Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5944532Z         if isinstance(args, (str, bytes)):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5944803Z             args = [args]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5945049Z         elif isinstance(args, os.PathLike):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5945321Z             if shell:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5945611Z                 raise TypeError('path-like args is not allowed when '
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5945963Z                                 'shell is true')
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5946241Z             args = [args]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5946458Z         else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5946658Z             args = list(args)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5946890Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5947070Z         if shell:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5947331Z             # On Android the default shell is at '/system/bin/sh'.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5947671Z             unix_shell = ('/system/bin/sh' if
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5948008Z                       hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5948629Z             args = [unix_shell, "-c"] + args
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5948912Z             if executable:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5949146Z                 args[0] = executable
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5949386Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5949574Z         if executable is None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5949815Z             executable = args[0]
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5950045Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5950299Z         sys.audit("subprocess.Popen", executable, args, cwd, env)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5950634Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5950820Z         if (_USE_POSIX_SPAWN
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5951093Z                 and os.path.dirname(executable)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5951389Z                 and preexec_fn is None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5951876Z                 and not close_fds
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5952124Z                 and not pass_fds
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5952367Z                 and cwd is None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5952631Z                 and (p2cread == -1 or p2cread > 2)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5952945Z                 and (c2pwrite == -1 or c2pwrite > 2)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5953257Z                 and (errwrite == -1 or errwrite > 2)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5953561Z                 and not start_new_session
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5953846Z                 and process_group == -1
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5954122Z                 and gid is None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5954358Z                 and gids is None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5954597Z                 and uid is None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5954834Z                 and umask < 0):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5955140Z             self._posix_spawn(args, executable, env, restore_signals,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5955495Z                               p2cread, p2cwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5955791Z                               c2pread, c2pwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5956072Z                               errread, errwrite)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5956331Z             return
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5956524Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5956721Z         orig_executable = executable
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5956962Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5957223Z         # For transferring possible exec failure from child to parent.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5957624Z         # Data format: "exception name:hex errno:description"
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5958035Z         # Pickle is not used; it is complex and involves memory allocation.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5958720Z         errpipe_read, errpipe_write = os.pipe()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5959108Z         # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5959614Z         low_fds_to_close = []
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5959862Z         while errpipe_write < 3:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5960143Z             low_fds_to_close.append(errpipe_write)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5960462Z             errpipe_write = os.dup(errpipe_write)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5960759Z         for low_fd in low_fds_to_close:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5961023Z             os.close(low_fd)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5961245Z         try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5961434Z             try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5961676Z                 # We must avoid complex work that could involve
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5962029Z                 # malloc or free in the child process to avoid
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5962386Z                 # potential deadlocks, thus we do all this here.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5962721Z                 # and pass it to fork_exec()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5962988Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5963224Z                 if env is not None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5963489Z                     env_list = []
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5963748Z                     for k, v in env.items():
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5964027Z                         k = os.fsencode(k)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5964295Z                         if b'=' in k:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5964631Z                             raise ValueError("illegal environment variable name")
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5965027Z                         env_list.append(k + b'=' + os.fsencode(v))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5965332Z                 else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5965598Z                     env_list = None  # Use execv instead of execve.
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5965937Z                 executable = os.fsencode(executable)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5966245Z                 if os.path.dirname(executable):
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5966544Z                     executable_list = (executable,)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5966820Z                 else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5967076Z                     # This matches the behavior of os._execvpe().
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5967397Z                     executable_list = tuple(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5967715Z                         os.path.join(os.fsencode(dir), executable)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5968053Z                         for dir in os.get_exec_path(env))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5968667Z                 fds_to_keep = set(pass_fds)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5969236Z                 fds_to_keep.add(errpipe_write)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5969536Z                 self.pid = _fork_exec(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5969808Z                         args, executable_list,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5970137Z                         close_fds, tuple(sorted(map(int, fds_to_keep))),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5970467Z                         cwd, env_list,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5970755Z                         p2cread, p2cwrite, c2pread, c2pwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5971062Z                         errread, errwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5971395Z                         errpipe_read, errpipe_write,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5971726Z                         restore_signals, start_new_session,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5972061Z                         process_group, gid, gids, uid, umask,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5972376Z                         preexec_fn, _USE_VFORK)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5972660Z                 self._child_created = True
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5972929Z             finally:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5973172Z                 # be sure the FD is closed no matter what
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5973479Z                 os.close(errpipe_write)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5973729Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5973947Z             self._close_pipe_fds(p2cread, p2cwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5974250Z                                  c2pread, c2pwrite,
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5974545Z                                  errread, errwrite)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5974804Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5975048Z             # Wait for exec to fail or succeed; possibly raising an
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5975388Z             # exception (limited in size)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5975669Z             errpipe_data = bytearray()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5975928Z             while True:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5976320Z                 part = os.read(errpipe_read, 50000)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5976612Z                 errpipe_data += part
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5976902Z                 if not part or len(errpipe_data) > 50000:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5977201Z                     break
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5977421Z         finally:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5977649Z             # be sure the FD is closed no matter what
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5977943Z             os.close(errpipe_read)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5978182Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5978679Z         if errpipe_data:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5978934Z             try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5979157Z                 pid, sts = os.waitpid(self.pid, 0)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5979446Z                 if pid == self.pid:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5979710Z                     self._handle_exitstatus(sts)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5979982Z                 else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5980215Z                     self.returncode = sys.maxsize
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5980513Z             except ChildProcessError:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5980775Z                 pass
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5980970Z     
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5981141Z             try:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5981369Z                 exception_name, hex_errno, err_msg = (
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5981686Z                         errpipe_data.split(b':', 2))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5982010Z                 # The encoding here should match the encoding
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5982362Z                 # written in by the subprocess implementations
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5982681Z                 # like _posixsubprocess
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5982961Z                 err_msg = err_msg.decode()
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5983226Z             except ValueError:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5983487Z                 exception_name = b'SubprocessError'
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5983773Z                 hex_errno = b'0'
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5984075Z                 err_msg = 'Bad exception data from child: {!r}'.format(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5984425Z                               bytes(errpipe_data))
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5984720Z             child_exception_type = getattr(
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5985040Z                     builtins, exception_name.decode('ascii'),
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5985351Z                     SubprocessError)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5985861Z             if issubclass(child_exception_type, OSError) and hex_errno:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5986232Z                 errno_num = int(hex_errno, 16)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5986519Z                 if err_msg == "noexec:chdir":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5986789Z                     err_msg = ""
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5987060Z                     # The error must be from chdir(cwd).
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5987355Z                     err_filename = cwd
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.5987626Z                 elif err_msg == "noexec":
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6182410Z                     err_msg = ""
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6183032Z                     err_filename = None
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6183482Z                 else:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6183779Z                     err_filename = orig_executable
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6184175Z                 if errno_num != 0:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6184525Z                     err_msg = os.strerror(errno_num)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6184905Z                 if err_filename is not None:
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6185370Z >                   raise child_exception_type(errno_num, err_msg, err_filename)
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6185966Z E                   FileNotFoundError: [Errno 2] No such file or directory: 'vm_stat'
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6186355Z 
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6186694Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/subprocess.py:1955: FileNotFoundError
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6187409Z ----------------------------- Captured stdout call -----------------------------
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6188213Z {'name': 'preflight', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 2.003216678000001, 'swapouts_bytes': None}
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6189562Z =========================== short test summary info ============================
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6190645Z FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[Swapouts-live] - FileNotFoundError: [Errno 2] No such file or directory: 'vm_stat'
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6191871Z 1 failed, 84 passed in 2.83s
+native (ubuntu-latest)	Lint native verification scripts and regressions	2026-10-22T13:51:23.6512869Z ##[error]Process completed with exit code 1.

@@ -1,0 +1,111 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.234214666,
+    "timeout_seconds": 30
+  },
+  {
+    "name": "clippy-final",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 2.408013,
+    "timeout_seconds": 180
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 4.383065666999999,
+    "timeout_seconds": 180
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 34.774342833999995,
+    "timeout_seconds": 180
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.07765716600000161,
+    "timeout_seconds": 180
+  },
+  {
+    "name": "kani-actual-hc",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_mixed_hc_path_matches_mlx"
+    ],
+    "status": "failed",
+    "exit": 1,
+    "seconds": 3.873515334000004,
+    "timeout_seconds": 60
+  },
+  {
+    "name": "cbmc-metal",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/shaders/flash_hc_gemv.metal",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "81"
+    ],
+    "status": "failed",
+    "exit": 1,
+    "seconds": 0.005141084000001683,
+    "timeout_seconds": 30
+  }
+]

@@ -1,0 +1,21 @@
+[
+  {
+    "name": "kani-victim-playback",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "predictive_victims_exclude_pending_and_fall_back_only_when_needed",
+      "--concrete-playback",
+      "print"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 30623,
+    "exit_code": 2,
+    "joined": true,
+    "elapsed_seconds": 0.04630500001076143
+  }
+]

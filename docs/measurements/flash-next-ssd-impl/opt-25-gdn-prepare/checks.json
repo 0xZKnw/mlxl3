@@ -1,0 +1,118 @@
+[
+  {
+    "name": "clippy-final",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 2.7424907910171896,
+    "reaped": true
+  },
+  {
+    "name": "fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 0.24020758300321177,
+    "reaped": true
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 4.8579935419838876,
+    "reaped": true
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 1.4829982909723185,
+    "reaped": true
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "seconds": 0.12806070799706504,
+    "reaped": true
+  },
+  {
+    "name": "kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_gdn_prepare_matches_chain"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 1,
+    "status": "failed",
+    "seconds": 4.042704459046945,
+    "reaped": true
+  },
+  {
+    "name": "cbmc-metal",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/shaders/flash_gdn_prepare.metal",
+      "--bounds-check",
+      "--pointer-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "81"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 1,
+    "status": "failed",
+    "seconds": 0.010483333957381546,
+    "reaped": true
+  }
+]

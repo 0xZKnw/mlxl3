@@ -1,0 +1,46 @@
+[
+  {
+    "harness": "grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs.json"
+    ],
+    "exit": 0,
+    "reason": null,
+    "seconds": 2.0874221670092084,
+    "peak_group_rss_bytes": 343851008,
+    "reaped": true
+  },
+  {
+    "harness": "grouped_chunk_counter_matches_eight_symbolic_occurrence_counts",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "grouped_chunk_counter_matches_eight_symbolic_occurrence_counts",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/grouped_chunk_counter_matches_eight_symbolic_occurrence_counts.json"
+    ],
+    "exit": 0,
+    "reason": null,
+    "seconds": 25.96183050001855,
+    "peak_group_rss_bytes": 2308587520,
+    "reaped": true
+  }
+]

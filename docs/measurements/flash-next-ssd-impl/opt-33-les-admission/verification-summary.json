@@ -1,0 +1,17 @@
+{
+  "counts": {
+    "final-cpu-full": {
+      "passed": 89,
+      "ignored": 2
+    },
+    "final-release-full": {
+      "passed": 109,
+      "ignored": 104
+    }
+  },
+  "regressions_reproduced_on32": 2,
+  "reused_ffi_checks": "235 ASan/UBSan and TSan cases32; source hashes exact",
+  "Kani": "order32u32/fullusize/length0..32/unwind33 timed out120s; workers andMLX compiler ICE, unverified",
+  "Python": "actual selection guard tests plus12 actual-driver error cases; CrossHair missing",
+  "CI_static_yaml": "push andPR plus allthree supervisor folders linted"
+}

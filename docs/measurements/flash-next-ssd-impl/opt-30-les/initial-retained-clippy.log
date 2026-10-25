@@ -1,0 +1,27 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: this `if` statement can be collapsed
+   --> native/src/ssd_moe.rs:433:9
+    |
+433 | /         if let (Some(next), Some(ids)) = (next, predicted_ids) {
+434 | |             if ids.iter().any(|&id| !next.cache.contains(id)) {
+435 | |                 output.async_eval()?;
+436 | |                 next.prefetch(&ids)?;
+437 | |             }
+438 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+433 ~         if let (Some(next), Some(ids)) = (next, predicted_ids)
+434 ~             && ids.iter().any(|&id| !next.cache.contains(id)) {
+435 |                 output.async_eval()?;
+436 |                 next.prefetch(&ids)?;
+437 ~             }
+    |
+
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

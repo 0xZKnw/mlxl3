@@ -1,0 +1,54 @@
+{
+  "status": "preregistered",
+  "baseline": "memory-H/5e423506",
+  "candidate": "readers/d93bd5b7",
+  "screen_order": [
+    1,
+    2,
+    4
+  ],
+  "screen_repeats": 1,
+  "tokens": 64,
+  "decode_tokens": 63,
+  "prompts": [
+    "MAIN",
+    "HOLD"
+  ],
+  "modes": [
+    "baseline",
+    "mtp1"
+  ],
+  "warmup": "four generations per process, MAIN OFF/MTP then HOLD OFF/MTP; measured order MTP/OFF for each prompt",
+  "budget_rule": "freeze min(5 GiB, initial automatic effective budget), round down to 0.25 GiB after functional checks and before first speed pass; never change within campaign",
+  "cache_gib": 5.0,
+  "context": 4096,
+  "overlap": 1,
+  "allocator_cache_mib": 512,
+  "selection": "screen only: highest geometric mean of the four cells; promote only if geometric mean over both modes improves >=1% on each prompt vs new sequential reader. Screen is not proof of gain.",
+  "confirmation_order": [
+    "H",
+    "candidate",
+    "candidate",
+    "H",
+    "H",
+    "candidate"
+  ],
+  "confirmation_repeats_per_process": 1,
+  "retention": "versus immutable H, median >=1% faster on each of the four mode/prompt cells, positive paired change in at least 2/3 pairs for each cell, same-arm max/min spread <=5%; exact text/hash; no new >256 MiB system swapouts per arm nor >256 MiB process lifetime peak increase vs H. If noisy/inconclusive, retain no default performance claim.",
+  "conditions": "AC, other user apps open, one GPU model, no compilation/prover; vm/power/thermal before/after only; process peak from native response",
+  "quality_gate": "quality.json and bridge-quality.json validated; unchanged source and binaries",
+  "automatic_slots_initial": 104,
+  "available_bytes_initial": 14839365632,
+  "initial_vm": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   504162.\nPages active:                                 313695.\nPages inactive:                               325429.\nPages speculative:                              3934.\nPages throttled:                                   0.\nPages wired down:                             202910.\nPages purgeable:                                4444.\n\"Translation faults\":                     3557927815.\nPages copy-on-write:                       100309102.\nPages zero filled:                        5807923102.\nPages reactivated:                         353272191.\nPages purged:                               37229145.\nFile-backed pages:                            405495.\nAnonymous pages:                              237563.\nPages stored in compressor:                   341257.\nPages occupied by compressor:                 168573.\nDecompressions:                            847767029.\nCompressions:                             1027001561.\nPageins:                                   513585475.\nPageouts:                                     246956.\nSwapins:                                    37342187.\nSwapouts:                                   51541186.\nPages tagged:                                 114770.\nPages tagged resident:                         83610.\nPages tagged compressed:                       31160.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6868.\nPages tag-storage free:                         3411.\nPages tag-storage non-tag pageable:            38674.\nPages tag-storage non-tag wired:                  92.\nBytes of compressed tags:                    4968128.\nTagged compressions:                        15544770.\nTagged decompressions:                      14759219.\n",
+  "registered_at": "2026-10-12T13:12:06.109869+00:00",
+  "actual_slots": 89,
+  "selected_readers": 4,
+  "selection_status": "screen favorable, confirmation required",
+  "selected_score": 7.405439654524828,
+  "baseline_screen_score": 6.380102803515715,
+  "confirmation_candidate": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3-rs": "bd89a7d6fa49bec7587df603d62f9e767cac70525fffa0d2cb8c34fd8d57686e",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers4/mlxl3_native-28585053ede733ec": "b564c6dd57064db5acb6d7c086844ba669792d5d0870cc345fc715e02c0a427e"
+  },
+  "confirmation_readers_environment": "absent, production default4; baseline H unchanged"
+}

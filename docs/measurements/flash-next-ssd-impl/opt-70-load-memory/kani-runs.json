@@ -1,0 +1,44 @@
+[
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "slot_reads_initialize_exact_disjoint_bank_regions",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-load-memory/kani-slots.json"
+    ],
+    "exit_code": 0,
+    "reason": null,
+    "seconds": 6.071615582999584,
+    "reaped": true
+  },
+  {
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "actual_uninitialized_slot_reads_preserve_outputs",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-load-memory/kani-actual.json"
+    ],
+    "exit_code": 1,
+    "reason": null,
+    "seconds": 0.2667537090001133,
+    "reaped": true
+  }
+]

@@ -1,0 +1,367 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+ --> native/src/flash_draft_budget.rs:7:8
+  |
+7 | struct Label {
+  |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:13:19
+   |
+13 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:29:4
+   |
+29 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:33:4
+   |
+33 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:37:4
+   |
+37 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:86:8
+    |
+ 85 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+ 86 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+ 99 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+105 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+123 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+174 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+191 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.76s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 6`
+Checking harness flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/7c6a14986e95a0b1/out/mlxl3_native-7c6a14986e95a0b1__RNvNtNtCs3yamx1GSPoC_12mlxl3_native18flash_draft_budget12verification52circular_writes_are_bounded_disjoint_and_cannot_wrap.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/flash_draft_budget.rs line 77 column 5 function flash_draft_budget::ring_writes thread 0
+aborting path on assume(false) at file native/src/flash_draft_budget.rs line 349 column 5 function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<i32>::is_some thread 0
+Runtime Symex: 0.0165968s
+size of program expression: 1460 steps
+slicing removed 870 assignments
+Generated 84 VCC(s), 38 remaining after simplification
+Runtime Postprocess Equation: 0.000175042s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00242233s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.4417e-05s
+Solving with CaDiCaL 3.0.0
+4230 variables, 13034 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00034375s
+Runtime decision procedure: 0.00284921s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+4231 variables, 13035 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.146192s
+Runtime decision procedure: 0.146229s
+
+RESULTS:
+Check 1: std::option::Option::<i32>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<i32>::is_some
+
+Check 2: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_draft_budget.rs:349:5 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 3: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: start >= 0 && rows > 0 && start.checked_add(rows).is_some()"
+	 - Location: native/src/flash_draft_budget.rs:354:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 4: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:355:49 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 5: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: source >= 0 && first > 0 && first + last == rows.min(2048)"
+	 - Location: native/src/flash_draft_budget.rs:355:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 6: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:356:34 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 7: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: slot >= 0 && slot + first <= 2048 && zero == 0 && last <= slot"
+	 - Location: native/src/flash_draft_budget.rs:356:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 8: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:357:31 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 9: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:357:49 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 10: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: second == source + first && second + last == rows"
+	 - Location: native/src/flash_draft_budget.rs:357:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 11: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: last > 0"
+	 - Location: native/src/flash_draft_budget.rs:358:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 12: flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows > 2048"
+	 - Location: native/src/flash_draft_budget.rs:359:13 in function flash_draft_budget::verification::circular_writes_are_bounded_disjoint_and_cannot_wrap
+
+Check 13: <std::option::Option<i32> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<i32> as std::ops::Try>::branch
+
+Check 14: flash_draft_budget::ring_writes.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_draft_budget.rs:77:5 in function flash_draft_budget::ring_writes
+
+Check 15: flash_draft_budget::ring_writes.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_draft_budget.rs:78:18 in function flash_draft_budget::ring_writes
+
+Check 16: flash_draft_budget::ring_writes.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_draft_budget.rs:79:16 in function flash_draft_budget::ring_writes
+
+Check 17: flash_draft_budget::ring_writes.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:80:16 in function flash_draft_budget::ring_writes
+
+Check 18: flash_draft_budget::ring_writes.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_draft_budget.rs:80:16 in function flash_draft_budget::ring_writes
+
+Check 19: flash_draft_budget::ring_writes.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_draft_budget.rs:80:16 in function flash_draft_budget::ring_writes
+
+Check 20: flash_draft_budget::ring_writes.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_draft_budget.rs:80:16 in function flash_draft_budget::ring_writes
+
+Check 21: flash_draft_budget::ring_writes.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_draft_budget.rs:80:16 in function flash_draft_budget::ring_writes
+
+Check 22: flash_draft_budget::ring_writes.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_draft_budget.rs:81:26 in function flash_draft_budget::ring_writes
+
+Check 23: flash_draft_budget::ring_writes.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_draft_budget.rs:82:35 in function flash_draft_budget::ring_writes
+
+Check 24: flash_draft_budget::ring_writes.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_draft_budget.rs:82:54 in function flash_draft_budget::ring_writes
+
+Check 25: <std::option::Option<[(i32, i32, i32); 2]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<[(i32, i32, i32); 2]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 26: std::option::Option::<i32>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 27: std::option::Option::<i32>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 28: std::option::Option::<i32>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 29: std::option::Option::<i32>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 30: std::option::Option::<i32>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 31: std::option::Option::<i32>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<i32>::is_some
+
+Check 32: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 33: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 34: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 35: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 36: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 37: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 38: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 39: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 40: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 41: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 42: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 43: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+
+SUMMARY:
+ ** 0 of 41 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.25679183s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

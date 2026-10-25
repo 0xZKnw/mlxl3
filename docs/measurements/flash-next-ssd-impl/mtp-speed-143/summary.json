@@ -1,0 +1,414 @@
+{
+  "status": "validated",
+  "source_commit": "2162c5f64a16558e1443758b4dbf22ba09566a78",
+  "binary_sha256": "cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa",
+  "tokens": 64,
+  "decode_tokens": 63,
+  "repeats": 3,
+  "warmups": 4,
+  "comparison": {
+    "MAIN": {
+      "token_hash": "d7c2f53d11d70633",
+      "baseline": {
+        "decode_tps": {
+          "values": [
+            7.599145783641101,
+            7.609968422149753,
+            7.5996804394690125
+          ],
+          "median": 7.5996804394690125,
+          "min": 7.599145783641101,
+          "max": 7.609968422149753
+        },
+        "decode_seconds": {
+          "values": [
+            8.2904055,
+            8.278615167,
+            8.28982225
+          ],
+          "median": 8.28982225,
+          "min": 8.278615167,
+          "max": 8.2904055
+        },
+        "ttft_seconds": {
+          "values": [
+            12.227106,
+            12.205307499,
+            12.195147333
+          ],
+          "median": 12.205307499,
+          "min": 12.195147333,
+          "max": 12.227106
+        },
+        "prefill_tps": {
+          "values": [
+            7.115696249267948,
+            7.128414957181477,
+            7.134663507253641
+          ],
+          "median": 7.128414957181477,
+          "min": 7.115696249267948,
+          "max": 7.134663507253641
+        },
+        "elapsed_seconds": {
+          "values": [
+            20.517520917,
+            20.483933,
+            20.484984542
+          ],
+          "median": 20.484984542,
+          "min": 20.483933,
+          "max": 20.517520917
+        },
+        "draft_load_seconds": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "memory": {
+          "mlx_active_bytes": {
+            "median_bytes": 11968908576,
+            "max_bytes": 11968908576
+          },
+          "mlx_cache_bytes": {
+            "median_bytes": 984455712,
+            "max_bytes": 984826432
+          },
+          "mlx_peak_bytes": {
+            "median_bytes": 12033676744,
+            "max_bytes": 12033676744
+          },
+          "process_footprint_bytes": {
+            "median_bytes": 13937666440,
+            "max_bytes": 13937797512
+          },
+          "process_lifetime_peak_bytes": {
+            "median_bytes": 13938764168,
+            "max_bytes": 13939812744
+          }
+        }
+      },
+      "mtp": {
+        "decode_tps": {
+          "values": [
+            7.5397413185579305,
+            7.501305323571658,
+            7.552137507401732
+          ],
+          "median": 7.5397413185579305,
+          "min": 7.501305323571658,
+          "max": 7.552137507401732
+        },
+        "decode_seconds": {
+          "values": [
+            8.355724333,
+            8.398538291999998,
+            8.342009124999999
+          ],
+          "median": 8.355724333,
+          "min": 8.342009124999999,
+          "max": 8.398538291999998
+        },
+        "ttft_seconds": {
+          "values": [
+            12.353389917,
+            14.467264791000002,
+            12.295065792
+          ],
+          "median": 12.353389917,
+          "min": 12.295065792,
+          "max": 14.467264791000002
+        },
+        "prefill_tps": {
+          "values": [
+            7.043060550738762,
+            6.476103154386376,
+            7.076408644313769
+          ],
+          "median": 7.043060550738762,
+          "min": 6.476103154386376,
+          "max": 7.076408644313769
+        },
+        "elapsed_seconds": {
+          "values": [
+            20.709123833,
+            22.865812333,
+            20.637084333
+          ],
+          "median": 20.709123833,
+          "min": 20.637084333,
+          "max": 22.865812333
+        },
+        "draft_load_seconds": {
+          "values": [
+            0.0,
+            1.032114333,
+            0.0
+          ],
+          "median": 0.0,
+          "min": 0.0,
+          "max": 1.032114333
+        },
+        "memory": {
+          "mlx_active_bytes": {
+            "median_bytes": 12683351776,
+            "max_bytes": 12683351776
+          },
+          "mlx_cache_bytes": {
+            "median_bytes": 270383232,
+            "max_bytes": 271099644
+          },
+          "mlx_peak_bytes": {
+            "median_bytes": 12929760084,
+            "max_bytes": 12929781092
+          },
+          "process_footprint_bytes": {
+            "median_bytes": 13938649480,
+            "max_bytes": 13939796360
+          },
+          "process_lifetime_peak_bytes": {
+            "median_bytes": 13939812744,
+            "max_bytes": 13939812744
+          }
+        },
+        "counters": {
+          "mtp_proposed_tokens": [
+            34,
+            34,
+            34
+          ],
+          "mtp_accepted_tokens": [
+            28,
+            28,
+            28
+          ],
+          "mtp_blocks": [
+            34,
+            34,
+            34
+          ]
+        },
+        "acceptance_ratio": 0.8235294117647058
+      },
+      "median_change_percent": -0.7887058066256003,
+      "paired_change_percent": [
+        -0.7817255619842478,
+        -1.427904723780693,
+        -0.6255912001294939
+      ],
+      "baseline_range_percent": 0.14241914574069092
+    },
+    "HOLD": {
+      "token_hash": "c2d954f130ed2a98",
+      "baseline": {
+        "decode_tps": {
+          "values": [
+            7.572641806094302,
+            7.537047655188567,
+            7.578551042794982
+          ],
+          "median": 7.572641806094302,
+          "min": 7.537047655188567,
+          "max": 7.578551042794982
+        },
+        "decode_seconds": {
+          "values": [
+            8.319421625,
+            8.358710582999999,
+            8.312934708
+          ],
+          "median": 8.319421625,
+          "min": 8.312934708,
+          "max": 8.358710582999999
+        },
+        "ttft_seconds": {
+          "values": [
+            11.435719666,
+            11.520407834,
+            11.414297292
+          ],
+          "median": 11.435719666,
+          "min": 11.414297292,
+          "max": 11.520407834
+        },
+        "prefill_tps": {
+          "values": [
+            7.170928078127437,
+            7.11824481374325,
+            7.184370218809286
+          ],
+          "median": 7.170928078127437,
+          "min": 7.11824481374325,
+          "max": 7.184370218809286
+        },
+        "elapsed_seconds": {
+          "values": [
+            19.75514975,
+            19.879131709,
+            19.727241542
+          ],
+          "median": 19.75514975,
+          "min": 19.727241542,
+          "max": 19.879131709
+        },
+        "draft_load_seconds": {
+          "values": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "memory": {
+          "mlx_active_bytes": {
+            "median_bytes": 11968785696,
+            "max_bytes": 11968785696
+          },
+          "mlx_cache_bytes": {
+            "median_bytes": 982863392,
+            "max_bytes": 985668284
+          },
+          "mlx_peak_bytes": {
+            "median_bytes": 12033635784,
+            "max_bytes": 12033652168
+          },
+          "process_footprint_bytes": {
+            "median_bytes": 13935995272,
+            "max_bytes": 13938796936
+          },
+          "process_lifetime_peak_bytes": {
+            "median_bytes": 13939812744,
+            "max_bytes": 13939812744
+          }
+        }
+      },
+      "mtp": {
+        "decode_tps": {
+          "values": [
+            7.28515050427118,
+            7.331844260979266,
+            7.313218088083601
+          ],
+          "median": 7.313218088083601,
+          "min": 7.28515050427118,
+          "max": 7.331844260979266
+        },
+        "decode_seconds": {
+          "values": [
+            8.647727999999999,
+            8.592653875,
+            8.614538667000001
+          ],
+          "median": 8.614538667000001,
+          "min": 8.592653875,
+          "max": 8.647727999999999
+        },
+        "ttft_seconds": {
+          "values": [
+            13.384707666,
+            13.044311958,
+            13.405686374999998
+          ],
+          "median": 13.384707666,
+          "min": 13.044311958,
+          "max": 13.405686374999998
+        },
+        "prefill_tps": {
+          "values": [
+            6.616867165204576,
+            6.771357286672543,
+            6.613411898515984
+          ],
+          "median": 6.616867165204576,
+          "min": 6.613411898515984,
+          "max": 6.771357286672543
+        },
+        "elapsed_seconds": {
+          "values": [
+            22.032451625,
+            21.636973041,
+            22.020233708
+          ],
+          "median": 22.020233708,
+          "min": 21.636973041,
+          "max": 22.032451625
+        },
+        "draft_load_seconds": {
+          "values": [
+            0.991385541,
+            0.933767666,
+            1.005954375
+          ],
+          "median": 0.991385541,
+          "min": 0.933767666,
+          "max": 1.005954375
+        },
+        "memory": {
+          "mlx_active_bytes": {
+            "median_bytes": 12683227616,
+            "max_bytes": 12683227616
+          },
+          "mlx_cache_bytes": {
+            "median_bytes": 268417888,
+            "max_bytes": 268645728
+          },
+          "mlx_peak_bytes": {
+            "median_bytes": 12929477460,
+            "max_bytes": 12929542996
+          },
+          "process_footprint_bytes": {
+            "median_bytes": 13936994696,
+            "max_bytes": 13937158536
+          },
+          "process_lifetime_peak_bytes": {
+            "median_bytes": 13939812744,
+            "max_bytes": 13939812744
+          }
+        },
+        "counters": {
+          "mtp_proposed_tokens": [
+            35,
+            35,
+            35
+          ],
+          "mtp_accepted_tokens": [
+            27,
+            27,
+            27
+          ],
+          "mtp_blocks": [
+            35,
+            35,
+            35
+          ]
+        },
+        "acceptance_ratio": 0.7714285714285715
+      },
+      "median_change_percent": -3.425802047073223,
+      "paired_change_percent": [
+        -3.796446592677283,
+        -2.722596480706041,
+        -3.5011040133276716
+      ],
+      "baseline_range_percent": 0.5506584209779231
+    }
+  },
+  "conditions": {
+    "before": "$ date -u\nMon Oct 12 09:04:44 UTC 2026\n$ pmset -g batt\nNow drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t94%; charging; 0:39 remaining present: true\n$ pmset -g therm\nNote: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n$ sysctl vm.swapusage\nvm.swapusage: total = 5120.00M  used = 4246.38M  free = 873.62M  (encrypted)\n$ vm_stat\nMach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   548839.\nPages active:                                 328283.\nPages inactive:                               281952.\nPages speculative:                             48206.\nPages throttled:                                   0.\nPages wired down:                             190855.\nPages purgeable:                                5697.\n\"Translation faults\":                     3415685633.\nPages copy-on-write:                        96650379.\nPages zero filled:                        5647180176.\nPages reactivated:                         337692900.\nPages purged:                               35623624.\nFile-backed pages:                            351984.\nAnonymous pages:                              306457.\nPages stored in compressor:                   207897.\nPages occupied by compressor:                 120568.\nDecompressions:                            792025995.\nCompressions:                              965707105.\nPageins:                                   393425070.\nPageouts:                                     222517.\nSwapins:                                    37175560.\nSwapouts:                                   51351170.\nPages tagged:                                 112431.\nPages tagged resident:                         91523.\nPages tagged compressed:                       20908.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6598.\nPages tag-storage free:                         6455.\nPages tag-storage non-tag pageable:            35926.\nPages tag-storage non-tag wired:                  94.\nBytes of compressed tags:                    3160256.\nTagged compressions:                        14380448.\nTagged decompressions:                      13630815.\n",
+    "after": "$ date -u\nMon Oct 12 09:11:00 UTC 2026\n$ pmset -g batt\nNow drawing from 'AC Power'\n -InternalBattery-0 (id=23461987)\t96%; charging; 0:42 remaining present: true\n$ pmset -g therm\nNote: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n$ sysctl vm.swapusage\nvm.swapusage: total = 5120.00M  used = 4241.12M  free = 878.88M  (encrypted)\n$ vm_stat\nMach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   764709.\nPages active:                                 183719.\nPages inactive:                               171365.\nPages speculative:                             11240.\nPages throttled:                                   0.\nPages wired down:                             193992.\nPages purgeable:                                1089.\n\"Translation faults\":                     3420427057.\nPages copy-on-write:                        96698237.\nPages zero filled:                        5649191194.\nPages reactivated:                         338658692.\nPages purged:                               35715244.\nFile-backed pages:                            230795.\nAnonymous pages:                              135529.\nPages stored in compressor:                   353968.\nPages occupied by compressor:                 193670.\nDecompressions:                            795576990.\nCompressions:                              969772852.\nPageins:                                   404211096.\nPageouts:                                     223743.\nSwapins:                                    37178727.\nSwapouts:                                   51353394.\nPages tagged:                                 107125.\nPages tagged resident:                         79900.\nPages tagged compressed:                       27225.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6394.\nPages tag-storage free:                         5143.\nPages tag-storage non-tag pageable:            37420.\nPages tag-storage non-tag wired:                  99.\nBytes of compressed tags:                    4364032.\nTagged compressions:                        14470769.\nTagged decompressions:                      13713249.\n"
+  },
+  "limits": [
+    "two fixed prompts and three repeats; no universal performance result",
+    "temperature and physical SSD bytes not measured",
+    "do not combine with interrupted05 or previous06 source",
+    "head reload is included in TTFT/full elapsed when MTP is re-enabled"
+  ],
+  "decision": "MTP speed gain rejected on both measured prompts; default OFF retained; functional integration remains validated"
+}

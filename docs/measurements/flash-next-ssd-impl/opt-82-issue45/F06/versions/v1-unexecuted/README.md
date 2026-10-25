@@ -1,0 +1,1 @@
+Ancien patch et manifeste non exécutés, conservés avant retrait des mutations d’environnement des fixtures. Les copies sources et documents actifs ont été corrigés ; ce dossier ne prétend pas conserver un bundle original complet de chaque ancien fichier. Les anciens dix plans sont conservés byte à byte. Aucun test, build, preuve, GPU ou benchmark de ce draft n’a eu lieu.

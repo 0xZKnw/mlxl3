@@ -1,0 +1,204 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.05s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 4`
+Checking harness flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/065ab64cda8e0aef/out/mlxl3_native-065ab64cda8e0aef__RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification64dense_output_tiles_cover_every_column_without_a_tail_or_overflow.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.00522308s
+size of program expression: 933 steps
+slicing removed 458 assignments
+Generated 35 VCC(s), 27 remaining after simplification
+Runtime Postprocess Equation: 8.3292e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00155571s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.3459e-05s
+Solving with CaDiCaL 3.0.0
+2694 variables, 10162 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000201917s
+Runtime decision procedure: 0.00181738s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2695 variables, 10163 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000157833s
+Runtime decision procedure: 0.000187083s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2696 variables, 10164 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000188875s
+Runtime decision procedure: 0.000213792s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2697 variables, 10165 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000217584s
+Runtime decision procedure: 0.000241375s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2698 variables, 10166 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.00576908s
+Runtime decision procedure: 0.00578254s
+
+RESULTS:
+Check 1: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: tiles == 1 || tiles == 2"
+	 - Location: native/src/flash_support.rs:338:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 2: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:339:49 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 3: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:339:49 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 4: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:339:49 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 5: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:339:49 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 6: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: tiles == 2 == output >= 160 && output % 2 == 0"
+	 - Location: native/src/flash_support.rs:339:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 7: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 8: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 9: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 10: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 11: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 12: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (output / tiles) * tiles == output"
+	 - Location: native/src/flash_support.rs:340:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 13: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == 160 && tiles == 2"
+	 - Location: native/src/flash_support.rs:341:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 14: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == 159 && tiles == 1"
+	 - Location: native/src/flash_support.rs:342:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 15: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == i32::MAX && tiles == 1"
+	 - Location: native/src/flash_support.rs:343:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 16: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == i32::MIN && tiles == 1"
+	 - Location: native/src/flash_support.rs:344:9 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+Check 17: flash_support::dense_output_tiles.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:28:31 in function flash_support::dense_output_tiles
+
+Check 18: flash_support::dense_output_tiles.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:28:31 in function flash_support::dense_output_tiles
+
+Check 19: flash_support::dense_output_tiles.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:28:31 in function flash_support::dense_output_tiles
+
+Check 20: flash_support::dense_output_tiles.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:28:31 in function flash_support::dense_output_tiles
+
+Check 21: flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:340:20 in function flash_support::verification::dense_output_tiles_cover_every_column_without_a_tail_or_overflow
+
+
+SUMMARY:
+ ** 0 of 17 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.040762085s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.
