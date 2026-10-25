@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.17s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-e6d055582b363ce4)
+
+running 1 test
+test flash_support::flash_route_batch_rejects_every_other_shape_and_precision ... FAILED
+
+failures:
+
+---- flash_support::flash_route_batch_rejects_every_other_shape_and_precision stdout ----
+
+thread 'flash_support::flash_route_batch_rejects_every_other_shape_and_precision' (2080564) panicked at native/src/flash_support.rs:2508:17:
+assertion `left == right` failed
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::flash_route_batch_rejects_every_other_shape_and_precision
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 121 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

@@ -1,0 +1,42 @@
+{
+  "quality": {
+    "status": "prepared_not_executed",
+    "cwd": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/plans/quality/run.json"
+    ],
+    "prerequisites": "Parent fills and inspects F05 gates-before-gpu.json and exact frozen identity; no other model/build/prover; prior process and sampler joined."
+  },
+  "bridge": {
+    "status": "prepared_not_executed",
+    "cwd": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/plans/bridge/run.json"
+    ],
+    "prerequisites": "Parent fills and inspects F05 gates-before-gpu.json and exact frozen identity; no other model/build/prover; prior process and sampler joined."
+  },
+  "screen": {
+    "status": "prepared_not_executed",
+    "cwd": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/plans/screen/run.json"
+    ],
+    "prerequisites": "Parent fills and inspects F05 gates-before-gpu.json and exact frozen identity; no other model/build/prover; prior process and sampler joined. Component/prefix/MTP/bridge quality must pass before speed."
+  },
+  "confirm": {
+    "status": "prepared_not_executed",
+    "cwd": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F05/plans/confirm/run.json"
+    ],
+    "prerequisites": "Parent fills and inspects F05 gates-before-gpu.json and exact frozen identity; no other model/build/prover; prior process and sampler joined. Conditional confirmation after a useful HC signal and parent decision; not an automatic launch."
+  }
+}

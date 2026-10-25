@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "ssd_moe::batch_route_tests::actual_batch_routes_preserve_real_gate_logits_and_weights",
+    "--exact"
+  ],
+  "exit_code": 1,
+  "reaped": true,
+  "limit_reason": null,
+  "elapsed_seconds": 4.623694583999168,
+  "rss_group_peak_bytes": 748535808,
+  "rss_limit_bytes": 4294967296
+}

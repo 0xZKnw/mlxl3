@@ -1,0 +1,630 @@
+{
+  "experiment": "82F05",
+  "review": "independent_quality_read_only",
+  "generated_utc": "2026-10-25T11:12:23.421925+00:00",
+  "status": "quality_audit_complete_bridge_and_speed_pending",
+  "review_actions": "Only file/source reads, hashes and extraction of existing data; no model/GPU/build/prover/test/retest launched by reviewer.",
+  "identity": {
+    "source_commit": "cba5166b2875ef36805b46d871aacee8c2d9ec33",
+    "current_documentation_head": "b58988669517b71946d746bb336e11b0d251ab2c",
+    "source_base_choice": "native62cae/engine80M; isolated F05; F01/F06 removed from compiled code",
+    "native_sources_checked": 86,
+    "source_mismatches": [],
+    "drivers_checked": 8,
+    "driver_mismatches": [],
+    "engine_sha256": "bb7d25de91d4e5d78afd508aab4f96bb769a3262a3754a46af4ff275379fb4cb",
+    "native_tests_sha256": "c11724af5a332d234e0023ee9f9d625821ed3c7bd52561de33bf82d3afd2c482",
+    "source_manifest_sha256": "b8e07c24ea34e82444d89fb8c3426778b709d48805b29305afae2e0a0c5ca5e2",
+    "identity_sha256": "273e84cad60ead74018eb7c3e664eca15f417ae3904edfea97c370029c4f88c0",
+    "plans_rehashed": {
+      "quality": "9033b8c4271426c0b431786a373bed323c3fd6bdc1bd034678b5a5c32a311409",
+      "bridge": "88bcaebd2628fe39b00c62fcd04426d37bc45124338cbedc7517f1870f902347",
+      "screen": "709b5bf371418ebea1b46fc398f6cd74cf27fbc5848e30235b5a1525e93271f8",
+      "confirm": "f06d3475ebe8af42d90a788208c07dbda45f7a9d070d19d145ae3be2ebafa85f"
+    },
+    "F01_F06_compiled": false,
+    "limits": "86-source inventory includes detached historical test files; they are preserved but not referenced by compiled modules. Identity is the local F05 state, not a clean-commit-only binary claim."
+  },
+  "runner": {
+    "status": "completed_expected_outcomes_not_speed",
+    "commands": 19,
+    "all_expected_outcomes": true,
+    "all_children_reaped": true,
+    "native_full_suite_passed": 130,
+    "native_full_suite_ignored": 150,
+    "single_native_test_invocations": 15,
+    "single_test_result_each": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 279
+    },
+    "cli_nonunicode_invocations": 1,
+    "cli_nonunicode_exit": 2,
+    "sampler_status": "completed_observations_not_attribution",
+    "sampler_joined": true,
+    "sampler_samples": 64,
+    "sampler_errors": 0,
+    "vm_curve_samples": 45,
+    "command_outcomes": [
+      {
+        "name": "pre20",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 20.103852708001796,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "native-suite",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 1.342108000004373,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "reject-batch-routes-nonunicode",
+        "status": "completed_expected_outcome",
+        "expected_exit": 2,
+        "exit_code": 2,
+        "reaped": true,
+        "seconds": 1.4463208750021295,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-edges",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.15274137500091456,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-real-gates",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 4.83449699999619,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-moe",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 1.3283135419987957,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "unique-window-historical",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 1.9404822500000591,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-default",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.8515833749988815,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-0",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.8568317500030389,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-1",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.8011755410043406,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-empty",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.7973493750032503,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-2",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.7440974170021946,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-01",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.8005760419982835,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-true",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.80393754200486,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-space",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.8015966249949997,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "batch-route-loader-invalid-newline",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 0.7990833750009187,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "dflash-prefixes",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 30.27096158399945,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "mtp-session",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 11.250306416004605,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      },
+      {
+        "name": "post30",
+        "status": "completed_expected_outcome",
+        "expected_exit": 0,
+        "exit_code": 0,
+        "reaped": true,
+        "seconds": 30.051278707993333,
+        "swapins_bytes": 0,
+        "swapouts_bytes": 0
+      }
+    ]
+  },
+  "coverage": {
+    "edge_cases": 28,
+    "edge_widths": [
+      2,
+      3,
+      4,
+      8
+    ],
+    "edge_patterns": 7,
+    "edge_dtype": "Float32",
+    "edge_scope": "Scalar vs batched precise softmax/top10 probabilities/IDs/weights, intentional NaN/Inf/signed-zero extremes; historical nonfinite behavior preserved rather than arbitrary finitude claim.",
+    "real_gate_cases": 1004,
+    "real_gate_fast_cases": 404,
+    "real_gate_layers": 48,
+    "real_gate_oracles": [
+      "Every gate GEMV remains scalar per row, independent direct gate.forward oracle.",
+      "Precise probabilities and scalar routes compared byte-for-byte; shape/dtype/finite/nonempty checks.",
+      "Independent CPU rank sort of finite actual probabilities; no copy of new batching branch."
+    ],
+    "real_gate_domain": {
+      "layer0_widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "other_layer_widths": [
+        1,
+        2,
+        3,
+        4,
+        8
+      ],
+      "source_captures": 2,
+      "dtypes": [
+        "Float16",
+        "Float32"
+      ],
+      "layouts": [
+        "contiguous",
+        "strided"
+      ],
+      "resident_gate_extra_layer": 0
+    },
+    "full_moe_cases": 24,
+    "full_moe_domain": {
+      "capacities_pending": [
+        [
+          20,
+          0
+        ],
+        [
+          53,
+          0
+        ],
+        [
+          53,
+          4
+        ]
+      ],
+      "cohorts": [
+        "legacy",
+        "unique"
+      ],
+      "rows": [
+        1,
+        2,
+        3,
+        8
+      ],
+      "input_dtype": "Float32",
+      "oracle": "Independent captured semantic output bytes, repeated by input row."
+    },
+    "hot_order_assertions": 4,
+    "hot_order_scope": "Only overflowing UNIQUE windows assert Hot submitted before CPU readback. Other20 MoE cases require submissions/readbacks but do not independently prove chronology.",
+    "historical_unique_cases": 32,
+    "historical_unique_scope": "Rows6–8/capacities20,24,53; pending excluded, fallback6+2/4+4, Hot result survives eviction, Cold cache-hit re-computation, I/O failure/recovery. Not32 UInt32 dtype cases.",
+    "loader_fixed_processes": 9,
+    "loader_valid_modes": [
+      "absent",
+      "0",
+      "1"
+    ],
+    "loader_valid_actual_route_calls_per_mode": 2,
+    "loader_invalid_literal_count": 6,
+    "loader_environment_mutated_after_mlx": false,
+    "loader_load_once_scope": "Stored field, static production wiring and separate processes only; no dynamic environment mutation after load.",
+    "loader_native_invalid_expected_exit": 0,
+    "loader_native_invalid_exit_note": "The test successfully asserts the production load error; this is not acceptance of an invalid flag.",
+    "external_cli_nonunicode": "byte0xff rejected before ready, exit2; independent of native invalid-literal tests.",
+    "prefix": {
+      "captures": {
+        "byte_equal": true,
+        "count": 64000,
+        "name": "captured",
+        "relative_rmse": 0.0,
+        "tolerance": 0.004
+      },
+      "kind": "Dflash2",
+      "memory": {
+        "mlx_active_bytes": 6460126752,
+        "mlx_cache_bytes": 67113764,
+        "mlx_peak_bytes": 6783715688,
+        "process_compressed_lifetime_logical_bytes": 3422633984,
+        "process_compressed_logical_bytes": 3375710208,
+        "process_compressed_peak_logical_bytes": 3377102848,
+        "process_decompressions": 200614,
+        "process_footprint_bytes": 7367252160,
+        "process_id": 99457,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7401593024,
+        "process_start_abstime": 1459317546704
+      },
+      "prefix_cases": 36,
+      "status": "passed",
+      "target_logits_and_states": "byte_exact",
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    "prefix_scope": "Serial-vs-wide and commit/state tests under common BATCH_ROUTES=1. Scalar route B1 falls back; wide F32 exercises new batch route. No full-target separate-process flag0/1 differential claimed. Captures independent NumPy tolerance0.004, observed byte-equal64000values.",
+    "mtp_budgets": [
+      {
+        "budget": 1,
+        "proposed": 0,
+        "accepted": 0,
+        "blocks": 0
+      },
+      {
+        "budget": 2,
+        "proposed": 1,
+        "accepted": 0,
+        "blocks": 1
+      },
+      {
+        "budget": 3,
+        "proposed": 2,
+        "accepted": 0,
+        "blocks": 2
+      },
+      {
+        "budget": 17,
+        "proposed": 12,
+        "accepted": 5,
+        "blocks": 12
+      }
+    ],
+    "mtp_proposed_total": 15,
+    "mtp_accepted_total": 5,
+    "mtp_scope": "Greedy sequence and target/head states, budget alignment/pending/invalid inputs, acceptance and rejection; tested under common flag1."
+  },
+  "source_verification": {
+    "format": "fmt.log empty with parent-reported exit0; log presence alone is not formal proof",
+    "clippy_cpu_and_mlx": "Completed logs show no error; parent performed checks before model runs.",
+    "cpu_suite": {
+      "lib_passed": 117,
+      "lib_failed": 0,
+      "lib_ignored": 5,
+      "integration_passed": 16
+    },
+    "cpu_kani": {
+      "harness": "flash_route_batch_preserves_scalar_fallback_domain",
+      "status_counts": {
+        "SUCCESS": 97,
+        "SATISFIED": 5
+      },
+      "tool": "Kani0.68 / CBMC6.11",
+      "symbolic_domain": "Four arbitrary i32 dimensions; usize rank assumed<=4 only to index fixed4element symbolic array; arbitrary bool fp32.",
+      "bound": "unwind5",
+      "assumptions": 1,
+      "covers": {
+        "B2": true,
+        "B8": true,
+        "B1_fallback": true,
+        "F16_fallback": true,
+        "rank4_fallback": true
+      },
+      "scope": "Real production eligibility helper; no numerical GEMV/softmax/topk, Metal, allocator, lifetime or concurrency proof. No UNREACHABLE status; stdlib unreachable-code checks report SUCCESS."
+    },
+    "actual_mlx_kani": {
+      "v1": "Failed to match ignored #[test] name; preserved and not a verification.",
+      "v2": {
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--tests",
+          "--features",
+          "mlx,chat",
+          "--harness",
+          "ssd_moe::batch_route_tests::actual_batch_routes_preserve_real_gate_logits_and_weights",
+          "--exact"
+        ],
+        "exit_code": 1,
+        "reaped": true,
+        "limit_reason": null,
+        "elapsed_seconds": 4.623694583999168,
+        "rss_group_peak_bytes": 748535808,
+        "rss_limit_bytes": 4294967296
+      },
+      "v2_diagnostic": "Real cfg(test)+cfg(kani) wrapper selected with --lib --tests --exact, compiler ICE intrinsics.rs:243. No obligations discharged, no stub, unverified.",
+      "no_additional_attempt": true
+    }
+  },
+  "mutations": {
+    "cpu": {
+      "mutation": "Admit B1 outside batch domain",
+      "mutant_exit": 101,
+      "restored_test_exit": 0,
+      "restored_kani_exit": 0,
+      "reaped": true
+    },
+    "gpu_drop_normalization": {
+      "mutant_exit": 101,
+      "failure": "routes differ layer=0/B2/Float32/strided=false/resident=false",
+      "normal_release_before_mutants_exit": 0,
+      "normal_release_after_restoration_quality_exit": 0,
+      "reaped": true
+    },
+    "gpu_replace_scalar_GEMVs": {
+      "mutant_exit": 101,
+      "failure": "scalar GEMV count changed",
+      "limit": "Detects structural violation before a numerical difference; do not claim measured numerical divergence from GEMM itself.",
+      "normal_release_after_restoration_quality_exit": 0,
+      "reaped": true
+    },
+    "build_scope": "Two GPU mutants are disposable debug binaries; release normal source restored byte-exact and rehashed. No TPS comparison across build modes."
+  },
+  "memory": {
+    "all_phase_system_swapins_delta_zero": true,
+    "all_phase_system_swapouts_delta_zero": true,
+    "vm_curve_summary_bytes": {
+      "Pages free": {
+        "min": 109592576,
+        "max": 7956578304,
+        "first": 269991936,
+        "last": 6869680128
+      },
+      "File-backed pages": {
+        "min": 3323543552,
+        "max": 5684264960,
+        "first": 5094834176,
+        "last": 4415537152
+      },
+      "Pages occupied by compressor": {
+        "min": 3025747968,
+        "max": 7984152576,
+        "first": 3082240000,
+        "last": 6232866816
+      },
+      "Swapins": {
+        "min": 56688640,
+        "max": 56688640,
+        "first": 56688640,
+        "last": 56688640
+      },
+      "Swapouts": {
+        "min": 502988800,
+        "max": 502988800,
+        "first": 502988800,
+        "last": 502988800
+      }
+    },
+    "vm_samples_per_phase": {
+      "pre20": 9,
+      "batch-route-real-gates": 2,
+      "dflash-prefixes": 15,
+      "mtp-session": 5,
+      "post30": 14
+    },
+    "all_boundary_power": "AC Power",
+    "process_snapshot": {
+      "mlx_active_bytes": 6460126752,
+      "mlx_cache_bytes": 67113764,
+      "mlx_peak_bytes": 6783715688,
+      "process_compressed_lifetime_logical_bytes": 3422633984,
+      "process_compressed_logical_bytes": 3375710208,
+      "process_compressed_peak_logical_bytes": 3377102848,
+      "process_decompressions": 200614,
+      "process_footprint_bytes": 7367252160,
+      "process_id": 99457,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 7401593024,
+      "process_start_abstime": 1459317546704
+    },
+    "process_snapshot_count": 1,
+    "process_lifetime_peak_under12decimalGB": true,
+    "ledger_swapins_cumulative_observed": 0,
+    "ledger_swapins_delta": null,
+    "compressed_lifetime_delta": null,
+    "caps77B": {
+      "current_compressed_limit": 536870912,
+      "peak_compressed_limit": 536870912,
+      "status": "FAILED_current_and_peak_compression",
+      "current_excess_bytes": 2838839296,
+      "peak_excess_bytes": 2840231936,
+      "lifetime_delta_limit_bytes": 1073741824,
+      "lifetime_delta_status": "unknown_single_sample",
+      "unchanged": true
+    },
+    "scope": "This is the QA prefix process with CPU oracles/captures/state files; no exclusive allocation attribution or extrapolation to future throughput process. Global counters, process footprint, logical compressed bytes, ledger, and MLX allocation metrics are different quantities."
+  },
+  "findings": [
+    {
+      "id": "F05-QA-METADATA01",
+      "severity": "informational_count_correction",
+      "path": "plans/gates-before-gpu.json:parent_reported_cpu_results_not_executed_by_plan_author.cpu_lib_ignored and initial opti82F05 CPU note",
+      "observed": 6,
+      "actual_cpu_suite_log": 5,
+      "impact": "Documentation only; quality native suite130/150 and physical outcomes unaffected. Preserve earlier metadata and record correction; no runtime change/retest required."
+    }
+  ],
+  "hot_readback_note": {
+    "status": "Old global-wait hypothesis already fixed56; no new prototype",
+    "report": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/hot-readback-audit.md",
+    "scope": "Current FFI direct scheduled+contiguous event wait remains unchanged. Existing historical tests show pending Hot at route/read-demand boundaries; not re-executed by this audit."
+  },
+  "limits": [
+    "Bridge43 started by parent and not yet included in this quality audit.",
+    "No TPS or gain established by correctness checks.",
+    "Future F05 commit CI run not inspected; no CI-green claim.",
+    "No full-target flag0/1 differential claimed beyond actual batching component/routes and serial-vs-wide common1 target checks.",
+    "Remaining150 ignored normal-suite tests are not presented as executed;15 relevant physical invocations run explicitly.",
+    "One QA memory sample cannot prove private counter deltas or absence of private swap-outs."
+  ],
+  "decision": "Quality completed in the documented tested domain; no new numerical blocker found. Keep bridge gating and distinct future TPS/memory observations. Do not promote from this audit alone.",
+  "evidence_sha256": {
+    "identity-frozen.json": "273e84cad60ead74018eb7c3e664eca15f417ae3904edfea97c370029c4f88c0",
+    "plans/quality/run.json": "9033b8c4271426c0b431786a373bed323c3fd6bdc1bd034678b5a5c32a311409",
+    "plans/quality/run-result.json": "cdaa51ce0a5df1e2b2c0b2bfda7616b5a545fb329d21b2f5b603dc6a692c6797",
+    "plans/quality/system-samples.json": "7245a90f0080943f0e17aa9f51b59084bc6709e80ec94c876ce1c1fc01b43c27",
+    "plans/quality/vm-curve.json": "2a12a3a104f0dc7cde5f2bdb7196569a382f57e551c717642e087dc3c96ba963",
+    "plans/gates-before-gpu.json": "61292c72b21a93648d30242ab960abff424fe41c493d91acb040baf80471760a",
+    "plans/quality/pre20.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "plans/quality/native-suite.log": "3673a2a111520370147f1619054f891c2b623781fa73732cd102c1ebb8263c67",
+    "plans/quality/reject-batch-routes-nonunicode.log": "e27121d7b645b479f2e3e1e5be9f5c617bf6b1b232edffab0b4815594041746a",
+    "plans/quality/batch-route-edges.log": "acbb54885ed57b610633c0139506a30bad8a067eee63f27d98c02bc4ff2889f0",
+    "plans/quality/batch-route-real-gates.log": "fe3ca66991803378bce501227be72b9ac143933d9fd62cc3926e42bfcaf0387a",
+    "plans/quality/batch-route-moe.log": "2f47db670dbe7ad131d3982e064f6698a1d494e04953fc2e33572cda6b35037a",
+    "plans/quality/unique-window-historical.log": "99f3cca181b2ab26966853a5075a5bc39ed966dfe38f409b128b471f2f3293fe",
+    "plans/quality/batch-route-loader-default.log": "16f235fceb512bc9b54264857c5d67db4f8b1fa5163d423ecc3c57a2b900693e",
+    "plans/quality/batch-route-loader-0.log": "c8ac82722d198f9b1c634cd621ff21e6c3e6723c3737afc10569d1306213f955",
+    "plans/quality/batch-route-loader-1.log": "9b508f759a1e79239dd7a684ebdf5ae0048c6796065f1fabbba03bf994bbfa11",
+    "plans/quality/batch-route-loader-invalid-empty.log": "05b0b6330741baa576b145fb95468bc014693b96139b279127a6992053382f3e",
+    "plans/quality/batch-route-loader-invalid-2.log": "1b96d02ca11142b6584754e2fa125aa36398ea61d07c2a4d917855e869e328b6",
+    "plans/quality/batch-route-loader-invalid-01.log": "05b0b6330741baa576b145fb95468bc014693b96139b279127a6992053382f3e",
+    "plans/quality/batch-route-loader-invalid-true.log": "05b0b6330741baa576b145fb95468bc014693b96139b279127a6992053382f3e",
+    "plans/quality/batch-route-loader-invalid-space.log": "05b0b6330741baa576b145fb95468bc014693b96139b279127a6992053382f3e",
+    "plans/quality/batch-route-loader-invalid-newline.log": "c7aa3eb899d0059eb66fb8c683b8d2268822b28a019f376566f4f291f0cde1ff",
+    "plans/quality/dflash-prefixes.log": "c6f03320cc8284ab07334e3fe4c3a23e6f85100d6613d09368ffd7ba8caa45d7",
+    "plans/quality/mtp-session.log": "700a0ded986622c42b551184008bec35c4747a32746956d6c790c4d199610c7f",
+    "plans/quality/post30.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/kani-gate.log": "0b2cc1a949cb1add017aa2552eefe8c6b9a58d201dce3956b239d03009f2c478",
+    "evidence/source-manifest.json": "b8e07c24ea34e82444d89fb8c3426778b709d48805b29305afae2e0a0c5ca5e2",
+    "evidence/native-list.log": "8c0e71a0256cc90feee7a294dc2e39f880eb391b1948d5fac02f195d65137d04",
+    "evidence/mutant-replace-scalar-GEMVs.log": "aa92adff223bbd0e82bad7808575dc9ca20ac3ed5ac5f75e32c80e1ba8975933",
+    "evidence/restored-cpu.log": "539fe78a5c8492c0e75f79fa65c004fbb90ad62031b2917523a67101a7b85caa",
+    "evidence/fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "evidence/restored-cpu.json": "48421a9fa754f32cb8c1dfe679ac033f3b9284f2425e1c6ec5c8298441110489",
+    "evidence/kani-mlx.json": "4415c448b075297fc8b298f6b0f1b7c4a32cc82f81f0168e5b89a4bdd74fb2b9",
+    "evidence/kani-mlx-v2.json": "fc20dd136164f2b373fa4190a96c8e4511aababdb9736df8980999aec3f1bfc0",
+    "evidence/real-routes-before-mutants.json": "bdc9c839952de0934c2ad7a5c4dc0cfa7cf836d36f17349ba1202d5cfe33e364",
+    "evidence/kani-mlx-v2.log": "e788161701b57fb12292094158b9130c60c76464a4f9a29606b3a962fde2ea95",
+    "evidence/mutant-drop-normalization.json": "48003b70f813ef7c71726f4ccc6e3eb320fec9ccde9cd7fb896a7c1c9ec59c47",
+    "evidence/real-routes-before-mutants.log": "226ff5293ae87db2451466e61c1e46c08cfdda045012f0e0c3485fb0359675d7",
+    "evidence/clippy-mlx.log": "6a3a629d92b0e545ceac98fe58961dc8f5317163ee3682dd0454829a90477e3f",
+    "evidence/restored-kani.log": "003d1bd9a801d3b2ba3e46b6bb1fffb614a15838cce9f01e4dccc2f1444b2f6c",
+    "evidence/mutation-cpu.log": "45645db16832b071626619be1e2c5baca812ba5a8135e181d1f0ae4b8b3223f1",
+    "evidence/mutant-replace-scalar-GEMVs.json": "2e23994bf1b7c37e95df9b863fbfff0230f37d7281034a02599511e69e900973",
+    "evidence/kani-mlx.log": "a77387cc6c4ddda4cf092b8e7596f9cf60708bc90f6c9dad7a5e5a259d94bdff",
+    "evidence/cpu-suite.log": "fdc089e02555571ae11d4dc7698ebcbf6551ba6487b6e90bba8614d0b934eb80",
+    "evidence/clippy-cpu.log": "aecf569de77922b18e5d819dc7dba0c1ff774383a887f442d523988d56a56577",
+    "evidence/restored-kani.json": "d8c5c46666171923837414b9602ffe41290d1f9156bd1667370c49d64e795105",
+    "evidence/mutant-drop-normalization.log": "e653c5f613b02029e99b6544befb98cc425822ea86d59b9e10fab7e5ace11594",
+    "evidence/build-cli.log": "4059def7e1491c9f94ceebc73313561ec5db32cf5b3d8604a114d0c66e3af24a",
+    "evidence/mutation-cpu.json": "5eb69c14b4a5ea2575d6eb32a28b5a203dacb08c507e970afdac0bd5351d5a81"
+  }
+}

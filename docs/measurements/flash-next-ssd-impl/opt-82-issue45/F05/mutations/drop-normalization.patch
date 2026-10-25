@@ -1,0 +1,11 @@
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -451,7 +451,7 @@
+             );
+             #[cfg(test)]
+             self.route_batch_calls.set(self.route_batch_calls.get() + 1);
+-            return router::topk(&logits.softmax_precise()?, 10, true);
++            return router::topk(&logits.softmax_precise()?, 10, false);
+         }
+         let pairs = (0..x.shape()[0])
+             .map(|row| self.route(&x.slice(0, row, row + 1)?))
