@@ -1,0 +1,11 @@
+--- a/native/src/router.rs
++++ b/native/src/router.rs
+@@ -122,7 +122,7 @@
+             if (above < int(TOP_K)) {{
+                 uint slot = TOP_K - 1u - uint(above);
+                 top_values[slot] = float(values[row * EXPERTS + tid]);
+-                indices[row * TOP_K + slot] = tid;
++                indices[row * TOP_K + slot] = (tid + 1u) % EXPERTS;
+             }}
+             threadgroup_barrier(mem_flags::mem_threadgroup);
+ 

@@ -1,0 +1,211 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 16b5d13e..a3c0c80d 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -41,6 +41,7 @@ jobs:
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness flash_top10_early_exit_is_confined_to_requested_flash_geometry
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..745e353b 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,47 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++/// Only the Flash legacy top-10 may skip ranks already known to be losers.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_top10_early_exit(experts: i32, top_k: usize, requested: bool) -> bool {
++    requested && experts == 512 && top_k == 10
++}
++
++#[cfg(test)]
++#[test]
++fn flash_top10_early_exit_never_changes_other_router_domains() {
++    for experts in [-1, 0, 1, 256, 511, 512, 513, 1024, i32::MAX] {
++        for top_k in [0, 1, 8, 9, 10, 11, 512, usize::MAX] {
++            assert!(!flash_top10_early_exit(experts, top_k, false));
++            if experts == 512 && top_k == 10 {
++                assert!(flash_top10_early_exit(experts, top_k, true));
++            } else {
++                assert!(!flash_top10_early_exit(experts, top_k, true));
++            }
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn flash_top10_early_exit_is_confined_to_requested_flash_geometry() {
++    let experts: i32 = kani::any();
++    let top_k: usize = kani::any();
++    let requested: bool = kani::any();
++    let enabled = flash_top10_early_exit(experts, top_k, requested);
++    if enabled {
++        assert!(requested);
++        assert_eq!(experts, 512);
++        assert_eq!(top_k, 10);
++    }
++    if !requested || experts != 512 || top_k != 10 {
++        assert!(!enabled);
++    } else {
++        assert!(enabled);
++    }
++    kani::cover!(enabled);
++    kani::cover!(requested && experts == 512 && top_k == 9 && !enabled);
++    kani::cover!(requested && experts == 511 && top_k == 10 && !enabled);
++    kani::cover!(!requested && experts == 512 && top_k == 10 && !enabled);
++}
+diff --git a/native/src/router.rs b/native/src/router.rs
+index b0926f30..82392b39 100644
+--- a/native/src/router.rs
++++ b/native/src/router.rs
+@@ -46,7 +46,28 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
+     topk_legacy(values, top_k, normalize)
+ }
+ 
++pub(crate) fn flash_top10(
++    values: &Array,
++    normalize: bool,
++    early_exit: bool,
++) -> Result<(Array, Array)> {
++    ensure!(
++        values.shape().len() == 2 && values.shape()[1] == 512,
++        "Flash top-10 requires rows of 512 experts"
++    );
++    topk_legacy_mode(values, 10, normalize, early_exit)
++}
++
+ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Array)> {
++    topk_legacy_mode(values, top_k, normalize, false)
++}
++
++fn topk_legacy_mode(
++    values: &Array,
++    top_k: usize,
++    normalize: bool,
++    early_exit: bool,
++) -> Result<(Array, Array)> {
+     let [rows, experts]: [i32; 2] = values
+         .shape()
+         .try_into()
+@@ -69,6 +90,12 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+         "half"
+     };
+     let score = if normalize { "score / sum" } else { "score" };
++    let early_exit = crate::flash_support::flash_top10_early_exit(experts, top_k, early_exit);
++    let stop_counting = if early_exit {
++        "\n                if (above >= int(TOP_K)) break;"
++    } else {
++        ""
++    };
+     let source = format!(
+         r#"
+             constexpr uint EXPERTS = {experts}u;
+@@ -90,7 +117,7 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+ 
+             int above = 0;
+             for (uint other = 0u; other < EXPERTS; ++other) {{
+-                above += sort_keys[other] > key ? 1 : 0;
++                above += sort_keys[other] > key ? 1 : 0;{stop_counting}
+             }}
+             if (above < int(TOP_K)) {{
+                 uint slot = TOP_K - 1u - uint(above);
+@@ -113,9 +140,10 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array,
+     );
+     let mut outputs = array::metal_kernel(
+         &format!(
+-            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3",
++            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3{}",
+             u8::from(normalize),
+-            u8::from(values.dtype() == Dtype::Float32)
++            u8::from(values.dtype() == Dtype::Float32),
++            if early_exit { "_early_exit" } else { "" }
+         ),
+         &["selection", "values"],
+         &["indices", "scores"],
+@@ -616,3 +644,26 @@ mod tests {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++#[path = "router/flash_top10_tests.rs"]
++mod flash_top10_tests;
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(513)]
++fn actual_flash_top10_early_exit_preserves_a_symbolic_input() {
++    let bits: u32 = kani::any();
++    let value = f32::from_bits(bits);
++    let mut values = vec![1.; 512];
++    values[0] = value;
++    let input = Array::from_f32(&values, &[1, 512]).unwrap();
++    let old = flash_top10(&input, true, false).unwrap();
++    let new = flash_top10(&input, true, true).unwrap();
++    assert_eq!(new.0.to_u32().unwrap().len(), 10);
++    assert_eq!(new.0.to_u32().unwrap(), old.0.to_u32().unwrap());
++    assert_eq!(new.1.to_bytes().unwrap(), old.1.to_bytes().unwrap());
++    kani::cover!(bits == 0x8000_0000);
++    kani::cover!(bits == 0x7fc0_0000);
++    kani::cover!(bits == 0x4000_0000);
++}
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..70fdfe64 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -50,6 +50,7 @@ pub struct SsdMoe {
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
+     shared_batch: bool,
++    top10_early_exit: bool,
+     pub(crate) prefetch_pipeline: bool,
+     #[cfg(test)]
+     cohort_sizes: Vec<usize>,
+@@ -131,6 +132,9 @@ impl SsdMoe {
+         let shared_batch =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
++        let top10_early_exit =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_TOP10_EARLY_EXIT", "0")?)
++                .context("MLXL3_SSD_TOP10_EARLY_EXIT must be 0 or 1")?;
+         let prefetch_pipeline =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
+                 .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
+@@ -234,6 +238,7 @@ impl SsdMoe {
+             shared_exl3,
+             stable_expert_kernels,
+             shared_batch,
++            top10_early_exit,
+             prefetch_pipeline,
+             #[cfg(test)]
+             cohort_sizes: Vec::new(),
+@@ -403,10 +408,11 @@ impl SsdMoe {
+         );
+         let probabilities = self.gate_logits(x)?.softmax_precise()?;
+         if x.dtype() == Dtype::Float16 {
+-            let (indices, scores) = router::topk(&probabilities, 10, false)?;
++            let (indices, scores) =
++                router::flash_top10(&probabilities, false, self.top10_early_exit)?;
+             Ok((indices, scores.div(&scores.sum(1, true)?)?))
+         } else {
+-            router::topk(&probabilities, 10, true)
++            router::flash_top10(&probabilities, true, self.top10_early_exit)
+         }
+     }
+     fn predict(&self, x: &Array) -> Result<Array> {
+@@ -2281,3 +2287,7 @@ mod tests {
+ #[cfg(test)]
+ #[path = "ssd_moe/grouped_micro.rs"]
+ mod grouped_micro;
++
++#[cfg(test)]
++#[path = "ssd_moe/top10_early_exit_tests.rs"]
++mod top10_early_exit_tests;

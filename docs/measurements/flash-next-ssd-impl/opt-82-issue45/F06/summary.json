@@ -1,0 +1,161 @@
+{
+  "status": "quality_passed_tested_domain_throughput_inconclusive_runtime_withdrawn",
+  "experiment": "82F06",
+  "final_decision_date": "2026-10-25",
+  "integration": {
+    "runtime": "withdrawn effectively by exact inverse of verified archived tracked hunks",
+    "parent_recorded_restored_base": "HEADcba5166b/native62cae/80Mengine",
+    "no_gain_delivered": true,
+    "installed_app": "unchanged",
+    "preserved_unreferenced_tests": [
+      "native/src/router/flash_top10_tests.rs",
+      "native/src/ssd_moe/top10_early_exit_tests.rs"
+    ],
+    "new_F05": "independent, F06 not common baseline"
+  },
+  "raw_result_file": "summary-final.json",
+  "speed": {
+    "screen": {
+      "pairs": {
+        "MAIN": {
+          "H": 11.20606832423682,
+          "C": 11.170360442464133,
+          "percent": -0.31864772496038585
+        },
+        "HOLD": {
+          "H": 10.585690891076645,
+          "C": 10.7114039752114,
+          "percent": 1.1875756190909303
+        }
+      },
+      "global_swapouts_bytes": 0,
+      "global_swapins_bytes": 1294336
+    },
+    "confirm-v2": {
+      "pairs": {
+        "MAIN": {
+          "H": 11.486665616441131,
+          "C": 11.441571705281463,
+          "percent": -0.3925761632263769
+        },
+        "HOLD": {
+          "H": 10.76214620600219,
+          "C": 10.223068117480855,
+          "percent": -5.009020303224321
+        }
+      },
+      "global_swapouts_bytes": 27197440,
+      "global_swapins_bytes": 0
+    },
+    "decision": "No throughput gain established; F06 runtime withdrawn. HOLD CH had global swapout, timing not zero-swap-qualified, cause unknown; do not infer causal regression.",
+    "geomean_descriptive_raw_percent": {
+      "MAIN": -0.35561880024237436,
+      "HOLD": -1.9596667631172293
+    },
+    "gold_responses_checked": 16,
+    "excluded_confirmation": "plans/confirm: interrupted after failed local preflight, never reused"
+  },
+  "qualified_interpretation": {
+    "MAIN": "HCandCHnegative, descriptive geomean-0.3556188%; no gain or universal causal regression established",
+    "HOLD": "CHtimingnotzero-global-swapoutqualified becauseHOLD-Cphase27197440Bglobalout; rawratiosonly, no causalregressionclaim"
+  },
+  "quality": {
+    "component_cases": 256,
+    "fallback_domains": 6,
+    "real_route_cases": 384,
+    "real_gate_layers": 48,
+    "strict_invalid_cli": 9,
+    "loader_modes": [
+      "absent",
+      "0",
+      "1"
+    ],
+    "prefix_cases": 36,
+    "mtp_budgets": [
+      1,
+      2,
+      3,
+      17
+    ],
+    "bridge_requests": 43,
+    "native_initial_suite": {
+      "passed": 130,
+      "ignored": 150,
+      "overall_phase": "quality-v1failedmetadata; suiteitselfpassed"
+    },
+    "cpu_lib": {
+      "passed": 117,
+      "ignored": 6
+    },
+    "cpu_integration_passed": 16
+  },
+  "proof": {
+    "cpu": {
+      "tool": "Kani",
+      "harness": "flash_top10_early_exit_is_confined_to_requested_flash_geometry",
+      "obligations_passed": 5,
+      "covers_satisfied": 4,
+      "assumptions": 0,
+      "symbolic_domain": "i32 experts, usize top_k, bool requested; loop-free real production eligibility predicate",
+      "scope": "Exact geometry/request confinement only; does not prove MSL, MLX, driver, concurrency or inference."
+    },
+    "mlx": {
+      "status": "unverified_tool_internal_compiler_error",
+      "harness": "actual_flash_top10_early_exit_preserves_a_symbolic_input",
+      "command_json": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F06/evidence/kani-mlx.json",
+      "exit_code": 1,
+      "elapsed_seconds": 4.020177500002319,
+      "rss_group_peak_bytes": 684474368,
+      "limit_seconds": 180,
+      "limit_rss_bytes": 4294967296,
+      "diagnostic": "Kani panic kani-compiler/src/intrinsics.rs:243:17",
+      "no_stub": true
+    }
+  },
+  "memory": {
+    "bridge": {
+      "global_swapins_bytes": 131072,
+      "global_swapouts_bytes": 0,
+      "peak_process_bytes": 7938120112
+    },
+    "HC": {
+      "global_swapins_bytes": 1294336,
+      "global_swapouts_bytes": 0,
+      "peak_process_bytes": 7850924368
+    },
+    "CHv2": {
+      "snapshot_count": 12,
+      "maximum_process_lifetime_peak_bytes": 7851317632,
+      "maximum_current_footprint_bytes": 7761434984,
+      "maximum_current_compressed_logical_bytes": 3158310912,
+      "maximum_own_ledger_swapins_logical_bytes": 0,
+      "global_swapouts_bytes": 27197440,
+      "global_swapins_bytes": 0,
+      "HOLD_C_endpoint_swapouts_bytes": 27197440,
+      "HOLD_C_live_monitor_swapouts_bytes": 0,
+      "interpretation": "Endpoint27.197MBglobalout despite0lastlivemonitor; do notdiscard endpoint delta. Source unknown; ledger0doesnotproveabsenceprivateout. HOLDtimingnotzero-system-swapqualified. 77Bcompressioncapsremainfailed."
+    },
+    "compression77B": "failedhistoricalcapsretained; no attributionorleakproved; ledger0notabsenceprivateout"
+  },
+  "archive": {
+    "source_members": 85,
+    "source_snapshot_sha256": "17f5fb3755834656944ce9d3b21ab20e5ae135b93e2415781d69ab1f340999d8",
+    "identity": "identity-frozen-v2.json",
+    "engine_sha256": "cbc03630aa08fd8dcdb949b905896ec1dc7f37888a7e984059c12624ec6743e7",
+    "native_tests_sha256": "f83049e4e77202ef01f7d96b5ed24bc14b8897ab992db501eaca06eb2d927431",
+    "controller_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76"
+  },
+  "failures_retained": [
+    "twoinitialClippyMLXfixturefailures",
+    "quality-v1fullsuite metadata failure despite130passingtests",
+    "KaniMLXinternalcompilererror243unverified",
+    "initialscreenpreflightnullablecounter/histogramfailure",
+    "confirm-v1interruptedpartialexcludedandneverreused",
+    "HOLDCHglobalswapoutunknowncause",
+    "77Bcompressioncapsfailed"
+  ],
+  "conditional_OFF_MTP_controls": "prepared thenclosedwithout execution because noDFlashgain qualified",
+  "publication": "documentsandhistoricalsourcesonly; runtimebinaries,original/changedpreparationcopies,modelweights excluded",
+  "historical_reports": "Preparation README/version manifests and quality/counter-reviews preserve their status at read time; final README+summary govern currentwithdrawn status.",
+  "no_new_executable_or_measurement": "This archival update only reads/writes documents and hashes; no GPU/build/test/prover."
+}

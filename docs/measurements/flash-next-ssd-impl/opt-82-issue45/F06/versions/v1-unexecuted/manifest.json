@@ -1,0 +1,127 @@
+{
+  "experiment": "82F06",
+  "status": "prepared_only_not_applied_or_executed",
+  "base_commit": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "source_patch_sha256": "39a16a7a6b2bb233f7e4ac09aa94f70fbb5d6bf0a21e444047bf356a86c3cf4f",
+  "flag": "MLXL3_SSD_TOP10_EARLY_EXIT",
+  "default": "0",
+  "scope": "Legacy E512/top10 only; top16 draft and generic router dispatch remain baseline",
+  "sources": [
+    {
+      "path": "native/src/flash_support.rs",
+      "base_sha256": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+      "changed_sha256": "49638f4f91a88f14ecc970ded79aecb184b3bc2e9368787e78e232c2bd686332",
+      "bytes": 97162,
+      "added_lines": 44,
+      "removed_lines": 0
+    },
+    {
+      "path": "native/src/router/flash_top10_tests.rs",
+      "base_sha256": null,
+      "changed_sha256": "c9066eb88ea6a69f5999fda80111621b562694e0c14b3dbc7a1b17b48b359805",
+      "bytes": 8163,
+      "added_lines": 192,
+      "removed_lines": 0
+    },
+    {
+      "path": "native/src/router.rs",
+      "base_sha256": "e86fdba8233ef91bcc04a1a063c4822277c64b5d483b9911721c5bbb45b25199",
+      "changed_sha256": "0946eb1ebece94e57284a56aed64614bf2ebdaa767bf5f2e279254e0a7530f4b",
+      "bytes": 26199,
+      "added_lines": 54,
+      "removed_lines": 3
+    },
+    {
+      "path": "native/src/ssd_moe/top10_early_exit_tests.rs",
+      "base_sha256": null,
+      "changed_sha256": "27051858e9994618d6760f1765eeca4e2b2874bc55bc83727c7d639cbf68f7e4",
+      "bytes": 6739,
+      "added_lines": 160,
+      "removed_lines": 0
+    },
+    {
+      "path": "native/src/ssd_moe.rs",
+      "base_sha256": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+      "changed_sha256": "55e0ba8e282a68401b25d063cf463b46e56f6d5ff0100e4648440fdb2ac3ad3a",
+      "bytes": 91120,
+      "added_lines": 12,
+      "removed_lines": 2
+    }
+  ],
+  "artifacts": {
+    "README.md": {
+      "sha256": "ace27d87cce345fcc41fcaa9a7027ee5542a8bafed94fc3cc3d3a09ae710bc61",
+      "bytes": 9292
+    },
+    "changed/native/src/flash_support.rs": {
+      "sha256": "49638f4f91a88f14ecc970ded79aecb184b3bc2e9368787e78e232c2bd686332",
+      "bytes": 97162
+    },
+    "changed/native/src/router/flash_top10_tests.rs": {
+      "sha256": "c9066eb88ea6a69f5999fda80111621b562694e0c14b3dbc7a1b17b48b359805",
+      "bytes": 8163
+    },
+    "changed/native/src/router.rs": {
+      "sha256": "0946eb1ebece94e57284a56aed64614bf2ebdaa767bf5f2e279254e0a7530f4b",
+      "bytes": 26199
+    },
+    "changed/native/src/ssd_moe/top10_early_exit_tests.rs": {
+      "sha256": "27051858e9994618d6760f1765eeca4e2b2874bc55bc83727c7d639cbf68f7e4",
+      "bytes": 6739
+    },
+    "changed/native/src/ssd_moe.rs": {
+      "sha256": "55e0ba8e282a68401b25d063cf463b46e56f6d5ff0100e4648440fdb2ac3ad3a",
+      "bytes": 91120
+    },
+    "ci.patch": {
+      "sha256": "259db767a0ca40775d5465f1d8ef93df43a1b1d9c424bd44f21f2742d65c6b2f",
+      "bytes": 610
+    },
+    "commands.json": {
+      "sha256": "79185993e27a62feecaa86387937a16abeb25067f85c27176cc9842e8f1d522a",
+      "bytes": 3480
+    },
+    "mutation-cpu.patch": {
+      "sha256": "8d31cbc82395593815a2610dc853ffd53f00fd33f4eb35f276cb446d9b7639a1",
+      "bytes": 417
+    },
+    "mutation-gpu.patch": {
+      "sha256": "59581b0405b493a8fe34e2172478ea21606b33fd520f1d1801babd4de04a456c",
+      "bytes": 442
+    },
+    "original/native/src/flash_support.rs": {
+      "sha256": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+      "bytes": 95604
+    },
+    "original/native/src/router.rs": {
+      "sha256": "e86fdba8233ef91bcc04a1a063c4822277c64b5d483b9911721c5bbb45b25199",
+      "bytes": 24594
+    },
+    "original/native/src/ssd_moe.rs": {
+      "sha256": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+      "bytes": 90704
+    },
+    "source.patch": {
+      "sha256": "39a16a7a6b2bb233f7e4ac09aa94f70fbb5d6bf0a21e444047bf356a86c3cf4f",
+      "bytes": 22067
+    },
+    "static-review.json": {
+      "sha256": "a04c6b9afe48799f9d3a49f7da01ff8bb4bf3ce13d08567a823f9dd24a72c7d0",
+      "bytes": 645
+    }
+  },
+  "source_verification": {
+    "rustfmt_copies_exit_code": 0,
+    "cpu_tests": "not_run",
+    "kani_cpu": "prepared_not_run",
+    "kani_actual_mlx": "prepared_not_run",
+    "msl_formal": "not_verified_no_supported_verifier_identified",
+    "physical_components": "not_run",
+    "mutation_gpu": "prepared_not_run",
+    "mutation_cpu": "prepared_not_run",
+    "speed": "not_measured"
+  },
+  "future_engine_sha256": null,
+  "future_native_tests_sha256": null,
+  "live_worktree_edited": false
+}
