@@ -518,8 +518,30 @@ fn staged_cold_reads_match_oracles_and_recover_after_down_failure() -> Result<()
         "partial record was published"
     );
     ensure!(temporary.as_file().metadata()?.len() == 0);
+    ensure!(
+        moe.cache
+            .borrow()
+            .resident_slot_map()?
+            .iter()
+            .all(|&slot| slot == u32::MAX)
+    );
     moe.records[id] = original;
-    ensure!(moe.forward(&input)?.to_bytes()? == expected && moe.cold_submissions == 2);
+    ensure!(
+        moe.forward(&input)?.to_bytes()? == expected,
+        "cold retry differs from independent oracle"
+    );
+    ensure!(
+        moe.cold_submissions == 1,
+        "fully invalidated cache unexpectedly used Hot"
+    );
+    moe.drain()?;
+    moe.cache.borrow_mut().invalidate();
+    prime_half(&mut moe, &input)?;
+    ensure!(
+        moe.forward(&input)?.to_bytes()? == expected,
+        "staged retry differs from independent oracle"
+    );
+    ensure!(moe.cold_submissions == 2);
     moe.drain()?;
     println!("STAGED_COLD_PARITY cases={cases} down_failure=true retry=true error={error:#}");
     Ok(())
