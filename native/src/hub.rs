@@ -942,6 +942,10 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
         for name in files.keys().filter(|name| parent(name) == folder) {
             let file = base(name);
             if weights.contains(name)
+                || matches!(
+                    file,
+                    "ngram_embedding.safetensors" | "mtp_hyper_connection_mixer_patch.safetensors"
+                )
                 || (quant_label.is_none() && file == "model.safetensors.index.json")
             {
                 selected.insert(file.to_owned(), name.clone());
@@ -1426,6 +1430,220 @@ mod tests {
     }
 
     #[test]
+    fn flash_variants_include_present_sidecars_and_exact_total() {
+        for present in 0u8..4 {
+            let mut files = BTreeMap::from([
+                ("config.json".into(), 10),
+                ("tokenizer.json".into(), 20),
+                ("quantization_config.json".into(), 5),
+                ("model.safetensors".into(), 100),
+                ("model.safetensors.index.json".into(), 7),
+            ]);
+            if present & 1 != 0 {
+                files.insert("ngram_embedding.safetensors".into(), 26_240_152_672);
+            }
+            if present & 2 != 0 {
+                files.insert(
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                    13_128_048,
+                );
+            }
+            let choices = variants(&files);
+            assert_eq!(choices.len(), 1);
+            let choice = &choices[0];
+            let mut expected = BTreeMap::from([
+                ("config.json".into(), "config.json".into()),
+                ("tokenizer.json".into(), "tokenizer.json".into()),
+                (
+                    "quantization_config.json".into(),
+                    "quantization_config.json".into(),
+                ),
+                ("model.safetensors".into(), "model.safetensors".into()),
+                (
+                    "model.safetensors.index.json".into(),
+                    "model.safetensors.index.json".into(),
+                ),
+            ]);
+            let mut bytes = 142;
+            if present & 1 != 0 {
+                expected.insert(
+                    "ngram_embedding.safetensors".into(),
+                    "ngram_embedding.safetensors".into(),
+                );
+                bytes += 26_240_152_672;
+            }
+            if present & 2 != 0 {
+                expected.insert(
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                );
+                bytes += 13_128_048;
+            }
+            assert_eq!(choice.files, expected);
+            assert_eq!(choice.size_bytes, bytes);
+            files.remove("config.json");
+            assert!(variants(&files).is_empty());
+            files.insert("config.json".into(), 10);
+            files.remove("model.safetensors");
+            assert!(
+                variants(&files).is_empty(),
+                "sidecars cannot replace the main weights"
+            );
+        }
+    }
+
+    #[test]
+    fn flash_sidecars_stay_in_the_variant_folder_and_do_not_match_quantized_names() {
+        let files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("tokenizer.json".into(), 20),
+            ("quantization_config.json".into(), 5),
+            ("model.safetensors".into(), 100),
+            ("ngram_embedding.safetensors".into(), 1_000),
+            ("mtp_hyper_connection_mixer_patch.safetensors".into(), 2_000),
+            ("sub/config.json".into(), 11),
+            ("sub/quantization_config.json".into(), 6),
+            ("sub/model.safetensors".into(), 200),
+            ("sub/model.safetensors.index.json".into(), 13),
+            ("sub/quantization_config-4bpw.json".into(), 7),
+            ("sub/config-4bpw.json".into(), 8),
+            ("sub/model-4bpw.safetensors".into(), 400),
+            ("sub/ngram_embedding.safetensors".into(), 3_000),
+            (
+                "sub/mtp_hyper_connection_mixer_patch.safetensors".into(),
+                4_000,
+            ),
+            ("sub/ngram_embedding-4bpw.safetensors".into(), 9_000),
+            (
+                "sub/mtp_hyper_connection_mixer_patch-4bpw.safetensors".into(),
+                9_000,
+            ),
+            ("sub/other.safetensors".into(), 9_000),
+            ("sub/draft/ngram_embedding.safetensors".into(), 9_000),
+            (
+                "other/mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+            ("../quantization_config.json".into(), 9_000),
+            ("../config.json".into(), 9_000),
+            ("../model.safetensors".into(), 9_000),
+            ("sub/../ngram_embedding.safetensors".into(), 9_000),
+            (
+                "sub/./mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+            ("/ngram_embedding.safetensors".into(), 9_000),
+            (
+                "sub\\mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+        ]);
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 3);
+        for (id, folder, size, model) in [
+            ("", "", 3_135, "model.safetensors"),
+            ("sub", "sub/", 7_250, "model.safetensors"),
+            (
+                "sub#quantization_config-4bpw.json",
+                "sub/",
+                7_435,
+                "model-4bpw.safetensors",
+            ),
+        ] {
+            let choice = choices.iter().find(|choice| choice.id == id).unwrap();
+            assert_eq!(choice.size_bytes, size);
+            for name in [
+                "ngram_embedding.safetensors",
+                "mtp_hyper_connection_mixer_patch.safetensors",
+            ] {
+                assert_eq!(choice.files[name], format!("{folder}{name}"));
+            }
+            let actual_weights: Vec<_> = choice
+                .files
+                .keys()
+                .filter(|name| name.ends_with(".safetensors"))
+                .map(String::as_str)
+                .collect();
+            let mut expected = vec![
+                model,
+                "ngram_embedding.safetensors",
+                "mtp_hyper_connection_mixer_patch.safetensors",
+            ];
+            expected.sort_unstable();
+            assert_eq!(actual_weights, expected);
+            assert!(choice.files.values().all(|name| safe_file(name)));
+        }
+    }
+
+    #[test]
+    fn selected_flash_variant_assembles_into_an_inspectable_checkpoint() {
+        fn shard(path: &Path, header: Value, payload: &[u8]) {
+            let header = serde_json::to_vec(&header).unwrap();
+            let mut bytes = (header.len() as u64).to_le_bytes().to_vec();
+            bytes.extend(header);
+            bytes.extend(payload);
+            fs::write(path, bytes).unwrap();
+        }
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source");
+        let assembled = root.path().join("assembled");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&assembled).unwrap();
+        fs::write(source.join("config.json"), r#"{"model_type":"qwen4_exp"}"#).unwrap();
+        fs::write(source.join("tokenizer.json"), "{}").unwrap();
+        fs::write(source.join("quantization_config.json"), serde_json::to_vec(&serde_json::json!({
+            "quant_method":"exl3", "bits":2.05,
+            "tensor_storage":{
+                "model.linear":{"quant_format":"exl3"},
+                "sidecars":{"stored_tensors":{"ple.sidecar":{"shape":[1]},"mtp.sidecar":{"shape":[1]}}}
+            }
+        })).unwrap()).unwrap();
+        shard(
+            &source.join("model.safetensors"),
+            serde_json::json!({
+                "model.linear.trellis":{"dtype":"U16","shape":[1,1,16],"data_offsets":[0,32]},
+                "model.linear.suh":{"dtype":"F16","shape":[16],"data_offsets":[32,64]},
+                "model.linear.svh":{"dtype":"F16","shape":[16],"data_offsets":[64,96]}
+            }),
+            &[0; 96],
+        );
+        for (name, tensor) in [
+            ("ngram_embedding.safetensors", "ple.sidecar"),
+            (
+                "mtp_hyper_connection_mixer_patch.safetensors",
+                "mtp.sidecar",
+            ),
+        ] {
+            shard(
+                &source.join(name),
+                serde_json::json!({tensor:{"dtype":"F16","shape":[1],"data_offsets":[0,2]}}),
+                &[0; 2],
+            );
+        }
+        let files = fs::read_dir(&source)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (
+                    entry.file_name().into_string().unwrap(),
+                    entry.metadata().unwrap().len(),
+                )
+            })
+            .collect();
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 1);
+        for (local, remote) in &choices[0].files {
+            fs::copy(source.join(remote), assembled.join(local)).unwrap();
+        }
+        let checkpoint = crate::checkpoint::inspect(&assembled).unwrap();
+        assert_eq!(checkpoint.model_type, "qwen4_exp");
+        assert_eq!(checkpoint.tensors.len(), 5);
+        for tensor in ["ple.sidecar", "mtp.sidecar"] {
+            assert_eq!(checkpoint.tensors[tensor].read_bytes().unwrap(), [0, 0]);
+        }
+    }
+
+    #[test]
     fn discovers_root_and_named_quantizations() {
         let files = BTreeMap::from([
             ("config.json".into(), 10),
@@ -1448,6 +1666,50 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(130)]
+    fn flash_sidecar_collection_preserves_present_files_and_size() {
+        let ngram: bool = kani::any();
+        let mtp: bool = kani::any();
+        let mut files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("quantization_config.json".into(), 5),
+            ("model.safetensors".into(), 100),
+        ]);
+        if ngram {
+            files.insert("ngram_embedding.safetensors".into(), 26_240_152_672);
+        }
+        if mtp {
+            files.insert(
+                "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                13_128_048,
+            );
+        }
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 1);
+        let choice = &choices[0];
+        assert_eq!(
+            choice.files.contains_key("ngram_embedding.safetensors"),
+            ngram
+        );
+        assert_eq!(
+            choice
+                .files
+                .contains_key("mtp_hyper_connection_mixer_patch.safetensors"),
+            mtp
+        );
+        assert_eq!(
+            choice.files.len(),
+            3 + usize::from(ngram) + usize::from(mtp)
+        );
+        assert_eq!(
+            choice.size_bytes,
+            115 + u64::from(ngram) * 26_240_152_672 + u64::from(mtp) * 13_128_048
+        );
+        kani::cover!(ngram && mtp);
+        kani::cover!(!ngram && !mtp);
+    }
 
     #[kani::proof]
     #[kani::unwind(10)]

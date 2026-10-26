@@ -847,26 +847,44 @@ final class StudioModel: ObservableObject {
         cancelDFlashPreparation()
         let operation = dflashOperationID
         dflashDownloadError = nil; dflashDownloadCompleted = 0; dflashDownloadTotal = 0
+        let flashDraft = model.modelType == "qwen4_exp"
+        if flashDraft && (!dflashConfigureSupported || dflashDraftPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+            dflash2Enabled = false
+            preferences.set(false, forKey: "studio.dflash2Enabled")
+            dflashDownloadError = !dflashConfigureSupported
+                ? L("Mets le moteur à jour pour charger un draft Flash Next.", "Update the engine to load a Flash Next draft.")
+                : L("Choisis le dossier du draft DFlash2 Flash Next contenant config.json et model.safetensors.", "Choose the Flash Next DFlash2 draft folder containing config.json and model.safetensors.")
+            return
+        }
         dflashDownloading = true
         dflashDownloadTask = Task { [self] in
             do {
                 var data: Data?
-                if !dflashDraftPath.isEmpty {
-                    data = try? await CLICommand().output(["dflash-draft", "--target", model.path, "--inspect", dflashDraftPath])
-                }
-                try Task.checkCancellation()
-                if data == nil {
-                    data = try await CLICommand().output(["dflash-draft", "--target", model.path]) { [weak self] line in
-                        guard let self, operation == self.dflashOperationID,
-                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
-                        self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
-                        self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
+                if !flashDraft {
+                    if !dflashDraftPath.isEmpty {
+                        data = try? await CLICommand().output(["dflash-draft", "--target", model.path, "--inspect", dflashDraftPath])
+                    }
+                    try Task.checkCancellation()
+                    if data == nil {
+                        data = try await CLICommand().output(["dflash-draft", "--target", model.path]) { [weak self] line in
+                            guard let self, operation == self.dflashOperationID,
+                                  let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                            self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
+                            self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
+                        }
                     }
                 }
                 try Task.checkCancellation()
                 guard operation == dflashOperationID, selectedModel?.path == model.path else { return }
-                guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
-                      event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                let path: String
+                if flashDraft {
+                    // Raw Flash drafts are validated by the resident loader and its acknowledgement.
+                    path = dflashDraftPath
+                } else {
+                    guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                          event.type == "installed", let installedPath = event.path, !installedPath.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                    path = installedPath
+                }
                 dflashDraftPath = path
                 preferences.set(path, forKey: "studio.dflashDraftPath")
                 preferences.set(path, forKey: "studio.dflashDraft.\(model.path)")
