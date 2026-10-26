@@ -16696,4 +16696,28 @@ Limites : aucun kernel ni math de production n’est modifié, donc aucun harnai
 
 - 45-Q/R processus component : **failed_or_interrupted**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality/run-result.json.
 
-- A1 qualitév1 interrompue surle testdereprise, enfantjoint/zéroswap-out ; aucunpréfixe/bridge/débitlancé. Les36casMoE avaientpassé, puisassertioncomposée byte-parity+compteur2échoue. InspectionduvraiExpertFill::drop :unelectureéchouée invalide TOUTlecache, donclapremièrerepriseestentièrementCold et n’utilisepaslapipelineHot. Hypothèseincorrectedutest, pasunecausenumériquedémontrée. Correctionprévue :assertionindépendantecacheentièrementinvalide, byteparitéaprèsrepriseCold/compteur1, puisréamorçagepartiel etbyteparitépipelinée/compteur2. Nechanger aucunコードproduction pourfairepasserlecompteur. Préserverquality/ ; relancerensuitequality-v2. Kani détaillé :0/188échecs,2assertionsinatteignables attendues (variantAll horsdomaine staged, secondeconditiond’ordre court-circuitée),2covers atteintes ; pasdestub etpaspreuveGPU.
+- A1 qualitév1 interrompue surle testdereprise, enfantjoint/zéroswap-out ; aucunpréfixe/bridge/débitlancé. Les36casMoE avaientpassé, puisassertioncomposée byte-parity+compteur2échoue. InspectionduvraiExpertFill::drop :unelectureéchouée invalide TOUTlecache, donclapremièrerepriseestentièrementCold et n’utilisepaslapipelineHot. Hypothèseincorrectedutest, pasunecausenumériquedémontrée. Correctionprévue :assertionindépendantecacheentièrementinvalide, byteparitéaprèsrepriseCold/compteur1, puisréamorçagepartiel etbyteparitépipelinée/compteur2. Nechanger aucun code de production pourfairepasserlecompteur. Préserverquality/ ; relancerensuitequality-v2. Kani détaillé :0/188échecs,2assertionsinatteignables attendues (variantAll horsdomaine staged, secondeconditiond’ordre court-circuitée),2covers atteintes ; pasdestub etpaspreuveGPU.
+
+- 45-Q/R processus component : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus mutation : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus prefix : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- **A1 qualité v2 validée avant débit.** 36casMoEB1/B2 exacts, défautDownjetable aprèsGU, repriseCold puisréamorçagepipeliné exacts ; mutationDownomise détectée avec2560valeursfinies. 36préfixeslogits/états passent, bridge43/43parité/annulation/reprise passe.4enfants etsampler joints,zéro nouveauSwap-out. RSSmaximumenfants7,373Go, distinctdefottprint/allocations. CLIproduction302771c6, testcorrigé9264aba2 seul (assertioncacheinvalidé), helpers/kernelsinchangés. ÉcranH-C MAIN/HOLD prêt :mêmesbibliothèquesidentiques,128warm+128mesure, pascompilation/proveur/secondmodèle, secteur/admissionrerelevés ; aucunevitesseencorenouvelle. Preuves ROOT/build/issue46/A1/quality-v2.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus HOLD-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus HOLD-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- **A1 REJETÉ, retiré effectivement.** ÉcranH-C secteur128warm+128mesure DFlashB2 : MAIN12,065689→11,675183tok/s(-3,236%),HOLD11,679307→11,268663(-3,516%). H/Cmêmesacceptations/lignesvérifiées/octetslogiques,8réponsesgold128exactes, tousprocessus/lecteurs/samplerjoints ; nouveauxswap-out0B, ledgerprocessswap-in0B, footprintpic<7,84Go. Compression/décompressionvariables etunseulordre :pasdecausalitéuniverselledéduite ; retraitconservateur, aucun gainpromu. PasC-H/OFF/MTPvitesse aprèsécrannégatif.4sourcesexécutablesrestauréesexactementbe45e074/A0, patch+snapshots+preuvesarchivés docs/measurements/issue46/A1 etROOT/build/issue46/A1 ; appetprivépréservés. SourceCLIcandidate302771c6 / tests9264aba2, bibliothèquescommunesidentiques ; oraclesphysiquesA1nevalidentpaslecodefinalrestauréparmagie, identitérestauréebyteexactA0qualifié. A0resteactifdiagnostic, A1clos, Bnonencoreprototypé.

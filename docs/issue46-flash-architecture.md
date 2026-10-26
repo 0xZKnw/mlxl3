@@ -30,4 +30,19 @@ A1 staged Cold pipeline first; then B exact QSA q/out MB2; I release checkpoint 
 - `cargo kani --lib --tests --features mlx,chat --harness actual_detailed_profile_path --jobs 1 --output-format terse`: compiler ICE before obligations, no proof obtained.
 - Exact physical test argv, environment and bounds are in [run.json](measurements/issue46/A0/run.json). Each profile used the existing verifier64 protocol, two traces and sequential oracle;12complete model phases total. The readiness test and two full-profile invocations were selected with `--exact --ignored --nocapture --test-threads=1`, then analyzed by the unchanged `scripts/profile_flash.py::analyze`. Extra readiness checks required nonempty actual probes, valid optional booleans and monotonic readiness on6264Hot/Cold batches.
 
-This verifies the diagnostic paths exercised, not all hardware schedules, long contexts, cancellation/fault paths or a new production optimization. A1 has not started.
+This verifies the diagnostic paths exercised, not all hardware schedules, long contexts, cancellation/fault paths or a new production optimization. A1 is now archived below.
+
+## A1: staged Cold reads rejected after the throughput screen
+
+The prototype read Gate/Up first, submitted its activation, then read Down. It retained the additional GPU reader, attempted both drains on failure, and published slots only after complete reads. Physical quality passed36MoE cases, independent-oracle mutation detection, real disposable-file Down failure/recovery,36prefix checks and43production bridge checks. The first recovery test had an incorrect second-pipeline expectation: the existing failure policy invalidates the entire cache. It was corrected to check Cold fallback and later staged recovery; the failed first run is retained.
+
+| Fixed DFlash2 B2,128warm+128measured | Control | Candidate | Difference |
+|---|---:|---:|---:|
+| MAIN | 12.065689 | 11.675183 | -3.236% |
+| HOLD | 11.679307 | 11.268663 | -3.516% |
+
+Acceptance, verified rows, logical expert bytes and all eight full128-token golden answers match. Verification cost increased77.39→79.86ms/emitted token on MAIN and79.92→82.86 on HOLD. These are inclusive host times. All processes/readers/samplers joined; zero new swap-outs, process ledger swap-ins0B. Peak footprint stayed below7.84GB. Compression/decompression varied between processes; this single H-C screen does not establish a universal causal regression. It provides no reason to promote the prototype. Reverse-order and OFF/MTP speed checks were not run after this negative screen.
+
+The prototype is withdrawn from executable sources; [withdrawal](measurements/issue46/A1/withdrawal.json) proves exact restoration to A0. Its [patch](measurements/issue46/A1/prototype.patch.txt), [results](measurements/issue46/A1/screen-analysis.json) and quality evidence are retained. No installed app changed, no gain claimed. Kani checked the actual staged partition for symbolic slots0..511, unwind16:0/188failed,2expected unreachable checks,2/2covers. This does not prove GPU/FFI concurrency. The initial plan, failed test, corrected test and raw observations remain in /Users/justin/Documents/mix-stq1_0/build/issue46/A1.
+
+Next priority: B, exact QSA q/out projection batching; no staged-I/O combination.

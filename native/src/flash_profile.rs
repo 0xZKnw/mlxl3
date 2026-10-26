@@ -98,6 +98,7 @@ pub(crate) fn stage(name: &str, value: &crate::array::Array) -> Result<()> {
     }
     Ok(())
 }
+#[cfg(not(feature = "mlx"))]
 pub(crate) fn fenced() -> bool {
     TRACE.with_borrow(|trace| trace.as_ref().is_some_and(|t| t.fenced))
 }
