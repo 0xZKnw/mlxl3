@@ -1741,6 +1741,90 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    #[ignore = "physical Apple GPU; all sixty real QSA projections, independent scalar oracle"]
+    fn flash_qsa_batches_match_independent_single_rows() -> anyhow::Result<()> {
+        use super::*;
+        let checkpoint =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut names = Vec::new();
+        for layer in 0..48 {
+            let prefix = format!("model.language_model.layers.{layer}.self_attn");
+            if checkpoint
+                .tensors
+                .contains_key(&format!("{prefix}.q_proj.trellis"))
+            {
+                for name in [
+                    "q_proj",
+                    "k_proj",
+                    "v_proj",
+                    "o_proj",
+                    "indexer.index_qk_proj",
+                ] {
+                    names.push(format!("{prefix}.{name}"));
+                }
+            }
+        }
+        ensure!(names.len() == 60, "did not select all QSA projections");
+        let mut cases = 0;
+        for name in &names {
+            let linear = Exl3Linear::from_checkpoint(&checkpoint, name)?;
+            ensure!(
+                linear.reference_accumulation
+                    && linear.flash_batch
+                    && linear.k != 7
+                    && linear.cb == Codebook::Mul1
+            );
+            ensure!(
+                linear.k
+                    == if name.ends_with("index_qk_proj") {
+                        2
+                    } else {
+                        4
+                    }
+            );
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                for strided in [false, true] {
+                    let value = |r: i32, c: i32| ((r * 37 + c * 13) % 997) as f32 / 1024. - 0.5;
+                    let x = if strided {
+                        let values = (0..linear.rows)
+                            .flat_map(|c| (0..2).map(move |r| value(r, c)))
+                            .collect::<Vec<_>>();
+                        Array::from_f32(&values, &[linear.rows, 2])?
+                            .astype(dtype)?
+                            .transpose(&[1, 0])?
+                    } else {
+                        let values = (0..2)
+                            .flat_map(|r| (0..linear.rows).map(move |c| value(r, c)))
+                            .collect::<Vec<_>>();
+                        Array::from_f32(&values, &[2, linear.rows])?.astype(dtype)?
+                    };
+                    let first = linear.forward(&x.slice(0, 0, 1)?)?;
+                    let second = linear.forward(&x.slice(0, 1, 2)?)?;
+                    let expected = Array::concatenate(&[&first, &second], 0)?.to_bytes()?;
+                    let actual = linear.forward(&x)?;
+                    let values = actual.to_f32()?;
+                    ensure!(
+                        actual.shape() == [2, linear.cols]
+                            && values.len() == (2 * linear.cols) as usize
+                            && values.iter().all(|v| v.is_finite())
+                    );
+                    ensure!(
+                        actual.to_bytes()? == expected,
+                        "QSA MB2 differs: {name} {dtype:?} strided={strided}"
+                    );
+                    ensure!(
+                        first.to_bytes()? != second.to_bytes()?,
+                        "identical rows give a vacuous oracle"
+                    );
+                    cases += 1;
+                }
+            }
+        }
+        println!("QSA_MB2_ORACLE projections=60 cases={cases} parity=byte_exact finite=true");
+        Ok(())
+    }
+
     #[cfg(kani)]
     #[kani::proof]
     fn actual_flash_reference_batch_entry() {

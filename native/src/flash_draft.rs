@@ -1845,6 +1845,20 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
         );
     }
     ensure!(cases == 36);
+    if target.multi_token {
+        let counts = target
+            .layers
+            .iter()
+            .filter_map(|layer| match &layer.attention {
+                Attention::Qsa(q) => Some(q.batch_calls),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        ensure!(
+            counts.len() == 12 && counts.iter().all(|&n| n > 0),
+            "verifier did not exercise QSA B2 batching"
+        );
+    }
     println!(
         "FLASH_DRAFT_PREFIX {}",
         serde_json::json!({"status":"passed","kind":format!("{kind:?}"),"prefix_cases":cases,"captures":capture_check,"widths":[1,2,3,4,5,6,7,8],"target_logits_and_states":"byte_exact","memory":array::memory_stats(false)?})
