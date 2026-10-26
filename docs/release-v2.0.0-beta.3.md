@@ -21,7 +21,18 @@ Old conversations open in Chat. New Agent and Lab metadata is optional, but olde
 
 ## Verification and limitations
 
-Validation results, exact source identity and artifact checksums will be recorded here after the frozen build is inspected.
+Built from executable source [`45697feb06cac08983683c9ad5c1b8afdb8e9d32`](https://github.com/0xZKnw/mlxl3/commit/45697feb06cac08983683c9ad5c1b8afdb8e9d32); bundle and native runtime identities match, without tracked modifications. The full Desktop regression passed locally before the final logo-only adjustment; final strict compilation and 1158 functional/pixel checks passed after it. The sandbox and protocol harnesses passed 24 and 17 checks, the bounded transport passed 27 tests, and the sandbox passed AddressSanitizer. A deliberately weakened policy was rejected by the file-access oracle. These are tests and finite checks, not a complete proof; a Swift source-level proof was unavailable.
+
+The packaged application completed a real Qwen3.8 27B tool/file journey and an authenticated Server request on an Apple M5. Eleven packaging checks and the actual DMG updater preflight passed, including 15 signed compatibility/integrity cases. Intermediate failures and rejected logo integrations remain in the [verification archive](https://github.com/0xZKnw/mlxl3/releases/download/v2.0.0-beta.3/MLXL3-v2.0.0-beta.3-verification.tar.gz). **Published at the user’s request before GitHub CI completes.** On source `45697feb06cac08983683c9ad5c1b8afdb8e9d32`, conversion contracts passed; Desktop regression and Native checks were still running at publication preparation. The unchanged base’s earlier global Kani job ended on runner shutdown. CI is not claimed fully green.
+
+## Artifacts
+
+| File | Bytes | SHA-256 |
+|---|---:|---|
+| MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg | 74120917 | `5a8110b9fb02f358938e588d68ea0cd0badabc372939f4daf151414b937bdb30` |
+| MLXL3-v2.0.0-beta.3-validation.json | 1853 | `0a1a80872b62265c2847f2abb9734c951495be9e73fe51fd157783110d87d812` |
+| MLXL3-v2.0.0-beta.3-verification.tar.gz | 699946 | `468e6381290d6445654bc2ac013861ac0d7637f60df292a237e2ab34aeacf48e` |
+| MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg.sha256 | 116 | `3c5b34554036024b381767b173c9439058dcf3e69ef8ca4f476d0ec75ca16b5a` |
 
 The Agent is experimental. Its shell can use macOS system tools and files placed in its private workspace; it cannot download dependencies or freely access Homebrew, user environments or arbitrary host projects. The sandbox provides process restrictions on the same macOS kernel, with no hard aggregate RAM or disk quota. It is not a virtual machine. Command compatibility and model tool-calling reliability remain dependent on the selected model. Testing is not a complete security proof.
 

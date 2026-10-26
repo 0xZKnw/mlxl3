@@ -1,0 +1,86 @@
+Building for debugging...
+[Planning deferred tasks]
+[1 / 16]
+[2 / 17] SwiftMath
+[14 / 128]
+[24 / 128]
+[27 / 128]
+[33 / 128]
+[36 / 128]
+[43 / 128]
+[45 / 128]
+[48 / 128]
+[49 / 128]
+[59 / 128]
+[62 / 128]
+[64 / 128]
+[65 / 128]
+[72 / 128]
+[73 / 128]
+[79 / 128]
+[80 / 128]
+[82 / 128]
+[83 / 128]
+[85 / 128]
+[93 / 128]
+[97 / 128]
+[100 / 128]
+[101 / 128]
+[102 / 128]
+[113 / 128] SwiftMath
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[117 / 124] SwiftMath
+[117 / 124] MLXL3Studio-product
+[127 / 259]
+[131 / 259]
+[139 / 259]
+[142 / 259]
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[150 / 259]
+[153 / 259]
+[161 / 259]
+[163 / 259]
+[166 / 259]
+[167 / 259]
+[180 / 259]
+[182 / 259]
+[188 / 259]
+[191 / 259]
+[195 / 259]
+[202 / 259]
+[204 / 259]
+[210 / 259]
+[211 / 259]
+[213 / 259]
+[214 / 259]
+[216 / 259]
+[228 / 259]
+[229 / 259]
+[233 / 259]
+[237 / 259]
+[239 / 259]
+[240 / 259]
+[241 / 259]
+[243 / 259]
+[254 / 259] MLXL3Studio-product
+[255 / 259] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[257 / 259] MLXL3Studio-product
+Build complete! (36,08 secs)
