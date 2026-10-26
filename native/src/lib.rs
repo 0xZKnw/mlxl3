@@ -17,6 +17,7 @@ pub(crate) mod embedding;
 mod flash_cache_profile;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod flash_draft_budget;
+pub(crate) mod flash_draft_metadata;
 #[cfg(test)]
 pub(crate) mod flash_profile;
 pub mod flash_support;

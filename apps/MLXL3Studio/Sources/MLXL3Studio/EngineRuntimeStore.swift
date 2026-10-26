@@ -91,7 +91,7 @@ enum EngineRuntimeStore {
     do {
       let pointer = try readPointer(root.appendingPathComponent("current.json"))
       guard let incoming = SemanticVersion(pointer.version),
-        let bundled = SemanticVersion(bundledVersion), incoming >= bundled
+        let bundled = SemanticVersion(bundledVersion), incoming > bundled
       else { return nil }
       let directory = root.appendingPathComponent("v" + pointer.version, isDirectory: true)
       guard
@@ -108,7 +108,8 @@ enum EngineRuntimeStore {
   /// back to the bundled runtime without another download.
   @discardableResult
   static func reject(_ executable: URL, root: URL = root) -> Bool {
-    guard let active = resolve(appVersion: "999.0.0", root: root, bundledVersion: "1.2.0"),
+    // Ignore bundle preference only when disabling this exact failing managed path.
+    guard let active = resolve(appVersion: "999.0.0", root: root, bundledVersion: "0.0.0"),
       active.standardizedFileURL == executable.standardizedFileURL
     else { return false }
     do {

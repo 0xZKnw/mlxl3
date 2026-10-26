@@ -1,0 +1,58 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_persistent_campaign_status_and_no_false_parity[nan] ___________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-40/test_persistent_campaign_statu0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108757d10>
+fault = 'nan'
+
+    @pytest.mark.parametrize("fault", ["ok", "diverge", "interrupt", "power", "changed_binary", "nan"])
+    def test_persistent_campaign_status_and_no_false_parity(tmp_path, monkeypatch, fault):
+        engine = tmp_path / "engine"
+        engine.write_bytes(b"engine")
+        output = tmp_path / "results"
+        run = modes["run"]
+        monkeypatch.setitem(
+            run.__globals__,
+            "conditions",
+            lambda: {"pmset batt": "AC Power" if fault != "power" else "Battery Power"},
+        )
+        calls = []
+    
+        def runner(*args, **kwargs):
+            name = (*modes["PROFILES"], *reversed(modes["PROFILES"]))[len(calls)]
+            calls.append(name)
+            if fault == "interrupt":
+                raise KeyboardInterrupt()
+            report = child(name)
+            report["binary_sha256"] = hashlib.sha256(engine.read_bytes()).hexdigest()
+            if fault == "diverge" and len(calls) == 2:
+                report["runs"][0]["token_hash"] = "bad"
+            if fault == "changed_binary":
+                engine.write_bytes(b"changed")
+            if fault == "nan":
+                report["runs"][0]["stats"]["decode_tps"] = float("nan")
+            return report
+    
+        if fault == "ok":
+            result = run(engine, tmp_path, tmp_path, output, runner=runner)
+            assert (
+                len(calls) == 2 * len(modes["PROFILES"])
+                and result["status"] == "completed"
+                and result["parity"]
+            )
+        else:
+            with pytest.raises((ValueError, RuntimeError, KeyboardInterrupt)):
+                run(engine, tmp_path, tmp_path, output, runner=runner)
+            result = json.loads((output / "campaign.json").read_text())
+            assert not result["parity"] and "summary" not in result
+>           assert result["status"] == ("interrupted" if fault == "interrupt" else "failed")
+E           AssertionError: assert 'incomplete' == 'failed'
+E             
+E             - failed
+E             + incomplete
+
+tests/test_flash_modes.py:262: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_modes.py::test_persistent_campaign_status_and_no_false_parity[nan]
+1 failed in 0.08s

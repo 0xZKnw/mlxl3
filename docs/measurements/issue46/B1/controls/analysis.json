@@ -1,0 +1,75 @@
+{
+  "status": "numerically_validated_throughput_not_qualified",
+  "gold128_answers_checked": 20,
+  "parity": true,
+  "dflash_MAIN_repeat": {
+    "control_tps": 11.806061136502342,
+    "candidate_tps": 11.864952549901778,
+    "difference_percent": 0.49882355104322595,
+    "control_metrics": {
+      "verified_width": 2,
+      "verified_rows": 138,
+      "acceptance_percent": 84.05797101449275,
+      "verification_ms_per_emitted": 78.9695774409449,
+      "verification_ms_per_row": 72.6749009782609,
+      "expert_bytes_per_decode_token": 188430158.26771653,
+      "verified_rows_per_decode_token": 1.0866141732283465
+    },
+    "candidate_metrics": {
+      "verified_width": 2,
+      "verified_rows": 138,
+      "acceptance_percent": 84.05797101449275,
+      "verification_ms_per_emitted": 78.59327166141732,
+      "verification_ms_per_row": 72.32859058695652,
+      "expert_bytes_per_decode_token": 188430158.26771653,
+      "verified_rows_per_decode_token": 1.0866141732283465
+    }
+  },
+  "off_mtp": [
+    {
+      "prompt": "MAIN",
+      "mode": "baseline",
+      "control_tps": 10.798500198858207,
+      "candidate_tps": 9.745652474982307,
+      "difference_percent": -9.74994401525523,
+      "control_warm_tps": 10.569740280034733,
+      "candidate_warm_tps": 10.674199270123653
+    },
+    {
+      "prompt": "MAIN",
+      "mode": "mtp",
+      "control_tps": 10.92909404517387,
+      "candidate_tps": 10.398500421610066,
+      "difference_percent": -4.854872886724815,
+      "control_warm_tps": 11.318795830783019,
+      "candidate_warm_tps": 11.403210295853917
+    },
+    {
+      "prompt": "HOLD",
+      "mode": "baseline",
+      "control_tps": 10.486043314018927,
+      "candidate_tps": 9.750982867651093,
+      "difference_percent": -7.009893287252799,
+      "control_warm_tps": 10.025380494025686,
+      "candidate_warm_tps": 10.097344663706894
+    },
+    {
+      "prompt": "HOLD",
+      "mode": "mtp",
+      "control_tps": 10.08463193206218,
+      "candidate_tps": 9.678673993702926,
+      "difference_percent": -4.025510708711022,
+      "control_warm_tps": 9.7744417684986,
+      "candidate_warm_tps": 9.029004182952793
+    }
+  ],
+  "peak_footprint_bytes": 8221186600,
+  "global_swapouts_bytes": 65536,
+  "process_ledger_swapins_logical_bytes": 0,
+  "limits": [
+    "Global 65536B swap-out during stock DFlash control is unattributed; no zero-global-swap claim for this campaign.",
+    "MAIN DFlash gains vary 0.50%, 2.65%, 9.07%; 9.07% has 8.43% stock baseline drift.",
+    "OFF and MTP comparison negative in both prompts; warm MAIN candidate slightly positive, causal source of slowdown unisolated.",
+    "Prototype withdrawn without reverse-order OFF/MTP speed campaign; slowdown is observed, not established as a causal QSA regression."
+  ]
+}

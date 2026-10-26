@@ -194,6 +194,10 @@ jobs:
           ruff format --check scripts/check_flash_fixed_width.py tests/test_flash_fixed_width.py
           ruff check scripts/check_flash_fixed_width.py tests/test_flash_fixed_width.py
           python -m pytest -q tests/test_flash_fixed_width.py
+          ruff format --check scripts/benchmark_flash_modes.py tests/test_flash_modes.py
+          ruff check scripts/benchmark_flash_modes.py tests/test_flash_modes.py
+          python -m py_compile scripts/benchmark_flash_modes.py
+          python -m pytest -q tests/test_flash_modes.py tests/test_flash_benchmark.py
           ruff format --check scripts/summarize_flash_profile.py tests/test_flash_profile_export.py
           ruff check scripts/summarize_flash_profile.py tests/test_flash_profile_export.py
           python -m pytest -q tests/test_flash_profile_export.py

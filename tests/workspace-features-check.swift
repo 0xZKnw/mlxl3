@@ -20,6 +20,17 @@ import SwiftUI
         }
         let history = root.appendingPathComponent("history.json")
         let studio = StudioModel(conversationFileURL: history, isPreview: true, preferences: preferences)
+        let recommended = ModelLibrary.recommendedModels
+        check(recommended.map(\.id) == ["UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", "turboderp/Qwen3.8-27B-exl3", "turboderp/Qwen3.8-Flash-Next-exl3", "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw"], "Four requested local model origins")
+        check(Set(recommended.map(\.id)).count == 4 && recommended.allSatisfy { $0.revision.count == 40 && $0.revision.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) } }, "Unique recommendations with immutable revisions")
+        let catalogue = ModelLibrary()
+        for model in recommended {
+            catalogue.open(model.id, revision: model.revision)
+            try await wait { !catalogue.loadingDetail }
+            check(catalogue.detail?.id == model.id && catalogue.error == nil, "Recommendation opens its exact repository")
+            check(catalogue.downloading == nil, "Opening a recommendation never starts a download")
+            catalogue.back()
+        }
         studio.addProject("Astronomie")
         let projectA = studio.selectedProjectID!
         studio.addProject("Cuisine")

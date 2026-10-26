@@ -966,6 +966,17 @@ impl SsdMoe {
         }
         fill.commit();
         #[cfg(test)]
+        if !jobs.is_empty()
+            && let Some(probe) = crate::flash_profile::span("cold_io_return")
+        {
+            probe.data(serde_json::json!({
+                "jobs": jobs.len(),
+                "hot_ready_at_begin": self.hot_ready_at_demand,
+                "hot_ready_at_return": hot_output.as_ref()
+                    .map(Array::is_available_for_test).transpose()?,
+            }));
+        }
+        #[cfg(test)]
         {
             self.profile_seconds[1] += read_start.elapsed().as_secs_f64();
             if !jobs.is_empty() {
