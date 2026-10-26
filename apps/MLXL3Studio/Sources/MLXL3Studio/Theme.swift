@@ -47,17 +47,34 @@ enum StudioBrand {
         return [Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), source]
             .compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }()
-    static let logo = logoURL.flatMap { NSImage(contentsOf: $0) }
+    static let logo: NSImage? = {
+        guard let original = logoURL.flatMap({ NSImage(contentsOf: $0) }) else { return nil }
+        let renderer = ImageRenderer(content: LogoArtwork(image: original))
+        renderer.scale = 2
+        return renderer.nsImage
+    }()
 }
 
-/// Reuse the actual app artwork; screen blending merges its dark field with the canvas.
+private struct LogoArtwork: View {
+    let image: NSImage
+    var body: some View {
+        Image(nsImage: image).resizable().scaledToFit()
+            .mask {
+                Image(nsImage: image).resizable().scaledToFit()
+                    .brightness(0.30).contrast(16).luminanceToAlpha()
+            }
+            .frame(width: 256, height: 256)
+    }
+}
+
+/// Keep the real artwork and mask its dark icon background in the view.
 struct MonogramMark: View {
     var size: CGFloat = 20
 
     var body: some View {
         Group {
             if let logo = StudioBrand.logo {
-                Image(nsImage: logo).resizable().scaledToFit().blendMode(.screen)
+                Image(nsImage: logo).resizable().scaledToFit()
             } else {
                 Image(systemName: "cpu").resizable().scaledToFit().foregroundStyle(StudioTheme.ink)
             }

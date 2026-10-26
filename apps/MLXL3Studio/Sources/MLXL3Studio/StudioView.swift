@@ -384,10 +384,10 @@ private struct AgentWelcomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 35)
-            MonogramMark(size: 96).frame(height: 64).clipped()
+            MonogramMark(size: 80).frame(height: 48).clipped()
             Text(L("Que voulez-vous construire ?", "What would you like to build?"))
                 .font(.system(size: 32, weight: .regular, design: .serif)).tracking(-0.7)
-                .multilineTextAlignment(.center).padding(.top, 24)
+                .multilineTextAlignment(.center).padding(.top, 20)
             Text(L("Votre modèle local, un espace de travail isolé.", "Your local model, an isolated workspace."))
                 .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet).padding(.top, 12)
             Spacer(minLength: 45)

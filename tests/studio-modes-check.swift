@@ -179,7 +179,52 @@ extension StudioModel {
     studio.localServer.stop()
     try await wait { !studio.localServer.active }
     check(!studio.localServer.busy, "Silent startup can be cancelled")
+    _ = NSApplication.shared
     check(StudioBrand.logoURL != nil && StudioBrand.logo != nil, "Real MLXL3 app artwork loads")
+    let logoWindow = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 128, height: 128),
+      styleMask: .borderless, backing: .buffered, defer: false)
+    logoWindow.isReleasedWhenClosed = false
+    defer { logoWindow.close() }
+    let logoHost = NSHostingView(
+      rootView: MonogramMark(size: 96).padding(16).background(StudioTheme.canvas))
+    logoWindow.contentView = logoHost
+    logoHost.frame = NSRect(x: 0, y: 0, width: 128, height: 128)
+    try await Task.sleep(for: .milliseconds(250))
+    logoHost.layoutSubtreeIfNeeded()
+    guard let logoBitmap = logoHost.bitmapImageRepForCachingDisplay(in: logoHost.bounds) else {
+      preconditionFailure("Logo bitmap missing")
+    }
+    logoHost.cacheDisplay(in: logoHost.bounds, to: logoBitmap)
+    if CommandLine.arguments.count > 2 {
+      try logoBitmap.representation(using: .png, properties: [:])!.write(
+        to: URL(fileURLWithPath: CommandLine.arguments[2]).deletingLastPathComponent()
+          .appendingPathComponent("logo-mask-pixels.png"))
+    }
+    let scale = Double(logoBitmap.pixelsWide) / 128
+    func color(_ x: Int, _ y: Int) -> NSColor {
+      logoBitmap.colorAt(x: Int(Double(x) * scale), y: Int(Double(y) * scale))!.usingColorSpace(
+        .deviceRGB)!
+    }
+    let background = color(2, 2)
+    for point in [(18, 18), (109, 18), (18, 109), (109, 109), (64, 18), (64, 109)] {
+      let pixel = color(point.0, point.1)
+      if abs(pixel.redComponent - background.redComponent) >= 0.015 {
+        FileHandle.standardError.write(
+          Data("Logo pixel \(point): \(pixel), baseline \(background)\n".utf8))
+      }
+      check(
+        abs(pixel.redComponent - background.redComponent) < 0.015
+          && abs(pixel.greenComponent - background.greenComponent) < 0.015
+          && abs(pixel.blueComponent - background.blueComponent) < 0.015,
+        "Logo has no rectangular background")
+    }
+    var visible = 0
+    for y in stride(from: 16, to: 112, by: 2) {
+      for x in stride(from: 16, to: 112, by: 2)
+      where color(x, y).redComponent > background.redComponent + 0.3 { visible += 1 }
+    }
+    check(visible > 100, "Actual logo remains visible after background masking")
     if CommandLine.arguments.count > 2 {
       _ = NSApplication.shared
       let preview = StudioModel.uiPreview()
