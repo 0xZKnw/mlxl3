@@ -3,7 +3,7 @@ use crate::{
     array::{Array, Dtype},
     checkpoint::{Checkpoint, TensorInfo},
     codec::Codebook,
-    flash_support::{EXPERT_BYTES, ExpertCache, ExpertFill, expert_slot_destinations},
+    flash_support::{EXPERT_BYTES, ExpertCache, ExpertFill, ExpertRead, expert_slot_destinations},
     lfm2::Projection,
     linear, router,
     ssd_prefetch::{PREDICTION_RANKS, ReaderPool, order_predictions},
@@ -39,6 +39,13 @@ pub struct SsdMoe {
     banks: Vec<Array>,
     cache: Rc<RefCell<ExpertCache>>,
     last: Option<Array>,
+    cold_pending: Option<Array>,
+    #[cfg(test)]
+    cold_submissions: u64,
+    #[cfg(test)]
+    truncate_down_for_test: Option<std::sync::Arc<std::fs::File>>,
+    #[cfg(test)]
+    skip_down_for_test: bool,
     pub hits: u64,
     pub misses: u64,
     pub read_bytes: u64,
@@ -259,6 +266,13 @@ impl SsdMoe {
             banks,
             cache,
             last: None,
+            cold_pending: None,
+            #[cfg(test)]
+            cold_submissions: 0,
+            #[cfg(test)]
+            truncate_down_for_test: None,
+            #[cfg(test)]
+            skip_down_for_test: false,
             hits: 0,
             misses: 0,
             read_bytes: 0,
@@ -288,6 +302,21 @@ impl SsdMoe {
     }
 
     fn fill_many(&mut self, jobs: &[(u32, usize)]) -> Result<()> {
+        self.fill_many_stage(jobs, ExpertRead::All)
+    }
+
+    fn fill_many_stage(&mut self, jobs: &[(u32, usize)], stage: ExpertRead) -> Result<()> {
+        #[cfg(test)]
+        if stage == ExpertRead::Down
+            && let Some(file) = self.truncate_down_for_test.take()
+        {
+            file.set_len(0)?;
+        }
+        #[cfg(test)]
+        if stage == ExpertRead::Down && self.skip_down_for_test {
+            return Ok(());
+        }
+        let (segments, source_offset, record_bytes) = stage.layout();
         if jobs.is_empty() {
             return Ok(());
         }
@@ -300,6 +329,14 @@ impl SsdMoe {
                     .get(expert as usize)
                     .context("invalid expert")?
                     .source()
+                    .and_then(|(file, offset)| {
+                        Ok((
+                            file,
+                            offset
+                                .checked_add(source_offset)
+                                .context("expert source offset overflow")?,
+                        ))
+                    })
             })
             .collect::<Result<Vec<_>>>()?;
         let destinations = jobs
@@ -308,14 +345,18 @@ impl SsdMoe {
             .collect::<Vec<_>>();
         let views = destinations
             .iter()
-            .map(|ranges| ranges.as_slice())
+            .map(|ranges| &ranges[segments.clone()])
             .collect::<Vec<_>>();
-        let bytes = EXPERT_BYTES
+        let bytes = record_bytes
             .checked_mul(jobs.len() as u64)
             .and_then(|n| self.read_bytes.checked_add(n))
             .context("SSD byte counter exhausted")?;
         #[cfg(test)]
-        let read_profile = crate::flash_profile::span("disk_read_batch");
+        let read_profile = crate::flash_profile::span(match stage {
+            ExpertRead::All => "disk_read_batch",
+            ExpertRead::GateUp => "disk_read_gate_up",
+            ExpertRead::Down => "disk_read_down",
+        });
         let result = Array::read_records(&sources, &mut self.banks, &views, self.readers);
         #[cfg(test)]
         if let Some(profile) = &read_profile {
@@ -337,6 +378,7 @@ impl SsdMoe {
     }
 
     fn calculate_slots(&self, x: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
+        #[cfg(test)]
         let n = slots.indices().shape()[0];
         #[cfg(test)]
         let profile = crate::flash_profile::span("expert_calculate_build");
@@ -344,6 +386,12 @@ impl SsdMoe {
         if let Some(profile) = &profile {
             profile.data(serde_json::json!({"rows":n}));
         }
+        let activated = self.activate_slots(x, slots)?;
+        self.down_slots(&activated, slots)
+    }
+
+    fn activate_slots(&self, x: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
+        let n = slots.indices().shape()[0];
         ensure!(n > 0 && x.shape() == [n, H], "invalid expert slot mapping");
         let expanded = x
             .reshape(&[n, 1, H])?
@@ -372,8 +420,17 @@ impl SsdMoe {
             .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)?;
         #[cfg(test)]
         crate::flash_profile::stage("expert_swiglu_completion", &activated)?;
+        Ok(activated)
+    }
+
+    fn down_slots(&self, activated: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
+        let n = slots.indices().shape()[0];
+        ensure!(
+            n > 0 && activated.shape() == [n, I],
+            "invalid activated expert mapping"
+        );
         let down = linear::expert_slots(
-            &activated,
+            activated,
             &self.banks[1],
             &slots.gather_scales(&self.banks[4])?.reshape(&[n, I])?,
             &slots.gather_scales(&self.banks[5])?.reshape(&[n, H])?,
@@ -517,7 +574,25 @@ impl SsdMoe {
         depth: usize,
         row_limit: i32,
     ) -> Result<Array> {
-        self.forward_rows_prepared(x, next, depth, row_limit, None)
+        if self.cold_pending.is_some() {
+            self.drain()?;
+        }
+        match self.forward_rows_prepared(x, next, depth, row_limit, None) {
+            Ok(output) => {
+                // The final output retains the activation and its bank dependencies.
+                self.cold_pending = None;
+                Ok(output)
+            }
+            Err(error) => {
+                let drained = self.drain();
+                Err(match drained {
+                    Ok(()) => error,
+                    Err(drain) => {
+                        error.context(format!("draining submitted expert reads: {drain:#}"))
+                    }
+                })
+            }
+        }
     }
 
     fn routed_input(x: &Array) -> Result<Array> {
@@ -958,12 +1033,46 @@ impl SsdMoe {
             self.schedule_events
                 .push(("demand_begin", route_start.elapsed().as_secs_f64()));
         }
-        if let Err(error) = self.fill_many(&jobs) {
-            if let Some(hot) = &hot_output {
-                hot.eval()?;
+        let pipeline = self.gpu_hot
+            && self.overlap
+            && hot_output.is_some()
+            && rows <= 2
+            && depth == 0
+            && self.prefetcher.is_none()
+            && !self.shared_exl3;
+        #[cfg(test)]
+        let pipeline = pipeline && !crate::flash_profile::fenced();
+        let cold_output = if pipeline && !jobs.is_empty() {
+            self.fill_many_stage(&jobs, ExpertRead::GateUp)?;
+            let input = routed_x.take(
+                &Array::from_u32(
+                    &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
+                    &[cold.len() as i32],
+                )?,
+                0,
+            )?;
+            let slots = linear::ExpertSlots::new(
+                &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
+                self.banks[0].shape()[0],
+            )?;
+            let activated = self.activate_slots(&input, &slots)?;
+            self.cold_pending = Some(activated.try_clone()?);
+            activated.async_eval()?;
+            #[cfg(test)]
+            {
+                self.cold_submissions += 1;
             }
-            return Err(error.context("loading cold EXL3 experts"));
-        }
+            self.fill_many_stage(&jobs, ExpertRead::Down)?;
+            Some(self.down_slots(&activated, &slots)?)
+        } else {
+            if let Err(error) = self.fill_many(&jobs) {
+                if let Some(hot) = &hot_output {
+                    hot.eval()?;
+                }
+                return Err(error.context("loading cold EXL3 experts"));
+            }
+            None
+        };
         fill.commit();
         #[cfg(test)]
         if !jobs.is_empty()
@@ -988,16 +1097,20 @@ impl SsdMoe {
             if cold.is_empty() {
                 hot_output
             } else {
-                let cold_output = self.calculate(
-                    &routed_x.take(
-                        &Array::from_u32(
-                            &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
-                            &[cold.len() as i32],
+                let cold_output = if let Some(output) = cold_output {
+                    output
+                } else {
+                    self.calculate(
+                        &routed_x.take(
+                            &Array::from_u32(
+                                &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
+                                &[cold.len() as i32],
+                            )?,
+                            0,
                         )?,
-                        0,
-                    )?,
-                    &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
-                )?;
+                        &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
+                    )?
+                };
                 let combined = Array::concatenate(&[&hot_output, &cold_output], 0)?;
                 for (i, &(_, hit)) in routes.iter().enumerate() {
                     let index = if early_hot && snapshot_hot(ids[i]) {
@@ -1187,9 +1300,12 @@ impl SsdMoe {
     }
 
     pub fn drain(&mut self) -> Result<()> {
-        if let Some(last) = self.last.take() {
-            last.eval()?;
-        }
+        let last = self.last.as_ref().map(Array::eval).transpose();
+        let cold = self.cold_pending.as_ref().map(Array::eval).transpose();
+        last?;
+        cold?;
+        self.last = None;
+        self.cold_pending = None;
         Ok(())
     }
 

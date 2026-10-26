@@ -31,6 +31,86 @@ fn slot_reads_initialize_exact_disjoint_bank_regions() {
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExpertRead {
+    All,
+    GateUp,
+    Down,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+impl ExpertRead {
+    pub(crate) fn layout(self) -> (std::ops::Range<usize>, u64, u64) {
+        match self {
+            Self::All => (0..12, 0, EXPERT_BYTES),
+            Self::GateUp => (4..12, EXPERT_BYTES / 3, EXPERT_BYTES / 3 * 2),
+            Self::Down => (0..4, 0, EXPERT_BYTES / 3),
+        }
+    }
+}
+
+#[test]
+fn staged_expert_reads_partition_the_original_records() {
+    for slot in 0..512 {
+        let destinations = expert_slot_destinations(slot);
+        let mut total = 0;
+        for stage in [ExpertRead::Down, ExpertRead::GateUp] {
+            let (range, offset, bytes) = stage.layout();
+            assert_eq!(offset, total);
+            assert_eq!(
+                destinations[range].iter().map(|r| r.2 as u64).sum::<u64>(),
+                bytes
+            );
+            total += bytes;
+        }
+        assert_eq!(total, EXPERT_BYTES);
+        for &(bank, start, len) in &destinations[..4] {
+            for &(other_bank, other_start, other_len) in &destinations[4..] {
+                assert!(
+                    bank != other_bank
+                        || start + len <= other_start
+                        || other_start + other_len <= start
+                );
+            }
+        }
+    }
+    assert_eq!(ExpertRead::All.layout(), (0..12, 0, EXPERT_BYTES));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(16)]
+fn actual_staged_record_partition() {
+    let slot: usize = kani::any();
+    kani::assume(slot < 512);
+    let destinations = expert_slot_destinations(slot);
+    let gate_up: bool = kani::any();
+    let stage = if gate_up {
+        ExpertRead::GateUp
+    } else {
+        ExpertRead::Down
+    };
+    let (range, offset, bytes) = stage.layout();
+    assert!(range.start < range.end && range.end <= destinations.len());
+    assert_eq!(
+        destinations[range].iter().map(|r| r.2 as u64).sum::<u64>(),
+        bytes
+    );
+    assert!(offset + bytes <= EXPERT_BYTES);
+    for &(bank, start, len) in &destinations[..4] {
+        for &(other_bank, other_start, other_len) in &destinations[4..] {
+            assert!(
+                bank != other_bank
+                    || start + len <= other_start
+                    || other_start + other_len <= start
+            );
+        }
+    }
+    kani::cover!(gate_up && slot == 511);
+    kani::cover!(!gate_up && slot == 0);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn expert_slot_destinations(slot: usize) -> [(usize, usize, usize); 12] {
     assert!(slot < 512, "expert slot exceeds bank limit");
     [
