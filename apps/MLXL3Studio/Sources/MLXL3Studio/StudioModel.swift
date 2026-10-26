@@ -818,7 +818,7 @@ final class StudioModel: ObservableObject {
         dflashDownloading = false; dflashConfigurationPending = false
     }
 
-    func setDFlash2Enabled(_ enabled: Bool) {
+    func setDFlash2Enabled(_ enabled: Bool, downloadCompatible: Bool = false) {
         guard !isGenerating else { return }
         if !enabled {
             cancelDFlashPreparation()
@@ -848,20 +848,20 @@ final class StudioModel: ObservableObject {
         let operation = dflashOperationID
         dflashDownloadError = nil; dflashDownloadCompleted = 0; dflashDownloadTotal = 0
         let flashDraft = model.modelType == "qwen4_exp"
-        if flashDraft && (!dflashConfigureSupported || dflashDraftPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+        if flashDraft && (!dflashConfigureSupported || (!downloadCompatible && dflashDraftPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)) {
             dflash2Enabled = false
             preferences.set(false, forKey: "studio.dflash2Enabled")
             dflashDownloadError = !dflashConfigureSupported
                 ? L("Mets le moteur à jour pour charger un draft Flash Next.", "Update the engine to load a Flash Next draft.")
-                : L("Choisis le dossier du draft DFlash2 Flash Next contenant config.json et model.safetensors.", "Choose the Flash Next DFlash2 draft folder containing config.json and model.safetensors.")
+                : L("Télécharge le draft compatible avec le bouton ci-dessous, ou choisis son dossier local.", "Download the compatible draft with the button below, or choose its local folder.")
             return
         }
         dflashDownloading = true
         dflashDownloadTask = Task { [self] in
             do {
                 var data: Data?
-                if !flashDraft {
-                    if !dflashDraftPath.isEmpty {
+                if !flashDraft || downloadCompatible {
+                    if !downloadCompatible && !dflashDraftPath.isEmpty {
                         data = try? await CLICommand().output(["dflash-draft", "--target", model.path, "--inspect", dflashDraftPath])
                     }
                     try Task.checkCancellation()
@@ -877,7 +877,7 @@ final class StudioModel: ObservableObject {
                 try Task.checkCancellation()
                 guard operation == dflashOperationID, selectedModel?.path == model.path else { return }
                 let path: String
-                if flashDraft {
+                if flashDraft && !downloadCompatible {
                     // Raw Flash drafts are validated by the resident loader and its acknowledgement.
                     path = dflashDraftPath
                 } else {
@@ -885,10 +885,7 @@ final class StudioModel: ObservableObject {
                           event.type == "installed", let installedPath = event.path, !installedPath.isEmpty else { throw MLXL3BridgeError.invalidResponse }
                     path = installedPath
                 }
-                dflashDraftPath = path
-                preferences.set(path, forKey: "studio.dflashDraftPath")
-                preferences.set(path, forKey: "studio.dflashDraft.\(model.path)")
-                restoreDFlashSelection()
+                if !downloadCompatible { commitDFlashDraft(path, modelPath: model.path) }
                 cancelMTPPreparation(); mtpEnabled = false
                 preferences.set(false, forKey: "studio.mtpEnabled")
                 if dflashConfigureSupported {
@@ -902,10 +899,17 @@ final class StudioModel: ObservableObject {
                     guard !dflashConfigurationPending else { throw MLXL3BridgeError.commandFailed(L("Le draft ne répond pas.", "Draft loading did not respond.")) }
                     guard dflashActive == true else { throw MLXL3BridgeError.commandFailed(dflashDownloadError ?? "DFlash loading failed") }
                 }
+                if downloadCompatible { commitDFlashDraft(path, modelPath: model.path) }
                 enableDFlashGreedy()
                 saveDFlashSelection()
             } catch is CancellationError { }
-            catch { if operation == dflashOperationID { dflashDownloadError = error.localizedDescription; dflash2Enabled = false } }
+            catch {
+                if operation == dflashOperationID {
+                    dflashDownloadError = (downloadCompatible
+                        ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ") : "") + error.localizedDescription
+                    dflash2Enabled = false
+                }
+            }
             if operation == dflashOperationID {
                 dflashDownloading = false; dflashConfigurationPending = false; dflashDownloadTask = nil
             }
@@ -1180,6 +1184,18 @@ final class StudioModel: ObservableObject {
             finishMTPTuning(error: event.message ?? L("Le test MTP a échoué. Réglage conservé.", "MTP test failed. Setting preserved."))
         default: break
         }
+    }
+
+    private func commitDFlashDraft(_ path: String, modelPath: String) {
+        dflashDraftPath = path
+        preferences.set(path, forKey: "studio.dflashDraftPath")
+        preferences.set(path, forKey: "studio.dflashDraft.\(modelPath)")
+        restoreDFlashSelection()
+    }
+
+    func downloadCompatibleDFlashDraft() {
+        guard selectedModel?.modelType == "qwen4_exp" else { return }
+        setDFlash2Enabled(true, downloadCompatible: true)
     }
 
     func chooseDFlashDraft() {

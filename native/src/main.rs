@@ -1216,30 +1216,31 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Command::DflashDraft { inspect, target } => {
+            use mlxl3_native::dflash::{Family, ManagedDraft};
             let expected = target
                 .as_deref()
-                .map(mlxl3_native::dflash::target_family)
+                .map(ManagedDraft::from_target)
                 .transpose()?;
             let path = if let Some(path) = inspect {
-                {
-                    let package = mlxl3_native::dflash::inspect(path)?;
-                    anyhow::ensure!(
-                        expected.is_none_or(|family| family == package.family),
-                        "DFlash draft does not match this target"
-                    );
-                    package.directory
+                if let Some(expected) = expected {
+                    expected.inspect(&path)?
+                } else {
+                    mlxl3_native::dflash::inspect(path)?.directory
                 }
             } else {
-                mlxl3_native::hub::download_dflash(
-                    expected.unwrap_or(mlxl3_native::dflash::Family::Qwen36Moe),
-                    |completed, total| {
-                        println!(
-                            "{}",
-                            json!({"type":"progress", "completed":completed, "total":total})
-                        );
-                        let _ = io::stdout().flush();
-                    },
-                )?
+                let progress = |completed, total| {
+                    println!(
+                        "{}",
+                        json!({"type":"progress", "completed":completed, "total":total})
+                    );
+                    let _ = io::stdout().flush();
+                };
+                match expected.unwrap_or(ManagedDraft::Packed(Family::Qwen36Moe)) {
+                    ManagedDraft::Packed(family) => {
+                        mlxl3_native::hub::download_dflash(family, progress)?
+                    }
+                    ManagedDraft::FlashNext => mlxl3_native::hub::download_flash_dflash(progress)?,
+                }
             };
             println!("{}", json!({"type":"installed", "path":path}));
         }

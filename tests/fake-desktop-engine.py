@@ -77,14 +77,49 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':
 
 if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
     target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
-    with open(os.path.join(os.environ['MLXL3_HOME'], 'dflash-legacy-operations.jsonl'), 'a') as log:
-        log.write(json.dumps({'target': target, 'args': sys.argv[1:]}) + '\n')
     config = os.path.join(target, 'config.json')
+    flash_target = False
     if os.path.isfile(config):
         with open(config) as source:
-            if json.load(source).get('model_type') == 'qwen4_exp':
-                print('Flash draft requires the resident bridge, not the packed legacy loader', file=sys.stderr)
+            flash_target = json.load(source).get('model_type') == 'qwen4_exp'
+    if flash_target:
+        case = os.path.basename(target)
+        home = os.environ['MLXL3_HOME']
+        managed = os.path.join(home, 'flash-compatible-draft')
+        with open(os.path.join(home, 'flash-draft-installs.jsonl'), 'a') as log:
+            log.write(json.dumps({'target': target, 'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
+        if '--inspect' in sys.argv:
+            local = sys.argv[sys.argv.index('--inspect') + 1]
+            if local not in (managed, os.path.join(home, 'flash-local-draft')):
+                print('incompatible raw Flash draft', file=sys.stderr)
                 sys.exit(1)
+            print(json.dumps({'type': 'installed', 'path': local}), flush=True)
+            sys.exit(0)
+        if case == 'flash-download-cache':
+            print(json.dumps({'type': 'installed', 'path': managed}), flush=True)
+            sys.exit(0)
+        print(json.dumps({'type': 'progress', 'completed': 301535311, 'total': 1206141244}), flush=True)
+        if case == 'flash-download-error':
+            print('fixture Flash download failed', file=sys.stderr)
+            sys.exit(3)
+        if case == 'flash-download-malformed':
+            print(json.dumps({'type': 'installed', 'path': ''}), flush=True)
+            sys.exit(0)
+        if case in ('flash-download-cancel', 'flash-download-switch'):
+            with open(os.path.join(home, case + '-ready'), 'w') as ready:
+                ready.write(str(os.getpid()))
+            for _ in range(3000):
+                if os.path.exists(os.path.join(home, case + '-release')):
+                    break
+                time.sleep(0.01)
+            else:
+                print('fixture download release timed out', file=sys.stderr)
+                sys.exit(4)
+        print(json.dumps({'type': 'progress', 'completed': 1206141244, 'total': 1206141244}), flush=True)
+        print(json.dumps({'type': 'installed', 'path': managed}), flush=True)
+        sys.exit(0)
+    with open(os.path.join(os.environ['MLXL3_HOME'], 'dflash-legacy-operations.jsonl'), 'a') as log:
+        log.write(json.dumps({'target': target, 'args': sys.argv[1:]}) + '\n')
     draft = '/tmp/mlxl3-fixture-dflash-' + ('dense' if target.endswith('dflash-dense') else 'moe')
     if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != draft:
         print('foreign DFlash draft', file=sys.stderr)
@@ -119,7 +154,7 @@ signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
 mtp_capable = model in ('renamed', 'flash', 'flash-config') or model.startswith(('mtp-', 'auto-'))
-flash_dflash = model.startswith('flash-dflash-')
+flash_dflash = model.startswith(('flash-dflash-', 'flash-download-'))
 dflash_capable = flash_dflash or model == 'renamed' or model.startswith('dflash-')
 tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
@@ -129,7 +164,7 @@ if dflash_capable:
     capabilities.update(dflash_configure_supported=True, dflash_tune_supported=True,
                         dflash_tuning_key=tuning_key+':dflash-v2', dflash_family='qwen38_dense' if model == 'dflash-dense' else 'qwen36_moe')
 if flash_dflash:
-    capabilities['dflash_configure_supported'] = model != 'flash-dflash-old'
+    capabilities['dflash_configure_supported'] = model not in ('flash-dflash-old', 'flash-download-old')
     capabilities['dflash_tune_supported'] = False
     capabilities.pop('dflash_tuning_key', None)
     capabilities.pop('dflash_family', None)
@@ -167,6 +202,20 @@ for line in sys.stdin:
                 continue
         expected = (os.path.join(os.environ['MLXL3_HOME'], 'flash-local-draft') if flash_dflash
                     else '/tmp/mlxl3-fixture-dflash-' + ('dense' if model == 'dflash-dense' else 'moe'))
+        if model.startswith('flash-download-'):
+            expected = os.path.join(os.environ['MLXL3_HOME'], 'flash-compatible-draft')
+        if request['enabled'] and model in ('flash-download-good', 'flash-download-cache', 'flash-download-ack-cancel'):
+            gate = os.path.join(os.environ['MLXL3_HOME'], model + '-ack-release')
+            for _ in range(3000):
+                if os.path.exists(gate):
+                    break
+                time.sleep(0.01)
+            else:
+                emit('error', request_id=request['request_id'], message='fixture ack release timed out')
+                continue
+        if request['enabled'] and model == 'flash-download-wrong':
+            emit('dflash_status', request_id=request['request_id'], dflash_active=False)
+            continue
         if request['enabled'] and model == 'flash-dflash-slow':
             time.sleep(0.4)
         if request['enabled'] and model == 'flash-dflash-stale':

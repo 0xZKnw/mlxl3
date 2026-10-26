@@ -15,52 +15,54 @@ struct MTPTuningToolbarControl: View {
     private func cancel() { if dflash { studio.cancelDFlashTuning() } else { studio.cancelMTPTuning() } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Button {
-                if tuning { cancel() }
-                else { tune() }
-            } label: {
-                HStack(spacing: 6) {
-                    if tuning {
-                        ProgressView().progressViewStyle(.circular).controlSize(.mini)
-                            .tint(StudioTheme.accent).frame(width: 12, height: 12)
-                            .accessibilityHidden(true)
-                    } else {
-                        Image(systemName: "sparkles")
+        if !dflash || studio.selectedModel?.modelType != "qwen4_exp" || studio.dflashTuneSupported {
+            VStack(alignment: .leading, spacing: 3) {
+                Button {
+                    if tuning { cancel() }
+                    else { tune() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if tuning {
+                            ProgressView().progressViewStyle(.circular).controlSize(.mini)
+                                .tint(StudioTheme.accent).frame(width: 12, height: 12)
+                                .accessibilityHidden(true)
+                        } else {
+                            Image(systemName: "sparkles")
+                        }
+                        Text(title)
+                        if tuning {
+                            Text("\(Int(progress * 100)) %").monospacedDigit()
+                            Image(systemName: "stop.fill").font(.system(size: 9))
+                        }
                     }
-                    Text(title)
-                    if tuning {
-                        Text("\(Int(progress * 100)) %").monospacedDigit()
-                        Image(systemName: "stop.fill").font(.system(size: 9))
-                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 10).frame(height: 30)
                 }
-                .font(.system(size: 11, weight: .medium))
-                .padding(.horizontal, 10).frame(height: 30)
-            }
-            .buttonStyle(StudioControlStyle(emphasized: true))
-            .disabled(!tuning && !canTune)
-            .help(tuning
-                  ? status + L(" · Cliquer pour arrêter", " · Click to stop")
-                  : L("Comparer les modes et enregistrer le meilleur réglage", "Compare modes and save the best setting"))
-            .accessibilityLabel(tuning ? L("Arrêter : ", "Stop: ") + title : title)
-            .accessibilityValue(tuning ? status + " · \(Int(progress * 100)) %" : "")
+                .buttonStyle(StudioControlStyle(emphasized: true))
+                .disabled(!tuning && !canTune)
+                .help(tuning
+                      ? status + L(" · Cliquer pour arrêter", " · Click to stop")
+                      : L("Comparer les modes et enregistrer le meilleur réglage", "Compare modes and save the best setting"))
+                .accessibilityLabel(tuning ? L("Arrêter : ", "Stop: ") + title : title)
+                .accessibilityValue(tuning ? status + " · \(Int(progress * 100)) %" : "")
 
-            if tuning {
-                Text(status)
-                    .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-                    .frame(maxWidth: 180, alignment: .leading).lineLimit(1)
-            } else if let message = error {
-                Button((dflash ? "DFlash2" : "MTP") + L(" · Détails", " · Details")) { studio.showInspector = true }
-                    .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-                    .help(message)
-            } else if let winner = MTPTuning.winner(rows) {
-                Button(L("Résultat : ", "Result: ") + (winner == 0 ? "Baseline" : dflash ? ["", "Auto", "2 tokens", "7 tokens"][winner] : "MTP\(winner)") + L(" · Détails", " · Details")) {
-                    studio.showInspector = true
+                if tuning {
+                    Text(status)
+                        .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
+                        .frame(maxWidth: 180, alignment: .leading).lineLimit(1)
+                } else if let message = error {
+                    Button((dflash ? "DFlash2" : "MTP") + L(" · Détails", " · Details")) { studio.showInspector = true }
+                        .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
+                        .help(message)
+                } else if let winner = MTPTuning.winner(rows) {
+                    Button(L("Résultat : ", "Result: ") + (winner == 0 ? "Baseline" : dflash ? ["", "Auto", "2 tokens", "7 tokens"][winner] : "MTP\(winner)") + L(" · Détails", " · Details")) {
+                        studio.showInspector = true
+                    }
+                    .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.accent)
                 }
-                .buttonStyle(.plain).font(.system(size: 9)).foregroundStyle(StudioTheme.accent)
             }
+            .fixedSize()
         }
-        .fixedSize()
     }
 }
 
@@ -103,7 +105,7 @@ struct MTPTuningControls: View {
                 ProgressView(value: progress).tint(StudioTheme.accent)
                 Text(dflash ? "Baseline → Auto → 2 → 7 · ↔" : L("Baseline → MTP1 → MTP2 → MTP3 · puis ordre inversé", "Baseline → MTP1 → MTP2 → MTP3 · then reverse order"))
                     .font(.system(size: 9)).foregroundStyle(StudioTheme.quiet)
-            } else {
+            } else if !dflash || studio.selectedModel?.modelType != "qwen4_exp" || supported {
                 Button(action: tune) {
                     HStack {
                         Image(systemName: "slider.horizontal.3")
@@ -155,7 +157,9 @@ struct MTPTuningControls: View {
                         .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
                 }
             }
-            Text(!dflash && studio.mtpBuiltIn
+            Text(dflash && studio.selectedModel?.modelType == "qwen4_exp" && !supported
+                 ? L("Les modes Auto, 2 et 7 restent sélectionnables. Tune n’est pas disponible pour Flash Next.", "Auto, 2 and 7 remain selectable. Tune is not available for Flash Next.")
+                 : !dflash && studio.mtpBuiltIn
                  ? L("Flash Next utilise MTP1. Chaque proposition est vérifiée par le modèle cible.", "Flash Next uses MTP1. The target verifies every proposal.")
                  : supported
                  ? artifact.isEmpty

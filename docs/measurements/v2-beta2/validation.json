@@ -1,0 +1,38 @@
+{
+  "status": "source_checks_passed_packages_pending",
+  "native": {
+    "targeted_passed": 30,
+    "ignored": 2,
+    "fmt": "passed",
+    "clippy_cpu_and_mlx_chat": "passed",
+    "build_mlx_chat": "passed",
+    "real_cli_cases": 3,
+    "managed_cache_reuse": "passed_full_SHA256_zero_network"
+  },
+  "desktop": {
+    "download_scenarios": 9,
+    "local_and_legacy_scenarios": 8,
+    "updater_targeted_suites": "both_passed",
+    "signed_application_cases": 15,
+    "workspace_checks": 229,
+    "strict_Swift6": "passed"
+  },
+  "formal": {
+    "Kani": "two_actual_harnesses_attempted_compile_ICE_intrinsics.rs:243_before_obligations_unverified",
+    "Swift": "no_practical_source_verifier_tests_are_not_proof",
+    "CrossHair": "unavailable"
+  },
+  "new_model_GPU_generation": "not_run_no_numerical_math_changed",
+  "new_TPS": "not_measured",
+  "full_suites_repeated": false,
+  "known_limits": [
+    "Standalone engine updater compares numeric versions; beta1 and beta2 both2.0.0 require Desktopbeta2 to receive the bundled fix.",
+    "Public LFMv2 differs from local experimental conversions."
+  ],
+  "proofs": [
+    "build/flash-draft-download/README-native-final.md",
+    "build/flash-draft-download/ui-README.md",
+    "build/update-channels/README.md",
+    "build/recommended-models/workspace.log"
+  ]
+}
