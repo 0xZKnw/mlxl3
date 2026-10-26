@@ -1,0 +1,94 @@
+[
+  {
+    "name": "quality",
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run.json",
+    "sha256": "870ab19195408f8fbb54f37da3af40452fdd49f442eb7aae0b85d776afdfc7ac",
+    "commands": 9,
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality",
+    "native_selections": [
+      "linear::hot_transform::tests::hot_h128_matches_native_half_roundings_masks_and_layouts",
+      "ssd_moe::hot_activation::tests::masked_hot_swiglu_matches_real_mlx_nodes_and_cold_positive_zero",
+      "ssd_moe::hot_activation::tests::hot_swiglu_fallbacks_and_invalid_layouts_keep_contract",
+      "linear::tests::flash_slot_shapes_match_resident_reference_for_every_route",
+      "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "qwen4::tests::flash_mtp_head_matches_reference_and_cache_only",
+      "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states"
+    ],
+    "order": null,
+    "launch_argv": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run.json"
+    ],
+    "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+    "auto_launch": false
+  },
+  {
+    "name": "h128-micro",
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run.json",
+    "sha256": "527f1010f70b5d2c938d5172509b4c228e2174fc86bca223154ba79c05fa7f79",
+    "commands": 3,
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro",
+    "native_selections": [
+      "linear::hot_transform::tests::hot_h128_component_aa_abba_on_pinned_b2_masks"
+    ],
+    "order": null,
+    "launch_argv": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run.json"
+    ],
+    "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+    "auto_launch": false
+  },
+  {
+    "name": "activation-micro",
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run.json",
+    "sha256": "cdc7bd9e125977aede8c918ec7d89af5d28bc3b83146186fa6caa64f0cc26554",
+    "commands": 3,
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro",
+    "native_selections": [
+      "ssd_moe::hot_activation::bench::masked_hot_activation_component_aa_abba"
+    ],
+    "order": null,
+    "launch_argv": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run.json"
+    ],
+    "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+    "auto_launch": false
+  },
+  {
+    "name": "screen",
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run.json",
+    "sha256": "e97d2bb4f2db8451e4128cfc6862beb88ff841ded3e6c2b8475e7bfbaff78f69",
+    "commands": 6,
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen",
+    "native_selections": [],
+    "order": "screen",
+    "launch_argv": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run.json"
+    ],
+    "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+    "auto_launch": false
+  },
+  {
+    "name": "confirm",
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run.json",
+    "sha256": "ba02b1d576503223c9b0310767b83e356e9cba3e05978a5536bcbf026fe7f649",
+    "commands": 6,
+    "output_dir": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm",
+    "native_selections": [],
+    "order": "confirm",
+    "launch_argv": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run.json"
+    ],
+    "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+    "auto_launch": false
+  }
+]

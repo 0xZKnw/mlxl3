@@ -1,0 +1,1804 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -42,6 +42,9 @@
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids
++            --harness flash_hot_h128_grid_bounds_real_kernel_rows_and_offsets
++            --harness flash_hot_swiglu_grid_admits_only_bounded_half_layouts
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,310 @@
+         }
+     }
+ }
++
++/// Test-profile counterpart of the existing resident-slot GPU lookup.
++#[cfg(any(test, kani))]
++pub(crate) fn flash_hot_profile_slots(ids: &[u32], map: &[u32; 512]) -> Vec<u32> {
++    ids.iter()
++        .map(|&id| map.get(id as usize).copied().unwrap_or(u32::MAX))
++        .collect()
++}
++
++#[test]
++fn flash_hot_profile_preserves_order_duplicates_boundaries_and_absence() {
++    let mut map = [u32::MAX; 512];
++    map[0] = 7;
++    map[19] = 0;
++    map[511] = 52;
++    let pattern = [511, 0, 19, 1, 512, u32::MAX, 19];
++    let expected = [52, 7, 0, u32::MAX, u32::MAX, u32::MAX, 0];
++    for count in 0..=80 {
++        let ids = (0..count).map(|i| pattern[i % 7]).collect::<Vec<_>>();
++        let oracle = (0..count).map(|i| expected[i % 7]).collect::<Vec<_>>();
++        assert_eq!(flash_hot_profile_slots(&ids, &map), oracle);
++    }
++    assert_eq!(
++        flash_hot_profile_slots(&[0, 511], &[u32::MAX; 512]),
++        [u32::MAX, u32::MAX]
++    );
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(513)]
++fn flash_hot_profile_lookup_matches_gpu_sentinel_for_all_u32_ids() {
++    let id: u32 = kani::any();
++    let map: [u32; 512] = kani::any();
++    let actual = flash_hot_profile_slots(&[id], &map);
++    assert_eq!(actual.len(), 1);
++    if id < 512 {
++        assert_eq!(actual[0], map[id as usize]);
++    } else {
++        assert_eq!(actual[0], u32::MAX);
++    }
++    kani::cover!(id == 0 && actual[0] == 0);
++    kani::cover!(id == 511 && actual[0] == 511);
++    kani::cover!(id < 512 && actual[0] == u32::MAX);
++    kani::cover!(id == 512);
++    kani::cover!(id == u32::MAX);
++}
++
++/// Only the exact Flash Half H128 layouts use the masked eight-thread kernel.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_hot_h128_grid(
++    shape: &[i32],
++    slots: &[i32],
++    half: bool,
++    uint_slots: bool,
++    capacity: i32,
++    repeat: i32,
++) -> Option<[i32; 3]> {
++    let [rows, blocks, 128] = shape else {
++        return None;
++    };
++    let [routes] = slots else {
++        return None;
++    };
++    if !half
++        || !uint_slots
++        || !(1..=512).contains(&capacity)
++        || !(1..=80).contains(routes)
++        || !matches!(repeat, 1 | 2)
++        || !matches!(*blocks, 5 | 20)
++        || routes.checked_mul(repeat)? != *rows
++    {
++        return None;
++    }
++    Some([8, *blocks, *rows])
++}
++
++#[test]
++fn flash_hot_h128_accepts_only_bounded_flash_half_layouts() {
++    assert_eq!(
++        flash_hot_h128_grid(&[0, 5, 128], &[0], true, true, 53, 1),
++        None
++    );
++    let mut valid = 0;
++    for routes in 1..=80 {
++        for repeat in [1, 2] {
++            for blocks in [5, 20] {
++                for capacity in [1, 53, 512] {
++                    assert_eq!(
++                        flash_hot_h128_grid(
++                            &[routes * repeat, blocks, 128],
++                            &[routes],
++                            true,
++                            true,
++                            capacity,
++                            repeat
++                        ),
++                        Some([8, blocks, routes * repeat])
++                    );
++                    valid += 1;
++                }
++            }
++        }
++    }
++    assert_eq!(valid, 960);
++    for shape in [
++        vec![],
++        vec![128],
++        vec![20, 128],
++        vec![20, 5, 127],
++        vec![20, 5, 129],
++        vec![0, 5, 128],
++        vec![20, 4, 128],
++        vec![20, 5, 128, 1],
++        vec![i32::MAX, 20, 128],
++    ] {
++        assert!(flash_hot_h128_grid(&shape, &[20], true, true, 53, 1).is_none());
++    }
++    for slots in [vec![], vec![0], vec![-1], vec![81], vec![20, 1]] {
++        assert!(flash_hot_h128_grid(&[20, 5, 128], &slots, true, true, 53, 1).is_none());
++    }
++    for capacity in [-1, 0, 513, i32::MAX] {
++        assert!(flash_hot_h128_grid(&[20, 5, 128], &[20], true, true, capacity, 1).is_none());
++    }
++    for repeat in [-1, 0, 3, i32::MAX] {
++        assert!(flash_hot_h128_grid(&[20, 5, 128], &[20], true, true, 53, repeat).is_none());
++    }
++    assert!(flash_hot_h128_grid(&[20, 5, 128], &[20], false, true, 53, 1).is_none());
++    assert!(flash_hot_h128_grid(&[20, 5, 128], &[20], true, false, 53, 1).is_none());
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(17)]
++fn flash_hot_h128_grid_bounds_real_kernel_rows_and_offsets() {
++    let dims: [i32; 4] = kani::any();
++    let route_dims: [i32; 2] = kani::any();
++    let rank: usize = kani::any();
++    let route_rank: usize = kani::any();
++    kani::assume(rank <= 4);
++    kani::assume(route_rank <= 2);
++    let half: bool = kani::any();
++    let uint_slots: bool = kani::any();
++    let capacity: i32 = kani::any();
++    let repeat: i32 = kani::any();
++    let actual = flash_hot_h128_grid(
++        &dims[..rank],
++        &route_dims[..route_rank],
++        half,
++        uint_slots,
++        capacity,
++        repeat,
++    );
++    let expected = rank == 3
++        && route_rank == 1
++        && half
++        && uint_slots
++        && dims[2] == 128
++        && (dims[1] == 5 || dims[1] == 20)
++        && (1..=512).contains(&capacity)
++        && (1..=80).contains(&route_dims[0])
++        && (repeat == 1 || repeat == 2)
++        && i64::from(dims[0]) == i64::from(route_dims[0]) * i64::from(repeat);
++    assert_eq!(actual.is_some(), expected);
++    if let Some(grid) = actual {
++        assert_eq!(grid, [8, dims[1], dims[0]]);
++        assert!((1..=160).contains(&grid[2]));
++        let row: u32 = kani::any();
++        let block: u32 = kani::any();
++        let lane: u32 = kani::any();
++        let j: u32 = kani::any();
++        let r: u32 = kani::any();
++        kani::assume(row < grid[2] as u32 && block < grid[1] as u32 && lane < 8 && j < 4 && r < 4);
++        let offset = (row * grid[1] as u32 + block) * 128 + j * 32 + lane * 4 + r;
++        assert!(offset < grid[2] as u32 * grid[1] as u32 * 128);
++        assert!(offset < 409600);
++        assert!(row / (repeat as u32) < (route_dims[0] as u32));
++        kani::cover!(route_dims[0] == 20 && repeat == 2 && grid[1] == 20);
++        kani::cover!(
++            route_dims[0] == 80
++                && repeat == 2
++                && row == 159
++                && block == 19
++                && lane == 7
++                && j == 3
++                && r == 3
++        );
++        kani::cover!(capacity == 512 && repeat == 1 && route_dims[0] == 1);
++    }
++    kani::cover!(!expected && rank == 4);
++    kani::cover!(!expected && rank == 3 && !half);
++    kani::cover!(!expected && rank == 3 && capacity == 0);
++}
++
++/// Flat launch size for the resident-Hot Half activation; no GPU/host reads.
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_hot_swiglu_grid(
++    shape: &[i32],
++    slot_shape: &[i32],
++    half: bool,
++    uint_slots: bool,
++    capacity: i32,
++) -> Option<i32> {
++    if !half || !uint_slots || !(1..=512).contains(&capacity) {
++        return None;
++    }
++    let [n, 2, 640] = shape else { return None };
++    if !(1..=80).contains(n) || slot_shape != [*n] {
++        return None;
++    }
++    Some(n * 640)
++}
++
++#[test]
++fn flash_hot_swiglu_grid_checks_actual_layout_and_boundaries() {
++    assert_eq!(
++        flash_hot_swiglu_grid(&[81, 2, 640], &[81], true, true, 53),
++        None
++    );
++    for n in 1..=80 {
++        for capacity in [1, 53, 512] {
++            assert_eq!(
++                flash_hot_swiglu_grid(&[n, 2, 640], &[n], true, true, capacity),
++                Some(n * 640)
++            );
++        }
++    }
++    for shape in [
++        &[][..],
++        &[20][..],
++        &[20, 640][..],
++        &[20, 2, 640, 1][..],
++        &[0, 2, 640][..],
++        &[81, 2, 640][..],
++        &[20, 1, 640][..],
++        &[20, 2, 639][..],
++        &[i32::MAX, 2, 640][..],
++        &[i32::MIN, 2, 640][..],
++    ] {
++        assert_eq!(flash_hot_swiglu_grid(shape, &[20], true, true, 53), None);
++    }
++    for slot_shape in [&[][..], &[19][..], &[20, 1][..], &[-1][..]] {
++        assert_eq!(
++            flash_hot_swiglu_grid(&[20, 2, 640], slot_shape, true, true, 53),
++            None
++        );
++    }
++    for capacity in [i32::MIN, -1, 0, 513, i32::MAX] {
++        assert_eq!(
++            flash_hot_swiglu_grid(&[20, 2, 640], &[20], true, true, capacity),
++            None
++        );
++    }
++    assert_eq!(
++        flash_hot_swiglu_grid(&[20, 2, 640], &[20], false, true, 53),
++        None
++    );
++    assert_eq!(
++        flash_hot_swiglu_grid(&[20, 2, 640], &[20], true, false, 53),
++        None
++    );
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(5)]
++fn flash_hot_swiglu_grid_admits_only_bounded_half_layouts() {
++    let dimensions: [i32; 4] = kani::any();
++    let slots: [i32; 2] = kani::any();
++    let rank: usize = kani::any();
++    let slot_rank: usize = kani::any();
++    kani::assume(rank <= 4 && slot_rank <= 2);
++    let half: bool = kani::any();
++    let uint_slots: bool = kani::any();
++    let capacity: i32 = kani::any();
++    let actual = flash_hot_swiglu_grid(
++        &dimensions[..rank],
++        &slots[..slot_rank],
++        half,
++        uint_slots,
++        capacity,
++    );
++    let admissible = rank == 3
++        && slot_rank == 1
++        && half
++        && uint_slots
++        && capacity >= 1
++        && capacity <= 512
++        && dimensions[0] >= 1
++        && dimensions[0] <= 80
++        && dimensions[1] == 2
++        && dimensions[2] == 640
++        && slots[0] == dimensions[0];
++    assert_eq!(actual.is_some(), admissible);
++    if let Some(grid) = actual {
++        assert!(grid >= 640 && grid <= 51200);
++        assert_eq!(grid % 640, 0);
++        assert_eq!(grid / 640, dimensions[0]);
++    }
++    kani::cover!(actual == Some(640) && capacity == 1);
++    kani::cover!(actual == Some(51200) && capacity == 512);
++    kani::cover!(rank == 3 && slot_rank == 1 && !half && actual.is_none());
++    kani::cover!(rank == 3 && slot_rank == 1 && !uint_slots && actual.is_none());
++    kani::cover!(rank == 3 && slot_rank == 1 && capacity == 0 && actual.is_none());
++    kani::cover!(rank == 3 && slot_rank == 1 && dimensions[0] == 81 && actual.is_none());
++    kani::cover!(rank == 2 && actual.is_none());
++}
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -5,6 +5,9 @@
+     codec::{self, Codebook, reference_reduction_header},
+ };
+ use anyhow::{Context, Result, ensure};
++
++#[path = "linear/hot_transform.rs"]
++mod hot_transform;
+ 
+ fn grouped_mb3_enabled() -> bool {
+     #[cfg(test)]
+@@ -1259,6 +1262,14 @@
+         &self.indices
+     }
+ 
++    pub(crate) fn is_masked(&self) -> bool {
++        self.masked
++    }
++
++    pub(crate) fn capacity(&self) -> i32 {
++        self.capacity
++    }
++
+     #[cfg(test)]
+     pub(crate) fn shares_weights(&self) -> bool {
+         self.groups.is_some()
+@@ -1332,7 +1343,7 @@
+     stable_shapes: bool,
+ ) -> Result<Array> {
+     ensure!(
+-        trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
++        trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity(),
+         "expert slots were validated for a different bank capacity"
+     );
+     expert_mapped_layout(
+@@ -1349,7 +1360,7 @@
+         false,
+         false,
+         true,
+-        selected.masked,
++        selected.is_masked(),
+         selected.groups.as_ref(),
+         stable_shapes,
+     )
+@@ -1423,14 +1434,19 @@
+     let xhat = if input_pretransformed {
+         x.astype(Dtype::Float16)?.reshape(&[-1])?
+     } else {
+-        x.astype(Dtype::Float16)?
++        let scaled = x
++            .astype(Dtype::Float16)?
+             .mul(
+                 &suh.expect("validated input scales")
+                     .astype(Dtype::Float16)?,
+             )?
+-            .reshape(&[rows, input_dims / 128, 128])?
+-            .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+-            .reshape(&[-1])?
++            .reshape(&[rows, input_dims / 128, 128])?;
++        let transformed = if masked {
++            hot_transform::hadamard(&scaled, selected, shape[0], projections_per_route)?
++        } else {
++            scaled.hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++        };
++        transformed.reshape(&[-1])?
+     };
+     #[cfg(test)]
+     crate::flash_profile::stage("exl3_input_scale_hadamard", &xhat)?;
+@@ -1617,10 +1633,15 @@
+     if return_raw {
+         return Ok(yhat);
+     }
+-    let output = yhat
++    let half_output = yhat
+         .astype(Dtype::Float16)?
+-        .reshape(&[rows, output_dims / 128, 128])?
+-        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++        .reshape(&[rows, output_dims / 128, 128])?;
++    let transformed = if masked {
++        hot_transform::hadamard(&half_output, selected, shape[0], projections_per_route)?
++    } else {
++        half_output.hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++    };
++    let output = transformed
+         .reshape(&[rows, output_dims])?
+         .mul(svh.expect("validated output scales"))?
+         .astype(x.dtype())?;
+diff --git a/native/src/qwen4/profile.rs b/native/src/qwen4/profile.rs
+--- a/native/src/qwen4/profile.rs
++++ b/native/src/qwen4/profile.rs
+@@ -84,6 +84,7 @@
+         }
+         _ => anyhow::bail!("invalid prompt"),
+     };
++    ensure!(kind != "k1" || dflash, "K1 requires DFlash2");
+     let (budget, phases): (usize, &[(&str, bool, bool)]) = match kind.as_str() {
+         "verifier" => (
+             64,
+@@ -96,6 +97,7 @@
+                 ("control_after", false, false),
+             ],
+         ),
++        "k1" => (128, &[("warmup", false, false), ("trace_1", true, false)]),
+         "natural" => (
+             128,
+             &[
+@@ -140,6 +142,10 @@
+         role: "user".into(),
+         content: prompt.into(),
+     }])?)?;
++    ensure!(
++        kind != "k1" || prompt_ids.len() <= 512,
++        "K1 prompt exceeds record bound"
++    );
+     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+     let mut head = if mtp {
+         Some(FlashMtpHead::load(&checkpoint, &target)?)
+@@ -158,6 +164,10 @@
+         if use_dflash {
+             let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
+             target.configure_dflash2(Some(&draft), 1)?;
++            ensure!(
++                kind != "k1" || target.dflash2_proposals() == Some(1),
++                "K1 requires fixed B2 (WIDTH=1, ADAPTIVE=0)"
++            );
+         }
+         if let Some(h) = &mut head {
+             h.reset();
+@@ -270,6 +280,14 @@
+         );
+         let state = super::tests::state_bytes(&target)?;
+         ensure!(state.len() > 100 && state.iter().all(|s| !s.is_empty()));
++        ensure!(
++            kind != "k1"
++                || state
++                    .iter()
++                    .try_fold(0usize, |n, bytes| n.checked_add(bytes.len()))
++                    .is_some_and(|bytes| bytes <= 256 << 20),
++            "K1 final CPU state exceeds retained-oracle bound"
++        );
+         let head_state = if use_mtp && let Some(h) = &head {
+             let Attention::Qsa(q) = &h.layer.attention else {
+                 anyhow::bail!("invalid head")
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -366,10 +366,7 @@
+         .reshape(&[n, 2, I])?;
+         #[cfg(test)]
+         crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
+-        let activated = gu
+-            .slice(1, 0, 1)?
+-            .reshape(&[n, I])?
+-            .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)?;
++        let activated = hot_activation::apply(&gu, slots)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("expert_swiglu_completion", &activated)?;
+         let down = linear::expert_slots(
+@@ -884,7 +881,18 @@
+         #[cfg(test)]
+         if let Some(profile) = &profile {
+             let hits = routes.iter().filter(|p| p.1).count();
+-            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hits,"cold_rows":ids.len()-hits,"resident_gpu_rows":hot.len(),"completed_hot":completed_hot,"capacity":self.cache.borrow().capacity()}));
++            // Use the original map captured before the existing route readback/reservation.
++            let resident_gpu_slots = snapshot
++                .as_ref()
++                .map(|map| crate::flash_support::flash_hot_profile_slots(&ids, map));
++            ensure!(ids.len() <= 80);
++            ensure!(
++                resident_gpu_slots.as_ref().is_some_and(|slots| {
++                    slots.len() == ids.len()
++                        && slots.iter().filter(|&&slot| slot != u32::MAX).count() == hot.len()
++                }) == early_hot
++            );
++            profile.data(serde_json::json!({"rows":rows,"ids":ids,"slots_hit":routes,"hot_rows":hits,"cold_rows":ids.len()-hits,"resident_gpu_rows":hot.len(),"early_hot":early_hot,"resident_gpu_slots":resident_gpu_slots,"completed_hot":completed_hot,"capacity":self.cache.borrow().capacity()}));
+         }
+         let hot_output = if early_hot {
+             #[cfg(test)]
+@@ -1200,9 +1208,16 @@
+     }
+ }
+ 
++#[path = "ssd_moe/hot_activation.rs"]
++mod hot_activation;
++
+ #[cfg(test)]
+ #[path = "ssd_moe/hybrid_tests.rs"]
+ mod hybrid_tests;
++
++#[cfg(test)]
++#[path = "ssd_moe/hot_profile_tests.rs"]
++mod hot_profile_tests;
+ 
+ #[cfg(test)]
+ #[path = "ssd_moe/shared_tests.rs"]
+diff --git a/native/src/linear/hot_transform.rs b/native/src/linear/hot_transform.rs
+new file mode 100644
+--- /dev/null
++++ b/native/src/linear/hot_transform.rs
+@@ -0,0 +1,148 @@
++//! H128 for the already masked Hot path; unselected groups produce initialized +0.
++//! Radix arithmetic adapted from MLX0.32.2 hadamard.h (Copyright ©2024 Apple Inc.).
++/*
++MIT License
++
++Copyright © 2023 Apple Inc.
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++*/
++use super::*;
++
++#[cfg(test)]
++thread_local! {
++    static FAST_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
++}
++
++// Keep MLX's float registers and Half threadgroup roundings after each radix.
++const HEADER: &str = r#"
++template <short R>
++inline void mlxl3_hot_radix(thread float* x) {
++  constexpr short logR = __builtin_ctz(R);
++  short h = 1;
++  _Pragma("clang loop unroll(full)")
++  for (short s = 0; s < logR; s++) {
++    _Pragma("clang loop unroll(full)")
++    for (short i = 0; i < R / 2; i++) {
++      short k = i & (h - 1);
++      short j = ((i - k) << 1) + k;
++      float a = x[j];
++      float b = x[j + h];
++      x[j] = a + b;
++      x[j + h] = a - b;
++    }
++    h <<= 1;
++  }
++}
++"#;
++
++const KERNEL: &str = r#"
++uint row = threadgroup_position_in_grid.z;
++uint block = threadgroup_position_in_grid.y;
++uint base = (row * uint(values_shape[1]) + block) * 128u;
++short i = short(thread_position_in_threadgroup.x);
++// All eight lanes test one snapshot slot; no Cold lane reaches a barrier or values load.
++if (slots[row / MLXL3_REPEAT] >= MLXL3_CAPACITY) {
++  _Pragma("clang loop unroll(full)")
++  for (short j = 0; j < 4; j++) {
++    short index = j * 4 * 8 + i * 4;
++    _Pragma("clang loop unroll(full)")
++    for (short r = 0; r < 4; r++) out[base + index + r] = half(0);
++  }
++  return;
++}
++threadgroup half buf[128];
++_Pragma("clang loop unroll(full)")
++for (short j = 0; j < 4; j++) {
++  short index = j * 4 * 8 + i * 4;
++  _Pragma("clang loop unroll(full)")
++  for (short r = 0; r < 4; r++) buf[index + r] = values[base + index + r];
++}
++threadgroup_barrier(mem_flags::mem_threadgroup);
++float x[16];
++short h = 1;
++// N128/max_radix16: exactly one radix16, then two radix8 butterflies per lane.
++short k = i & (h - 1);
++short j = ((i - k) << 4) + k;
++_Pragma("clang loop unroll(full)")
++for (short r = 0; r < 16; r++) x[r] = buf[j + h * r];
++mlxl3_hot_radix<16>(x);
++_Pragma("clang loop unroll(full)")
++for (short r = 0; r < 16; r++) buf[j + h * r] = half(x[r]);
++h <<= 4;
++threadgroup_barrier(mem_flags::mem_threadgroup);
++_Pragma("clang loop unroll(full)")
++for (int t = 0; t < 2; t++) {
++  short index = i + t * 8;
++  short k = index & (h - 1);
++  short j = ((index - k) << 3) + k;
++  _Pragma("clang loop unroll(full)")
++  for (short r = 0; r < 8; r++) x[r] = buf[j + h * r];
++  mlxl3_hot_radix<8>(x);
++  _Pragma("clang loop unroll(full)")
++  for (short r = 0; r < 8; r++) buf[j + h * r] = half(x[r]);
++}
++threadgroup_barrier(mem_flags::mem_threadgroup);
++const float scale = as_type<float>(MLXL3_SCALE_BITS);
++_Pragma("clang loop unroll(full)")
++for (short j = 0; j < 4; j++) {
++  short index = j * 4 * 8 + i * 4;
++  _Pragma("clang loop unroll(full)")
++  for (short r = 0; r < 4; r++) out[base + index + r] = half(buf[index + r] * scale);
++}
++"#;
++
++pub(super) fn hadamard(values: &Array, slots: &Array, capacity: i32, repeat: i32) -> Result<Array> {
++    let scale = 1.0 / 128.0f32.sqrt();
++    let shape = values.shape();
++    let Some(grid) = crate::flash_support::flash_hot_h128_grid(
++        shape,
++        slots.shape(),
++        values.dtype() == Dtype::Float16,
++        slots.dtype() == Dtype::UInt32,
++        capacity,
++        repeat,
++    ) else {
++        // Other formats and geometries keep the exact existing MLX operation.
++        return values.hadamard_transform(Some(scale));
++    };
++    #[cfg(test)]
++    FAST_CALLS.with(|count| count.set(count.get() + 1));
++    let header = format!(
++        "{HEADER}\n#define MLXL3_CAPACITY {capacity}u\n#define MLXL3_REPEAT {repeat}u\n#define MLXL3_SCALE_BITS 0x{:08x}u\n",
++        scale.to_bits()
++    );
++    Ok(array::metal_kernel(
++        "mlxl3_hot_h128_half",
++        &["values", "slots"],
++        &["out"],
++        &header,
++        KERNEL,
++        &[values, slots],
++        &[shape.to_vec()],
++        &[Dtype::Float16],
++        grid,
++        [8, 1, 1],
++    )?
++    .remove(0))
++}
++
++#[cfg(test)]
++#[path = "hot_transform_tests.rs"]
++mod tests;
+diff --git a/native/src/linear/hot_transform_tests.rs b/native/src/linear/hot_transform_tests.rs
+new file mode 100644
+--- /dev/null
++++ b/native/src/linear/hot_transform_tests.rs
+@@ -0,0 +1,460 @@
++use super::*;
++use serde_json::{Value, json};
++use std::{
++    collections::BTreeSet,
++    fs,
++    path::{Component, Path},
++    time::Instant,
++};
++
++fn input(
++    routes: usize,
++    repeat: usize,
++    width: usize,
++    layout: usize,
++    pattern: usize,
++) -> Result<Array> {
++    let rows = routes * repeat;
++    let value = |row: usize, col: usize| -> u16 {
++        match pattern {
++            0 => half::f16::from_f32(((row * 37 + col * 13) % 997) as f32 / 1024. - 0.5).to_bits(),
++            1 => {
++                if (row + col).is_multiple_of(2) {
++                    0
++                } else {
++                    0x8000
++                }
++            }
++            2 => [1, 0x8001, 0x03ff, 0x83ff, 0x0400, 0x8400][(row + col) % 6],
++            3 => [0x7bff, 0xfbff, 0x6c00, 0xec00, 0x4000, 0xc000][(row + col) % 6],
++            4 => [0x7e17, 0x7c00, 0xfc00, 0xfe31, 0, 0x8000][(row + col) % 6],
++            5 => [0x3bff, 0x3c00, 0x3c01, 0xbbff, 0xbc00, 0xbc01][(row + col) % 6],
++            _ => unreachable!(),
++        }
++    };
++    let blocks = width / 128;
++    if layout == 1 {
++        let bits = (0..blocks)
++            .flat_map(|b| {
++                (0..rows).flat_map(move |row| (0..128).map(move |j| value(row, b * 128 + j)))
++            })
++            .collect::<Vec<_>>();
++        Array::from_f16_bits(&bits, &[blocks as i32, rows as i32, 128])?.transpose(&[1, 0, 2])
++    } else {
++        let padded = rows + usize::from(layout == 2);
++        let bits = (0..padded)
++            .flat_map(|row| (0..width).map(move |j| value(row, j)))
++            .collect::<Vec<_>>();
++        let x = Array::from_f16_bits(&bits, &[padded as i32, blocks as i32, 128])?;
++        if layout == 2 {
++            x.slice(0, 1, rows as i32 + 1)
++        } else {
++            Ok(x)
++        }
++    }
++}
++
++fn masks(routes: usize, capacity: u32, singles: bool) -> Vec<Vec<u32>> {
++    let hot = (0..routes).map(|i| i as u32 % capacity).collect::<Vec<_>>();
++    let mut result = vec![
++        hot.clone(),
++        vec![u32::MAX; routes],
++        hot.iter()
++            .enumerate()
++            .map(|(i, &slot)| if i % 2 == 0 { slot } else { capacity })
++            .collect(),
++    ];
++    if singles {
++        for i in 0..routes {
++            let mut slots = vec![u32::MAX; routes];
++            slots[i] = hot[i];
++            result.push(slots);
++        }
++    } else {
++        let mut slots = vec![u32::MAX; routes];
++        slots[routes - 1] = capacity - 1;
++        result.push(slots);
++    }
++    result
++}
++
++fn exact(
++    values: &Array,
++    slots: &[u32],
++    capacity: i32,
++    repeat: i32,
++    reference: &[u8],
++    finite: bool,
++) -> Result<()> {
++    let shape = values.shape();
++    let indices = Array::from_u32(slots, &[slots.len() as i32])?;
++    let reads = Array::host_readbacks_for_test();
++    let calls = FAST_CALLS.with(std::cell::Cell::get);
++    let actual = hadamard(values, &indices, capacity, repeat)?;
++    ensure!(
++        FAST_CALLS.with(std::cell::Cell::get) == calls + 1,
++        "masked H128 fast path was not selected"
++    );
++    ensure!(
++        Array::host_readbacks_for_test() == reads,
++        "masked H128 introduced a readback"
++    );
++    ensure!(actual.shape() == shape && actual.dtype() == Dtype::Float16);
++    let bytes = actual.to_bytes()?;
++    let width = shape[1] as usize * 128;
++    ensure!(bytes.len() == reference.len() && bytes.len() == shape[0] as usize * width * 2);
++    if finite {
++        ensure!(
++            reference
++                .as_chunks::<2>()
++                .0
++                .iter()
++                .all(|bits| half::f16::from_bits(u16::from_le_bytes(*bits)).is_finite()),
++            "finite-matrix native oracle is nonfinite"
++        );
++    }
++    for row in 0..shape[0] as usize {
++        let range = row * width * 2..(row + 1) * width * 2;
++        if slots[row / repeat as usize] < capacity as u32 {
++            if finite {
++                ensure!(
++                    bytes[range.clone()]
++                        .as_chunks::<2>()
++                        .0
++                        .iter()
++                        .all(|bits| half::f16::from_bits(u16::from_le_bytes(*bits)).is_finite()),
++                    "finite-matrix Hot H128 is nonfinite"
++                );
++            }
++            ensure!(
++                bytes[range.clone()] == reference[range],
++                "Hot H128 bits changed at row{row}"
++            );
++        } else {
++            ensure!(
++                bytes[range].iter().all(|&byte| byte == 0),
++                "Cold H128 output was not initialized +0"
++            );
++        }
++    }
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; native MLX Half H128 oracle, mask/rounding/strides; run alone"]
++fn hot_h128_matches_native_half_roundings_masks_and_layouts() -> Result<()> {
++    let mut cases = 0;
++    for routes in [1, 2, 10, 20, 30, 40, 50, 60, 70, 80] {
++        for repeat in [1, 2] {
++            for width in [640, 2560] {
++                for layout in [0, 1] {
++                    let x = input(routes, repeat, width, layout, 0)?;
++                    let reference = x
++                        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                        .to_bytes()?;
++                    ensure!(reference.iter().any(|&b| b != 0), "empty native oracle");
++                    for slots in masks(routes, 53, true) {
++                        exact(&x, &slots, 53, repeat as i32, &reference, true)?;
++                        cases += 1;
++                    }
++                }
++            }
++        }
++    }
++    ensure!(cases == 3144);
++    let mut edges = 0;
++    for repeat in [1, 2] {
++        for width in [640, 2560] {
++            for layout in [0, 1] {
++                for pattern in 0..6 {
++                    let x = input(20, repeat, width, layout, pattern)?;
++                    let reference = x
++                        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                        .to_bytes()?;
++                    for slots in masks(20, 53, false) {
++                        exact(
++                            &x,
++                            &slots,
++                            53,
++                            repeat as i32,
++                            &reference,
++                            pattern != 3 && pattern != 4,
++                        )?;
++                        edges += 1;
++                    }
++                }
++            }
++            let offset = input(20, repeat, width, 2, 0)?;
++            let reference = offset
++                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                .to_bytes()?;
++            for slots in masks(20, 53, false) {
++                exact(&offset, &slots, 53, repeat as i32, &reference, true)?;
++                edges += 1;
++            }
++            for capacity in [1, 512] {
++                let x = input(20, repeat, width, 0, 0)?;
++                let reference = x
++                    .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                    .to_bytes()?;
++                for slots in masks(20, capacity, false) {
++                    exact(&x, &slots, capacity as i32, repeat as i32, &reference, true)?;
++                    edges += 1;
++                }
++            }
++        }
++    }
++    ensure!(edges == 240);
++    let mut fallbacks = 0;
++    let indices = Array::from_u32(&[u32::MAX; 20], &[20])?;
++    for dtype in [Dtype::Float32, Dtype::BFloat16] {
++        for blocks in [1, 5, 20] {
++            let x = input(20, 1, blocks * 128, 0, 0)?.astype(dtype)?;
++            let before = FAST_CALLS.with(std::cell::Cell::get);
++            let expected = x.hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?;
++            let actual = hadamard(&x, &indices, 53, 1)?;
++            ensure!(FAST_CALLS.with(std::cell::Cell::get) == before);
++            ensure!(
++                actual.shape() == x.shape()
++                    && actual.dtype() == expected.dtype()
++                    && actual.to_bytes()? == expected.to_bytes()?
++            );
++            fallbacks += 1;
++        }
++    }
++    for repeat in [1, 2] {
++        for blocks in [1, 4] {
++            let x = input(20, repeat, blocks * 128, 0, 0)?;
++            let before = FAST_CALLS.with(std::cell::Cell::get);
++            ensure!(
++                hadamard(&x, &indices, 53, repeat as i32)?.to_bytes()?
++                    == x.hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                        .to_bytes()?
++            );
++            ensure!(FAST_CALLS.with(std::cell::Cell::get) == before);
++            fallbacks += 1;
++        }
++    }
++    ensure!(fallbacks == 10);
++    println!(
++        "FLASH_HOT_H128 cases={cases} edges={edges} fallbacks={fallbacks} hot=byte_exact cold=positive_zero readbacks=none layouts=contiguous,transpose,offset"
++    );
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn actual_hot_h128_preserves_native_half_bits() {
++    hot_h128_matches_native_half_roundings_masks_and_layouts().unwrap();
++}
++
++fn qa_inputs(root: &Path, oracle: &Value, layer: usize) -> Result<[Vec<f32>; 2]> {
++    let mut rows = Vec::new();
++    for step in [0, 1] {
++        let entry = &oracle["steps"][step]["components"][layer]["mlp"]["input"];
++        ensure!(entry["count"] == 2560);
++        let file = entry["file"].as_str().context("missing QA input")?;
++        ensure!(
++            !file.is_empty()
++                && Path::new(file)
++                    .components()
++                    .all(|c| matches!(c, Component::Normal(_))),
++            "invalid QA path"
++        );
++        let bytes = fs::read(root.join(file))?;
++        ensure!(bytes.len() == 2560 * 4);
++        let row = bytes
++            .as_chunks::<4>()
++            .0
++            .iter()
++            .map(|b| f32::from_le_bytes(*b))
++            .collect::<Vec<_>>();
++        ensure!(row.len() == 2560 && row.iter().all(|v| v.is_finite()));
++        rows.push(row);
++    }
++    rows.try_into()
++        .map_err(|_| anyhow::anyhow!("missing QA rows"))
++}
++
++fn chained(
++    input: &Array,
++    slots: &Array,
++    candidate: bool,
++    repeat: i32,
++    count: usize,
++) -> Result<Array> {
++    let mut value = input.try_clone()?;
++    for _ in 0..count {
++        value = if candidate {
++            hadamard(&value, slots, 53, repeat)?
++        } else {
++            value.hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++        };
++    }
++    Ok(value)
++}
++
++#[test]
++#[ignore = "physical Apple GPU; pinned real B2 masks and QA-derived inputs, marginal wall only"]
++fn hot_h128_component_aa_abba_on_pinned_b2_masks() -> Result<()> {
++    let path = std::env::var("MLXL3_HOT_TRANSFORM_FIXTURES")?;
++    let report_path = std::env::var("MLXL3_HOT_TRANSFORM_OUTPUT")?;
++    ensure!(!Path::new(&report_path).exists(), "refusing overwrite");
++    let fixture: Value = serde_json::from_reader(fs::File::open(&path)?)?;
++    ensure!(fixture["status"] == "fixed_before_any_kernel_timing");
++    let cases = fixture["fixtures"]
++        .as_array()
++        .context("missing mask fixtures")?;
++    let geometry = fixture["geometry"].as_array().context("missing geometry")?;
++    ensure!(cases.len() == 8 && geometry.len() == 4);
++    let expected_names = [
++        "MAIN-p05",
++        "MAIN-p50",
++        "MAIN-p95",
++        "HOLD-p05",
++        "HOLD-p50",
++        "HOLD-p95",
++        "synthetic-all-hot",
++        "synthetic-all-cold-nonempty-map",
++    ];
++    let expected_geometry = [
++        ("GU-input", 2, 2560),
++        ("GU-output", 2, 640),
++        ("down-input", 1, 640),
++        ("down-output", 1, 2560),
++    ];
++    for (entry, &(stage, repeat, width)) in geometry.iter().zip(&expected_geometry) {
++        ensure!(entry["stage"] == stage && entry["repeat"] == repeat && entry["width"] == width);
++    }
++    let root = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_REFERENCE")?);
++    let oracle: Value = serde_json::from_reader(fs::File::open(root.join("reference.json"))?)?;
++    ensure!(oracle["status"] == "complete" && oracle["mode"] == "eval");
++    let mut names = BTreeSet::new();
++    let mut samples = Vec::new();
++    let mut setup = Vec::new();
++    let mut plans = Vec::new();
++    for (fixture_index, entry) in cases.iter().enumerate() {
++        let name = entry["name"].as_str().context("missing mask name")?;
++        ensure!(name == expected_names[fixture_index] && names.insert(name));
++        ensure!(entry["routes"] == 20 && entry["capacity"] == 53);
++        let slots = entry["slots"]
++            .as_array()
++            .context("missing slots")?
++            .iter()
++            .map(|v| {
++                v.as_u64()
++                    .and_then(|v| u32::try_from(v).ok())
++                    .context("invalid mask slot")
++            })
++            .collect::<Result<Vec<_>>>()?;
++        ensure!(slots.len() == 20 && slots.iter().all(|&s| s < 53 || s == u32::MAX));
++        ensure!(entry["hot"].as_u64() == Some(slots.iter().filter(|&&s| s < 53).count() as u64));
++        let layer = if fixture_index < 6 {
++            ensure!(entry["source_label"] == if fixture_index < 3 { "MAIN" } else { "HOLD" });
++            ensure!(entry["source_block"].as_u64().is_some());
++            entry["source_layer"]
++                .as_u64()
++                .filter(|&n| n < 48)
++                .context("invalid source layer")? as usize
++        } else {
++            ensure!(entry["source_label"].is_null());
++            0
++        };
++        let qa = qa_inputs(&root, &oracle, layer)?;
++        let plan_started = Instant::now();
++        let indices = Array::from_u32(&slots, &[20])?;
++        indices.eval()?;
++        plans.push(json!({"fixture":name,"seconds":plan_started.elapsed().as_secs_f64()}));
++        for &(stage, repeat, width) in &expected_geometry {
++            let start = Instant::now();
++            let rows = 20 * repeat;
++            let bits = (0..rows)
++                .flat_map(|r| {
++                    let qa = &qa[(r / repeat / 10) as usize];
++                    let cold = slots[(r / repeat) as usize] >= 53;
++                    (0..width).map(move |j| {
++                        if cold {
++                            0
++                        } else {
++                            half::f16::from_f32(qa[j as usize]).to_bits()
++                        }
++                    })
++                })
++                .collect::<Vec<_>>();
++            let x = Array::from_f16_bits(&bits, &[rows, width / 128, 128])?;
++            x.eval()?;
++            let reference = x
++                .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
++                .to_bytes()?;
++            exact(&x, &slots, 53, repeat, &reference, true)?;
++            // Validate the exact chain used for timing, with initialized Cold inputs.
++            let expected_chain = chained(&x, &indices, false, repeat, 32)?.to_bytes()?;
++            let actual_chain = chained(&x, &indices, true, repeat, 32)?.to_bytes()?;
++            ensure!(
++                expected_chain.len() == actual_chain.len()
++                    && actual_chain.len() == rows as usize * width as usize * 2
++            );
++            for row in 0..rows as usize {
++                let range = row * width as usize * 2..(row + 1) * width as usize * 2;
++                if slots[row / repeat as usize] < 53 {
++                    ensure!(
++                        actual_chain[range.clone()] == expected_chain[range.clone()],
++                        "32-chain Hot parity failed"
++                    );
++                    ensure!(
++                        actual_chain[range]
++                            .as_chunks::<2>()
++                            .0
++                            .iter()
++                            .all(|b| half::f16::from_bits(u16::from_le_bytes(*b)).is_finite()),
++                        "32-chain Hot output is nonfinite"
++                    );
++                } else {
++                    ensure!(
++                        actual_chain[range.clone()].iter().all(|&b| b == 0),
++                        "32-chain Cold output is not +0"
++                    );
++                    ensure!(
++                        expected_chain[range]
++                            .as_chunks::<2>()
++                            .0
++                            .iter()
++                            .all(|b| half::f16::from_bits(u16::from_le_bytes(*b)).to_f32() == 0.),
++                        "stock Cold chain is not numeric zero"
++                    );
++                }
++            }
++            setup.push(
++                json!({"fixture":name,"stage":stage,"seconds":start.elapsed().as_secs_f64()}),
++            );
++            for candidate in [false, true] {
++                for _ in 0..8 {
++                    chained(&x, &indices, candidate, repeat, 1)?.eval()?;
++                }
++            }
++            for (phase, block, order) in std::iter::once(("AA", 0, vec![false, false]))
++                .chain((0..5).map(|block| ("ABBA", block, vec![false, true, true, false])))
++            {
++                for (index, &candidate) in order.iter().enumerate() {
++                    let start = Instant::now();
++                    let value = chained(&x, &indices, candidate, repeat, 32)?;
++                    value.eval()?;
++                    let seconds = start.elapsed().as_secs_f64();
++                    ensure!(seconds.is_finite() && seconds > 0.0);
++                    samples.push(json!({"fixture":name,"stage":stage,"phase":phase,"block":block,"index":index,"candidate":candidate,"calls":32,"seconds":seconds}));
++                }
++            }
++        }
++    }
++    ensure!(samples.len() == 704 && setup.len() == 32 && plans.len() == 8);
++    let report = json!({"status":"complete_component_wall_only","samples":samples,"setup":setup,"plan_setup":plans,"fixtures":fixture,"parity":"single and32-chain Hot byte exact vs native MLX,finite; candidate Cold+0,stock Cold signed zero allowed","input_source":"QA MLP input rows0/1, first640 for640-wide stages,Cold initialized+0; geometry replay only,not captured real GU/down intermediate activations","timing":"setup outside,8warmups/arm,AA then5ABBA,32fresh chained transforms/sample,one final eval; host/dispatch/completion wall,not exclusiveGPU or releaseTPS"});
++    let file = fs::OpenOptions::new()
++        .write(true)
++        .create_new(true)
++        .open(report_path)?;
++    serde_json::to_writer_pretty(file, &report)?;
++    println!(
++        "FLASH_HOT_H128_MICRO fixtures=8 geometries=4 samples=704 calls_per_sample=32 parity=byte_exact wall_only=true"
++    );
++    Ok(())
++}
+diff --git a/native/src/ssd_moe/hot_activation.rs b/native/src/ssd_moe/hot_activation.rs
+new file mode 100644
+--- /dev/null
++++ b/native/src/ssd_moe/hot_activation.rs
+@@ -0,0 +1,268 @@
++//! Resident-Hot activation; Cold lanes never inspect gate/up values.
++use super::*;
++
++// MLX 0.32.2 unary_ops.h::Sigmoid and binary_ops.h::Multiply (Apple, MIT).
++// Keep the type of every node: half sigmoid, half gate*sigmoid, half silu*up.
++const HEADER: &str = r#"
++struct Mlxl3HotSigmoid {
++    template <typename T> T operator()(T x) thread {
++        auto y = 1 / (1 + metal::exp(metal::abs(x)));
++        return (x < 0) ? y : 1 - y;
++    }
++};
++struct Mlxl3HotMultiply {
++    template <typename T> T operator()(T x, T y) thread { return x * y; }
++};
++"#;
++
++const SOURCE: &str = r#"
++uint i = thread_position_in_grid.x;
++if (i >= uint(gu_shape[0]) * 640u) return;
++uint row = i / 640u;
++if (slots[row] >= CAPACITY) { activated[i] = half(0); return; }
++uint col = i % 640u;
++half gate = gu[row * 1280u + col];
++half up = gu[row * 1280u + 640u + col];
++half sigmoid = Mlxl3HotSigmoid()(gate);
++half silu = Mlxl3HotMultiply()(gate, sigmoid);
++activated[i] = Mlxl3HotMultiply()(silu, up);
++"#;
++
++pub(super) fn apply(gu: &Array, slots: &linear::ExpertSlots) -> Result<Array> {
++    let n = *slots
++        .indices()
++        .shape()
++        .first()
++        .context("missing expert routes")?;
++    if !slots.is_masked() || gu.dtype() != Dtype::Float16 {
++        return gu
++            .slice(1, 0, 1)?
++            .reshape(&[n, I])?
++            .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?);
++    }
++    let grid = crate::flash_support::flash_hot_swiglu_grid(
++        gu.shape(),
++        slots.indices().shape(),
++        gu.dtype() == Dtype::Float16,
++        slots.indices().dtype() == Dtype::UInt32,
++        slots.capacity(),
++    )
++    .context("invalid resident Hot activation layout")?;
++    crate::array::metal_kernel(
++        "mlxl3_hot_swiglu",
++        &["gu", "slots"],
++        &["activated"],
++        &format!(
++            "{HEADER}\nconstant uint CAPACITY = {}u;\n",
++            slots.capacity()
++        ),
++        SOURCE,
++        &[gu, slots.indices()],
++        &[vec![n, I]],
++        &[Dtype::Float16],
++        [grid, 1, 1],
++        [128, 1, 1],
++    )?
++    .pop()
++    .context("missing resident Hot activation")
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    pub(super) fn inputs(n: i32, cold: &[bool], strided: bool, nonfinite: bool) -> Result<Array> {
++        let value = |r: i32, p: i32, c: i32| {
++            if cold[r as usize] {
++                0x7e35 // Poison must not leak from a Cold row.
++            } else if nonfinite {
++                [
++                    0x0000, 0x8000, 0x0001, 0x8001, 0x7bff, 0xfbff, 0x7c00, 0xfc00, 0x7e35, 0xfe21,
++                    0x3c01, 0xbc01,
++                ][(c as usize + 3 * p as usize + r as usize) % 12]
++            } else {
++                let x = ((r * 179 + p * 89 + c * 37) % 8191 - 4095) as f32;
++                half::f16::from_f32(x / if p == 0 { 463.0 } else { 1031.0 }).to_bits()
++            }
++        };
++        if strided {
++            let values = (0..I)
++                .flat_map(|c| (0..2).flat_map(move |p| (0..n).map(move |r| value(r, p, c))))
++                .collect::<Vec<_>>();
++            Array::from_f16_bits(&values, &[I, 2, n])?.transpose(&[2, 1, 0])
++        } else {
++            let values = (0..n)
++                .flat_map(|r| (0..2).flat_map(move |p| (0..I).map(move |c| value(r, p, c))))
++                .collect::<Vec<_>>();
++            Array::from_f16_bits(&values, &[n, 2, I])
++        }
++    }
++
++    fn resident(n: i32, pattern: usize, capacity: i32) -> Result<(linear::ExpertSlots, Vec<bool>)> {
++        let mut map = [u32::MAX; 512];
++        let mut cold = Vec::new();
++        for (r, slot) in map.iter_mut().enumerate().take(n as usize) {
++            let hot = match pattern {
++                0 => false,
++                1 => true,
++                2 => r % 2 == 0,
++                3 => r == 0,
++                4 => r + 1 == n as usize,
++                5 => r % 3 != 1,
++                _ => unreachable!(),
++            };
++            if hot {
++                *slot = if r % 2 == 0 { 0 } else { capacity as u32 - 1 };
++            }
++            cold.push(!hot);
++        }
++        let ids = Array::from_u32(&(0..n as u32).collect::<Vec<_>>(), &[n])?;
++        Ok((linear::ExpertSlots::residents(&ids, &map, capacity)?, cold))
++    }
++
++    pub(super) fn oracle(gu: &Array, n: i32) -> Result<Array> {
++        // Independent real MLX graph; do not call the candidate's MSL operations.
++        gu.slice(1, 0, 1)?
++            .reshape(&[n, I])?
++            .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)
++    }
++
++    fn check(gu: &Array, slots: &linear::ExpertSlots, cold: &[bool], finite: bool) -> Result<()> {
++        let n = cold.len() as i32;
++        let mut expected = oracle(gu, n)?.to_bytes()?;
++        let masked_half = slots.is_masked() && gu.dtype() == Dtype::Float16;
++        if masked_half {
++            for (row, &cold) in cold.iter().enumerate() {
++                if cold {
++                    expected[row * I as usize * 2..(row + 1) * I as usize * 2].fill(0);
++                }
++            }
++        }
++        let before = Array::host_readbacks_for_test();
++        let actual = apply(gu, slots)?;
++        ensure!(
++            Array::host_readbacks_for_test() == before,
++            "activation added a readback"
++        );
++        ensure!(actual.shape() == [n, I] && actual.dtype() == gu.dtype());
++        let bytes = actual.to_bytes()?;
++        ensure!(
++            !bytes.is_empty() && bytes == expected,
++            "Hot activation differs from MLX nodes"
++        );
++        if finite {
++            let values = actual.to_f32()?;
++            ensure!(
++                values.len() == n as usize * I as usize && values.iter().all(|v| v.is_finite())
++            );
++        }
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU; exact masked Half activation, no model or timing"]
++    fn masked_hot_swiglu_matches_real_mlx_nodes_and_cold_positive_zero() -> Result<()> {
++        let mut cases = 0;
++        for n in 1..=80 {
++            let capacity = [1, 53, 512][n as usize % 3];
++            for pattern in 0..6 {
++                let (slots, cold) = resident(n, pattern, capacity)?;
++                for strided in [false, true] {
++                    check(&inputs(n, &cold, strided, false)?, &slots, &cold, true)?;
++                    cases += 1;
++                }
++            }
++        }
++        ensure!(cases == 960);
++        let (slots, cold) = resident(20, 1, 53)?;
++        for strided in [false, true] {
++            check(&inputs(20, &cold, strided, true)?, &slots, &cold, false)?;
++        }
++        let mut map = [u32::MAX; 512];
++        map[0] = 0;
++        map[511] = 52;
++        let selected = Array::from_u32(&[0, 511, 512, u32::MAX], &[4])?;
++        let boundary = linear::ExpertSlots::residents(&selected, &map, 53)?;
++        let cold = [false, false, true, true];
++        check(&inputs(4, &cold, false, false)?, &boundary, &cold, true)?;
++        println!(
++            "FLASH_HOT_ACTIVATION cases=960 nonfinite_cases=2 id_boundary_cases=1 routes=1..80 masks=6 strides=2 hot=byte_exact cold=positive_zero readbacks=unchanged"
++        );
++        Ok(())
++    }
++
++    #[test]
++    #[ignore = "physical Apple GPU; historical unmasked/dtype fallback and invalid layouts"]
++    fn hot_swiglu_fallbacks_and_invalid_layouts_keep_contract() -> Result<()> {
++        let mut fallbacks = 0;
++        for n in [1, 10, 20, 80] {
++            let cold = vec![false; n as usize];
++            let slots = linear::ExpertSlots::new(&vec![0; n as usize], 53)?;
++            for dtype in [Dtype::Float16, Dtype::Float32, Dtype::BFloat16] {
++                for strided in [false, true] {
++                    let gu = inputs(n, &cold, strided, false)?.astype(dtype)?;
++                    check(&gu, &slots, &cold, true)?;
++                    fallbacks += 1;
++                }
++            }
++        }
++        let (slots, cold) = resident(20, 2, 53)?;
++        for dtype in [Dtype::Float32, Dtype::BFloat16] {
++            for strided in [false, true] {
++                let gu = inputs(20, &[false; 20], strided, false)?.astype(dtype)?;
++                check(&gu, &slots, &cold, true)?;
++                fallbacks += 1;
++            }
++        }
++        ensure!(fallbacks == 28);
++        let mut invalid = 0;
++        for shape in [
++            vec![20, I],
++            vec![20, 1, I],
++            vec![20, 2, I - 1],
++            vec![19, 2, I],
++            vec![20, 2, I + 1],
++        ] {
++            ensure!(apply(&Array::zeros_dtype(&shape, Dtype::Float16)?, &slots).is_err());
++            invalid += 1;
++        }
++        let map = [u32::MAX; 512];
++        for capacity in [0, 513] {
++            ensure!(
++                linear::ExpertSlots::residents(&Array::from_u32(&[0], &[1])?, &map, capacity)
++                    .is_err()
++            );
++            invalid += 1;
++        }
++        ensure!(
++            linear::ExpertSlots::residents(&Array::zeros_dtype(&[1], Dtype::Float32)?, &map, 53)
++                .is_err()
++        );
++        invalid += 1;
++        ensure!(
++            linear::ExpertSlots::residents(&Array::from_u32(&[0; 81], &[81])?, &map, 53).is_err()
++        );
++        invalid += 1;
++        let mut bad_map = map;
++        bad_map[0] = 53;
++        ensure!(
++            linear::ExpertSlots::residents(&Array::from_u32(&[0], &[1])?, &bad_map, 53).is_err()
++        );
++        invalid += 1;
++        ensure!(invalid == 10);
++        println!(
++            "FLASH_HOT_ACTIVATION_FALLBACK cases=28 invalid=10 parity=byte_exact historical_unmasked_and_nonhalf=true"
++        );
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_masked_activation_preserves_mlx_nodes() {
++        masked_hot_swiglu_matches_real_mlx_nodes_and_cold_positive_zero().unwrap();
++    }
++}
++
++#[cfg(test)]
++#[path = "hot_activation_bench.rs"]
++mod bench;
+diff --git a/native/src/ssd_moe/hot_activation_bench.rs b/native/src/ssd_moe/hot_activation_bench.rs
+new file mode 100644
+--- /dev/null
++++ b/native/src/ssd_moe/hot_activation_bench.rs
+@@ -0,0 +1,291 @@
++//! Isolated component wall time; no model or release throughput claim.
++use super::*;
++use serde_json::{Value, json};
++use std::{
++    fs::OpenOptions,
++    io::{Seek, SeekFrom, Write},
++    path::Path,
++    time::Instant,
++};
++
++const NAMES: [&str; 8] = [
++    "MAIN-p05",
++    "MAIN-p50",
++    "MAIN-p95",
++    "HOLD-p05",
++    "HOLD-p50",
++    "HOLD-p95",
++    "synthetic-all-hot",
++    "synthetic-all-cold-nonempty-map",
++];
++const HOT: [usize; 8] = [7, 14, 19, 7, 14, 19, 20, 0];
++
++fn fixtures(value: &Value) -> Result<Vec<[u32; 20]>> {
++    ensure!(
++        value["status"] == "fixed_before_any_kernel_timing",
++        "unfrozen component fixtures"
++    );
++    let entries = value["fixtures"]
++        .as_array()
++        .context("missing component fixtures")?;
++    ensure!(entries.len() == 8, "expected eight component fixtures");
++    entries
++        .iter()
++        .enumerate()
++        .map(|(i, f)| {
++            ensure!(
++                f["name"] == NAMES[i]
++                    && f["routes"].as_u64() == Some(20)
++                    && f["capacity"].as_u64() == Some(53),
++                "invalid component fixture identity/layout"
++            );
++            let values = f["slots"].as_array().context("missing component slots")?;
++            ensure!(values.len() == 20, "invalid component slot count");
++            let mut slots = [0; 20];
++            for (slot, value) in slots.iter_mut().zip(values) {
++                *slot = u32::try_from(value.as_u64().context("invalid unsigned component slot")?)?;
++                ensure!(
++                    *slot == u32::MAX || *slot < 53,
++                    "component slot outside bank"
++                );
++            }
++            let hot = slots.iter().filter(|&&s| s != u32::MAX).count();
++            ensure!(
++                hot == HOT[i] && f["hot"].as_u64() == Some(hot as u64),
++                "component Hot count mismatch"
++            );
++            Ok(slots)
++        })
++        .collect()
++}
++
++fn report_file(path: &Path) -> Result<std::fs::File> {
++    Ok(OpenOptions::new().write(true).create_new(true).open(path)?)
++}
++
++fn save(file: &mut std::fs::File, value: &Value) -> Result<()> {
++    file.seek(SeekFrom::Start(0))?;
++    file.set_len(0)?;
++    serde_json::to_writer(&mut *file, value)?;
++    file.flush()?;
++    Ok(())
++}
++
++fn chain(
++    gu: &Array,
++    slots: &linear::ExpertSlots,
++    base_gate: &Array,
++    base_up: &Array,
++    scale: &Array,
++    candidate: bool,
++) -> Result<Array> {
++    let mut current = gu.try_clone()?;
++    let mut result = None;
++    for step in 0..32 {
++        let activated = if candidate {
++            apply(&current, slots)?
++        } else {
++            super::tests::oracle(&current, 20)?
++        };
++        if step != 31 {
++            let gate = base_gate.add(&activated.mul(scale)?)?;
++            current = Array::concatenate(&[&gate, base_up], 1)?.reshape(&[20, 2, I])?;
++        }
++        result = Some(activated);
++    }
++    result.context("empty activation chain")
++}
++
++fn exact(value: &Array, expected: Option<&[u8]>, slots: &[u32; 20]) -> Result<Vec<u8>> {
++    ensure!(value.shape() == [20, I] && value.dtype() == Dtype::Float16);
++    let numbers = value.to_f32()?;
++    ensure!(
++        numbers.len() == 20 * I as usize && numbers.iter().all(|x| x.is_finite()),
++        "nonfinite component chain"
++    );
++    let bytes = value.to_bytes()?;
++    ensure!(bytes.len() == 20 * I as usize * 2 && !bytes.is_empty());
++    if let Some(expected) = expected {
++        ensure!(bytes == expected, "component full-chain parity failed");
++    }
++    for (row, &slot) in slots.iter().enumerate() {
++        if slot == u32::MAX {
++            ensure!(
++                bytes[row * I as usize * 2..(row + 1) * I as usize * 2]
++                    .iter()
++                    .all(|&x| x == 0),
++                "Cold chain is not positive zero"
++            );
++        }
++    }
++    Ok(bytes)
++}
++
++#[test]
++#[ignore = "physical Apple GPU; 32-call activation component wall time, not tok/s"]
++fn masked_hot_activation_component_aa_abba() -> Result<()> {
++    let path = std::path::PathBuf::from(std::env::var("MLXL3_HOT_TRANSFORM_FIXTURES")?);
++    let output = std::path::PathBuf::from(std::env::var("MLXL3_HOT_TRANSFORM_OUTPUT")?);
++    run(&path, &output)
++}
++
++fn run(path: &Path, output: &Path) -> Result<()> {
++    let mut file = report_file(output)?; // Refuse overwrite before any GPU work.
++    let mut report = json!({"status":"incomplete","parity":false,"stage":"SwiGLU","samples":[],"fixture_file":path,"limits":"Synthetic GU plus real masks, no captured decoder activations; common recurrence/graph construction/dispatch included; not exclusive GPU time or release tok/s"});
++    save(&mut file, &report)?;
++    let outcome = (|| -> Result<()> {
++        ensure!(
++            std::fs::metadata(path)?.len() <= 64 << 10,
++            "component fixtures exceed 64KiB"
++        );
++        let raw = std::fs::read(path)?;
++        let data: Value = serde_json::from_slice(&raw)?;
++        let entries = fixtures(&data)?; // Validate all eight before GPU initialization.
++        report["fixtures"] = data;
++        report["fixture_file_fnv1a64"] = json!(format!(
++            "{:016x}",
++            raw.iter()
++                .fold(0xcbf29ce484222325u64, |h, &b| (h ^ u64::from(b))
++                    .wrapping_mul(0x100000001b3))
++        ));
++        for (fixture, mapping) in entries.iter().enumerate() {
++            let mut map = [u32::MAX; 512];
++            map[..20].copy_from_slice(mapping);
++            map[511] = 0; // Keep the all-Cold fixture's original map nonempty.
++            let selected = Array::from_u32(&(0..20).collect::<Vec<_>>(), &[20])?;
++            let slots = linear::ExpertSlots::residents(&selected, &map, 53)?;
++            let mut bytes = super::tests::inputs(20, &[false; 20], false, false)?.to_bytes()?;
++            for (row, &slot) in mapping.iter().enumerate() {
++                if slot == u32::MAX {
++                    bytes[row * 2 * I as usize * 2..(row + 1) * 2 * I as usize * 2].fill(0);
++                }
++            }
++            let gu = Array::from_bytes(&bytes, &[20, 2, I], Dtype::Float16)?;
++            let gate = gu.slice(1, 0, 1)?.reshape(&[20, I])?;
++            let up = gu.slice(1, 1, 2)?.reshape(&[20, I])?;
++            let scale = Array::from_f16_bits(&[0x3000], &[1])?; // Exactly 1/8 Half.
++            gu.eval()?;
++            gate.eval()?;
++            up.eval()?;
++            scale.eval()?;
++            slots.indices().eval()?;
++            let expected = exact(
++                &chain(&gu, &slots, &gate, &up, &scale, false)?,
++                None,
++                mapping,
++            )?;
++            exact(
++                &chain(&gu, &slots, &gate, &up, &scale, true)?,
++                Some(&expected),
++                mapping,
++            )?;
++            for candidate in [false, true] {
++                for _ in 0..8 {
++                    if candidate {
++                        apply(&gu, &slots)?
++                    } else {
++                        super::tests::oracle(&gu, 20)?
++                    }
++                    .eval()?;
++                }
++            }
++            // One A/A calibration block, then five ABBA blocks, each four samples.
++            for block in 0..6 {
++                for (position, candidate) in if block == 0 {
++                    [false; 4]
++                } else {
++                    [false, true, true, false]
++                }
++                .into_iter()
++                .enumerate()
++                {
++                    let start = Instant::now();
++                    let value = chain(&gu, &slots, &gate, &up, &scale, candidate)?;
++                    value.eval()?;
++                    let seconds = start.elapsed().as_secs_f64();
++                    ensure!(
++                        seconds.is_finite() && seconds > 0.0,
++                        "invalid component duration"
++                    );
++                    exact(&value, Some(&expected), mapping)?; // All host reads outside the clock.
++                    report["samples"].as_array_mut().context("invalid component report")?.push(json!({"fixture":NAMES[fixture],"phase":if block==0 {"AA"} else {"ABBA"},"block":block,"position":position,"candidate":candidate,"calls":32,"common_recurrences":31,"seconds":seconds}));
++                }
++            }
++        }
++        ensure!(
++            report["samples"]
++                .as_array()
++                .context("missing samples")?
++                .len()
++                == 192
++        );
++        Ok(())
++    })();
++    if let Err(error) = outcome {
++        report["status"] = json!("failed_or_interrupted");
++        report["error"] = json!(format!("{error:#}"));
++        save(&mut file, &report)?;
++        return Err(error);
++    }
++    report["status"] = json!("complete_component_wall_not_throughput");
++    report["parity"] = json!(true);
++    report["warmups_per_arm_per_fixture"] = json!(8);
++    report["warmup_operations_per_iteration"] = json!(1);
++    save(&mut file, &report)?;
++    println!(
++        "FLASH_HOT_ACTIVATION_BENCH fixtures=8 samples=192 calls=32 calibration=AA blocks=5ABBA full_chain=byte_exact finite=true scope=component_wall"
++    );
++    Ok(())
++}
++
++#[test]
++fn activation_bench_rejects_malformed_fixtures_and_existing_report() -> Result<()> {
++    let mut value = json!({"status":"fixed_before_any_kernel_timing","fixtures":NAMES.iter().enumerate().map(|(i,name)| json!({"name":name,"routes":20,"capacity":53,"hot":HOT[i],"slots":(0..20).map(|r| if r < HOT[i] {0} else {u32::MAX}).collect::<Vec<_>>()})).collect::<Vec<_>>()});
++    ensure!(fixtures(&value)?.len() == 8);
++    for (key, bad) in [
++        ("routes", json!(21)),
++        ("routes", json!(true)),
++        ("capacity", json!(0)),
++        ("hot", json!(0)),
++        ("name", json!("wrong")),
++        ("slots", json!([])),
++    ] {
++        let saved = value["fixtures"][0][key].clone();
++        value["fixtures"][0][key] = bad;
++        ensure!(fixtures(&value).is_err());
++        value["fixtures"][0][key] = saved;
++    }
++    for bad in [json!(-1), json!(true), json!(53), json!(u64::MAX)] {
++        let saved = value["fixtures"][0]["slots"][0].clone();
++        value["fixtures"][0]["slots"][0] = bad;
++        ensure!(fixtures(&value).is_err());
++        value["fixtures"][0]["slots"][0] = saved;
++    }
++    let directory = tempfile::tempdir()?;
++    let path = directory.path().join("report.json");
++    drop(report_file(&path)?);
++    std::fs::write(&path, b"keep me")?;
++    ensure!(report_file(&path).is_err() && std::fs::read(&path)? == b"keep me");
++    ensure!(fixtures(&json!({"status":"incomplete","fixtures":[]})).is_err());
++    let bad = directory.path().join("bad-fixtures.json");
++    let failed = directory.path().join("failed-report.json");
++    std::fs::write(&bad, b"{\"fixtures\":[]}")?;
++    ensure!(run(&bad, &failed).is_err());
++    let failure: Value = serde_json::from_slice(&std::fs::read(&failed)?)?;
++    ensure!(failure["status"] == "failed_or_interrupted" && failure["parity"] == false);
++    ensure!(failure["samples"].as_array().is_some_and(Vec::is_empty));
++    ensure!(run(&bad, &path).is_err() && std::fs::read(&path)? == b"keep me");
++    let oversized = directory.path().join("oversized.json");
++    std::fs::write(&oversized, vec![b' '; (64 << 10) + 1])?;
++    let oversized_report = directory.path().join("oversized-report.json");
++    ensure!(run(&oversized, &oversized_report).is_err());
++    let failure: Value = serde_json::from_slice(&std::fs::read(&oversized_report)?)?;
++    ensure!(failure["status"] == "failed_or_interrupted" && failure["parity"] == false);
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn actual_activation_bench_fixture_failures() {
++    activation_bench_rejects_malformed_fixtures_and_existing_report().unwrap();
++}
+diff --git a/native/src/ssd_moe/hot_profile_tests.rs b/native/src/ssd_moe/hot_profile_tests.rs
+new file mode 100644
+--- /dev/null
++++ b/native/src/ssd_moe/hot_profile_tests.rs
+@@ -0,0 +1,88 @@
++use super::*;
++
++#[test]
++#[ignore = "physical Apple GPU; existing resident snapshot profile, one MoE, no timing"]
++fn hot_profile_reports_original_snapshot_before_reservation_and_fill() -> Result<()> {
++    let (checkpoint, input, captured) = super::tests::admission_fixture()?;
++    let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
++    moe.gpu_hot = true;
++    moe.gpu_hot_wide = true;
++    let ids = moe.route(&input)?.0.to_u32()?;
++    ensure!(ids.len() == 10);
++    let routes = moe.cache.borrow_mut().reserve(&ids[..5])?;
++    let jobs = ids[..5]
++        .iter()
++        .zip(routes)
++        .map(|(&id, (slot, _))| (id, slot))
++        .collect::<Vec<_>>();
++    moe.fill_many(&jobs)?;
++    let x = Array::concatenate(&[&input, &input], 0)?;
++    for case in 0..4 {
++        if case >= 2 {
++            *moe.cache.borrow_mut() = ExpertCache::new(53)?;
++        }
++        if case == 3 {
++            let unrelated = (0..512)
++                .find(|id| !ids.contains(id))
++                .context("missing unrelated expert")?;
++            let slot = moe.cache.borrow_mut().reserve(&[unrelated])?[0].0;
++            moe.fill_many(&[(unrelated, slot)])?;
++        }
++        let snapshot = moe.cache.borrow().resident_slot_map()?;
++        let readbacks = moe.route_readbacks;
++        crate::flash_profile::start(false)?;
++        let result = (|| -> Result<Vec<crate::flash_profile::Event>> {
++            ensure!(moe.forward_draft_rows(&x)?.to_bytes()? == captured.repeat(2));
++            moe.drain()?;
++            crate::flash_profile::finish()
++        })();
++        let events = match result {
++            Ok(events) => events,
++            Err(error) => {
++                let _ = crate::flash_profile::finish();
++                return Err(error);
++            }
++        };
++        ensure!(
++            moe.route_readbacks == readbacks + 1,
++            "profile changed route readbacks"
++        );
++        let events = serde_json::to_value(events)?;
++        let rows = events
++            .as_array()
++            .context("invalid profile")?
++            .iter()
++            .filter(|e| e["name"] == "moe_forward_rows")
++            .collect::<Vec<_>>();
++        ensure!(rows.len() == 1);
++        let data = &rows[0]["data"];
++        ensure!(data["rows"] == 2 && data["ids"] == serde_json::json!(ids.repeat(2)));
++        ensure!(data["early_hot"] == (case != 2));
++        if case != 2 {
++            // Independent fixture lookup; do not call the instrumentation helper as oracle.
++            let expected = ids
++                .repeat(2)
++                .iter()
++                .map(|&id| snapshot[id as usize])
++                .collect::<Vec<_>>();
++            ensure!(data["resident_gpu_slots"] == serde_json::json!(expected));
++            let expected_hot = match case {
++                0 => 10,
++                1 => 20,
++                3 => 0,
++                _ => unreachable!(),
++            };
++            ensure!(data["resident_gpu_rows"] == expected_hot);
++            if case == 0 {
++                ensure!(snapshot[ids[5] as usize] == u32::MAX);
++                ensure!(moe.cache.borrow().resident_slot_map()?[ids[5] as usize] != u32::MAX);
++            }
++        } else {
++            ensure!(data["resident_gpu_slots"].is_null() && data["resident_gpu_rows"] == 0);
++        }
++    }
++    println!(
++        "FLASH_HOT_PROFILE cases=4 rows=2 snapshot_before_reservation=true ordered_slots=exact readbacks=unchanged parity=byte_exact"
++    );
++    Ok(())
++}

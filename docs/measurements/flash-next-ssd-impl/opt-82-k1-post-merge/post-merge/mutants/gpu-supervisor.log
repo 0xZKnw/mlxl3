@@ -1,0 +1,14 @@
+{'name': 'pre20', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 20.055481750008767, 'swapouts_bytes': 0}
+{'name': 'h128-wrong-projection-slot', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 0.0008707079978194088, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py", line 27, in <module>
+    load(sampler)['main'](plan)
+  File "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt", line 92, in main
+    runpy.run_path(
+  File "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt", line 53, in main
+    with logfile.open("x") as stream:
+         ^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileExistsError: [Errno 17] File exists: '/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/mutants/h128-wrong-projection-slot.log'

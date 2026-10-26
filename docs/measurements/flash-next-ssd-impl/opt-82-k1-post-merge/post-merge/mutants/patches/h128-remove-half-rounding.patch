@@ -1,0 +1,29 @@
+--- a/native/src/linear/hot_transform.rs
++++ b/native/src/linear/hot_transform.rs
+@@ -67,7 +67,7 @@
+   }
+   return;
+ }
+-threadgroup half buf[128];
++threadgroup float buf[128];
+ _Pragma("clang loop unroll(full)")
+ for (short j = 0; j < 4; j++) {
+   short index = j * 4 * 8 + i * 4;
+@@ -84,7 +84,7 @@
+ for (short r = 0; r < 16; r++) x[r] = buf[j + h * r];
+ mlxl3_hot_radix<16>(x);
+ _Pragma("clang loop unroll(full)")
+-for (short r = 0; r < 16; r++) buf[j + h * r] = half(x[r]);
++for (short r = 0; r < 16; r++) buf[j + h * r] = x[r];
+ h <<= 4;
+ threadgroup_barrier(mem_flags::mem_threadgroup);
+ _Pragma("clang loop unroll(full)")
+@@ -96,7 +96,7 @@
+   for (short r = 0; r < 8; r++) x[r] = buf[j + h * r];
+   mlxl3_hot_radix<8>(x);
+   _Pragma("clang loop unroll(full)")
+-  for (short r = 0; r < 8; r++) buf[j + h * r] = half(x[r]);
++  for (short r = 0; r < 8; r++) buf[j + h * r] = x[r];
+ }
+ threadgroup_barrier(mem_flags::mem_threadgroup);
+ const float scale = as_type<float>(MLXL3_SCALE_BITS);

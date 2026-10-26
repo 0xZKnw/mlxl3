@@ -1,0 +1,11 @@
+--- a/native/src/linear/hot_transform.rs
++++ b/native/src/linear/hot_transform.rs
+@@ -58,7 +58,7 @@
+ uint base = (row * uint(values_shape[1]) + block) * 128u;
+ short i = short(thread_position_in_threadgroup.x);
+ // All eight lanes test one snapshot slot; no Cold lane reaches a barrier or values load.
+-if (slots[row / MLXL3_REPEAT] >= MLXL3_CAPACITY) {
++if (slots[((row + 1u) / MLXL3_REPEAT) % uint(slots_shape[0])] >= MLXL3_CAPACITY) {
+   _Pragma("clang loop unroll(full)")
+   for (short j = 0; j < 4; j++) {
+     short index = j * 4 * 8 + i * 4;

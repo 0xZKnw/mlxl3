@@ -1,0 +1,359 @@
+{
+  "prompt": "MAIN",
+  "status": "validated_snapshot_diagnostic_not_speedup",
+  "tokens": 128,
+  "decode_tokens": 127,
+  "gold_exact": true,
+  "final_logits_states_byte_exact": true,
+  "B2_blocks": 69,
+  "MoE_calls": 3312,
+  "route_positions": 66240,
+  "hot_submitted_positions": 66240,
+  "snapshot_hot_positions": 45369,
+  "snapshot_cold_positions_computed_by_hot_path": 20871,
+  "snapshot_cold_fraction_of_hot_submitted": 0.31508152173913045,
+  "all_hot_cohorts": 118,
+  "mixed_cohorts": 3194,
+  "all_cold_submitted_cohorts": 0,
+  "no_hot_submission_cohorts": 0,
+  "avoidable_H128_blocks_geometry": 1565325,
+  "avoidable_SwiGLU_values_geometry": 13357440,
+  "reservation_hot_positions": 45369,
+  "reservation_cold_positions": 20871,
+  "event_count": 91505,
+  "trace_sha256": "de9f79f3435f4bb024aca945cffd9d93340abb0e147883b2d151b3269adb26d4",
+  "dflash_profile": {
+    "commit_cache_seconds": 0.285652045,
+    "draft_seconds": 0.548874627,
+    "drafted_rows": 138,
+    "drafted_widths": [
+      0,
+      69,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "expert_demand_bytes": 23930630100,
+    "ssd_prefetch": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "verification_seconds": 11.915001877999996,
+    "verified_rows": 138,
+    "verified_widths": [
+      0,
+      69,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "global_swapouts_bytes_by_step": {
+    "pre20": 0,
+    "profile-MAIN": 0,
+    "post30": 0
+  },
+  "limits": "Counts of masked transformations; no exclusive GPU time or TPS gain. NoHot submission excluded from skipped-work denominator.",
+  "per_layer": [
+    {
+      "layer": 0,
+      "calls": 69,
+      "hot": 550,
+      "cold_submitted": 830
+    },
+    {
+      "layer": 1,
+      "calls": 69,
+      "hot": 624,
+      "cold_submitted": 756
+    },
+    {
+      "layer": 2,
+      "calls": 69,
+      "hot": 624,
+      "cold_submitted": 756
+    },
+    {
+      "layer": 3,
+      "calls": 69,
+      "hot": 1068,
+      "cold_submitted": 312
+    },
+    {
+      "layer": 4,
+      "calls": 69,
+      "hot": 943,
+      "cold_submitted": 437
+    },
+    {
+      "layer": 5,
+      "calls": 69,
+      "hot": 816,
+      "cold_submitted": 564
+    },
+    {
+      "layer": 6,
+      "calls": 69,
+      "hot": 785,
+      "cold_submitted": 595
+    },
+    {
+      "layer": 7,
+      "calls": 69,
+      "hot": 665,
+      "cold_submitted": 715
+    },
+    {
+      "layer": 8,
+      "calls": 69,
+      "hot": 964,
+      "cold_submitted": 416
+    },
+    {
+      "layer": 9,
+      "calls": 69,
+      "hot": 992,
+      "cold_submitted": 388
+    },
+    {
+      "layer": 10,
+      "calls": 69,
+      "hot": 886,
+      "cold_submitted": 494
+    },
+    {
+      "layer": 11,
+      "calls": 69,
+      "hot": 966,
+      "cold_submitted": 414
+    },
+    {
+      "layer": 12,
+      "calls": 69,
+      "hot": 736,
+      "cold_submitted": 644
+    },
+    {
+      "layer": 13,
+      "calls": 69,
+      "hot": 818,
+      "cold_submitted": 562
+    },
+    {
+      "layer": 14,
+      "calls": 69,
+      "hot": 979,
+      "cold_submitted": 401
+    },
+    {
+      "layer": 15,
+      "calls": 69,
+      "hot": 1267,
+      "cold_submitted": 113
+    },
+    {
+      "layer": 16,
+      "calls": 69,
+      "hot": 1116,
+      "cold_submitted": 264
+    },
+    {
+      "layer": 17,
+      "calls": 69,
+      "hot": 963,
+      "cold_submitted": 417
+    },
+    {
+      "layer": 18,
+      "calls": 69,
+      "hot": 720,
+      "cold_submitted": 660
+    },
+    {
+      "layer": 19,
+      "calls": 69,
+      "hot": 933,
+      "cold_submitted": 447
+    },
+    {
+      "layer": 20,
+      "calls": 69,
+      "hot": 832,
+      "cold_submitted": 548
+    },
+    {
+      "layer": 21,
+      "calls": 69,
+      "hot": 849,
+      "cold_submitted": 531
+    },
+    {
+      "layer": 22,
+      "calls": 69,
+      "hot": 697,
+      "cold_submitted": 683
+    },
+    {
+      "layer": 23,
+      "calls": 69,
+      "hot": 1154,
+      "cold_submitted": 226
+    },
+    {
+      "layer": 24,
+      "calls": 69,
+      "hot": 992,
+      "cold_submitted": 388
+    },
+    {
+      "layer": 25,
+      "calls": 69,
+      "hot": 1011,
+      "cold_submitted": 369
+    },
+    {
+      "layer": 26,
+      "calls": 69,
+      "hot": 970,
+      "cold_submitted": 410
+    },
+    {
+      "layer": 27,
+      "calls": 69,
+      "hot": 987,
+      "cold_submitted": 393
+    },
+    {
+      "layer": 28,
+      "calls": 69,
+      "hot": 830,
+      "cold_submitted": 550
+    },
+    {
+      "layer": 29,
+      "calls": 69,
+      "hot": 845,
+      "cold_submitted": 535
+    },
+    {
+      "layer": 30,
+      "calls": 69,
+      "hot": 979,
+      "cold_submitted": 401
+    },
+    {
+      "layer": 31,
+      "calls": 69,
+      "hot": 1213,
+      "cold_submitted": 167
+    },
+    {
+      "layer": 32,
+      "calls": 69,
+      "hot": 1100,
+      "cold_submitted": 280
+    },
+    {
+      "layer": 33,
+      "calls": 69,
+      "hot": 948,
+      "cold_submitted": 432
+    },
+    {
+      "layer": 34,
+      "calls": 69,
+      "hot": 773,
+      "cold_submitted": 607
+    },
+    {
+      "layer": 35,
+      "calls": 69,
+      "hot": 959,
+      "cold_submitted": 421
+    },
+    {
+      "layer": 36,
+      "calls": 69,
+      "hot": 928,
+      "cold_submitted": 452
+    },
+    {
+      "layer": 37,
+      "calls": 69,
+      "hot": 956,
+      "cold_submitted": 424
+    },
+    {
+      "layer": 38,
+      "calls": 69,
+      "hot": 795,
+      "cold_submitted": 585
+    },
+    {
+      "layer": 39,
+      "calls": 69,
+      "hot": 1136,
+      "cold_submitted": 244
+    },
+    {
+      "layer": 40,
+      "calls": 69,
+      "hot": 1093,
+      "cold_submitted": 287
+    },
+    {
+      "layer": 41,
+      "calls": 69,
+      "hot": 1063,
+      "cold_submitted": 317
+    },
+    {
+      "layer": 42,
+      "calls": 69,
+      "hot": 1036,
+      "cold_submitted": 344
+    },
+    {
+      "layer": 43,
+      "calls": 69,
+      "hot": 1137,
+      "cold_submitted": 243
+    },
+    {
+      "layer": 44,
+      "calls": 69,
+      "hot": 1196,
+      "cold_submitted": 184
+    },
+    {
+      "layer": 45,
+      "calls": 69,
+      "hot": 1177,
+      "cold_submitted": 203
+    },
+    {
+      "layer": 46,
+      "calls": 69,
+      "hot": 1151,
+      "cold_submitted": 229
+    },
+    {
+      "layer": 47,
+      "calls": 69,
+      "hot": 1147,
+      "cold_submitted": 233
+    }
+  ]
+}

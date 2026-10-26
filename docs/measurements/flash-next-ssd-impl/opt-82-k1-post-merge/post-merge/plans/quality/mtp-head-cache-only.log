@@ -1,0 +1,182 @@
+
+running 1 test
+test qwen4::tests::flash_mtp_head_matches_reference_and_cache_only ... Flash Next: loading layer 1/48, 53 exact expert slots
+Flash Next: loading layer 2/48, 53 exact expert slots
+Flash Next: loading layer 3/48, 53 exact expert slots
+Flash Next: loading layer 4/48, 53 exact expert slots
+Flash Next: loading layer 5/48, 53 exact expert slots
+Flash Next: loading layer 6/48, 53 exact expert slots
+Flash Next: loading layer 7/48, 53 exact expert slots
+Flash Next: loading layer 8/48, 53 exact expert slots
+Flash Next: loading layer 9/48, 53 exact expert slots
+Flash Next: loading layer 10/48, 53 exact expert slots
+Flash Next: loading layer 11/48, 53 exact expert slots
+Flash Next: loading layer 12/48, 53 exact expert slots
+Flash Next: loading layer 13/48, 53 exact expert slots
+Flash Next: loading layer 14/48, 53 exact expert slots
+Flash Next: loading layer 15/48, 53 exact expert slots
+Flash Next: loading layer 16/48, 53 exact expert slots
+Flash Next: loading layer 17/48, 53 exact expert slots
+Flash Next: loading layer 18/48, 53 exact expert slots
+Flash Next: loading layer 19/48, 53 exact expert slots
+Flash Next: loading layer 20/48, 53 exact expert slots
+Flash Next: loading layer 21/48, 53 exact expert slots
+Flash Next: loading layer 22/48, 53 exact expert slots
+Flash Next: loading layer 23/48, 53 exact expert slots
+Flash Next: loading layer 24/48, 53 exact expert slots
+Flash Next: loading layer 25/48, 53 exact expert slots
+Flash Next: loading layer 26/48, 53 exact expert slots
+Flash Next: loading layer 27/48, 53 exact expert slots
+Flash Next: loading layer 28/48, 53 exact expert slots
+Flash Next: loading layer 29/48, 53 exact expert slots
+Flash Next: loading layer 30/48, 53 exact expert slots
+Flash Next: loading layer 31/48, 53 exact expert slots
+Flash Next: loading layer 32/48, 53 exact expert slots
+Flash Next: loading layer 33/48, 53 exact expert slots
+Flash Next: loading layer 34/48, 53 exact expert slots
+Flash Next: loading layer 35/48, 53 exact expert slots
+Flash Next: loading layer 36/48, 53 exact expert slots
+Flash Next: loading layer 37/48, 53 exact expert slots
+Flash Next: loading layer 38/48, 53 exact expert slots
+Flash Next: loading layer 39/48, 53 exact expert slots
+Flash Next: loading layer 40/48, 53 exact expert slots
+Flash Next: loading layer 41/48, 53 exact expert slots
+Flash Next: loading layer 42/48, 53 exact expert slots
+Flash Next: loading layer 43/48, 53 exact expert slots
+Flash Next: loading layer 44/48, 53 exact expert slots
+Flash Next: loading layer 45/48, 53 exact expert slots
+Flash Next: loading layer 46/48, 53 exact expert slots
+Flash Next: loading layer 47/48, 53 exact expert slots
+Flash Next: loading layer 48/48, 53 exact expert slots
+MTP/0/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/keys: count=512, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/values: count=512, relative_rmse=0.000000, max_abs=0.000000
+MTP/0/index_tail: count=128, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/keys: count=1024, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/values: count=1024, relative_rmse=0.000000, max_abs=0.000000
+MTP/1/index_tail: count=256, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/keys: count=1536, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/values: count=1536, relative_rmse=0.000000, max_abs=0.000000
+MTP/2/index_tail: count=384, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/keys: count=2048, relative_rmse=0.000000, max_abs=0.000000
+MTP/3/values: count=2048, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/keys: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/values: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/4/index_tail: count=128, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/keys: count=3072, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/values: count=3072, relative_rmse=0.000000, max_abs=0.000000
+MTP/5/index_tail: count=256, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/keys: count=3584, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/values: count=3584, relative_rmse=0.000000, max_abs=0.000000
+MTP/6/index_tail: count=384, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/keys: count=4096, relative_rmse=0.000000, max_abs=0.000000
+MTP/7/values: count=4096, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/keys: count=4608, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/values: count=4608, relative_rmse=0.000000, max_abs=0.000000
+MTP/8/index_tail: count=128, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/mixed: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/attn_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/attn_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/attention: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/mlp_mixed: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/mlp_gate: count=4, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/moe: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/layer: count=10240, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/output: count=2560, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/logits: count=248320, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/keys: count=5120, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/values: count=5120, relative_rmse=0.000000, max_abs=0.000000
+MTP/9/index_tail: count=256, relative_rmse=0.000000, max_abs=0.000000
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 323 filtered out; finished in 2.62s
+

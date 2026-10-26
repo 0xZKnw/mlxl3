@@ -1,0 +1,60 @@
+{
+  "status": "confirm_complete_no_gain_observed",
+  "prompts": {
+    "MAIN": {
+      "baseline_tps": 11.576339605977292,
+      "candidate_tps": 11.439044266050146,
+      "candidate_vs_baseline_percent": -1.1859995870910245,
+      "candidate_vs_baseline_latency_percent": 1.2002343616644984,
+      "verification_ms_per_token_H": 80.44744193700787,
+      "verification_ms_per_token_C": 81.60131002362205,
+      "dflash_blocks": 69,
+      "dflash_accepted_tokens": 58,
+      "expert_demand_bytes_per_decode_token": 188430158.26771653
+    },
+    "HOLD": {
+      "baseline_tps": 11.128819614080138,
+      "candidate_tps": 10.946911587169526,
+      "candidate_vs_baseline_percent": -1.634567125883346,
+      "candidate_vs_baseline_latency_percent": 1.6617292051926302,
+      "verification_ms_per_token_H": 83.27327725984252,
+      "verification_ms_per_token_C": 84.63336844094488,
+      "dflash_blocks": 70,
+      "dflash_accepted_tokens": 56,
+      "expert_demand_bytes_per_decode_token": 200585991.68503937
+    }
+  },
+  "comparison_with_screen": {
+    "MAIN": {
+      "HC_candidate_vs_baseline_percent": -1.2765284770925311,
+      "CH_candidate_vs_baseline_percent": -1.1859995870910245,
+      "geomean_two_paired_ratios_percent": -1.2312744041496404,
+      "H_drift_CH_vs_HC_percent": 1.5490194472417285,
+      "C_drift_CH_vs_HC_percent": 1.6421393494239211,
+      "observed_gain_range_percent": [
+        -1.2765284770925311,
+        -1.1859995870910245
+      ]
+    },
+    "HOLD": {
+      "HC_candidate_vs_baseline_percent": -0.06196280155174039,
+      "CH_candidate_vs_baseline_percent": -1.634567125883346,
+      "geomean_two_paired_ratios_percent": -0.8513828154172565,
+      "H_drift_CH_vs_HC_percent": 2.0663421272111737,
+      "C_drift_CH_vs_HC_percent": 0.46024723584130456,
+      "observed_gain_range_percent": [
+        -1.634567125883346,
+        -0.06196280155174039
+      ]
+    }
+  },
+  "reports_count": 4,
+  "responses_count": 8,
+  "gold60_exact_responses": 8,
+  "all_phases_reaped": true,
+  "sampler_joined": true,
+  "system_swapouts_bytes": 0,
+  "system_swapins_bytes": 0,
+  "memory_peak_bytes_max": 7849744744,
+  "review": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/real-tps-review.json"
+}

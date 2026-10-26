@@ -1,0 +1,236 @@
+{
+  "experiment": "82K1PM",
+  "status": "read_only_source_review_complete_no_new_execution",
+  "source_identity": {
+    "base_commit": "9c8474ca1292e29bae3c7d4d6383bd1820549349",
+    "source_patch_sha256": "9782c74c49613acc520a38975376eefac5a52217941cfc254909702521dd358b",
+    "source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+    "source100_current_match": true,
+    "actual_binaries": {
+      "H": {
+        "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/baseline-cli",
+        "sha256": "d8757fa6d9f62648d66f7a2d58617d6d54ff33905fefd408475519edd85105a6"
+      },
+      "C": {
+        "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-cli",
+        "sha256": "cc9669ad864dd73dadbed0bb503a440fefcec2c736e065d61f7ec0936639e9a4"
+      }
+    },
+    "all7drivers_current_match": true,
+    "gold60_path": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/reference.json",
+    "gold60_sha256": "a2b691aec70195403f0faef61ca3726869864e9b3d2ecf24196a684750b192c0",
+    "baseline_embedded_commit_note": "Metadata e551-dirty mais91sources runtime fusionnées vérifiéesbyte-identiquesmain9c lorsdugel; SHAmanifest/binaires fontfoi, aucunancien80M."
+  },
+  "M_reading_finished": true,
+  "M_source_edits": false,
+  "new_build_test_proof_GPU": false,
+  "conclusion": "Le chemin candidat n’est pas un fallback silencieux : il est éligible et supprime bien les lectures/calculs Cold ciblés. Sa conception remplace cependant des primitives natives déjà optimisées, conserve les grilles/écritures et perd la possibilité native de donation H128. Le mécanisme ne garantit donc pas moins de travail critique total. Les quatre comparaisons réelles sont sans gain ; ne pas intégrer K1 actif.",
+  "eligibility": {
+    "status": "eligible_by_production_source_not_measured_decode_fast_call_counter",
+    "call_chain": [
+      "SsdMoe::prepare_resident_hot",
+      "SsdMoe::routed_input: take puis astype(Float16)",
+      "ExpertSlots::residents: indices UInt32 et masked=true",
+      "SsdMoe::calculate_slots",
+      "linear::expert_slots -> expert_mapped_layout",
+      "hot_transform::hadamard / hot_activation::apply"
+    ],
+    "n_B2": 20,
+    "n_valid_range": "10..80 pour B1..B8 sans découpage supplémentaire",
+    "H": 2560,
+    "I": 640,
+    "geometries": [
+      {
+        "stage": "GU input",
+        "shape_B2": [
+          40,
+          20,
+          128
+        ],
+        "repeat": 2,
+        "groups": 800
+      },
+      {
+        "stage": "GU output",
+        "shape_B2": [
+          40,
+          5,
+          128
+        ],
+        "repeat": 2,
+        "groups": 200
+      },
+      {
+        "stage": "down input",
+        "shape_B2": [
+          20,
+          5,
+          128
+        ],
+        "repeat": 1,
+        "groups": 100
+      },
+      {
+        "stage": "down output",
+        "shape_B2": [
+          20,
+          20,
+          128
+        ],
+        "repeat": 1,
+        "groups": 400
+      }
+    ],
+    "activation": {
+      "shape_B2": [
+        20,
+        2,
+        640
+      ],
+      "dtype": "Float16",
+      "grid": [
+        12800,
+        1,
+        1
+      ],
+      "threadgroup": [
+        128,
+        1,
+        1
+      ],
+      "groups": 100
+    },
+    "reason": "expanded conserve Half ; expert_mapped_layout caste la sortie GU en Half puis restitue le dtype Half de son entrée. L’activation reçoit donc bien Half. Sa sortie Half alimente les deux H128 down. Les blocs 5/20, repeats1/2 et capacité53 respectent les gardes.",
+    "conditional": "Le chemin Hot exige gpu_hot, overlap, profondeur0, largeur autorisée et map résidente non vide. La voie Cold ordinaire est unmasked et conserve intentionnellement la référence.",
+    "limits": [
+      "Aucun compteur FAST_CALLS du vrai décodage M n’a été relevé. Les compteurs des tests composants ne prouvent pas un nombre d’appels en génération.",
+      "Les traces K1D antérieures démontrent les répartitions Hot/Cold observées sur leur propre source ; elles ne remplacent pas un compteur d’invocations M."
+    ]
+  },
+  "findings": [
+    {
+      "id": "K1P1",
+      "kind": "confirmed_design_difference",
+      "priority": 1,
+      "title": "La référence SwiGLU était déjà compilée",
+      "sources": [
+        "native/ffi/mlx_bridge.cpp:533-537",
+        "native/src/array.rs:1292",
+        "MLX 0.32.2 include/mlx/compile.h"
+      ],
+      "fact": "La référence appelle une fonction thread_local mx::compile de multiply(multiply(gate,sigmoid(gate)),up). K1 la remplace par un kernel custom scalaire avec les mêmes arrondis Half.",
+      "implication": "Une économie supposée de trois dispatchs natifs vers un dispatch K1 ne constitue pas le mécanisme démontré. La géométrie et les optimisations du graphe compilé doivent être comparées avant de chiffrer cette économie.",
+      "limit": "Le nombre réel de dispatchs générés et leur vectorisation ne sont pas capturés. Le booléen true de compile est shapeless, pas une mesure du mode effectif."
+    },
+    {
+      "id": "K1P2",
+      "kind": "confirmed_design_difference",
+      "priority": 1,
+      "title": "Le H128 custom perd la possibilité de donation de la référence",
+      "sources": [
+        "K1/H128/upstream/hadamard.cpp:167-200",
+        "build/flash-strata57/custom_kernel.cpp:24-30",
+        "native/src/linear/hot_transform.rs"
+      ],
+      "fact": "Hadamard natif réutilise le buffer lorsque row_contiguous et is_donatable. Le custom kernel alloue chaque sortie via allocator::malloc(out.nbytes()), sans branche de donation.",
+      "implication": "Supprimer les additions Cold peut introduire une demande de buffer et une écriture distincte sur les Hot que la référence pouvait éviter.",
+      "limit": "La donation effective à chaque callsite, le coût de l’allocateur et les octets physiques supplémentaires ne sont pas mesurés ; le pool MLX peut réutiliser les allocations."
+    },
+    {
+      "id": "K1P3",
+      "kind": "confirmed_scope_limit",
+      "priority": 1,
+      "title": "Cold évite bien les calculs ciblés, mais pas les grilles et les sorties",
+      "sources": [
+        "native/src/linear/hot_transform.rs:56-76",
+        "native/src/ssd_moe/hot_activation.rs:18-28",
+        "native/src/linear.rs:1437-1446",
+        "native/src/linear.rs:1636-1647"
+      ],
+      "fact": "Le H128 Cold retourne avant les lectures values, les radix et toutes les barrières. SwiGLU Cold retourne avant gate/up. Cependant tous les threadgroups sont lancés et les sorties Cold sont écrites en +0. Les casts et les multiplications SU/SV restent sur les tenseurs complets.",
+      "implication": "31–32 % de positions Cold ne signifie ni 31–32 % du MoE supprimé, ni suppression du trafic de sortie. En B2 n=20, les quatre H128 lancent toujours 1500 groupes et écrivent 192000 Half, soit 384000 octets ; activation lance 100 groupes et écrit 12800 Half.",
+      "limit": "Comptages de géométrie statiques, pas des octets SSD ou une durée GPU. Aucun changement QMV/SSD/réduction ne fait partie de K1."
+    },
+    {
+      "id": "K1P4",
+      "kind": "confirmed_geometry_and_unmeasured_tradeoff",
+      "priority": 2,
+      "title": "Aucun dispatch sélectif selon la rentabilité de la géométrie",
+      "sources": [
+        "native/src/linear/hot_transform.rs",
+        "native/src/ssd_moe/hot_activation.rs",
+        "K1/post-merge/micro-review.json"
+      ],
+      "fact": "Chaque H128 éligible utilise le custom quelle que soit la part Hot. H128 conserve 8 threads/groupe comme le MLX N128 ; activation traite un élément par thread, groupes de 128. Les kernels élémentaires génériques MLX ont WorkPerThread<Half>=4, sans que cela prouve la forme du SwiGLU compilé.",
+      "implication": "Le coût fixe du custom s’applique aussi aux tableaux de largeur 640 et aux masques presque entièrement Hot. Les micros montrent déjà des cellules perdantes, y compris trois des quatre géométries allHot H128.",
+      "limit": "Ni la vectorisation réellement générée du SwiGLU compilé ni une cause exclusive du résultat tok/s ne sont établies. Aucun nouveau prototype sélectif proposé dans cette clôture."
+    }
+  ],
+  "existing_evidence": {
+    "tps": {
+      "MAIN": {
+        "HC_candidate_vs_baseline_percent": -1.2765284770925311,
+        "CH_candidate_vs_baseline_percent": -1.1859995870910245,
+        "geomean_two_paired_ratios_percent": -1.2312744041496404,
+        "H_drift_CH_vs_HC_percent": 1.5490194472417285,
+        "C_drift_CH_vs_HC_percent": 1.6421393494239211,
+        "observed_gain_range_percent": [
+          -1.2765284770925311,
+          -1.1859995870910245
+        ]
+      },
+      "HOLD": {
+        "HC_candidate_vs_baseline_percent": -0.06196280155174039,
+        "CH_candidate_vs_baseline_percent": -1.634567125883346,
+        "geomean_two_paired_ratios_percent": -0.8513828154172565,
+        "H_drift_CH_vs_HC_percent": 2.0663421272111737,
+        "C_drift_CH_vs_HC_percent": 0.46024723584130456,
+        "observed_gain_range_percent": [
+          -1.634567125883346,
+          -0.06196280155174039
+        ]
+      }
+    },
+    "gold_exact": 16,
+    "total_responses": 16,
+    "H128_micro": {
+      "median_candidate_faster_cells": 17,
+      "median_candidate_slower_cells": 15,
+      "cell_speedup_percent_range": [
+        -5.702729959273755,
+        45.423412565044565
+      ],
+      "maximum_AA_max_min_ratio": 1.5980915686846995
+    },
+    "activation_micro": {
+      "median_candidate_faster_cells": 6,
+      "median_candidate_slower_cells": 2,
+      "cell_speedup_percent_range": [
+        -1.4027051859584971,
+        7.142466190525543
+      ],
+      "maximum_AA_max_min_ratio": 2.903091154738172
+    },
+    "exclusive_GPU_time_measured": false,
+    "six_MSL_mutants": "détectés par les oracles numériques ; voir quality-review.json et mutants/gpu-v2 ; aucune réexécution par cette revue"
+  },
+  "limits": [
+    "Une mesure par bras et ordre ; pas de causalité universelle ou d’intervalle de confiance.",
+    "Micros H128 : 32 transformations identiques en chaîne, et non quatre transformations entrelacées avec QMV/scales. Micros activation : 32 appels plus 31 récurrences communes.",
+    "Les masques sont réels mais les activations composants sont synthétiques ; les fréquences des huit fixtures ne pondèrent pas la trace entière.",
+    "Temps wall incluant construction/dispatch/fin GPU ; aucune décomposition exclusive des causes donation/vectorisation/allocateur.",
+    "Bridge K1 43 requêtes et tok/s OFF/MTP non exécutés dans les plans K1PM de débit.",
+    "Compression processus non nulle : zéro swap-out système et ledger_swapins nul aux snapshots ne prouvent pas absence de coût mémoire ni zéro sortie privée."
+  ],
+  "decision": "Archiver les preuves et le prototype, conserver la base fusionnée ; le parent réalise le retrait, cette revue ne modifie aucun checkout.",
+  "references": {
+    "real_tps": "real-tps-review.json",
+    "micros": "micro-review.json",
+    "quality": "quality-review.json",
+    "source_manifest": "candidate-source-sha256.json",
+    "source_patch": "source.patch",
+    "native_hadamard_header_sha256": "9c4b749b4d2985203416c2da42dbdf7d59070c6c49c81f6112907b6ce407edc5",
+    "custom_kernel_source_sha256": "92548fba86690996a30725ef96bb8e0e299b69a4559e71c60340e7e11c1cac5e",
+    "MLX_hadamard_upstream_commit": "1f8e74e3f12f31365464a6867c6579f0e9b29d85"
+  }
+}

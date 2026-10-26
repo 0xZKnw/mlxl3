@@ -1,0 +1,2027 @@
+{
+  "status": "complete_micro_diagnostic_not_tokens_per_second",
+  "observed_utc": "2026-10-25T22:22:41.451468+00:00",
+  "component_sha256": "795029be4a2347bcc3f30e783e2d4516c3ad4099764140b6238591a42509f0a4",
+  "sample_count": 704,
+  "cell_count": 32,
+  "setup_count": 32,
+  "plans_count": 8,
+  "method": "Each cell:2 native AA samples then5ABBA blocks (10native/10candidate), medians exclude AA; sample time divided by32 for amortized wall/call, not independent single-kernel latency. No weighted aggregate or sum across cells.",
+  "input_source": "QA MLP input rows0/1, first640 for640-wide stages,Cold initialized+0; geometry replay only,not captured real GU/down intermediate activations",
+  "parity_contract": "single and32-chain Hot byte exact vs native MLX,finite; candidate Cold+0,stock Cold signed zero allowed",
+  "timing_contract": "setup outside,8warmups/arm,AA then5ABBA,32fresh chained transforms/sample,one final eval; host/dispatch/completion wall,not exclusiveGPU or releaseTPS",
+  "cells": [
+    {
+      "fixture": "MAIN-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 0,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 35.291671875,
+      "candidate_median_us_per_call": 24.26821875,
+      "speedup_percent": 45.423412565044565,
+      "latency_change_percent": -31.235281694911198,
+      "saved_us_per_call": 11.023453124999998,
+      "AA_change_percent": 6.327573618885363,
+      "AA_max_min_ratio": 1.0632757361888536,
+      "native_block0_to4_change_percent": -17.11974364275376,
+      "candidate_block0_to4_change_percent": -11.154297315456196,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        31.468728232937583,
+        52.18914164191286
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 37.78906249999999,
+          "C_us_per_call": 26.813796875,
+          "speedup_percent": 40.931411825651765,
+          "latency_change_percent": -29.043498035972704
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 37.78971875,
+          "C_us_per_call": 26.964187499999998,
+          "speedup_percent": 40.14781179666551,
+          "latency_change_percent": -28.646763215193292
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 35.449875,
+          "C_us_per_call": 23.521484375,
+          "speedup_percent": 50.7127459935232,
+          "latency_change_percent": -33.64861124334006
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 38.83398437499999,
+          "C_us_per_call": 25.516921875,
+          "speedup_percent": 52.18914164191286,
+          "latency_change_percent": -34.29228989589096
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 31.319671875,
+          "C_us_per_call": 23.82290625,
+          "speedup_percent": 31.468728232937583,
+          "latency_change_percent": -23.936284054700053
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 22,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 20.732421875,
+      "candidate_median_us_per_call": 17.91796875,
+      "speedup_percent": 15.707434052757785,
+      "latency_change_percent": -13.575129533678753,
+      "saved_us_per_call": 2.814453124999999,
+      "AA_change_percent": 4.942507297024901,
+      "AA_max_min_ratio": 1.049425072970249,
+      "native_block0_to4_change_percent": 6.929857728086608,
+      "candidate_block0_to4_change_percent": -10.893740458015277,
+      "positive_ABBA_blocks": 3,
+      "negative_ABBA_blocks": 2,
+      "block_speedup_percent_range": [
+        -2.4207680755202743,
+        17.262176045068433
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 20.001312499999997,
+          "C_us_per_call": 20.46875,
+          "speedup_percent": -2.2836641221374077,
+          "latency_change_percent": 2.337034132135085
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 20.892578125,
+          "C_us_per_call": 19.123046875,
+          "speedup_percent": 9.253395975896229,
+          "latency_change_percent": -8.469664391885578
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 19.779953125000002,
+          "C_us_per_call": 17.647140625000002,
+          "speedup_percent": 12.08588147690357,
+          "latency_change_percent": -10.782697443829248
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 17.76628125,
+          "C_us_per_call": 18.20703125,
+          "speedup_percent": -2.4207680755202743,
+          "latency_change_percent": 2.4808230478733373
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 21.387375,
+          "C_us_per_call": 18.2389375,
+          "speedup_percent": 17.262176045068433,
+          "latency_change_percent": -14.721009474047197
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 44,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 18.75390625,
+      "candidate_median_us_per_call": 18.433593749999996,
+      "speedup_percent": 1.7376562831108444,
+      "latency_change_percent": -1.7079775046865309,
+      "saved_us_per_call": 0.32031250000000183,
+      "AA_change_percent": -13.412931289091922,
+      "AA_max_min_ratio": 1.1549068641401206,
+      "native_block0_to4_change_percent": 7.141789695392986,
+      "candidate_block0_to4_change_percent": 13.085891620911895,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -2.5400893392674817,
+        15.652136548102181
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 18.924484375,
+          "C_us_per_call": 16.36328125,
+          "speedup_percent": 15.652136548102181,
+          "latency_change_percent": -13.533806650940782
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 19.135421875,
+          "C_us_per_call": 17.46159375,
+          "speedup_percent": 9.585769483384077,
+          "latency_change_percent": -8.747275790071917
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 18.610015625,
+          "C_us_per_call": 19.095046875,
+          "speedup_percent": -2.5400893392674817,
+          "latency_change_percent": 2.6062914710744733
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 30.371734375,
+          "C_us_per_call": 27.727859374999998,
+          "speedup_percent": 9.535085143946498,
+          "latency_change_percent": -8.705051108889794
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 20.276031250000003,
+          "C_us_per_call": 18.5045625,
+          "speedup_percent": 9.573145812012584,
+          "latency_change_percent": -8.736762772547024
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 66,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 23.94596875,
+      "candidate_median_us_per_call": 19.8984375,
+      "speedup_percent": 20.34095013741657,
+      "latency_change_percent": -16.902766775722956,
+      "saved_us_per_call": 4.047531250000002,
+      "AA_change_percent": -1.1409536109916574,
+      "AA_max_min_ratio": 1.0115412160309742,
+      "native_block0_to4_change_percent": 5.019111583948055,
+      "candidate_block0_to4_change_percent": -2.471516660591022,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        4.827030133025234,
+        25.504750593824244
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 21.2076875,
+          "C_us_per_call": 20.231125,
+          "speedup_percent": 4.827030133025234,
+          "latency_change_percent": -4.604757119322889
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 23.3125,
+          "C_us_per_call": 19.176421875000003,
+          "speedup_percent": 21.568560349582945,
+          "latency_change_percent": -17.741890080428945
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 24.767578125000004,
+          "C_us_per_call": 19.734375,
+          "speedup_percent": 25.504750593824244,
+          "latency_change_percent": -20.321741187603504
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 23.9108125,
+          "C_us_per_call": 19.794921875,
+          "speedup_percent": 20.79265910212136,
+          "latency_change_percent": -17.213512192444313
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 22.272125000000003,
+          "C_us_per_call": 19.731109375000003,
+          "speedup_percent": 12.87821975291239,
+          "latency_change_percent": -11.408950088956482
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 88,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 25.57615625,
+      "candidate_median_us_per_call": 22.2545625,
+      "speedup_percent": 14.925450680057173,
+      "latency_change_percent": -12.987071698860142,
+      "saved_us_per_call": 3.32159375,
+      "AA_change_percent": -37.42536287685664,
+      "AA_max_min_ratio": 1.5980915686846995,
+      "native_block0_to4_change_percent": 12.052697660081545,
+      "candidate_block0_to4_change_percent": 7.869383525288365,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -6.677324531501383,
+        31.976122887694046
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 24.9394375,
+          "C_us_per_call": 22.2545625,
+          "speedup_percent": 12.06438005689845,
+          "latency_change_percent": -10.765579616621268
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 30.199859375,
+          "C_us_per_call": 32.3606875,
+          "speedup_percent": -6.677324531501383,
+          "latency_change_percent": 7.155093333940399
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 24.207671875,
+          "C_us_per_call": 22.126296874999998,
+          "speedup_percent": 9.406793245876145,
+          "latency_change_percent": -8.597997406555645
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 28.192718749999997,
+          "C_us_per_call": 21.361984375,
+          "speedup_percent": 31.976122887694046,
+          "latency_change_percent": -24.228718186322496
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 27.9453125,
+          "C_us_per_call": 24.005859375,
+          "speedup_percent": 16.41038158001791,
+          "latency_change_percent": -14.097008666480292
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 110,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 15.067718750000001,
+      "candidate_median_us_per_call": 15.419921874999998,
+      "speedup_percent": -2.2840785307156275,
+      "latency_change_percent": 2.337468138632448,
+      "saved_us_per_call": -0.35220312499999745,
+      "AA_change_percent": -7.499478849774855,
+      "AA_max_min_ratio": 1.0810749902435182,
+      "native_block0_to4_change_percent": -7.043135345666995,
+      "candidate_block0_to4_change_percent": 0.3265521138089422,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -10.166574449425436,
+        1.7236329825035757
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 16.046875,
+          "C_us_per_call": 16.550765625,
+          "speedup_percent": -3.0445155010767055,
+          "latency_change_percent": 3.140116845180141
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 15.158843749999999,
+          "C_us_per_call": 15.060546875,
+          "speedup_percent": 0.6526779924782788,
+          "latency_change_percent": -0.6484457299060109
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 14.831390625000001,
+          "C_us_per_call": 15.316421875000001,
+          "speedup_percent": -3.1667399472176117,
+          "latency_change_percent": 3.2703019040063896
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 15.52146875,
+          "C_us_per_call": 15.258468749999999,
+          "speedup_percent": 1.7236329825035757,
+          "latency_change_percent": -1.6944272751249878
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 14.916671874999999,
+          "C_us_per_call": 16.6048125,
+          "speedup_percent": -10.166574449425436,
+          "latency_change_percent": 11.317139903233286
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 132,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 15.384109375000001,
+      "candidate_median_us_per_call": 15.0579375,
+      "speedup_percent": 2.1661125569155892,
+      "latency_change_percent": -2.120186921772982,
+      "saved_us_per_call": 0.32617187500000094,
+      "AA_change_percent": 0.4039859951521674,
+      "AA_max_min_ratio": 1.0040398599515217,
+      "native_block0_to4_change_percent": 18.631820159535884,
+      "candidate_block0_to4_change_percent": 18.541341869539952,
+      "positive_ABBA_blocks": 1,
+      "negative_ABBA_blocks": 4,
+      "block_speedup_percent_range": [
+        -10.135598859358797,
+        4.61209664219977
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 13.466796875,
+          "C_us_per_call": 13.550125,
+          "speedup_percent": -0.614962039095579,
+          "latency_change_percent": 0.6187672226250829
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 14.809906250000001,
+          "C_us_per_call": 14.836593749999999,
+          "speedup_percent": -0.17987619294353996,
+          "latency_change_percent": 0.18020033043759653
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 15.579421875000003,
+          "C_us_per_call": 14.892562499999999,
+          "speedup_percent": 4.61209664219977,
+          "latency_change_percent": -4.408760353952501
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 15.446609374999998,
+          "C_us_per_call": 17.188796874999998,
+          "speedup_percent": -10.135598859358797,
+          "latency_change_percent": 11.278769713822712
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 15.97590625,
+          "C_us_per_call": 16.0625,
+          "speedup_percent": -0.5391050583657631,
+          "latency_change_percent": 0.5420271541716204
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 154,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 13.81184375,
+      "candidate_median_us_per_call": 13.69921875,
+      "speedup_percent": 0.8221271742229863,
+      "latency_change_percent": -0.8154233572183256,
+      "saved_us_per_call": 0.11262499999999961,
+      "AA_change_percent": 2.4804651162790625,
+      "AA_max_min_ratio": 1.0248046511627906,
+      "native_block0_to4_change_percent": -6.622394806233123,
+      "candidate_block0_to4_change_percent": 0.9533658366946307,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -6.133811974578284,
+        9.062859410018476
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 14.618484375000001,
+          "C_us_per_call": 13.65884375,
+          "speedup_percent": 7.025782288489824,
+          "latency_change_percent": -6.564569899196549
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 12.8125,
+          "C_us_per_call": 13.64975,
+          "speedup_percent": -6.133811974578284,
+          "latency_change_percent": 6.534634146341456
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 14.431640625,
+          "C_us_per_call": 13.23240625,
+          "speedup_percent": 9.062859410018476,
+          "latency_change_percent": -8.309757748003776
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 13.712890624999998,
+          "C_us_per_call": 13.74934375,
+          "speedup_percent": -0.2651262901184004,
+          "latency_change_percent": 0.265831078194001
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 13.650390625,
+          "C_us_per_call": 13.7890625,
+          "speedup_percent": -1.0056657223796006,
+          "latency_change_percent": 1.0158821004435437
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 176,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 15.57096875,
+      "candidate_median_us_per_call": 15.324874999999999,
+      "speedup_percent": 1.605845072145784,
+      "latency_change_percent": -1.580465248830465,
+      "saved_us_per_call": 0.24609375000000216,
+      "AA_change_percent": 0.36261180012191474,
+      "AA_max_min_ratio": 1.0036261180012191,
+      "native_block0_to4_change_percent": -6.183949511518561,
+      "candidate_block0_to4_change_percent": -9.947396150616584,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -0.5060753741541468,
+        86.55224616538169
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 15.107406249999999,
+          "C_us_per_call": 15.184249999999999,
+          "speedup_percent": -0.5060753741541468,
+          "latency_change_percent": 0.5086495241365396
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 15.991546875,
+          "C_us_per_call": 15.776031249999999,
+          "speedup_percent": 1.3660953226116268,
+          "latency_change_percent": -1.3476846654335906
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 16.022781249999998,
+          "C_us_per_call": 15.623703124999999,
+          "speedup_percent": 2.554312007896664,
+          "latency_change_percent": -2.4906919639809733
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 28.611984375000002,
+          "C_us_per_call": 15.33725,
+          "speedup_percent": 86.55224616538169,
+          "latency_change_percent": -46.3957137716003
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 14.173171875,
+          "C_us_per_call": 13.6738125,
+          "speedup_percent": 3.651939610843713,
+          "latency_change_percent": -3.5232718505362692
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 198,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.595687499999999,
+      "candidate_median_us_per_call": 10.08528125,
+      "speedup_percent": -4.854537398250547,
+      "latency_change_percent": 5.102226911828889,
+      "saved_us_per_call": -0.48959375000000077,
+      "AA_change_percent": 2.4598242756774136,
+      "AA_max_min_ratio": 1.0245982427567741,
+      "native_block0_to4_change_percent": -12.045909585102542,
+      "candidate_block0_to4_change_percent": -13.93570285395116,
+      "positive_ABBA_blocks": 1,
+      "negative_ABBA_blocks": 4,
+      "block_speedup_percent_range": [
+        -7.256119829428876,
+        3.4363921723574054
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 10.792953125,
+          "C_us_per_call": 11.637375,
+          "speedup_percent": -7.256119829428876,
+          "latency_change_percent": 7.823826020739788
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 10.3079375,
+          "C_us_per_call": 9.965484374999999,
+          "speedup_percent": 3.4363921723574054,
+          "latency_change_percent": -3.3222274097024718
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.681625,
+          "C_us_per_call": 10.258453125,
+          "speedup_percent": -5.622954240481559,
+          "latency_change_percent": 5.957968058048113
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.595046875,
+          "C_us_per_call": 10.0,
+          "speedup_percent": -4.049531249999994,
+          "latency_change_percent": 4.2204392565825755
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.49284375,
+          "C_us_per_call": 10.015625000000002,
+          "speedup_percent": -5.2196567862714645,
+          "latency_change_percent": 5.507108973536012
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 220,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.104812500000001,
+      "candidate_median_us_per_call": 9.300140625,
+      "speedup_percent": -2.1002706612299082,
+      "latency_change_percent": 2.1453283634341735,
+      "saved_us_per_call": -0.19532812499999908,
+      "AA_change_percent": -1.0729810596437628,
+      "AA_max_min_ratio": 1.0108461881408826,
+      "native_block0_to4_change_percent": -1.0698722563129537,
+      "candidate_block0_to4_change_percent": 0.5203735617148153,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -4.693854731821457,
+        0.5907581790469907
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.311859375000001,
+          "C_us_per_call": 9.257171875000001,
+          "speedup_percent": 0.5907581790469907,
+          "latency_change_percent": -0.5872887228819512
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.923171875,
+          "C_us_per_call": 9.362640625000001,
+          "speedup_percent": -4.693854731821457,
+          "latency_change_percent": 4.92502841093152
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.175125,
+          "C_us_per_call": 9.174484375,
+          "speedup_percent": 0.006982681247413858,
+          "latency_change_percent": -0.006982193703086725
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.2109375,
+          "C_us_per_call": 9.40234375,
+          "speedup_percent": -2.0357291233901176,
+          "latency_change_percent": 2.0780322307039967
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.212234375,
+          "C_us_per_call": 9.30534375,
+          "speedup_percent": -1.0006011330854991,
+          "latency_change_percent": 1.0107143523473416
+        }
+      ]
+    },
+    {
+      "fixture": "MAIN-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 242,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.548828125,
+      "candidate_median_us_per_call": 9.704421875,
+      "speedup_percent": -1.6033283796207498,
+      "latency_change_percent": 1.629453876048248,
+      "saved_us_per_call": -0.15559374999999856,
+      "AA_change_percent": -2.5188983805184084,
+      "AA_max_min_ratio": 1.025839863713799,
+      "native_block0_to4_change_percent": 3.1796343196103916,
+      "candidate_block0_to4_change_percent": -3.5635065450218217,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -8.092185640618798,
+        6.2420519210266034
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.050765625,
+          "C_us_per_call": 9.84765625,
+          "speedup_percent": -8.092185640618798,
+          "latency_change_percent": 8.804676399959256
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.61003125,
+          "C_us_per_call": 9.749984375,
+          "speedup_percent": -1.4354189670175765,
+          "latency_change_percent": 1.4563233080017168
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.338546875,
+          "C_us_per_call": 9.731125,
+          "speedup_percent": 6.2420519210266034,
+          "latency_change_percent": -5.875311901606084
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.72721875,
+          "C_us_per_call": 9.704421875,
+          "speedup_percent": 0.23491224200309357,
+          "latency_change_percent": -0.23436169768467074
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.338546875,
+          "C_us_per_call": 9.496734374999999,
+          "speedup_percent": -1.6657041647539894,
+          "latency_change_percent": 1.6939198583826531
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 264,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 10.716796875,
+      "candidate_median_us_per_call": 9.583984375,
+      "speedup_percent": 11.819849195027498,
+      "latency_change_percent": -10.570439219974482,
+      "saved_us_per_call": 1.1328124999999996,
+      "AA_change_percent": 2.071307002614353,
+      "AA_max_min_ratio": 1.0207130700261435,
+      "native_block0_to4_change_percent": -0.2068037861450267,
+      "candidate_block0_to4_change_percent": 0.40722411340352593,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        10.323716615661983,
+        12.564234579601695
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 10.698546875,
+          "C_us_per_call": 9.588546875,
+          "speedup_percent": 11.576310930846855,
+          "latency_change_percent": -10.375240796428253
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 10.651703125,
+          "C_us_per_call": 9.654953124999999,
+          "speedup_percent": 10.323716615661983,
+          "latency_change_percent": -9.357658473043484
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.725921875,
+          "C_us_per_call": 9.636078125000001,
+          "speedup_percent": 11.310034392233614,
+          "latency_change_percent": -10.160839904495377
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 10.7265625,
+          "C_us_per_call": 9.52928125,
+          "speedup_percent": 12.564234579601695,
+          "latency_change_percent": -11.161835396941001
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 10.676421874999999,
+          "C_us_per_call": 9.62759375,
+          "speedup_percent": 10.893979869061244,
+          "latency_change_percent": -9.823779326816817
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 286,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.489578125,
+      "candidate_median_us_per_call": 8.647796875000001,
+      "speedup_percent": -1.8295844859330224,
+      "latency_change_percent": 1.8636821249583768,
+      "saved_us_per_call": -0.1582187500000009,
+      "AA_change_percent": -2.3185628742515063,
+      "AA_max_min_ratio": 1.023735961943995,
+      "native_block0_to4_change_percent": -3.0406171999092124,
+      "candidate_block0_to4_change_percent": -2.8174703447588545,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -2.197299153124277,
+        1.231262129274402
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.607421874999998,
+          "C_us_per_call": 8.78059375,
+          "speedup_percent": -1.972211446407035,
+          "latency_change_percent": 2.011890174722053
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.383453124999999,
+          "C_us_per_call": 8.462250000000001,
+          "speedup_percent": -0.9311574935744082,
+          "latency_change_percent": 0.9399095316108275
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.7109375,
+          "C_us_per_call": 8.630875000000001,
+          "speedup_percent": 0.9276290063290338,
+          "latency_change_percent": -0.9191031390134552
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.778,
+          "C_us_per_call": 8.671234375000001,
+          "speedup_percent": 1.231262129274402,
+          "latency_change_percent": -1.2162864547732855
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.345703125,
+          "C_us_per_call": 8.533203125,
+          "speedup_percent": -2.197299153124277,
+          "latency_change_percent": 2.2466651064825482
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 308,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.195953125,
+      "candidate_median_us_per_call": 8.264984375000001,
+      "speedup_percent": -0.8352254144461169,
+      "latency_change_percent": 0.842260185571786,
+      "saved_us_per_call": -0.06903125000000102,
+      "AA_change_percent": 1.5391823022602003,
+      "AA_max_min_ratio": 1.015391823022602,
+      "native_block0_to4_change_percent": 0.8434506270922348,
+      "candidate_block0_to4_change_percent": -3.3699908508691756,
+      "positive_ABBA_blocks": 0,
+      "negative_ABBA_blocks": 5,
+      "block_speedup_percent_range": [
+        -5.10814272644099,
+        -0.03898474721765188
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.102875,
+          "C_us_per_call": 8.5390625,
+          "speedup_percent": -5.10814272644099,
+          "latency_change_percent": 5.383120188821877
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.209625,
+          "C_us_per_call": 8.361984375,
+          "speedup_percent": -1.822048070975979,
+          "latency_change_percent": 1.8558627830138397
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.33334375,
+          "C_us_per_call": 8.33659375,
+          "speedup_percent": -0.03898474721765188,
+          "latency_change_percent": 0.03899995125007383
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.22134375,
+          "C_us_per_call": 8.25,
+          "speedup_percent": -0.34734848484848646,
+          "latency_change_percent": 0.3485591999483173
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.17121875,
+          "C_us_per_call": 8.251296875,
+          "speedup_percent": -0.9704913810896998,
+          "latency_change_percent": 0.9800022181513546
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p05",
+      "hot_count": 7,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 330,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.11653125,
+      "candidate_median_us_per_call": 8.899093749999999,
+      "speedup_percent": 2.4433667754090393,
+      "latency_change_percent": -2.3850902721361478,
+      "saved_us_per_call": 0.2174375000000016,
+      "AA_change_percent": -0.7526313677762908,
+      "AA_max_min_ratio": 1.0075833886394034,
+      "native_block0_to4_change_percent": 0.2141177236374192,
+      "candidate_block0_to4_change_percent": -0.2008308344108478,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -5.1838269419606124,
+        4.039435485579901
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.121734374999999,
+          "C_us_per_call": 9.087250000000001,
+          "speedup_percent": 0.379480866048576,
+          "latency_change_percent": -0.3780462528541806
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.205734375,
+          "C_us_per_call": 8.848312499999999,
+          "speedup_percent": 4.039435485579901,
+          "latency_change_percent": -3.882600349306753
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.250015625,
+          "C_us_per_call": 8.918625,
+          "speedup_percent": 3.715714305736584,
+          "latency_change_percent": -3.5825952996700994
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.097656250000002,
+          "C_us_per_call": 9.595046875000001,
+          "speedup_percent": -5.1838269419606124,
+          "latency_change_percent": 5.467239158437098
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.141265625,
+          "C_us_per_call": 9.069,
+          "speedup_percent": 0.7968422648582996,
+          "latency_change_percent": -0.7905428850285667
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 352,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 10.606765625,
+      "candidate_median_us_per_call": 10.01953125,
+      "speedup_percent": 5.860896686159833,
+      "latency_change_percent": -5.536413226817194,
+      "saved_us_per_call": 0.587234375,
+      "AA_change_percent": -3.767369164359635,
+      "AA_max_min_ratio": 1.0391485625161188,
+      "native_block0_to4_change_percent": 103.90497490544281,
+      "candidate_block0_to4_change_percent": -6.616648866474895,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -0.6540000000000101,
+        131.6174365318025
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 11.220062500000001,
+          "C_us_per_call": 10.577484375,
+          "speedup_percent": 6.07496170373687,
+          "latency_change_percent": -5.727045860929925
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 10.089828124999999,
+          "C_us_per_call": 10.15625,
+          "speedup_percent": -0.6540000000000101,
+          "latency_change_percent": 0.6583053167716901
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.461593749999999,
+          "C_us_per_call": 10.33334375,
+          "speedup_percent": 1.2411277811211985,
+          "latency_change_percent": -1.2259126387889063
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 10.65690625,
+          "C_us_per_call": 9.935562500000001,
+          "speedup_percent": 7.260220546144214,
+          "latency_change_percent": -6.768791364754656
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 22.878265625,
+          "C_us_per_call": 9.877609375000002,
+          "speedup_percent": 131.6174365318025,
+          "latency_change_percent": -56.82535758214844
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 374,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.545578125,
+      "candidate_median_us_per_call": 8.6673125,
+      "speedup_percent": -1.4045227398919669,
+      "latency_change_percent": 1.4245305960502108,
+      "saved_us_per_call": -0.12173437499999905,
+      "AA_change_percent": -1.973078038448406,
+      "AA_max_min_ratio": 1.0201279199526667,
+      "native_block0_to4_change_percent": 3.4771290099238295,
+      "candidate_block0_to4_change_percent": 6.860167755028246,
+      "positive_ABBA_blocks": 1,
+      "negative_ABBA_blocks": 4,
+      "block_speedup_percent_range": [
+        -6.140590328658158,
+        1.9173167233918154
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.462890625,
+          "C_us_per_call": 8.731109375,
+          "speedup_percent": -3.071989348432602,
+          "latency_change_percent": 3.1693514885760443
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.89453125,
+          "C_us_per_call": 8.727203125,
+          "speedup_percent": 1.9173167233918154,
+          "latency_change_percent": -1.8812472551602788
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.3801875,
+          "C_us_per_call": 8.627593749999999,
+          "speedup_percent": -2.8676158981175814,
+          "latency_change_percent": 2.9522758291505857
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.486328125,
+          "C_us_per_call": 8.634125000000001,
+          "speedup_percent": -1.7117759471863225,
+          "latency_change_percent": 1.7415880322209532
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.75715625,
+          "C_us_per_call": 9.330078125,
+          "speedup_percent": -6.140590328658158,
+          "latency_change_percent": 6.542327881839505
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 396,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.119140625,
+      "candidate_median_us_per_call": 8.259765625,
+      "speedup_percent": -1.7025301489713929,
+      "latency_change_percent": 1.7320182824152042,
+      "saved_us_per_call": -0.14062500000000003,
+      "AA_change_percent": -2.4655809869107648,
+      "AA_max_min_ratio": 1.0252790862124261,
+      "native_block0_to4_change_percent": 3.2928091401764448,
+      "candidate_block0_to4_change_percent": 0.12570082449938624,
+      "positive_ABBA_blocks": 1,
+      "negative_ABBA_blocks": 4,
+      "block_speedup_percent_range": [
+        -8.309408899712212,
+        0.12554301589333683
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.046890625,
+          "C_us_per_call": 8.291015625000002,
+          "speedup_percent": -2.9444522968198106,
+          "latency_change_percent": 3.0337805169310617
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.118500000000001,
+          "C_us_per_call": 8.166656249999999,
+          "speedup_percent": -0.5896691194759107,
+          "latency_change_percent": 0.593166841165238
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.0891875,
+          "C_us_per_call": 8.822265625,
+          "speedup_percent": -8.309408899712212,
+          "latency_change_percent": 9.06244446676505
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.282546875,
+          "C_us_per_call": 8.581390625,
+          "speedup_percent": -3.482462960366628,
+          "latency_change_percent": 3.6081142009836142
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.311859375000001,
+          "C_us_per_call": 8.3014375,
+          "speedup_percent": 0.12554301589333683,
+          "latency_change_percent": -0.12538560302579604
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p50",
+      "hot_count": 14,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 418,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.204421875,
+      "candidate_median_us_per_call": 9.390625,
+      "speedup_percent": -1.9828618968385947,
+      "latency_change_percent": 2.022974691172541,
+      "saved_us_per_call": -0.1862031249999994,
+      "AA_change_percent": -6.906974746333816,
+      "AA_max_min_ratio": 1.0741943311812374,
+      "native_block0_to4_change_percent": -1.2138951247155916,
+      "candidate_block0_to4_change_percent": -11.01726726726725,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -10.84219219219219,
+        2.1361340832876774
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.277984374999999,
+          "C_us_per_call": 10.406249999999998,
+          "speedup_percent": -10.84219219219219,
+          "latency_change_percent": 12.160676062789765
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.555984375,
+          "C_us_per_call": 9.356125,
+          "speedup_percent": 2.1361340832876774,
+          "latency_change_percent": -2.091457741631142
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.1263125,
+          "C_us_per_call": 9.464828125,
+          "speedup_percent": -3.576563890324236,
+          "latency_change_percent": 3.7092267550558056
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.16340625,
+          "C_us_per_call": 9.14584375,
+          "speedup_percent": 0.1920271161422349,
+          "latency_change_percent": -0.1916590787405137
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.165359375,
+          "C_us_per_call": 9.259765625,
+          "speedup_percent": -1.0195317443577379,
+          "latency_change_percent": 1.0300332604252116
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 440,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 10.560546875,
+      "candidate_median_us_per_call": 10.539703125,
+      "speedup_percent": 0.19776410922389687,
+      "latency_change_percent": -0.19737377473645346,
+      "saved_us_per_call": 0.02084374999999954,
+      "AA_change_percent": 3.5163702451241896,
+      "AA_max_min_ratio": 1.035163702451242,
+      "native_block0_to4_change_percent": 0.01864136963765084,
+      "candidate_block0_to4_change_percent": 0.3055581338946567,
+      "positive_ABBA_blocks": 3,
+      "negative_ABBA_blocks": 2,
+      "block_speedup_percent_range": [
+        -2.8444485159399013,
+        2.3989625466275255
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 10.561187499999999,
+          "C_us_per_call": 10.43684375,
+          "speedup_percent": 1.1913922731668691,
+          "latency_change_percent": -1.1773652347333075
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 10.613937499999999,
+          "C_us_per_call": 10.6595,
+          "speedup_percent": -0.4274356208077368,
+          "latency_change_percent": 0.4292704757306254
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.78321875,
+          "C_us_per_call": 10.53059375,
+          "speedup_percent": 2.3989625466275255,
+          "latency_change_percent": -2.342760597340199
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 10.274078124999999,
+          "C_us_per_call": 10.574874999999999,
+          "speedup_percent": -2.8444485159399013,
+          "latency_change_percent": 2.927726179812362
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 10.563156249999999,
+          "C_us_per_call": 10.468734375,
+          "speedup_percent": 0.9019416446890194,
+          "latency_change_percent": -0.8938793743583862
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 462,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.472671875,
+      "candidate_median_us_per_call": 8.666015625,
+      "speedup_percent": -2.2310570205093527,
+      "latency_change_percent": 2.281969051232724,
+      "saved_us_per_call": -0.19334375,
+      "AA_change_percent": 2.5276643577365476,
+      "AA_max_min_ratio": 1.0252766435773655,
+      "native_block0_to4_change_percent": -1.5566314634985812,
+      "candidate_block0_to4_change_percent": -6.575244265080704,
+      "positive_ABBA_blocks": 0,
+      "negative_ABBA_blocks": 5,
+      "block_speedup_percent_range": [
+        -9.824865919711122,
+        -1.6903253678762775
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.490890625,
+          "C_us_per_call": 9.415999999999999,
+          "speedup_percent": -9.824865919711122,
+          "latency_change_percent": 10.895316120033026
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.397140625,
+          "C_us_per_call": 8.595046875000001,
+          "speedup_percent": -2.302561613429255,
+          "latency_change_percent": 2.3568290545330717
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.746749999999999,
+          "C_us_per_call": 8.897140625,
+          "speedup_percent": -1.6903253678762775,
+          "latency_change_percent": 1.7193886300626016
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.377609374999999,
+          "C_us_per_call": 8.7298125,
+          "speedup_percent": -4.03448670862061,
+          "latency_change_percent": 4.204100588063064
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.35871875,
+          "C_us_per_call": 8.796875,
+          "speedup_percent": -4.980817051509778,
+          "latency_change_percent": 5.241906841284738
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 484,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.161453125000001,
+      "candidate_median_us_per_call": 8.462234375,
+      "speedup_percent": -3.5543951711925925,
+      "latency_change_percent": 3.6853884399415504,
+      "saved_us_per_call": -0.3007812499999993,
+      "AA_change_percent": -3.2474264705882216,
+      "AA_max_min_ratio": 1.0335642386773416,
+      "native_block0_to4_change_percent": -7.228817089134831,
+      "candidate_block0_to4_change_percent": 5.825752904908699,
+      "positive_ABBA_blocks": 3,
+      "negative_ABBA_blocks": 2,
+      "block_speedup_percent_range": [
+        -10.561923439589538,
+        123.71497326203209
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.403,
+          "C_us_per_call": 8.236328125,
+          "speedup_percent": 2.023618686269857,
+          "latency_change_percent": -1.983480602165899
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.145171875,
+          "C_us_per_call": 8.3919375,
+          "speedup_percent": -2.940508374853834,
+          "latency_change_percent": 3.0295938353050333
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.436859375000001,
+          "C_us_per_call": 8.372390625000001,
+          "speedup_percent": 0.7700160311141513,
+          "latency_change_percent": -0.7641320915106387
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 19.610015625000003,
+          "C_us_per_call": 8.765625000000002,
+          "speedup_percent": 123.71497326203209,
+          "latency_change_percent": -55.30026509094126
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 7.795562500000001,
+          "C_us_per_call": 8.71615625,
+          "speedup_percent": -10.561923439589538,
+          "latency_change_percent": 11.80920235069629
+        }
+      ]
+    },
+    {
+      "fixture": "HOLD-p95",
+      "hot_count": 19,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 506,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.170578124999999,
+      "candidate_median_us_per_call": 9.444671875000001,
+      "speedup_percent": -2.90209923253687,
+      "latency_change_percent": 2.9888382854815987,
+      "saved_us_per_call": -0.2740937500000009,
+      "AA_change_percent": -8.6332686342672,
+      "AA_max_min_ratio": 1.094490286619853,
+      "native_block0_to4_change_percent": 1.161790017211728,
+      "candidate_block0_to4_change_percent": -0.013805367329589036,
+      "positive_ABBA_blocks": 0,
+      "negative_ABBA_blocks": 5,
+      "block_speedup_percent_range": [
+        -4.512875970279029,
+        -0.31861478193085935
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.078124999999998,
+          "C_us_per_call": 9.507171875,
+          "speedup_percent": -4.512875970279029,
+          "latency_change_percent": 4.726161790017236
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.37109375,
+          "C_us_per_call": 9.401046874999999,
+          "speedup_percent": -0.31861478193085935,
+          "latency_change_percent": 0.31963318049186284
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.355484375,
+          "C_us_per_call": 9.635421875,
+          "speedup_percent": -2.905295726867174,
+          "latency_change_percent": 2.992228822999876
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.143875000000001,
+          "C_us_per_call": 9.402359375,
+          "speedup_percent": -2.7491437488263326,
+          "latency_change_percent": 2.826858142745814
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.18359375,
+          "C_us_per_call": 9.505859375,
+          "speedup_percent": -3.3901787548798024,
+          "latency_change_percent": 3.5091450446618433
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-hot",
+      "hot_count": 20,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 528,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 10.7200625,
+      "candidate_median_us_per_call": 10.624343750000001,
+      "speedup_percent": 0.9009379991117061,
+      "latency_change_percent": -0.8928935815439409,
+      "saved_us_per_call": 0.0957187499999994,
+      "AA_change_percent": -0.13478873778293154,
+      "AA_max_min_ratio": 1.00134970663036,
+      "native_block0_to4_change_percent": 0.018219343404024535,
+      "candidate_block0_to4_change_percent": -2.4176122380342946,
+      "positive_ABBA_blocks": 2,
+      "negative_ABBA_blocks": 3,
+      "block_speedup_percent_range": [
+        -1.8133154024835285,
+        6.492436325684636
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 10.7200625,
+          "C_us_per_call": 10.824859375,
+          "speedup_percent": -0.9681130384199599,
+          "latency_change_percent": 0.9775770896858216
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 11.287765624999999,
+          "C_us_per_call": 10.59959375,
+          "speedup_percent": 6.492436325684636,
+          "latency_change_percent": -6.09661732766531
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.746078125000002,
+          "C_us_per_call": 10.7845,
+          "speedup_percent": -0.35626941443737126,
+          "latency_change_percent": 0.35754323161500956
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 10.541015625,
+          "C_us_per_call": 10.7356875,
+          "speedup_percent": -1.8133154024835285,
+          "latency_change_percent": 1.8468037798776926
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 10.722015625,
+          "C_us_per_call": 10.563156249999999,
+          "speedup_percent": 1.503900645226186,
+          "latency_change_percent": -1.4816185739330079
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-hot",
+      "hot_count": 20,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 550,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.3860625,
+      "candidate_median_us_per_call": 8.89321875,
+      "speedup_percent": -5.702729959273755,
+      "latency_change_percent": 6.047608755598954,
+      "saved_us_per_call": -0.5071562500000012,
+      "AA_change_percent": -6.486186090822477,
+      "AA_max_min_ratio": 1.0693607267170389,
+      "native_block0_to4_change_percent": -6.907822461590429,
+      "candidate_block0_to4_change_percent": 1.7135027633710553,
+      "positive_ABBA_blocks": 0,
+      "negative_ABBA_blocks": 5,
+      "block_speedup_percent_range": [
+        -64.0525473731307,
+        -2.3852908541103224
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.604828125000001,
+          "C_us_per_call": 8.81509375,
+          "speedup_percent": -2.3852908541103224,
+          "latency_change_percent": 2.4435772794706434
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.44403125,
+          "C_us_per_call": 8.67578125,
+          "speedup_percent": -2.67122917604683,
+          "latency_change_percent": 2.744542187713961
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.436187499999999,
+          "C_us_per_call": 23.468109375000004,
+          "speedup_percent": -64.0525473731307,
+          "latency_change_percent": 178.18382859555933
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.324875,
+          "C_us_per_call": 8.928374999999999,
+          "speedup_percent": -6.759348705671508,
+          "latency_change_percent": 7.249358098469938
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.010421875,
+          "C_us_per_call": 8.966140625,
+          "speedup_percent": -10.659198756432598,
+          "latency_change_percent": 11.930941527346173
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-hot",
+      "hot_count": 20,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 572,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.141921875,
+      "candidate_median_us_per_call": 8.403,
+      "speedup_percent": -3.1069632869213493,
+      "latency_change_percent": 3.206590888591654,
+      "saved_us_per_call": -0.26107812500000094,
+      "AA_change_percent": -2.9818258110199003,
+      "AA_max_min_ratio": 1.0307347137373628,
+      "native_block0_to4_change_percent": 1.9466862501585913,
+      "candidate_block0_to4_change_percent": 1.2870415249878864,
+      "positive_ABBA_blocks": 0,
+      "negative_ABBA_blocks": 5,
+      "block_speedup_percent_range": [
+        -4.374169741697398,
+        -1.126143218615061
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.12759375,
+          "C_us_per_call": 8.44596875,
+          "speedup_percent": -3.7695498222154566,
+          "latency_change_percent": 3.9172110441666463
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.346359375,
+          "C_us_per_call": 8.441421875000001,
+          "speedup_percent": -1.126143218615061,
+          "latency_change_percent": 1.1389696480688771
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.205078125,
+          "C_us_per_call": 8.39584375,
+          "speedup_percent": -2.272143582948405,
+          "latency_change_percent": 2.324970245179725
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.0983125,
+          "C_us_per_call": 8.46875,
+          "speedup_percent": -4.374169741697398,
+          "latency_change_percent": 4.574255439018904
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.2858125,
+          "C_us_per_call": 8.554671875,
+          "speedup_percent": -3.142836790569481,
+          "latency_change_percent": 3.2448160636026957
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-hot",
+      "hot_count": 20,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 594,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.103515625,
+      "candidate_median_us_per_call": 9.490234375000002,
+      "speedup_percent": -4.074912533443098,
+      "latency_change_percent": 4.248015447328912,
+      "saved_us_per_call": -0.3867187500000005,
+      "AA_change_percent": -1.019708152494292,
+      "AA_max_min_ratio": 1.01030213321724,
+      "native_block0_to4_change_percent": -0.49037423027114,
+      "candidate_block0_to4_change_percent": -1.5451580621237193,
+      "positive_ABBA_blocks": 1,
+      "negative_ABBA_blocks": 4,
+      "block_speedup_percent_range": [
+        -5.1891157839413555,
+        1.7971809771528902
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.157546875000001,
+          "C_us_per_call": 9.64909375,
+          "speedup_percent": -5.094228408755996,
+          "latency_change_percent": 5.367669766910144
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.13021875,
+          "C_us_per_call": 9.447921875,
+          "speedup_percent": -3.36267730833667,
+          "latency_change_percent": 3.479687986665181
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.588546875,
+          "C_us_per_call": 9.419265625,
+          "speedup_percent": 1.7971809771528902,
+          "latency_change_percent": -1.7654525988850645
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 9.076171875,
+          "C_us_per_call": 9.572921875,
+          "speedup_percent": -5.1891157839413555,
+          "latency_change_percent": 5.473122444587908
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.112640625000001,
+          "C_us_per_call": 9.5,
+          "speedup_percent": -4.077467105263166,
+          "latency_change_percent": 4.250791740182347
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-cold-nonempty-map",
+      "hot_count": 0,
+      "route_count": 20,
+      "stage": "GU-input",
+      "first_serial_index": 616,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 10.69140625,
+      "candidate_median_us_per_call": 9.09440625,
+      "speedup_percent": 17.560244793331048,
+      "latency_change_percent": -14.937230544391655,
+      "saved_us_per_call": 1.5969999999999984,
+      "AA_change_percent": -0.24449088368926342,
+      "AA_max_min_ratio": 1.0024509010665685,
+      "native_block0_to4_change_percent": 6.2833387710882205,
+      "candidate_block0_to4_change_percent": 3.063902501369986,
+      "positive_ABBA_blocks": 4,
+      "negative_ABBA_blocks": 1,
+      "block_speedup_percent_range": [
+        -55.11229399355035,
+        19.39834659866979
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 10.009109375,
+          "C_us_per_call": 8.924484375,
+          "speedup_percent": 12.153363202005707,
+          "latency_change_percent": -10.836378736244946
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 10.667328125,
+          "C_us_per_call": 8.934234374999999,
+          "speedup_percent": 19.39834659866979,
+          "latency_change_percent": -16.24674641758055
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.981125,
+          "C_us_per_call": 24.463546875,
+          "speedup_percent": -55.11229399355035,
+          "latency_change_percent": 122.77814773076527
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 10.671234375000001,
+          "C_us_per_call": 9.208984375,
+          "speedup_percent": 15.878515376458102,
+          "latency_change_percent": -13.702725932303395
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 10.638015625000001,
+          "C_us_per_call": 9.197921874999999,
+          "speedup_percent": 15.656729526200742,
+          "latency_change_percent": -13.537240409909634
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-cold-nonempty-map",
+      "hot_count": 0,
+      "route_count": 20,
+      "stage": "GU-output",
+      "first_serial_index": 638,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.589203125000001,
+      "candidate_median_us_per_call": 8.11653125,
+      "speedup_percent": 5.823569951757412,
+      "latency_change_percent": -5.503093454900688,
+      "saved_us_per_call": 0.4726718750000003,
+      "AA_change_percent": -2.7990283824164797,
+      "AA_max_min_ratio": 1.0287963004467555,
+      "native_block0_to4_change_percent": -2.2712853236098174,
+      "candidate_block0_to4_change_percent": 1.189484081053127,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        2.192388788695654,
+        13.416658642272527
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.570312499999998,
+          "C_us_per_call": 8.099625000000001,
+          "speedup_percent": 5.811225828356226,
+          "latency_change_percent": -5.492069279854128
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.2018125,
+          "C_us_per_call": 8.11328125,
+          "speedup_percent": 13.416658642272527,
+          "latency_change_percent": -11.829530866880866
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 9.055343749999999,
+          "C_us_per_call": 8.141265624999999,
+          "speedup_percent": 11.227715285361416,
+          "latency_change_percent": -10.094350366323745
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.500640624999999,
+          "C_us_per_call": 8.29296875,
+          "speedup_percent": 2.504192180876119,
+          "latency_change_percent": -2.443014405164323
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.37565625,
+          "C_us_per_call": 8.19596875,
+          "speedup_percent": 2.192388788695654,
+          "latency_change_percent": -2.1453542819405924
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-cold-nonempty-map",
+      "hot_count": 0,
+      "route_count": 20,
+      "stage": "down-input",
+      "first_serial_index": 660,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 8.2513125,
+      "candidate_median_us_per_call": 7.922531250000001,
+      "speedup_percent": 4.1499520749760155,
+      "latency_change_percent": -3.984593360147226,
+      "saved_us_per_call": 0.32878124999999797,
+      "AA_change_percent": -2.2530936694890924,
+      "AA_max_min_ratio": 1.023050281119596,
+      "native_block0_to4_change_percent": 2.3311659097988047,
+      "candidate_block0_to4_change_percent": -1.6957364341085301,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        0.7996124031007801,
+        6.292163627402658
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 8.12696875,
+          "C_us_per_call": 8.0625,
+          "speedup_percent": 0.7996124031007801,
+          "latency_change_percent": -0.7932693232024612
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 8.242203125,
+          "C_us_per_call": 8.014312499999999,
+          "speedup_percent": 2.8435455318219782,
+          "latency_change_percent": -2.7649236683911504
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 8.424484375,
+          "C_us_per_call": 7.92578125,
+          "speedup_percent": 6.292163627402658,
+          "latency_change_percent": -5.919687221213465
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 8.180984375,
+          "C_us_per_call": 7.9108125,
+          "speedup_percent": 3.4152228358338643,
+          "latency_change_percent": -3.3024372449067307
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 8.316421875000001,
+          "C_us_per_call": 7.92578125,
+          "speedup_percent": 4.928733366190263,
+          "latency_change_percent": -4.6972199206765435
+        }
+      ]
+    },
+    {
+      "fixture": "synthetic-all-cold-nonempty-map",
+      "hot_count": 0,
+      "route_count": 20,
+      "stage": "down-output",
+      "first_serial_index": 682,
+      "sample_count": 22,
+      "native_ABBA_samples": 10,
+      "candidate_ABBA_samples": 10,
+      "native_median_us_per_call": 9.180343749999999,
+      "candidate_median_us_per_call": 8.42121875,
+      "speedup_percent": 9.014431551252589,
+      "latency_change_percent": -8.269025873894964,
+      "saved_us_per_call": 0.7591249999999993,
+      "AA_change_percent": 1.0785866326096238,
+      "AA_max_min_ratio": 1.0107858663260962,
+      "native_block0_to4_change_percent": -4.416274790431407,
+      "candidate_block0_to4_change_percent": 4.291602334529587,
+      "positive_ABBA_blocks": 5,
+      "negative_ABBA_blocks": 0,
+      "block_speedup_percent_range": [
+        5.1191095073545245,
+        104.3087546239211
+      ],
+      "blocks": [
+        {
+          "block": 0,
+          "H_us_per_call": 9.552734375,
+          "C_us_per_call": 8.328765625,
+          "speedup_percent": 14.695680069638172,
+          "latency_change_percent": -12.812758127172351
+        },
+        {
+          "block": 1,
+          "H_us_per_call": 9.1048125,
+          "C_us_per_call": 8.42121875,
+          "speedup_percent": 8.117515650570173,
+          "latency_change_percent": -7.508048628129349
+        },
+        {
+          "block": 2,
+          "H_us_per_call": 10.584625,
+          "C_us_per_call": 8.396484375,
+          "speedup_percent": 26.060200046522453,
+          "latency_change_percent": -20.672821427306122
+        },
+        {
+          "block": 3,
+          "H_us_per_call": 19.417312499999998,
+          "C_us_per_call": 9.50390625,
+          "speedup_percent": 104.3087546239211,
+          "latency_change_percent": -51.05447136414991
+        },
+        {
+          "block": 4,
+          "H_us_per_call": 9.130859375,
+          "C_us_per_call": 8.686203124999999,
+          "speedup_percent": 5.1191095073545245,
+          "latency_change_percent": -4.869818181818197
+        }
+      ]
+    }
+  ],
+  "counts_not_aggregate_gain": {
+    "median_candidate_faster_cells": 17,
+    "median_candidate_slower_cells": 15,
+    "cell_speedup_percent_range": [
+      -5.702729959273755,
+      45.423412565044565
+    ],
+    "maximum_AA_max_min_ratio": 1.5980915686846995
+  },
+  "VM": {
+    "all_three_phases_joined": true,
+    "sampler_joined": true,
+    "samples": 35,
+    "curve_samples": 23,
+    "endpoint_swapins_bytes": 0,
+    "endpoint_swapouts_bytes": 0,
+    "system_compressor_physical_peak_bytes": 4300652544,
+    "power": "AC at all phase endpoints"
+  },
+  "findings": [
+    "Native GU-input median differs35.2917us MAINp05 vs10.7168us HOLDp05, same geometry, different data/masks and sequential time; cannot attribute cause to clocks/donation without direct evidence.",
+    "MAINp50 GU-input AA second native sample37.43% lower thanfirst (max/min1.598), demonstrating repeatability limitation.",
+    "All-hot control is slower on3/4stage medians (GU-output/down-input/down-output), GU-input+0.9% with2/5positiveblocks.",
+    "Sparse HOLDp05 GU-input positive5/5blocks (~10.32..12.56%) but other GU/downstages mixed/small or negative; no global savings derived.",
+    "Intervals reported are observed five-block ranges, not confidence intervals.",
+    "Donation allocation/dispatch effects are plausible mechanisms but not measured or attributable from this report."
+  ],
+  "throughput_gain_promoted": false
+}
