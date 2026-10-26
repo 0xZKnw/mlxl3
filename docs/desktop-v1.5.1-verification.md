@@ -11,3 +11,7 @@ Le patch canal commun `5ca22f981b3a8bb9ead1a6e644d2248cd0484acf71270456e715c0989
 Les tests emploient URLSession/URLProtocol, UserDefaults et fichiers jetables ; aucune vraie requête GitHub/HF, app utilisateur ou modèle. Tous processus lancés sont joints. Journaux et commandes : ROOT/build/stable151-channels/validation/run-result-v1-failed.json et application-v2-escalated.json. Le premier rapport reste un échec, pas un succès réécrit.
 
 Limites au gel : AppSettingsView sera compilé dans le build officiel ; aucun paquet réel, DMG monté, nouvelle génération, débit ou preuve formelle Swift n’a été validé par ces seuls tests. Source committée, résultats du paquet final, artefacts et CI restent à compléter par le parent avant publication. La validation historique1.5.0 ne remplace pas ces contrôles.
+
+## Final package and publication
+
+Official source b7b3a8a136e496a8de77b89f704da2f590851836, clean build. Eleven real-package checks passed; an additional runtime-info probe confirmed engine1.5.0/commitb7b3a8a136e4. DMGmounted read-only,14files byte-identical, signatures and runtimeSHA256 verified, then detached. Published v1.5.1 is latest stable; all six server assets matched local hashes. No new GPU generation or throughput claim. CI status is recorded separately; targeted tests are not a complete proof.
