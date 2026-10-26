@@ -19,7 +19,7 @@ Format/strict MLX+chat Clippy pass;154CPU tests pass/5ignored. Kani actual full-
 
 ## Remaining priority order
 
-A1 staged Cold pipeline first; then B exact QSA q/out MB2; I release checkpoint inspection metadata in resident bridge; F long-QSA independent contracts before G persistent KV/selection. C/D/E/H/J follow measured cost: state layout, controller, resident MTP, prepared host segments and prefill. Separate decode/MTP/long-context/TTFT benefits. No retired K1/F01/F05/F06 variant or cache enlargement re-enabled. The issue remains in progress; only A0 is complete.
+A0 is retained as a test-only diagnostic. A1 was withdrawn after its negative throughput screen. B1 is closed below as numerically validated but unqualified for performance, with the prototype withdrawn. The remaining issue46 architecture work has not been implemented. On26October the user requested closure of QSA only and cancelled the proposed transition to issue52. No issue52 work was started. No retired K1/F01/F05/F06 variant or cache enlargement was re-enabled.
 
 ## Reproduction and verification scope
 
@@ -46,3 +46,53 @@ Acceptance, verified rows, logical expert bytes and all eight full128-token gold
 The prototype is withdrawn from executable sources; [withdrawal](measurements/issue46/A1/withdrawal.json) proves exact restoration to A0. Its [patch](measurements/issue46/A1/prototype.patch.txt), [results](measurements/issue46/A1/screen-analysis.json) and quality evidence are retained. No installed app changed, no gain claimed. Kani checked the actual staged partition for symbolic slots0..511, unwind16:0/188failed,2expected unreachable checks,2/2covers. This does not prove GPU/FFI concurrency. The initial plan, failed test, corrected test and raw observations remain in /Users/justin/Documents/mix-stq1_0/build/issue46/A1.
 
 Next priority: B, exact QSA q/out projection batching; no staged-I/O combination.
+
+## B1: QSA B2 closed without performance promotion
+
+The prototype grouped the independent query and output EXL3 projections for exactly two positions using the existing reference MB2 kernels. KV append, index pooling, normalization, RoPE and attention remained causal singleton operations. Prefix snapshots were retained after the first position. The12QSA layers could then use the existing multi-row HC/PLE preparation. B1 and B3–B8, dense projections, quantization, shaders, SSD scheduling and cache sizes were unchanged. No runtime flag was added.
+
+Prototype source: `2fe20263b5ff69380f35f50201672109152ca34f`; CLI SHA-256: `2b9129e6f0f0a75ea3e38cee60e5f565f1a602291370a0e34cc435a007031d26`. Stock control source0842599c2446, SHA-256619d3eb0e4a1affedb4ff296020d88014dec4682fc8aee7cba46ea2f09f6210c. Both copies used identical MLX/JACCL/metallib hashes, recorded in [identity](measurements/issue46/B1/identity.json). The only native difference between that stock source and the experiment baseline8668793b was the test-only A0 probe. No A1 code was active.
+
+### Correctness before speed
+
+- 240 nonempty, finite, byte-exact projection comparisons:60real QSA projections, F16/F32, contiguous/strided inputs and two distinct rows, against two independent singleton calls.
+- 84 QSA output/state/prefix/continuation cases:12layers at initial offsets0/3/7/2050/2051/2052/4094. Long states were synthetic native states; this does **not** qualify the independent upstream long-context contract in issue46-F.
+- Historical independent upstream QSA stage oracle passed. All36DFlash prefix/capture/logit/state checks passed and required a real batch-call counter on every QSA layer. All43production bridge parity/error/cancellation/recovery checks passed.
+- MTP target/head state and greedy-sequence parity passed for budgets1/2/3/17.
+- Format and strict all-target MLX/chat Clippy passed; CPU library154passed/5ignored. Frozen release MLX/chat test binary: initial sandbox run178passed/3loopback-HTTP permission failures/157ignored; unrestricted rerun181passed/0failed/157ignored. Ignored hardware tests are separate from the explicitly selected physical cases above.
+- `cargo kani --lib --tests --features mlx,chat --harness actual_qsa_batch_entry --jobs 1 --output-format terse` attempted the actual implementation and crashed in the Kani compiler at `intrinsics.rs:243` before obligations. No formal proof of the QSA/GPU path was obtained. No stubs or artificially restricted replacement were used to claim success.
+
+Exact physical commands, environment and assertions: [quality plan](measurements/issue46/B1/quality/run.json), [outcomes](measurements/issue46/B1/quality/run-result.json), [bridge checks](measurements/issue46/B1/quality/checks.json). All children/readers/samplers were joined. Build/test commands used `--locked`, MLX0.32.2, the existing macOS SDK/MLX root and one compilation job. Normal test argv: `B1/native-tests --test-threads=1`; CPU `cargo test --locked --lib --no-default-features`; format `cargo fmt --all -- --check`; lint `cargo clippy --locked --all-targets --features mlx,chat -- -D warnings`; CLI build `cargo build --locked --release --features mlx,chat --bin mlxl3-rs`.
+
+### Actual DFlash2 B2 throughput
+
+M5 10GPU cores/24GiB, AC, Flash Next2.05bpw65c89531, Q4/ring drafta22a1744, fixed one proposal/two target positions,3GiB/53expert slots,64MiB allocator cache, four readers, GPUHot/Wide/multi-token/unique-cohort enabled; lookahead/LES/shared-EXL3/shared-batch/prefetch disabled. Each child warmed128tokens then measured128(127decode), one target at a time, no compiler/prover during inference. Each pair used a fresh control and candidate process. These are end-to-end bridge measurements, not isolated kernel timings.
+
+| Prompt/order | Control tok/s | Candidate tok/s | Difference |
+|---|---:|---:|---:|
+| MAIN H-C | 11.766785 | 12.079032 | +2.654% |
+| HOLD H-C | 11.364061 | 11.556398 | +1.693% |
+| MAIN C-H | 10.774796 | 11.752067 | +9.070%, unqualified amplitude |
+| HOLD C-H | 11.254705 | 11.466843 | +1.885% |
+| MAIN H-C recheck | 11.806061 | 11.864953 | +0.499% |
+
+The+9.07% MAIN pair has an8.43% slower stock control than the first pair; it cannot substantiate that gain. HOLD is positive in both orders. MAIN remains positive but its effect size varies substantially. Counts, acceptance, logical expert bytes and full128-token golden answers match within all pairs. Recheck verification cost78.970→78.593ms/emitted token; logical expert bytes188.430MB/decode token and138verified rows are identical. No SSD-byte saving is claimed.
+
+### OFF/MTP1 control prevents promotion
+
+| Prompt/mode, single pair | Control tok/s | Candidate tok/s | Difference |
+|---|---:|---:|---:|
+| MAIN OFF, H-C | 10.798500 | 9.745652 | -9.750% |
+| HOLD OFF, C-H | 10.486043 | 9.750983 | -7.010% |
+| MAIN MTP1, H-C | 10.929094 | 10.398500 | -4.855% |
+| HOLD MTP1, C-H | 10.084632 | 9.678674 | -4.026% |
+
+The candidate MAIN warmups were slightly faster for OFF and MTP, then the measured results reversed. OFF never uses the new B2 path, but the scalar QSA helper was refactored; MTP verification also calls `prepare_rows` and does use the new B2 path. The source/code-generation and machine-condition contributions were not isolated. These single pairs establish an observation, **not** a causal or reproducible QSA regression. Neither a reverse-order OFF/MTP campaign nor a new variant was run after the user requested closure.
+
+All20warm/measured answers in this final campaign match the independent128-token golden references, with identical mode/acceptance counters. Peak process footprint8,221,186,600B; process logical swap-in ledger0B. Global swap-outs rose65,536B during the stock DFlash control, with attribution unknown; all other children in that campaign had0new global swap-outs. Earlier completed B1 physical and throughput campaigns had0new global swap-outs. Compression/decompression varied across processes; it was observed, not established as the cause. The first speed attempt stopped during pre20on a power-state change before any inference, then was rerun with a fresh AC preflight. An initial ad-hoc result extractor used an incorrect mode filter and failed with KeyError before writing any analysis; the corrected extractor explicitly checked all20answers.
+
+[First screen](measurements/issue46/B1/screen-v2/analysis.json), [reverse order](measurements/issue46/B1/confirm/analysis.json), [final controls](measurements/issue46/B1/controls/analysis.json), [final plan](measurements/issue46/B1/controls/run.json), [raw supervisor](measurements/issue46/B1/controls/run-result.json). Reports, system observations and failed attempts are retained alongside them; complete local binaries/build artifacts remain under `/Users/justin/Documents/mix-stq1_0/build/issue46/B1`.
+
+### Closure and integration
+
+**Numerical validation passed; performance promotion did not.** The prototype was withdrawn rather than enabling it by default or adding another experimental option. The three changed existing source files are byte-identical to8668793b and the added QSA test file was removed from active compilation. Its complete [patch](measurements/issue46/B1/prototype.patch.txt), proof harness, commands, source/binary hashes and80evidence files are archived. [Withdrawal manifest](measurements/issue46/B1/withdrawal.json) records exact restoration; private K1 files were preserved. The shared CLI build artifact is rebuilt from the restored source; the installed Desktop/engine remain stock beta2 source0842599c2446. No app replacement, release, merge, issue46 closure or issue52 implementation is included. 15tok/s was not reached. The underlying cause of the OFF/MTP timing reversal remains unverified.

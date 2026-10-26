@@ -431,8 +431,6 @@ impl Gdn {
 struct Qsa {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
-    #[cfg(test)]
-    batch_calls: usize,
     q: Projection,
     k: Projection,
     v: Projection,
@@ -497,8 +495,6 @@ impl Qsa {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
-            #[cfg(test)]
-            batch_calls: 0,
             q: proj("q_proj", 12288)?,
             k: proj("k_proj", 512)?,
             v: proj("v_proj", 512)?,
@@ -583,58 +579,6 @@ impl Qsa {
         let _profile = crate::flash_profile::span("qsa_build");
         #[cfg(test)]
         self.stages.clear();
-        let offset = self.offset;
-        let qk = self.append_cache(x)?;
-        let query = self.q.forward(x)?;
-        let gated = self.attend(&query, &qk, offset)?;
-        self.out.forward(&gated)?.astype(x.dtype())
-    }
-
-    fn forward_rows(&mut self, rows: &[Array]) -> Result<(Vec<Array>, Vec<QsaState>)> {
-        ensure!(
-            rows.len() == 2
-                && rows.iter().all(|x| x.shape() == [1, H]
-                    && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
-                    && x.dtype() == rows[0].dtype()),
-            "invalid QSA batch rows"
-        );
-        ensure!(
-            self.offset >= 0 && self.offset.checked_add(2).is_some(),
-            "QSA batch offset exhausted"
-        );
-        #[cfg(test)]
-        let _profile = crate::flash_profile::span("qsa_rows_build");
-        let input = Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?;
-        let query = self.q.forward(&input)?;
-        let mut gated = Vec::with_capacity(2);
-        let mut snapshots = Vec::with_capacity(1);
-        for (row, x) in rows.iter().enumerate() {
-            #[cfg(test)]
-            self.stages.clear();
-            let offset = self.offset;
-            let qk = self.append_cache(x)?;
-            gated.push(self.attend(&query.slice(0, row as i32, row as i32 + 1)?, &qk, offset)?);
-            if row + 1 < rows.len() {
-                snapshots.push(self.snapshot()?);
-            }
-        }
-        let output = self
-            .out
-            .forward(&Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?)?
-            .astype(rows[0].dtype())?;
-        #[cfg(test)]
-        {
-            self.batch_calls += 1;
-        }
-        Ok((
-            (0..2)
-                .map(|row| output.slice(0, row, row + 1))
-                .collect::<Result<Vec<_>>>()?,
-            snapshots,
-        ))
-    }
-
-    fn attend(&mut self, projected_query: &Array, qk: &Array, offset: i32) -> Result<Array> {
         macro_rules! stage {
             ($name:expr, $value:expr) => {
                 #[cfg(test)]
@@ -644,7 +588,11 @@ impl Qsa {
                 }
             };
         }
-        let qg = projected_query
+        let offset = self.offset;
+        let qk = self.append_cache(x)?;
+        let qg = self
+            .q
+            .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 24, 512])?;
         let gate = qg.slice(3, 256, 512)?.reshape(&[1, 6144])?;
@@ -695,7 +643,7 @@ impl Qsa {
             .reshape(&[1, 6144])?;
         let gated = attention.mul(&gate.sigmoid()?)?;
         stage!("gated", gated);
-        Ok(gated)
+        self.out.forward(&gated)?.astype(x.dtype())
     }
 
     fn append_cache(&mut self, x: &Array) -> Result<Array> {
@@ -1146,10 +1094,7 @@ impl Layer {
             streams.len() == tokens.len() && (1..=8).contains(&tokens.len()),
             "invalid Flash preparation rows"
         );
-        if !multi
-            || tokens.len() == 1
-            || matches!(&self.attention, Attention::Qsa(q) if tokens.len() != 2 || !q.q.is_exl3() || !q.out.is_exl3())
-        {
+        if !multi || tokens.len() == 1 || matches!(self.attention, Attention::Qsa(_)) {
             let mut prepared = Vec::with_capacity(tokens.len());
             let mut states = Vec::with_capacity(tokens.len() - 1);
             for (row, (&token, stream)) in tokens.iter().zip(streams).enumerate() {
@@ -1182,16 +1127,10 @@ impl Layer {
                 );
             }
         }
-        let (branches, snapshots) = match &mut self.attention {
-            Attention::Gdn(gdn) => gdn.forward_rows(&mixed)?,
-            Attention::Qsa(qsa) => {
-                let (branches, states) = qsa.forward_rows(&mixed)?;
-                (
-                    branches,
-                    states.into_iter().map(AttentionState::Qsa).collect(),
-                )
-            }
+        let Attention::Gdn(gdn) = &mut self.attention else {
+            unreachable!()
         };
+        let (branches, snapshots) = gdn.forward_rows(&mixed)?;
         let mut prepared = Vec::with_capacity(tokens.len());
         for ((residual, branch), gate) in residuals.iter().zip(&branches).zip(&gates) {
             let residual = Hc::write(residual, branch, gate)?;
@@ -3917,7 +3856,3 @@ mod tests {
 
 #[cfg(all(test, feature = "chat"))]
 mod profile;
-
-#[cfg(test)]
-#[path = "qwen4/qsa_batch_tests.rs"]
-mod qsa_batch_tests;
