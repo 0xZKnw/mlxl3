@@ -16675,3 +16675,143 @@ Limites : aucun kernel ni math de production n’est modifié, donc aucun harnai
 
 - **RELEASES CLOSES, PUBLIÉES ET INSTALLÉES.** Source finale0842599c, identité native0842599c2446 sansdirty et build-info propre ; deltaQA11commandes réussies, DMG identique/démonté. Desktopbêta2/build32 et moteur publics, tags exacts0842599c ; stableDesktop1.5.1/build33 sourceb7b3a8a1, moteur1.5.0 sourceinchangée reconstruit, QA11commandes+runtime-info exact. Les20assets serveur concordent en taille/SHA256 ; latest=v1.5.1. Bêta2 finale installée dansApplications, registre/modèles/historique préservés, app lancée ; utilisateur confirme «super tout marche». Anciennes tentatives et identité93rejetée conservées. Aucun nouveau benchmarkGPU ; KaniICE non vérifié, CI source finale inspectée encoreen cours lors publication. Preuves ROOT/build/v2-beta2/published-final.json,local-install.json,package-qa-frozen.json ; docs/measurements/v2-beta2.
 - **PATCHNOTES ENGLISH clos.** Demande utilisateur ajoutée àAGENTS M/S/ROOT sans écraser le privé. Trois notes courantes et corps GitHub traduits enanglais ;20assets/tags/flags/latest inchangés après comparaison. Rapport ROOT/build/release-notes-english/manifest.json. Documentation uniquement, aucune compilation répétée. Issue46-R reste en cours, sans prototype àce stade ; sous-agents arrêtés à la demande utilisateur, poursuite solo.
+
+### ISSUE46-A0-2026-10-26 — frontière Hot / retour I/O, en cours
+
+- Préenregistrement avant modification : base a585a30b (PR49 fusionnée), sous-agents arrêtés. Compléter le profil53/verifier existant par un événement test-only `cold_io_return` après fill_many réussi : disponibilité Hot avant/après I/O, nombre de jobs, aucune eval/barrière ajoutée. L’API MLX0.32.2 array::is_available a été lue : test de statut/événement, sans wait ; pas une mesure GPU exclusive. Hypothèse discriminante : des lectures terminent alors que Hot est déjà disponible ; sinon déprioriser le pipeline A sur B2. Aucun kernel ni politique de cache modifié.
+- Portée : SsdMoe::forward_rows (appelants MTP et verify_draft), trace de tests physiques existante ; aucun chemin de release modifié. Vérifier les tests de cycle du profiler, garde de disponibilité/readback physique puis profil verifier DFlash fixeB2 MAIN/HOLD : oracle séquentiel64, warmup64, témoin64, deux traces64, témoin64 ; égalité complète tokens/logits/états avant analyse. Ce sont des débits diagnostiques, pas qualification d’un gain. Comparer surcoût traces/témoins et séparer prefill/decode/couches.
+- Reprendre les options80M : cible65c89531, draftQ4a22a1744, cache3Gio/53slots, allocateur64Mio, GPUHot+Wide, vérificateur multi-token/cohortes uniques, prélecture/LES/grouped/sharedbatch désactivés, adaptive0/width1. Source et binaire figés après ajout ; relire alimentation/conditions/mémoire, un seul modèle GPU, aucun build/proveur concurrent. Réutiliser scripts/profile_flash.py et son moniteur borné, chemins ROOT/build/issue46/A0. Si garde mémoire ou divergence : arrêt et état explicite, aucune validation inventée.
+- Vérification prévue : cargo fmt, Clippy mlx/chat, tests CPU profiler, tentative Kani actual_detailed_profile_path sur l’implémentation MLX réelle sans stub (limites FFI/ICE probables), build test release et contrôles physiques sélectionnés. CI existante inspectée : tests MLX physiques ignorés nécessitent le M5 local ; aucun ajout CI nécessaire pour une annotation de diagnostic. Numérique/FFI/concurrence non prouvés par testsCPU.
+
+- A0 pré-GPU :154testsCPU passent/5ignorés (dont2profiler ciblés), format passe. PremièreClippy refuse ifimbriqué ; garde simplifiée et ClippyMLX/chat all-targets strict passe. Kani réel actual_detailed_profile_path : commandeinitiale --locked non supportée conservée, no-defaultfeatures compile échoue metal optionnel antérieur ; commande corrigée avec défaut atteint ICE intrinsics.rs:243 avant obligations. Aucun stub, aucune propriétéGPU formellement validée. Logs ROOT/build/issue46/A0.
+
+- A0 protocole précisé AVANT lancement : source figée45deec6d, test-binaireSHA29ddbab841c5120047201bbd6631e7f1061673b878852b11525a2fb817832032. Lecture physique API puis MAIN/HOLD via sampler49/superviseur45 existants (délais300s, plafondRSS10Gio et swap-in/out256Mio parprocessus), analyse53 inchangée après oracle64. Le moniteur53 récent exige des pages strictement libres égales au working-set et ne compte pas les pages fichiers récupérables ; pour CE diagnostic sans gain revendiqué, admission explicite selon la même formule que flash_support::available_memory_bytes, budget9,5Go (empreintehistorique8,3Go +réserve1,2Go), compresseur<4Gio, puis capfootprint12Go du runner natif. Préflight :10,188Go disponibles estimés, compresseur0,964Go, secteur, aucun modèle/compilateur/proveur actif. Ces estimations ne garantissent pas la récupérabilité de toutes les pages. Swap relevé globalement, aucun zéro swap ni gain de débit prétendu si sorties apparaissent. Réutiliser directement les superviseurs sans en modifier les assertions ; préserver leurs arrêts et le contrôle externe53.
+
+- 45-Q/R processus readiness-api : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A0/run-result.json.
+
+- 45-Q/R processus MAIN : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A0/run-result.json.
+
+- 45-Q/R processus HOLD : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A0/run-result.json.
+
+- **A0 VALIDÉ diagnostic, aucun gain TPS.** 2traces/prompt :Hot prêt au retourI/O MAIN87,90/88,49% et HOLD87,30/86,78% sur1545..1589batches/traces ; I/Oinclusive25,50..26,91ms/token nonadditionnable auGPU. 12phases64tokens versus séquentiel :tokens/logits248320finis/états exacts ; goldenexterne passe, APIevent passe,3enfants joints. EmpreintepicMAIN8,569Go/HOLD8,545Go, zéro nouveauswap-outparprocessus. Témoins11,68..11,86tok/s diagnostiques ; variationtracesHOLD conservée sanspromouvoirgain. CompressioninitialesystèmePython tropancien échoue avant suppressiondu brut ; archive etbrut vérifiés avecPythonprojet3.12 puiscompressionlossless achevée. Rapport docs/issue46-flash-architecture.md, preuves docs/measurements/issue46/A0 et ROOT/build/issue46/A0. PrioritéA1 confirmée, autrespistes nonencoretestées.
+
+- État avant publication du jalon :Rtriage initial documenté et A0 clos ; A1 et autres changements moteur nonlancés. Aucun essaiGPU/proveur restantactif. CodeA0 testé45deec6d ; commitdocumentairesuivant conserve exactement cette source. Manifestesha de touteslespreuveslocales ajouté, tracesphysiquesGZIP vérifiées ; gros artefacts locauxnonpubliés. Brancheexpériences séparée desreleases ; aucune optiondeproduction ni appinstallée modifiée. Sous-agents restentarrêtés àlademandeutilisateur.
+
+- A0 publié enPR51draft ; sourcecode45deec6d, rapportheadb55d7b0f. CI de ceSHA inspectée :7checks en cours, aucun succès annoncé ; snapshot docs/measurements/issue46/A0/ci-b55d7b0f.json. Présente clôture documentaire ne requalifie pas un futurSHA. A1 nonlancé, aucunGPU/processuspreuve actif ; sous-agents explicitement vérifiés interrompus.
+
+### ISSUE46-A1-2026-10-26 — Gate/Up puis Down sous calcul Cold, en cours
+
+- Préenregistré avant prototype : A0 montre86,8..88,5% de lotsHot terminés au retourI/O, pas une duréeGPU exclusive. Basecode45deec6d/docsbe45e074 ; aucun autre mécanisme combiné. Deux binaires distincts, mêmesoptions80M : cache3Gio/53, buffers64Mio, Q4ring/fixeB2, GPUHot/Wide, prélecture0/LES0/grouped0. Garder contrôleA0testbin et moteurbêta2 source084 dontle codeproductionSSD estidentique àA0 ; archiverleurs SHA et bibliothèques.
+- Changement : uniquement lots partiellementHot avecB1/B2, overlap actif, depth0, sansprélecteur niEXL3groupé ; lectureSuffixeGate/Up contigu832008octets/expert, lancementGU→SwiGLU seul, puislecturepréfixeDown416004octets pendantGPU, puisconstructionDown. Les12segments/compteurs/ordreFP restentidentiques, cachepublié seulement aprèslesdeuxlectures. Pasnouveauflag : mêmeoptionoverlap, garde étroite ; prototypescomparés parbinaires, pas d’activation dansappinstallée. Profilsfencés gardentcheminhistorique.
+- Refactoriser lesmathsunefois (activation puisDown) sansmodifieropérations ; conserver leslecteursGPU additionnels danslemodèle jusqu’au résultatfinal oudrain. SuréchecDown/aprèsGU, tenter TOUSlesdrains Hot+Cold avantretour ; conserverleshandles siundrainéchoue. Une repriseaprèsunwind doitdrainer avantnouvelleécriture. Autresformes/prefetch/fallback passentcommeavant.
+- Qualité avant débit : sélecteurpartitionsCPU exhaustif512slots etKani symbolique surla vraie table ; Clippy/types/buildMLX ; physiqueB1/B2 Cold/partiellementHot/entièrementHot, sourceoracleindépendant, lectureDownéchouée aprèsGU etréessai, gardeannotations/fallback. Puis36préfixeslogits/états etbridge43/annulation/reprise surmoteur candidat. Muter temporairement unelectureDown omise pourvérifierledétecteur, restaureravant buildfigé.
+- Débitensuite : DFlash2B2 MAIN/HOLD témoin/candidat, warm128/mesure128, sourcebinairefigés etalimentation/conditions/mémoirenouvelles. Siécran négatif, conserverpreuvespuisretirerprototype ; si gainvisible, ordrecontraire etOFF/MTP1 témoins avantpromotion/pushdugain. MesuresSSDlogiques exactes, GPUtempsnoninféréduCPU. Mêmeadmissionmémoire queA0, globalVMrelevé séparément, bornes/cleanup descontrôleursexistants. Preuves ROOT/build/issue46/A1 ; étatàmettreàjour mêmeéchec.
+
+- A1 préphysique :155testsCPU passent/5ignorés, dont partitionexhaustive512slots ; ClippyMLX/chat strict passe aprèscorrectionde2erreursdetest (APIzeros ethandleTensorInfoprivé). Fixturedelectureéchouée utilise maintenant un vrai safetensorsjetable viaread_header, aucunpoidspersonnel ouvert enécriture. Kani actual_staged_record_partition surla vraie table :succès,2covers/2atteintes, slotssymboliques0..511 etdeuxpartitions, unwind16 avecassertions ; seules partitions et nonaliassegmentssontvérifiés, niGPU niI/O/concurrence. MutationDownomise réservéeau testprivé, défautfalse/cfgtest ; publicationcache seulementaprèssuccèsdes2stages. Contrôlebêta20842599c2446 copiéavecsesmêmesbibliothèquesdansROOT/build/issue46/A1/control ; appnonmodifiée.
+
+- 45-Q/R processus component : **failed_or_interrupted**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality/run-result.json.
+
+- A1 qualitév1 interrompue surle testdereprise, enfantjoint/zéroswap-out ; aucunpréfixe/bridge/débitlancé. Les36casMoE avaientpassé, puisassertioncomposée byte-parity+compteur2échoue. InspectionduvraiExpertFill::drop :unelectureéchouée invalide TOUTlecache, donclapremièrerepriseestentièrementCold et n’utilisepaslapipelineHot. Hypothèseincorrectedutest, pasunecausenumériquedémontrée. Correctionprévue :assertionindépendantecacheentièrementinvalide, byteparitéaprèsrepriseCold/compteur1, puisréamorçagepartiel etbyteparitépipelinée/compteur2. Nechanger aucun code de production pourfairepasserlecompteur. Préserverquality/ ; relancerensuitequality-v2. Kani détaillé :0/188échecs,2assertionsinatteignables attendues (variantAll horsdomaine staged, secondeconditiond’ordre court-circuitée),2covers atteintes ; pasdestub etpaspreuveGPU.
+
+- 45-Q/R processus component : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus mutation : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus prefix : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/quality-v2/run-result.json.
+
+- **A1 qualité v2 validée avant débit.** 36casMoEB1/B2 exacts, défautDownjetable aprèsGU, repriseCold puisréamorçagepipeliné exacts ; mutationDownomise détectée avec2560valeursfinies. 36préfixeslogits/états passent, bridge43/43parité/annulation/reprise passe.4enfants etsampler joints,zéro nouveauSwap-out. RSSmaximumenfants7,373Go, distinctdefottprint/allocations. CLIproduction302771c6, testcorrigé9264aba2 seul (assertioncacheinvalidé), helpers/kernelsinchangés. ÉcranH-C MAIN/HOLD prêt :mêmesbibliothèquesidentiques,128warm+128mesure, pascompilation/proveur/secondmodèle, secteur/admissionrerelevés ; aucunevitesseencorenouvelle. Preuves ROOT/build/issue46/A1/quality-v2.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus HOLD-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus HOLD-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/A1/screen/run-result.json.
+
+- **A1 REJETÉ, retiré effectivement.** ÉcranH-C secteur128warm+128mesure DFlashB2 : MAIN12,065689→11,675183tok/s(-3,236%),HOLD11,679307→11,268663(-3,516%). H/Cmêmesacceptations/lignesvérifiées/octetslogiques,8réponsesgold128exactes, tousprocessus/lecteurs/samplerjoints ; nouveauxswap-out0B, ledgerprocessswap-in0B, footprintpic<7,84Go. Compression/décompressionvariables etunseulordre :pasdecausalitéuniverselledéduite ; retraitconservateur, aucun gainpromu. PasC-H/OFF/MTPvitesse aprèsécrannégatif.4sourcesexécutablesrestauréesexactementbe45e074/A0, patch+snapshots+preuvesarchivés docs/measurements/issue46/A1 etROOT/build/issue46/A1 ; appetprivépréservés. SourceCLIcandidate302771c6 / tests9264aba2, bibliothèquescommunesidentiques ; oraclesphysiquesA1nevalidentpaslecodefinalrestauréparmagie, identitérestauréebyteexactA0qualifié. A0resteactifdiagnostic, A1clos, Bnonencoreprototypé.
+
+### ISSUE46-B1-2026-10-26 — clôturé non concluant, prototype retiré
+
+- Avant modification :base8668793b, A1retiréetarchivé ; relus63/64R/79R/80Q, gardeprepare_rows excluttoujoursQSA. Nouvellepiste distinctede80Q(sortietronquée) etdesexpertsgroupés65 : réutiliserlespoids desprojections indépendantes q/out sur2lignes avecMB2EXL3référenceexistant. Métadonnées vérifiées :12QSA,60projections, q/k/v/outK4Mul1,indexK2Mul1 ; aucune fusionHadamard niquantification modifiée. q/outreprésententl’essentieldespoids. PasdecombinaisonavecA1, nouveaucache ouprélecture.
+- Implémentationprévue :grouper q avantles2positions, conserverappendKV/index/pooling/normes/RoPE/SDPA strictementdansl’ordrecausal singleton ; grouperout aprèsles2attentiongated. Capturersnapshotpréfixeaprèschaquepositionavantlasuivante. RéutiliserpréparationHC/PLEgroupée63, mêmesopérations scalaires. LimiterB2multi=1etq/outEXL3 ; B1/B3..B8/Densegardentancienneboucle. LehelperEXL3gardeaccumulation/splits, fallbackK7déjàexistant ; aucun GEMMsubstitué auxGEMV. Nechanger niLFM2 ni shaders.
+- Qualitéavantvitesse :testMB2normal sur60projectionsréelles,F16/F32,contigu/stridé,2lignesnonidentiques, oracle2appels scalaires indépendants/nonvides/finis. QSAétats préparés natifs puis comparaison séquentielle/B2 etrollback à0/3/7/2050/2051/2052/4094positions surles12QSA ; étatslongssynthétiques n’établissentpasl’équivalenceamont F. TeststagesQSAupstreamhistoriqueàrelancerpourcouvrirrefactor puis36préfixes et43bridgeavantTPS. TentativeKani duvraihelperMLX sansstub, formats/Clippy/builds/applicables ; pasdepreuveGPUdéduitedespropriétésCPUexistantes.
+- ÉcranDFlashB2 MAIN/HOLD puisordrecontraire/OFF/MTPsiseulementpositif ; mêmeprotocoleA1/80M(cache3Gio/53,64Mioalloc,Q4/ring,width1,Hot/Wide1,multi1,prefetch0), bibliothèqueidentique,puiswarm128/mesure128, source/binairehashés, mêmeadmission/secteur etunmodèleGPU. Vérifiergold128,counters/modes/annulation/EOF, RAM/compresseur/ledger/swapseparés. Siécran négatifouparité échouée conserverpreuvesetretirer, nepasannoncergain. ROOT/build/issue46/B1. SharedtargetCLI302 estencoreunartefactA1historique ; lesbenchmarks utilisenttoujourslescopiesexplicitessourcées, l’appinstallée084n’apaschangé.
+
+- B1 préphysique :format/ClippyMLX/chat all-targets strictpassent,154testsCPU passent/5ignorés. Kani actual_qsa_batch_entry surhelperréelMLX tentecompilationetéchoueICEintrinsics.rs:243avantobligations ; aucunepropriétéGPUformellementvalidée. CI existante rust.yml273..284 installeMLX0.32.2etcompile/ClippyMLXsurmacos26 déjà, aucuneextensionnécessaire ; physiqueM5 toujoursrequise. Compteurtstest-onlyQSAetassertiondansles36préfixes exigentvraimentlepassagedes12QSAenB2, pasjusteunoracleparitéquiaccepteraitunfallbacknonoptimisé. GardeB1/Dense/B3..8conservée, aucun nouveauflag/env/modelcache.
+
+- 45-Q/R processus projections : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/quality/run-result.json.
+
+- 45-Q/R processus states : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/quality/run-result.json.
+
+- 45-Q/R processus upstream : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/quality/run-result.json.
+
+- 45-Q/R processus prefix : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/quality/run-result.json.
+
+- 45-Q/R processus bridge : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/quality/run-result.json.
+
+- **B1 qualité physique validée avant vitesse.**240casMB2 sur60projectionsK4/K2réelles,F16/F32contigu/stridé ;84casQSA sur12couchesà0/3/7/2050/2051/2052/4094positions initiales, sortiesfinies/logitsintermédiaires/états etrollback+continuation byteexacts contreparcoursséquentielnatif. Étatslongssynthétiques, pasqualificationamontlongueF. StagesQSAoracleindépendant historique passent ;36préfixes exigentcompteursB2actifsdansles12QSA ;43checksbridgeparité/erreurs/annulation/reprise passent.5enfantsetlecteurs/sampler joints,zéro nouveauswap-out. BinaireCLI2b9129e6/source2fe20263figé, A1inactif. ÉcranH-CB2 MAIN/HOLD lancéaprèsnouveaupréflightsecteur/mémoire/absenceautresmodèles/compilateurs ; pasdeboostencorevalidé. PreuvesROOT/build/issue46/B1/quality.
+
+- 45-Q/R processus pre20 : **failed_or_interrupted**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen/run-result.json.
+
+- **B1 écran initial interrompu avanttouteinférence** :guardalimentationdanspre20 après6,09s,enfantjoint ; aucun MAIN/HOLD, aucunevitesse. LectureactuelleestAC ; étattransitoiredétectépargarde, causematériellenonattribuée. Nouvellecampagnecomplète screen-v2 préenregistrée :mêmessource2fe/binaire2b9129/flags/bibliothèques, nouveaupréflichtsettémoinAC ; aucuneconditiondégradéepourrequalifierl’arrêt.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- 45-Q/R processus HOLD-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- 45-Q/R processus HOLD-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/screen-v2/run-result.json.
+
+- **B1 écranH-C positif nonencoreconfirmé** :MAIN11,766785→12,079032tok/s(+2,654%),HOLD11,364057→11,556436(+1,693%).8gold128complets exacts, mêmesacceptations/compteurs/octetslogiques,6enfantsjoints etlecteurs/samplerjoints,nouveauxSwap-out0B,footprintpic7,849Go. Source/binairefigés2fe/2b9129, pasgainpromu. ConfirmationprévueC-HcommenceparMTPnumérique(mêmecache/budgets1/2/3/17) ; sourceflagsidentiques, nouveaupréflightsecteur9,5Go/compresseur<4Gio, puismêmes128warm+128mesure MAIN/HOLD. PreuvesROOT/build/issue46/B1/screen-v2/analysis.json etconfirm.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus mtp-states : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus MAIN-0-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus MAIN-1-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus HOLD-0-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus HOLD-1-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/confirm/run-result.json.
+
+- B1 C-H etMTPqualitéterminés :MTPbudgets1/2/3/17 cible+tête exacts. MAIN10,774796→11,752067(+9,070%) mais témoin-8,430%vsH-C :amplitude MAIN NONqualifiée ; HOLD11,254705→11,466843(+1,885%), témoin-0,962%, concordeH-C(+1,693%). Tousgold/counters/lecteursjoints/swaps0 passent. Avantpromotion :controls/ préenregistré ajouteUNE répétitionMAINH-C motivéepardérive, puiscontrôlesOFF/MTP1communsenordreMAINH-C/HOLDC-H comme80M,128warm+128mesurechaquemode ; aucun autreprototype/build/proveur, source2fe/binaire2b912inchangés, mêmesoptions/bibliothèques/admissionnouvelle. Neprendrele+9%isolé niadditionnergains.
+
+- 45-Q/R processus pre20 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus DF-MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus DF-MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus MAIN-0-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus MAIN-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus HOLD-0-C : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus HOLD-1-H : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- 45-Q/R processus post30 : **completed_expected_outcome**, joint=True ; /Users/justin/Documents/mix-stq1_0/build/issue46/B1/controls/run-result.json.
+
+- **Clôture B1 demandée le26/10, sans issue52.** Dernière répétitionDFlash MAIN11,806061→11,864953tok/s(+0,499%), contre+2,654%aupremierH-C ; +9,070%C-H a untémoin-8,430%etn’estpasqualifié. HOLD+1,693%/+1,885%danslesdeuxordres ; aucunboostglobalpromu.
+- Contrôlescommuns128warm/128mesure :OFF MAIN10,798500→9,745652(-9,750%), HOLD10,486043→9,750983(-7,010%) ; MTP1 MAIN10,929094→10,398500(-4,855%), HOLD10,084632→9,678674(-4,026%). WarmupsOFFetMTPMAINdu candidat légèrementpositifs, écartsensuiteinversés :ralentissementobservé, causecode/conditionsnonisolée. PasdeconfirmationinverséeOFF/MTPaprèsdemandeclôture ; nepastransformercesécartsenrégressioncausaleétablie.
+- 20réponsesgold128exactesdanscontrols, acceptation/modes/compteursinchangés ; samplers/processus/lecteursjoints. Pic8,221187Go, ledgerprocessusswap-inslogiques0B ; système65536Bnouveauxswap-outs pendantletémoinDFlashstock, attributioninconnue. LesautrescampagnesB1finiesavaient0nouveauswap-out. Neprétendrezeroglobalswapdanscontrols.
+- SuiteMLX/chatdubinaireprototypefigéb1179f02 :premiertour178pass/3échecsHTTPloopbackEPERM/157ignorés, relancehorssandbox181pass/0échec/157ignorés. CPU154pass/5ignorés, format/Clippystrict/buildspassés ; physique240projections+84étatsQSA+36préfixes+43bridgeet4budgetsMTP exacts. KaniICEavantobligations, aucunepreuveGPUobtenue. Tentativeanalyseadhocinitialeavecfiltreerronédemode:KeyErroravantécriturerapport ; filtrecorrigéet20réponsesexplicitementvérifiées.
+- Préenregistrementretrait :archiverpatch2fe20263, identités, commandesetpreuvesdansdocs/measurements/issue46/B1 ; restaurerexactementles3fichiersexécutablesetretirerlenouveautestqsa_batch_tests.rs parrapportà8668793b ; préserverfichiersprivésK1. Puisvérifierégalitéoctets, formater/check, rebuildCLIpartagé pournepaslaisserleprototypecommebinairecourant, sansnouvelleinférence. Appinstallée084inchangée. Sourcehistoriqueetpreuvesconservées, pasdegainlivré.
+
+- **Retrait B1 achevé** :arbre native intégralementidentiqueà8668793b (gitdiffvide), testajoutéretiré, formatcheckpassé ; CLIreleaseMLX/chatreconstruitdepuisae20d395daafeeb0a09efbf3ac98318513d244d5, SHA2567519009a550dbaecea4230c2b45a0d9007bd0a4b493a73d2c42a1d974ba0bf4d, --helppasse sansmodèle. Preuves etmanifesteshashvérifiésdansdocs/measurements/issue46/B1/final-restored.json. AucunGPUbenchmarksupplémentaireaprèsretrait, aucuneappliinstalléechangée. Clôturenonconcluante, causeécartsOFF/MTPnonisolée, issue52noncommencéeàlademandeutilisateur.

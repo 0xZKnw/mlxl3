@@ -1,0 +1,28 @@
+Native MLXL3 Rust/Metal runtime
+
+Usage: mlxl3-rs [OPTIONS] <COMMAND>
+
+Commands:
+  runtime-info  Machine-readable engine identity; no model or registry mutation
+  list          
+  inspect       
+  register      
+  remove        
+  codec         JSON-line codec oracle used for differential tests (not a chat bridge)
+  split         Feed a JSON array of text chunks on stdin; return reasoning/answer fragments
+  run           Native LFM2, Qwen, Gemma 4 and Ling 3 chat through MLX
+  bridge        Resident JSON-lines bridge consumed by MLXL3 Desktop
+  serve         Serve an EXL3 model through an OpenAI-compatible HTTP API
+  hub           Browse EXL3 repositories on Hugging Face
+  dflash-draft  Install or validate the pinned Qwen DFlash2 draft (no target weights)
+  mtp-head      Install or inspect a native Qwen MTP head without downloading the target
+  mcp           Configure and inspect Model Context Protocol servers
+  forward       Emit logits for an imposed token sequence (native parity check)
+  help          Print this message or the help of the given subcommand(s)
+
+Options:
+      --registry <REGISTRY>  
+  -h, --help                 Print help
+  -V, --version              Print version
+
+Powered by MTPLX https://github.com/youssofal/MTPLX

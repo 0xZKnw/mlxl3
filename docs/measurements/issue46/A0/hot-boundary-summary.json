@@ -1,0 +1,97 @@
+{
+  "status": "validated_diagnostic_not_throughput_gain",
+  "identity": {
+    "source": "45deec6dce8fb340779c221355e5db88241f1dc1",
+    "binary": "/Users/justin/Documents/mix-stq1_0/build/issue46/A0/native-tests",
+    "sha256": "29ddbab841c5120047201bbd6631e7f1061673b878852b11525a2fb817832032",
+    "tracked_clean": true,
+    "production_math_changed": false
+  },
+  "cases": {
+    "MAIN": {
+      "probes": [
+        {
+          "phase": "trace_1",
+          "cold_batches_with_selected_hot_routes": 1545,
+          "ready_at_io_begin": 0,
+          "ready_at_io_return": 1358,
+          "pending_at_io_return": 187,
+          "ready_at_io_return_percent": 87.89644012944984,
+          "inclusive_disk_read_ms_per_emitted_token": 25.500642,
+          "diagnostic_tps": 11.776872753229947
+        },
+        {
+          "phase": "trace_2",
+          "cold_batches_with_selected_hot_routes": 1547,
+          "ready_at_io_begin": 0,
+          "ready_at_io_return": 1369,
+          "pending_at_io_return": 178,
+          "ready_at_io_return_percent": 88.49385908209437,
+          "inclusive_disk_read_ms_per_emitted_token": 26.34523357142857,
+          "diagnostic_tps": 11.6090193764812
+        }
+      ],
+      "controls_diagnostic_tps": {
+        "control_before": 11.863523717937944,
+        "control_after": 11.820266653958317
+      },
+      "process_peak_footprint_bytes": 8569265016
+    },
+    "HOLD": {
+      "probes": [
+        {
+          "phase": "trace_1",
+          "cold_batches_with_selected_hot_routes": 1583,
+          "ready_at_io_begin": 0,
+          "ready_at_io_return": 1382,
+          "pending_at_io_return": 201,
+          "ready_at_io_return_percent": 87.30259001895136,
+          "inclusive_disk_read_ms_per_emitted_token": 26.91163550793651,
+          "diagnostic_tps": 10.757899804379118
+        },
+        {
+          "phase": "trace_2",
+          "cold_batches_with_selected_hot_routes": 1589,
+          "ready_at_io_begin": 1,
+          "ready_at_io_return": 1379,
+          "pending_at_io_return": 210,
+          "ready_at_io_return_percent": 86.78414096916299,
+          "inclusive_disk_read_ms_per_emitted_token": 25.816857587301588,
+          "diagnostic_tps": 11.649108601657876
+        }
+      ],
+      "controls_diagnostic_tps": {
+        "control_before": 11.67920856862748,
+        "control_after": 11.718765077882821
+      },
+      "process_peak_footprint_bytes": 8544590712
+    }
+  },
+  "scope": "Hot readiness probes are non-waiting observations, not exclusive GPU durations. Inclusive I/O is not exposed I/O.",
+  "processes": [
+    {
+      "name": "readiness-api",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 23986176
+    },
+    {
+      "name": "MAIN",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 9617408,
+      "children_maximum_rss_bytes": 4624547840
+    },
+    {
+      "name": "HOLD",
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 1048576,
+      "children_maximum_rss_bytes": 7762460672
+    }
+  ]
+}
