@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         studio?.modelLibrary.cancelDownload()
         studio?.persistNow()
+        studio?.stopServices()
     }
 
     func configureMenuBar(with studio: StudioModel) {

@@ -566,7 +566,7 @@ struct ComposerView: View {
             }
             ComposerVoiceControl(studio: studio, voice: studio.voice)
             HStack(alignment: .bottom, spacing: 12) {
-                TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
+                TextField(studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…") : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...6)
@@ -661,7 +661,11 @@ private struct ComposerFooterView: View {
                 .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
                 .help(L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
-                Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
+                if studio.selectedMode == .agent {
+                    Label(L("Sandbox native", "Native sandbox"), systemImage: "lock.shield")
+                    if studio.mcpUpdating { ProgressView().controlSize(.mini) }
+                } else {
+                  Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
                     HStack(spacing: 5) {
                         Image(systemName: "network")
                         Text("MCP")
@@ -680,6 +684,7 @@ private struct ComposerFooterView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
+                }
                 }
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 HStack(spacing: 6) {

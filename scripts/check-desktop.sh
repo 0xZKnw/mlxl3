@@ -46,6 +46,20 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
     tests/model-idle-unload-check.swift > "${test_dir}/ModelIdleUnloadCombined.swift"
 idle_sources=("${sources[@]}")
 idle_sources=("${(@)idle_sources:#*/StudioModel.swift}")
+
+swiftc "${swiftc_args[@]}" -O \
+    apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift \
+    tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
+"${test_dir}/agent-sandbox-check"
+"${test_python}" tests/check-agent-protocol.py "${test_dir}/agent-sandbox-check"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/studio-modes-check.swift > "${test_dir}/StudioModesCombined.swift"
+swiftc "${swiftc_args[@]}" \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioModesCombined.swift" -o "${test_dir}/studio-modes-check"
+"${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py"
+
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"

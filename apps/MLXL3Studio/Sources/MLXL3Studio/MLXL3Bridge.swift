@@ -126,7 +126,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String, contextLength: Int = 0) async throws {
+    func start(model: String, contextLength: Int = 0, registry: URL? = nil) async throws {
         let previous = process
         stop()
         let ticket = generationID.withLock { $0 }
@@ -151,7 +151,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             deltaFlushWorkItem = nil
         }
         process.executableURL = executable
-        process.arguments = ["bridge", model, "--context-length", String(contextLength)]
+        process.arguments = (registry.map { ["--registry", $0.path] } ?? []) + ["bridge", model, "--context-length", String(contextLength)]
         process.environment = ProcessInfo.processInfo.environment
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
@@ -212,7 +212,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             inputPipe = nil
             output.fileHandleForReading.readabilityHandler = nil
             error.fileHandleForReading.readabilityHandler = nil
-            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength) }
+            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength, registry: registry) }
             throw failure
         }
     }
@@ -269,6 +269,12 @@ final class MLXL3Bridge: @unchecked Sendable {
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
+    }
+
+    func stopAndWait() async {
+        let previous = process
+        stop()
+        if let previous, previous.isRunning { await Task.detached { previous.waitUntilExit() }.value }
     }
 
     func stop() {

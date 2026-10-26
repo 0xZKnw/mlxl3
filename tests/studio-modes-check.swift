@@ -1,0 +1,211 @@
+import AppKit
+import Foundation
+import SwiftUI
+
+extension StudioModel {
+  func modesRegistryForCheck() throws -> URL { try prepareAgentRegistry() }
+  var modesBridgeRunning: Bool { bridge.isRunning }
+}
+
+@main struct StudioModesCheck {
+  @MainActor static func main() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-modes-\(UUID())")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
+    setenv("MLXL3_HOME", root.path, 1)
+    let suite = "mlxl3.modes.\(UUID())"
+    let history = root.appendingPathComponent("history.json")
+    let prefs = UserDefaults(suiteName: suite)!
+    defer { prefs.removePersistentDomain(forName: suite) }
+    let studio = StudioModel(conversationFileURL: history, preferences: prefs)
+    defer { studio.stopServices() }
+    var count = 0
+    func check(_ value: @autoclosure () -> Bool, _ message: String) {
+      precondition(value(), message)
+      count += 1
+    }
+    func wait(_ predicate: @MainActor () -> Bool) async throws {
+      for _ in 0..<400 {
+        if predicate() { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      preconditionFailure("Mode fixture timed out")
+    }
+    let model = LocalModel(
+      name: "modes", path: "/tmp/fixture-model", modelType: "fixture", format: "EXL3", bits: 2.5,
+      sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
+    studio.models = [model]
+    studio.selectModel(model.name)
+    try await wait { studio.engineState.isReady }
+    let chat = studio.selectedConversationID!
+    check(
+      studio.selectedMode == .chat && studio.currentConversation?.agent == false,
+      "Old conversation defaults to Chat")
+    studio.selectMode(.agent)
+    try await wait { studio.engineState.isReady && studio.mcpToolCount == 1 && !studio.mcpUpdating }
+    let agent = studio.selectedConversationID!
+    let workspace = studio.agentWorkspaceURL!
+    check(
+      agent != chat && studio.currentConversation?.agent == true,
+      "Agent gets a separate conversation")
+    let registry = try studio.modesRegistryForCheck()
+    let config =
+      try JSONSerialization.jsonObject(
+        with: Data(
+          contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json")))
+      as! [String: Any]
+    let servers = config["mcpServers"] as! [String: [String: Any]]
+    check(
+      Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false,
+      "No user or remote MCP in Agent")
+    check(
+      (servers["sandbox"]?["args"] as? [String]) == ["--agent-tools", workspace.path],
+      "Production helper receives the task folder")
+    check(
+      !workspace.path.hasPrefix(registry.deletingLastPathComponent().path),
+      "Commands cannot write their configuration")
+    func launches() throws -> [[String: Any]] {
+      try String(contentsOf: root.appendingPathComponent("mode-launches.jsonl"), encoding: .utf8)
+        .split(separator: "\n").map {
+          try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }
+    }
+    let initialLaunches = try launches().count
+    let actualRegistry = try launches().last?["registry"] as? String
+    check(
+      actualRegistry == registry.path, "Agent actually starts the bridge with its isolated registry"
+    )
+    studio.newConversation()
+    try await wait { !studio.mcpUpdating }
+    let second = studio.selectedConversationID!
+    let currentLaunches = try launches().count
+    check(
+      second != agent && currentLaunches == initialLaunches,
+      "New agent tasks reuse the resident model")
+    studio.selectConversation(agent)
+    try await wait { !studio.mcpUpdating }
+    check(studio.agentWorkspaceURL == workspace, "Returning to a task restores its folder")
+    studio.responseSchema = "{\"type\":\"object\"}"
+    studio.draft = "Create a file"
+    check(studio.canSend, "Agent ready after tool handshake")
+    studio.send()
+    try await wait { !studio.isGenerating }
+    let request =
+      try JSONSerialization.jsonObject(
+        with: Data(studio.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      request["mcp_enabled"] as? Bool == true && request["response_schema"] == nil,
+      "Agent routes tools independently of Chat schema/MCP settings")
+    check(
+      studio.labSamples.count == 1 && studio.labSamples[0].model == "modes"
+        && studio.labSamples[0].mode == "agent", "Completion records real model and mode")
+    check(
+      studio.labSamples[0].stats.decodeTps == 30 && studio.labSamples[0].stats.prefillTps == 120,
+      "Lab retains metrics without recomputation")
+    let messageID = studio.currentConversation!.messages.last!.id
+    check(
+      studio.branchConversation(at: messageID) && studio.currentConversation?.agent == true,
+      "Agent branch retains mode")
+    try await wait { !studio.mcpUpdating }
+    check(studio.persistNow(), "Workspace persisted")
+    let restored = StudioModel(conversationFileURL: history, isPreview: true, preferences: prefs)
+    check(
+      restored.selectedMode == .agent && restored.currentConversation?.agent == true
+        && restored.labSamples.count == 1, "Mode and Lab survive relaunch")
+    for ttft in [0.0, 1, -1, .infinity, .nan] {
+      for prefill in [0.0, 1, -1, .infinity, .nan] {
+        for decode in [0.0, 1, -1, .infinity, .nan] {
+          for prompt in [-1, 0, 1] {
+            for generated in [-1, 0, 1] {
+              let stats = GenerationStats(
+                ttftSeconds: ttft, prefillTps: prefill, decodeTps: decode,
+                promptTokens: prompt, generatedTokens: generated, peakMemoryGB: nil,
+                modelSizeGB: nil,
+                cachedPromptTokens: nil, evaluatedPromptTokens: nil)
+              let sample = LabSample(
+                model: "fixture", modelPath: "", bits: nil, mode: "chat", runtime: "", system: "",
+                hardware: "", context: 0, temperature: 0, topK: 1, mtp: false, dflash: false,
+                stats: stats)
+              let expected =
+                generated == 1 && prompt >= 0
+                && [ttft, prefill, decode].allSatisfy { $0 == 0 || $0 == 1 }
+              check(sample.valid == expected, "Lab excludes nonfinite/negative/empty measurements")
+            }
+          }
+        }
+      }
+    }
+    studio.selectMode(.chat)
+    try await wait { studio.engineState.isReady }
+    check(
+      studio.selectedConversationID == chat && studio.responseSchema.contains("object"),
+      "Chat history and settings preserved")
+    studio.selectMode(.lab)
+    studio.draft = "not a chat"
+    check(!studio.canSend, "Lab cannot trigger inference")
+    studio.startServer(port: 0)
+    check(!studio.localServer.active && studio.featureError != nil, "Invalid server port refused")
+    // Use a disposable high port and verify the endpoint, not only a ready label.
+    let port = 39000 + Int(getpid() % 10000)
+    studio.startServer(port: port)
+    try await wait { studio.localServer.running || studio.localServer.error != nil }
+    check(
+      studio.localServer.running && !studio.canSend && !studio.modesBridgeRunning,
+      "Server owns the model exclusively")
+    let endpoint = URL(string: "http://127.0.0.1:\(port)/v1/models")!
+    let (_, refused) = try await URLSession.shared.data(from: endpoint)
+    check(
+      (refused as? HTTPURLResponse)?.statusCode == 401, "Server rejects unauthenticated clients")
+    var authenticated = URLRequest(url: endpoint)
+    authenticated.setValue(
+      "Bearer \(studio.localServer.apiKey!)", forHTTPHeaderField: "Authorization")
+    let (data, response) = try await URLSession.shared.data(for: authenticated)
+    check(
+      (response as? HTTPURLResponse)?.statusCode == 200 && !data.isEmpty,
+      "Actual local server endpoint responds")
+    studio.selectMode(.chat)
+    try await wait {
+      studio.selectedMode == .chat && studio.engineState.isReady && !studio.localServer.active
+    }
+    check(!studio.localServer.running, "Returning to Chat stops and joins Server")
+    studio.localServer.start(model: "serve-fail", port: port, context: 0)
+    try await wait { !studio.localServer.active }
+    check(
+      studio.localServer.error?.contains("fixture bind failure") == true,
+      "Startup failure remains visible")
+    studio.localServer.start(model: "serve-silent", port: port, context: 0)
+    studio.localServer.stop()
+    try await wait { !studio.localServer.active }
+    check(!studio.localServer.busy, "Silent startup can be cancelled")
+    if CommandLine.arguments.count > 2 {
+      _ = NSApplication.shared
+      let preview = StudioModel.uiPreview()
+      preview.selectMode(.agent)
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800), styleMask: .borderless,
+        backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      let host = NSHostingView(
+        rootView: StudioView().environmentObject(preview).preferredColorScheme(.dark))
+      window.contentView = host
+      host.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+      defer { window.close() }
+      try await Task.sleep(for: .milliseconds(250))
+      host.layoutSubtreeIfNeeded()
+      guard let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+        preconditionFailure("Agent UI did not render")
+      }
+      host.cacheDisplay(in: host.bounds, to: image)
+      let png = image.representation(using: .png, properties: [:])!
+      try png.write(to: URL(fileURLWithPath: CommandLine.arguments[2]))
+      check(
+        image.pixelsWide > 0 && image.pixelsHigh > 0 && png.count > 10_000,
+        "Agent workspace renders nonempty UI")
+    }
+    print(
+      "Studio modes checks passed: \(count), navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle"
+    )
+  }
+}
