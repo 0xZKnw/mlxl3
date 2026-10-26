@@ -506,6 +506,7 @@ struct Conversation: Identifiable {
     var contextUsage: ContextUsage?
     var projectID: UUID?
     var parentConversationID: UUID?
+    var agent = false
 
     init(
         id: UUID = UUID(),
@@ -529,7 +530,8 @@ struct Conversation: Identifiable {
             createdAt: createdAt,
             contextUsage: contextUsage,
             projectID: projectID,
-            parentConversationID: parentConversationID
+            parentConversationID: parentConversationID,
+            agent: agent ? true : nil
         )
     }
 
@@ -543,6 +545,7 @@ struct Conversation: Identifiable {
         )
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID
+        agent = snapshot.agent ?? false
     }
 }
 

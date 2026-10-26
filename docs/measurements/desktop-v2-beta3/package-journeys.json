@@ -1,0 +1,142 @@
+{
+  "status": "passed",
+  "purpose": "functional qualification, no performance comparison",
+  "source": "45697feb06cac08983683c9ad5c1b8afdb8e9d32",
+  "system": "macOS-27.2-arm64-arm-64bit",
+  "conditions": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+  "chip": "Apple M5",
+  "hashes": {
+    "Contents/Resources/runtime/mlxl3": "dd5d4416dfcc3acc421aa623b99405680c13d413bbb164bb357ca0d84e9d1a71",
+    "Contents/MacOS/MLXL3Studio": "c214e56d415586233869fab9cc85d558791799e0209b2d53bd3b6419ce76d273"
+  },
+  "runtime": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "45697feb06ca",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "2.0.0"
+  },
+  "bundle": {
+    "version": "2.0.0",
+    "build": "34",
+    "commit": "45697feb06cac08983683c9ad5c1b8afdb8e9d32",
+    "tracked_changes": false,
+    "runtime": "Rust + MLX 0.32.2",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "model": {
+    "added_at": "2026-10-05T19:45:51.341708Z",
+    "bits": 2.0,
+    "format": "EXL3",
+    "model_type": "qwen3_5",
+    "modules": 401,
+    "name": "Qwen3.8-27B-exl3-6a9ca9d0",
+    "path": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "size": "9.7 GB",
+    "size_bytes": 9696705133
+  },
+  "model_config_sha256": "dd800226988cd64f99025617a04ea130562976886c89a23299ee264f0543fef4",
+  "protocol": {
+    "context": 2048,
+    "temperature": 0,
+    "top_k": 1,
+    "repetition_penalty": 1,
+    "mtp": false,
+    "dflash": false,
+    "max_tokens": 512,
+    "repetitions": 1,
+    "benchmark_warmup": "not applicable"
+  },
+  "agent": {
+    "status": "passed",
+    "file_oracle": true,
+    "tool_calls": 1,
+    "stats": {
+      "cached_prompt_tokens": 256,
+      "context_limit": 2048,
+      "context_used": 528,
+      "decode_seconds": 35.397378458,
+      "decode_tokens": 325,
+      "decode_tps": 9.181470892982139,
+      "dflash_accepted_tokens": null,
+      "dflash_block_seconds": 0.0,
+      "dflash_blocks": null,
+      "dflash_lookup_blocks": null,
+      "dflash_profile": null,
+      "dflash_proposed_tokens": null,
+      "draft_load_seconds": 0.0,
+      "elapsed_seconds": 46.198192834,
+      "end_to_end_ttft_seconds": 7.971574167,
+      "evaluated_prompt_tokens": 655,
+      "generated_tokens": 327,
+      "memory": {
+        "mlx_active_bytes": 9546302332,
+        "mlx_cache_bytes": 3637263568,
+        "mlx_peak_bytes": 10332695066,
+        "process_compressed_lifetime_logical_bytes": 4198875136,
+        "process_compressed_logical_bytes": 1902739456,
+        "process_compressed_peak_logical_bytes": 3985670144,
+        "process_decompressions": 634499,
+        "process_footprint_bytes": 13398152736,
+        "process_id": 55785,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 13398169120,
+        "process_start_abstime": 2818000460007
+      },
+      "model_size_gb": 9.696705133,
+      "mtp_accepted_tokens": null,
+      "mtp_blocks": null,
+      "mtp_depth_blocks": null,
+      "mtp_lookup_blocks": null,
+      "mtp_proposed_tokens": null,
+      "prefill_seconds": 10.690710708000001,
+      "prefill_tps": 61.26814370814981,
+      "prepare_seconds": 0.004283416999999999,
+      "prompt_tokens": 911,
+      "round_count": 2,
+      "tool_rounds": 1,
+      "tool_seconds": 0.104147667,
+      "ttft_seconds": 7.971533792
+    },
+    "answer": "Done"
+  },
+  "server": {
+    "status": "passed",
+    "unauthenticated": 401,
+    "models": {
+      "data": [
+        {
+          "id": "Qwen3.8-27B-exl3-6a9ca9d0",
+          "object": "model",
+          "owned_by": "mlxl3"
+        }
+      ],
+      "object": "list"
+    },
+    "completion": {
+      "choices": [
+        {
+          "finish_reason": "length",
+          "index": 0,
+          "message": {
+            "content": "",
+            "reasoning_content": "The user is asking me to say hello",
+            "role": "assistant"
+          }
+        }
+      ],
+      "created": 1793050108,
+      "id": "chatcmpl-55821-2",
+      "model": "Qwen3.8-27B-exl3-6a9ca9d0",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 8,
+        "prompt_tokens": 55,
+        "total_tokens": 63
+      }
+    }
+  }
+}

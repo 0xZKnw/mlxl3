@@ -12,6 +12,13 @@ struct MLXL3StudioApp: App {
     private let isPreview = Self.previewProcess
 
     init() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.count == 4, arguments[1] == "--agent-command" {
+            AgentSandbox.commandMode(root: arguments[2], command: arguments[3])
+        }
+        if arguments.count == 3, arguments[1] == "--agent-tools" {
+            AgentSandbox.serve(root: arguments[2])
+        }
         if ProcessInfo.processInfo.arguments.contains("--check-chat-timeline") {
             do {
                 try ChatTimelineCheck.run()

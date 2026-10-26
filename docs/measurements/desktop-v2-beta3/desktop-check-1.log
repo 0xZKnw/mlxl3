@@ -1,0 +1,84 @@
+Building for debugging...
+[2 / 6] MLXL3Studio-product
+[3 / 58]
+[10 / 58]
+[11 / 58]
+[12 / 58]
+[17 / 58]
+[18 / 58]
+[19 / 58]
+[22 / 58]
+[24 / 58]
+[35 / 58]
+[36 / 58]
+[40 / 58]
+[41 / 58]
+[45 / 58]
+[47 / 58]
+[48 / 58]
+[49 / 58]
+[51 / 58]
+[54 / 58] MLXL3Studio-product
+[55 / 59] MLXL3Studio-product
+[56 / 59] MLXL3Studio-product
+[62 / 65] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[64 / 65] MLXL3Studio-product
+Build complete! (24,26 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping
+Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Agent sandbox checks passed: 24, real commands, file/network/child isolation, environment, limits, process cleanup and invalid input
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.aweCoxPvmM/StudioModesCombined.swift:2010:35: error: 'prepareAgentRegistry' is inaccessible due to 'private' protection level
+1736 |     }
+1737 | 
+1738 |     private func prepareAgentRegistry() throws -> URL {
+     |                  `- note: 'prepareAgentRegistry()' declared here
+1739 |         guard let root = agentWorkspaceURL, let model = selectedModel,
+1740 |               FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else { throw MLXL3BridgeError.invalidResponse }
+     :
+2008 |         let agent = studio.selectedConversationID!, workspace = studio.agentWorkspaceURL!
+2009 |         check(agent != chat && studio.currentConversation?.agent == true, "Agent gets a separate conversation")
+2010 |         let registry = try studio.prepareAgentRegistry()
+     |                                   `- error: 'prepareAgentRegistry' is inaccessible due to 'private' protection level
+2011 |         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json"))) as! [String: Any]
+2012 |         let servers = config["mcpServers"] as! [String: [String: Any]]
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.aweCoxPvmM/StudioModesCombined.swift:2013:9: error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+2011 |         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json"))) as! [String: Any]
+2012 |         let servers = config["mcpServers"] as! [String: [String: Any]]
+2013 |         check(Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false, "No user or remote MCP in Agent")
+     |         `- error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+2014 |         check((servers["sandbox"]?["args"] as? [String]) == ["--agent-tools", workspace.path], "Production helper receives the task folder")
+2015 |         check(!workspace.path.hasPrefix(registry.deletingLastPathComponent().path), "Commands cannot write their configuration")
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.aweCoxPvmM/StudioModesCombined.swift:2014:9: error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+2012 |         let servers = config["mcpServers"] as! [String: [String: Any]]
+2013 |         check(Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false, "No user or remote MCP in Agent")
+2014 |         check((servers["sandbox"]?["args"] as? [String]) == ["--agent-tools", workspace.path], "Production helper receives the task folder")
+     |         `- error: failed to produce diagnostic for expression; please submit a bug report (https://swift.org/contributing/#reporting-bugs)
+2015 |         check(!workspace.path.hasPrefix(registry.deletingLastPathComponent().path), "Commands cannot write their configuration")
+2016 |         func launches() throws -> [[String: Any]] {
+
+/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-check.aweCoxPvmM/StudioModesCombined.swift:2057:72: error: 'bridge' is inaccessible due to 'private' protection level
+ 129 |     let modelLibrary = ModelLibrary()
+ 130 |     let isPreview: Bool
+ 131 |     private let bridge = MLXL3Bridge()
+     |                 `- note: 'bridge' declared here
+ 132 |     private let conversationStore: ConversationStore
+ 133 |     private let conversationFileURL: URL
+     :
+2055 |         studio.startServer(port: port)
+2056 |         try await wait { studio.localServer.running || studio.localServer.error != nil }
+2057 |         check(studio.localServer.running && !studio.canSend && !studio.bridge.isRunning, "Server owns the model exclusively")
+     |                                                                        `- error: 'bridge' is inaccessible due to 'private' protection level
+2058 |         let (data, response) = try await URLSession.shared.data(from: URL(string: "http://127.0.0.1:\(port)/v1/models")!)
+2059 |         check((response as? HTTPURLResponse)?.statusCode == 200 && !data.isEmpty, "Actual local server endpoint responds")

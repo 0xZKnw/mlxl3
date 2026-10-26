@@ -12,6 +12,13 @@ private struct DFlashInstallEvent: Decodable {
 
 @MainActor
 final class StudioModel: ObservableObject {
+    @Published private(set) var selectedMode: StudioMode = .chat
+    @Published private(set) var labSamples: [LabSample] = []
+    let localServer = LocalServer()
+    private var labConfiguration: ((GenerationStats) -> LabSample)?
+    private var modeTransition: Task<Void, Never>?
+    private var serverObservation: AnyCancellable?
+    private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = []
     @Published var selectedModelName: String?
     @Published var conversations: [Conversation] = [Conversation()]
@@ -179,6 +186,7 @@ final class StudioModel: ObservableObject {
             topK = snapshot.topK
             repetitionPenalty = snapshot.repetitionPenalty
             systemPrompt = snapshot.systemPrompt
+            labSamples = Array((snapshot.labSamples ?? []).filter(\.valid).suffix(1000))
             projects = snapshot.projects ?? []
             profiles = snapshot.profiles ?? []
             documents = snapshot.documents ?? []
@@ -204,6 +212,8 @@ final class StudioModel: ObservableObject {
         mtpLegacyModelName = selectedModelName
         dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
+        serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        selectedMode = currentConversation?.agent == true ? .agent : .chat
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
             self.readyInfo = nil
@@ -346,7 +356,9 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
+        !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
+            && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
+            && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
     }
 
@@ -602,7 +614,7 @@ final class StudioModel: ObservableObject {
     }
 
     func selectModel(_ name: String) {
-        guard !isGenerating else { return }
+        guard !isGenerating, !localServer.active, modeTransition == nil else { return }
         if name == selectedModelName, bridge.isRunning { return }
         selectedModelName = name
         schedulePersistence()
@@ -634,6 +646,7 @@ final class StudioModel: ObservableObject {
         contextMemory = nil
         modelResidentBytes = nil
         bridge.stop()
+        bridgeUsesAgentRegistry = false
         engineState = .idle
         mcpUpdating = false
         mcpServerCount = 0
@@ -643,14 +656,18 @@ final class StudioModel: ObservableObject {
     }
 
     func newConversation() {
+        guard !isGenerating || currentConversation?.agent != true else { return }
         voice.stop()
         if let id = selectedConversationID { drafts[id] = draft }
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
+        conversation.agent = selectedMode == .agent
+        if selectedMode == .lab || selectedMode == .server { selectMode(.chat) }
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
         draft = ""
         schedulePersistence()
+        if conversation.agent { refreshAgentWorkspace() }
     }
 
     func deleteConversation(_ id: UUID) {
@@ -666,6 +683,7 @@ final class StudioModel: ObservableObject {
             if let index = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[index] = Conversation(id: id)
                 conversations[index].projectID = removed.projectID
+                conversations[index].agent = removed.agent
             }
             voice.stop(); draft = ""
             schedulePersistence()
@@ -681,7 +699,7 @@ final class StudioModel: ObservableObject {
 
     func send() {
         guard canSend, let conversationIndex else { return }
-        if !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if selectedMode != .agent && !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             guard workspaceFeaturesAvailable else { featureError = L("Ce moteur ne prend pas en charge le JSON validé. Mettez le moteur à jour.", "This engine does not support validated JSON. Update the engine."); return }
             do {
                 guard try JSONSerialization.jsonObject(with: Data(responseSchema.utf8)) is [String: Any] else { throw MCPSettingsError.invalid }
@@ -714,11 +732,22 @@ final class StudioModel: ObservableObject {
         let requestID = UUID().uuidString
         activeRequestID = requestID
         activeResponseID = assistant.id
+        labConfiguration = nil
+        if let model = selectedModel {
+            let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
+            let system = ProcessInfo.processInfo.operatingSystemVersionString, hardware = LabHardware.identity
+            let context = activeContextLimit ?? 0, temperature = samplingTemperature, topK = samplingTopK
+            let mtp = mtpApplicable, dflash = dflash2Applicable
+            labConfiguration = { stats in LabSample(model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
+                runtime: runtime, system: system, hardware: hardware, context: context, temperature: temperature,
+                topK: topK, mtp: mtp, dflash: dflash, stats: stats) }
+        }
         dflashActive = nil
         engineState = .generating
 
         var messages: [PromptMessage] = []
-        let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction]
+        let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
+            selectedMode == .agent ? "You are a local coding agent. Use the run tool to inspect, create and edit files in your private workspace, then verify your work. Commands use macOS system tools, have no network or access to personal files, and are limited to 5 seconds and 32 KiB of output. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
@@ -741,7 +770,7 @@ final class StudioModel: ObservableObject {
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
-                    mcpEnabled: mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    mcpEnabled: selectedMode == .agent || (mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
                     dflash2: dflash2Applicable,
                     dflashDraftPath: dflashDraftPath,
                     dflashMode: dflashMode,
@@ -749,8 +778,8 @@ final class StudioModel: ObservableObject {
                     mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
                     memorySaver: memorySaverEnabled && memorySaverSupported,
-                    allowedTools: currentProject?.allowedTools,
-                    responseSchema: responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
+                    allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
+                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
                 )
             )
         } catch {
@@ -790,7 +819,7 @@ final class StudioModel: ObservableObject {
         guard !isPreview, bridge.isRunning else { return }
         mcpUpdating = true
         do {
-            try bridge.setMCPEnabled(mcpEnabled)
+            try bridge.setMCPEnabled(bridgeUsesAgentRegistry || mcpEnabled)
         } catch {
             mcpUpdating = false
             mcpErrors = ["connexion": error.localizedDescription]
@@ -1219,12 +1248,19 @@ final class StudioModel: ObservableObject {
     }
 
     func selectConversation(_ id: UUID) {
-        guard conversations.contains(where: { $0.id == id }) else { return }
+        guard let conversation = conversations.first(where: { $0.id == id }) else { return }
+        guard !localServer.active, modeTransition == nil else { return }
+        if isGenerating && (currentConversation?.agent == true || conversation.agent) && selectedConversationID != id { return }
+        let previousID = selectedConversationID
+        let previousAgent = currentConversation?.agent == true
         if let previous = selectedConversationID { drafts[previous] = draft }
         voice.stop()
         selectedConversationID = id
         selectedProjectID = currentConversation?.projectID
         draft = drafts[id] ?? ""
+        selectedMode = conversation.agent ? .agent : .chat
+        if previousAgent != conversation.agent { loadSelectedModel() }
+        else if conversation.agent && previousID != id { refreshAgentWorkspace() }
         schedulePersistence()
     }
 
@@ -1325,7 +1361,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !isGenerating else { return }
+        guard !isGenerating, !localServer.active, modeTransition == nil else { return }
         modelIdleUnloader.cancel()
         cancelDFlashPreparation()
         dflashTuneSupported = false; dflashTuningKey = nil; dflashConfigureSupported = false
@@ -1366,9 +1402,13 @@ final class StudioModel: ObservableObject {
         mcpErrors = [:]
         activeRequestID = nil
         activeResponseID = nil
+        let agentMode = selectedMode == .agent
+        let contextLength = savedContextLength
         Task {
             do {
-                try await bridge.start(model: selectedModelName, contextLength: savedContextLength)
+                let registry = try agentMode ? prepareAgentRegistry() : nil
+                bridgeUsesAgentRegistry = agentMode
+                try await bridge.start(model: selectedModelName, contextLength: contextLength, registry: registry)
             } catch is CancellationError { }
             catch {
                 engineState = .failed(error.localizedDescription)
@@ -1481,7 +1521,7 @@ final class StudioModel: ObservableObject {
                 modules: info.modules,
                 residentGB: info.residentGB
             )
-            if mcpEnabled { updateMCPConnection() }
+            if mcpEnabled || bridgeUsesAgentRegistry { updateMCPConnection() }
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
             else if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
         case "mcp_status":
@@ -1540,6 +1580,11 @@ final class StudioModel: ObservableObject {
             schedulePersistence()
         case "complete":
             guard event.requestID == activeRequestID else { return }
+            if event.contextFull != true, let stats = event.stats, let sample = labConfiguration?(stats), sample.valid {
+                labSamples.append(sample)
+                labSamples = Array(labSamples.suffix(1000))
+            }
+            labConfiguration = nil
             if let stats = event.stats, let name = selectedModelName,
                let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
                let limit = stats.contextLimit ?? conversations[index].contextUsage?.limit ?? activeContextLimit,
@@ -1562,6 +1607,7 @@ final class StudioModel: ObservableObject {
             restoreReadyState()
         case "cancelled":
             guard event.requestID == activeRequestID else { return }
+            labConfiguration = nil
             activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
             activeRequestID = nil
             activeResponseID = nil
@@ -1588,6 +1634,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func failActiveTurn(_ message: String) {
+        labConfiguration = nil
         mcpUpdating = false
         let detail = message.hasPrefix("Context full (")
             ? L("Contexte plein. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", message)
@@ -1622,7 +1669,7 @@ final class StudioModel: ObservableObject {
     }
 
     private var workspaceSnapshot: WorkspaceSnapshot {
-        WorkspaceSnapshot(
+        var snapshot = WorkspaceSnapshot(
             selectedConversationID: selectedConversationID,
             selectedModelName: selectedModelName,
             conversations: conversations.map(\.snapshot),
@@ -1635,6 +1682,8 @@ final class StudioModel: ObservableObject {
             documents: documents,
             responseSchema: responseSchema
         )
+        snapshot.labSamples = labSamples
+        return snapshot
     }
 
     private func schedulePersistence() {
@@ -1655,6 +1704,99 @@ final class StudioModel: ObservableObject {
 }
 
 extension StudioModel {
+    func selectMode(_ mode: StudioMode) {
+        guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
+        voice.stop()
+        if mode == .server || mode == .lab { selectedMode = mode; return }
+        if localServer.active {
+            localServer.stop()
+            modeTransition = Task {
+                while localServer.active && !Task.isCancelled { try? await Task.sleep(for: .milliseconds(50)) }
+                modeTransition = nil
+                guard !Task.isCancelled else { return }
+                selectMode(mode)
+                loadSelectedModel()
+            }
+            return
+        }
+        selectedMode = mode
+        if let conversation = conversations.first(where: { $0.agent == (mode == .agent) && $0.projectID == selectedProjectID }) {
+            selectConversation(conversation.id)
+        } else {
+            newConversation()
+            if mode != .agent { loadSelectedModel() }
+        }
+    }
+
+    var agentWorkspaceURL: URL? {
+        guard let id = selectedConversationID else { return nil }
+        return conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
+    }
+
+    func openAgentWorkspace() {
+        guard let url = agentWorkspaceURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            NSWorkspace.shared.open(url)
+        } catch { featureError = error.localizedDescription }
+    }
+
+    private func prepareAgentRegistry() throws -> URL {
+        guard let root = agentWorkspaceURL, let model = selectedModel,
+              FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else { throw MLXL3BridgeError.invalidResponse }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        guard root.standardizedFileURL.path == root.resolvingSymlinksInPath().path else { throw CocoaError(.fileReadNoPermission) }
+        _ = try AgentSandbox.profile(root: root)
+        let metadata = conversationFileURL.deletingLastPathComponent().appending(path: "agent-runtime", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let entry = try JSONSerialization.jsonObject(with: JSONEncoder().encode(model))
+        let registry = metadata.appending(path: "models.json")
+        try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
+            .write(to: registry, options: .atomic)
+        let config: [String: Any] = ["version": 1, "mcpServers": [
+            "exa": ["enabled": false, "url": "https://mcp.exa.ai/mcp"],
+            "sandbox": ["enabled": true, "command": Bundle.main.executableURL?.path ?? CommandLine.arguments[0],
+                "args": ["--agent-tools", root.path]]]]
+        try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
+        return registry
+    }
+
+    private func refreshAgentWorkspace() {
+        if engineState.isReady && bridge.isRunning && bridgeUsesAgentRegistry {
+            do { _ = try prepareAgentRegistry(); updateMCPConnection() }
+            catch { mcpToolCount = 0; mcpErrors = ["sandbox": error.localizedDescription] }
+        } else { loadSelectedModel() }
+    }
+
+    func startServer(port: Int) {
+        guard !isGenerating, modeTransition == nil, !localServer.active, let name = selectedModelName,
+              (1024...65535).contains(port) else { featureError = L("Choisissez un modèle et un port entre 1024 et 65535.", "Choose a model and a port between 1024 and 65535."); return }
+        selectedMode = .server
+        modeTransition = Task {
+            await bridge.stopAndWait()
+            ejectModel()
+            modeTransition = nil
+            guard !Task.isCancelled else { return }
+            localServer.start(model: name, port: port, context: savedContextLength)
+        }
+    }
+
+    func stopServices() {
+        modeTransition?.cancel(); modeTransition = nil
+        localServer.stop()
+        bridge.stop()
+    }
+
+    func exportLab() {
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "MLXL3-Lab.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(labSamples).write(to: url, options: .atomic)
+        } catch { featureError = error.localizedDescription }
+    }
+
     var currentProject: WorkspaceProject? { projects.first { $0.id == selectedProjectID } }
     var voiceLocale: String { language == .fr ? "fr-FR" : "en-US" }
 
@@ -1662,7 +1804,7 @@ extension StudioModel {
         guard !isGenerating else { return }
         voice.stop()
         selectedProjectID = id
-        if let conversation = conversations.first(where: { $0.projectID == id }) { selectConversation(conversation.id) }
+        if let conversation = conversations.first(where: { $0.projectID == id && $0.agent == (selectedMode == .agent) }) { selectConversation(conversation.id) }
         else { newConversation() }
         if let profileID = currentProject?.profileID, let profile = profiles.first(where: { $0.id == profileID }) { applyProfile(profile) }
     }
@@ -1733,6 +1875,7 @@ extension StudioModel {
         guard !isGenerating, let original = currentConversation,
             let index = original.messages.firstIndex(where: { $0.id == messageID }) else { return false }
         var branch = Conversation(title: original.title + L(" · branche", " · branch"))
+        branch.agent = original.agent
         branch.projectID = original.projectID
         branch.parentConversationID = original.id
         branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }

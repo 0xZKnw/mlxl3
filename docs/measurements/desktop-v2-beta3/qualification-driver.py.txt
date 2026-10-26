@@ -1,0 +1,117 @@
+"""Functional packaged Agent/Server checks; uses the repository's bounded transport."""
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+import uuid
+
+root = Path.cwd()
+sys.path.insert(0, str(root / 'scripts'))
+from native_json_process import JsonProcess
+
+out = root / 'docs/measurements/desktop-v2-beta3'
+app = root / 'dist/MLXL3 Desktop.app'
+engine = app / 'Contents/Resources/runtime/mlxl3'
+helper = app / 'Contents/MacOS/MLXL3Studio'
+report = {'status': 'running', 'purpose': 'functional qualification, no performance comparison', 'source': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(), 'system': platform.platform(), 'conditions': subprocess.check_output(['pmset', '-g', 'batt'], text=True), 'chip': subprocess.check_output(['sysctl', '-n', 'machdep.cpu.brand_string'], text=True).strip(), 'hashes': {}}
+for path in (engine, helper):
+    report['hashes'][str(path.relative_to(app))] = hashlib.file_digest(path.open('rb'), 'sha256').hexdigest()
+report['runtime'] = json.loads(subprocess.check_output([str(engine), 'runtime-info'], text=True, timeout=10))
+report['bundle'] = json.loads((app / 'Contents/Resources/build-info.json').read_text())
+assert report['bundle']['commit'] == report['source'] and not report['bundle']['tracked_changes']
+
+def save():
+    (out / 'package-journeys.json').write_text(json.dumps(report, indent=2) + '\n')
+
+save()
+raw = (out / 'packaged-agent-events.jsonl').open('w')
+
+def until(process, kind, seconds=180):
+    deadline = time.monotonic() + seconds
+    seen = []
+    while True:
+        event = process.receive(deadline)
+        raw.write(json.dumps(event) + '\n'); raw.flush()
+        seen.append(event)
+        if event.get('type') == 'error':
+            raise RuntimeError(event)
+        if event.get('type') == kind:
+            return event, seen
+
+try:
+    models = json.loads(subprocess.check_output([str(engine), 'list', '--json'], text=True, timeout=10))
+    model = next(item for item in models if item['name'] == 'Qwen3.8-27B-exl3-6a9ca9d0')
+    report['model'] = model
+    model_config = Path(model['path']) / 'config.json'
+    report['model_config_sha256'] = hashlib.file_digest(model_config.open('rb'), 'sha256').hexdigest()
+    report['protocol'] = {'context': 2048, 'temperature': 0, 'top_k': 1, 'repetition_penalty': 1, 'mtp': False, 'dflash': False, 'max_tokens': 512, 'repetitions': 1, 'benchmark_warmup': 'not applicable'}
+    with tempfile.TemporaryDirectory(prefix='mlxl3-beta3-packaged-') as directory:
+        directory = Path(directory)
+        workspace = directory / 'files'; workspace.mkdir()
+        metadata = directory / 'runtime'; metadata.mkdir()
+        registry = metadata / 'models.json'
+        registry.write_text(json.dumps({'version': 1, 'models': {model['name']: model}}))
+        (metadata / 'mcp.json').write_text(json.dumps({'version': 1, 'mcpServers': {
+            'exa': {'enabled': False, 'url': 'https://mcp.exa.ai/mcp'},
+            'sandbox': {'enabled': True, 'command': str(helper), 'args': ['--agent-tools', str(workspace)]}}}))
+        with (out / 'packaged-agent.stderr.log').open('wb') as stderr:
+            with JsonProcess([str(engine), '--registry', str(registry), 'bridge', model['name'], '--context-length', '2048'], stderr=stderr) as bridge:
+                ready, _ = until(bridge, 'ready')
+                assert ready['model'] == model['name']
+                bridge.send({'type': 'set_mcp', 'enabled': True}, time.monotonic() + 10)
+                tools, _ = until(bridge, 'mcp_status', 20)
+                assert tools['mcp_tools'] == 1 and tools['mcp_servers'] == 1 and not tools['mcp_errors'], tools
+                bridge.send({'type': 'generate', 'request_id': 'beta3-agent', 'conversation_id': 'beta3-package', 'messages': [
+                    {'role': 'system', 'content': 'You are a coding agent. Use the run tool immediately to do filesystem work. Never claim success without a tool result. Keep any reasoning brief.'},
+                    {'role': 'user', 'content': 'Use run to create smoke.txt containing exactly MLXL3-BETA3-OK, then read that file back with cat. After the tool succeeds, reply Done. Do not merely describe commands.'}],
+                    'max_tokens': 512, 'temperature': 0, 'top_k': 1, 'repetition_penalty': 1, 'mcp_enabled': True, 'dflash2': False, 'mtp': False}, time.monotonic() + 10)
+                complete, events = until(bridge, 'complete')
+                assert any(item.get('type') == 'tool_start' for item in events), 'No real tool call'
+                assert any(item.get('type') == 'tool_result' and not item.get('is_error', False) and 'MLXL3-BETA3-OK' in item.get('text', '') for item in events), 'Missing successful nonempty tool result'
+                assert (workspace / 'smoke.txt').read_text().strip() == 'MLXL3-BETA3-OK', 'Actual file oracle failed'
+                stats = complete['stats']
+                assert stats['generated_tokens'] > 0 and stats['prompt_tokens'] > 0
+                assert all(isinstance(stats[key], (int, float)) and math.isfinite(stats[key]) and stats[key] >= 0 for key in ['decode_tps', 'prefill_tps', 'ttft_seconds'])
+                report['agent'] = {'status': 'passed', 'file_oracle': True, 'tool_calls': sum(item.get('type') == 'tool_start' for item in events), 'stats': stats, 'answer': complete.get('assistant_context')}
+                save()
+        # JsonProcess has joined the Agent engine before the Server loads a model.
+        key = str(uuid.uuid4())
+        with (out / 'packaged-server.stderr.log').open('wb') as stderr:
+            with JsonProcess([str(engine), '--registry', str(registry), 'serve', model['name'], '--host', '127.0.0.1', '--port', '0', '--api-key', key, '--context-length', '2048'], stderr=stderr) as server:
+                ready, _ = until(server, 'ready')
+                base = f"http://127.0.0.1:{ready['port']}"
+                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                try:
+                    opener.open(base + '/v1/models', timeout=5)
+                    raise AssertionError('Unauthenticated request accepted')
+                except urllib.error.HTTPError as error:
+                    assert error.code == 401, error.code
+                def call(path, data=None):
+                    request = urllib.request.Request(base + path, data=None if data is None else json.dumps(data).encode(), headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+                    with opener.open(request, timeout=180) as response:
+                        assert response.status == 200
+                        return json.load(response)
+                inventory = call('/v1/models')
+                assert len(inventory['data']) == 1 and inventory['data'][0]['id'] == model['name']
+                completion = call('/v1/chat/completions', {'model': model['name'], 'messages': [{'role': 'user', 'content': 'Say hello.'}], 'temperature': 0, 'max_tokens': 8})
+                message = completion['choices'][0]['message']
+                assert message.get('content') or message.get('reasoning_content'), completion
+                assert completion['usage']['completion_tokens'] > 0
+                report['server'] = {'status': 'passed', 'unauthenticated': 401, 'models': inventory, 'completion': completion}
+    report['status'] = 'passed'
+except BaseException as error:
+    report['status'] = 'failed'
+    report['error'] = repr(error)
+    raise
+finally:
+    raw.close()
+    save()
+print('Packaged Agent tool/file and authenticated Server journeys passed; both engines stopped and joined')
