@@ -172,7 +172,8 @@ extension UpdateManager {
                 digest: "sha256:" + (try UpdateManager.sha256(at: archive))))
         let store = root.appendingPathComponent("engine-store")
         try EngineRuntimeStore.install(archive: archive, release: release, appVersion: "1.4.5", root: store)
-        precondition(EngineRuntimeStore.resolve(appVersion: "1.4.5", root: store, bundledVersion: "1.4.5") != nil)
+        precondition(EngineRuntimeStore.resolve(appVersion: "1.4.5", root: store, bundledVersion: "1.4.5") == nil)
+        precondition(EngineRuntimeStore.resolve(appVersion: "1.4.5", root: store, bundledVersion: "1.4.4") != nil)
 
         // A distinct identity and no-op executable prevent launching the real Desktop.
         let info: [String: Any] = ["CFBundleIdentifier": "io.mlxl3.updater-fixture",
