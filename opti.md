@@ -1,6 +1,6 @@
 # MLXL3 — journal des optimisations
 
-### DESKTOP-2026-10-26-V2B3 — Chat / Agent / Server / Lab — en cours
+### DESKTOP-2026-10-26-V2B3 — Chat / Agent / Server / Lab — publié et fusionné, limites documentées
 
 - Demande : quatre modes au-dessus de l'historique, agent avec sandbox légère native macOS plutôt que Docker, interface du serveur et statistiques matériel/logiciel par modèle ; publier v2.0.0-beta.3 pour test. Base isolée main7978fcea ; modifications personnelles du checkout original exclues.
 - Antécédents relus : FEAT-2026-10-18-WORKSPACE, RELEASE-V2B1 et FEATURE-FLASH-DRAFT/BETA2 ; réutiliser bridge/MCP/serve/stats, sans modifier calculs ni refaire les benchmarks historiques. Hypothèse d'architecture : Seatbelt lance uniquement les commandes à la demande, sans VM résidente. Gain mémoire/TPS/TTFT : non mesuré, aucun gain chiffré revendiqué.
@@ -17,6 +17,8 @@
 - [Release publique](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.3),4assets avec tailles/SHAserveur égaux ; DMG74120917octets/SHA2565a8110b9fb02f358938e588d68ea0cd0badabc372939f4daf151414b937bdb30. Trois petits assets retéléchargés/vérifiés ; retéléchargementDMG complet interrompu au délai120s, non déclaré réussi. LookupRESTdu tagdraft404 avantpublication conservé, tagpublié exact et corpsrelus. Lateststable restev1.5.1. PublicationavantfinCI explicitement demandée ; NativeLinux/macOS etconversion réussis au dernier relevé, Desktop/Kani encoreen cours, aucuneCIglobaleverte annoncée. Fusion[PR55](https://github.com/0xZKnw/mlxl3/pull/55) autorisée aprèspublication ; aucune protectionàcontourner.
 - Incident livré à l'utilisateur : transfert réel déjà37172299/74120917octets, donc lent et sanspourcentage plutôt que vide. DMGlocalSHAvalidé copié atomiquement danslecache ; annulationviale sélecteur, canalBeta restauré et Search : **vraieapp afficheReady + SHA256vérifié + Restartandinstall**, moteuràjour. Installationnon déclenchée par cette tâche, historique/modèles préservés. Aucune modificationducodeupdater ni campagne réseauvitesse supplémentaire ; limiteUI sansprogression conservée.
 - Tous les essais/processus locaux de cette tâche sont clos. Limites : pas de preuveformelleSwift/Python, pas de quotaRAM/disqueglobal, shellsysèmesansréseau, unseulmodèlephysiquequalifié et Server exclu deLab ; vérificationsCI distantes incomplètes explicitement àsuivre. [Rapport final](docs/desktop-v2-beta3-verification.md), [notes anglaises](docs/release-v2.0.0-beta.3.md), [preuves](docs/measurements/desktop-v2-beta3/), [publication](docs/measurements/desktop-v2-beta3/publication.json). Les deux DMGvisuelsrejetés restent sousbuild/, non publiés ; aucune preuveancienne effacée, aucun gainTPS/RAM revendiqué.
+
+- Intégration finale : release publiée avantfusion, puis PR55 **fusionnée** par opération GitHub normale (sanscontournement), merge1c4055add4ed50ac402ac6f4269e7119f266b3ae. Tag exécutable45697feb inchangé ; le commit documentairec7674581 conserve les preuves et notes anglaises. CIdu merge àinspecter séparément, pas attendue sur demandeexplicite ; aucun essai local en cours.
 
 ### ISSUE52-2026-10-26-MODES — préenregistrement, avant implémentation et mesures
 
