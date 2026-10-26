@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "release": "2.0.0-beta.1",
+  "internal_version": "2.0.0",
+  "desktop_build": 31,
+  "source": "e04c6558959609443dda362f2e8509b998adaa6d",
+  "source_build_tracked_clean": true,
+  "functional_base": "9c8474ca1292e29bae3c7d4d6383bd1820549349",
+  "files": {
+    "MLXL3-Desktop-v2.0.0-beta.1-b31-Apple-Silicon.dmg": {
+      "bytes": 73990428,
+      "sha256": "2042d20a2927723f4d386c8edb6b70f4e1f90eb257c24991d0021065ae3567b3"
+    },
+    "MLXL3-Engine-v2.0.0-beta.1-arm64.tar.gz": {
+      "bytes": 67229225,
+      "sha256": "ca2e650f8cb944486592b60fc02f773e28388dd46a4ab38707971c0a11057412"
+    },
+    "MLXL3-Engine-v2.0.0-beta.1-arm64.json": {
+      "bytes": 13588,
+      "sha256": "9262b7cdd07fd000561d86424c174783341c5903a0d144a7d35417cb73c913bc"
+    },
+    "MLXL3-v2.0.0-beta.1-verification.tar.gz": {
+      "bytes": 115803,
+      "sha256": "b6b5956a501f4790a84997777fcb79bf6e61531147c639291ae252997c65ba85"
+    }
+  },
+  "package_qa": {
+    "status": "passed_package_CPU_relocation_with_absolute_fallback_not_used",
+    "commands_passed": 31,
+    "old_strict_RPATH_error_preserved": "AssertionError(('mlxl3', ['@executable_path', '/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib']))",
+    "local_libraries_verified": true
+  },
+  "desktop_qa": {
+    "status": "passed",
+    "seconds": 366.270103457995,
+    "source_unchanged": true,
+    "reaped": true,
+    "real_engine_archive_and_DMG_validated": true
+  },
+  "focused_checks": {
+    "cpu_passed": 228,
+    "cpu_ignored": 5,
+    "hub_mlx_passed": 7,
+    "package_tests_passed": 45,
+    "Flash_UI_cases": 8,
+    "context_cases": 240,
+    "idle_assertions": 114,
+    "sampling_assertions": 965,
+    "ngram_bug_and_MTP_mutation_detected": true
+  },
+  "formal": {
+    "hub_variants": "timeout180s;unwind130;2symbolicpresencebools;unverified",
+    "Swift_MLX_Metal": "not formally verified"
+  },
+  "new_package_model_GPU": "not_run_user_requested_immediate_publication",
+  "new_speed_campaign": "not_measured",
+  "K1_active": false,
+  "installed_app_replaced": false,
+  "models_changed": false,
+  "publication": {
+    "prerelease": true,
+    "latest": false
+  },
+  "CI": {
+    "linux_macos_conversion": "passed",
+    "Flash_Kani_regression": "in_progress_at_snapshot",
+    "global_Kani": "runner_shutdown_after44safety;nextwithoutverdict;incomplete"
+  },
+  "evidence_paths": [
+    "artifacts.json",
+    "build-final.log",
+    "ci-code-head/README.md",
+    "ci-code-head/annotations.json",
+    "ci-code-head/checks.json",
+    "ci-code-head/harnesses.json",
+    "ci-code-head/jobs.json",
+    "ci-code-head/logs.txt",
+    "ci-code-head/run.json",
+    "ci-code-head/summary.json",
+    "cross-review.md",
+    "desktop-final/README.md",
+    "desktop-final/compiler-reap.json",
+    "desktop-final/desktop.log",
+    "desktop-final/result.json",
+    "desktop-final/summary.json",
+    "gpu/status.json",
+    "hub-audit.md",
+    "hub/README.md",
+    "hub/after-hub-tests.log",
+    "hub/before-regression.log",
+    "hub/checks-result.json",
+    "hub/clippy-cpu.log",
+    "hub/clippy-mlx-chat.log",
+    "hub/fmt.log",
+    "hub/kani-launch-v1-error.txt",
+    "hub/kani-result.json",
+    "hub/kani.log",
+    "hub/mutation-mtp-result.json",
+    "hub/mutation-mtp.log",
+    "hub/source.patch",
+    "hub/summary.json",
+    "hub/tests-cpu-chat.log",
+    "hub/tests-hub-mlx-chat.log",
+    "package-qa-v1-rpath-rejection.json",
+    "package-qa.json",
+    "package-qa.md",
+    "package-tests.log",
+    "preliminary-build.json",
+    "ui-dflash/README.md",
+    "ui-dflash/crosshair.log",
+    "ui-dflash/green.log",
+    "ui-dflash/idle-sampling.log",
+    "ui-dflash/manifest.json",
+    "ui-dflash/red-v0-compile.log",
+    "ui-dflash/red.log",
+    "ui-dflash/source.patch"
+  ]
+}
