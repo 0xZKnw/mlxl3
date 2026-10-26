@@ -46,3 +46,7 @@ Ne pas exécuter directement les argv absolus archivés. Copier les plans vers d
 Le bridgeK1 de43requêtes et les débits OFF/MTP de promotion n’ont pas été exécutés dans cette campagne. Pas de gain15tok/s revendiqué, pas d’addition des micros. Les poids, binaires, target, caches, copiePony, rapports utilisateur privés et historique W/opti sont exclus. Seules les notes K1PM publiques sélectionnées par le parent accompagnent la PR documentaire.
 
 Retrait effectif consigné dans `post-merge/withdrawal-result.json` :95fichiers de base byteexacts,5modules conservés détachés, binaire de développement d875 restauré ; app installée inchangée, aucun build/GPU répété. Les snapshotsCI `post-merge/ci-exact/` (22:00:32UTC) et `post-merge/ci-snapshot-1.json` (22:38UTC) sont historiques et distincts ; Kani global y reste en cours, aucuneCI globalement verte annoncée.
+
+## CI de la première tête publiée de PR47
+
+[Diagnostic exact du commit174f4935](post-merge/ci-pr47-first/README.md) : Linux, macOS, Flash-Kani, régression et conversion réussis ; Kani global échoué après un signal d’arrêt du runner.44harnais safety ont réussi et le45e reste sans résultat. Les journaux réels sont conservés ; aucun contre-exemple, OOM ou timeout de preuve établi. Cette observation ne qualifie pas les checks d’une future tête.

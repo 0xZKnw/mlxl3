@@ -126,3 +126,5 @@ Les anciens arrêts de runner Kani restent distincts d’un contre-exemple. Les 
 Mise à jour CI après cet instantané : [échec Kani PR42c et annotation du runner](ci-42c0958/README.md).
 La PR42c est en échec sur le job Kani global ; main expose la même annotation avec un état encore incomplet.
 Les logs sont indisponibles (404 / log not found) : aucune cause OOM, timeout ou contre-exemple n’est établie.
+
+PR documentaire publiée : [PR47](https://github.com/0xZKnw/mlxl3/pull/47), première tête174f4935. [Son contrôle Kani](ci-pr47-first/README.md) montre44harnais safety réussis puis un signal d’arrêt du runner pendant le45e, sans résultat. Les trois autres jobs Native, régression et conversion passent. Aucun contre-exemple ou OOM établi ; la preuve globale reste incomplète.
