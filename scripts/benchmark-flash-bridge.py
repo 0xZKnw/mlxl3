@@ -75,6 +75,7 @@ def run(
     prompt=None,
     dflash_draft=None,
     dflash_mode=1,
+    environment=None,
 ):
     dflash = dflash_draft is not None
     if dflash and (mtp or compare or not Path(dflash_draft).is_dir()):
@@ -113,9 +114,15 @@ def run(
         tempfile.TemporaryDirectory(prefix="flash-bench-") as directory,
         (output / "stderr.log").open("w") as stderr,
     ):
-        env = {**os.environ, "MLXL3_SSD_CACHE_GIB": f"{cache_gib:g}", "MLXL3_SSD_OVERLAP": "1"}
+        env = {
+            **(os.environ if environment is None else environment),
+            "MLXL3_SSD_CACHE_GIB": f"{cache_gib:g}",
+            "MLXL3_SSD_OVERLAP": "1",
+        }
         if auto_cache:
             env.pop("MLXL3_SSD_CACHE_GIB")
+        report["environment"] = {k: v for k, v in sorted(env.items()) if k.startswith("MLXL3_")}
+        save()
         process = subprocess.Popen(
             [
                 str(engine.resolve()),
