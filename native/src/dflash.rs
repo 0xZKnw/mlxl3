@@ -93,6 +93,110 @@ impl Family {
     }
 }
 
+/// Managed downloads distinguish the Flash safetensors ABI from packed drafts.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ManagedDraft {
+    Packed(Family),
+    FlashNext,
+}
+
+fn flash_target_geometry(hidden: u64, layers: u64, vocabulary: u64) -> bool {
+    hidden == 2560 && layers == 48 && vocabulary == VOCABULARY
+}
+
+impl ManagedDraft {
+    pub fn from_target(path: &Path) -> Result<Self> {
+        let mut data = Vec::new();
+        File::open(path.join("config.json"))?
+            .take(65_537)
+            .read_to_end(&mut data)?;
+        ensure!(data.len() <= 65_536, "oversized DFlash target config");
+        let config: serde_json::Value = serde_json::from_slice(&data)?;
+        if config["model_type"] == "qwen4_exp" {
+            let text = &config["text_config"];
+            ensure!(
+                text["hidden_size"]
+                    .as_u64()
+                    .zip(text["num_hidden_layers"].as_u64())
+                    .zip(text["vocab_size"].as_u64())
+                    .is_some_and(|((hidden, layers), vocabulary)| flash_target_geometry(
+                        hidden, layers, vocabulary
+                    )),
+                "DFlash2 requires the qualified Flash Next 2560/48/248320 target"
+            );
+            return Ok(Self::FlashNext);
+        }
+        target_family(path).map(Self::Packed)
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Packed(family) => family.name(),
+            Self::FlashNext => "Qwen3.8-Flash-Next-DFlash2-a22a1744",
+        }
+    }
+    pub(crate) fn repository(self) -> &'static str {
+        match self {
+            Self::Packed(family) => family.repository(),
+            Self::FlashNext => "incoai/Qwen3.8-Flash-Next-DFlash2",
+        }
+    }
+    pub(crate) fn revision(self) -> &'static str {
+        match self {
+            Self::Packed(family) => family.revision(),
+            Self::FlashNext => "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+        }
+    }
+    pub fn inspect(self, path: &Path) -> Result<PathBuf> {
+        match self {
+            Self::Packed(family) => {
+                let package = inspect(path)?;
+                ensure!(
+                    package.family == family,
+                    "DFlash draft does not match this target"
+                );
+                Ok(package.directory)
+            }
+            Self::FlashNext => {
+                let path = path
+                    .canonicalize()
+                    .context("opening Flash DFlash2 folder")?;
+                for name in ["config.json", "model.safetensors"] {
+                    ensure!(
+                        path.join(name).symlink_metadata()?.file_type().is_file(),
+                        "Flash draft file {name} must be a regular file"
+                    );
+                }
+                crate::flash_draft_metadata::inspect(
+                    &path,
+                    crate::flash_draft_metadata::Kind::Dflash2,
+                )?;
+                Ok(path)
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn managed_flash_draft_requires_exact_target_geometry() {
+    let hidden: u64 = kani::any();
+    let layers: u64 = kani::any();
+    let vocabulary: u64 = kani::any();
+    let selected = flash_target_geometry(hidden, layers, vocabulary);
+    if selected {
+        assert_eq!(hidden, 2560);
+        assert_eq!(layers, 48);
+        assert_eq!(vocabulary, 248_320);
+    }
+    if hidden == 2560 && layers == 48 && vocabulary == 248_320 {
+        assert!(selected);
+    }
+    kani::cover!(selected);
+    kani::cover!(hidden == 5120 && !selected);
+    kani::cover!(hidden == u64::MAX && layers == u64::MAX && vocabulary == u64::MAX && !selected);
+}
+
 pub fn target_family(path: &Path) -> Result<Family> {
     let (layout, layers) = crate::mtp::target_layout(path)?;
     Family::from_target(&layout, layers)
@@ -2250,3 +2354,7 @@ mod verification {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "dflash/managed_tests.rs"]
+mod managed_tests;

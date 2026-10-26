@@ -210,11 +210,22 @@ struct GenerationInspector: View {
                                     ProgressView(value: studio.dflashDownloadTotal > 0 ? studio.dflashDownloadCompleted / studio.dflashDownloadTotal : 0)
                                     Text(L("Téléchargement et préparation du draft…", "Downloading and preparing the draft…"))
                                         .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                    Button(L("Annuler la préparation", "Cancel preparation")) { studio.setDFlash2Enabled(false) }
+                                        .buttonStyle(GlassPillButtonStyle())
                                 }
                                 if let error = studio.dflashDownloadError { Text(error).font(.caption).foregroundStyle(.red) }
-                                Text(L("Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
-                                       "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
-                                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                if studio.selectedModel?.modelType == "qwen4_exp" {
+                                    Button(L("Télécharger le draft compatible", "Download the compatible draft"), action: studio.downloadCompatibleDFlashDraft)
+                                        .buttonStyle(GlassPillButtonStyle())
+                                        .disabled(!studio.dflash2Available || !studio.engineState.isReady || studio.isGenerating || studio.dflashDownloading)
+                                    Text(L("Draft Flash Next : environ 1,2 Go. Chaque token est vérifié par la cible.",
+                                           "Flash Next draft: about 1.2 GB. The target verifies every token."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                } else {
+                                    Text(L("Un clic prépare le draft adapté au modèle actif. Chaque token est vérifié par la cible. Tune choisit le meilleur mode sur ce Mac.",
+                                           "One click prepares the draft matching the active model. The target verifies every token. Tune selects the best mode on this Mac."))
+                                        .font(.caption).foregroundStyle(StudioTheme.quiet)
+                                }
                                 Button(L("Choisir un draft local…", "Choose a local draft…"), action: studio.chooseDFlashDraft)
                                     .buttonStyle(GlassPillButtonStyle()).disabled(!studio.dflash2Available || studio.isGenerating || studio.dflashDownloading)
                             }

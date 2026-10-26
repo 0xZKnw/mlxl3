@@ -3,6 +3,8 @@ import CryptoKit
 import Darwin
 import Foundation
 
+enum UpdateChannel: String, CaseIterable, Sendable { case stable, beta }
+
 struct AppUpdateRelease: Sendable, Equatable {
     let version: String
     let tag: String
@@ -10,6 +12,10 @@ struct AppUpdateRelease: Sendable, Equatable {
     let notes: String
     let pageURL: URL
     let asset: AppUpdateAsset
+    var betaNumber: Int? {
+        let parts = tag.components(separatedBy: "-beta.")
+        return parts.count == 2 ? Int(parts[1]) : nil
+    }
     var build: Int {
         guard let range = asset.name.range(of: "-b[0-9]+-", options: .regularExpression) else { return 0 }
         return Int(asset.name[range].dropFirst(2).dropLast()) ?? 0
@@ -84,6 +90,12 @@ final class UpdateManager: ObservableObject {
     @Published private(set) var engineState: AppUpdateState = .idle
     @Published private(set) var engineRelease: AppUpdateRelease?
     @Published private(set) var currentEngineVersion: String
+    @Published private(set) var updateChannel: UpdateChannel
+
+    private let preferences: UserDefaults
+    private let session: URLSession
+    private let cacheDirectory: URL?
+    private var updateOperationID = UUID()
 
     let currentVersion: String
     let currentBuild: Int
@@ -95,14 +107,22 @@ final class UpdateManager: ObservableObject {
         currentVersion: String = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "0.0.0",
+        currentBuild: Int? = nil,
         releasesURL: URL = URL(
             string: "https://api.github.com/repos/0xZKnw/mlxl3/releases?per_page=100"
-        )!
+        )!,
+        preferences: UserDefaults = .standard,
+        session: URLSession = .shared,
+        cacheDirectory: URL? = nil
     ) {
         self.currentVersion = currentVersion
-        self.currentBuild = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
+        self.currentBuild = currentBuild ?? Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
         self.releasesURL = releasesURL
         self.currentEngineVersion = EngineRuntimeStore.installedVersion()
+        self.preferences = preferences
+        self.session = session
+        self.cacheDirectory = cacheDirectory
+        self.updateChannel = UpdateChannel(rawValue: preferences.string(forKey: "updates.channel") ?? "") ?? .stable
     }
 
     deinit {
@@ -145,46 +165,75 @@ final class UpdateManager: ObservableObject {
         checkForUpdates()
     }
 
+    func setUpdateChannel(_ channel: UpdateChannel) {
+        guard channel != updateChannel, !isInstalling else { return }
+        updateOperationID = UUID()
+        updateTask?.cancel()
+        updateTask = nil
+        updateChannel = channel
+        preferences.set(channel.rawValue, forKey: "updates.channel")
+        latestRelease = nil
+        engineRelease = nil
+        state = .idle
+        engineState = .idle
+    }
+
     func checkForUpdates() {
         guard !isBusy else { return }
         updateTask?.cancel()
+        updateOperationID = UUID()
+        let operation = updateOperationID
+        let selectedChannel = updateChannel
+        latestRelease = nil
+        engineRelease = nil
         state = .checking
         engineState = .checking
         updateTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let data = try await Self.fetchReleases(from: releasesURL, currentVersion: currentVersion)
+                let data = try await Self.fetchReleases(from: releasesURL, currentVersion: currentVersion, session: session)
                 try Task.checkCancellation()
-                let release = try Self.selectRelease(data, channel: .app)
+                guard operation == updateOperationID else { return }
+                let release = try Self.selectRelease(data, channel: .app, updateChannel: selectedChannel)
                 latestRelease = release
                 if let release, let current = SemanticVersion(currentVersion),
                    let latest = SemanticVersion(release.version),
                    latest > current || (latest == current && release.build > currentBuild) {
                     state = .downloading(release)
                     do {
-                        let diskImage = try await Self.downloadAndVerify(release: release)
+                        let diskImage = try await Self.downloadAndVerify(release: release, session: session, cacheDirectory: cacheDirectory)
                         try Task.checkCancellation()
+                        guard operation == updateOperationID else { return }
                         state = .ready(release: release, diskImage: diskImage)
-                    } catch { state = .failed(error.localizedDescription) }
+                    } catch {
+                        guard !Task.isCancelled, operation == updateOperationID else { return }
+                        state = .failed(error.localizedDescription)
+                    }
                 } else {
                     state = .upToDate(checkedAt: Date())
                 }
-                let engine = try Self.selectRelease(data, channel: .engine)
+                let engine = try Self.selectRelease(data, channel: .engine, updateChannel: selectedChannel)
                 engineRelease = engine
                 if let engine, let current = SemanticVersion(currentEngineVersion),
                    let latest = SemanticVersion(engine.version), latest > current {
                     engineState = .downloading(engine)
                     do {
-                        let archive = try await Self.downloadAndVerify(release: engine)
+                        let archive = try await Self.downloadAndVerify(release: engine, session: session, cacheDirectory: cacheDirectory)
                         try Task.checkCancellation()
+                        guard operation == updateOperationID else { return }
                         engineState = .ready(release: engine, diskImage: archive)
-                    } catch { engineState = .failed(error.localizedDescription) }
+                    } catch {
+                        guard !Task.isCancelled, operation == updateOperationID else { return }
+                        engineState = .failed(error.localizedDescription)
+                    }
                 } else { engineState = .upToDate(checkedAt: Date()) }
                 try Task.checkCancellation()
             } catch is CancellationError {
+                guard operation == updateOperationID else { return }
                 state = .idle
                 engineState = .idle
             } catch {
+                guard !Task.isCancelled, operation == updateOperationID else { return }
                 if state == .checking { state = .failed(error.localizedDescription) }
                 engineState = .failed(error.localizedDescription)
             }
@@ -236,7 +285,8 @@ final class UpdateManager: ObservableObject {
 
     private static func fetchReleases(
         from url: URL,
-        currentVersion: String
+        currentVersion: String,
+        session: URLSession
     ) async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -244,7 +294,7 @@ final class UpdateManager: ObservableObject {
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("MLXL3-Desktop/\(currentVersion)", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw UpdateError.releaseLookupFailed
         }
@@ -253,7 +303,7 @@ final class UpdateManager: ObservableObject {
         // first GitHub page. Engine tags are published with latest=false.
         if url.host == "api.github.com", url.path == "/repos/\(repository)/releases" {
             request.url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
-            let (latestData, latestResponse) = try await URLSession.shared.data(for: request)
+            let (latestData, latestResponse) = try await session.data(for: request)
             guard let latestHTTP = latestResponse as? HTTPURLResponse, latestHTTP.statusCode == 200,
                   latestData.count <= 16 * 1_024 * 1_024,
                   var releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
@@ -268,22 +318,32 @@ final class UpdateManager: ObservableObject {
 
     enum ReleaseChannel { case app, engine }
 
-    nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel) throws -> AppUpdateRelease? {
+    nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel, updateChannel: UpdateChannel = .stable) throws -> AppUpdateRelease? {
         let payloads: [GitHubRelease]
         if let list = try? JSONDecoder().decode([GitHubRelease].self, from: data) { payloads = list }
         else { payloads = [try JSONDecoder().decode(GitHubRelease.self, from: data)] }
         let prefix = channel == .app ? "v" : "engine-v"
         let releases = payloads.compactMap { payload -> AppUpdateRelease? in
-            guard !payload.draft, !payload.prerelease, payload.tagName.hasPrefix(prefix) else { return nil }
-            let version = String(payload.tagName.dropFirst(prefix.count))
+            guard !payload.draft, payload.tagName.hasPrefix(prefix) else { return nil }
+            let rawVersion = String(payload.tagName.dropFirst(prefix.count))
+            let parts = rawVersion.components(separatedBy: "-beta.")
+            if parts.count == 1 {
+                guard !payload.prerelease else { return nil }
+            } else if parts.count == 2 {
+                let suffix = parts[1]
+                guard updateChannel == .beta, payload.prerelease,
+                      !suffix.isEmpty, suffix.utf8.allSatisfy({ (48...57).contains($0) }),
+                      !suffix.hasPrefix("0"), let number = Int(suffix), number > 0 else { return nil }
+            } else { return nil }
+            let version = parts[0]
             guard version.split(separator: ".", omittingEmptySubsequences: false).count == 3,
                   version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
                   SemanticVersion(version) != nil,
                   let page = URL(string: payload.htmlURL),
                   trustedURL(page, path: "/\(repository)/releases/tag/\(payload.tagName)") else { return nil }
             let pattern = channel == .app
-                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: version))-b[0-9]+-Apple-Silicon\\.dmg$"
-                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: version))-arm64\\.tar\\.gz$"
+                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: rawVersion))-b[0-9]+-Apple-Silicon\\.dmg$"
+                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: rawVersion))-arm64\\.tar\\.gz$"
             let assets = payload.assets.compactMap { asset -> AppUpdateAsset? in
                 guard asset.name.range(of: pattern, options: .regularExpression) != nil,
                       asset.size > 0, asset.size <= 1_500_000_000,
@@ -298,7 +358,13 @@ final class UpdateManager: ObservableObject {
         }
         return releases.max {
             let left = SemanticVersion($0.version)!, right = SemanticVersion($1.version)!
-            return left == right ? $0.build < $1.build : left < right
+            if left != right { return left < right }
+            if $0.build != $1.build { return $0.build < $1.build }
+            switch ($0.betaNumber, $1.betaNumber) {
+            case let (.some(a), .some(b)): return a < b
+            case (.some, .none): return true
+            default: return false
+            }
         }
     }
 
@@ -313,18 +379,20 @@ final class UpdateManager: ObservableObject {
         }
     }
 
-    private static func downloadAndVerify(release: AppUpdateRelease) async throws -> URL {
-        let cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    private static func downloadAndVerify(release: AppUpdateRelease, session: URLSession, cacheDirectory: URL?) async throws -> URL {
+        try Task.checkCancellation()
+        let cacheRoot = cacheDirectory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appending(path: "io.mlxl3.desktop/Updates", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: cacheRoot, withIntermediateDirectories: true)
         let destination = cacheRoot.appending(path: release.asset.name)
 
         if FileManager.default.fileExists(atPath: destination.path),
            try await verifyAsset(at: destination, asset: release.asset) {
+            try Task.checkCancellation()
             return destination
         }
 
-        let (temporaryURL, response) = try await URLSession.shared.download(
+        let (temporaryURL, response) = try await session.download(
             from: release.asset.downloadURL
         )
         guard let http = response as? HTTPURLResponse,
@@ -337,6 +405,7 @@ final class UpdateManager: ObservableObject {
             guard try await verifyAsset(at: staged, asset: release.asset) else {
                 throw UpdateError.integrityCheckFailed
             }
+            try Task.checkCancellation()
             if FileManager.default.fileExists(atPath: destination.path) {
                 try FileManager.default.removeItem(at: destination)
             }

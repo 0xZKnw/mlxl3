@@ -33,6 +33,19 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/model.bin",
 ];
 
+const DFLASH_FLASH_PINNED: [(&str, u64, &str); 2] = [
+    (
+        "config.json",
+        1236,
+        "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+    ),
+    (
+        "model.safetensors",
+        1_206_140_008,
+        "d6723f2a359eaf33ec0c95f22ae8edda896774020c552296a85e1913b4d3186f",
+    ),
+];
+
 const DFLASH_MOE_PINNED: [(&str, u64, &str); 7] = [
     (
         "draft/layer-0.bin",
@@ -437,13 +450,23 @@ fn get(url: &str, limit: usize) -> Result<Vec<u8>> {
         .arg(url)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    if token().is_some() {
+    let access = url
+        .starts_with("https://huggingface.co/")
+        .then(token)
+        .flatten();
+    if let Some(token) = &access {
+        ensure!(
+            token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
+            "invalid Hugging Face token"
+        );
+    }
+    if access.is_some() {
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
     let mut child = command
         .spawn()
         .context("starting the system HTTPS client")?;
-    if let (Some(token), Some(mut input)) = (token(), child.stdin.take()) {
+    if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
         ensure!(
             token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
             "invalid Hugging Face token"
@@ -527,41 +550,208 @@ fn sha256_matches(path: &Path, expected: &str) -> Result<bool> {
         .is_some_and(|hash| hash.eq_ignore_ascii_case(expected.as_bytes())))
 }
 
-/// Download only the six or seven pinned draft files, excluding Splash's target.
-/// Partial files stay in a managed staging directory for a later retry.
+/// Download the packed draft only, never Splash's target weights.
 pub fn download_dflash(
     family: crate::dflash::Family,
-    mut progress: impl FnMut(u64, u64),
+    progress: impl FnMut(u64, u64),
 ) -> Result<PathBuf> {
-    let root = managed_drafts_path()?;
-    fs::create_dir_all(&root)?;
+    download_managed_dflash(crate::dflash::ManagedDraft::Packed(family), progress)
+}
+
+/// Flash uses the raw BF16 ABI; it is not a packed 35B/27B draft.
+pub fn download_flash_dflash(progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+    download_managed_dflash(crate::dflash::ManagedDraft::FlashNext, progress)
+}
+
+fn download_managed_dflash(
+    draft: crate::dflash::ManagedDraft,
+    progress: impl FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let files = match draft {
+        crate::dflash::ManagedDraft::Packed(family) => pinned_dflash_files(family),
+        crate::dflash::ManagedDraft::FlashNext => &DFLASH_FLASH_PINNED,
+    };
+    let cancelled = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    install_dflash(
+        &managed_drafts_path()?,
+        draft,
+        files,
+        "https://huggingface.co",
+        &cancelled,
+        progress,
+        |path| draft.inspect(path).map(|_| ()),
+    )
+}
+
+fn published_dflash_matches(
+    metadata: &RepoInfo,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+) -> Result<()> {
+    ensure!(
+        metadata.sha == draft.revision() && metadata.id == draft.repository(),
+        "DFlash draft revision or repository changed"
+    );
+    if let crate::dflash::ManagedDraft::Packed(family) = draft {
+        ensure!(
+            dflash_files(metadata, family)? == files,
+            "DFlash pinned checksums changed"
+        );
+        return Ok(());
+    }
+    for (name, bytes, hash) in files {
+        let matches: Vec<_> = metadata
+            .siblings
+            .iter()
+            .filter(|file| file.rfilename == *name)
+            .collect();
+        ensure!(
+            matches.len() == 1,
+            "missing or duplicate Flash draft file {name}"
+        );
+        let published = matches[0];
+        ensure!(
+            published.size == *bytes,
+            "Flash draft size changed for {name}"
+        );
+        // config.json is a normal Git blob; both downloaded files still require SHA256.
+        if let Some(lfs) = &published.lfs {
+            ensure!(
+                lfs.sha256 == *hash,
+                "Flash draft checksum changed for {name}"
+            );
+        } else {
+            ensure!(
+                *name == "config.json",
+                "Flash draft weights have no LFS checksum"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn regular_draft_file(directory: &Path, name: &str) -> Result<PathBuf> {
+    ensure!(safe_file(name), "unsafe DFlash filename");
+    let path = directory.join(name);
+    let mut parent = path.parent();
+    while let Some(folder) = parent.filter(|folder| *folder != directory) {
+        ensure!(
+            !folder
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink()),
+            "invalid DFlash parent directory"
+        );
+        parent = folder.parent();
+    }
+    if let Ok(metadata) = path.symlink_metadata() {
+        ensure!(
+            metadata.file_type().is_file(),
+            "DFlash file must be regular: {name}"
+        );
+    }
+    Ok(path)
+}
+
+fn managed_dflash_entries(
+    directory: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+) -> Result<()> {
+    if draft == crate::dflash::ManagedDraft::FlashNext {
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            ensure!(
+                entry.file_type()?.is_file()
+                    && files.iter().any(|(name, _, _)| entry.file_name() == *name),
+                "unexpected file in managed Flash draft"
+            );
+        }
+    } else {
+        ensure!(
+            !directory
+                .join("draft")
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink()),
+            "invalid DFlash draft directory"
+        );
+    }
+    Ok(())
+}
+
+fn inspect_managed_dflash(
+    directory: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+    inspect: &impl Fn(&Path) -> Result<()>,
+) -> Result<()> {
+    managed_dflash_entries(directory, draft, files)?;
+    inspect(directory)
+}
+
+fn install_dflash(
+    root: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+    host: &str,
+    cancelled: &AtomicBool,
+    mut progress: impl FnMut(u64, u64),
+    inspect: impl Fn(&Path) -> Result<()>,
+) -> Result<PathBuf> {
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    ensure!(
+        !files.is_empty()
+            && files.iter().all(|(name, size, hash)| safe_file(name)
+                && *size > 0
+                && hash.len() == 64
+                && hash.bytes().all(|byte| byte.is_ascii_hexdigit())),
+        "invalid DFlash pinned manifest"
+    );
+    fs::create_dir_all(root)?;
     let root = root.canonicalize()?;
-    let destination = root.join(family.name());
+    let destination = root.join(draft.name());
     ensure!(
         !destination
             .symlink_metadata()
             .is_ok_and(|meta| meta.file_type().is_symlink()),
         "invalid DFlash destination"
     );
-    let files = pinned_dflash_files(family);
     if destination.exists() {
         for (name, size, hash) in files {
-            let file = destination.join(name);
+            let path = regular_draft_file(&destination, name)?;
             ensure!(
-                !file.symlink_metadata()?.file_type().is_symlink()
-                    && file.metadata()?.is_file()
-                    && file.metadata()?.len() == *size
-                    && sha256_matches(&file, hash)?,
+                path.metadata()?.len() == *size && sha256_matches(&path, hash)?,
                 "DFlash installed draft checksum or size mismatch for {name}"
             );
         }
-        ensure!(
-            crate::dflash::inspect(&destination)?.family == family,
-            "DFlash destination belongs to another target"
-        );
+        ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+        inspect_managed_dflash(&destination, draft, files, &inspect)?;
         return Ok(destination);
     }
-    let stage = root.join(".downloads").join(family.revision());
+    let downloads = root.join(".downloads");
+    ensure!(
+        !downloads
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.file_type().is_symlink()),
+        "invalid DFlash downloads directory"
+    );
+    fs::create_dir_all(&downloads)?;
+    let lock_path = downloads.join("dflash.lock");
+    ensure!(
+        !lock_path
+            .symlink_metadata()
+            .is_ok_and(|meta| !meta.file_type().is_file()),
+        "invalid DFlash download lock"
+    );
+    let lock = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(lock_path)?;
+    lock.try_lock_exclusive()
+        .context("DFlash draft is already downloading")?;
+    let stage = downloads.join(draft.revision());
     ensure!(
         !stage
             .symlink_metadata()
@@ -569,68 +759,56 @@ pub fn download_dflash(
         "invalid DFlash staging directory"
     );
     fs::create_dir_all(&stage)?;
-    ensure!(
-        !stage
-            .join("draft")
-            .symlink_metadata()
-            .is_ok_and(|meta| meta.file_type().is_symlink()),
-        "invalid DFlash draft staging directory"
-    );
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(root.join(".downloads").join("dflash.lock"))?;
-    lock.try_lock_exclusive()
-        .context("DFlash draft is already downloading")?;
-    let metadata = info(family.repository(), family.revision())?;
-    let published = dflash_files(&metadata, family)?;
-    ensure!(published == files, "DFlash pinned checksums changed");
-    let total: u64 = files.iter().map(|(_, size, _)| size).sum();
-    let cancelled = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    managed_dflash_entries(&stage, draft, files)?;
+    let metadata_file = tempfile::NamedTempFile::new_in(&downloads)?;
+    download_file_bounded(
+        &format!(
+            "{host}/api/models/{}/revision/{}?blobs=true",
+            encode(draft.repository()),
+            draft.revision()
+        ),
+        metadata_file.path(),
+        cancelled,
+        || {},
+        Some(32 << 20),
+    )?;
+    let metadata: RepoInfo = serde_json::from_reader(File::open(metadata_file.path())?)
+        .context("invalid DFlash repository metadata")?;
+    published_dflash_matches(&metadata, draft, files)?;
+    let total = files
+        .iter()
+        .try_fold(0u64, |sum, (_, size, _)| sum.checked_add(*size))
+        .context("DFlash size overflow")?;
     progress(directory_bytes(&stage).min(total), total);
-    for (name, expected_size, expected_hash) in files {
-        let target = stage.join(name);
-        ensure!(
-            !target
-                .symlink_metadata()
-                .is_ok_and(|meta| meta.file_type().is_symlink()),
-            "invalid DFlash staging file"
-        );
-        if target
-            .metadata()
-            .is_ok_and(|meta| meta.len() == *expected_size)
-            && sha256_matches(&target, expected_hash)?
-        {
+    for (name, size, hash) in files {
+        ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+        let path = regular_draft_file(&stage, name)?;
+        if path.metadata().is_ok_and(|meta| meta.len() == *size) && sha256_matches(&path, hash)? {
             continue;
         }
-        // A complete but corrupt file cannot be resumed safely.
-        if target
-            .metadata()
-            .is_ok_and(|meta| meta.len() >= *expected_size)
-        {
-            fs::remove_file(&target)?;
+        if path.metadata().is_ok_and(|meta| meta.len() >= *size) {
+            fs::remove_file(&path)?;
         }
-        download_file(
+        download_file_bounded(
             &format!(
-                "https://huggingface.co/{}/resolve/{}/{}?download=true",
-                encode(family.repository()),
-                family.revision(),
+                "{host}/{}/resolve/{}/{}?download=true",
+                encode(draft.repository()),
+                draft.revision(),
                 name
             ),
-            &target,
-            &cancelled,
+            &path,
+            cancelled,
             || progress(directory_bytes(&stage).min(total), total),
+            Some(*size),
         )?;
         ensure!(
-            target.metadata()?.len() == *expected_size && sha256_matches(&target, expected_hash)?,
+            path.metadata()?.len() == *size && sha256_matches(&path, hash)?,
             "DFlash draft checksum or size mismatch for {name}"
         );
     }
-    ensure!(
-        crate::dflash::inspect(&stage)?.family == family,
-        "DFlash staged package belongs to another target"
-    );
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    inspect_managed_dflash(&stage, draft, files, &inspect)?;
     fs::rename(&stage, &destination)?;
     progress(total, total);
     Ok(destination)
@@ -644,10 +822,10 @@ fn directory_bytes(path: &Path) -> u64 {
         .flatten()
         .map(|entry| {
             let path = entry.path();
-            if path.is_dir() {
-                directory_bytes(&path)
-            } else {
-                entry.metadata().map_or(0, |metadata| metadata.len())
+            match entry.file_type() {
+                Ok(kind) if kind.is_dir() => directory_bytes(&path),
+                Ok(kind) if kind.is_file() => entry.metadata().map_or(0, |metadata| metadata.len()),
+                _ => 0,
             }
         })
         .sum()
@@ -703,8 +881,19 @@ fn download_file(
     url: &str,
     destination: &Path,
     cancelled: &AtomicBool,
-    mut report: impl FnMut(),
+    report: impl FnMut(),
 ) -> Result<()> {
+    download_file_bounded(url, destination, cancelled, report, None)
+}
+
+fn download_file_bounded(
+    url: &str,
+    destination: &Path,
+    cancelled: &AtomicBool,
+    mut report: impl FnMut(),
+    maximum_bytes: Option<u64>,
+) -> Result<()> {
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
     let parent = destination
         .parent()
         .context("download path has no parent")?;
@@ -716,6 +905,8 @@ fn download_file(
             "--retry",
             "3",
             "--retry-all-errors",
+            "--connect-timeout",
+            "15",
             "--continue-at",
             "-",
             "--output",
@@ -724,11 +915,24 @@ fn download_file(
         .arg(url)
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
-    if token().is_some() {
+    let access = url
+        .starts_with("https://huggingface.co/")
+        .then(token)
+        .flatten();
+    if let Some(token) = &access {
+        ensure!(
+            token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
+            "invalid Hugging Face token"
+        );
+    }
+    if access.is_some() {
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
+    if let Some(maximum_bytes) = maximum_bytes {
+        command.args(["--max-filesize", &maximum_bytes.to_string()]);
+    }
     let mut child = command.spawn().context("starting model download")?;
-    if let (Some(token), Some(mut input)) = (token(), child.stdin.take()) {
+    if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
         ensure!(
             token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
             "invalid Hugging Face token"
@@ -737,7 +941,7 @@ fn download_file(
     }
     loop {
         if cancelled.load(Ordering::Relaxed) {
-            child.kill()?;
+            let _ = child.kill();
             let _ = child.wait();
             bail!("download cancelled");
         }
@@ -1768,3 +1972,7 @@ mod preview_proofs {
         assert_eq!(super::kv_bytes_per_token(u64::MAX, 2, 1), None);
     }
 }
+
+#[cfg(test)]
+#[path = "hub/dflash_download_tests.rs"]
+mod dflash_download_tests;

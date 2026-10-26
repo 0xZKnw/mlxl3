@@ -147,7 +147,10 @@ private struct HubBrowserView: View {
                     Button(action: library.refresh) { Image(systemName: "arrow.clockwise") }.help(L("Actualiser", "Refresh"))
                 }
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        if library.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            recommendedCards.padding(.bottom, 24)
+                        }
                         ForEach(library.results) { model in
                             Button { library.open(model.id) } label: {
                                 HStack(spacing: 14) {
@@ -181,6 +184,38 @@ private struct HubBrowserView: View {
             .onAppear { if library.results.isEmpty { library.search() } }
     }
 
+    private var recommendedCards: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("RECOMMANDÉS", "RECOMMENDED"))
+                .font(.system(size: 10, weight: .medium)).tracking(1.4).foregroundStyle(StudioTheme.quiet)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
+                ForEach(ModelLibrary.recommendedModels) { model in
+                    Button { library.open(model.id, revision: model.revision) } label: {
+                        VStack(alignment: .leading, spacing: 9) {
+                            HStack {
+                                Image(systemName: model.symbol).font(.system(size: 21, weight: .light)).foregroundStyle(StudioTheme.accent)
+                                Spacer()
+                                Text("EXL3").font(.system(size: 8, weight: .medium)).tracking(1).foregroundStyle(StudioTheme.quiet)
+                            }
+                            Spacer(minLength: 6)
+                            Text(model.title).font(.system(size: 25, weight: .regular, design: .serif))
+                            Text(model.parameters).font(.system(size: 13, weight: .medium))
+                            Text(model.quantization).font(.system(size: 10)).foregroundStyle(StudioTheme.secondary)
+                            HStack {
+                                Text(L("Voir le modèle", "View model")).font(.system(size: 10))
+                                Spacer()
+                                Image(systemName: "arrow.up.right").font(.system(size: 10))
+                            }.foregroundStyle(StudioTheme.quiet).padding(.top, 3)
+                        }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .aspectRatio(1, contentMode: .fit)
+                            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
+                    }.buttonStyle(StudioControlStyle()).help(model.id)
+                }
+            }
+        }
+    }
+
     private func details(_ detail: HubDetails) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
@@ -193,7 +228,7 @@ private struct HubBrowserView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("BRANCHE / QUANTIFICATION", "BRANCH / QUANTIZATION")).font(.system(size: 8, weight: .medium)).tracking(1)
                     Picker(L("Branche ou quantification", "Branch or quantization"), selection: Binding(get: { detail.revision }, set: { library.open(detail.id, revision: $0) })) {
-                        ForEach(detail.branches, id: \.self) { Text($0).tag($0) }
+                        ForEach([detail.revision] + detail.branches.filter { $0 != detail.revision }, id: \.self) { Text($0.count == 40 ? String($0.prefix(8)) : $0).tag($0) }
                     }.labelsHidden()
                     if detail.variants.count > 1 {
                         Picker(L("Variante", "Variant"), selection: $library.variantID) { ForEach(detail.variants) { Text($0.label).tag($0.id) } }
@@ -210,7 +245,15 @@ private struct HubBrowserView: View {
                     Label(L("Télécharger", "Download"), systemImage: "arrow.down.to.line").font(.system(size: 11, weight: .medium)).padding(.horizontal, 15).padding(.vertical, 12)
                 }.buttonStyle(PrimaryGlassButtonStyle()).disabled(library.selectedVariant == nil || library.downloading != nil || library.loadingDetail)
             }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
-            if let variant = library.selectedVariant { ModelAdviceView(sizeBytes: variant.sizeBytes, preview: variant.preview) }
+            if let variant = library.selectedVariant {
+                if variant.preview?.modelType == "qwen4_exp" {
+                    Text(L("Flash Next utilise le streaming SSD : la taille du téléchargement n’est pas la RAM requise. Le moteur charge les experts à la demande dans un cache borné ; l’empreinte dépend du contexte et de la mémoire disponible.",
+                           "Flash Next uses SSD streaming: download size is not the required RAM. The engine loads experts on demand into a bounded cache; memory use depends on context and available memory."))
+                        .font(.caption).foregroundStyle(StudioTheme.secondary)
+                } else {
+                    ModelAdviceView(sizeBytes: variant.sizeBytes, preview: variant.preview)
+                }
+            }
             if detail.variants.isEmpty {
                 Text(L("Pas de checkpoint EXL3 complet identifié ici. Essayez une branche BPW. Les poids ambigus partageant un même descripteur ne sont pas mélangés.", "No complete EXL3 checkpoint identified here. Try a BPW branch. Ambiguous weights sharing one descriptor are not mixed."))
                     .font(.caption).foregroundStyle(.orange)

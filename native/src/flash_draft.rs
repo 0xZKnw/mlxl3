@@ -1,58 +1,13 @@
 //! Flash Next DFlash2 runtime and numerical oracles for the pinned drafts.
 //! Equations: SGLang 3c560089 DFlash2 and e00930c5 DSpark (Apache-2.0).
 use super::*;
+use crate::flash_draft_metadata::Kind;
 use std::path::Path;
 #[path = "flash_draft_runtime.rs"]
 pub(super) mod runtime;
 #[cfg(test)]
 #[path = "flash_draft_splash_tests.rs"]
 mod splash_tests;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Kind {
-    Dflash2,
-    #[cfg(test)]
-    Dspark,
-}
-
-impl Kind {
-    #[cfg(test)]
-    fn parse(value: &str) -> Result<Self> {
-        match value {
-            "dflash2" => Ok(Self::Dflash2),
-            "dspark" => Ok(Self::Dspark),
-            _ => anyhow::bail!("unknown Flash draft kind"),
-        }
-    }
-    fn captures(self) -> [usize; 5] {
-        match self {
-            Self::Dflash2 => [5, 15, 25, 35, 45],
-            #[cfg(test)]
-            Self::Dspark => [1, 12, 23, 34, 45],
-        }
-    }
-    fn mask(self) -> u32 {
-        if self == Self::Dflash2 {
-            248077
-        } else {
-            248070
-        }
-    }
-    fn rope(self) -> f32 {
-        if self == Self::Dflash2 {
-            10_000.0
-        } else {
-            10_000_000.0
-        }
-    }
-    fn intermediate(self) -> i32 {
-        if self == Self::Dflash2 { 7680 } else { 9728 }
-    }
-    fn rows(self, proposals: usize) -> Result<i32> {
-        ensure!((1..=7).contains(&proposals), "invalid draft proposal count");
-        Ok(i32::try_from(proposals)? + i32::from(self == Self::Dflash2))
-    }
-}
 
 struct Draft {
     kind: Kind,
@@ -344,121 +299,14 @@ impl Draft {
             kind == Kind::Dflash2 || (!q4 && !circular),
             "Splash options require DFlash2"
         );
-        let tensors = crate::checkpoint::read_header(&path.join("model.safetensors"))
-            .context("reading raw BF16 Flash draft header")?;
-        let config: Value = serde_json::from_reader(File::open(path.join("config.json"))?)?;
-        let architecture = if kind == Kind::Dflash2 {
-            "DFlash2DraftModel"
-        } else {
-            "DSparkDraftModel"
-        };
-        ensure!(
-            config["architectures"] == serde_json::json!([architecture])
-                && config["hidden_size"] == H
-                && config["num_hidden_layers"] == 5
-                && config["intermediate_size"] == kind.intermediate()
-                && config["num_attention_heads"] == 32
-                && config["num_key_value_heads"] == 8
-                && config["head_dim"] == 128
-                && config["vocab_size"] == 248320
-                && config["rms_norm_eps"] == 1e-6
-                && config["attention_bias"] == false
-                && config["dflash_config"]["target_layer_ids"]
-                    == serde_json::json!(kind.captures())
-                && config["dflash_config"]["mask_token_id"] == kind.mask(),
-            "unsupported Flash draft configuration"
-        );
-        if kind == Kind::Dflash2 {
-            ensure!(
-                config["rope_parameters"]["rope_theta"] == 10000
-                    && config["sliding_window"] == 2048
-                    && config["use_sliding_window"] == true
-                    && config["dflash_config"]["conv_group_size"] == 16
-                    && config["dflash_config"]["conv_kernel_size"] == 2
-                    && config["dflash_config"]["selector_rank"] == 256
-                    && config["dflash_config"]["selector_top_k"] == 16,
-                "unsupported DFlash2 geometry"
-            );
-        } else {
-            ensure!(
-                config["rope_theta"] == 10_000_000
-                    && config["sliding_window"].is_null()
-                    && config["use_sliding_window"] == false
-                    && config["dflash_config"]["markov_head_type"] == "vanilla"
-                    && config["dflash_config"]["markov_rank"] == 256
-                    && config["dflash_config"]["confidence_head_with_markov"] == true
-                    && config["sample_from_anchor"].as_bool().unwrap_or(true),
-                "unsupported DSpark geometry"
-            );
-        }
-        let mut shapes = BTreeMap::new();
-        shapes.insert("fc.weight".to_owned(), vec![H, 5 * H]);
-        for name in ["hidden_norm.weight", "norm.weight"] {
-            shapes.insert(name.to_owned(), vec![H]);
-        }
-        for layer in 0..5 {
-            let p = format!("layers.{layer}");
-            for name in ["input_layernorm", "post_attention_layernorm"] {
-                shapes.insert(format!("{p}.{name}.weight"), vec![H]);
-            }
-            for name in ["q_norm", "k_norm"] {
-                shapes.insert(format!("{p}.self_attn.{name}.weight"), vec![128]);
-            }
-            for (name, output, input) in [
-                ("q_proj", 4096, H),
-                ("k_proj", 1024, H),
-                ("v_proj", 1024, H),
-                ("o_proj", H, 4096),
-            ] {
-                shapes.insert(format!("{p}.self_attn.{name}.weight"), vec![output, input]);
-            }
-            for name in ["gate_proj", "up_proj"] {
-                shapes.insert(
-                    format!("{p}.mlp.{name}.weight"),
-                    vec![kind.intermediate(), H],
-                );
-            }
-            shapes.insert(
-                format!("{p}.mlp.down_proj.weight"),
-                vec![H, kind.intermediate()],
-            );
-            if kind == Kind::Dflash2 {
-                for name in ["attention_conv", "mlp_conv"] {
-                    shapes.insert(format!("{p}.{name}.base_kernel"), vec![2, 2, H]);
-                    shapes.insert(format!("{p}.{name}.kernel_projection.weight"), vec![640, H]);
-                }
-            }
-        }
-        if kind == Kind::Dflash2 {
-            shapes.insert(
-                "candidate_selector.hidden_projection.weight".to_owned(),
-                vec![256, H],
-            );
-            for name in ["predecessor_codebook", "successor_codebook"] {
-                shapes.insert(format!("candidate_selector.{name}"), vec![248320, 256]);
-            }
-        } else {
-            for name in ["markov_w1", "markov_w2"] {
-                shapes.insert(format!("markov_head.{name}.weight"), vec![248320, 256]);
-            }
-            shapes.insert("confidence_head.proj.weight".to_owned(), vec![1, 2816]);
-            shapes.insert("confidence_head.proj.bias".to_owned(), vec![1]);
-        }
-        ensure!(
-            tensors.len() == shapes.len(),
-            "unexpected or missing draft tensors"
-        );
+        let crate::flash_draft_metadata::RawDraft { tensors, shapes } =
+            crate::flash_draft_metadata::inspect(path, kind)?;
         let mut weights = BTreeMap::new();
         let mut quantized = BTreeMap::new();
         for (name, shape) in shapes {
             let info = tensors
                 .get(&name)
                 .with_context(|| format!("missing {name}"))?;
-            ensure!(
-                info.dtype == "BF16"
-                    && info.shape == shape.iter().map(|&n| n as usize).collect::<Vec<_>>(),
-                "invalid draft tensor {name}"
-            );
             let (file, offset) = info.source()?;
             let weight = Array::from_file(file, offset, &shape, Dtype::BFloat16)?;
             if q4 && name.ends_with(".weight") && shape.len() == 2 {

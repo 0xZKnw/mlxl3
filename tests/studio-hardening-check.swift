@@ -24,9 +24,9 @@ extension UpdateManager {
         let flashModel = root.appendingPathComponent("flash-model")
         try FileManager.default.createDirectory(at: flashModel, withIntermediateDirectories: true)
         try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
-        func make(_ name: String, type: String = "audit") async throws -> StudioModel {
+        func make(_ name: String, type: String = "audit", pathOverride: URL? = nil) async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            let path = type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path
+            let path = pathOverride?.path ?? (type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path)
             model.models = [LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
             for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
@@ -97,6 +97,99 @@ extension UpdateManager {
                 try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
             }.filter { $0["model"] as? String == name }
         }
+        let compatibleFlashDraft = root.appendingPathComponent("flash-compatible-draft").path
+        func flashDownload(_ name: String, previousPath: String = "") async throws -> StudioModel {
+            let folder = root.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: folder.appendingPathComponent("config.json"))
+            prefs.set(false, forKey: "studio.dflash2Enabled")
+            prefs.set(previousPath, forKey: "studio.dflashDraft.\(folder.path)")
+            return try await make(name, type: "qwen4_exp", pathOverride: folder)
+        }
+        func flashInstalls(_ target: String) throws -> [[String: Any]] {
+            let file = root.appendingPathComponent("flash-draft-installs.jsonl")
+            guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+            return try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map {
+                try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+            }.filter { $0["target"] as? String == target }
+        }
+        for (name, previous) in [("flash-download-good", ""), ("flash-download-cache", localFlashDraft)] {
+            let downloaded = try await flashDownload(name, previousPath: previous)
+            defer { downloaded.ejectModel() }
+            downloaded.downloadCompatibleDFlashDraft()
+            guard downloaded.dflashDownloading else {
+                throw MLXL3BridgeError.commandFailed("Explicit Flash download did not start the native installer: " + (downloaded.dflashDownloadError ?? "no error"))
+            }
+            for _ in 0..<200 where try dflashOperations(name).isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+            guard try !dflashOperations(name).isEmpty else {
+                throw MLXL3BridgeError.commandFailed("Downloaded Flash draft never reached resident validation")
+            }
+            let target = downloaded.selectedModel!.path
+            let installs = try flashInstalls(target)
+            precondition(installs.count == 1 && installs[0]["args"] as? [String] == ["dflash-draft", "--target", target])
+            precondition(downloaded.dflashDraftPath == previous && prefs.string(forKey: "studio.dflashDraft.\(target)") == previous,
+                "Download path was committed before the resident acknowledgement")
+            if name == "flash-download-good" {
+                precondition(downloaded.dflashDownloadTotal == 1_206_141_244 && downloaded.dflashDownloadCompleted > 0)
+            }
+            try Data().write(to: root.appendingPathComponent(name + "-ack-release"))
+            for _ in 0..<200 where downloaded.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(downloaded.dflash2Enabled && downloaded.dflashActive == true && !downloaded.canTuneDFlash)
+            precondition(downloaded.dflashDraftPath == compatibleFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == compatibleFlashDraft)
+            downloaded.setDFlash2Enabled(false)
+            for _ in 0..<200 where downloaded.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        }
+        for name in ["flash-download-error", "flash-download-malformed", "flash-download-wrong", "flash-download-old"] {
+            let failed = try await flashDownload(name, previousPath: localFlashDraft)
+            defer { failed.ejectModel() }
+            failed.downloadCompatibleDFlashDraft()
+            for _ in 0..<200 where failed.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!failed.dflash2Enabled && failed.dflashDownloadError != nil, "Download failure enabled Flash DFlash: \(name)")
+            let target = failed.selectedModel!.path
+            precondition(failed.dflashDraftPath == localFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+            let installs = try flashInstalls(target)
+            precondition(installs.count == (name == "flash-download-old" ? 0 : 1))
+            let operations = try dflashOperations(name).filter { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }
+            precondition(operations.count == (name == "flash-download-wrong" ? 1 : 0))
+        }
+        for name in ["flash-download-cancel", "flash-download-switch"] {
+            let stopped = try await flashDownload(name, previousPath: localFlashDraft)
+            defer { stopped.ejectModel() }
+            let target = stopped.selectedModel!.path
+            stopped.downloadCompatibleDFlashDraft()
+            let ready = root.appendingPathComponent(name + "-ready")
+            for _ in 0..<200 where !FileManager.default.fileExists(atPath: ready.path) { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(FileManager.default.fileExists(atPath: ready.path) && stopped.dflashDownloading && stopped.dflashDownloadCompleted > 0)
+            let pid = Int32(try String(contentsOf: ready, encoding: .utf8))!
+            if name == "flash-download-switch" {
+                stopped.models.append(LocalModel(name: "download-following", path: root.path, modelType: "audit", format: "EXL3", bits: 3,
+                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B"))
+                stopped.selectModel("download-following")
+                for _ in 0..<200 where !stopped.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+                precondition(stopped.selectedModelName == "download-following" && stopped.engineState.isReady)
+            } else { stopped.setDFlash2Enabled(false) }
+            for _ in 0..<200 where kill(pid, 0) == 0 { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(kill(pid, 0) == -1 && errno == ESRCH, "Cancelled native download process was not reaped")
+            precondition(!stopped.dflash2Enabled && !stopped.dflashDownloading)
+            precondition(prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+            let operations = try dflashOperations(name).filter { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }
+            precondition(operations.isEmpty, "Cancelled download reached resident activation")
+        }
+        do {
+            let stopped = try await flashDownload("flash-download-ack-cancel", previousPath: localFlashDraft)
+            defer { stopped.ejectModel() }
+            let target = stopped.selectedModel!.path
+            stopped.downloadCompatibleDFlashDraft()
+            for _ in 0..<200 where try dflashOperations("flash-download-ack-cancel").isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+            let beforeCancel = try dflashOperations("flash-download-ack-cancel")
+            precondition(!beforeCancel.isEmpty)
+            stopped.setDFlash2Enabled(false)
+            try Data().write(to: root.appendingPathComponent("flash-download-ack-cancel-ack-release"))
+            for _ in 0..<200 where stopped.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!stopped.dflash2Enabled && stopped.dflashActive == false)
+            precondition(stopped.dflashDraftPath == localFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+        }
+        print("Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping")
         do {
             let local = try await flashDFlash("flash-dflash-good", path: localFlashDraft)
             defer { local.ejectModel() }

@@ -1,0 +1,94 @@
+{
+  "status": "targeted_source_and_real_package_checks_passed_CI_pending",
+  "native": {
+    "targeted_passed": 30,
+    "ignored": 2,
+    "fmt": "passed",
+    "clippy_cpu_and_mlx_chat": "passed",
+    "build_mlx_chat": "passed",
+    "real_cli_cases": 3,
+    "managed_cache_reuse": "passed_full_SHA256_zero_network"
+  },
+  "desktop": {
+    "download_scenarios": 9,
+    "local_and_legacy_scenarios": 8,
+    "updater_targeted_suites": "both_passed",
+    "signed_application_cases": 15,
+    "workspace_checks": 229,
+    "strict_Swift6": "passed"
+  },
+  "formal": {
+    "Kani": "two_actual_harnesses_attempted_compile_ICE_intrinsics.rs:243_before_obligations_unverified",
+    "Swift": "no_practical_source_verifier_tests_are_not_proof",
+    "CrossHair": "unavailable"
+  },
+  "new_model_GPU_generation": "not_run_no_numerical_math_changed",
+  "new_TPS": "not_measured",
+  "full_suites_repeated": false,
+  "known_limits": [
+    "Standalone engine updater compares numeric versions; beta1 and beta2 both2.0.0 require Desktopbeta2 to receive the bundled fix.",
+    "Public LFMv2 differs from local experimental conversions."
+  ],
+  "proofs": [
+    "build/flash-draft-download/README-native-final.md",
+    "build/flash-draft-download/ui-README.md",
+    "build/update-channels/README.md",
+    "build/recommended-models/workspace.log"
+  ],
+  "source": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+  "package_qa": "passed_frozen_delta_package_checks",
+  "package_commands": 11,
+  "CI": [
+    {
+      "conclusion": "",
+      "databaseId": 40332952039,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "EXL3 conversion contracts",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952039"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40332952417,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "Regression checks",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952417"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40332952012,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952012"
+    }
+  ],
+  "primary_assets": {
+    "MLXL3-Engine-v2.0.0-beta.2-arm64.json": {
+      "bytes": 13588,
+      "sha256": "9b33019725439e64fa33483967dd696c3da25bef2af1d410faaea0261e96c1b6"
+    },
+    "MLXL3-Engine-v2.0.0-beta.2-arm64.tar.gz": {
+      "bytes": 67254401,
+      "sha256": "8922476474341ffd3db73f586067b29ea04f56bb81e216fe6c4e96e25b2d6b9a"
+    },
+    "MLXL3-Desktop-v2.0.0-beta.2-b32-Apple-Silicon.dmg": {
+      "bytes": 74117391,
+      "sha256": "83999f5e83d051ab55503d604e8804617d5a0eae84b2116b2572a545f140096d"
+    }
+  },
+  "runtime_identity": "0842599c2446_clean",
+  "previous_attempts": {
+    "673f779f": "CPU_package_passed_but_legacy_Flash_advice_discovered",
+    "93d654cc": "rejected_runtime_identity_dad141a3f91b-dirty_retained"
+  },
+  "UI": {
+    "four_cards_visible": true,
+    "channel_picker_visible": true,
+    "Flash_revision": "65c89531",
+    "SSD_advice_corrected_and_observed": true,
+    "Download_not_clicked": true,
+    "tested_UI_code": "93d654cc identical Swift inputs to final0842599c"
+  }
+}

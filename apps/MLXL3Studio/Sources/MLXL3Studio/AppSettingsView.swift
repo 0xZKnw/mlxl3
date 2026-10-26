@@ -126,7 +126,7 @@ struct AppSettingsView: View {
                     VStack(alignment: .leading, spacing: 11) {
                         Label(L("Comment ça marche", "How it works"), systemImage: "shippingbox")
                             .font(.system(size: 13, weight: .semibold))
-                        Text(L("Le moteur MLXL3 et l’interface sont livrés dans le même DMG. Une nouvelle release GitHub met donc les deux à jour ensemble, sans désynchroniser leurs versions.", "The MLXL3 engine and interface ship in the same DMG. A GitHub release updates both together, keeping their versions in sync."))
+                        Text(L("Le DMG embarque un moteur compatible. Les versions Desktop et moteur sont indépendantes.", "The DMG includes a compatible engine. Desktop and engine versions are independent."))
                             .font(.system(size: 12.5, weight: .regular))
                             .foregroundStyle(StudioTheme.secondary)
                             .lineSpacing(4)
@@ -210,6 +210,17 @@ private struct UpdateSettingsCard: View {
                 Spacer()
                 updateAction
             }
+
+            Picker(L("Canal des mises à jour", "Update channel"), selection: Binding(
+                get: { updater.updateChannel }, set: { updater.setUpdateChannel($0) }
+            )) {
+                Text("Stable").tag(UpdateChannel.stable)
+                Text(L("Bêta", "Beta")).tag(UpdateChannel.beta)
+            }
+            .pickerStyle(.segmented)
+            .disabled(updater.isInstalling)
+            Text(L("Utilise Rechercher pour vérifier les versions du canal choisi.", "Use Search to check versions from the selected channel."))
+                .font(.system(size: 10.5)).foregroundStyle(StudioTheme.quiet)
 
             HStack(spacing: 10) {
                 stateIcon
