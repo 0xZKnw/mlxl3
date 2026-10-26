@@ -1,5 +1,5 @@
 {
-  "status": "source_checks_passed_packages_pending",
+  "status": "targeted_source_and_real_package_checks_passed_CI_pending",
   "native": {
     "targeted_passed": 30,
     "ignored": 2,
@@ -34,5 +34,61 @@
     "build/flash-draft-download/ui-README.md",
     "build/update-channels/README.md",
     "build/recommended-models/workspace.log"
-  ]
+  ],
+  "source": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+  "package_qa": "passed_frozen_delta_package_checks",
+  "package_commands": 11,
+  "CI": [
+    {
+      "conclusion": "",
+      "databaseId": 40332952039,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "EXL3 conversion contracts",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952039"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40332952417,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "Regression checks",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952417"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40332952012,
+      "headSha": "0842599c24461b3395b4d2d2bd9bf617eb739798",
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/40332952012"
+    }
+  ],
+  "primary_assets": {
+    "MLXL3-Engine-v2.0.0-beta.2-arm64.json": {
+      "bytes": 13588,
+      "sha256": "9b33019725439e64fa33483967dd696c3da25bef2af1d410faaea0261e96c1b6"
+    },
+    "MLXL3-Engine-v2.0.0-beta.2-arm64.tar.gz": {
+      "bytes": 67254401,
+      "sha256": "8922476474341ffd3db73f586067b29ea04f56bb81e216fe6c4e96e25b2d6b9a"
+    },
+    "MLXL3-Desktop-v2.0.0-beta.2-b32-Apple-Silicon.dmg": {
+      "bytes": 74117391,
+      "sha256": "83999f5e83d051ab55503d604e8804617d5a0eae84b2116b2572a545f140096d"
+    }
+  },
+  "runtime_identity": "0842599c2446_clean",
+  "previous_attempts": {
+    "673f779f": "CPU_package_passed_but_legacy_Flash_advice_discovered",
+    "93d654cc": "rejected_runtime_identity_dad141a3f91b-dirty_retained"
+  },
+  "UI": {
+    "four_cards_visible": true,
+    "channel_picker_visible": true,
+    "Flash_revision": "65c89531",
+    "SSD_advice_corrected_and_observed": true,
+    "Download_not_clicked": true,
+    "tested_UI_code": "93d654cc identical Swift inputs to final0842599c"
+  }
 }
