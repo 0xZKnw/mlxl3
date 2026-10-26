@@ -179,6 +179,7 @@ extension StudioModel {
     studio.localServer.stop()
     try await wait { !studio.localServer.active }
     check(!studio.localServer.busy, "Silent startup can be cancelled")
+    check(StudioBrand.logoURL != nil && StudioBrand.logo != nil, "Real MLXL3 app artwork loads")
     if CommandLine.arguments.count > 2 {
       _ = NSApplication.shared
       let preview = StudioModel.uiPreview()

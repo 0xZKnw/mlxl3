@@ -39,16 +39,28 @@ struct StudioControlStyle: ButtonStyle {
     }
 }
 
-/// Monochrome signature shared by the interface and menu bar.
+@MainActor
+enum StudioBrand {
+    static let logoURL: URL? = {
+        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appending(path: "Resources/AppIcon.png")
+        return [Bundle.main.url(forResource: "AppIcon", withExtension: "icns"), source]
+            .compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
+    }()
+    static let logo = logoURL.flatMap { NSImage(contentsOf: $0) }
+}
+
+/// Reuse the actual app artwork; screen blending merges its dark field with the canvas.
 struct MonogramMark: View {
     var size: CGFloat = 20
 
     var body: some View {
-        ZStack {
-            Text("M3")
-                .font(.system(size: size * 0.61, weight: .heavy, design: .rounded))
-                .tracking(-size * 0.045)
-                .foregroundStyle(StudioTheme.ink)
+        Group {
+            if let logo = StudioBrand.logo {
+                Image(nsImage: logo).resizable().scaledToFit().blendMode(.screen)
+            } else {
+                Image(systemName: "cpu").resizable().scaledToFit().foregroundStyle(StudioTheme.ink)
+            }
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
