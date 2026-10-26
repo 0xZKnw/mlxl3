@@ -1,6 +1,6 @@
 # MLXL3 Desktop 2.0.0-beta.2 — build 32
 
-Préversion : `v2.0.0-beta.2`, latest=false ; version interne Desktop/moteur2.0.0. Source construite : SOURCE_SHA_BETA2. Les modèles et conversations restent séparés de l’application.
+Préversion : `v2.0.0-beta.2`, latest=false ; version interne Desktop/moteur2.0.0. Source construite : [`673f779f7323fd1c90a88ac95d16ee458d27cb59`](https://github.com/0xZKnw/mlxl3/commit/673f779f7323fd1c90a88ac95d16ee458d27cb59). Les modèles et conversations restent séparés de l’application.
 
 ## Nouveautés
 
@@ -22,11 +22,15 @@ Apple Silicon, macOS26.2+, signature ad-hoc sans notarisation. Installer ce DMG,
 
 ## Vérification et limites
 
-Contrôles ciblés :30tests natifs réussis/2ignorés, format/Clippy CPU etMLX, vraieCLI+cacheRAW SHA256 ;9scénarios téléchargement et8locaux/legacy ; deux suites updater dont15cas d’applications signées jetables ; compilationSwift6 stricte et229contrôles workspace. Pas de nouvelle générationGPU. Kani tenté sur deux contrats réels mais erreur interne de compilation avant obligations : non vérifiés. Ces tests ne constituent pas une preuve complète. Paquets etCI : PACKAGE_STATUS_BETA2.
+Contrôles ciblés :30tests natifs réussis/2ignorés, format/Clippy CPU etMLX, vraieCLI+cacheRAW SHA256 ;9scénarios téléchargement et8locaux/legacy ; deux suites updater dont15cas d’applications signées jetables ; compilationSwift6 stricte et229contrôles workspace. Pas de nouvelle générationGPU. Kani tenté sur deux contrats réels mais erreur interne de compilation avant obligations : non vérifiés. Ces tests ne constituent pas une preuve complète. Paquets etCI : signatures, arm64, quatre hashes runtime, CLI relocalisée/cache etDMG readonly conformes ; CI duSHA inspectée, conversion réussie, autres jobs encoreen cours àcettephotographie. RPATHabsoluhérité présentmais nonutilisé parleslibrairies chargées du paquet.
 
 ## Artefacts
 
-ARTIFACTS_BETA2
+| Fichier | Octets | SHA-256 |
+|---|---:|---|
+| MLXL3-Desktop-v2.0.0-beta.2-b32-Apple-Silicon.dmg | 74116543 | `c2526196ac92c4027c5fc77593a42a5fc9874a8ebbd338bc627bfd8fb398336c` |
+| MLXL3-v2.0.0-beta.2-validation.json | 2859 | `af84b78ab8935a19dbc21620a00f5036bbdcb50bd353a07e59f066278329de31` |
+| MLXL3-v2.0.0-beta.2-verification.tar.gz | 10016 | `e5b347e2a32cf1bb4b81d8197d626609edccad0840f336fa439ac325dfea9fd5` |
 
 ## Remerciements
 

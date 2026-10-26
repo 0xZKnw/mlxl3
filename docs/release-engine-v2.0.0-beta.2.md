@@ -1,6 +1,6 @@
 # MLXL3 Engine 2.0.0-beta.2
 
-Préversion `engine-v2.0.0-beta.2`, latest=false, version interne2.0.0. Source construite : SOURCE_SHA_BETA2.
+Préversion `engine-v2.0.0-beta.2`, latest=false, version interne2.0.0. Source construite : [`673f779f7323fd1c90a88ac95d16ee458d27cb59`](https://github.com/0xZKnw/mlxl3/commit/673f779f7323fd1c90a88ac95d16ee458d27cb59).
 
 ## Nouveautés et correctifs
 
@@ -16,11 +16,14 @@ Apple Silicon/macOS26.2+, MLX0.32.2. Utiliser Desktop2.0.0-beta.2/build32 pour r
 
 ## Vérification et limites
 
-30tests ciblés réussis/2ignorés, fmt, ClippyCPU/MLX et compilationMLX ; vraieCLI sur draftlocal, refus de fichiers/cible invalides et cache géré intégralement hashé. TentativeKani de deux contrats interrompue par erreur interne du compilateur avant obligations : non vérifiée. Aucun nouveau test numériqueGPU ; les calculs existants sont conservés. Paquet/CI : PACKAGE_STATUS_BETA2.
+30tests ciblés réussis/2ignorés, fmt, ClippyCPU/MLX et compilationMLX ; vraieCLI sur draftlocal, refus de fichiers/cible invalides et cache géré intégralement hashé. TentativeKani de deux contrats interrompue par erreur interne du compilateur avant obligations : non vérifiée. Aucun nouveau test numériqueGPU ; les calculs existants sont conservés. Paquet/CI : signatures, arm64, quatre hashes runtime, CLI relocalisée/cache etDMG readonly conformes ; CI duSHA inspectée, conversion réussie, autres jobs encoreen cours àcettephotographie. RPATHabsoluhérité présentmais nonutilisé parleslibrairies chargées du paquet.
 
 ## Artefacts
 
-ARTIFACTS_ENGINE_BETA2
+| Fichier | Octets | SHA-256 |
+|---|---:|---|
+| MLXL3-Engine-v2.0.0-beta.2-arm64.json | 13588 | `8fa7e7fc9ac0853d29463cf8e3e388edb42891fea0e42d1705623abd56a87889` |
+| MLXL3-Engine-v2.0.0-beta.2-arm64.tar.gz | 67254379 | `a424138b53d6c7a9dbc632c06af946523e1dd8f7630e2ba63d4dd086c74fb036` |
 
 ## Remerciements
 
