@@ -83,6 +83,88 @@ extension UpdateManager {
                 try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(state).png"))
             }
         }
+        // Real Flash uses a raw BF16 draft folder, not the legacy MDFD0004 downloader.
+        let localFlashDraft = root.appendingPathComponent("flash-local-draft").path
+        func flashDFlash(_ name: String, path: String) async throws -> StudioModel {
+            prefs.set(false, forKey: "studio.dflash2Enabled")
+            prefs.set(path, forKey: "studio.dflashDraft.\(flashModel.path)")
+            return try await make(name, type: "qwen4_exp")
+        }
+        func dflashOperations(_ name: String) throws -> [[String: Any]] {
+            let file = root.appendingPathComponent("dflash-operations.jsonl")
+            guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+            return try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map {
+                try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+            }.filter { $0["model"] as? String == name }
+        }
+        do {
+            let local = try await flashDFlash("flash-dflash-good", path: localFlashDraft)
+            defer { local.ejectModel() }
+            precondition(local.dflash2Available && !local.canTuneDFlash)
+            local.setDFlash2Enabled(true)
+            for _ in 0..<200 where local.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            guard local.dflash2Enabled && local.dflashActive == true else {
+                throw MLXL3BridgeError.commandFailed("Flash local draft must reach resident configure without legacy dflash-draft: " + (local.dflashDownloadError ?? "no error"))
+            }
+            let operations = try dflashOperations("flash-dflash-good")
+            precondition(operations.count == 1)
+            precondition((operations[0]["request"] as? [String: Any])?["dflash_draft_path"] as? String == localFlashDraft)
+            precondition(prefs.string(forKey: "studio.dflashDraft.\(flashModel.path)") == localFlashDraft)
+            local.draft = "Flash draft roundtrip"; local.send()
+            for _ in 0..<200 where local.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+            let wire = try JSONSerialization.jsonObject(with: Data(local.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+            precondition(wire["dflash2"] as? Bool == true && wire["dflash_draft_path"] as? String == localFlashDraft)
+            precondition(wire["temperature"] as? Double == 0 && wire["top_k"] as? Int == 1)
+            local.setDFlash2Enabled(false)
+            for _ in 0..<200 where local.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!local.dflash2Enabled && local.dflashActive == false)
+        }
+        for (name, path) in [("flash-dflash-empty", " \n"), ("flash-dflash-old", localFlashDraft),
+                             ("flash-dflash-invalid", root.appendingPathComponent("foreign-draft").path),
+                             ("flash-dflash-wrong", localFlashDraft)] {
+            let rejected = try await flashDFlash(name, path: path)
+            defer { rejected.ejectModel() }
+            rejected.setDFlash2Enabled(true)
+            for _ in 0..<200 where rejected.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!rejected.dflash2Enabled && rejected.dflashDownloadError != nil, "Invalid Flash draft/protocol was enabled: \(name)")
+            let operations = try dflashOperations(name)
+            precondition(operations.count == (name == "flash-dflash-empty" || name == "flash-dflash-old" ? 0 : 1))
+            if name == "flash-dflash-empty" {
+                precondition(rejected.dflashDownloadError!.contains("draft"), "Missing path must explain what to choose")
+            }
+        }
+        do {
+            let stale = try await flashDFlash("flash-dflash-stale", path: localFlashDraft)
+            defer { stale.ejectModel() }
+            stale.setDFlash2Enabled(true)
+            for _ in 0..<100 where try dflashOperations("flash-dflash-stale").isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+            try await Task.sleep(for: .milliseconds(80))
+            precondition(stale.dflashDownloading && !stale.dflash2Enabled, "An unrelated ack enabled Flash DFlash")
+            for _ in 0..<200 where stale.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(stale.dflash2Enabled && stale.dflashActive == true)
+            stale.setDFlash2Enabled(false)
+        }
+        for switchModel in [false, true] {
+            let cancelled = try await flashDFlash("flash-dflash-slow", path: localFlashDraft)
+            defer { cancelled.ejectModel() }
+            cancelled.setDFlash2Enabled(true)
+            let previous = try dflashOperations("flash-dflash-slow").count
+            for _ in 0..<100 where try dflashOperations("flash-dflash-slow").count == previous { try await Task.sleep(for: .milliseconds(10)) }
+            if switchModel {
+                cancelled.models.append(LocalModel(name: "after-flash", path: root.path, modelType: "audit", format: "EXL3", bits: 3,
+                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B"))
+                cancelled.selectModel("after-flash")
+            } else { cancelled.setDFlash2Enabled(false) }
+            try await Task.sleep(for: .milliseconds(650))
+            precondition(!cancelled.dflash2Enabled && !cancelled.dflashDownloading, "Cancelled/stale Flash activation resumed")
+            if switchModel { precondition(cancelled.selectedModelName == "after-flash" && cancelled.engineState.isReady) }
+            else { precondition(cancelled.dflashActive == false) }
+        }
+        let legacyCalls = root.appendingPathComponent("dflash-legacy-operations.jsonl")
+        precondition(!FileManager.default.fileExists(atPath: legacyCalls.path), "Flash used the incompatible packed legacy draft CLI")
+        prefs.set(false, forKey: "studio.dflash2Enabled")
+        prefs.removeObject(forKey: "studio.dflashDraft.\(flashModel.path)")
+        print("Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI")
         let updates = try await make("updates")
         defer { updates.ejectModel() }
         updates.draft = "send during background update"

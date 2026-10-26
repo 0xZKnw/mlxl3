@@ -77,6 +77,14 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':
 
 if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
     target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    with open(os.path.join(os.environ['MLXL3_HOME'], 'dflash-legacy-operations.jsonl'), 'a') as log:
+        log.write(json.dumps({'target': target, 'args': sys.argv[1:]}) + '\n')
+    config = os.path.join(target, 'config.json')
+    if os.path.isfile(config):
+        with open(config) as source:
+            if json.load(source).get('model_type') == 'qwen4_exp':
+                print('Flash draft requires the resident bridge, not the packed legacy loader', file=sys.stderr)
+                sys.exit(1)
     draft = '/tmp/mlxl3-fixture-dflash-' + ('dense' if target.endswith('dflash-dense') else 'moe')
     if '--inspect' in sys.argv and sys.argv[sys.argv.index('--inspect') + 1] != draft:
         print('foreign DFlash draft', file=sys.stderr)
@@ -111,7 +119,8 @@ signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
 mtp_capable = model in ('renamed', 'flash', 'flash-config') or model.startswith(('mtp-', 'auto-'))
-dflash_capable = model == 'renamed' or model.startswith('dflash-')
+flash_dflash = model.startswith('flash-dflash-')
+dflash_capable = flash_dflash or model == 'renamed' or model.startswith('dflash-')
 tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
 if model.startswith('auto-') or model == 'flash-config':
@@ -119,6 +128,11 @@ if model.startswith('auto-') or model == 'flash-config':
 if dflash_capable:
     capabilities.update(dflash_configure_supported=True, dflash_tune_supported=True,
                         dflash_tuning_key=tuning_key+':dflash-v2', dflash_family='qwen38_dense' if model == 'dflash-dense' else 'qwen36_moe')
+if flash_dflash:
+    capabilities['dflash_configure_supported'] = model != 'flash-dflash-old'
+    capabilities['dflash_tune_supported'] = False
+    capabilities.pop('dflash_tuning_key', None)
+    capabilities.pop('dflash_family', None)
 if model in ('mtp-memory-saver', 'dflash-memory-saver'):
     capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
@@ -151,7 +165,16 @@ for line in sys.stdin:
             if model == 'dflash-off-error':
                 emit('error', request_id=request['request_id'], message='draft release failed')
                 continue
-        expected = '/tmp/mlxl3-fixture-dflash-' + ('dense' if model == 'dflash-dense' else 'moe')
+        expected = (os.path.join(os.environ['MLXL3_HOME'], 'flash-local-draft') if flash_dflash
+                    else '/tmp/mlxl3-fixture-dflash-' + ('dense' if model == 'dflash-dense' else 'moe'))
+        if request['enabled'] and model == 'flash-dflash-slow':
+            time.sleep(0.4)
+        if request['enabled'] and model == 'flash-dflash-stale':
+            emit('dflash_status', request_id='obsolete-operation', dflash_active=True)
+            time.sleep(0.3)
+        if request['enabled'] and model == 'flash-dflash-wrong':
+            emit('dflash_status', request_id=request['request_id'], dflash_active=False)
+            continue
         if request['enabled'] and request['dflash_draft_path'] != expected:
             emit('error', request_id=request['request_id'], message='foreign DFlash draft reached bridge')
         elif model == 'dflash-load-error' and request['enabled']:
@@ -233,7 +256,7 @@ for line in sys.stdin:
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
         answer = json.dumps(request['messages'], ensure_ascii=False) if model == 'file-import' else (
-            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
+            json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'dflash2': request.get('dflash2'), 'dflash_draft_path': request.get('dflash_draft_path'), 'dflash_mode': request.get('dflash_mode'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith('mtp-') or model.startswith('flash') else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
         sys.exit(1)
