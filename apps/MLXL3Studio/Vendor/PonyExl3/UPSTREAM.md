@@ -6,6 +6,8 @@ License and attribution: LICENSE, NOTICE, and ponyexl3/convert/calibration_data/
 
 This snapshot includes the repository's existing patches:
 - scripts/patches/ponyexl3-mlxl3-conversion.patch
+- scripts/patches/ponyexl3-single-file-index.patch (read-only header index for a
+  single Safetensors file without a shard index)
 The consolidated patch includes the bounded conversion cache and earlier
 measurement/LDL/GSS changes. Do not reapply the incremental patches on top.
 

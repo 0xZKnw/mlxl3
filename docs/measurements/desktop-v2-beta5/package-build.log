@@ -1,0 +1,327 @@
+   Compiling mlxl3-native v2.0.1 (/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 35.11s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/rust-runtime/mlxl3: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/rust-runtime/libmlx.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/rust-runtime/libjaccl.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Engine-v2.0.1-arm64.tar.gz
+Building for production...
+[Planning deferred tasks]
+[6 / 18] SwiftMath
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |    [8 / 19] SwiftMath
+         CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[13 / 18] MLXL3Studio-product
+[18 / 75]
+[19 / 75]
+[25 / 75]
+[27 / 75]
+[34 / 75]
+[35 / 75]
+[38 / 75]
+[40 / 75]
+[53 / 75]
+[54 / 75]
+[57 / 75]
+[58 / 75]
+[62 / 75]
+[64 / 75]
+[65 / 75]
+[66 / 75]
+[69 / 75]
+[71 / 75] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[73 / 75] MLXL3Studio-product
+[74 / 75] MLXL3Studio-product
+Build complete! (41,07 secs)
+31 INFO: PyInstaller: 6.22.2, contrib hooks: 2026.7
+31 INFO: Python: 3.12.14
+36 INFO: Platform: macOS-27.2-arm64-arm-64bit
+36 INFO: Python environment: /Users/justin/Documents/mix-stq1_0/.venv
+37 INFO: wrote build/mlxl3-quantize.spec
+39 INFO: Removing temporary files and cleaning cache in /Users/justin/Library/Application Support/pyinstaller
+1802 INFO: Module search paths (PYTHONPATH):
+['/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/src',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/benchmarks',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/PonyExl3',
+ '/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python312.zip',
+ '/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12',
+ '/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/lib-dynload',
+ '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages',
+ '/Users/justin/Documents/mix-stq1_0/src',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/src',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/benchmarks',
+ '/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/PonyExl3']
+1895 INFO: Appending 'binaries' from .spec
+1895 INFO: Appending 'datas' from .spec
+1898 INFO: checking Analysis
+1898 INFO: Building Analysis because Analysis-00.toc is non existent
+1898 INFO: Looking for Python shared library...
+1900 INFO: Using Python shared library: /opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/Python
+1900 INFO: Running Analysis Analysis-00.toc
+1900 INFO: Target bytecode optimization level: 0
+1900 INFO: Initializing module dependency graph...
+1901 INFO: Initializing module graph hook caches...
+1907 INFO: Analyzing modules for base_library.zip ...
+2166 INFO: Processing standard module hook 'hook-heapq.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+2196 INFO: Processing standard module hook 'hook-encodings.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+2639 INFO: Processing standard module hook 'hook-math.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+2712 INFO: Processing standard module hook 'hook-pickle.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+3211 INFO: Caching module dependency graph...
+3227 INFO: Analyzing /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantization_studio.py
+3456 INFO: Processing standard module hook 'hook-certifi.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+3545 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+3594 INFO: Processing standard module hook 'hook-xml.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+3730 INFO: Processing standard module hook 'hook-_ctypes.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+3874 INFO: Processing standard module hook 'hook-anyio.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+4011 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+4012 INFO: SetuptoolsInfo: initializing cached setuptools info...
+4525 INFO: Processing standard module hook 'hook-platform.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+4571 INFO: Processing standard module hook 'hook-difflib.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+4611 INFO: Processing standard module hook 'hook-webbrowser.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+4620 INFO: Processing standard module hook 'hook-pygments.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+4969 INFO: Processing standard module hook 'hook-rich.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+5397 INFO: Processing standard module hook 'hook-sysconfig.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+5402 INFO: Processing standard module hook 'hook-_osx_support.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+5547 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+5653 INFO: Processing standard module hook 'hook-sqlite3.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+6081 INFO: Processing standard module hook 'hook-numpy.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+6981 INFO: Processing standard module hook 'hook-jinja2.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+7168 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7210 INFO: Processing standard module hook 'hook-fsspec.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+7416 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7416 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+7418 INFO: Processing standard module hook 'hook-setuptools.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+7423 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7432 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7433 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+7436 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7437 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+7561 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+7758 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7758 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+7938 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/pre_safe_import_module'
+7938 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+8114 INFO: Processing standard module hook 'hook-transformers.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+[transformers] PyTorch was not found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+8647 INFO: Processing standard module hook 'hook-regex.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+9348 INFO: Processing standard module hook 'hook-scipy.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+9512 INFO: Processing standard module hook 'hook-pytest.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+9600 INFO: Processing standard module hook 'hook-py.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks'
+10011 INFO: Processing standard module hook 'hook-scipy.linalg.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+10196 INFO: Processing standard module hook 'hook-scipy.special._ufuncs.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+10266 INFO: Processing standard module hook 'hook-scipy.special._ellip_harm_2.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+10970 INFO: Processing standard module hook 'hook-scipy.spatial._ckdtree.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+11185 INFO: Processing standard module hook 'hook-scipy.spatial.transform.rotation.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+11521 INFO: Processing standard module hook 'hook-scipy.stats._stats.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+11703 INFO: Processing standard module hook 'hook-scipy.sparse.csgraph.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+20943 INFO: Analyzing hidden import 'ponyexl3.cli._generate_common'
+21019 INFO: Analyzing hidden import 'ponyexl3.cli.compare_engines'
+21021 INFO: Analyzing hidden import 'ponyexl3.cli.compare_layer'
+21027 INFO: Analyzing hidden import 'ponyexl3.cli.convert_advanced'
+21047 INFO: Analyzing hidden import 'ponyexl3.cli.convert_e2e'
+21047 INFO: Analyzing hidden import 'ponyexl3.cli.generate_bench'
+21049 INFO: Analyzing hidden import 'ponyexl3.cli.generate_model'
+21050 INFO: Analyzing hidden import 'ponyexl3.cli.generate_synthetic_layer'
+21051 INFO: Analyzing hidden import 'ponyexl3.cli.gptq_convert'
+21055 INFO: Analyzing hidden import 'ponyexl3.cli.optimize_measurements'
+21056 INFO: Analyzing hidden import 'ponyexl3.mlx.cache'
+21057 INFO: Analyzing hidden import 'ponyexl3.mlx.codebook'
+21058 INFO: Analyzing hidden import 'ponyexl3.mlx.metal_codebook_poc'
+21058 INFO: Analyzing hidden import 'ponyexl3.ref.synthetic'
+21060 INFO: Analyzing hidden import 'ponyexl3.reference'
+21060 INFO: Analyzing hidden import 'ponyexl3.reference._cuda_common'
+21062 INFO: Analyzing hidden import 'ponyexl3.reference.compare_reference'
+21064 INFO: Analyzing hidden import 'ponyexl3.reference.compare_trace'
+21069 INFO: Analyzing hidden import 'ponyexl3.reference.export_linear_io'
+21072 INFO: Analyzing hidden import 'ponyexl3.reference.export_moe_routing'
+21074 INFO: Analyzing hidden import 'ponyexl3.reference.export_reference'
+21074 INFO: Analyzing hidden import 'ponyexl3.reference.export_reference_mlx'
+21076 INFO: Analyzing hidden import 'ponyexl3.reference.export_trace'
+21077 INFO: Analyzing hidden import 'ponyexl3.reference.list_modules'
+21078 INFO: Analyzing hidden import 'ponyexl3.reference.verify_reference'
+21080 INFO: Analyzing hidden import 'ponyexl3.testing'
+21080 INFO: Analyzing hidden import 'mlx_lm.models.Klear'
+21086 INFO: Analyzing hidden import 'mlx_lm.models.afm7'
+21091 INFO: Analyzing hidden import 'mlx_lm.models.afmoe'
+21096 INFO: Analyzing hidden import 'mlx_lm.models.apertus'
+21099 INFO: Analyzing hidden import 'mlx_lm.models.baichuan_m1'
+21102 INFO: Analyzing hidden import 'mlx_lm.models.bailing_moe'
+21107 INFO: Analyzing hidden import 'mlx_lm.models.bailing_moe_linear'
+21115 INFO: Analyzing hidden import 'mlx_lm.models.bitnet'
+21117 INFO: Analyzing hidden import 'mlx_lm.models.cohere'
+21120 INFO: Analyzing hidden import 'mlx_lm.models.cohere2'
+21123 INFO: Analyzing hidden import 'mlx_lm.models.dbrx'
+21127 INFO: Analyzing hidden import 'mlx_lm.models.deepseek'
+21130 INFO: Analyzing hidden import 'mlx_lm.models.deepseek_v2'
+21137 INFO: Analyzing hidden import 'mlx_lm.models.deepseek_v3'
+21144 INFO: Analyzing hidden import 'mlx_lm.models.deepseek_v32'
+21152 INFO: Analyzing hidden import 'mlx_lm.models.dots1'
+21157 INFO: Analyzing hidden import 'mlx_lm.models.ernie4_5'
+21159 INFO: Analyzing hidden import 'mlx_lm.models.ernie4_5_moe'
+21163 INFO: Analyzing hidden import 'mlx_lm.models.exaone'
+21165 INFO: Analyzing hidden import 'mlx_lm.models.exaone4'
+21168 INFO: Analyzing hidden import 'mlx_lm.models.exaone_moe'
+21174 INFO: Analyzing hidden import 'mlx_lm.models.falcon_h1'
+21182 INFO: Analyzing hidden import 'mlx_lm.models.gear'
+21188 INFO: Analyzing hidden import 'mlx_lm.models.gemma'
+21191 INFO: Analyzing hidden import 'mlx_lm.models.gemma2'
+21194 INFO: Analyzing hidden import 'mlx_lm.models.gemma3'
+21198 INFO: Analyzing hidden import 'mlx_lm.models.gemma3n'
+21205 INFO: Analyzing hidden import 'mlx_lm.models.gemma4'
+21214 INFO: Analyzing hidden import 'mlx_lm.models.glm'
+21217 INFO: Analyzing hidden import 'mlx_lm.models.glm4'
+21219 INFO: Analyzing hidden import 'mlx_lm.models.glm4_moe'
+21224 INFO: Analyzing hidden import 'mlx_lm.models.glm4_moe_lite'
+21231 INFO: Analyzing hidden import 'mlx_lm.models.glm_moe_dsa'
+21232 INFO: Analyzing hidden import 'mlx_lm.models.gpt2'
+21235 INFO: Analyzing hidden import 'mlx_lm.models.gpt_bigcode'
+21237 INFO: Analyzing hidden import 'mlx_lm.models.gpt_neox'
+21240 INFO: Analyzing hidden import 'mlx_lm.models.gpt_oss'
+21244 INFO: Analyzing hidden import 'mlx_lm.models.gptj'
+21247 INFO: Analyzing hidden import 'mlx_lm.models.granite'
+21249 INFO: Analyzing hidden import 'mlx_lm.models.granitemoe'
+21253 INFO: Analyzing hidden import 'mlx_lm.models.granitemoehybrid'
+21259 INFO: Analyzing hidden import 'mlx_lm.models.helium'
+21287 INFO: Analyzing hidden import 'mlx_lm.models.hunyuan'
+21291 INFO: Analyzing hidden import 'mlx_lm.models.hunyuan_v1_dense'
+21295 INFO: Analyzing hidden import 'mlx_lm.models.internlm2'
+21297 INFO: Analyzing hidden import 'mlx_lm.models.internlm3'
+21301 INFO: Analyzing hidden import 'mlx_lm.models.iquestloopcoder'
+21305 INFO: Analyzing hidden import 'mlx_lm.models.jamba'
+21310 INFO: Analyzing hidden import 'mlx_lm.models.kimi_k25'
+21312 INFO: Analyzing hidden import 'mlx_lm.models.kimi_k3'
+21336 INFO: Analyzing hidden import 'mlx_lm.models.kimi_vl'
+21338 INFO: Analyzing hidden import 'mlx_lm.models.laguna'
+21342 INFO: Analyzing hidden import 'mlx_lm.models.lfm2'
+21346 INFO: Analyzing hidden import 'mlx_lm.models.lfm2-vl'
+21347 INFO: Analyzing hidden import 'mlx_lm.models.lille-130m'
+21349 INFO: Analyzing hidden import 'mlx_lm.models.llama'
+21353 INFO: Analyzing hidden import 'mlx_lm.models.llama4'
+21357 INFO: Analyzing hidden import 'mlx_lm.models.llama4_text'
+21360 INFO: Analyzing hidden import 'mlx_lm.models.longcat_flash'
+21366 INFO: Analyzing hidden import 'mlx_lm.models.longcat_flash_ngram'
+21369 INFO: Analyzing hidden import 'mlx_lm.models.mamba'
+21372 INFO: Analyzing hidden import 'mlx_lm.models.mamba2'
+21376 INFO: Analyzing hidden import 'mlx_lm.models.mellum'
+21380 INFO: Analyzing hidden import 'mlx_lm.models.mimo'
+21382 INFO: Analyzing hidden import 'mlx_lm.models.mimo_v2_flash'
+21387 INFO: Analyzing hidden import 'mlx_lm.models.minicpm'
+21390 INFO: Analyzing hidden import 'mlx_lm.models.minicpm3'
+21393 INFO: Analyzing hidden import 'mlx_lm.models.minimax'
+21398 INFO: Analyzing hidden import 'mlx_lm.models.ministral3'
+21402 INFO: Analyzing hidden import 'mlx_lm.models.mistral3'
+21403 INFO: Analyzing hidden import 'mlx_lm.models.mixtral'
+21406 INFO: Analyzing hidden import 'mlx_lm.models.muse_glimmer'
+21410 INFO: Analyzing hidden import 'mlx_lm.models.nanbeige'
+21413 INFO: Analyzing hidden import 'mlx_lm.models.nanochat'
+21416 INFO: Analyzing hidden import 'mlx_lm.models.nemotron'
+21419 INFO: Analyzing hidden import 'mlx_lm.models.nemotron-nas'
+21423 INFO: Analyzing hidden import 'mlx_lm.models.nemotron_h'
+21430 INFO: Analyzing hidden import 'mlx_lm.models.olmo'
+21432 INFO: Analyzing hidden import 'mlx_lm.models.olmo2'
+21435 INFO: Analyzing hidden import 'mlx_lm.models.olmo3'
+21438 INFO: Analyzing hidden import 'mlx_lm.models.olmoe'
+21441 INFO: Analyzing hidden import 'mlx_lm.models.openelm'
+21444 INFO: Analyzing hidden import 'mlx_lm.models.phi'
+21446 INFO: Analyzing hidden import 'mlx_lm.models.phi3'
+21449 INFO: Analyzing hidden import 'mlx_lm.models.phi3small'
+21453 INFO: Analyzing hidden import 'mlx_lm.models.phimoe'
+21456 INFO: Analyzing hidden import 'mlx_lm.models.phixtral'
+21459 INFO: Analyzing hidden import 'mlx_lm.models.pixtral'
+21460 INFO: Analyzing hidden import 'mlx_lm.models.plamo'
+21462 INFO: Analyzing hidden import 'mlx_lm.models.plamo2'
+21468 INFO: Analyzing hidden import 'mlx_lm.models.qwen'
+21470 INFO: Analyzing hidden import 'mlx_lm.models.qwen2'
+21473 INFO: Analyzing hidden import 'mlx_lm.models.qwen2_moe'
+21477 INFO: Analyzing hidden import 'mlx_lm.models.qwen2_vl'
+21478 INFO: Analyzing hidden import 'mlx_lm.models.qwen3'
+21481 INFO: Analyzing hidden import 'mlx_lm.models.qwen3_5_moe'
+21481 INFO: Analyzing hidden import 'mlx_lm.models.qwen3_moe'
+21485 INFO: Analyzing hidden import 'mlx_lm.models.qwen3_vl'
+21486 INFO: Analyzing hidden import 'mlx_lm.models.qwen3_vl_moe'
+21487 INFO: Analyzing hidden import 'mlx_lm.models.recurrent_gemma'
+21492 INFO: Analyzing hidden import 'mlx_lm.models.rwkv7'
+21498 INFO: Analyzing hidden import 'mlx_lm.models.seed_oss'
+21500 INFO: Analyzing hidden import 'mlx_lm.models.smollm3'
+21501 INFO: Analyzing hidden import 'mlx_lm.models.solar_open'
+21502 INFO: Analyzing hidden import 'mlx_lm.models.stablelm'
+21505 INFO: Analyzing hidden import 'mlx_lm.models.starcoder2'
+21507 INFO: Analyzing hidden import 'mlx_lm.models.step3p5'
+21513 INFO: Analyzing hidden import 'mlx_lm.models.telechat3'
+21516 INFO: Analyzing hidden import 'mlx_lm.models.youtu_llm'
+21519 INFO: Analyzing hidden import 'mlx.__array_api_info'
+21520 INFO: Analyzing hidden import 'mlx.__main__'
+21521 INFO: Analyzing hidden import 'mlx._reprlib_fix'
+21521 INFO: Analyzing hidden import 'mlx.extension'
+21545 INFO: Processing module hooks (post-graph stage)...
+22069 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks'
+22191 WARNING: Hidden import "scipy.special._cdflib" not found!
+22972 INFO: Performing binary vs. data reclassification (573 entries)
+23013 INFO: Looking for ctypes DLLs
+23020 WARNING: Library ntdll required via ctypes not found
+23032 WARNING: Library libcudart.so required via ctypes not found
+23082 INFO: Analyzing run-time hooks ...
+23090 INFO: Including run-time hook 'pyi_rth_inspect.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/rthooks'
+23095 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/rthooks'
+23096 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/rthooks'
+23097 INFO: Including run-time hook 'pyi_rth_setuptools.py' from '/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/hooks/rthooks'
+23124 INFO: Creating base_library.zip...
+23132 INFO: Looking for dynamic libraries
+23284 INFO: Missing dependency handling: adding symbolic link from 'mlx/lib/libjaccl.dylib' to top-level application directory.
+23369 INFO: Warnings written to /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer-work/mlxl3-quantize/warn-mlxl3-quantize.txt
+23454 INFO: Graph cross-reference written to /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer-work/mlxl3-quantize/xref-mlxl3-quantize.html
+23559 INFO: checking PYZ
+23559 INFO: Building PYZ because PYZ-00.toc is non existent
+23559 INFO: Building PYZ (ZlibArchive) /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer-work/mlxl3-quantize/PYZ-00.pyz
+25294 INFO: Building PYZ (ZlibArchive) /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer-work/mlxl3-quantize/PYZ-00.pyz completed successfully.
+25321 INFO: EXE target arch: arm64
+25321 INFO: Code signing identity: None
+25321 INFO: checking PKG
+25321 INFO: Building PKG because PKG-00.toc is non existent
+25321 INFO: Building PKG (CArchive) mlxl3-quantize.pkg
+25339 INFO: Building PKG (CArchive) mlxl3-quantize.pkg completed successfully.
+25339 INFO: Bootloader /Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/PyInstaller/bootloader/Darwin-64bit/run
+25339 INFO: checking EXE
+25339 INFO: Building EXE because EXE-00.toc is non existent
+25339 INFO: Building EXE from EXE-00.toc
+25339 INFO: Copying bootloader EXE to /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer-work/mlxl3-quantize/mlxl3-quantize
+25342 INFO: Converting EXE to target arch (arm64)
+25356 INFO: Removing signature(s) from EXE
+25366 INFO: Modifying Mach-O image UUID(s) in EXE
+25381 INFO: Appending PKG archive to EXE
+25386 INFO: Fixing EXE headers for code signing
+25388 INFO: Re-signing the EXE
+25421 INFO: Building EXE from EXE-00.toc completed successfully.
+25430 INFO: checking COLLECT
+25430 INFO: Building COLLECT because COLLECT-00.toc is non existent
+25430 INFO: Removing dir /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer/mlxl3-quantize
+25584 INFO: Building COLLECT COLLECT-00.toc
+29126 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+29144 INFO: Build complete! The results are available in: /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/build/quantizer
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app: replacing existing signature
+Application créée : /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app
+created: /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Desktop-v2.0.0-b36-Apple-Silicon.dmghdiutil: WARNING: 'hdiutil create -volname -format ...' is deprecated. Please use 'diskutil image create from/blank --volumeName --format ...' instead.
+
+DMG autonome créé : /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Desktop-v2.0.0-b36-Apple-Silicon.dmg

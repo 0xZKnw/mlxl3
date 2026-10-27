@@ -2,6 +2,8 @@
 
 ### DESKTOP-2026-10-27-BETA5-STUDIOS — en cours, préenregistré avant implémentation
 
+- Premier paquet f29897bf : signature/DMG/updater35→36 passent. Contrôle du worker dans DMG readonly échoue avant GPU sur source unique sans index : SafetensorIndex Pony lui-même exigeait un index, malgré inspection acceptée. Échec conservé et publication suspendue. Correction minimale préenregistrée : index en lecture seule depuis le header du seul shard ; plusieurs shards sans index refusés, source inchangée. Régression sur véritable SafetensorIndex et nouveau contrôle du paquet final, sans répéter UI inchangée. Ancien DMG conservé comme candidat non publié.
+
 - Sources qualifiées localement : suiteCPU1896réussis/93ignorés,2parcours MoE physiques réussis seuls,38Python+41natifs+25sandbox+29MCP réussis ; dernière capture Agent saine et hauteur corrigée. Source Swift6 stricte/response81frames et anciens63cas passent, bug intermittent non reproduit. Prérelever maintenant build36/beta5 propre, runtime2.0.1, paquet signé ; contrôler DMG readonly et updater35→36, worker gelé et miniature LFM2 sans index avec exclusions+qualité native, HF métadonnées seulement et arrêt/parent. Pas de compilation pendant conversionGPU. Publier seulement après qualification concrète ; étatCI exact à inspecter, push avant finCI autorisé.
 
 - Studios9 :38Python,41Git/artefacts/contrôleur,25sandbox,29MCP passent ; Stop révoque le worker ignorant SIGTERM et attend sa fin. Captures réelles ouvertes : Artifacts et Simple corrects ; Agent utilisait la fixture hostile avec symlink (erreur voulue) et ligne Stepper trop haute. Corriger la fixture vers projet sain et borner la hauteur intrinsèque des permissions, puis seule revalidation UI concernée.

@@ -248,3 +248,18 @@ def test_source_loader_forces_remote_code_off(source, tmp_path, monkeypatch):
     assert calls == [False]
     record = json.loads(next((tmp_path / "jobs").glob("*/job.json")).read_text())
     assert record["status"] == "failed" and not (tmp_path / "new-output").exists()
+
+
+def test_converter_index_accepts_single_file_without_mutating_source(source):
+    from ponyexl3.convert.fixtures import SafetensorIndex
+
+    before = {p.name: p.read_bytes() for p in source.iterdir()}
+    index = SafetensorIndex(source)
+    assert index.weight_map == {
+        "model.layers.0.feed_forward.w1.weight": "model.safetensors",
+        "scalar": "model.safetensors",
+    }
+    assert {p.name: p.read_bytes() for p in source.iterdir()} == before
+    save_file({"other": np.zeros((16, 16), np.float16)}, source / "extra.safetensors")
+    with pytest.raises(ValueError, match="require a shard index"):
+        SafetensorIndex(source)
