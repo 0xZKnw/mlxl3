@@ -31,9 +31,20 @@ EXL3 conversion is limited to the supplied **LFM2, LFM2-MoE and native Ling/Bail
 
 ## Verification and limitations
 
-Focused native checks cover real Git/import/conflicts/restoration/ZIP, permissions, worker success/failure/cancellation and actual MCP/sandbox boundaries. The relevant Python suite and physical miniature MoE conversion/resume journeys were run. See [the verification report](desktop-v2-beta5-verification.md) for exact counts, commands, retained failures and scope.
+Focused native checks cover real Git/import/conflicts/restoration/ZIP, permissions, worker success/failure/cancellation and actual MCP/sandbox boundaries. The relevant Python suite and physical miniature MoE conversion/resume journeys were run. See [the verification report](https://github.com/0xZKnw/mlxl3/blob/main/docs/desktop-v2-beta5-verification.md) for exact counts, commands, retained failures and scope.
 
 Swift source proof is unavailable; CrossHair was attempted but is not installed. No Rust executable code changed. Tests and finite checks are not a complete proof. Public multi-billion-parameter end-to-end conversions, every model architecture, every tooltip/gesture and a complete reproduction of the reported display bug remain unverified. Package/source hashes and actual GitHub CI status are recorded with the final release artifacts.
+
+## Artifacts
+
+Built from clean source [`f200014a4e68b698c0a1a1b840e3411f3f329c2c`](https://github.com/0xZKnw/mlxl3/commit/f200014a4e68b698c0a1a1b840e3411f3f329c2c). The final read-only DMG passed production updater preflight **beta4/build35 → beta5/build36** and actual frozen conversion/native-quality, source-preservation, Hub-metadata and worker-exit checks. No new performance or public-model quality claim is made. Publication before GitHub CI completion was authorized; local results do not imply a fully green CI.
+
+| File | Bytes | SHA-256 |
+|---|---:|---|
+| MLXL3-Desktop-v2.0.0-beta.5-b36-Apple-Silicon.dmg | 244638706 | `a17a55575b6e99a9d8b4c6ca7b8aec8fbba854fbe2eb72d9a0a0b48952b736be` |
+| MLXL3-v2.0.0-beta.5-validation.json | 2362 | `eeb376e94ca6a6c648b6da42779b182cf164a6b46eb278d3800251e14ba4f984` |
+| MLXL3-v2.0.0-beta.5-verification.tar.gz | 1961505 | `85e9db598d59d001fa6373a65a4b51acef19bd5a9e74db005c767e9dcde37fc6` |
+| MLXL3-Desktop-v2.0.0-beta.5-b36-Apple-Silicon.dmg.sha256 | 116 | `812a5669c2ba908a5dc3ffcc9344e96fa82924c3fbbb2afd603287e52bb8c39b` |
 
 ## Acknowledgements
 

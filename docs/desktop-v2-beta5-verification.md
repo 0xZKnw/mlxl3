@@ -28,3 +28,15 @@ UI fixture errors (nonexistent artifact.file; later hostile symlink fixture), a 
 ## Remaining limits
 
 Large public-model conversion quality/capacity was not newly tested. Ling full-teacher quality is intentionally unavailable. Git-backed Agent/artifact functionality requires Apple's Git. The display mitigation is covered by deterministic visibility checks but the exact user failure is not reproduced. The existing CDN allowlist and Seatbelt policy remain the boundaries. No new throughput, peak-RAM, power or thermal claim is made.
+
+## Frozen package qualification
+
+Production source: `f200014a4e68b698c0a1a1b840e3411f3f329c2c`. The final clean build (135.75 seconds) produces Desktop 2.0.0/build36 and engine2.0.1 with this source revision. The read-only DMG passes production updater preflight **build35 → build36**, deep signature, arm64, OS compatibility and runtime-file hashes. [Preflight](measurements/desktop-v2-beta5/updater-final-validation.json). No installed app was replaced.
+
+The actual frozen worker and native engine executed from the mounted read-only image. A synthetic conv/attention LFM2, H128/FF128/V128,247040parameters, single Safetensors file without index,4bpw,32calibration rows/32tokens and explicit q_proj exclusion completed **11 EXL3 projections**, with **54 tensors / 90379 stored values** nonempty and finite. Source files and excluded FP16 projection are byte-exact. Held-out validation scored **119 predictions** with finite native/source perplexity and KL. These random-weight metrics are functional checks, not public-model quality claims. The archive includes the disposable input/output fixture. [Qualification](measurements/desktop-v2-beta5/packaged-qualification.json).
+
+The frozen Hub probe resolves LiquidAI/LFM2.5-2.6B to `b212e75975bbda9676a94d3cb7b2ca25b65fed48`, inspecting config/metadata without weight downloads. Actual worker termination is reaped. Killing its parent while keeping the stdin writer open still exits the worker within the bounded check. The worker manifest's complete source-file hashes match the frozen source.
+
+The initial frozen single-file journey failed before GPU work because Pony's SafetensorIndex required a shard index. A minimal read-only header fallback fixes that production boundary; multiple unindexed shards are rejected. The retained regression now has **39 passing focused Python cases** on final source. The full CPU/Swift and physical indexed-MoE runs above predate this isolated fallback; unchanged paths were not rerun locally. GitHub runs the relevant full suite on the final PR commit.
+
+Build/signing warnings remain inherited; the app is ad-hoc signed and not notarized. CI status is inspected separately and never inferred from these local results.

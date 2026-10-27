@@ -1,6 +1,8 @@
 # MLXL3 — journal des optimisations
 
-### DESKTOP-2026-10-27-BETA5-STUDIOS — en cours, préenregistré avant implémentation
+### DESKTOP-2026-10-27-BETA5-STUDIOS — validé localement et paquet qualifié, publication en cours
+
+- Paquet final f200014a4e68 qualifié : updater readonly35→36,11projections et 54tenseurs/90379valeurs finis,119prédictions de qualité native, source et projection exclue byte exactes ;39tests ciblés finaux passent. HF métadonnées épinglées, vrai worker Stop/parent mort testé (stdin encore ouvert) et reaping vérifié ; empreintes source du worker concordent. App installée préservée. DMG/JSON/archive/sha identifiés dans notes, publication autorisée en cours et CI à inspecter.
 
 - Premier paquet f29897bf : signature/DMG/updater35→36 passent. Contrôle du worker dans DMG readonly échoue avant GPU sur source unique sans index : SafetensorIndex Pony lui-même exigeait un index, malgré inspection acceptée. Échec conservé et publication suspendue. Correction minimale préenregistrée : index en lecture seule depuis le header du seul shard ; plusieurs shards sans index refusés, source inchangée. Régression sur véritable SafetensorIndex et nouveau contrôle du paquet final, sans répéter UI inchangée. Ancien DMG conservé comme candidat non publié.
 
