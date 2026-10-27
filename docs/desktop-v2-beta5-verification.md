@@ -40,3 +40,9 @@ The frozen Hub probe resolves LiquidAI/LFM2.5-2.6B to `b212e75975bbda9676a94d3cb
 The initial frozen single-file journey failed before GPU work because Pony's SafetensorIndex required a shard index. A minimal read-only header fallback fixes that production boundary; multiple unindexed shards are rejected. The retained regression now has **39 passing focused Python cases** on final source. The full CPU/Swift and physical indexed-MoE runs above predate this isolated fallback; unchanged paths were not rerun locally. GitHub runs the relevant full suite on the final PR commit.
 
 Build/signing warnings remain inherited; the app is ad-hoc signed and not notarized. CI status is inspected separately and never inferred from these local results.
+
+## Publication and GitHub CI
+
+[Beta 5](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.5) is public, prerelease/latest=false, with all four asset sizes/SHA-256 digests verified after upload. Its tag points to the frozen source f200014a4e68b698c0a1a1b840e3411f3f329c2c. The anonymous production release feed selects beta5/build36 and stable v1.5.1. [Publication receipt](measurements/desktop-v2-beta5/publication.json).
+
+PR57 head b3163dddd398a9838bef6907155b5991071250eb was inspected: packing-proof passed; Desktop/protocol, conversion, two native platforms and two Kani jobs remained in progress. No fully green CI is claimed. The final publication-receipt commit only changes documentation and skips redundant CI; its executable sources equal the qualified source. The retained [CI snapshot](measurements/desktop-v2-beta5/github-source-ci.json) identifies the checked revision. Publication before CI completion and merge after release were authorized by the user.

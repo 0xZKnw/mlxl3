@@ -1,6 +1,8 @@
 # MLXL3 — journal des optimisations
 
-### DESKTOP-2026-10-27-BETA5-STUDIOS — validé localement et paquet qualifié, publication en cours
+### DESKTOP-2026-10-27-BETA5-STUDIOS — validé dans le domaine testé, publié beta5/build36
+
+- Clôture publication : https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.5 ;4assets distants SHA/taille concordants, tag f200014a4e68b698c0a1a1b840e3411f3f329c2c. Flux anonyme de production sélectionne beta5/build36 et stable1.5.1 ; aucun remplacement d’app installée. PR57 pour intégration. CI exact b3163dddd398a9838bef6907155b5991071250eb inspectée : packing-proof réussi,6autresjobs en cours, aucun succès global revendiqué. Dernier commit de reçus uniquement documentaire [skip ci], code de production identique au source qualifié ; checks de ce reçu absents par choix explicite, CI source conservée. Tous essais locaux fermés ; conversions publiques volumineuses, preuve Swift/CrossHair et reproduction exacte disparition restent non vérifiés.
 
 - Paquet final f200014a4e68 qualifié : updater readonly35→36,11projections et 54tenseurs/90379valeurs finis,119prédictions de qualité native, source et projection exclue byte exactes ;39tests ciblés finaux passent. HF métadonnées épinglées, vrai worker Stop/parent mort testé (stdin encore ouvert) et reaping vérifié ; empreintes source du worker concordent. App installée préservée. DMG/JSON/archive/sha identifiés dans notes, publication autorisée en cours et CI à inspecter.
 
