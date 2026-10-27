@@ -1,0 +1,134 @@
+........................FF......                                         [100%]
+=================================== FAILURES ===================================
+_ test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights[False] _
+
+source = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-71/test_cli_converts_comp...fm2_moe', 'tie_word_embeddings': True, 'layer_types': ['conv', 'full_attention', 'conv'], 'num_hidden_layers': 3, ...})
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-71/test_cli_converts_complete_che0')
+routed = False
+
+    @PHYSICAL
+    @pytest.mark.parametrize("routed", [False, True])
+    def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(
+        source, tmp_path, routed
+    ):
+        from safetensors import safe_open
+    
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
+    
+        root, corpus, model, cfg = source
+        if routed:
+            corpus.write_text((" ".join(f"t{i}" for i in range(4, 128)) + " ") * 32)
+        output, work = tmp_path / "output", tmp_path / "work"
+        command = [
+            sys.executable,
+            str(ROOT / "scripts/quantize_lfm25_moe.py"),
+            "--in-dir",
+            str(root),
+            "--out-dir",
+            str(output),
+            "--work-dir",
+            str(work),
+            "--bits",
+            "4",
+            "--calibration-text",
+            str(corpus),
+            "--calibration-rows",
+            "1024" if routed else "16",
+            "--calibration-seq-len",
+            "129" if routed else "16",
+            "--max-workers",
+            "1",
+            "--search-backend",
+            "metal",
+        ]
+        if routed:
+            command.extend(["--routed-calibration", "--calibration-max-seqs", "16"])
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+            "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 559, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 463, in main
+E             from ponyexl3.cli import convert
+E         ModuleNotFoundError: No module named 'ponyexl3'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/desktop-...moe.py", line 463, in main\n    from ponyexl3.cli import convert\nModuleNotFoundError: No module named \'ponyexl3\'\n').returncode
+
+tests/test_lfm25_moe_conversion.py:600: AssertionError
+_ test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights[True] _
+
+source = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-71/test_cli_converts_comp...fm2_moe', 'tie_word_embeddings': True, 'layer_types': ['conv', 'full_attention', 'conv'], 'num_hidden_layers': 3, ...})
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-71/test_cli_converts_complete_che1')
+routed = True
+
+    @PHYSICAL
+    @pytest.mark.parametrize("routed", [False, True])
+    def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(
+        source, tmp_path, routed
+    ):
+        from safetensors import safe_open
+    
+        from mlxl3_quantizer import list_exl3_modules, validate_checkpoint_files
+    
+        root, corpus, model, cfg = source
+        if routed:
+            corpus.write_text((" ".join(f"t{i}" for i in range(4, 128)) + " ") * 32)
+        output, work = tmp_path / "output", tmp_path / "work"
+        command = [
+            sys.executable,
+            str(ROOT / "scripts/quantize_lfm25_moe.py"),
+            "--in-dir",
+            str(root),
+            "--out-dir",
+            str(output),
+            "--work-dir",
+            str(work),
+            "--bits",
+            "4",
+            "--calibration-text",
+            str(corpus),
+            "--calibration-rows",
+            "1024" if routed else "16",
+            "--calibration-seq-len",
+            "129" if routed else "16",
+            "--max-workers",
+            "1",
+            "--search-backend",
+            "metal",
+        ]
+        if routed:
+            command.extend(["--routed-calibration", "--calibration-max-seqs", "16"])
+        env = {
+            **os.environ,
+            "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+            "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
+        }
+        result = subprocess.run(
+            command, env=env, text=True, capture_output=True, timeout=120, check=False
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 559, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/quantize_lfm25_moe.py", line 463, in main
+E             from ponyexl3.cli import convert
+E         ModuleNotFoundError: No module named 'ponyexl3'
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/desktop-...moe.py", line 463, in main\n    from ponyexl3.cli import convert\nModuleNotFoundError: No module named \'ponyexl3\'\n').returncode
+
+tests/test_lfm25_moe_conversion.py:600: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_moe_conversion.py::test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights[False]
+FAILED tests/test_lfm25_moe_conversion.py::test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights[True]
+2 failed, 30 passed in 3.11s

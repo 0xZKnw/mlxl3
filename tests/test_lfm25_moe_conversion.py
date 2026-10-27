@@ -591,7 +591,7 @@ def test_cli_converts_complete_checkpoint_and_resumes_without_changing_weights(
         command.extend(["--routed-calibration", "--calibration-max-seqs", "16"])
     env = {
         **os.environ,
-        "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'references/PonyExl3'}:{ROOT / 'scripts'}",
+        "PYTHONPATH": f"{ROOT / 'src'}:{ROOT / 'apps/MLXL3Studio/Vendor/PonyExl3'}:{ROOT / 'scripts'}",
         "PONYEXL3_FIXED_EXPERT_SCALE": "0.908",
     }
     result = subprocess.run(

@@ -56,7 +56,7 @@ enum HTMLPreview {
     return files.sorted { $0.path < $1.path }
   }
 
-  static func source(at file: URL, in workspace: URL) throws -> String {
+  nonisolated static func source(at file: URL, in workspace: URL) throws -> String {
     guard ["html", "htm"].contains(file.pathExtension.lowercased()) else {
       throw CocoaError(.fileReadUnknown)
     }
@@ -67,7 +67,7 @@ enum HTMLPreview {
     return source
   }
 
-  static func data(at file: URL, in workspace: URL) throws -> Data {
+  nonisolated static func data(at file: URL, in workspace: URL) throws -> Data {
     let root = try AgentSandbox.canonicalRoot(workspace)
     let canonical = try AgentSandbox.canonicalRoot(file)
     let values = try file.resourceValues(forKeys: [
@@ -242,43 +242,12 @@ struct HTMLPreviewSheet: View {
   let source: String
   var workspace: URL? = nil
   var file: URL? = nil
-  @Environment(\.dismiss) private var dismiss
-  @State private var webView: WKWebView?
-  @State private var error: String?
-
   var body: some View {
-    VStack(spacing: 0) {
-      HStack(spacing: 12) {
-        MonogramMark(size: 20)
-        Text(L("Aperçu HTML", "HTML preview")).font(.headline)
-        Text(L("Isolé · CDN JavaScript autorisés", "Isolated · JavaScript CDNs allowed"))
-          .font(.caption).foregroundStyle(StudioTheme.secondary)
-          .help(HTMLPreview.remoteSources)
-        Spacer()
-        Button(L("Fermer", "Close")) { dismiss() }.keyboardShortcut(.cancelAction)
-      }
-      .padding(16)
-      Divider()
-      if let webView {
-        HTMLWebView(view: webView)
-      } else if let error {
-        Text(error).padding().frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-      }
-    }
-    .frame(minWidth: 720, idealWidth: 1000, minHeight: 500, idealHeight: 700)
-    .background(StudioTheme.canvas)
-    .task {
-      do {
-        webView = try await HTMLPreview.makeWebView(
-          source: source, workspace: workspace, file: file)
-      } catch is CancellationError {} catch { self.error = error.localizedDescription }
-    }
+    ArtifactStudioView(source: source, workspace: workspace, file: file)
   }
 }
 
-private struct HTMLWebView: NSViewRepresentable {
+struct HTMLWebView: NSViewRepresentable {
   let view: WKWebView
   func makeNSView(context: Context) -> WKWebView { view }
   func updateNSView(_ nsView: WKWebView, context: Context) {}

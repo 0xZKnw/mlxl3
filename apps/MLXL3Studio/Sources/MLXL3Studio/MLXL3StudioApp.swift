@@ -13,11 +13,11 @@ struct MLXL3StudioApp: App {
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.count == 4, arguments[1] == "--agent-command" {
-            AgentSandbox.commandMode(root: arguments[2], command: arguments[3])
+        if (arguments.count == 4 || arguments.count == 6), arguments[1] == "--agent-command" {
+            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count == 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write")
         }
-        if arguments.count == 3, arguments[1] == "--agent-tools" {
-            AgentSandbox.serve(root: arguments[2])
+        if (arguments.count == 3 || arguments.count == 4), arguments[1] == "--agent-tools" {
+            AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count == 4 ? arguments[3] : nil)
         }
         if ProcessInfo.processInfo.arguments.contains("--check-chat-timeline") {
             do {

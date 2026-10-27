@@ -15,6 +15,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
     let localServer = LocalServer()
+    let quantizer = QuantizationModel()
+    private var quantizationObservation: AnyCancellable?
     private var labConfiguration: ((GenerationStats) -> LabSample)?
     private var modeTransition: Task<Void, Never>?
     private var serverObservation: AnyCancellable?
@@ -148,6 +150,9 @@ final class StudioModel: ObservableObject {
             }
         }
     }
+    @Published var agentStudioBusy = false
+    private var pendingArtifactRevision: (UUID, ArtifactRevisionRequest, String)?
+    private var activeArtifactRevision: (String, ArtifactRevisionRequest)?
     private var generationWatchdog: Task<Void, Never>?
     private var cancellationFallback: Task<Void, Never>?
     private var cancellationReason: String?
@@ -188,6 +193,7 @@ final class StudioModel: ObservableObject {
         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
+        quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         do {
         if let snapshot = try ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
@@ -370,7 +376,7 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
+        !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
             && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
             && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
@@ -601,6 +607,16 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    func prepareForQuantization() async {
+        ejectModel()
+        await bridge.stopAndWait()
+    }
+
+    func addQuantizedModel(_ url: URL) {
+        guard !quantizer.converting, !isGenerating else { return }
+        registerModelFolder(url)
+    }
+
     func importModelFolder() {
         chooseModelFolder(replacing: nil)
     }
@@ -628,7 +644,7 @@ final class StudioModel: ObservableObject {
     }
 
     func selectModel(_ name: String) {
-        guard !isGenerating, !localServer.active, modeTransition == nil else { return }
+        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
         if name == selectedModelName, bridge.isRunning { return }
         selectedModelName = name
         schedulePersistence()
@@ -711,7 +727,7 @@ final class StudioModel: ObservableObject {
     }
 
     func send() {
-        guard canSend, let conversationIndex else { return }
+        guard canSend, !agentStudioBusy, let conversationIndex else { return }
         if selectedMode != .agent && !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             guard workspaceFeaturesAvailable else { featureError = L("Ce moteur ne prend pas en charge le JSON validé. Mettez le moteur à jour.", "This engine does not support validated JSON. Update the engine."); return }
             do {
@@ -745,6 +761,10 @@ final class StudioModel: ObservableObject {
         let requestID = UUID().uuidString
         activeRequestID = requestID
         activeResponseID = assistant.id
+        if let pending = pendingArtifactRevision, pending.0 == conversations[conversationIndex].id, pending.2 == text {
+            activeArtifactRevision = (requestID, pending.1)
+        }
+        pendingArtifactRevision = nil
         if selectedMode == .agent {
             generationStartedAt = .now
             generationLastActivity = .now
@@ -771,7 +791,7 @@ final class StudioModel: ObservableObject {
 
         var messages: [PromptMessage] = []
         let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
-            selectedMode == .agent ? "You are a local coding agent. Use the run tool to inspect, create and edit files in your private workspace, then verify your work. Commands use macOS system tools, have no network or access to personal files, and are limited to 5 seconds and 32 KiB of output. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
+            selectedMode == .agent ? "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands use macOS system tools, have no network or personal-file access, and have a configurable deadline (at most 30 seconds) and 32 KiB output limit. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
@@ -1409,7 +1429,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !isGenerating, !localServer.active, modeTransition == nil else { return }
+        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
         modelIdleUnloader.cancel()
         cancelDFlashPreparation()
         dflashTuneSupported = false; dflashTuningKey = nil; dflashConfigureSupported = false
@@ -1652,6 +1672,7 @@ final class StudioModel: ObservableObject {
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
                 message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
             }
+            finishStudioTurn(requestID: event.requestID, source: message?.error == nil ? message?.content ?? "" : "")
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -1785,6 +1806,8 @@ extension StudioModel {
             .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
     }
 
+    var artifactBaseURL: URL { conversationFileURL.deletingLastPathComponent() }
+
     func openAgentWorkspace() {
         guard let url = agentWorkspaceURL else { return }
         do {
@@ -1798,6 +1821,9 @@ extension StudioModel {
               FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else { throw MLXL3BridgeError.invalidResponse }
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         guard root.standardizedFileURL.path == root.resolvingSymlinksInPath().path else { throw CocoaError(.fileReadNoPermission) }
+        let store = AgentProjectStore(workspace: root)
+        try store.ensureState()
+        if try store.versions().isEmpty { _ = try store.checkpoint("Initial workspace") }
         _ = try AgentSandbox.profile(root: root)
         let metadata = conversationFileURL.deletingLastPathComponent().appending(path: "agent-runtime", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
@@ -1808,7 +1834,7 @@ extension StudioModel {
         let config: [String: Any] = ["version": 1, "mcpServers": [
             "exa": ["enabled": false, "url": "https://mcp.exa.ai/mcp"],
             "sandbox": ["enabled": true, "command": Bundle.main.executableURL?.path ?? CommandLine.arguments[0],
-                "args": ["--agent-tools", root.path]]]]
+                "args": ["--agent-tools", root.path, store.metadata.appendingPathComponent("project.json").path]]]]
         try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
         return registry
     }
@@ -1820,8 +1846,47 @@ extension StudioModel {
         } else { loadSelectedModel() }
     }
 
+    func refreshAgentPermissions() {
+        guard !isGenerating, engineState.isReady, bridgeUsesAgentRegistry else { return }
+        do { _ = try prepareAgentRegistry(); updateMCPConnection() }
+        catch { featureError = error.localizedDescription }
+    }
+
+    func requestArtifactRevision(_ request: ArtifactRevisionRequest) {
+        guard !isGenerating, !agentStudioBusy, let id = selectedConversationID else { return }
+        let base = conversationFileURL.deletingLastPathComponent().standardizedFileURL.path
+        let isAgent = currentConversation?.agent == true
+        guard request.workspace.standardizedFileURL.path.hasPrefix(base + "/artifacts/")
+            || isAgent && request.workspace.standardizedFileURL == agentWorkspaceURL?.standardizedFileURL else {
+            featureError = L("Cet artefact appartient à une autre tâche.", "This artifact belongs to another task."); return
+        }
+        draft = L("Modifie ce document HTML selon la demande suivante : ", "Revise this HTML document as requested: ")
+            + request.instruction + "\n\n" + (isAgent ? "File: " + request.file + "\n" : "")
+            + "```html\n" + request.source + "\n```\n"
+            + (isAgent ? "Update the workspace file and verify it." : "Return the complete updated HTML document.")
+        if !isAgent { pendingArtifactRevision = (id, request, draft.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        send()
+    }
+
+    private func finishStudioTurn(requestID: String?, source: String) {
+        let agentStore = currentConversation?.agent == true ? agentWorkspaceURL.map { AgentProjectStore(workspace: $0) } : nil
+        let artifact = activeArtifactRevision.flatMap { $0.0 == requestID ? $0.1 : nil }
+        activeArtifactRevision = nil
+        guard agentStore != nil || artifact != nil else { return }
+        let document = GeneratedHTML.documents(source).first
+        let base = conversationFileURL.deletingLastPathComponent()
+        agentStudioBusy = true
+        Task {
+            defer { agentStudioBusy = false }
+            do {
+                if let agentStore { _ = try await Task.detached { try agentStore.checkpoint("Agent turn") }.value }
+                if let artifact, let document { try await ArtifactLibrary.shared.append(document, to: artifact.workspace, file: artifact.file, base: base) }
+            } catch { featureError = error.localizedDescription }
+        }
+    }
+
     func startServer(port: Int) {
-        guard !isGenerating, modeTransition == nil, !localServer.active, let name = selectedModelName,
+        guard !quantizer.converting, !isGenerating, modeTransition == nil, !localServer.active, let name = selectedModelName,
               (1024...65535).contains(port) else { featureError = L("Choisissez un modèle et un port entre 1024 et 65535.", "Choose a model and a port between 1024 and 65535."); return }
         selectedMode = .server
         modeTransition = Task {
@@ -1834,6 +1899,7 @@ extension StudioModel {
     }
 
     func stopServices() {
+        quantizer.cancel()
         generationWatchdog?.cancel(); generationWatchdog = nil
         cancellationFallback?.cancel(); cancellationFallback = nil
         modeTransition?.cancel(); modeTransition = nil
