@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### RELEASE-2026-10-27-DESKTOP-BETA4 — en cours, publication autorisée
+
+- Demande explicite d’une nouvelle release après les correctifs : Desktop **v2.0.0-beta.4 / build 35**, moteur embarqué **2.0.1** pour dépasser le moteur géré 2.0.0. PR #56 ; bêta 3 conservée, stable 1.5.1 et app installée inchangées. Aucun nouveau gain de débit/RAM revendiqué.
+- Protocole avant construction : figer et committer les seules métadonnées de version et notes, construire avec MLX 0.32.2/SDK 26.5 ; réutiliser la qualification source 499eef6c, sans relancer les suites complètes. Contrôler le vrai paquet : signature stricte, arm64, provenance propre de l’app/moteur, hachages des quatre fichiers runtime, intégrité/montage du DMG puis préflight de l’updater de production dans un dossier jetable. Source et artefacts identifiés ; limites Kani/Swift/GPU du rapport précédent conservées.
+- Après contrôles affectés : release GitHub prerelease/latest=false, notes en anglais avec SHA/tailles/SHA-256 et remerciements, vérifier les assets publiés et la sélection Beta de l’updater. Examiner CI sur le SHA exact sans attendre son achèvement, conformément à la demande de push avant CI, puis fusionner la PR après publication comme autorisé. Aucun remplacement d’application utilisateur ni nouveau benchmark.
+
+
 ### DESKTOP-2026-10-26-UPDATER-HTML-AGENT — vérification locale terminée, limites formelles conservées
 
 - **Clôture 27 octobre** : suite Python sur le bon src réussie (1 833 passés, 115 ignorés, 10 warnings, 143,28 s ; 4 modules restants contrôlés, aucun étranger). Desktop final réussi en 467,28 s, Rust CPU 155 passés/5 ignorés, build MLX/chat et Clippy strict réussis, 2 propriétés Kani ciblées satisfaites ; vrai Qwen et cube Three.js WebGL réussis. Aucun essai actif, aucune nouvelle comparaison de débit ni gain mesuré. Code en branche de correction ; aucune nouvelle release, app installée ou modification des assets bêta 3. [Rapport et limites](docs/desktop-updater-html-agent-verification.md), sources/commandes/bruts dans docs/measurements/desktop-updater-html-agent/. La preuve du filtre String reste non concluante/interrompue, pas transformée en succès. À la demande de l’utilisateur, ne plus répéter de suites inchangées.
