@@ -35,7 +35,123 @@ private struct ReferenceFadeRenderer: TextRenderer {
   }
 }
 
+extension MarkdownResponseView {
+  @MainActor static func verifyHTMLPreviewLifetime() {
+    let prefix =
+      "```html\n<button>Example</button>\n```\n\n" + String(repeating: "x\n\n", count: 6000)
+    precondition(!MarkdownResponseView(prefix, streaming: true).htmlPreviewEnabled)
+    precondition(!MarkdownResponseView(prefix, htmlPreviewEnabled: false).htmlPreviewEnabled)
+    precondition(MarkdownResponseView(prefix).htmlPreviewEnabled)
+  }
+}
+
 @main struct ResponseUICheck {
+  @MainActor private static func checkHTMLControls() async throws {
+    MarkdownResponseView.verifyHTMLPreviewLifetime()
+    func require(_ condition: Bool, _ message: String) {
+      if !condition {
+        FileHandle.standardError.write(Data((message + "\n").utf8))
+        preconditionFailure(message)
+      }
+    }
+    func changedHeaderPixels(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep) -> Int {
+      var changed = 0
+      for y in (70 * a.pixelsHigh / 600)..<(160 * a.pixelsHigh / 600) {
+        for x in (500 * a.pixelsWide / 800)..<(680 * a.pixelsWide / 800) {
+          guard let first = a.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+            let second = b.colorAt(x: x, y: y)?.usingColorSpace(.sRGB)
+          else { preconditionFailure("Missing header pixels") }
+          if abs(first.redComponent - second.redComponent)
+            + abs(first.greenComponent - second.greenComponent)
+            + abs(first.blueComponent - second.blueComponent) > 0.08
+          {
+            changed += 1
+          }
+        }
+      }
+      return changed
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-html-ui-\(UUID())")
+    let suite = "mlxl3.html-ui.\(UUID())"
+    let prefs = UserDefaults(suiteName: suite)!
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
+    for mode in [StudioMode.chat, .agent] {
+      studio.selectMode(mode)
+      let message = ChatMessage(role: .assistant, content: "", isStreaming: true)
+      message.append(
+        "```html\n<button>Example</button>\n```\n\n"
+          + String(repeating: "Later content.\n\n", count: 2), phase: "answer")
+      let host = NSHostingView(
+        rootView: MessagesView(messages: [message]).environmentObject(studio).background(
+          StudioTheme.canvas
+        ).preferredColorScheme(.dark))
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+        backing: .buffered, defer: false)
+      window.contentView = host
+      window.orderFront(nil)
+      defer {
+        window.contentView = nil
+        window.orderOut(nil)
+      }
+      func scrollView(_ view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        return view.subviews.lazy.compactMap { scrollView($0) }.first
+      }
+      func snapshot(_ phase: String) async throws -> NSBitmapImageRep {
+        for _ in 0..<3 {
+          if let scroll = scrollView(host), let document = scroll.documentView {
+            scroll.contentView.scroll(
+              to: NSPoint(
+                x: 0,
+                y: document.isFlipped
+                  ? 0 : max(0, document.bounds.height - scroll.contentView.bounds.height)))
+            scroll.reflectScrolledClipView(scroll.contentView)
+          }
+          host.layoutSubtreeIfNeeded()
+          try await Task.sleep(for: .milliseconds(50))
+        }
+        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+          preconditionFailure("HTML transcript did not render")
+        }
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        if let path = ProcessInfo.processInfo.environment["MLXL3_HTML_UI_SNAPSHOTS"] {
+          let folder = URL(fileURLWithPath: path)
+          try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+          try bitmap.representation(using: .png, properties: [:])!.write(
+            to: folder.appendingPathComponent("html-\(mode.rawValue)-\(phase).png"))
+        }
+        return bitmap
+      }
+      try await Task.sleep(for: .milliseconds(400))
+      let streaming = try await snapshot("streaming")
+      message.processing("Reading MCP results")
+      let processing = try await snapshot("tool")
+      require(
+        changedHeaderPixels(streaming, processing) < 15,
+        "HTML Run button appeared during a subsequent tool round")
+      message.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+      let complete = try await snapshot("complete")
+      require(
+        changedHeaderPixels(processing, complete) > 30,
+        "Completed HTML has no visible Run button in \(mode)")
+      message.fail("Interrupted")
+      let failed = try await snapshot("interrupted")
+      require(
+        changedHeaderPixels(streaming, failed) < 15,
+        "Interrupted HTML kept an executable Run button")
+    }
+    print(
+      "HTML controls passed: Chat/Agent completion, global streaming gate, tool round and interruption pixels"
+    )
+  }
   @MainActor private static func checkScroll() async throws {
     func require(_ condition: Bool, _ message: String) {
       if !condition {
@@ -48,14 +164,17 @@ private struct ReferenceFadeRenderer: TextRenderer {
       content: String(
         repeating: "A paragraph with enough words to wrap onto another line.\n\n", count: 40),
       isStreaming: true)
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-scroll-" + UUID().uuidString)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-scroll-" + UUID().uuidString)
     let suite = "io.mlxl3.scroll-check." + UUID().uuidString
     let prefs = UserDefaults(suiteName: suite)!
     defer {
       prefs.removePersistentDomain(forName: suite)
       try? FileManager.default.removeItem(at: root)
     }
-    let studio = StudioModel(conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true, preferences: prefs)
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
     let host = NSHostingView(rootView: MessagesView(messages: [message]).environmentObject(studio))
     let window = NSWindow(
       contentRect: NSRect(x: 80, y: 80, width: 700, height: 400),
@@ -283,6 +402,7 @@ private struct ReferenceFadeRenderer: TextRenderer {
     NSApp.activate()
     checkFade()
     try await checkScroll()
+    try await checkHTMLControls()
     // These exact reply formulas used to fall back to raw $$ text.
     let formulas = [
       #"\mathbb{E}[T_n] = \sum_{i=0}^{n-1}\mathbb{E}[T_{i+1}-T_i] = e\,n\sum_{i=0}^{n-1}\frac{1}{n-i} = e\,n\left(1+\frac12+\frac13+\dots+\frac1n\right)."#,
@@ -298,23 +418,28 @@ private struct ReferenceFadeRenderer: TextRenderer {
       let roundTrip = MTMathListBuilder.mathListToString(list)
       precondition(MTMathListBuilder.build(fromString: roundTrip) != nil)
       let copied = MTMathList(atoms: list!.atoms.map { $0.copy() })
-      precondition(MTMathListBuilder.mathListToString(copied) == roundTrip,
-                   "Copy dropped the box or introduced invisible delimiters")
+      precondition(
+        MTMathListBuilder.mathListToString(copied) == roundTrip,
+        "Copy dropped the box or introduced invisible delimiters")
       let source = "Before.\n\n$$\n" + formula + "\n$$\n\nAfter."
-      precondition(description(MarkdownParser.parse(source)) ==
-        ["0:paragraph:Before.", "1:math:" + formula, "2:paragraph:After."])
+      precondition(
+        description(MarkdownParser.parse(source)) == [
+          "0:paragraph:Before.", "1:math:" + formula, "2:paragraph:After.",
+        ])
       for mode in [MTMathUILabelMode.text, .display] {
         let image = LatexImageCache.image(latex: formula, fontSize: 18, mode: mode)
         precondition(image != nil, "Production math image fell back to text")
-        precondition(image!.size.width.isFinite && image!.size.height.isFinite &&
-                     image!.size.width > 0 && image!.size.height > 0)
+        precondition(
+          image!.size.width.isFinite && image!.size.height.isFinite && image!.size.width > 0
+            && image!.size.height > 0)
         let bitmap = NSBitmapImageRep(data: image!.tiffRepresentation!)!
         precondition(bitmap.pixelsWide > 0 && bitmap.pixelsHigh > 0)
-        precondition((0..<bitmap.pixelsHigh).contains { y in
-          (0..<bitmap.pixelsWide).contains { x in
-            bitmap.colorAt(x: x, y: y)!.alphaComponent > 0
-          }
-        }, "Math image was blank")
+        precondition(
+          (0..<bitmap.pixelsHigh).contains { y in
+            (0..<bitmap.pixelsWide).contains { x in
+              bitmap.colorAt(x: x, y: y)!.alphaComponent > 0
+            }
+          }, "Math image was blank")
       }
     }
     for formula in formulas.prefix(2) {
@@ -329,33 +454,45 @@ private struct ReferenceFadeRenderer: TextRenderer {
     }
     let plain = LatexImageCache.image(latex: "x", fontSize: 18, mode: .display)!
     let boxed = LatexImageCache.image(latex: #"\boxed{x}"#, fontSize: 18, mode: .display)!
-    precondition(boxed.size.width > plain.size.width && boxed.size.height > plain.size.height,
-                 "Box command was stripped instead of framed")
+    precondition(
+      boxed.size.width > plain.size.width && boxed.size.height > plain.size.height,
+      "Box command was stripped instead of framed")
     let emptyBox = LatexImageCache.image(latex: #"\boxed{}"#, fontSize: 18, mode: .display)!
     let frame = NSBitmapImageRep(data: emptyBox.tiffRepresentation!)!
-    let w = frame.pixelsWide, h = frame.pixelsHigh
-    precondition(frame.colorAt(x: w / 2, y: h / 2)!.alphaComponent == 0,
-                 "Frame was filled over its content")
-    precondition((0..<min(2, h)).contains { y in
-      frame.colorAt(x: w / 2, y: y)!.alphaComponent > 0
-    } && (max(0, h - 2)..<h).contains { y in
-      frame.colorAt(x: w / 2, y: y)!.alphaComponent > 0
-    }, "Top or bottom frame stroke missing")
-    precondition((0..<min(2, w)).contains { x in
-      frame.colorAt(x: x, y: h / 2)!.alphaComponent > 0
-    } && (max(0, w - 2)..<w).contains { x in
-      frame.colorAt(x: x, y: h / 2)!.alphaComponent > 0
-    }, "Left or right frame stroke missing")
-    for invalid in [#"\boxed{x"#, #"\notASupportedCommand{x}"#,
-                    String(repeating: "x", count: 4097)] {
+    let w = frame.pixelsWide
+    let h = frame.pixelsHigh
+    precondition(
+      frame.colorAt(x: w / 2, y: h / 2)!.alphaComponent == 0,
+      "Frame was filled over its content")
+    precondition(
+      (0..<min(2, h)).contains { y in
+        frame.colorAt(x: w / 2, y: y)!.alphaComponent > 0
+      }
+        && (max(0, h - 2)..<h).contains { y in
+          frame.colorAt(x: w / 2, y: y)!.alphaComponent > 0
+        }, "Top or bottom frame stroke missing")
+    precondition(
+      (0..<min(2, w)).contains { x in
+        frame.colorAt(x: x, y: h / 2)!.alphaComponent > 0
+      }
+        && (max(0, w - 2)..<w).contains { x in
+          frame.colorAt(x: x, y: h / 2)!.alphaComponent > 0
+        }, "Left or right frame stroke missing")
+    for invalid in [
+      #"\boxed{x"#, #"\notASupportedCommand{x}"#,
+      String(repeating: "x", count: 4097),
+    ] {
       precondition(LatexImageCache.image(latex: invalid, fontSize: 18, mode: .display) == nil)
     }
     let codeMath = "```latex\n" + formulas[1] + "\n```"
     precondition(description(MarkdownParser.parse(codeMath)) == ["0:code:latex:" + formulas[1]])
-    print("LaTeX rendering checks passed: 9 formulas, 2 styles, parse/copy/roundtrip, actual pixels/frame, invalid input")
+    print(
+      "LaTeX rendering checks passed: 9 formulas, 2 styles, parse/copy/roundtrip, actual pixels/frame, invalid input"
+    )
     let pasteboard = NSPasteboard.withUniqueName()
     defer { pasteboard.releaseGlobally() }
-    let answer = "# Été 👩‍💻\n\nFirst **paragraph**.\n\n```swift\nlet x = 73\n```\n\n$x^2$\n"
+    let answer =
+      "# Été 👩‍💻\n\nFirst **paragraph**.\n\n```swift\nlet x = 73\n```\n\n$x^2$\n"
       + "\n$$\n" + formulas[0] + "\n$$\n\n$$\n" + formulas[1] + "\n$$\n"
     let message = ChatMessage(role: .assistant, content: "", isStreaming: true)
     pasteboard.setString("unchanged", forType: .string)
@@ -485,7 +622,9 @@ private struct ReferenceFadeRenderer: TextRenderer {
     precondition(studio.engineState.isReady)
     studio.draft = "Generate a long file"
     studio.send()
-    let host = NSHostingView(rootView: MessagesView(messages: studio.currentConversation!.messages).environmentObject(studio))
+    let host = NSHostingView(
+      rootView: MessagesView(messages: studio.currentConversation!.messages).environmentObject(
+        studio))
     host.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
     for _ in 0..<500 where studio.isGenerating {
       host.layoutSubtreeIfNeeded()

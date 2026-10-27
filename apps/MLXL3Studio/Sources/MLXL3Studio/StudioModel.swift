@@ -138,7 +138,21 @@ final class StudioModel: ObservableObject {
     private var mtpConfigureSupported = false
     private var mtpLegacyModelName: String?
     private var didStart = false
-    private var activeRequestID: String?
+    private var activeRequestID: String? {
+        didSet {
+            if activeRequestID == nil {
+                generationWatchdog?.cancel(); generationWatchdog = nil
+                cancellationFallback?.cancel(); cancellationFallback = nil
+                cancellationReason = nil
+                generationStartedAt = nil; generationLastActivity = nil
+            }
+        }
+    }
+    private var generationWatchdog: Task<Void, Never>?
+    private var cancellationFallback: Task<Void, Never>?
+    private var cancellationReason: String?
+    private var generationStartedAt: ContinuousClock.Instant?
+    private var generationLastActivity: ContinuousClock.Instant?
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
     private let preferences: UserDefaults
@@ -675,8 +689,7 @@ final class StudioModel: ObservableObject {
         clearAttachmentDraft(id)
         drafts[id] = nil
         if removed.messages.contains(where: { $0.id == activeResponseID }) {
-            activeMessage()?.fail(L("Conversation supprimée", "Conversation deleted"))
-            _ = bridge.cancelGeneration()
+            forceStopGeneration(L("Conversation supprimée", "Conversation deleted"))
         }
         deletedConversation = removed
         guard conversations.count > 1 else {
@@ -732,6 +745,17 @@ final class StudioModel: ObservableObject {
         let requestID = UUID().uuidString
         activeRequestID = requestID
         activeResponseID = assistant.id
+        if selectedMode == .agent {
+            generationStartedAt = .now
+            generationLastActivity = .now
+            generationWatchdog = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled, let self else { return }
+                    self.checkAgentGenerationDeadline(at: .now)
+                }
+            }
+        }
         labConfiguration = nil
         if let model = selectedModel {
             let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
@@ -766,7 +790,7 @@ final class StudioModel: ObservableObject {
                     requestID: requestID,
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
-                    maxTokens: -1,
+                    maxTokens: selectedMode == .agent ? 4096 : -1,
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
@@ -790,15 +814,39 @@ final class StudioModel: ObservableObject {
     func stopGeneration() {
         if isTuningMTP { cancelMTPTuning(); return }
         guard isGenerating else { return }
-        if bridge.cancelGeneration() {
-            return
+        requestGenerationStop(L("Génération arrêtée", "Generation stopped"))
+    }
+
+    private func requestGenerationStop(_ reason: String) {
+        guard let request = activeRequestID else { return }
+        cancellationReason = reason
+        guard cancellationFallback == nil, bridge.cancelGeneration() else {
+            forceStopGeneration(reason); return
         }
-        activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
-        activeRequestID = nil
-        activeResponseID = nil
-        bridge.stop()
+        activeMessage()?.processing(L("Arrêt de la génération…", "Stopping generation…"))
+        cancellationFallback = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, self?.activeRequestID == request else { return }
+            self?.forceStopGeneration(reason)
+        }
+    }
+
+    private func forceStopGeneration(_ reason: String) {
+        activeMessage()?.fail(reason)
+        labConfiguration = nil
+        activeRequestID = nil; activeResponseID = nil
+        ejectModel()
         schedulePersistence()
-        loadSelectedModel()
+    }
+
+    private func checkAgentGenerationDeadline(at now: ContinuousClock.Instant) {
+        guard activeRequestID != nil, cancellationFallback == nil,
+              let start = generationStartedAt, let last = generationLastActivity else { return }
+        if now - start >= .seconds(600) {
+            requestGenerationStop(L("Limite de 10 minutes atteinte. La réponse partielle est conservée.", "10-minute Agent limit reached. Partial output was kept."))
+        } else if now - last >= .seconds(120) {
+            requestGenerationStop(L("L’agent ne répond plus depuis 2 minutes. La réponse partielle est conservée.", "Agent has not responded for 2 minutes. Partial output was kept."))
+        }
     }
 
     func reloadMCPServers() {
@@ -1252,7 +1300,7 @@ final class StudioModel: ObservableObject {
         guard !localServer.active, modeTransition == nil else { return }
         if isGenerating && (currentConversation?.agent == true || conversation.agent) && selectedConversationID != id { return }
         let previousID = selectedConversationID
-        let previousAgent = currentConversation?.agent == true
+        let previousAgent = bridgeUsesAgentRegistry
         if let previous = selectedConversationID { drafts[previous] = draft }
         voice.stop()
         selectedConversationID = id
@@ -1443,6 +1491,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if let activeRequestID, event.requestID == activeRequestID { generationLastActivity = .now }
         if dflashConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             dflashDownloadError = event.message ?? L("La configuration DFlash a échoué.", "DFlash configuration failed.")
             dflash2Enabled = false; dflashActive = nil
@@ -1600,6 +1649,8 @@ final class StudioModel: ObservableObject {
             )
             if event.contextFull == true {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
+            } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
+                message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
             }
             activeRequestID = nil
             activeResponseID = nil
@@ -1608,7 +1659,7 @@ final class StudioModel: ObservableObject {
         case "cancelled":
             guard event.requestID == activeRequestID else { return }
             labConfiguration = nil
-            activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
+            activeMessage()?.fail(cancellationReason ?? L("Génération arrêtée", "Generation stopped"))
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -1783,6 +1834,8 @@ extension StudioModel {
     }
 
     func stopServices() {
+        generationWatchdog?.cancel(); generationWatchdog = nil
+        cancellationFallback?.cancel(); cancellationFallback = nil
         modeTransition?.cancel(); modeTransition = nil
         localServer.stop()
         bridge.stop()

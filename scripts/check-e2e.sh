@@ -10,6 +10,8 @@ if [[ -z "${python_bin}" ]]; then
         python_bin="$(command -v python3)"
     fi
 fi
+export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
+"${python_bin}" -c 'from pathlib import Path; import mlxl3_quantizer; assert Path(mlxl3_quantizer.__file__).resolve().is_relative_to((Path.cwd() / "src").resolve()), "Tests resolved a different checkout"'
 "${python_bin}" -m compileall -q src
 "${python_bin}" -m pytest -q
 export MLXL3_TEST_PYTHON="${python_bin}"

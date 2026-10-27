@@ -1,0 +1,81 @@
+  @MainActor private static func checkHTMLControls() async throws {
+    func labels(_ value: Any) -> [String] {
+      guard let element = value as? NSObject else { return [] }
+      func attribute(_ name: String) -> Any? {
+        let selector = NSSelectorFromString(name)
+        guard element.responds(to: selector) else { return nil }
+        return element.perform(selector)?.takeUnretainedValue()
+      }
+      return [
+        attribute("accessibilityLabel") as? String, attribute("accessibilityTitle") as? String,
+      ].compactMap { $0 }
+        + ((attribute("accessibilityChildren") as? [Any]) ?? []).flatMap(labels)
+    }
+    func require(_ condition: Bool, _ message: String) {
+      if !condition {
+        FileHandle.standardError.write(Data((message + "\n").utf8))
+        preconditionFailure(message)
+      }
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-html-ui-\(UUID())")
+    let suite = "mlxl3.html-ui.\(UUID())"
+    let prefs = UserDefaults(suiteName: suite)!
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
+    for mode in [StudioMode.chat, .agent] {
+      studio.selectMode(mode)
+      let message = ChatMessage(role: .assistant, content: "", isStreaming: true)
+      message.append(
+        "```html\n<button>Example</button>\n```\n\n"
+          + String(repeating: "Later content.\n\n", count: 900), phase: "answer")
+      let host = NSHostingView(
+        rootView: MessagesView(messages: [message]).environmentObject(studio))
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+        backing: .buffered, defer: false)
+      window.contentView = host
+      window.orderFront(nil)
+      defer {
+        window.contentView = nil
+        window.orderOut(nil)
+      }
+      func hasButton() -> Bool {
+        labels(host).contains { $0.contains("Run HTML") || $0.contains("Exécuter HTML") }
+      }
+      try await Task.sleep(for: .milliseconds(400))
+      func scrollView(_ view: NSView) -> NSScrollView? {
+        if let scroll = view as? NSScrollView { return scroll }
+        return view.subviews.lazy.compactMap { scrollView($0) }.first
+      }
+      if let scroll = scrollView(host), let document = scroll.documentView {
+        scroll.contentView.scroll(
+          to: NSPoint(
+            x: 0,
+            y: document.isFlipped
+              ? 0 : max(0, document.bounds.height - scroll.contentView.bounds.height)))
+        scroll.reflectScrolledClipView(scroll.contentView)
+      }
+      try await Task.sleep(for: .milliseconds(100))
+      require(!hasButton(), "Frozen Markdown prefixes execute before the whole response ends")
+      message.processing("Reading MCP results")
+      try await Task.sleep(for: .milliseconds(100))
+      require(!hasButton(), "An older answer part executes while a tool round is active")
+      message.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+      for _ in 0..<100 where !hasButton() { try await Task.sleep(for: .milliseconds(20)) }
+      if !hasButton() {
+        FileHandle.standardError.write(
+          Data(("HTML AX labels: " + labels(host).joined(separator: " | ") + "\n").utf8))
+      }
+      require(hasButton(), "Completed HTML has no Run button in \(mode)")
+      message.fail("Interrupted")
+      try await Task.sleep(for: .milliseconds(100))
+      require(!hasButton(), "An interrupted response exposes an executable artifact")
+    }
+    print("HTML controls passed: Chat/Agent completion, frozen prefix, tool round and interruption")
+  }

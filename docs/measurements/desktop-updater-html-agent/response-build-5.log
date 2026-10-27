@@ -1,0 +1,44 @@
+build/desktop-updater-html-agent/Response.swift:1612:65: error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+ 507 |     private let source: String
+ 508 |     private let streaming: Bool
+ 509 |     private let htmlPreviewEnabled: Bool
+     |                 `- note: 'htmlPreviewEnabled' declared here
+ 510 |     @StateObject private var renderer = MarkdownRenderModel()
+ 511 | 
+     :
+1610 |     let prefix =
+1611 |       "```html\n<button>Example</button>\n```\n\n" + String(repeating: "x\n\n", count: 6000)
+1612 |     precondition(!MarkdownResponseView(prefix, streaming: true).htmlPreviewEnabled)
+     |                                                                 `- error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+1613 |     precondition(!MarkdownResponseView(prefix, htmlPreviewEnabled: false).htmlPreviewEnabled)
+1614 |     precondition(MarkdownResponseView(prefix).htmlPreviewEnabled)
+
+build/desktop-updater-html-agent/Response.swift:1613:75: error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+ 507 |     private let source: String
+ 508 |     private let streaming: Bool
+ 509 |     private let htmlPreviewEnabled: Bool
+     |                 `- note: 'htmlPreviewEnabled' declared here
+ 510 |     @StateObject private var renderer = MarkdownRenderModel()
+ 511 | 
+     :
+1611 |       "```html\n<button>Example</button>\n```\n\n" + String(repeating: "x\n\n", count: 6000)
+1612 |     precondition(!MarkdownResponseView(prefix, streaming: true).htmlPreviewEnabled)
+1613 |     precondition(!MarkdownResponseView(prefix, htmlPreviewEnabled: false).htmlPreviewEnabled)
+     |                                                                           `- error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+1614 |     precondition(MarkdownResponseView(prefix).htmlPreviewEnabled)
+1615 |     func require(_ condition: Bool, _ message: String) {
+
+build/desktop-updater-html-agent/Response.swift:1614:47: error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+ 507 |     private let source: String
+ 508 |     private let streaming: Bool
+ 509 |     private let htmlPreviewEnabled: Bool
+     |                 `- note: 'htmlPreviewEnabled' declared here
+ 510 |     @StateObject private var renderer = MarkdownRenderModel()
+ 511 | 
+     :
+1612 |     precondition(!MarkdownResponseView(prefix, streaming: true).htmlPreviewEnabled)
+1613 |     precondition(!MarkdownResponseView(prefix, htmlPreviewEnabled: false).htmlPreviewEnabled)
+1614 |     precondition(MarkdownResponseView(prefix).htmlPreviewEnabled)
+     |                                               `- error: 'htmlPreviewEnabled' is inaccessible due to 'private' protection level
+1615 |     func require(_ condition: Bool, _ message: String) {
+1616 |       if !condition {

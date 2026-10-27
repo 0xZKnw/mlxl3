@@ -5,6 +5,126 @@ import SwiftUI
 extension StudioModel {
   func modesRegistryForCheck() throws -> URL { try prepareAgentRegistry() }
   var modesBridgeRunning: Bool { bridge.isRunning }
+
+  static func checkAgentGuards(root: URL, prefs: UserDefaults, model: LocalModel) async throws
+    -> Int
+  {
+    var count = 0
+    func check(_ value: @autoclosure () -> Bool, _ message: String) {
+      precondition(value(), message)
+      count += 1
+    }
+    func wait(_ predicate: @MainActor () -> Bool) async throws {
+      for _ in 0..<400 {
+        if predicate() { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      preconditionFailure("Agent guard timed out")
+    }
+    func launches() throws -> [[String: Any]] {
+      try String(contentsOf: root.appendingPathComponent("mode-launches.jsonl"), encoding: .utf8)
+        .split(separator: "\n").map {
+          try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }
+    }
+    func readyAgent(_ name: String) async throws -> StudioModel {
+      let fixture = StudioModel(
+        conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
+      fixture.models = [model]
+      fixture.selectModel(model.name)
+      try await wait { fixture.engineState.isReady }
+      fixture.selectMode(.agent)
+      try await wait {
+        fixture.engineState.isReady && fixture.mcpToolCount == 1 && !fixture.mcpUpdating
+      }
+      return fixture
+    }
+    let cooperative = try await readyAgent("cooperative")
+    cooperative.draft = "hang-cooperative"
+    cooperative.send()
+    try await wait {
+      cooperative.currentConversation?.messages.last?.parts.last?.text.contains("32 tokens") == true
+    }
+    let pending = cooperative.currentConversation!.messages.last!
+    cooperative.stopGeneration()
+    try await wait { !cooperative.isGenerating }
+    check(
+      cooperative.engineState.isReady && pending.error != nil,
+      "Cooperative Stop preserves the loaded model and partial response")
+    cooperative.draft = "Resume after Stop"
+    cooperative.send()
+    try await wait { !cooperative.isGenerating }
+    check(
+      cooperative.currentConversation!.messages.last!.error == nil,
+      "A fresh request succeeds after cancellation")
+    cooperative.stopServices()
+    await cooperative.bridge.stopAndWait()
+
+    let ignored = try await readyAgent("ignored")
+    ignored.draft = "hang-ignore"
+    ignored.send()
+    try await wait { ignored.currentConversation?.messages.last?.thinking.isEmpty == false }
+    let ignoredMessage = ignored.currentConversation!.messages.last!
+    let ignoredPID = (try launches().last!["pid"] as! NSNumber).int32Value
+    let stopStarted = ContinuousClock.now
+    ignored.stopGeneration()
+    try await wait { !ignored.isGenerating }
+    check(
+      ignoredMessage.error != nil && !ignored.bridge.isRunning,
+      "Stop falls back when SIGUSR1 and SIGTERM are ignored")
+    ignored.selectModel(model.name)
+    try await wait { ignored.engineState.isReady && !ignored.mcpUpdating }
+    check(ContinuousClock.now - stopStarted < .seconds(7), "Ignored Stop and reload are bounded")
+    check(
+      kill(ignoredPID, 0) == -1 && errno == ESRCH,
+      "Reload joins the previous engine before loading another model")
+    check(ignored.engineState.isReady, "Model can be loaded again after forced shutdown")
+    ignored.stopServices()
+    await ignored.bridge.stopAndWait()
+
+    for deadline in [120, 600] {
+      let guarded = try await readyAgent("deadline-\(deadline)")
+      guarded.draft = "hang-cooperative"
+      guarded.send()
+      try await wait { guarded.currentConversation?.messages.last?.thinking.isEmpty == false }
+      let start = guarded.generationStartedAt!
+      guarded.generationLastActivity = deadline == 120 ? start : start + .seconds(599)
+      let last = guarded.generationLastActivity
+      let stale = try JSONDecoder().decode(
+        BridgeEvent.self,
+        from: Data(#"{"type":"generation_status","request_id":"stale","text":"still busy"}"#.utf8))
+      guarded.handle(stale)
+      check(guarded.generationLastActivity == last, "Stale requests cannot keep the watchdog alive")
+      guarded.checkAgentGenerationDeadline(at: start + .seconds(deadline - 1))
+      check(guarded.cancellationFallback == nil, "Deadline is not triggered early")
+      guarded.checkAgentGenerationDeadline(at: start + .seconds(deadline))
+      try await wait { !guarded.isGenerating }
+      check(
+        guarded.currentConversation!.messages.last!.error?.contains(
+          deadline == 120 ? "2 minutes" : "10 minutes") == true,
+        "Deadline stops the real request and explains why")
+      check(
+        guarded.generationWatchdog == nil && guarded.cancellationFallback == nil,
+        "Completion cleans up every watchdog")
+      guarded.stopServices()
+      await guarded.bridge.stopAndWait()
+    }
+    let limited = try await readyAgent("budget")
+    limited.draft = "budget-limit"
+    limited.send()
+    try await wait { !limited.isGenerating }
+    check(
+      limited.currentConversation!.messages.last!.error?.contains("4 096") == true,
+      "Budget exhaustion keeps the partial output and reports truncation")
+    let limitedRequest =
+      try JSONSerialization.jsonObject(
+        with: Data(limited.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      limitedRequest["max_tokens"] as? Int == 4096, "Agent sends a finite production token budget")
+    limited.stopServices()
+    await limited.bridge.stopAndWait()
+    return count
+  }
 }
 
 @main struct StudioModesCheck {
@@ -137,6 +257,15 @@ extension StudioModel {
         }
       }
     }
+    for conversation in studio.conversations
+    where conversation.agent && conversation.id != studio.selectedConversationID {
+      studio.deleteConversation(conversation.id)
+    }
+    studio.deleteConversation(studio.selectedConversationID!)
+    try await wait { studio.engineState.isReady && !studio.mcpUpdating }
+    check(
+      studio.selectedMode == .chat && (try? launches().last?["registry"] as? String) == nil,
+      "Deleting the last Agent task reloads the actual Chat registry")
     studio.selectMode(.chat)
     try await wait { studio.engineState.isReady }
     check(
@@ -250,6 +379,7 @@ extension StudioModel {
         image.pixelsWide > 0 && image.pixelsHigh > 0 && png.count > 10_000,
         "Agent workspace renders nonempty UI")
     }
+    count += try await StudioModel.checkAgentGuards(root: root, prefs: prefs, model: model)
     print(
       "Studio modes checks passed: \(count), navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle"
     )

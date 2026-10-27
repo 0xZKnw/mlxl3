@@ -1,0 +1,167 @@
+Building for debugging...
+[2 / 7] MLXL3Studio-product
+[3 / 70]
+[10 / 70]
+[12 / 70]
+[19 / 70]
+[20 / 70]
+[22 / 70]
+[23 / 70]
+[25 / 70]
+[37 / 70]
+[38 / 70]
+[42 / 70]
+[43 / 70]
+[47 / 70]
+[49 / 70]
+[50 / 70]
+[51 / 70]
+[54 / 70]
+[65 / 70] MLXL3Studio-product
+[68 / 80] MLXL3Studio-product
+[69 / 90] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:63:10: warning: instance method 'webView(_:decidePolicyFor:decisionHandler:)' nearly matches optional requirement 'webView(_:decidePolicyFor:decisionHandler:)' of protocol 'WKNavigationDelegate'
+ 61 |     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
+ 62 | 
+ 63 |     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    |          |- warning: instance method 'webView(_:decidePolicyFor:decisionHandler:)' nearly matches optional requirement 'webView(_:decidePolicyFor:decisionHandler:)' of protocol 'WKNavigationDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKNavigationAction, @escaping (WKNavigationActionPolicy) -> Void) -> ()'
+    |          `- note: move 'webView(_:decidePolicyFor:decisionHandler:)' to an extension to silence this warning
+ 64 |                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+ 65 |         decisionHandler(navigationAction.request.url == HTMLPreview.pageURL
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKNavigationDelegate.h:82:1: note: requirement 'webView(_:decidePolicyFor:decisionHandler:)' declared here
+ 80 |  @discussion If you do not implement this method, the web view will load the request or, if appropriate, forward it to another application.
+ 81 |  */
+ 82 | - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(WK_SWIFT_UI_ACTOR void (^)(WKNavigationActionPolicy))decisionHandler WK_SWIFT_ASYNC(3);
+    | `- note: requirement 'webView(_:decidePolicyFor:decisionHandler:)' declared here
+ 83 | 
+ 84 | /*! @abstract Decides whether to allow or cancel a navigation.
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:72:10: warning: instance method 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' nearly matches optional requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' of protocol 'WKUIDelegate'
+ 70 |                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? { nil }
+ 71 | 
+ 72 |     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+    |          |- warning: instance method 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' nearly matches optional requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' of protocol 'WKUIDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKOpenPanelParameters, WKFrameInfo, @escaping ([URL]?) -> Void) -> ()'
+    |          `- note: move 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' to an extension to silence this warning
+ 73 |                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+ 74 |         completionHandler(nil)
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKUIDelegate.h:295:1: note: requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' declared here
+293 |  the web view to act as if the user selected the Cancel button on iOS or visionOS, immediately call the completion handler with nil.
+294 |  */
+295 | - (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters initiatedByFrame:(WKFrameInfo *)frame completionHandler:(WK_SWIFT_UI_ACTOR void (^)(NSArray<NSURL *> * _Nullable URLs))completionHandler API_AVAILABLE(macos(10.12), ios(18.4), visionos(2.4));
+    | `- note: requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' declared here
+296 | 
+297 | #if TARGET_OS_IOS && !TARGET_OS_MACCATALYST && __IPHONE_OS_VERSION_MIN_REQUIRED >= 180400
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:77:10: warning: instance method 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' nearly matches optional requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' of protocol 'WKUIDelegate'
+ 75 |     }
+ 76 | 
+ 77 |     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+    |          |- warning: instance method 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' nearly matches optional requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' of protocol 'WKUIDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKSecurityOrigin, WKFrameInfo, WKMediaCaptureType, @escaping (WKPermissionDecision) -> Void) -> ()'
+    |          `- note: move 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' to an extension to silence this warning
+ 78 |                  initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+ 79 |                  decisionHandler: @escaping (WKPermissionDecision) -> Void) { decisionHandler(.deny) }
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKUIDelegate.h:165:1: note: requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' declared here
+163 |  @discussion If not implemented, the result is the same as calling the decisionHandler with WKPermissionDecisionPrompt.
+164 |  */
+165 | - (void)webView:(WKWebView *)webView requestMediaCapturePermissionForOrigin:(WKSecurityOrigin *)origin initiatedByFrame:(WKFrameInfo *)frame type:(WKMediaCaptureType)type decisionHandler:(WK_SWIFT_UI_ACTOR void (^)(WKPermissionDecision decision))decisionHandler WK_SWIFT_ASYNC_NAME(webView(_:decideMediaCapturePermissionsFor:initiatedBy:type:)) WK_SWIFT_ASYNC(5) API_AVAILABLE(macos(12.0), ios(15.0));
+    | `- note: requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' declared here
+166 | 
+167 | /*! @abstract Allows your app to determine whether or not the given security origin should have access to the device's orientation and motion.
+[70 / 90] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:449:13: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+447 |         if FileManager.default.fileExists(atPath: destination.path) {
+448 |             initial.isVerifying = true
+449 |             await progress(initial)
+    |             `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+450 |             if try await verifyAsset(at: destination, asset: release.asset) {
+451 |                 try Task.checkCancellation()
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:456:9: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+454 |         }
+455 |         initial.isVerifying = false
+456 |         await progress(initial)
+    |         `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+457 |         let delegate = UpdateDownloadDelegate(size: release.asset.size) { value in
+458 |             Task { @MainActor in progress(value) }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:472:13: warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+470 |             var final = delegate.snapshot
+471 |             final.isVerifying = true
+472 |             await progress(final)
+    |             `- warning: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+473 |             guard try await verifyAsset(at: staged, asset: release.asset) else {
+474 |                 throw UpdateError.integrityCheckFailed
+
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>
+[73 / 91] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:63:10: warning: instance method 'webView(_:decidePolicyFor:decisionHandler:)' nearly matches optional requirement 'webView(_:decidePolicyFor:decisionHandler:)' of protocol 'WKNavigationDelegate'
+ 61 |     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
+ 62 | 
+ 63 |     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    |          |- warning: instance method 'webView(_:decidePolicyFor:decisionHandler:)' nearly matches optional requirement 'webView(_:decidePolicyFor:decisionHandler:)' of protocol 'WKNavigationDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKNavigationAction, @escaping (WKNavigationActionPolicy) -> Void) -> ()'
+    |          `- note: move 'webView(_:decidePolicyFor:decisionHandler:)' to an extension to silence this warning
+ 64 |                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+ 65 |         decisionHandler(navigationAction.request.url == HTMLPreview.pageURL
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKNavigationDelegate.h:82:1: note: requirement 'webView(_:decidePolicyFor:decisionHandler:)' declared here
+ 80 |  @discussion If you do not implement this method, the web view will load the request or, if appropriate, forward it to another application.
+ 81 |  */
+ 82 | - (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(WK_SWIFT_UI_ACTOR void (^)(WKNavigationActionPolicy))decisionHandler WK_SWIFT_ASYNC(3);
+    | `- note: requirement 'webView(_:decidePolicyFor:decisionHandler:)' declared here
+ 83 | 
+ 84 | /*! @abstract Decides whether to allow or cancel a navigation.
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:72:10: warning: instance method 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' nearly matches optional requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' of protocol 'WKUIDelegate'
+ 70 |                  for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? { nil }
+ 71 | 
+ 72 |     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+    |          |- warning: instance method 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' nearly matches optional requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' of protocol 'WKUIDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKOpenPanelParameters, WKFrameInfo, @escaping ([URL]?) -> Void) -> ()'
+    |          `- note: move 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' to an extension to silence this warning
+ 73 |                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+ 74 |         completionHandler(nil)
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKUIDelegate.h:295:1: note: requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' declared here
+293 |  the web view to act as if the user selected the Cancel button on iOS or visionOS, immediately call the completion handler with nil.
+294 |  */
+295 | - (void)webView:(WKWebView *)webView runOpenPanelWithParameters:(WKOpenPanelParameters *)parameters initiatedByFrame:(WKFrameInfo *)frame completionHandler:(WK_SWIFT_UI_ACTOR void (^)(NSArray<NSURL *> * _Nullable URLs))completionHandler API_AVAILABLE(macos(10.12), ios(18.4), visionos(2.4));
+    | `- note: requirement 'webView(_:runOpenPanelWith:initiatedByFrame:completionHandler:)' declared here
+296 | 
+297 | #if TARGET_OS_IOS && !TARGET_OS_MACCATALYST && __IPHONE_OS_VERSION_MIN_REQUIRED >= 180400
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/HTMLPreview.swift:77:10: warning: instance method 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' nearly matches optional requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' of protocol 'WKUIDelegate'
+ 75 |     }
+ 76 | 
+ 77 |     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+    |          |- warning: instance method 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' nearly matches optional requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' of protocol 'WKUIDelegate'
+    |          |- note: candidate has non-matching type '(WKWebView, WKSecurityOrigin, WKFrameInfo, WKMediaCaptureType, @escaping (WKPermissionDecision) -> Void) -> ()'
+    |          `- note: move 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' to an extension to silence this warning
+ 78 |                  initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+ 79 |                  decisionHandler: @escaping (WKPermissionDecision) -> Void) { decisionHandler(.deny) }
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/WebKit.framework/Headers/WKUIDelegate.h:165:1: note: requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' declared here
+163 |  @discussion If not implemented, the result is the same as calling the decisionHandler with WKPermissionDecisionPrompt.
+164 |  */
+165 | - (void)webView:(WKWebView *)webView requestMediaCapturePermissionForOrigin:(WKSecurityOrigin *)origin initiatedByFrame:(WKFrameInfo *)frame type:(WKMediaCaptureType)type decisionHandler:(WK_SWIFT_UI_ACTOR void (^)(WKPermissionDecision decision))decisionHandler WK_SWIFT_ASYNC_NAME(webView(_:decideMediaCapturePermissionsFor:initiatedBy:type:)) WK_SWIFT_ASYNC(5) API_AVAILABLE(macos(12.0), ios(15.0));
+    | `- note: requirement 'webView(_:requestMediaCapturePermissionFor:initiatedByFrame:type:decisionHandler:)' declared here
+166 | 
+167 | /*! @abstract Allows your app to determine whether or not the given security origin should have access to the device's orientation and motion.
+[75 / 91] MLXL3Studio-product
+[77 / 91] MLXL3Studio-product
+[78 / 91] MLXL3Studio-product
+[79 / 91] MLXL3Studio-product
+[81 / 91] MLXL3Studio-product
+[84 / 91] MLXL3Studio-product
+[86 / 91] MLXL3Studio-product
+[87 / 91] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[89 / 91] MLXL3Studio-product
+Build complete! (19,79 secs)

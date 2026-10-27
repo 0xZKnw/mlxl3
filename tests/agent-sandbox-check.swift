@@ -36,6 +36,11 @@ struct AgentSandboxCheck {
     check(
       read.status != 0 && !read.output.contains("PRIVATE-CONTENT"), "absolute read escaped sandbox")
     let write = try run("printf changed > \(quote(secret.path))")
+    let hardlink = try run("ln \(quote(secret.path)) hardlink; cat hardlink")
+    check(
+      hardlink.status != 0 && !hardlink.output.contains("PRIVATE-CONTENT")
+        && !FileManager.default.fileExists(atPath: root.appendingPathComponent("hardlink").path),
+      "hardlink source escaped sandbox")
     let unchanged = String(decoding: try Data(contentsOf: secret), as: UTF8.self)
     check(
       write.status != 0 && unchanged == "PRIVATE-CONTENT-DO-NOT-LEAK",
