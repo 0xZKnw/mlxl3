@@ -32,7 +32,16 @@ The complete local Desktop suite passed. Python: **1,833 passed / 115 skipped**;
 
 A real Qwen3.6-35B-A3B EXL3 2.49 bpw run on an Apple M5 created and read back HTML, displayed tool preparation, stopped and resumed. Its original reported prompt/settings were unavailable; this does not establish the cause of every stalled or hot generation. Two targeted Kani properties passed over symbolic preparation-state and token-budget inputs. The full String-filter attempt was interrupted without a proof; Swift source proof was unavailable. Tests and bounded checks are not a complete proof. Unrelated physical Metal/optional conversion cases were skipped.
 
-Source qualification and retained failures: [verification report](desktop-updater-html-agent-verification.md). Final package provenance and artifacts are recorded after packaging. Publication before GitHub CI completion was explicitly requested; CI is not claimed fully green.
+Source qualification and retained failures: [verification report](https://github.com/0xZKnw/mlxl3/blob/main/docs/desktop-updater-html-agent-verification.md). Built from clean source [`59577ed799015265ca63ec487aa9222469557bbe`](https://github.com/0xZKnw/mlxl3/commit/59577ed799015265ca63ec487aa9222469557bbe). The final read-only DMG passed the production updater preflight for **beta 3/build 34 → beta 4/build 35**, including deep signature, arm64, OS/app compatibility and all runtime-file hashes. The relocated runtime reports engine 2.0.1 with the same source revision and lists installed models. The image was detached; no installed app was replaced. These package checks reused the existing source qualification without rerunning the full suites. Build warnings are limited to the existing SwiftMath deprecations, Rust block future compatibility, SDK search paths and the macOS image-tool deprecation. Publication before GitHub CI completion was explicitly requested; CI is not claimed fully green.
+
+## Artifacts
+
+| File | Bytes | SHA-256 |
+|---|---:|---|
+| MLXL3-Desktop-v2.0.0-beta.4-b35-Apple-Silicon.dmg | 74261422 | `196f8caf11646f5ee901a445859b59cd2f79c3edd4c17d9b85b71e88705c95a9` |
+| MLXL3-v2.0.0-beta.4-validation.json | 906 | `976d492fd2fcc35521bf778118ca645e143cd2b837a321d66403a620d5e9bc11` |
+| MLXL3-v2.0.0-beta.4-verification.tar.gz | 650479 | `27e20437b9ced795387130387f66635209dcd75f7f6298b4fd53178523ab93db` |
+| MLXL3-Desktop-v2.0.0-beta.4-b35-Apple-Silicon.dmg.sha256 | 116 | `e98c4e3a9387d0a72a9b1b4fe6c49f238751f93751948a5c0f57962d91efcb32` |
 
 ## Acknowledgements
 

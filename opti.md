@@ -1,10 +1,12 @@
 # MLXL3 — journal des optimisations
 
-### RELEASE-2026-10-27-DESKTOP-BETA4 — en cours, publication autorisée
+### RELEASE-2026-10-27-DESKTOP-BETA4 — publié, contrôles du paquet terminés
 
 - Demande explicite d’une nouvelle release après les correctifs : Desktop **v2.0.0-beta.4 / build 35**, moteur embarqué **2.0.1** pour dépasser le moteur géré 2.0.0. PR #56 ; bêta 3 conservée, stable 1.5.1 et app installée inchangées. Aucun nouveau gain de débit/RAM revendiqué.
 - Protocole avant construction : figer et committer les seules métadonnées de version et notes, construire avec MLX 0.32.2/SDK 26.5 ; réutiliser la qualification source 499eef6c, sans relancer les suites complètes. Contrôler le vrai paquet : signature stricte, arm64, provenance propre de l’app/moteur, hachages des quatre fichiers runtime, intégrité/montage du DMG puis préflight de l’updater de production dans un dossier jetable. Source et artefacts identifiés ; limites Kani/Swift/GPU du rapport précédent conservées.
 - Après contrôles affectés : release GitHub prerelease/latest=false, notes en anglais avec SHA/tailles/SHA-256 et remerciements, vérifier les assets publiés et la sélection Beta de l’updater. Examiner CI sur le SHA exact sans attendre son achèvement, conformément à la demande de push avant CI, puis fusionner la PR après publication comme autorisé. Aucun remplacement d’application utilisateur ni nouveau benchmark.
+- **Résultat** : construction propre59577ed799015265ca63ec487aa9222469557bbe en101,89s ; vrai DMG accepté par l’updater depuis2.0.0/b34 en4,36s (signature,arm64,compatibilité,4hashesruntime, moteur2.0.1/revisionidentique, list, démontage). DMG74 261 422octets, SHA-256196f8caf11646f5ee901a445859b59cd2f79c3edd4c17d9b85b71e88705c95a9. Release publique v2.0.0-beta.4,4assets/tailles/digests identiques, sélectionBeta4/b35 réussie ; lateststable1.5.1 conservé. Le premier feed anonyme était périmé juste après publication et son contrôle a échoué ; conservé public-feed-stale.json/publication-first-check.json. La revalidation du cache et l’endpoint du nouveau tag exposent ensuite la bonne release. Pas de modification produit pour ce délai GitHub.
+- Preuves dans docs/measurements/desktop-v2-beta4/ ; archive de qualification prépublication jointe à la release, notes anglaises dans docs/release-v2.0.0-beta.4.md. CI exacte59577ed7 inspectée : packing-proof réussi, Desktop/conversion/native/Kani encore en cours au snapshot. Aucun succès global revendiqué ; une suite inchangée n’a pas été répétée. Aucun essai local actif ni comparaison de vitesse, aucune app installée remplacée. Fusion PR56 autorisée après publication, suivie séparément par le reçu GitHub.
 
 
 ### DESKTOP-2026-10-26-UPDATER-HTML-AGENT — vérification locale terminée, limites formelles conservées
