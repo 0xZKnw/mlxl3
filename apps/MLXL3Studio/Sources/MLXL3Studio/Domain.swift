@@ -123,6 +123,7 @@ struct BridgeEvent: Decodable {
     var contextLimit: Int? = nil
     var modelContextLimit: Int? = nil
     var contextFull: Bool? = nil
+    var stopReason: String? = nil
     var contextMemory: ContextMemoryProfile? = nil
     var turnContext: String? = nil
     var runtimeCommit: String? = nil
@@ -177,6 +178,7 @@ struct BridgeEvent: Decodable {
         case contextLimit = "context_limit"
         case modelContextLimit = "model_context_limit"
         case contextFull = "context_full"
+        case stopReason = "stop_reason"
         case contextMemory = "context_memory"
         case turnContext = "turn_context"
         case runtimeCommit = "runtime_commit"

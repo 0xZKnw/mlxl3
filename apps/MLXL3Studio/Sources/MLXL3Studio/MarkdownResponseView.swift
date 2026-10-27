@@ -506,25 +506,33 @@ private actor MarkdownPreparation {
 struct MarkdownResponseView: View, Equatable {
     private let source: String
     private let streaming: Bool
+    private let htmlPreviewEnabled: Bool
     @StateObject private var renderer = MarkdownRenderModel()
 
-    init(_ source: String, streaming: Bool = false) {
+    init(_ source: String, streaming: Bool = false, htmlPreviewEnabled: Bool = true) {
         self.source = source
         self.streaming = streaming
+        self.htmlPreviewEnabled = htmlPreviewEnabled && !streaming
     }
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 10) {
+            if HTMLPreview.isDocument(source) {
+                CodeBlockView(language: "html", source: source, streaming: streaming,
+                              htmlPreviewEnabled: htmlPreviewEnabled).equatable()
+            } else {
             ForEach(renderer.chunks) { chunk in
                 MarkdownChunkView(
                     prepared: chunk,
-                    streaming: streaming && chunk.id == renderer.chunks.last?.id
+                    streaming: streaming && chunk.id == renderer.chunks.last?.id,
+                    htmlPreviewEnabled: htmlPreviewEnabled
                 )
                 .equatable()
+            }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -538,9 +546,10 @@ struct MarkdownResponseView: View, Equatable {
 private struct MarkdownChunkView: View, Equatable {
     let prepared: PreparedMarkdownChunk
     let streaming: Bool
+    let htmlPreviewEnabled: Bool
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming
+        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     var body: some View {
@@ -596,7 +605,7 @@ private struct MarkdownChunkView: View, Equatable {
             }
             .padding(.vertical, 2)
         case let .code(language, text):
-            CodeBlockView(language: language, source: text, streaming: streaming)
+            CodeBlockView(language: language, source: text, streaming: streaming, htmlPreviewEnabled: htmlPreviewEnabled)
                 .equatable()
         case let .math(latex):
             LatexBlockView(latex: latex, streaming: streaming)
@@ -995,12 +1004,14 @@ private struct CodeBlockView: View, Equatable {
     let language: String?
     let source: String
     let streaming: Bool
+    var htmlPreviewEnabled = false
+    @State private var showingHTML = false
     @State private var copied = false
     @State private var followsBottom = true
     @State private var chunkCache = CodeTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
     var body: some View {
@@ -1011,6 +1022,15 @@ private struct CodeBlockView: View, Equatable {
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundStyle(StudioTheme.quiet)
                 Spacer()
+                if HTMLPreview.canRun(language: language, source: source, completed: htmlPreviewEnabled) {
+                    Button { showingHTML = true } label: {
+                        Label(L("Exécuter HTML", "Run HTML"), systemImage: "play.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .padding(.horizontal, 9).frame(height: 25)
+                    }
+                    .buttonStyle(StudioControlStyle())
+                    .help(L("Aperçu isolé avec JavaScript et imports CDN", "Isolated preview with JavaScript and CDN imports"))
+                }
                 Button(action: copySource) {
                     Label(copied ? L("Copié", "Copied") : L("Copier", "Copy"), systemImage: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 10, weight: .medium))
@@ -1062,6 +1082,7 @@ private struct CodeBlockView: View, Equatable {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.075), lineWidth: 0.7)
         }
+        .sheet(isPresented: $showingHTML) { HTMLPreviewSheet(source: source) }
     }
 
     private func copySource() {

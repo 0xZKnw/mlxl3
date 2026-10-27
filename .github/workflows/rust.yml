@@ -25,6 +25,8 @@ jobs:
           command: cargo kani
           args: >-
             --lib --no-default-features
+            --harness tool_preparation_flag_matches_hidden_state
+            --harness structured_retry_budget_never_restarts_or_wraps
             --harness pair_commit_preserves_exact_valid_prefix_without_overflow
             --harness tensor_source_interval_is_ordered_and_cannot_wrap
             --harness disk_destinations_cannot_wrap_or_exceed_owned_storage

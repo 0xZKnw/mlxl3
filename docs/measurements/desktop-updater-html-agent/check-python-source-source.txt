@@ -1,0 +1,26 @@
+import json
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path.cwd()))
+
+import mlxl3_quantizer
+import pytest
+
+root = Path.cwd() / 'src'
+assert Path(mlxl3_quantizer.__file__).resolve().is_relative_to(root.resolve())
+out = Path('docs/measurements/desktop-updater-html-agent/python-provenance.json')
+
+class Provenance:
+    def pytest_sessionfinish(self, session, exitstatus):
+        modules = {name: module.__file__ for name, module in sys.modules.items()
+                   if name.startswith('mlxl3_quantizer') and getattr(module, '__file__', None)}
+        foreign = {name: path for name, path in modules.items()
+                   if not Path(path).resolve().is_relative_to(root.resolve())}
+        out.write_text(json.dumps({'exitstatus':exitstatus,'source_root':str(root),
+                                   'modules':modules,'foreign_modules':foreign},indent=2)+'\n')
+        if foreign:
+            session.exitstatus = 1
+            raise AssertionError('Foreign checkout imported: '+str(foreign))
+
+raise SystemExit(pytest.main(['-q'],plugins=[Provenance()]))

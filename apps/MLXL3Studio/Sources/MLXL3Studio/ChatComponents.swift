@@ -155,7 +155,8 @@ private struct AssistantMessageView: View {
                         ThinkingBlock(text: part.text, streaming: live)
                             .equatable()
                     case .answer:
-                        MarkdownResponseView(part.text, streaming: live)
+                        MarkdownResponseView(part.text, streaming: live,
+                                             htmlPreviewEnabled: !message.isStreaming && message.error == nil)
                             .equatable()
                             .environment(\.openURL, OpenURLAction { url in
                                 if url.scheme == "mlxl3-source" {

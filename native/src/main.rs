@@ -2498,6 +2498,7 @@ fn bridge_generate_round(
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
     let mut filter = (!tools.is_empty()).then(StreamFilter::new);
+    let mut last_tool_progress: Option<Instant> = None;
     let mut decoded = String::new();
     let mut answer = String::new();
     let mut generated = Vec::new();
@@ -2558,6 +2559,16 @@ fn bridge_generate_round(
                     )?;
                 }
             }
+        }
+        if filter.as_ref().is_some_and(StreamFilter::is_preparing_tool)
+            && last_tool_progress
+                .is_none_or(|last| last.elapsed() >= std::time::Duration::from_millis(500))
+        {
+            emit_event(json!({
+                "type":"generation_status", "request_id":request_id, "phase":"tool_preparation",
+                "text":format!("Preparing tool call · {} tokens", generated.len())
+            }))?;
+            last_tool_progress = Some(Instant::now());
         }
         if generated.len() < budget {
             if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
@@ -2802,15 +2813,15 @@ fn bridge_generate(
             "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
         }))?;
         let round_start = started.elapsed().as_secs_f64();
-        let round_max_tokens = if schema.is_some() {
-            mlxl3_native::structured::remaining_tokens(
-                max_tokens,
-                summary.as_ref().map_or(0, |stats| stats.generated_tokens),
-            )
-            .context("JSON token budget exhausted")?
+        let round_max_tokens = mlxl3_native::structured::remaining_tokens(
+            max_tokens,
+            summary.as_ref().map_or(0, |stats| stats.generated_tokens),
+        )
+        .context(if schema.is_some() {
+            "JSON token budget exhausted"
         } else {
-            max_tokens
-        };
+            "Generation token budget exhausted"
+        })?;
         let output = bridge_generate_round(
             model,
             tokenizer,

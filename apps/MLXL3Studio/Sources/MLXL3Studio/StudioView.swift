@@ -365,7 +365,11 @@ private struct WorkspaceHeader: View {
 
 private struct AgentWorkspaceBar: View {
     @EnvironmentObject private var studio: StudioModel
+    @State private var htmlFiles: [URL] = []
+    @State private var preview: HTMLPreviewDocument?
+    @State private var previewError: String?
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
         HStack(spacing: 18) {
             Button(action: studio.openAgentWorkspace) { Label(L("Dossier de travail", "Workspace folder"), systemImage: "folder") }
                 .buttonStyle(.plain).help(L("Ouvrir le dossier isolé de cette tâche dans le Finder", "Open this task’s isolated folder in Finder"))
@@ -373,9 +377,37 @@ private struct AgentWorkspaceBar: View {
             Spacer()
             Label(L("Sandbox · hors ligne", "Sandbox · offline"), systemImage: "lock.shield")
         }
+        if !studio.isGenerating && !htmlFiles.isEmpty {
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(htmlFiles, id: \.self) { file in
+                        Button {
+                            guard let workspace = studio.agentWorkspaceURL else { return }
+                            do { preview = HTMLPreviewDocument(source: try HTMLPreview.source(at: file, in: workspace), workspace: workspace, file: file) }
+                            catch { previewError = error.localizedDescription }
+                        } label: { Label(file.lastPathComponent, systemImage: "play.rectangle") }
+                        .buttonStyle(.bordered)
+                        .help(L("Exécuter ce fichier HTML dans l’app", "Run this HTML file in the app"))
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+        }
         .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
         .padding(.horizontal, 22).padding(.vertical, 13)
         .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+        .task(id: "\(studio.selectedConversationID?.uuidString ?? "")/\(studio.isGenerating)") {
+            htmlFiles = []
+            guard !studio.isGenerating, let workspace = studio.agentWorkspaceURL else { return }
+            let files = await Task.detached { HTMLPreview.artifactURLs(in: workspace) }.value
+            guard !Task.isCancelled else { return }
+            htmlFiles = files
+        }
+        .sheet(item: $preview) { HTMLPreviewSheet(source: $0.source, workspace: $0.workspace, file: $0.file) }
+        .alert(L("Aperçu HTML impossible", "HTML preview unavailable"), isPresented: Binding(
+            get: { previewError != nil }, set: { if !$0 { previewError = nil } }
+        )) { Button("OK") { previewError = nil } } message: { Text(previewError ?? "") }
     }
 }
 

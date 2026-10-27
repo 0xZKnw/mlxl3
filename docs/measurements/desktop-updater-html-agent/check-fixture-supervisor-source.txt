@@ -1,0 +1,50 @@
+"""Exercise the exact Python supervisor embedded in check-desktop.sh."""
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+root=Path.cwd()
+script=(root/'scripts/check-desktop.sh').read_text()
+source=script.split("<<'PY'\n",1)[1].split('\nPY\n',1)[0]
+report={'status':'running','cases':[]}
+out=root/'docs/measurements/desktop-updater-html-agent/fixture-supervisor.json'
+def save(): out.write_text(json.dumps(report,indent=2)+'\n')
+save()
+try:
+    for code in [0,7]:
+        p=subprocess.run([sys.executable,'-',sys.executable,'-c',f'raise SystemExit({code})'],input=source,text=True,capture_output=True,timeout=5)
+        assert p.returncode==code, p.stderr
+        report['cases'].append({'case':f'exit{code}','status':'passed'})
+    with tempfile.TemporaryDirectory(prefix='mlxl3-supervisor-check-') as folder:
+        for kind in ['interrupt','timeout']:
+            marker=Path(folder)/kind
+            child="import subprocess,sys,time,pathlib; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(120)']); pathlib.Path(sys.argv[1]).write_text(str(p.pid)); time.sleep(120)"
+            p=subprocess.Popen([sys.executable,'-',sys.executable,'-c',child,str(marker)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            p.stdin.write(source);p.stdin.close();p.stdin=None
+            deadline=time.monotonic()+5
+            while not marker.exists() and time.monotonic()<deadline: time.sleep(.02)
+            assert marker.exists(), 'fixture did not start'
+            pid=int(marker.read_text())
+            if kind=='interrupt': os.kill(p.pid,signal.SIGINT)
+            stdout,stderr=p.communicate(timeout=96)
+            assert p.returncode != 0
+            if kind=='timeout': assert '90-second limit' in stderr,stderr
+            dead=False
+            for _ in range(150):
+                try: os.kill(pid,0)
+                except ProcessLookupError: dead=True;break
+                time.sleep(.02)
+            assert dead, f'descendant survived {kind}'
+            report['cases'].append({'case':kind,'status':'passed','descendant_reaped':True})
+            save()
+    report['status']='passed'
+except BaseException as error:
+    report['status']='failed';report['error']=repr(error)
+    raise
+finally: save()
+print('Exact CI fixture supervisor: success, failure, interrupt and 90s timeout/reaping passed')

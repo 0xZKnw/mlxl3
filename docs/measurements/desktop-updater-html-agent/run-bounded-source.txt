@@ -1,0 +1,34 @@
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+limit = float(sys.argv[1])
+log = Path(sys.argv[2])
+started = time.monotonic()
+with log.open('wb') as output:
+    process = subprocess.Popen(sys.argv[3:], stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        code = process.wait(timeout=limit)
+        status = 'passed' if code == 0 else 'failed'
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        status = 'interrupted'
+        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            code = process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL)
+            code = process.wait()
+    finally:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+report = {'status': status, 'returncode': code, 'seconds': time.monotonic() - started,
+          'limit_seconds': limit, 'command': sys.argv[3:]}
+log.with_suffix(log.suffix + '.json').write_text(json.dumps(report, indent=2))
+print(json.dumps(report))
+sys.exit(0 if status == 'passed' else 1)
