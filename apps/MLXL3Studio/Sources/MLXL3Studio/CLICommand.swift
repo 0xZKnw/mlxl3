@@ -1,16 +1,25 @@
 @preconcurrency import Foundation
+import Darwin
 
 /// Cancellable short-lived catalogue/download commands; never touches the model bridge.
 final class CLICommand: @unchecked Sendable {
     private let process = Process()
     private let lock = NSLock()
     private var cancelled = false
+    private let executableOverride: URL?
+
+    init(executable: URL? = nil) { executableOverride = executable }
 
     func cancel() {
         lock.lock()
         defer { lock.unlock() }
         cancelled = true
-        if process.isRunning { process.terminate() }
+        if process.isRunning {
+            process.terminate()
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2) { [process] in
+                if process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }
+            }
+        }
     }
 
     private func launch() throws {
@@ -29,11 +38,14 @@ final class CLICommand: @unchecked Sendable {
                     FileManager.default.createFile(atPath: errors.path, contents: nil)
                     defer { try? FileManager.default.removeItem(at: errors) }
                     do {
-                        guard let executable = CLIResolver.executable() else { throw MLXL3BridgeError.executableNotFound }
+                        guard let executable = executableOverride ?? CLIResolver.executable() else { throw MLXL3BridgeError.executableNotFound }
                         let errorHandle = try FileHandle(forWritingTo: errors)
                         defer { try? errorHandle.close() }
                         let pipe = Pipe()
                         process.executableURL = executable
+                        if executableOverride != nil {
+                            process.environment = ProcessInfo.processInfo.environment.merging(["MLXL3_OWNER_PID": String(ProcessInfo.processInfo.processIdentifier)]) { _, owner in owner }
+                        }
                         process.arguments = arguments
                         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
                         process.standardOutput = pipe
@@ -74,11 +86,12 @@ final class CLICommand: @unchecked Sendable {
                         if stopped { throw CancellationError() }
                         if process.terminationStatus != 0 {
                             let data = (try? Data(contentsOf: errors)) ?? Data()
-                            throw MLXL3BridgeError.commandFailed(String(decoding: data.suffix(8000), as: UTF8.self))
+                            throw MLXL3BridgeError.commandFailed(String(decoding: (data.isEmpty ? result : data).suffix(8000), as: UTF8.self))
                         }
                         continuation.resume(returning: result)
                     } catch {
                         cancel()
+                        if process.isRunning { process.waitUntilExit() }
                         continuation.resume(throwing: error)
                     }
                 }

@@ -1,0 +1,111 @@
+...................................F..                                   [100%]
+=================================== FAILURES ===================================
+__________________ test_source_loader_forces_remote_code_off ___________________
+
+source = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-60/test_source_loader_forces_remo0')
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-60/test_source_loader_forces_remo0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1097f6ba0>
+
+    def test_source_loader_forces_remote_code_off(source, tmp_path, monkeypatch):
+        import importlib
+        from types import SimpleNamespace
+        import mlx_lm.utils
+    
+        calls = []
+    
+        def spy(*args, **kwargs):
+            calls.append(kwargs["tokenizer_config"]["trust_remote_code"])
+            raise RuntimeError("loader oracle reached")
+    
+        monkeypatch.setattr(mlx_lm.utils, "load", spy)
+        monkeypatch.setattr(sys, "argv", ["test"])
+        for name in ("MLXL3_QUANT_EXCLUDE_PREFIXES", "HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE"):
+            monkeypatch.setenv(name, "")
+        original = importlib.import_module
+    
+        def fake_adapter(name, *args):
+            if name == "quantize_lfm26":
+                return SimpleNamespace(
+                    main=lambda: mlx_lm.utils.load(
+                        str(source), tokenizer_config={"trust_remote_code": True}
+                    )
+                )
+            return original(name, *args)
+    
+        monkeypatch.setattr(importlib, "import_module", fake_adapter)
+        with pytest.raises(RuntimeError, match="oracle reached"):
+>           studio.convert(
+                {
+                    "source": studio.inspect_local(source),
+                    "output": str(tmp_path / "new-output"),
+                    "settings": {},
+                    "jobs": str(tmp_path / "jobs"),
+                }
+            )
+
+tests/test_quantization_studio.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+request = {'source': {'model_type': 'lfm2', 'inference_supported': True, 'conversion_supported': True, 'reason': 'EXL3 conversio...ivate/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-60/test_source_loader_forces_remo0/jobs'}
+
+    def convert(request: dict) -> dict:
+        import importlib
+    
+        options = settings(request.get("settings", {}))
+        expected = request["source"]
+        destination = Path(request["output"]).expanduser().absolute()
+        if destination.exists() or not destination.parent.is_dir() or destination.is_symlink():
+            raise ValueError("Choose a new output folder; existing files are never overwritten")
+        physical_memory = (
+            os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+            if sys.platform != "darwin"
+            else int(
+                __import__("subprocess").check_output(
+                    ["/usr/sbin/sysctl", "-n", "hw.memsize"], timeout=3
+                )
+            )
+        )
+        if options["validation"] and expected["source_bytes"] > physical_memory * 0.65:
+            raise ValueError(
+                "Full teacher validation will not fit in this Mac's RAM; leave KL/PPL disabled"
+            )
+        if expected["model_type"] == "lfm2" and expected["source_bytes"] > physical_memory * 0.65:
+            raise ValueError(
+                "Dense calibration needs the source model in RAM; this model is too large for this Mac"
+            )
+        if shutil.disk_usage(destination.parent).free < max(expected["source_bytes"], 64 * 1024 * 1024):
+            raise ValueError("Insufficient free disk space for conversion and calibration")
+        jobs = Path(request["jobs"])
+        jobs.mkdir(parents=True, exist_ok=True)
+        job = Path(tempfile.mkdtemp(prefix="conversion-", dir=jobs))
+        report = {
+            "status": "running",
+            "source": expected,
+            "settings": options,
+            "output": str(destination),
+        }
+    
+        def save():
+            (job / "job.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    
+        save()
+        emit("job", path=str(job))
+        try:
+            source = download(expected, job / "source")
+            actual = inspect_local(source)
+            if not actual["conversion_supported"] or actual["model_type"] != expected["model_type"]:
+                raise ValueError(actual["reason"])
+            if expected["revision"] == "local" and actual["fingerprint"] != expected["fingerprint"]:
+                raise ValueError("Source changed after inspection; inspect again")
+            if destination.resolve().is_relative_to(
+                source.resolve()
+            ) or source.resolve().is_relative_to(destination.resolve()):
+>               raise ValueError("Output and source folders must be separate")
+E               ValueError: Output and source folders must be separate
+
+scripts/quantization_studio.py:449: ValueError
+----------------------------- Captured stdout call -----------------------------
+{"type": "job", "path": "/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-60/test_source_loader_forces_remo0/jobs/conversion-2c6d1_q5"}
+=========================== short test summary info ============================
+FAILED tests/test_quantization_studio.py::test_source_loader_forces_remote_code_off
+1 failed, 37 passed in 1.76s

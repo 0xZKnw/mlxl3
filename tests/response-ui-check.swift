@@ -175,7 +175,10 @@ extension MarkdownResponseView {
     let studio = StudioModel(
       conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
       preferences: prefs)
-    let host = NSHostingView(rootView: MessagesView(messages: [message]).environmentObject(studio))
+    let host = NSHostingView(
+      rootView: MessagesView(messages: [message]).environmentObject(studio).background(
+        StudioTheme.canvas
+      ).preferredColorScheme(.dark))
     let window = NSWindow(
       contentRect: NSRect(x: 80, y: 80, width: 700, height: 400),
       styleMask: [.titled], backing: .buffered, defer: false)
@@ -219,6 +222,60 @@ extension MarkdownResponseView {
         && (NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || moving.count > 2),
       "Scroll jumped instead of interpolating: delta=\(offset() - before) positions=\(positions)")
     require(abs(distance()) < 30, "Scroll missed the final prepared height: \(distance())")
+
+    var visibleFrames = 0
+    func requireVisible(_ label: String) throws {
+      host.layoutSubtreeIfNeeded()
+      guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+        preconditionFailure("No streaming viewport bitmap")
+      }
+      host.cacheDisplay(in: host.bounds, to: bitmap)
+      var foreground = 0
+      for y in stride(from: bitmap.pixelsHigh / 5, to: bitmap.pixelsHigh * 3 / 4, by: 3) {
+        for x in stride(from: bitmap.pixelsWide / 8, to: bitmap.pixelsWide * 7 / 8, by: 3) {
+          if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+            color.redComponent + color.greenComponent + color.blueComponent > 1.8
+          {
+            foreground += 1
+          }
+        }
+      }
+      if let folder = ProcessInfo.processInfo.environment["MLXL3_STREAM_UI_SNAPSHOTS"],
+        foreground < 40 || label == "complete"
+      {
+        let directory = URL(fileURLWithPath: folder)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try bitmap.representation(using: .png, properties: [:])!.write(
+          to: directory.appendingPathComponent("stream-\(label).png"))
+      }
+      require(
+        foreground >= 40,
+        "Streamed text disappeared at \(label): pixels=\(foreground), bottom=\(distance()), height=\(document.bounds.height)"
+      )
+      visibleFrames += 1
+    }
+    for index in 0..<40 {
+      let text =
+        "Paragraph \(index): words remain visible while the response grows. **Bold** and `inline code` must stay painted.\n\n"
+      message.append(String(repeating: text, count: 3), phase: "answer")
+      try await Task.sleep(for: .milliseconds(150))
+      try requireVisible("prose-\(index)")
+    }
+    message.append("\n```javascript\n", phase: "answer")
+    for index in 0..<40 {
+      message.append(
+        String(repeating: "const visible\(index) = 'paint this growing source';\n", count: 8),
+        phase: "answer")
+      try await Task.sleep(for: .milliseconds(150))
+      try requireVisible("code-\(index)")
+    }
+    message.append("```\n\nThe answer is complete and remains visible.\n\n", phase: "answer")
+    message.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+    try await Task.sleep(for: .milliseconds(500))
+    try requireVisible("complete")
+    print(
+      "Streaming visibility passed: \(visibleFrames) native viewport frames across long prose, growing code and completion"
+    )
 
     var follow = StreamingScrollState()
     require(follow.shouldFollow, "Initial follow state")

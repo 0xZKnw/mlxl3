@@ -23,8 +23,17 @@ struct MessagesView: View {
   var body: some View {
     ScrollViewReader { proxy in
       ScrollView {
-        LazyVStack(spacing: 38) {
-          ForEach(messages) { message in
+        VStack(spacing: 38) {
+          if messages.count > 1 {
+            LazyVStack(spacing: 38) {
+              ForEach(messages.dropLast()) { message in
+                MessageView(message: message)
+                  .id(message.id)
+              }
+            }
+          }
+          // Keep the growing response measured while older messages remain lazy.
+          if let message = messages.last {
             MessageView(message: message)
               .id(message.id)
           }

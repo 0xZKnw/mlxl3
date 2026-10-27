@@ -55,6 +55,7 @@ if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
 fi
 swift build "${swift_args[@]}"
 binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
+MLXL3_BUILD_PYTHON="${python_bin}" "${script_dir}/build-quantizer.sh"
 
 if [[ "${app_dir}" != "${repo_dir}/dist/MLXL3 Desktop.app" ]]; then
     print -u2 "Refus de remplacer un chemin d’application inattendu."
@@ -66,6 +67,7 @@ install -d "${app_dir}/Contents/MacOS" "${app_dir}/Contents/Resources"
 install -m 755 "${binary_dir}/MLXL3Studio" "${app_dir}/Contents/MacOS/MLXL3Studio"
 install -m 644 "${package_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
 ditto "${runtime_dist_dir}" "${app_dir}/Contents/Resources/runtime"
+ditto "${repo_dir}/build/quantizer/mlxl3-quantize" "${app_dir}/Contents/Resources/quantizer"
 "${python_bin}" "${script_dir}/build_manifest.py" "${app_dir}/Contents/Resources/build-info.json"
 
 icon_work_dir="$(mktemp -d)"

@@ -5,10 +5,10 @@ import Foundation
 struct AgentSandboxCheck {
   static func main() throws {
     let args = CommandLine.arguments
-    if args.count == 4 && args[1] == "--agent-command" {
-      AgentSandbox.commandMode(root: args[2], command: args[3])
+    if (args.count == 4 || args.count == 6) && args[1] == "--agent-command" {
+      AgentSandbox.commandMode(root: args[2], command: args[3], seconds: args.count == 6 ? Double(args[4]) ?? 0 : 5, writable: args.count == 4 || args[5] == "write")
     }
-    if args.count == 3 && args[1] == "--agent-tools" { AgentSandbox.serve(root: args[2]) }
+    if (args.count == 3 || args.count == 4) && args[1] == "--agent-tools" { AgentSandbox.serve(root: args[2], permissionsPath: args.count == 4 ? args[3] : nil) }
     let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(
       "mlxl3-agent-\(UUID())"
     ).resolvingSymlinksInPath()
@@ -99,7 +99,7 @@ struct AgentSandboxCheck {
         fatalError("invalid command accepted")
       } catch { count += 1 }
     }
-    for seconds in [0.0, -1, 5.1, .infinity, .nan] {
+    for seconds in [0.0, -1, 30.1, .infinity, .nan] {
       do {
         _ = try run("true", seconds: seconds)
         fatalError("invalid timeout accepted")

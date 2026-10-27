@@ -1,0 +1,66 @@
+Building for debugging...
+[Planning deferred tasks]
+[5 / 20]
+[6 / 21] SwiftMath
+[9 / 14] MLXL3Studio-product
+[10 / 76]
+[17 / 76]
+[19 / 76]
+[26 / 76]
+[27 / 76]
+[29 / 76]
+[31 / 76]
+[32 / 76]
+[44 / 76]
+[45 / 76]
+[46 / 76]
+[49 / 76]
+[50 / 76]
+[54 / 76]
+[56 / 76]
+[57 / 76]
+[58 / 76]
+[61 / 76]
+[71 / 76] MLXL3Studio-product
+[72 / 76] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ArtifactStudio.swift:139:98: warning: main actor-isolated property 'selected' can not be referenced from a Sendable closure
+ 68 |     @State private var compare = ""
+ 69 |     @State private var paths: [String] = []
+ 70 |     @State private var selected = "index.html"
+    |                        `- note: property declared here
+ 71 |     @State private var code = ""
+ 72 |     @State private var original = ""
+    :
+137 |                                 Button(L("Enregistrer", "Save")) {
+138 |                                     let text = code
+139 |                                     perform { try AgentProjectStore.write(Data(text.utf8), path: selected, root: store.workspace); _ = try store.checkpoint("Edited \(selected)") }
+    |                                                                                                  `- warning: main actor-isolated property 'selected' can not be referenced from a Sendable closure
+140 |                                 }.disabled(revision != versions.first?.id)
+141 |                             }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/ArtifactStudio.swift:139:167: warning: main actor-isolated property 'selected' can not be referenced from a Sendable closure
+ 68 |     @State private var compare = ""
+ 69 |     @State private var paths: [String] = []
+ 70 |     @State private var selected = "index.html"
+    |                        `- note: property declared here
+ 71 |     @State private var code = ""
+ 72 |     @State private var original = ""
+    :
+137 |                                 Button(L("Enregistrer", "Save")) {
+138 |                                     let text = code
+139 |                                     perform { try AgentProjectStore.write(Data(text.utf8), path: selected, root: store.workspace); _ = try store.checkpoint("Edited \(selected)") }
+    |                                                                                                                                                                       `- warning: main actor-isolated property 'selected' can not be referenced from a Sendable closure
+140 |                                 }.disabled(revision != versions.first?.id)
+141 |                             }
+[80 / 86] MLXL3Studio-product
+[81 / 86] MLXL3Studio-product
+[82 / 86] MLXL3Studio-product
+[87 / 96] MLXL3Studio-product
+[90 / 96] MLXL3Studio-product
+[91 / 97] MLXL3Studio-product
+[92 / 97] MLXL3Studio-product
+[93 / 97] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[95 / 97] MLXL3Studio-product
+Build complete! (24,72 secs)

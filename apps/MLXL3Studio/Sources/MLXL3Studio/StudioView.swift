@@ -48,6 +48,7 @@ struct StudioView: View {
         }
         .id(studio.language)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
+        .environment(\.artifactRevision, { request in studio.requestArtifactRevision(request) })
         .background(StudioTheme.sidebar)
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
@@ -366,11 +367,14 @@ private struct WorkspaceHeader: View {
 private struct AgentWorkspaceBar: View {
     @EnvironmentObject private var studio: StudioModel
     @State private var htmlFiles: [URL] = []
+    @State private var showStudio = false
     @State private var preview: HTMLPreviewDocument?
     @State private var previewError: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
         HStack(spacing: 18) {
+            Button { showStudio = true } label: { Label("Agent Studio", systemImage: "sidebar.right") }.buttonStyle(.bordered)
+                .disabled(studio.isGenerating || studio.agentStudioBusy)
             Button(action: studio.openAgentWorkspace) { Label(L("Dossier de travail", "Workspace folder"), systemImage: "folder") }
                 .buttonStyle(.plain).help(L("Ouvrir le dossier isolé de cette tâche dans le Finder", "Open this task’s isolated folder in Finder"))
             Label(L("Ce Mac", "This Mac"), systemImage: "desktopcomputer")
@@ -404,6 +408,7 @@ private struct AgentWorkspaceBar: View {
             guard !Task.isCancelled else { return }
             htmlFiles = files
         }
+        .sheet(isPresented: $showStudio) { if let workspace = studio.agentWorkspaceURL { ArtifactStudioView(workspace: workspace, projectMode: true).environmentObject(studio) } }
         .sheet(item: $preview) { HTMLPreviewSheet(source: $0.source, workspace: $0.workspace, file: $0.file) }
         .alert(L("Aperçu HTML impossible", "HTML preview unavailable"), isPresented: Binding(
             get: { previewError != nil }, set: { if !$0 { previewError = nil } }

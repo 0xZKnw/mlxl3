@@ -186,3 +186,6 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfigurat
 "${test_dir}/mcp-configuration-check"
 
 print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
+
+# Beta 5 project/artifact integration shares the already-built app sources.
+MLXL3_STUDIOS_TMP="${test_dir}" zsh scripts/check-studios.sh

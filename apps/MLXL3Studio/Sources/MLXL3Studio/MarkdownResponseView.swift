@@ -520,7 +520,7 @@ struct MarkdownResponseView: View, Equatable {
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             if HTMLPreview.isDocument(source) {
                 CodeBlockView(language: "html", source: source, streaming: streaming,
                               htmlPreviewEnabled: htmlPreviewEnabled).equatable()
@@ -1567,4 +1567,15 @@ private struct TokenFadeRenderer: TextRenderer {
       }
     }
   }
+}
+
+@MainActor
+enum GeneratedHTML {
+    static func documents(_ source: String) -> [String] {
+        if HTMLPreview.canRun(language: nil, source: source, completed: true) { return [source] }
+        return Array(MarkdownParser.parse(source).compactMap { block in
+            if case let .code(language, text) = block.kind, HTMLPreview.canRun(language: language, source: text, completed: true) { return text }
+            return nil
+        }.prefix(8))
+    }
 }

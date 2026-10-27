@@ -1,0 +1,20 @@
+--- a/ponyexl3/convert/fixtures.py
++++ b/ponyexl3/convert/fixtures.py
+@@ -170,7 +170,16 @@
+     def __init__(self, model_dir: str | Path):
+         self.model_dir = Path(model_dir)
+         index_path = self.model_dir / "model.safetensors.index.json"
+-        self.weight_map = _cached_weight_map(str(index_path.resolve()))
++        if index_path.is_file():
++            self.weight_map = _cached_weight_map(str(index_path.resolve()))
++        else:
++            shards = sorted(self.model_dir.glob("*.safetensors"))
++            if len(shards) != 1:
++                raise ValueError("Multiple Safetensors shards require a shard index")
++            _, header = _cached_safetensors_header(str(shards[0].resolve()))
++            self.weight_map = {
++                key: shards[0].name for key in header if key != "__metadata__"
++            }
+         self._headers: dict[Path, tuple[int, dict[str, Any]]] = {}
+ 
+     def _header(self, shard: Path) -> tuple[int, dict[str, Any]]:
