@@ -74,6 +74,8 @@ unsafe extern "C" {
     #[cfg(test)]
     fn mlxl3_disk_profile_enable(enabled: bool);
     #[cfg(test)]
+    fn mlxl3_disk_profile_dynamic() -> bool;
+    #[cfg(test)]
     fn mlxl3_disk_profile_copy(output: *mut u64, capacity: usize) -> usize;
     fn mlxl3_start_capture(path: *const c_char) -> i32;
     fn mlxl3_stop_capture() -> i32;
@@ -270,6 +272,14 @@ pub(crate) fn disk_profile() -> Result<Vec<[u64; 6]>> {
     Ok(values[..count].as_chunks::<6>().0.to_vec())
 }
 
+#[cfg(test)]
+pub(crate) fn disk_profile_schedule() -> &'static str {
+    if unsafe { mlxl3_disk_profile_dynamic() } {
+        "dynamic"
+    } else {
+        "static"
+    }
+}
 
 fn checked(status: i32) -> Result<()> {
     if status == 0 {

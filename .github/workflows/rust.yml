@@ -115,6 +115,13 @@ jobs:
           c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -I native/ffi native/tests/disk_reader.cpp -o build/ci/disk-reader-tsan
           build/ci/disk-reader-tsan
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_reader_proof.cpp
+      - name: Check static and dynamic SSD work assignment
+        run: |
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I native/ffi native/tests/disk_work_queue.cpp -o build/ci/disk-work-queue
+          build/ci/disk-work-queue
+          c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_work_queue_proof.cpp
+          c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=thread -pthread -I native/ffi native/tests/disk_work_queue.cpp -o build/ci/disk-work-queue-tsan
+          build/ci/disk-work-queue-tsan
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

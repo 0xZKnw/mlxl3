@@ -60,6 +60,42 @@ def test_worker_overlap_and_nested_times_are_not_added_as_exclusive_gpu():
     assert "not exclusive GPU" in out["limits"]
 
 
+def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation():
+    rows = trace()
+    data = rows[3]["data"]
+    data["schedule"] = "dynamic"
+    # One worker may drain all jobs while the other workers are occupied.
+    data["timings_job_worker_start_end_bytes_failed"] = [
+        [i, 1, i * 10, (i + 1) * 10, 1248012, 0] for i in range(10)
+    ]
+    out = API["validate_events"](rows)
+    assert len(out["disk_jobs"]) == 10 and out["disk_batches"][0]["schedule"] == "dynamic"
+    assert out["disk_batches"][0]["last_completion_ns"] == 100
+    assert out["disk_batches"][0]["worker_finish_spread_ns"] == 0
+    del data["schedule"]
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+
+
+@pytest.mark.parametrize("fault", ["unknown", "worker", "overlap", "failed", "job"])
+def test_dynamic_job_assignment_rejects_invalid_or_incomplete_execution(fault):
+    rows = trace()
+    data = rows[3]["data"]
+    data["schedule"] = "dynamic"
+    if fault == "unknown":
+        data["schedule"] = "future"
+    elif fault == "worker":
+        data["timings_job_worker_start_end_bytes_failed"][0][1] = 4
+    elif fault == "overlap":
+        data["timings_job_worker_start_end_bytes_failed"][4][2] = 0
+    elif fault == "failed":
+        data["timings_job_worker_start_end_bytes_failed"][0][5] = 1
+    elif fault == "job":
+        data["timings_job_worker_start_end_bytes_failed"][0][0] = 1
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+
+
 @pytest.mark.parametrize("width", range(1, 9))
 def test_real_multi_token_routes_reuse_experts_between_rows(width):
     rows = trace()

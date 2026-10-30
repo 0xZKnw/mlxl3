@@ -328,7 +328,7 @@ impl SsdMoe {
         let result = Array::read_records(&sources, &mut self.banks, &views, self.readers);
         #[cfg(test)]
         if let Some(profile) = &read_profile {
-            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
+            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"schedule":crate::array::disk_profile_schedule(),"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
         }
         result?;
         self.read_bytes = bytes;

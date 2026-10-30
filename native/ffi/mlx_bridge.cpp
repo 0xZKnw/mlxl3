@@ -38,6 +38,7 @@ static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_P
 namespace {
 thread_local std::array<char, 2048> last_error{};
 thread_local bool disk_profile_enabled = false;
+thread_local bool disk_profile_dynamic = false;
 thread_local std::vector<mlxl3::DiskTiming> disk_profile;
 template<class F> int protect(F&& f) noexcept {
   last_error[0] = 0;
@@ -312,9 +313,14 @@ int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
       }
       reads.push_back(std::move(read));
     }
-    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr);
+    // Fixed for this thread/process; use separate processes for the two A/B arms.
+    // Persistent speculative readers retain their existing scheduling policy.
+    thread_local const auto schedule = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
+    if (disk_profile_enabled) disk_profile_dynamic = schedule == mlxl3::DiskSchedule::Dynamic;
+    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr, schedule);
   });
 }
+bool mlxl3_disk_profile_dynamic() noexcept { return disk_profile_dynamic; }
 int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,
                             const size_t* indices, const size_t* starts, const size_t* lengths,
                             size_t segments, void** out) noexcept {

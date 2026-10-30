@@ -94,13 +94,17 @@ def validate_events(events):
             assert data["ok"] is True
             timings, mapping = data["timings_job_worker_start_end_bytes_failed"], data["jobs"]
             workers = integer(data["workers"])
+            schedule = data.get("schedule", "static")
+            assert schedule in ("static", "dynamic"), "unknown disk job schedule"
             assert 1 <= workers <= 4 and 1 <= len(mapping) == len(timings) <= 512
             assert len({slot for _, slot in mapping}) == len(mapping)
             worker_end = {}
             for index, row in enumerate(timings):
                 assert len(row) == 6
                 job, worker, start, stop, count, failed = map(integer, row)
-                assert job == index and worker == index % min(workers, len(mapping))
+                assert job == index and 0 <= worker < min(workers, len(mapping))
+                if schedule == "static":
+                    assert worker == index % min(workers, len(mapping))
                 assert start <= stop and start >= worker_end.get(worker, 0)
                 assert count == EXPERT_BYTES and failed == 0
                 worker_end[worker] = stop
@@ -118,6 +122,7 @@ def validate_events(events):
                 {
                     "layer": layer,
                     "jobs": len(mapping),
+                    "schedule": schedule,
                     "last_completion_ns": max(t[3] for t in timings),
                     "worker_finish_spread_ns": max(worker_end.values()) - min(worker_end.values()),
                     "wall_ns": end - begin,
