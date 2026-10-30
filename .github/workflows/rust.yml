@@ -98,6 +98,9 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
           rustup default stable
+      - name: Match the shipped macOS deployment target
+        if: matrix.os == 'macos-26'
+        run: echo 'MACOSX_DEPLOYMENT_TARGET=26.2' >> "$GITHUB_ENV"
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat
@@ -105,6 +108,8 @@ jobs:
       - name: Check Metal cache key ordering and allocation regressions
         run: |
           mkdir -p build/ci
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/metal_os_capabilities.cpp -o build/ci/metal-os-capabilities
+          build/ci/metal-os-capabilities
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp

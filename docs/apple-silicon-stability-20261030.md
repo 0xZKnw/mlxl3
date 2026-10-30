@@ -140,6 +140,14 @@ The production pins/manifests were not changed to match this host.
   regression check, not a new performance result. Python fake-engine smoke
   emitted exactly8,000,001 unterminated bytes, ignoredSIGTERM and was killed/
   joined. Fixture `py_compile` and Ruff F/E9 checks passed.
+- Initial native macOS CI for `6500262b` compiled the FFI but failed linking
+  `___isPlatformVersionAtLeast`: Clang's availability builtin introduced a
+  compiler-rt helper absent from Rust's native link. The failure is retained.
+  The final query instead reads the bounded `kern.osproductversion` sysctl and
+  uses a strict C++ parser with **1,190** ASan+UBSan checks, including26.2/26.3/
+  26.4, malformed components, overflow and NUL/length boundaries. A26.3→26.2
+  threshold mutation was detected. No additional runtime library is required.
+  CI's macOS deployment target now explicitly matches the shipped26.2 target.
 - All current Rust Apple ARM64 targets with `mlx,chat` passed frontend type
   checking and strict Clippy through an isolated temporary manifest: original
   source paths, build.rs disabled, tokenizers fancy-regex replacing native cross

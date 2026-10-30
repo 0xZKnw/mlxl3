@@ -43,3 +43,10 @@ C++ existing cache-key regression compiled with
 -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp` and passed.
 Its log is not a new benchmark result. The bridge fixture check records its
 actual bounded subprocess smoke; Swift parser/lifecycle tests require macOS CI.
+
+The first real macOS link exposed an availability-builtin compiler-rt dependency
+missing from Rust's link; `initial-macos-link-error.log` retains the exact failure.
+The replacement production parser is compiled by the same sanitizer command with
+`native/tests/metal_os_capabilities.cpp`; it checks1,190 cases. The runtime syscall
+and native link still require macOS CI. OS flags and their Rust contract remain
+unchanged.
