@@ -13,6 +13,12 @@ fn allocate_levels(costs: &[Vec<u32>], budget: usize) -> Option<Vec<usize>> {
     {
         return None;
     }
+    allocate_valid_levels(costs, budget)
+}
+
+// Only called after allocate_levels validates shapes and the budget.
+fn allocate_valid_levels(costs: &[Vec<u32>], budget: usize) -> Option<Vec<usize>> {
+    let layers = costs.len();
     let mut previous = vec![None; budget + 1];
     previous[0] = Some((0u64, 0u64));
     let mut parents = vec![vec![usize::MAX; budget + 1]; layers];
@@ -368,34 +374,67 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    // Exhaustive partition of the original usize budget: 0, 1, 2 and >2.
+    // Keeping each valid budget constant avoids symbolic Vec lengths and the
+    // resulting multi-GiB propositional reduction. All four costs remain u32.
+    fn verify_two_layer_budget<const BUDGET: usize>() {
+        let values: [u32; 4] = kani::any();
+        let costs = vec![values[..2].to_vec(), values[2..].to_vec()];
+        let selected = allocate_levels(&costs, BUDGET).unwrap();
+        assert_eq!(selected.len(), 2);
+        assert!(selected.iter().all(|&q| q < 2));
+        assert_eq!(selected[0] + selected[1], BUDGET);
+        let actual = u64::from(costs[0][selected[0]]) + u64::from(costs[1][selected[1]]);
+        let expected = match BUDGET {
+            0 => u64::from(values[0]) + u64::from(values[2]),
+            1 => (u64::from(values[0]) + u64::from(values[3]))
+                .min(u64::from(values[1]) + u64::from(values[2])),
+            2 => u64::from(values[1]) + u64::from(values[3]),
+            _ => unreachable!(),
+        };
+        assert_eq!(actual, expected);
+        kani::cover!(selected[0] + selected[1] == BUDGET);
+    }
+
     #[kani::proof]
     #[kani::unwind(5)]
-    fn cache_allocation_is_optimal_and_exact_on_two_layers_two_levels() {
+    fn cache_allocation_budget_zero_is_optimal_and_exact() {
+        verify_two_layer_budget::<0>();
+    }
+
+    #[kani::proof]
+    #[kani::unwind(5)]
+    fn cache_allocation_budget_one_is_optimal_and_exact() {
+        verify_two_layer_budget::<1>();
+    }
+
+    #[kani::proof]
+    #[kani::unwind(5)]
+    fn cache_allocation_budget_two_is_optimal_and_exact() {
+        verify_two_layer_budget::<2>();
+    }
+
+    fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+        panic!("an invalid budget must never enter the allocation algorithm");
+    }
+
+    #[kani::proof]
+    // This is a reachability proof of the REAL entry guard. A panicking stub
+    // is conservative: success proves the DP body is never called for ANY
+    // invalid budget, independent of what that body does. The three valid
+    // budget proofs above verify the real body without any stub.
+    #[kani::stub(allocate_valid_levels, reject_unreachable_dp)]
+    // Rejection only visits the two input rows; no DP loop may be entered.
+    // Unwinding assertions remain enabled and check that early return itself.
+    #[kani::unwind(3)]
+    fn cache_allocation_rejects_every_invalid_two_layer_budget() {
         let values: [u32; 4] = kani::any();
         let budget: usize = kani::any();
-        let costs = vec![values[..2].to_vec(), values[2..].to_vec()];
-        let result = allocate_levels(&costs, budget);
-        let missing = result.is_none();
         if budget > 2 {
-            assert!(result.is_none());
-        } else {
-            let selected = result.unwrap();
-            assert_eq!(selected.len(), 2);
-            assert!(selected.iter().all(|&q| q < 2));
-            assert_eq!(selected[0] + selected[1], budget);
-            let actual = u64::from(costs[0][selected[0]]) + u64::from(costs[1][selected[1]]);
-            let expected = match budget {
-                0 => u64::from(values[0]) + u64::from(values[2]),
-                1 => (u64::from(values[0]) + u64::from(values[3]))
-                    .min(u64::from(values[1]) + u64::from(values[2])),
-                2 => u64::from(values[1]) + u64::from(values[3]),
-                _ => unreachable!(),
-            };
-            assert_eq!(actual, expected);
-            kani::cover!(budget == 0);
-            kani::cover!(budget == 1);
-            kani::cover!(budget == 2);
+            let costs = [vec![values[0], values[1]], vec![values[2], values[3]]];
+            assert!(allocate_levels(&costs, budget).is_none());
+            kani::cover!(budget == 3);
+            kani::cover!(budget == usize::MAX);
         }
-        kani::cover!(budget == usize::MAX && missing);
     }
 }

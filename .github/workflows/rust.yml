@@ -14,73 +14,60 @@ permissions:
 
 jobs:
   kani-flash-contracts:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify Flash offsets, partition and greedy commits independently
-        uses: model-checking/kani-github-action@v1
-        with:
-          kani-version: '0.68.0'
-          command: cargo kani
-          args: >-
-            --lib --no-default-features
-            --harness tool_preparation_flag_matches_hidden_state
-            --harness structured_retry_budget_never_restarts_or_wraps
-            --harness pair_commit_preserves_exact_valid_prefix_without_overflow
-            --harness tensor_source_interval_is_ordered_and_cannot_wrap
-            --harness disk_destinations_cannot_wrap_or_exceed_owned_storage
-            --harness cpu_slot_validation_preserves_bounds_for_real_route_widths
-            --harness grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs
-            --harness grouped_chunk_counter_matches_eight_symbolic_occurrence_counts
-            --harness fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals
-            --harness expert_output_stride_cannot_wrap_and_matches_wide_arithmetic
-            --harness draft_prediction_geometry_is_bounded_for_all_usize
-            --harness slot_reads_initialize_exact_disjoint_bank_regions
-            --harness pre_draft_choice_is_bounded_for_all_states
-            --harness pre_draft_observation_is_atomic_and_checked
-            --harness expert_cohorts_never_exceed_live_slot_capacity
-            --harness unique_expert_prefix_matches_independent_twenty_route_oracle
-            --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
-            --harness flash_reference_batch_has_exact_bounded_coverage
-            --harness reference_header_is_static_and_exactly_gated
-            --harness draft_demand_counters_are_exact_or_reject_without_wrapping
-            --harness gdn_tape_prefix_covers_all_valid_commits
-            --harness wide_draft_commit_accepts_only_exact_finite_prefixes
-            --harness circular_writes_are_bounded_disjoint_and_cannot_wrap
-            --harness adaptive_prefix_is_bounded_and_rejects_invalid_probabilities
-            --harness draft_scheduler_cannot_exceed_available_prefix_or_accept_invalid_costs
-            --harness failed_fill_invalidates_ready_keys_without_releasing_pending_slots
-            --harness layer_slot_budget_is_exact_and_cannot_overflow
-            --harness les_control_parsers_accept_only_the_documented_literals
-            --harness pending_publish_rejects_stale_failed_and_duplicate_records
-            --harness speculative_claim_excludes_pending_and_preserves_pair_space
-            --harness predictive_victims_exclude_pending_and_fall_back_only_when_needed
-            --harness free_slots_precede_all_ready_victims_in_both_policies
-            --harness les_lru_uses_age_without_penalizing_zero_frequency_prefetches
-            --harness reference_partition
-            --harness automatic_cache_cannot_spend_reserved_memory
-            --harness automatic_cache_is_monotone
-            --harness mtp_depth_one_commits_only_target_tokens_inside_budgets
-            --harness mtp_all_depths_commit_target_prefix_within_budgets
-            --harness greedy_acceptance_is_the_maximal_matching_prefix
-  kani:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Verify validated API token usage with Kani
-        uses: model-checking/kani-github-action@v1
+      - name: Verify every compiled Flash CPU harness
+        uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
         with:
           kani-version: '0.68.0'
-          command: cargo kani
-          args: --no-default-features --tests --harness validated_usage_respects_budget_without_total_overflow --jobs 1 --output-format terse
-      - name: Verify Rust safety contracts with Kani
-        uses: model-checking/kani-github-action@v1
+          command: python3 scripts/kani_ci.py
+          args: --shard flash --report-dir build/kani-flash
+      - name: Preserve each proof verdict and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-flash
+          path: build/kani-flash
+          if-no-files-found: error
+
+  kani-other-contracts:
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        shard: [core, speculative, allocator]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify each compiled CPU harness in this shard
+        uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
         with:
           kani-version: '0.68.0'
-          command: cargo kani
-          args: --lib --no-default-features --jobs 1 --output-format terse
+          command: python3 scripts/kani_ci.py
+          args: --shard ${{ matrix.shard }} --report-dir build/kani-${{ matrix.shard }}
+      - name: Preserve each proof verdict and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-${{ matrix.shard }}
+          path: build/kani-${{ matrix.shard }}
+          if-no-files-found: error
+
+  # Keep the existing aggregate check name; no failed or missing shard can pass it.
+  kani:
+    if: always()
+    needs: [kani-flash-contracts, kani-other-contracts]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Require all proof shards
+        env:
+          FLASH_RESULT: ${{ needs.kani-flash-contracts.result }}
+          OTHER_RESULT: ${{ needs.kani-other-contracts.result }}
+        run: test "$FLASH_RESULT" = success && test "$OTHER_RESULT" = success
 
   native:
     strategy:
@@ -118,6 +105,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+      - name: Check Kani orchestration and process failures
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          ruff format --check scripts/kani_ci.py tests/test_kani_ci.py
+          ruff check scripts/kani_ci.py tests/test_kani_ci.py
+          python -m pytest -q tests/test_kani_ci.py
       - name: Lint native verification scripts and regressions
         run: |
           for verification_source in docs/measurements/flash-next-ssd-impl/opt-30-les/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-32-les-async/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-33-les-admission/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-34-les-ready/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-38-les-gpu/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path/*/*supervisor.txt docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/*/*supervisor.txt; do
