@@ -13,6 +13,9 @@ from pathlib import Path
 SHARDS = ("core", "flash", "routes", "speculative", "allocator")
 VERSION = "0.68.0"
 API_HARNESS = "openai::proofs::validated_usage_respects_budget_without_total_overflow"
+PARSER_HARNESS = (
+    "flash_support::verification::layer_slot_parser_checks_last_two_utf8_bytes_and_full_shape"
+)
 INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
@@ -84,6 +87,8 @@ def select_names(names, shard):
 
 
 def check_verdict(output, name, expected):
+    if "not enough arguments, inserting non-deterministic value" in output:
+        return False
     checked = re.findall(r"Checking harness ([\w:]+)\.\.\.", output)
     summaries = re.findall(
         r"Complete - (\d+) successfully verified harnesses, (\d+) failures, (\d+) total\.",
@@ -91,9 +96,10 @@ def check_verdict(output, name, expected):
     )
     covers = re.findall(r"\*\* (\d+) of (\d+) cover properties satisfied", output)
     stubs = re.findall(r"^\s+- Stub: (.+)$", output, re.MULTILINE)
-    allowed_stubs = (
-        ["allocate_valid_levels -> reject_unreachable_dp"] if name == INVALID_BUDGET_HARNESS else []
-    )
+    allowed_stubs = {
+        INVALID_BUDGET_HARNESS: ["allocate_valid_levels -> reject_unreachable_dp"],
+        PARSER_HARNESS: ["super :: parse_slot_capacity -> proof_two_byte_capacity"],
+    }.get(name, [])
     return (
         checked == [name] * expected
         and summaries == [(str(expected), "0", str(expected))]
@@ -153,6 +159,60 @@ def run_process(command, log, timeout):
     return result
 
 
+def parser_loop_bounds(output):
+    """Resolve the pinned compiler's loop IDs; reject missing or ambiguous mappings."""
+    if re.findall(r"Checking harness ([\w:]+)\.\.\.", output) != [PARSER_HARNESS]:
+        raise ValueError("foreign or missing parser loop inventory")
+    loops = re.findall(
+        r"^Loop ([\w$]+\.\d+):\n\s+file [^\n]+ function ([^\n]+)$", output, re.MULTILINE
+    )
+    result = []
+    for function, number, bound in [
+        ("core::str::validations::run_utf8_validation", 0, 10),
+        ("core::str::validations::run_utf8_validation", 1, 17),
+        ("core::str::validations::run_utf8_validation", 2, 4),
+        ("flash_support::parse_layer_slots", 0, 4),
+    ]:
+        matches = [
+            name for name, pretty in loops if pretty == function and name.endswith(f".{number}")
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"expected one loop for {function}.{number}, got {len(matches)}")
+        result.append(f"{matches[0]}:{bound}")
+    return ",".join(result)
+
+
+def execute_proof(record, log, timeout, deadline):
+    # Discovery and verification share one harness budget, including compilation.
+    proof_deadline = min(deadline, time.monotonic() + timeout)
+    if record["name"] == PARSER_HARNESS:
+        discovery = list(record["command"])
+        discovery[discovery.index("--output-format") + 1] = "old"
+        discovery += ["-Z", "unstable-options", "--cbmc-args", "--show-loops"]
+        inventory_log = log.with_suffix(".loops.log")
+        preparation = run_process(
+            discovery, inventory_log, max(0, proof_deadline - time.monotonic())
+        )
+        record["loop_inventory"] = dict(preparation, log=inventory_log.name)
+        inventory = inventory_log.read_text(errors="replace")
+        if preparation["status"] != "completed":
+            log.write_text("Parser loop discovery failed:\n" + inventory)
+            return dict(preparation, stage="loop_inventory")
+        try:
+            bounds = parser_loop_bounds(inventory)
+        except ValueError as error:
+            log.write_text(f"Parser loop discovery failed: {error}\n" + inventory)
+            return dict(
+                preparation, status="invalid_output", error=str(error), stage="loop_inventory"
+            )
+        record["command"] += ["-Z", "unstable-options", "--cbmc-args", "--unwindset", bounds]
+    remaining = proof_deadline - time.monotonic()
+    if remaining <= 0:
+        log.write_text("Harness budget exhausted during preparation\n")
+        return {"status": "budget_exhausted", "seconds": 0, "returncode": None}
+    return run_process(record["command"], log, remaining)
+
+
 def run_proofs(records, directory, report, report_path, timeout, deadline):
     for index, record in enumerate(records):
         remaining = deadline - time.monotonic()
@@ -164,7 +224,7 @@ def run_proofs(records, directory, report, report_path, timeout, deadline):
         record["log"] = log.name
         record["status"] = "running"
         save_report(report_path, report)
-        result = run_process(record["command"], log, min(timeout, remaining))
+        result = execute_proof(record, log, min(timeout, remaining), deadline)
         record.update(result)
         output = log.read_text(errors="replace")
         if record["status"] == "completed":

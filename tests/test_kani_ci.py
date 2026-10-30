@@ -72,7 +72,11 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     }
     required = set(ci.required_names())
     assert set(baseline) - required == replaced
-    assert len(required) == 319
+    assert len(required) == 322
+    assert {
+        f"flash_support::verification::slot_capacity_{size}_matches_std"
+        for size in ("empty", "one_byte", "two_bytes")
+    } <= required
     grid = {
         f"speculative::verification::dflash_copy_len_{n}::accepted_{a}"
         for n in range(21)
@@ -130,6 +134,66 @@ def test_verdict_requires_both_api_instances_and_keeps_expected_unreachable_asse
     assert ci.check_verdict(success("p") + " ** 0 of 10 failed (2 unreachable)\n", "p", 1)
 
 
+def test_model_conversion_warning_cannot_qualify_as_a_successful_proof():
+    warning = (
+        "file native/src/flash_support.rs line 183: call to Iterator::next: "
+        "not enough arguments, inserting non-deterministic value\n"
+    )
+    assert not ci.check_verdict(warning + success("core::proof"), "core::proof", 1)
+    assert ci.check_verdict("warning: unused import\n" + success("core::proof"), "core::proof", 1)
+
+
+def parser_loops():
+    return f"Checking harness {ci.PARSER_HARNESS}...\n" + "".join(
+        f"Loop {symbol}.{number}:\n  file source.rs line 1 column 1 function {pretty}\n"
+        for symbol, pretty, numbers in [
+            ("rust_utf8", "core::str::validations::run_utf8_validation", range(3)),
+            ("rust_parser", "flash_support::parse_layer_slots", range(2)),
+        ]
+        for number in numbers
+    )
+
+
+def test_parser_loop_bounds_resolve_pretty_names_instead_of_fixed_mangled_symbols():
+    assert ci.parser_loop_bounds(parser_loops()) == (
+        "rust_utf8.0:10,rust_utf8.1:17,rust_utf8.2:4,rust_parser.0:4"
+    )
+
+
+@pytest.mark.parametrize("change", ["empty", "duplicate", "foreign", "missing"])
+def test_parser_loop_discovery_fails_closed_on_invalid_or_ambiguous_inventory(change):
+    output = parser_loops()
+    if change == "empty":
+        output = ""
+    elif change == "duplicate":
+        output += output[output.index("Loop ") :]
+    elif change == "foreign":
+        output = output.replace(ci.PARSER_HARNESS, "foreign::proof")
+    else:
+        output = output.replace("run_utf8_validation", "different_function")
+    with pytest.raises(ValueError):
+        ci.parser_loop_bounds(output)
+
+
+def test_parser_discovery_and_verification_share_the_harness_deadline(tmp_path, monkeypatch):
+    now = [0.0]
+    budgets = []
+
+    def run(command, log, timeout):
+        budgets.append(timeout)
+        log.write_text(parser_loops() if "--show-loops" in command else success(ci.PARSER_HARNESS))
+        now[0] += 2
+        return {"status": "completed", "seconds": 2, "returncode": 0}
+
+    monkeypatch.setattr(ci.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(ci, "run_process", run)
+    record = {"name": ci.PARSER_HARNESS, "command": ["cargo", "--output-format", "regular"]}
+    assert ci.execute_proof(record, tmp_path / "proof.log", 10, 7)["status"] == "completed"
+    assert budgets == [7, 5]
+    assert record["command"][-2] == "--unwindset"
+    assert record["loop_inventory"]["status"] == "completed"
+
+
 def test_address_space_limit_is_really_applied(tmp_path):
     log = tmp_path / "limit.log"
     result = ci.run_process(
@@ -185,6 +249,7 @@ def fake_cargo(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
     monkeypatch.setenv("FAKE_INVENTORY", json.dumps(inventory(names)))
+    monkeypatch.setenv("FAKE_LOOPS", parser_loops())
     cargo = tmp_path / "cargo"
     cargo.write_text(
         f"#!{sys.executable}\n"
@@ -196,11 +261,14 @@ def fake_cargo(tmp_path, monkeypatch):
         "  Path('kani-list.json').write_text(os.environ['FAKE_INVENTORY'])\n"
         " sys.exit(0)\n"
         "name = sys.argv[sys.argv.index('--harness') + 1]\n"
+        "if '--show-loops' in sys.argv:\n"
+        " print(os.environ['FAKE_LOOPS']); sys.exit(0)\n"
         "if name.endswith('tuning_never_selects_missing_or_slower_candidate') and '--verbose' in sys.argv: sys.exit(101)\n"
         "if os.environ.get('FAKE_SLEEP'):\n"
         " Path('started').write_text(str(os.getpid()))\n"
         " time.sleep(30)\n"
         "if name == os.environ.get('FAKE_EMPTY'): sys.exit(0)\n"
+        f"if name == {ci.PARSER_HARNESS!r}: print('  - Stub: super :: parse_slot_capacity -> proof_two_byte_capacity')\n"
         "count = 2 if '--tests' in sys.argv else 1\n"
         "for _ in range(count):\n"
         " print(f'Checking harness {name}...')\n"
@@ -236,6 +304,21 @@ def test_stale_inventory_cannot_turn_missing_listing_into_success(fake_cargo, mo
     report = json.loads(Path("results/report.json").read_text())
     assert report["status"] == "failure"
     assert report["proofs"] == []
+
+
+@pytest.mark.parametrize("invalid_inventory", [False, True])
+def test_parser_cli_checks_discovery_and_keeps_conversion_companions_required(
+    fake_cargo, monkeypatch, invalid_inventory
+):
+    if invalid_inventory:
+        monkeypatch.setenv("FAKE_LOOPS", "no compiled loops")
+    assert (ci.main(["--shard", "flash", "--report-dir", "results"]) == 0) != invalid_inventory
+    report = json.loads(Path("results/report.json").read_text())
+    parser = next(r for r in report["proofs"] if r["name"] == ci.PARSER_HARNESS)
+    assert parser["status"] == ("invalid_output" if invalid_inventory else "success")
+    companions = [r for r in report["proofs"] if "::slot_capacity_" in r["name"]]
+    assert len(companions) == 3 and all(r["status"] == "success" for r in companions)
+    assert Path("results", parser["loop_inventory"]["log"]).exists()
 
 
 def test_speculative_cli_avoids_kani_068_verbose_statistics_crash(fake_cargo):
@@ -299,3 +382,11 @@ def test_only_the_documented_panicking_unreachable_stub_is_accepted():
     )
     assert not ci.check_verdict(success(ci.INVALID_BUDGET_HARNESS), ci.INVALID_BUDGET_HARNESS, 1)
     assert not ci.check_verdict(success("other::proof") + notice, "other::proof", 1)
+
+
+def test_parser_accepts_only_its_exact_conversion_stub():
+    notice = "  - Stub: super :: parse_slot_capacity -> proof_two_byte_capacity\n"
+    assert ci.check_verdict(success(ci.PARSER_HARNESS) + notice, ci.PARSER_HARNESS, 1)
+    assert not ci.check_verdict(success(ci.PARSER_HARNESS), ci.PARSER_HARNESS, 1)
+    assert not ci.check_verdict(success("other::proof") + notice, "other::proof", 1)
+    assert not ci.check_verdict(success(ci.PARSER_HARNESS) + notice * 2, ci.PARSER_HARNESS, 1)
