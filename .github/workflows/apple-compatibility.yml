@@ -1,0 +1,67 @@
+name: Apple compatibility contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  metal-and-loader-contracts:
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the pinned native runtime and Rust tooling
+        run: |
+          python -m pip install mlx==0.32.2
+          rustup toolchain install stable --profile minimal --component clippy --component rustfmt
+          rustup default stable
+      - name: Build the shipped bridge and exercise error paths without GPU work
+        shell: bash
+        run: |
+          set -euo pipefail
+          export MLXL3_MLX_ROOT="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          mkdir -p build/ci
+          cargo fmt --check
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/metal_os_capabilities.cpp -o build/ci/metal-os-capabilities
+          build/ci/metal-os-capabilities
+          cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+          cargo build --locked --release --features mlx,chat
+          compatibility_tests=(
+            array::tests::metal_os_capability_query_and_rejections_need_no_gpu_work
+            dflash::tests::packed_q4_rejects_older_macos_before_loading_weights
+            qwen35::tests::invalid_config_is_rejected_before_weight_loading
+            qwen35::tests::public_layers_reject_overflow_and_invalid_epsilon_before_weights
+          )
+          for test_name in "${compatibility_tests[@]}"; do
+            cargo test --locked --lib --features mlx,chat "$test_name" -- --exact --test-threads=1 | tee build/ci/compatibility-test.log
+            python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/compatibility-test.log").read_text()'
+          done
+      # Hosted macOS is not a physical Metal numerical or all-generation test.
+  guard-proofs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify optional APIs and checked Qwen widths independently
+        uses: model-checking/kani-github-action@v1
+        with:
+          kani-version: '0.68.0'
+          command: cargo kani
+          args: >-
+            --lib --no-default-features --jobs 1 --output-format terse
+            --harness optional_metal_apis_never_bypass_their_runtime_requirement
+            --harness qwen_attention_widths_match_wide_arithmetic_or_reject
+            --harness qwen_gated_delta_widths_match_wide_arithmetic_or_reject

@@ -169,6 +169,14 @@ must not be presented as a green result. CI now executes four new MLX-feature
 error-path/query tests explicitly and rejects zero selections, plus the existing
 Desktop parser/lifecycle/Agent checks. Hosted jobs skip physical Metal inference.
 
+The first global Kani runner received a shutdown signal; a force-cancel request
+for obsolete run41035881383 was refused with `Forbidden`. No cancellation was
+retried or bypassed. Its successor native run initially remained pending behind
+it. The separate `Apple compatibility contracts` workflow therefore checks the
+actual MLX/FFI build, four no-GPU error-path/query tests and the three new guard
+proofs independently. It leaves the older run intact and does not establish a
+successful global proof. The PR records outcomes for the final SHA.
+
 ## Remaining risks in priority order
 
 1. Execute the above physical matrix. No Linux or hosted build can establish
