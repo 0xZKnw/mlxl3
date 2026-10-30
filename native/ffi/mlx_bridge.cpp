@@ -127,6 +127,17 @@ struct PreparedDiskRead {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_metal_os_capabilities(uint32_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null Metal capability output");
+    uint32_t flags = 0;
+    // These query the running OS and do not initialize MLX or submit GPU work.
+    // Cooperative matmul inputs arrived in 26.3; native int4 tensors in 26.4.
+    if (__builtin_available(macOS 26.3, *)) flags |= 1;
+    if (__builtin_available(macOS 26.4, *)) flags |= 2;
+    *out = flags;
+  });
+}
 int mlxl3_synchronize() noexcept {
   return protect([] { mx::synchronize(); });
 }

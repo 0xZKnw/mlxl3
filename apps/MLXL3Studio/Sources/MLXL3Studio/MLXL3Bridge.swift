@@ -72,6 +72,10 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var process: Process?
     private var inputPipe: Pipe?
     private var outputBuffer = Data()
+    // A single JSON frame can contain a large tool result, but a broken engine
+    // must not retain an unlimited unterminated frame in the Desktop process.
+    private static let maximumOutputFrameBytes = 8_000_000
+    private var outputFailed = false
     private var stderrBuffer = Data()
     private var pendingDelta: PendingDelta?
     private var receivedReady = false
@@ -142,6 +146,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         let error = Pipe()
         ioQueue.sync {
             outputBuffer.removeAll(keepingCapacity: true)
+            outputFailed = false
             stderrBuffer.removeAll(keepingCapacity: true)
             pendingDelta = nil
             receivedReady = false
@@ -308,11 +313,18 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     private func consumeOutput(_ data: Data, ticket: UUID) {
-        outputBuffer.append(data)
-        let newline = Data([0x0A])
-        while let range = outputBuffer.range(of: newline) {
-            let line = outputBuffer.subdata(in: outputBuffer.startIndex..<range.lowerBound)
-            outputBuffer.removeSubrange(outputBuffer.startIndex...range.lowerBound)
+        guard !outputFailed, generationID.withLock({ $0 == ticket }) else { return }
+        var remaining = data[...]
+        while let end = remaining.firstIndex(of: 0x0A) {
+            let prefix = remaining[..<end]
+            guard prefix.count <= Self.maximumOutputFrameBytes - outputBuffer.count else {
+                rejectOutputFrame(ticket: ticket)
+                return
+            }
+            outputBuffer.append(prefix)
+            let line = outputBuffer
+            outputBuffer = Data()
+            remaining = remaining[remaining.index(after: end)...]
             guard !line.isEmpty else { continue }
             do {
                 let event = try JSONDecoder().decode(BridgeEvent.self, from: line)
@@ -349,6 +361,24 @@ final class MLXL3Bridge: @unchecked Sendable {
                 )
                 queueForDisplay(event, ticket: ticket)
             }
+        }
+        guard remaining.count <= Self.maximumOutputFrameBytes - outputBuffer.count else {
+            rejectOutputFrame(ticket: ticket)
+            return
+        }
+        outputBuffer.append(remaining)
+    }
+
+    private func rejectOutputFrame(ticket: UUID) {
+        outputFailed = true
+        outputBuffer = Data()
+        // stop() synchronizes with ioQueue; call it from MainActor, and keep the
+        // original ticket so a delayed failure cannot stop a replacement engine.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.generationID.withLock({ $0 == ticket }) else { return }
+            self.stop()
+            self.onExit?(L("Réponse moteur trop longue. Le moteur a été arrêté.",
+                           "Engine response too long. The engine was stopped."))
         }
     }
 

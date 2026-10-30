@@ -65,6 +65,7 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_metal_os_capabilities(out: *mut u32) -> i32;
     #[cfg(test)]
     fn mlxl3_disk_profile_enable(enabled: bool);
     #[cfg(test)]
@@ -492,6 +493,65 @@ pub fn is_m5_gpu() -> Result<bool> {
     let device = metal::Device::system_default().context("no Metal device")?;
     let is_m5 = device.name() == "Apple M5" || device.name().starts_with("Apple M5 ");
     Ok(*IS_M5.get_or_init(|| is_m5))
+}
+
+#[cfg(test)]
+thread_local! {
+    static METAL_OS_TEST_OVERRIDE: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(None) };
+}
+
+fn metal_os_capabilities() -> Result<u32> {
+    #[cfg(test)]
+    if let Some(flags) = METAL_OS_TEST_OVERRIDE.get() {
+        return Ok(flags);
+    }
+    static FLAGS: OnceLock<u32> = OnceLock::new();
+    if let Some(&flags) = FLAGS.get() {
+        return Ok(flags);
+    }
+    let mut flags = 0;
+    checked(unsafe { mlxl3_metal_os_capabilities(&mut flags) })?;
+    Ok(*FLAGS.get_or_init(|| flags))
+}
+
+/// EXL3 cooperative-input kernels require macOS 26.3 as well as the M5 policy.
+/// A 26.2 runtime retains the existing QMV path, including on an M5.
+pub(crate) fn supports_exl3_tensor_ops() -> Result<bool> {
+    let flags = metal_os_capabilities()?;
+    if !crate::metal_capabilities::exl3_tensor_ops(flags, true) {
+        return Ok(false);
+    }
+    Ok(crate::metal_capabilities::exl3_tensor_ops(
+        flags,
+        is_m5_gpu()?,
+    ))
+}
+
+/// Packed Splash Q4 uses native int4 tensors, available since macOS 26.4.
+pub fn supports_packed_dflash_q4() -> Result<bool> {
+    Ok(crate::metal_capabilities::native_q4(
+        metal_os_capabilities()?
+    ))
+}
+
+pub(crate) fn require_native_q4() -> Result<()> {
+    ensure!(
+        supports_packed_dflash_q4()?,
+        "packed DFlash Q4 requires macOS 26.4 or newer (native Metal int4 tensors); use ordinary generation or MTP on this macOS version"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn with_metal_os_for_test<T>(flags: u32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<u32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            METAL_OS_TEST_OVERRIDE.set(self.0);
+        }
+    }
+    let _restore = Restore(METAL_OS_TEST_OVERRIDE.replace(Some(flags)));
+    run()
 }
 
 #[derive(Debug)]
@@ -1436,6 +1496,46 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn metal_os_capability_query_and_rejections_need_no_gpu_work() -> Result<()> {
+        assert!(checked(unsafe { mlxl3_metal_os_capabilities(std::ptr::null_mut()) }).is_err());
+        let flags = metal_os_capabilities()?;
+        // Compare the native availability predicates against an independent OS
+        // version source; this test neither initializes MLX nor queries a GPU.
+        let version = std::process::Command::new("/usr/bin/sw_vers")
+            .arg("-productVersion")
+            .output()?;
+        ensure!(version.status.success(), "sw_vers failed");
+        let version = String::from_utf8(version.stdout)?;
+        let mut parts = version.trim().split('.');
+        let major: u32 = parts.next().context("missing macOS major")?.parse()?;
+        let minor: u32 = parts.next().unwrap_or("0").parse()?;
+        assert_eq!(flags & 1 != 0, (major, minor) >= (26, 3));
+        assert_eq!(flags & 2 != 0, (major, minor) >= (26, 4));
+        assert_eq!(flags & !3, 0);
+        with_metal_os_for_test(0, || {
+            assert!(!supports_exl3_tensor_ops().unwrap());
+            assert!(!supports_packed_dflash_q4().unwrap());
+            assert!(
+                require_native_q4()
+                    .unwrap_err()
+                    .to_string()
+                    .contains("26.4")
+            );
+            with_metal_os_for_test(1, || {
+                assert!(!supports_packed_dflash_q4().unwrap());
+                assert!(require_native_q4().is_err());
+            });
+            assert!(!supports_exl3_tensor_ops().unwrap());
+        });
+        with_metal_os_for_test(3, || {
+            assert!(supports_packed_dflash_q4().unwrap());
+            assert!(require_native_q4().is_ok());
+        });
+        assert_eq!(metal_os_capabilities()?, flags);
+        Ok(())
+    }
+
     #[test]
     fn memory_stats_decode_keeps_zero_valid_and_preserves_all_fields() {
         for fill in [0, u64::MAX] {

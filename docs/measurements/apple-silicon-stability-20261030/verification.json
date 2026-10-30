@@ -1,0 +1,77 @@
+{
+  "base_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
+  "branch": "fix/apple-silicon-stability",
+  "cpu_rust": {
+    "gpu_selected": 0,
+    "ignored": 6,
+    "passed": 248
+  },
+  "initial_python_collection": {
+    "errors": 4,
+    "reason": "missing Modal/MLX/MLX-LM"
+  },
+  "initial_python_portable": {
+    "errors": 41,
+    "failed": 24,
+    "passed": 1772,
+    "reason": "missing Modal/MLX/MLX-LM",
+    "skipped": 74
+  },
+  "limits": [
+    "macOS/Swift/FFI not executed locally",
+    "no physical Apple GPU or checkpoint",
+    "Kani/CBMC/formal-proof-skill unavailable",
+    "Apple Rust frontend uses isolated build.rs-disabled temporary manifest, not shipped build"
+  ],
+  "log_sha256": {
+    "bridge-fixture-check.txt": "1f85ad2337163ab26142a2b9054b907d6efcb108188e61185396361443c2c836",
+    "build-cpu.log": "205c2450ef2ddfcc3fb519c594578de8304663287b9b2ba07fdff8d11e967ecc",
+    "clippy-apple-frontend.log": "ce0b897397c83f566e2bc705e6e48b557a1005050263aa0d42badedb58ce1f6c",
+    "clippy-cpu.log": "9ee20631ba7ad1f9facbef456b3db1db6ad4232cbd766bfedacb4050bd7e9a62",
+    "initial-linux-mlx-check.log": "8511d46452ca6eebe5920f3fc3ba3d7eb5f676e93c2a5dafb8115260932ad842",
+    "kani-attempt.log": "c4e9068d4e91972640379bcf5f0ea1f185a07c4d0fe2ecf5396543b9d4528b75",
+    "kernel-cache.log": "8db01ea8ca170b392957ac7600386703bccdfe0ecad3a0929ae7abbb4189ba68",
+    "python-initial-collection.log": "c9d4181f33ad9f03a52a772d3a77409786e95ae9f9550fc327430235aa924292",
+    "python-initial-portable.log": "a4aacb523c5e569f34bfcff96ae2cfc63b91d2a193492bfd67861d23a75851c7",
+    "python-modal-followup.log": "351ed0d71d0db01282458b1615bbf2529d24dac865271af28e9d2ba9d3b22f43",
+    "python-portable.log": "dec939c39f7c39876a38647fa9a854035b8fdfb3807de13945f2908f4f2d7820",
+    "python-targeted.log": "20f3a963be6e3ac51756e0c52f43f5a84684ed0b8816062ffa9cdb8c1990c857",
+    "rust-apple-frontend.log": "8681bae80b26f18a111b365c1e3e13e3a50b7cee61d201117d84aaa61f5c3aa5",
+    "rust-tests.log": "cedbf053892f6fe7917766f9184a9f8b7ead5a07169d4167f3dd267349fb6ef5"
+  },
+  "python_modal_followup": {
+    "overlap_with_portable": false,
+    "passed": 35,
+    "skipped": 8
+  },
+  "python_portable": {
+    "deselected": 2,
+    "excluded_modules": [
+      "tests/test_lfm25_modal.py",
+      "tests/test_lfm25_v3_calibration.py",
+      "tests/test_ling_conversion_adapter.py",
+      "tests/test_ling_integration.py"
+    ],
+    "passed": 1842,
+    "skipped": 67
+  },
+  "python_targeted": {
+    "passed": 335
+  },
+  "source_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3Bridge.swift": "4b108ba6d9db951f1981d8a90082959cbcfeebbfd6fa56c39be18a8b36e07d5c",
+    "native/ffi/mlx_bridge.cpp": "d103a68bcc51d16d131a96e99975064aac4adaeb03a3193154f0c88ea334bdf0",
+    "native/src/array.rs": "c61840f2f971125d21e05151bc9d6108d05a61ab4b3a71513cf16181cd5353dd",
+    "native/src/dflash.rs": "34f21ea38c67074138a8ac348389a1241d27b785490f34be3a371e49cec0f5e6",
+    "native/src/lib.rs": "fc59e5066aaf1d2a506dd6116894c6fcd053658a9fc4457bd45ffe557e52aee6",
+    "native/src/linear.rs": "6384a80e773a86ea98821b6c2b3d6ff4c0d8452ea6b22c5b32f4fba886353ad9",
+    "native/src/main.rs": "4829715e1c35decbb3817406b8f335b9015c4a94030d5ec1e1c67957f450858c",
+    "native/src/metal_capabilities.rs": "cf43a4e997c863555670242bbcfdff691299898c70f961beb249e7f94bfdeb42",
+    "native/src/moe.rs": "42910746f7ac81d0b3256fc766ce42ecd2c62e74d0e7f16cf77856075f1a0ed8",
+    "native/src/qwen35.rs": "92475776c7a3d98155db27d2f074a505670811aef71ab05dc4cc3e0844697f40",
+    "native/src/qwen35_config.rs": "fd3f1e8a8b9c8ea7af4a41b2f01caac865d6bf5e6f44c0d819acc79f7eba7fdd",
+    "tests/bridge-dispatch-check.swift": "8596a9feef1d389fc57ceea1a4697df18d982c15fff0129573ab93c58e83c4c4",
+    "tests/fake-desktop-engine.py": "475a1dc4a1240128c328f91f18c122575379d8d1735f35a97b92d81ed7560edd",
+    "tests/studio-modes-check.swift": "0722f7d53d1f0e29d81b705186cd344821d44d58f0eae5a73122b8cdd3be7777"
+  }
+}

@@ -399,7 +399,7 @@ impl Exl3Linear {
             *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
             return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
-        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
             return self.forward_qmm_tensor(x);
         }
         if matrix_rows >= 24 {
@@ -703,7 +703,10 @@ fn qmm_tensor(
     weight_tiles_n: i32,
     weight_tile_offset: i32,
 ) -> Result<Array> {
-    ensure!(array::is_m5_gpu()?, "TensorOps QMM requires Apple M5");
+    ensure!(
+        array::supports_exl3_tensor_ops()?,
+        "TensorOps QMM requires Apple M5 and macOS 26.3 or newer"
+    );
     let block_columns = 32;
     let block_depth = 16;
     ensure!(
@@ -899,7 +902,7 @@ impl Exl3Group {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
-        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
             let mut outputs = Vec::with_capacity(self.widths.len());

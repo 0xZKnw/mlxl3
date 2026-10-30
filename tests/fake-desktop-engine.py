@@ -146,6 +146,8 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
     sys.exit(0)
 
 model = sys.argv[2]
+if model == 'bridge-oversized':
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
 cancelled = False
 def cancel(*_):
     global cancelled
@@ -284,6 +286,15 @@ for line in sys.stdin:
         continue
     if request['type'] != 'generate':
         continue
+    if model == 'bridge-oversized':
+        # A broken engine that never finishes its frame and ignores graceful stop.
+        for _ in range(8):
+            sys.stdout.buffer.write(b' ' * 1_000_000)
+            sys.stdout.buffer.flush()
+        sys.stdout.buffer.write(b' ')
+        sys.stdout.buffer.flush()
+        time.sleep(30)
+        sys.exit(4)
     if model == 'workspace':
         emit('delta', request_id=request['request_id'], phase='answer', text=json.dumps(request, ensure_ascii=False))
         emit('complete', request_id=request['request_id'])
