@@ -17,6 +17,20 @@ INVALID_BUDGET_HARNESS = (
     "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget"
 )
 MEMORY_BYTES = 6 * 1024**3
+OBLIGATIONS = Path(__file__).with_name("kani_obligations.json")
+
+
+def required_names():
+    names = json.loads(OBLIGATIONS.read_text())["required_harnesses"]
+    if not names or len(names) != len(set(names)):
+        raise ValueError("empty or duplicate obligation manifest")
+    return names
+
+
+def check_obligations(names):
+    missing = set(required_names()) - set(names)
+    if missing:
+        raise ValueError("missing proof obligations: " + ", ".join(sorted(missing)))
 
 
 def positive_seconds(value):
@@ -144,10 +158,10 @@ def run_proofs(records, directory, report, report_path, timeout, deadline):
             for pending in records[index:]:
                 pending["status"] = "budget_exhausted"
             break
-        record["status"] = "running"
-        save_report(report_path, report)
         log = directory / f"{index:03d}-{record['name'].replace('::', '-')}.log"
         record["log"] = log.name
+        record["status"] = "running"
+        save_report(report_path, report)
         result = run_process(record["command"], log, min(timeout, remaining))
         record.update(result)
         output = log.read_text(errors="replace")
@@ -159,6 +173,10 @@ def run_proofs(records, directory, report, report_path, timeout, deadline):
             )
         # Backend failures are not automatically counterexamples (e.g. allocation failure).
         print(f"{record['status']}: {record['name']} ({record['seconds']}s)", flush=True)
+        if record["status"] != "success":
+            # Keep the full log artifact, and expose a bounded diagnostic in the
+            # job log even if artifact download is unavailable.
+            print("\n".join(output.splitlines()[-35:]), flush=True)
         save_report(report_path, report)
         if record["status"] == "interrupted":
             break
@@ -206,6 +224,7 @@ def main(argv=None):
             raise ValueError(f"inventory failed: {listing['status']}")
         payload = json.loads(inventory.read_text())
         names = inventory_names(payload)
+        check_obligations(names)
         inventory.replace(directory / "inventory.json")
         report["discovered"] = len(names)
         report["assignment"] = {shard: select_names(names, shard) for shard in SHARDS}
@@ -226,7 +245,8 @@ def main(argv=None):
                         "--jobs",
                         "1",
                         "--output-format",
-                        "terse",
+                        "regular",
+                        "--verbose",
                     ],
                 }
             )
@@ -251,7 +271,8 @@ def main(argv=None):
                         "--jobs",
                         "1",
                         "--output-format",
-                        "terse",
+                        "regular",
+                        "--verbose",
                     ],
                 }
             )

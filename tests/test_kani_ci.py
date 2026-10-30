@@ -56,6 +56,38 @@ def test_real_baseline_inventory_has_complete_disjoint_shards():
         ci.select_names(["only::core"], "flash")
 
 
+def test_required_obligations_preserve_baseline_and_complete_partitions():
+    baseline = ci.inventory_names(
+        json.loads(
+            (ROOT / "docs/measurements/kani-ci-repair/baseline-library-inventory.json").read_text()
+        )
+    )
+    replaced = {
+        "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+        "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+        "flash_support::draft_contract_proofs::unique_expert_prefix_is_bounded_for_eighty_routes",
+        "ssd_prefetch::verification::prediction_order_preserves_all_values_within_two_rows",
+        *(f"speculative::verification::dflash_copy_len_{n}" for n in range(21)),
+    }
+    required = set(ci.required_names())
+    assert set(baseline) - required == replaced
+    assert len(required) == 319
+    grid = {
+        f"speculative::verification::dflash_copy_len_{n}::accepted_{a}"
+        for n in range(21)
+        for a in range(8)
+    }
+    grid |= {f"speculative::verification::lookup_len_{n}" for n in range(21)}
+    grid |= {
+        f"flash_support::draft_contract_proofs::unique_expert_prefix_rows_{n}" for n in range(1, 9)
+    }
+    assert grid <= required
+    ci.check_obligations(required | {"future_module::new_proof"})
+    for missing in grid:
+        with pytest.raises(ValueError, match="missing proof obligations"):
+            ci.check_obligations(required - {missing})
+
+
 @pytest.mark.parametrize("change", ["version", "duplicate", "empty", "total", "contract", "name"])
 def test_inventory_rejects_missing_or_unsupported_obligations(change):
     payload = inventory(["core::proof"])
@@ -148,7 +180,7 @@ def test_timeout_kills_descendant_even_if_parent_exits_and_child_ignores_term(tm
 
 @pytest.fixture
 def fake_cargo(tmp_path, monkeypatch):
-    names = ["core::a", "core::b", "flash_support::p", "speculative::p", "flash_cache_profile::p"]
+    names = ci.required_names() + ["core::a", "core::b"]
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
     monkeypatch.setenv("FAKE_INVENTORY", json.dumps(inventory(names)))
@@ -187,12 +219,12 @@ def test_cli_runs_remaining_proofs_but_aggregate_rejects_any_failure(
     result = ci.main(["--shard", "core", "--report-dir", "results"])
     report = json.loads(Path("results/report.json").read_text())
     assert (result == 0) == (failure is None)
-    assert report["discovered"] == 5
-    assert len(report["proofs"]) == 3
+    assert report["discovered"] == len(ci.required_names()) + 2
+    assert len(report["proofs"]) == len(ci.select_names(ci.required_names(), "core")) + 3
     assert report["proofs"][-1]["status"] == "success"  # Both API instances really ran.
     if failure:
         assert report["status"] == "failure"
-        assert report["proofs"][0]["status"] != "success"
+        assert next(r for r in report["proofs"] if r["name"] == "core::a")["status"] != "success"
 
 
 def test_stale_inventory_cannot_turn_missing_listing_into_success(fake_cargo, monkeypatch):

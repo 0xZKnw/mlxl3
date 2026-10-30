@@ -717,12 +717,9 @@ mod draft_contract_proofs {
         }
     }
 
-    #[kani::proof]
-    #[kani::unwind(81)]
-    fn unique_expert_prefix_is_bounded_for_eighty_routes() {
+    fn unique_expert_prefix_case<const ROWS: usize>() -> Option<usize> {
         let ids: [u32; 80] = kani::any();
-        let rows: usize = kani::any();
-        kani::assume((1..=8).contains(&rows));
+        let rows = ROWS;
         let available: usize = kani::any();
         if let Some(prefix) = largest_expert_prefix(&ids[..rows * 10], available) {
             assert!(prefix <= rows && available <= 512);
@@ -733,9 +730,38 @@ mod draft_contract_proofs {
             if available == 0 {
                 assert_eq!(prefix, 0);
             }
-            kani::cover!(prefix == 0);
-            kani::cover!(prefix == 8);
+            return Some(prefix);
         }
+        None
+    }
+    macro_rules! prefix_goal {
+        (8, $prefix:expr) => {
+            kani::cover!($prefix == Some(8));
+        };
+        ($rows:literal, $prefix:expr) => {};
+    }
+    // Exhaustive partition of the original rows in 1..=8, with every u32 ID
+    // and every usize capacity still symbolic and the real bitset unchanged.
+    macro_rules! prefix_proofs {
+        ($($name:ident: $rows:tt),* $(,)?) => {$(
+            #[kani::proof]
+            #[kani::unwind(81)]
+            fn $name() {
+                let prefix = unique_expert_prefix_case::<$rows>();
+                kani::cover!(prefix == Some(0));
+                prefix_goal!($rows, prefix);
+            }
+        )*};
+    }
+    prefix_proofs! {
+        unique_expert_prefix_rows_1: 1,
+        unique_expert_prefix_rows_2: 2,
+        unique_expert_prefix_rows_3: 3,
+        unique_expert_prefix_rows_4: 4,
+        unique_expert_prefix_rows_5: 5,
+        unique_expert_prefix_rows_6: 6,
+        unique_expert_prefix_rows_7: 7,
+        unique_expert_prefix_rows_8: 8,
     }
 
     #[kani::proof]
