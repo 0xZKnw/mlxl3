@@ -3007,8 +3007,20 @@ fn load_mtp_head(
     revision: &mut Option<String>,
     prompt_cache: &mut Option<PromptCache>,
     requested: &str,
-    model: &NativeChatModel,
+    model: &mut NativeChatModel,
+    dflash_weights: &mut Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)>,
 ) -> Result<bool> {
+    // A direct generate request can switch modes without a preceding set_mtp.
+    // Release both possible DFlash owners before validating or allocating MTP,
+    // including the failed-load and already-loaded-head paths.
+    let flash_dflash = matches!(&*model, NativeChatModel::Flash(target) if target.dflash2_active());
+    if flash_dflash || dflash_weights.is_some() {
+        *prompt_cache = None;
+    }
+    *dflash_weights = None;
+    if let NativeChatModel::Flash(target) = &mut *model {
+        target.configure_dflash2(None, 1)?;
+    }
     anyhow::ensure!(
         !requested.trim().is_empty(),
         "MTP head folder is not configured"
@@ -3084,7 +3096,9 @@ fn native_bridge(
         NativeChatModel::Qwen(target) => target.dflash_family(),
         _ => None,
     };
-    let dflash_supported = dflash_family.is_some() || matches!(&model, NativeChatModel::Flash(_));
+    let dflash_supported = (dflash_family.is_some()
+        && mlxl3_native::array::supports_packed_dflash_q4()?)
+        || matches!(&model, NativeChatModel::Flash(_));
     let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
         && mlxl3_native::mtp::target_layout(&path)
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
@@ -3101,7 +3115,7 @@ fn native_bridge(
         "mlx_version":env!("MLXL3_MLX_VERSION"),
         "runtime_executable":executable,
         "dflash_supported":dflash_supported, "dflash_family":dflash_family,
-        "dflash_tune_supported":dflash_family.is_some(), "dflash_configure_supported":true,
+        "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
         "mtp_auto_download_supported":mtp_auto_download_supported,
@@ -3164,16 +3178,13 @@ fn native_bridge(
                             matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
                             "MTP requires a supported Qwen target"
                         );
-                        dflash_weights = None;
-                        if let NativeChatModel::Flash(target) = &mut model {
-                            target.configure_dflash2(None, 1)?;
-                        }
                         load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            &model,
+                            &mut model,
+                            &mut dflash_weights,
                         )?;
                     } else {
                         mtp_head = None;
@@ -3296,7 +3307,8 @@ fn native_bridge(
                         &mut mtp_head_revision,
                         &mut prompt_cache,
                         &request.mtp_head_path,
-                        &model,
+                        &mut model,
+                        &mut dflash_weights,
                     )?;
                     let ChatMtpHead::Qwen(head) =
                         &mut mtp_head.as_mut().context("missing MTP head")?.1
@@ -3384,7 +3396,8 @@ fn native_bridge(
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            &model,
+                            &mut model,
+                            &mut dflash_weights,
                         )? {
                             prompt_cache = None;
                             draft_load_seconds += started.elapsed().as_secs_f64();
@@ -3674,6 +3687,68 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "requires local Flash target/DFlash checkpoints and Apple GPU; run alone"]
+    fn mtp_preparation_retires_flash_draft_before_invalid_head_is_read() -> Result<()> {
+        let path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT_MODEL")?);
+        let mut model = NativeChatModel::load(&path)?;
+        anyhow::ensure!(
+            matches!(&model, NativeChatModel::Flash(_)),
+            "requires a Flash Next target"
+        );
+        let baseline = model.forward(0)?.to_f32()?;
+        anyhow::ensure!(
+            baseline.len() == 248_320 && baseline.iter().all(|x| x.is_finite()),
+            "invalid reference logits"
+        );
+        model.reset();
+        let directory = tempfile::tempdir()?;
+        let missing = directory.path().join("absent-mtp-head");
+        let missing = missing.to_str().context("non-UTF8 temporary path")?;
+        let mut head = None;
+        let mut revision = None;
+        let mut cache = None;
+        let mut packed_draft = None;
+        for requested in ["", missing] {
+            let NativeChatModel::Flash(target) = &mut model else {
+                unreachable!();
+            };
+            target.configure_dflash2(Some(&draft), 1)?;
+            assert!(target.dflash2_active(), "fixture must own a live draft");
+            // This exact preparer is used by generate and set_mtp. Rejection of
+            // an invalid MTP path must happen after retiring the previous mode.
+            assert!(
+                load_mtp_head(
+                    &mut head,
+                    &mut revision,
+                    &mut cache,
+                    requested,
+                    &mut model,
+                    &mut packed_draft,
+                )
+                .is_err()
+            );
+            assert!(matches!(&model, NativeChatModel::Flash(target) if !target.dflash2_active()));
+            assert!(head.is_none() && revision.is_none() && cache.is_none());
+            assert!(packed_draft.is_none());
+            model.reset();
+            let actual = model.forward(0)?.to_f32()?;
+            assert_eq!(actual.len(), baseline.len());
+            assert!(actual.iter().all(|x| x.is_finite()));
+            assert!(
+                actual
+                    .iter()
+                    .zip(&baseline)
+                    .all(|(a, b)| a.to_bits() == b.to_bits()),
+                "ordinary target logits changed after a failed mode switch"
+            );
+            model.reset();
+        }
+        mlxl3_native::array::synchronize()?;
+        Ok(())
+    }
 
     #[test]
     fn dflash_width_tracks_recent_acceptance() {

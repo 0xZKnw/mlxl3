@@ -209,6 +209,13 @@ newer**. Development and performance validation currently happen on M5. M1–M4
 use compatible Metal paths where M5 TensorOps are unavailable, but they have not
 received the same physical performance campaign.
 
+Optional kernels also depend on the running macOS version: EXL3 cooperative-input
+TensorOps require M5 **and macOS 26.3+**; macOS 26.2 uses the portable EXL3 path.
+The packed Q4 DFlash drafts for Qwen3.6/3.8 require **macOS 26.4+** and fail
+explicitly on earlier versions; ordinary generation and native MTP remain
+available for supported models. Flash Next's raw draft/MLX affine-Q4 path is
+separate. See the [support matrix and hardware validation procedure](docs/apple-silicon-stability-20261030.md).
+
 The native loader currently accepts these `config.json` model types:
 
 | Family | Config type | Current scope |

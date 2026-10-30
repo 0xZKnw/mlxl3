@@ -26,6 +26,9 @@ jobs:
           args: >-
             --lib --no-default-features
             --harness tool_preparation_flag_matches_hidden_state
+            --harness optional_metal_apis_never_bypass_their_runtime_requirement
+            --harness qwen_attention_widths_match_wide_arithmetic_or_reject
+            --harness qwen_gated_delta_widths_match_wide_arithmetic_or_reject
             --harness structured_retry_budget_never_restarts_or_wraps
             --harness pair_commit_preserves_exact_valid_prefix_without_overflow
             --harness tensor_source_interval_is_ordered_and_cannot_wrap
@@ -95,6 +98,9 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt --component clippy
           rustup default stable
+      - name: Match the shipped macOS deployment target
+        if: matrix.os == 'macos-26'
+        run: echo 'MACOSX_DEPLOYMENT_TARGET=26.2' >> "$GITHUB_ENV"
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat
@@ -102,6 +108,8 @@ jobs:
       - name: Check Metal cache key ordering and allocation regressions
         run: |
           mkdir -p build/ci
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/metal_os_capabilities.cpp -o build/ci/metal-os-capabilities
+          build/ci/metal-os-capabilities
           c++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key
           build/ci/kernel-cache-key
           c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp
@@ -294,6 +302,22 @@ jobs:
           for test_name in memory_stats_decode_keeps_zero_valid_and_preserves_all_fields memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work; do
             cargo test --locked --lib --features mlx,chat "array::tests::$test_name" -- --exact --test-threads=1 | tee "build/ci/$test_name.log"
             python -c 'import sys; from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path(sys.argv[1]).read_text()' "build/ci/$test_name.log"
+          done
+      - name: Check compatibility and invalid-model rejection without GPU work
+        if: matrix.os == 'macos-26'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export MLXL3_MLX_ROOT="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          compatibility_tests=(
+            array::tests::metal_os_capability_query_and_rejections_need_no_gpu_work
+            dflash::tests::packed_q4_rejects_older_macos_before_loading_weights
+            qwen35::tests::invalid_config_is_rejected_before_weight_loading
+            qwen35::tests::public_layers_reject_overflow_and_invalid_epsilon_before_weights
+          )
+          for test_name in "${compatibility_tests[@]}"; do
+            cargo test --locked --lib --features mlx,chat "$test_name" -- --exact --test-threads=1 | tee build/ci/compatibility-test.log
+            python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/compatibility-test.log").read_text()'
           done
       - name: Check LFM prefill CPU oracles against the MLX-feature source
         if: matrix.os == 'macos-26'

@@ -36,11 +36,15 @@ pub mod linear;
 pub mod ling;
 pub mod mcp;
 pub mod memory_policy;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod metal_capabilities;
 #[cfg(feature = "mlx")]
 pub mod moe;
 pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
+#[cfg(any(feature = "mlx", test, kani))]
+mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
 pub mod registry;
