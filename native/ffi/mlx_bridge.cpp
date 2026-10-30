@@ -607,8 +607,8 @@ int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** 
 int mlxl3_array_swiglu_scaled(void* gate, void* up, void* scale, void** out) noexcept {
   return protect([&] {
     thread_local auto prepare = mx::compile([](const std::vector<mx::array>& x) {
-      // This is the existing compiled F16 SwiGLU graph with one downstream
-      // F16 product. Do not cast the inputs to F32 or absorb native H128 here.
+      // GU is F32 for F32 route inputs, F16 for F16 route inputs. Preserve that
+      // SwiGLU arithmetic, then the original preparation's F16 cast and product.
       auto activated = mx::astype(mx::multiply(mx::multiply(x[0], mx::sigmoid(x[0])), x[1]), mx::float16);
       return std::vector<mx::array>{mx::astype(mx::multiply(activated, x[2]), mx::float16)};
     }, true);

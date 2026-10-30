@@ -1317,8 +1317,8 @@ impl Array {
                 && self.shape()[1] == 640
                 && self.shape() == up.shape()
                 && self.shape() == scale.shape()
-                && self.dtype() == Dtype::Float16
-                && up.dtype() == Dtype::Float16
+                && matches!(self.dtype(), Dtype::Float16 | Dtype::Float32)
+                && up.dtype() == self.dtype()
                 && scale.dtype() == Dtype::Float16,
             "invalid Flash SwiGLU/down boundary inputs"
         );

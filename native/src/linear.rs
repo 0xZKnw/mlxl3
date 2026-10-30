@@ -1363,6 +1363,9 @@ pub(crate) fn expert_slots_swiglu_down(
         None,
         stable_shapes,
     )
+    // expert_mapped_layout normally returns the original activation's dtype.
+    // The pretransformed path above sees F16 xhat; restore the GU/SwiGLU dtype.
+    .and_then(|output| output.astype(gu.dtype()))
 }
 
 #[allow(clippy::too_many_arguments)]

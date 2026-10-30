@@ -183,7 +183,12 @@ fn t17_real_gdn_outputs_states_and_every_tape_prefix() -> Result<()> {
 fn t04_swiglu_down_preserves_both_half_roundings_and_h128() -> Result<()> {
     let mut mutation_detected = false;
     for rows in [1, 2, 10, 20, 80] {
-        for strided in [false, true] {
+        for (strided, dtype) in [
+            (false, Dtype::Float16),
+            (true, Dtype::Float16),
+            (false, Dtype::Float32),
+            (true, Dtype::Float32),
+        ] {
             let n = rows as usize * 640;
             let values = |seed: usize, scale: f32| {
                 (0..n)
@@ -191,14 +196,14 @@ fn t04_swiglu_down_preserves_both_half_roundings_and_h128() -> Result<()> {
                     .collect::<Vec<_>>()
             };
             let shape = if strided { [640, rows] } else { [rows, 640] };
-            let view = |bits: &[u16]| -> Result<Array> {
-                let x = Array::from_f16_bits(bits, &shape)?;
+            let view = |bits: &[u16], dtype| -> Result<Array> {
+                let x = Array::from_f16_bits(bits, &shape)?.astype(dtype)?;
                 if strided { x.transpose(&[1, 0]) } else { Ok(x) }
             };
-            let gate = view(&values(37, 512.))?;
-            let up = view(&values(101, 1024.))?;
-            let scale = view(&values(73, 2048.))?;
-            let expected = gate.swiglu(&up)?.mul(&scale)?;
+            let gate = view(&values(37, 512.), dtype)?;
+            let up = view(&values(101, 1024.), dtype)?;
+            let scale = view(&values(73, 2048.), Dtype::Float16)?;
+            let expected = gate.swiglu(&up)?.astype(Dtype::Float16)?.mul(&scale)?;
             let actual = gate.swiglu_scaled(&up, &scale)?;
             exact_finite(&actual, &expected)?;
             exact_finite(
@@ -226,6 +231,51 @@ fn t04_swiglu_down_preserves_both_half_roundings_and_h128() -> Result<()> {
         mutation_detected,
         "oracle did not detect deferred half rounding"
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; T04 actual EXL3 down entry, production F32/F16 output dtypes"]
+fn t04_down_projection_preserves_production_dtype_and_bits() -> Result<()> {
+    use crate::linear::{ExpertSlots, expert_slots, expert_slots_swiglu_down};
+    let words = (0..4 * 40 * 160 * 32)
+        .map(|i| (i * 137 + 19) as u16)
+        .flat_map(u16::to_le_bytes)
+        .collect::<Vec<_>>();
+    let trellis = Array::from_bytes(&words, &[4, 1, 40, 160, 32], Dtype::UInt16)?;
+    for rows in [1, 2, 10, 20, 80] {
+        let ids = (0..rows).map(|i| (i % 4) as u32).collect::<Vec<_>>();
+        let slots = ExpertSlots::new(&ids, 4)?;
+        let data = (0..rows * 2 * 640)
+            .map(|i| ((i * 37 % 2039) as f32 - 1019.) / 512.)
+            .collect::<Vec<_>>();
+        let suh = Array::from_f32(&vec![0.75; rows as usize * 640], &[rows, 640])?
+            .astype(Dtype::Float16)?;
+        let svh = Array::from_f32(&vec![0.5; rows as usize * H as usize], &[rows, H])?
+            .astype(Dtype::Float16)?;
+        for dtype in [Dtype::Float16, Dtype::Float32] {
+            let gu = Array::from_f32(&data, &[rows, 2, 640])?.astype(dtype)?;
+            let activated = gu
+                .slice(1, 0, 1)?
+                .reshape(&[rows, 640])?
+                .swiglu(&gu.slice(1, 1, 2)?.reshape(&[rows, 640])?)?;
+            let reference = expert_slots(
+                &activated,
+                &trellis,
+                &suh,
+                &svh,
+                &slots,
+                H,
+                1,
+                2,
+                Codebook::Mul1,
+                false,
+            )?;
+            let candidate = expert_slots_swiglu_down(&gu, &trellis, &suh, &svh, &slots, false)?;
+            ensure!(candidate.dtype() == dtype && candidate.shape() == [rows, H]);
+            exact_finite(&candidate, &reference)?;
+        }
+    }
     Ok(())
 }
 
