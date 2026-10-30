@@ -137,12 +137,40 @@ pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
 
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 48]> {
-    let mut parts = value.split(',');
+    let bytes = value.as_bytes();
+    let mut start = 0;
     let mut slots = [0; 48];
-    for slot in &mut slots {
-        *slot = parts.next()?.parse().ok()?;
+    for (index, slot) in slots.iter_mut().enumerate() {
+        let mut end = start;
+        while end < bytes.len() && bytes[end] != b',' {
+            end += 1;
+        }
+        *slot = parse_slot_capacity(&bytes[start..end])?;
+        if index < 47 {
+            if end == bytes.len() {
+                return None;
+            }
+            start = end + 1;
+        } else if end != bytes.len() {
+            return None;
+        }
     }
-    (parts.next().is_none() && valid_layer_slots(&slots, uniform)).then_some(slots)
+    valid_layer_slots(&slots, uniform).then_some(slots)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+fn parse_slot_capacity(bytes: &[u8]) -> Option<usize> {
+    std::str::from_utf8(bytes).ok()?.parse().ok()
+}
+
+#[cfg(any(test, kani))]
+fn layer_slot_proof_text(suffix: [u8; 2]) -> [u8; 143] {
+    let mut text = [0; 143];
+    for row in 0..47 {
+        text[row * 3..row * 3 + 3].copy_from_slice(b"53,");
+    }
+    text[141..].copy_from_slice(&suffix);
+    text
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
@@ -717,12 +745,9 @@ mod draft_contract_proofs {
         }
     }
 
-    #[kani::proof]
-    #[kani::unwind(81)]
-    fn unique_expert_prefix_is_bounded_for_eighty_routes() {
+    fn unique_expert_prefix_case<const ROWS: usize>() -> Option<usize> {
         let ids: [u32; 80] = kani::any();
-        let rows: usize = kani::any();
-        kani::assume((1..=8).contains(&rows));
+        let rows = ROWS;
         let available: usize = kani::any();
         if let Some(prefix) = largest_expert_prefix(&ids[..rows * 10], available) {
             assert!(prefix <= rows && available <= 512);
@@ -733,9 +758,38 @@ mod draft_contract_proofs {
             if available == 0 {
                 assert_eq!(prefix, 0);
             }
-            kani::cover!(prefix == 0);
-            kani::cover!(prefix == 8);
+            return Some(prefix);
         }
+        None
+    }
+    macro_rules! prefix_goal {
+        (8, $prefix:expr) => {
+            kani::cover!($prefix == Some(8));
+        };
+        ($rows:literal, $prefix:expr) => {};
+    }
+    // Exhaustive partition of the original rows in 1..=8, with every u32 ID
+    // and every usize capacity still symbolic and the real bitset unchanged.
+    macro_rules! prefix_proofs {
+        ($($name:ident: $rows:tt),* $(,)?) => {$(
+            #[kani::proof]
+            #[kani::unwind(81)]
+            fn $name() {
+                let prefix = unique_expert_prefix_case::<$rows>();
+                kani::cover!(prefix == Some(0));
+                prefix_goal!($rows, prefix);
+            }
+        )*};
+    }
+    prefix_proofs! {
+        unique_expert_prefix_rows_1: 1,
+        unique_expert_prefix_rows_2: 2,
+        unique_expert_prefix_rows_3: 3,
+        unique_expert_prefix_rows_4: 4,
+        unique_expert_prefix_rows_5: 5,
+        unique_expert_prefix_rows_6: 6,
+        unique_expert_prefix_rows_7: 7,
+        unique_expert_prefix_rows_8: 8,
     }
 
     #[kani::proof]
@@ -1063,6 +1117,50 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn layer_slot_proof_fixture_matches_original_for_every_suffix() {
+        let prefix = "53,".repeat(47).into_bytes();
+        for a in 0..=255u8 {
+            for b in 0..=255u8 {
+                let suffix = [a, b];
+                let actual = layer_slot_proof_text(suffix);
+                let mut expected = prefix.clone();
+                expected.extend_from_slice(&suffix);
+                assert_eq!(actual.as_slice(), expected.as_slice());
+                assert_eq!(
+                    std::str::from_utf8(&actual).is_ok(),
+                    std::str::from_utf8(&suffix).is_ok()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn layer_slot_parser_preserves_all_two_byte_suffixes() {
+        fn previous(value: &str, uniform: usize) -> Option<[usize; 48]> {
+            let mut parts = value.split(',');
+            let mut slots = [0; 48];
+            for slot in &mut slots {
+                *slot = parts.next()?.parse().ok()?;
+            }
+            (parts.next().is_none() && valid_layer_slots(&slots, uniform)).then_some(slots)
+        }
+        let prefix = "53,".repeat(47);
+        let mut examined = 0;
+        for a in 0..=255u8 {
+            for b in 0..=255u8 {
+                let bytes = [a, b];
+                if let Ok(last) = std::str::from_utf8(&bytes) {
+                    let text = prefix.clone() + last;
+                    assert_eq!(parse_layer_slots(&text, 53), previous(&text, 53));
+                    assert_eq!(parse_layer_slots(&text, 53).is_some(), last == "53");
+                    examined += 1;
+                }
+            }
+        }
+        assert!(examined > 0);
+    }
+
     #[test]
     fn per_layer_slots_preserve_budget_and_reject_malformed_profiles() {
         let encode = |slots: &[usize; 48]| {
@@ -1818,15 +1916,20 @@ mod verification {
     }
 
     #[kani::proof]
+    #[kani::solver(kissat)]
     #[kani::unwind(513)]
     fn resident_slot_snapshot_excludes_pending_and_preserves_lfu() {
-        let mut cache = ExpertCache::new(20).unwrap();
+        let mut keys = [None; 20];
+        let mut pending = [None; 20];
         for slot in 0..20 {
             let id: u32 = kani::any();
             kani::assume(id < 512);
-            cache.keys[slot] = if kani::any() { Some(id) } else { None };
-            cache.pending[slot] = if kani::any() { Some(id) } else { None };
+            keys[slot] = if kani::any() { Some(id) } else { None };
+            pending[slot] = if kani::any() { Some(id) } else { None };
         }
+        let mut cache = ExpertCache::new(20).unwrap();
+        cache.keys.copy_from_slice(&keys);
+        cache.pending.copy_from_slice(&pending);
         let query: u32 = kani::any();
         kani::assume(query < 512);
         let expected = cache
@@ -1838,7 +1941,9 @@ mod verification {
         let map = cache.resident_slot_map().unwrap();
         assert_eq!(map[query as usize], expected);
         assert_eq!(cache.clock, 0);
-        assert!(cache.counts.iter().all(|&count| count == 0));
+        // query is universally chosen over 0..512 and is not an input to the
+        // snapshot. This checks every LFU entry without a second 512-step loop.
+        assert_eq!(cache.counts[query as usize], 0);
         kani::cover!(query == 511 && expected == 19);
         kani::cover!(expected == u32::MAX && cache.pending[0].is_some());
         kani::cover!(expected == 0);
@@ -1866,19 +1971,64 @@ mod verification {
         kani::cover!(!valid && slots[0] == usize::MAX);
     }
 
+    fn proof_two_byte_capacity(bytes: &[u8]) -> Option<usize> {
+        assert!(bytes.len() <= 2);
+        match bytes {
+            [a] if a.is_ascii_digit() => Some(usize::from(a - b'0')),
+            [b'+', b] if b.is_ascii_digit() => Some(usize::from(b - b'0')),
+            [a, b] if a.is_ascii_digit() && b.is_ascii_digit() => {
+                Some(usize::from(a - b'0') * 10 + usize::from(b - b'0'))
+            }
+            _ => None,
+        }
+    }
+
     #[kani::proof]
-    #[kani::unwind(192)]
+    #[kani::unwind(4)]
+    fn slot_capacity_empty_matches_std() {
+        assert!(parse_slot_capacity(&[]) == proof_two_byte_capacity(&[]));
+    }
+
+    #[kani::proof]
+    #[kani::unwind(4)]
+    fn slot_capacity_one_byte_matches_std() {
+        let bytes: [u8; 1] = kani::any();
+        let actual = parse_slot_capacity(&bytes);
+        assert!(actual == proof_two_byte_capacity(&bytes));
+        kani::cover!(actual == Some(9));
+        kani::cover!(actual.is_none());
+    }
+
+    #[kani::proof]
+    #[kani::unwind(4)]
+    fn slot_capacity_two_bytes_matches_std() {
+        let bytes: [u8; 2] = kani::any();
+        let actual = parse_slot_capacity(&bytes);
+        assert!(actual == proof_two_byte_capacity(&bytes));
+        kani::cover!(actual == Some(53));
+        kani::cover!(bytes == *b"+5" && actual == Some(5));
+        kani::cover!(bytes == [255, 255] && actual.is_none());
+    }
+
+    #[kani::proof]
+    #[kani::stub(super::parse_slot_capacity, proof_two_byte_capacity)]
+    #[kani::unwind(144)]
     fn layer_slot_parser_checks_last_two_utf8_bytes_and_full_shape() {
         let bytes: [u8; 2] = kani::any();
-        if let Ok(last) = std::str::from_utf8(&bytes) {
-            let text = "53,".repeat(47) + last;
-            let parsed = parse_layer_slots(&text, 53);
-            assert_eq!(parsed.is_some(), last == "53");
+        #[repr(align(8))]
+        struct AlignedProfile([u8; 143]);
+        let text = AlignedProfile(layer_slot_proof_text(bytes));
+        assert_eq!(text.0.as_ptr().align_offset(8), 0);
+        if let Ok(value) = std::str::from_utf8(&text.0) {
+            let parsed = parse_layer_slots(value, 53);
+            assert_eq!(parsed.is_some(), bytes == *b"53");
             if let Some(slots) = parsed {
-                assert_eq!(slots, [53; 48]);
+                for slot in slots {
+                    assert_eq!(slot, 53);
+                }
             }
-            kani::cover!(last == "53");
-            kani::cover!(last != "53" && parsed.is_none());
+            kani::cover!(bytes == *b"53");
+            kani::cover!(bytes != *b"53" && parsed.is_none());
         }
     }
     #[kani::proof]
@@ -1888,13 +2038,11 @@ mod verification {
         let pending: [Option<u32>; 24] = kani::any();
         let prefetched: [bool; 24] = kani::any();
         let complete: bool = kani::any();
-        let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
-        {
-            let mut state = cache.borrow_mut();
-            state.keys.copy_from_slice(&keys);
-            state.pending.copy_from_slice(&pending);
-            state.prefetched.copy_from_slice(&prefetched);
-        }
+        let mut state = ExpertCache::new(24).unwrap();
+        state.keys.copy_from_slice(&keys);
+        state.pending.copy_from_slice(&pending);
+        state.prefetched.copy_from_slice(&prefetched);
+        let cache = Rc::new(RefCell::new(state));
         {
             let fill = ExpertFill::new(&cache);
             if complete {

@@ -1,0 +1,58 @@
+import json
+import os
+from pathlib import Path
+import resource
+import signal
+import subprocess
+import time
+import sys
+
+root = Path('/workspace/mlxl3/docs/measurements/kani-ci-repair')
+command = ['prlimit', '--as=6442450944', '--', 'cargo', 'kani', '--lib',
+           '--no-default-features', '--exact', '--harness',
+           'flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels',
+           '--jobs', '1', '--output-format', 'terse']
+suffix = sys.argv[1] if len(sys.argv) > 1 else 'baseline'
+if suffix.startswith('diagnostic'):
+    command = command[:-1] + ['regular', '-Z', 'unstable-options', '--output-into-files', '--verbose']
+started = time.monotonic()
+samples = []
+with (root / f'allocator-{suffix}.log').open('w') as output:
+    child = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT,
+                             start_new_session=True)
+    status = 'completed'
+    try:
+        while child.poll() is None:
+            for entry in Path('/proc').iterdir():
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    if os.getpgid(int(entry.name)) != child.pid:
+                        continue
+                    fields = dict(line.split(':', 1) for line in (entry / 'status').read_text().splitlines())
+                    if fields['Name'].strip() == 'cbmc':
+                        samples.append({'seconds': round(time.monotonic() - started, 2),
+                                        'rss_kib': int(fields.get('VmRSS', '0 kB').split()[0]),
+                                        'vms_kib': int(fields.get('VmSize', '0 kB').split()[0])})
+                except (ProcessLookupError, FileNotFoundError, PermissionError):
+                    pass
+            if time.monotonic() - started > 180:
+                status = 'timeout'
+                break
+            time.sleep(0.5)
+    finally:
+        try:
+            os.killpg(child.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(child.pid, signal.SIGKILL)
+            child.wait()
+result = {'command': command, 'status': status, 'returncode': child.returncode,
+          'seconds': time.monotonic() - started,
+          'maxrss_kib': resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,
+          'cbmc_samples': samples}
+(root / f'allocator-{suffix}.json').write_text(json.dumps(result, indent=2) + '\n')
+print(json.dumps({key: value for key, value in result.items() if key != 'cbmc_samples'}))

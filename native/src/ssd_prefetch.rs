@@ -571,21 +571,15 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
-    #[kani::proof]
-    #[kani::unwind(33)]
-    fn prediction_order_preserves_all_values_within_two_rows() {
+    fn prediction_case<const ROWS: usize, const LEN: usize>() {
         let ids: [u32; 32] = kani::any();
-        let length = usize::from(kani::any::<u8>()).min(32);
-        let rows: usize = kani::any();
         let mut output = ids;
-        let valid = (1..=2).contains(&rows)
-            && length == rows * 16
-            && ids[..length].iter().all(|&id| id < 512);
-        let result = order_predictions(&mut output[..length], rows);
+        let valid = ids[..LEN].iter().all(|&id| id < 512);
+        let result = order_predictions(&mut output[..LEN], ROWS);
         assert_eq!(result, valid);
         if result {
-            for position in 0..length {
-                let expected = if rows == 1 {
+            for position in 0..LEN {
+                let expected = if ROWS == 1 {
                     ids[15 - position]
                 } else {
                     ids[(position % 2) * 16 + 15 - position / 2]
@@ -593,16 +587,38 @@ mod verification {
                 assert_eq!(output[position], expected);
                 assert!(output[position] < 512);
             }
-            kani::cover!(rows == 1);
-            kani::cover!(rows == 2);
         } else {
             for position in 0..32 {
                 assert_eq!(output[position], ids[position]);
             }
-            kani::cover!(rows > 2);
-            kani::cover!(rows == 0);
-            kani::cover!(length == 0);
-            kani::cover!(length == 32 && rows == 2 && ids[31] >= 512);
         }
+        kani::cover!(result);
+        kani::cover!(!result && ids[LEN - 1] >= 512);
+    }
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn prediction_order_one_row() {
+        prediction_case::<1, 16>();
+    }
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn prediction_order_two_rows() {
+        prediction_case::<2, 32>();
+    }
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn prediction_order_rejects_every_other_geometry() {
+        let ids: [u32; 32] = kani::any();
+        let length = usize::from(kani::any::<u8>()).min(32);
+        let rows: usize = kani::any();
+        kani::assume(!((rows == 1 && length == 16) || (rows == 2 && length == 32)));
+        let mut output = ids;
+        assert!(!order_predictions(&mut output[..length], rows));
+        for position in 0..32 {
+            assert_eq!(output[position], ids[position]);
+        }
+        kani::cover!(rows > 2);
+        kani::cover!(rows == 0);
+        kani::cover!(length == 0);
     }
 }
