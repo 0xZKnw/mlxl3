@@ -1,5 +1,195 @@
 # MLXL3 — journal des optimisations
 
+## Procédure courante — exploration courte, qualification proportionnée — 30 octobre 2026
+
+Demande de Justin : réduire le coût de chaque idée sans dégrader la fidélité ni
+les critères de promotion. Cette procédure organise les **nouveaux essais** ;
+les protocoles, seuils, échecs et mesures historiques ci-dessous restent des
+preuves datées, pas des prescriptions cumulatives à rejouer pour chaque patch.
+Elle respecte [AGENTS.md](AGENTS.md), notamment correction avant vitesse,
+vérification des parcours affectés, tentatives formelles applicables, isolation
+des mesures GPU et autorisation séparée de publication/installation. Aucune de
+ces obligations n'est supprimée ou contournée ; AGENTS.md reste inchangé.
+
+### Trois étapes, avec une sortie possible après chacune
+
+| Étape | Indispensable et raison | À reporter ou réutiliser | Décision permise |
+| --- | --- | --- | --- |
+| **1. Exploration, sans campagne de vitesse** | Une courte entrée préalable : hypothèse, différence avec les essais antérieurs, base/diff/options, entrée de production et risque touché. Compiler la variante concernée et exécuter son petit oracle déterministe, avec forme/dtype/nombre de valeurs/finitude, frontières et erreur pertinentes. Un filtre doit sélectionner un nombre explicite de tests, jamais zéro. | Pas de suite globale, de tous les modèles/modes/largeurs ou de matrice MAIN/HOLD par défaut. Réutiliser les lectures et contrôles non affectés avec leur identité. Aucun profiling lourd systématique. | Arrêter dès une erreur de compilation, un contre-exemple numérique, un invariant mémoire/état violé ou une hypothèse contredite. Conserver le résultat ; aucune vitesse ni promotion déduite de ce smoke. |
+| **2. Qualification du candidat retenu** | Compléter les contrôles touchés : format/lint strict/types/build réel, oracle indépendant sur l'entrée de production et son intégration, formes/dtypes réellement servis, erreurs et reprise. Pour un changement numérique/cache : logits/états pertinents **et bridge/CLI réel avant vitesse**, puis KV/récurrence/acceptation/rollback et MTP/DFlash lorsqu'affectés. Tenter les vérificateurs source applicables sur les contrats modifiés, avec domaine et limites. | Ne pas refaire les preuves/suites d'un composant identique sans nouveau risque de composition ; ne pas réinstaller un outil inchangé indisponible à chaque idée. Une tentative bloquée reste non vérifiée, avec diagnostic et commande, jamais transformée en succès. | Après cette correction qualifiée seulement, autoriser un **pilote release court**, sur le mode/prompt représentatif annoncé. Un pilote défavorable peut suffire à abandonner la piste, sans prétendre établir une régression causale ; bruit ou dérive donnent « non concluant ». |
+| **3. Validation avant activation ou merge** | Sur le code final : suite pertinente complète, contrôles de composition et tous les modes/parcours affectés. Pour promouvoir un gain : comparaison release alternée référence/candidat, MAIN et HOLD, répétitions et processus indépendants adaptés au bruit observé, mêmes checkpoint/draft/budgets/options/conditions ; états et qualité restent requis. CI du SHA exact inspectée ; tests physiques explicitement sélectionnés si nécessaires. | Les validations compatibles de l'étape 2 ne sont pas relancées juste parce qu'on change d'étape. Un mode hors périmètre exige une justification par les appelants, pas une omission silencieuse. Les contrôles non exécutés restent visibles. | Promouvoir seulement la portée réellement qualifiée ; sinon garder OFF, différer ou rejeter. Une PR draft de travail n'est ni une activation ni une qualification matérielle. |
+
+L'étape 1 n'autorise pas à chronométrer le modèle après le seul test d'un kernel.
+Elle permet de jeter une mauvaise idée **avant** les contrôles d'intégration et
+les campagnes coûteuses. Une sortie texte identique n'est pas l'oracle des
+logits/états ; une preuve CPU, un microbenchmark ou un frontend Rust isolé ne
+valident pas Metal ni le parcours modèle.
+
+### Ce qui est allégé pour les nouveaux essais
+
+- **Une entrée courte et une matrice de périmètre suffisent.** Regrouper les
+  variantes d'une même expérience sous le même identifiant ; ajouter le diff et
+  les résultats de chaque variante, sans reconstruire le protocole après coup.
+- **Pas de validation globale à chaque édition.** Pendant l'exploration, lancer
+  les vérifications qui peuvent réfuter le changement courant. Réserver les
+  suites complètes pertinentes et les interactions au candidat final ; un
+  changement de dtype, de layout ou de wrapper rend aussi leurs tests concernés.
+- **Pas de produit cartésien automatique.** Commencer par la forme et le mode
+  réellement ciblés. Ajouter B2 si le vérificateur est touché ; B4/B8, autres
+  modèles et autres modes seulement selon la portée, puis couvrir toutes les
+  formes servies avant activation. Un kernel commun au decode AR/MTP/DFlash
+  touche ces trois parcours : l'étiquette « optimisation AR » ne les exclut pas.
+- **Pas de répétitions de vitesse avant un signal utile.** Après l'étape 2, un
+  pilote peut utiliser un seul prompt/mode et peu de générations. Sa taille et
+  son ordre sont annoncés avant lancement. Ne pas lancer automatiquement une
+  confirmation longue après parité échouée ou pilote défavorable. Pour retenir
+  une petite différence, augmenter les répétitions/processus selon dispersion,
+  dérive et coût d'échantillonnage ; arrêter non concluant si le budget est épuisé.
+  Aucun seuil universel de gain/spread ni pourcentage choisi après résultat.
+- **Pas de pauses fixes ou d'exigence secteur copiées d'une ancienne campagne
+  pour un test fonctionnel CPU/non chronométré.** Les mesures GPU gardent un seul
+  modèle, aucune compilation/proof/inférence concurrente, des conditions
+  comparables et les contrôles mémoire/thermiques pertinents. Une pause nécessaire
+  à leur stabilité reste justifiée ; sa durée n'est pas une recette universelle.
+  Ne pas neutraliser une garde d'un superviseur existant pour faire passer son
+  protocole : choisir un contrôle fonctionnel adapté et déclarer sa portée.
+- **Pas de recréation systématique de fixtures, warmups ou proveurs.** Conserver
+  fixtures épinglées et oracles indépendants. Réutiliser les checks inchangés selon
+  la règle ci-dessous. Une nouvelle variante/forme ou un nouveau processus doit
+  encore être chauffé selon le harnais ; ne pas prétendre réutiliser un état qui
+  a été réinitialisé, ni confondre cache chaud et lecture Cold.
+
+### Réutiliser une validation sans masquer ce qui a changé
+
+Pour chaque contrôle repris, consigner **preuve/commande et résultat antérieurs,
+SHA ou hash du code testé, binaire et dépendances, fixture/checkpoint, options,
+formes/dtypes/modes, propriété couverte et justification d'absence d'impact**.
+Identifier aussi les contrôles invalidés et ceux à exécuter. Un hash de fonction
+seul ne suffit pas si son appelant, sa configuration, son dtype/layout, une
+dépendance ou la composition a changé. Un ancien échec ou contrôle absent reste
+un échec ou une absence ; des logs manquants ne deviennent pas une validation.
+
+- Document seul : vérifier liens/commandes et identité des sources exécutables ;
+  conserver les résultats moteur compatibles, sans nouveau benchmark.
+- Kernel/épilogue : refaire bits, dtype, formes/queues et wrapper de production,
+  puis les logits/états/parcours dépendants. L'audit T04 ci-dessous montre qu'un
+  oracle d'activation seul ne couvre pas le dtype de sortie EXL3.
+- Cache/I/O/ordonnancement : refaire bornes, ownership/leases, erreur/lecture
+  courte/drain/reprise, données lues et publication ; ajouter la concurrence
+  pertinente. Préserver ordre des sommes, slots en vol et budgets mémoire.
+- KV/récurrence/spéculation : refaire état final, chaque préfixe accepté/rejeté,
+  rollback/reset/continuation et MTP/DFlash affectés. Aucun allègement de fidélité,
+  quantification, tolérance ou politique de cache sous couvert de rapidité.
+
+Les outils/proofs lourds se préparent avant une campagne GPU. Une incompatibilité
+de vérificateur est enregistrée une fois avec sa cause ; les tentatives ciblées
+requises restent tracées sur le code concerné. Réutiliser le diagnostic de setup
+n'autorise ni à annoncer une preuve ni à retirer l'obligation d'essayer le vrai
+contrat modifié.
+
+### Commandes existantes et volume initial, sans durée promise
+
+Le [guide M5 de CLOUD59](docs/measurements/cloud59-20261030/README.md) contient
+une **qualification complète de référence** ; ses cinq tests de frontière et
+ses cinq intégrations répétées sur quatre bras font **25 exécutions de tests**.
+Ce n'est pas la boucle obligatoire de chaque édition d'un seul candidat.
+Les tests physiques actuels ne sont pas tous subdivisibles : certains parcourent
+plusieurs dtypes/largeurs ou tous les candidats en interne. Un filtre Rust
+sélectionne un test entier, pas B1 ou un sous-cas ; ne pas inventer de flag.
+
+Exemples de premier oracle existant : choisir **seulement celui du candidat**,
+à exécuter **seul** sur le matériel approprié et après compilation du binaire de
+test ; chacun doit annoncer exactement un test
+passé, faute de quoi l'étape échoue :
+
+```sh
+# T17 : gates F16 / casts / sigmoid / produit, sans checkpoint.
+cargo test --locked --release --lib --features mlx,chat qwen4::boundary_tests::t17_epilogue_matches_uncompiled_fp32_sigmoid_product -- --exact --ignored --test-threads=1
+# T04 : activation, arrondis F16 et H128 en F16/F32, sans checkpoint.
+cargo test --locked --release --lib --features mlx,chat qwen4::boundary_tests::t04_swiglu_down_preserves_both_half_roundings_and_h128 -- --exact --ignored --test-threads=1
+# T18a : attribution des jobs, sans modèle ni GPU ; ce test ne couvre pas GCD/I/O.
+c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I native/ffi native/tests/disk_work_queue.cpp -o /tmp/mlxl3-disk-work-queue
+/tmp/mlxl3-disk-work-queue
+```
+
+Pour une seule idée, **un oracle ciblé avant le reste**, au lieu des 25 exécutions
+communes, peut arrêter immédiatement un candidat incorrect. Un succès ne dispense
+pas de l'étape 2 : T04 doit notamment passer aussi le vrai helper down F16/F32 ;
+T17 les entrées out/états ; T18a le lecteur réel, les erreurs et les leases.
+
+Après qualification numérique/intégration seulement, le harnais
+[`scripts/benchmark-flash-bridge.py`](scripts/benchmark-flash-bridge.py) accepte
+réellement `--tokens`, `--repeats`, `--prompt`, `--mtp`, `--dflash-draft` et
+`--dflash-mode`. Exemple de **pilote T17**, avec environnement/baseline/candidat déjà
+définis, un dossier neuf par bras et les autres options de candidats à zéro :
+
+```sh
+MLXL3_FLASH_GDN_EPILOGUE=0 MLXL3_FLASH_SWIGLU_DOWN=0 MLXL3_SSD_DYNAMIC_READERS=0 python scripts/benchmark-flash-bridge.py target/release/mlxl3-rs "$MLXL3_FLASH_MODEL" build/pilot-A --cache-gib 3 --prompt MAIN --tokens 16 --repeats 1
+MLXL3_FLASH_GDN_EPILOGUE=1 MLXL3_FLASH_SWIGLU_DOWN=0 MLXL3_SSD_DYNAMIC_READERS=0 python scripts/benchmark-flash-bridge.py target/release/mlxl3-rs "$MLXL3_FLASH_MODEL" build/pilot-C --cache-gib 3 --prompt MAIN --tokens 16 --repeats 1
+```
+
+Ce harnais effectue une chauffe et une génération mesurée par bras avec ces
+options : **2 processus / 4 générations** pour A+C. La matrice complète CLOUD59
+pour **un** candidat (2 prompts × 3 modes × ACCA, chauffe +3 mesures) en compte
+**24 processus / 96 générations**. Le pilote réduit donc le volume initial ;
+il **ne remplace pas** la confirmation MAIN/HOLD et modes affectés d'un candidat
+retenu, et 16 tokens ne qualifient ni contexte long ni débit soutenu. Le retour
+`status: validated` du harnais valide ses gardes internes, pas le gain A/C ni la
+parité numérique ; comparer aussi les hashes/textes entre bras et les oracles.
+
+`--repeats` compte des mesures **dans un processus**, pas des essais indépendants.
+`--compare` alterne AR/MTP, pas référence/candidat. La chauffe n'a pas de flag de
+suppression ; le timeout interne vaut 300 s **par attente d'événement**, pas pour
+la campagne entière et n'est pas exposé par sa CLI. Le
+[superviseur de qualité existant](docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt)
+accepte `timeout_seconds` dans chaque entrée de matrice ; son moniteur impose
+une borne de processus (360 s par défaut, maximum 900 s), des gardes secteur/VM
+et le nettoyage du groupe enfant. Ces bornes ne sont pas une durée observée ni
+un timeout de toute la matrice ; ce superviseur n'est pas un smoke CPU portable.
+Choisir le harnais adapté sans neutraliser ses gardes ; conserver sorties
+partielles/erreurs et joindre les processus. Ne pas utiliser ces plafonds comme
+durées observées ou garanties. Garder mémoire, budgets et comparabilité ; signaler
+swap, changement de conditions ou divergence et arrêter le pilote si ses gardes
+ne sont plus satisfaites, sans supprimer les échantillons gênants.
+
+### PROC-2026-10-30-FAST — révision documentaire, aucun essai GPU
+
+- Hypothèse : écarter les pistes invalides avant la qualification/matrice complète
+  et réutiliser les preuves non affectées réduit le nombre d'étapes par édition.
+  Baseline : guide CLOUD59 et historique, source `f0818640` ; pas de durée mesurée.
+- Changement : procédure en trois étapes, réutilisation conditionnelle et pilotes
+  bornés ; obligations d'AGENTS.md, preuves anciennes, code, permissions et
+  protections système inchangés. Révision autorisée par Justin ; publication dans
+  la PR draft [61](https://github.com/0xZKnw/mlxl3/pull/61), sans merge/activation.
+- Vérification prévue : contrôler commandes, sélecteurs, comptes de tests/bras,
+  liens et conservation du journal ; tests CPU des harnais existants, aucun modèle.
+- Résultat : **81 tests CPU** des harnais benchmark/supervision passent ; aide CLI,
+  syntaxe shell, sélecteurs existants, liens et comptes 25/24/96/2/4 contrôlés.
+  Ancien journal conservé octet pour octet hors deux champs ajoutés au format des
+  nouvelles entrées ; seuls `opti.md` et le renvoi du guide M5 changent. Preuves
+  locales de ce contrôle sous `/workspace/scratch/mlxl3-opti-procedure-*` ; aucune
+  source exécutable ni AGENTS.md modifiés, aucun benchmark/Metal/Mac lancé.
+- Intégration : publication autorisée en commit documentaire séparé dans PR61 ; les
+  checks moteur cloud précédents restent des preuves de leurs sources identiques,
+  pas de nouvelle mesure. Aucun gain de durée garanti, aucune validation native
+  ni promotion acquise. La CI automatique reste inchangée et doit être inspectée
+  sur la nouvelle tête après publication.
+
+### CLOUD59-2026-10-30 — préparation cloud terminée ; prototypes OFF, qualification M5 non exécutée
+
+- Autorisation : préparer les optimisations moteur pour validation ultérieure sur M5 24 Gio ; aucun travail Desktop, lancement sur le Mac, push, PR ou installation. Baseline cloud propre `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6` (branche locale `work`). Issues 59/60 relues le 30 octobre, révision des priorités du 29 octobre ; les modifications locales non publiées `7978fce…` et les rapports post-profile cités ne sont pas dans ce checkout. Leur validation n'est pas attribuée à cet arbre.
+- Prérequis : `AGENTS.md` lu ; `.agents/skills` absent. Skill utilisateur retrouvé via `docs/qwen27-m5-round2.md`, cloné sous `/tmp/mlxl3-formal-proof-skill`, révision `5f00bb443c9d0d14f705a3098381850166a83e5c`, SKILL et références Rust/C++/Python lus. Linux cloud sans Metal/M5/modèle ; Rust initialement absent, installation isolée sous `/workspace/.tooling` prévue. Aucune inférence ni vitesse ici.
+- **T17** : conserver récurrence, H128 et norme native par ligne. Compiler exclusivement cast F32 + sigmoid F32 + produit F32 + cast F16 ; B1 puis une chaîne commune B2/B4/B8 après concaténation des normes par ligne. Option indépendante OFF par défaut ; référence conservée. Différence avec HENK0O09/Rapid/Flash25 : ni SiLU (facteur z interdit), ni fusion norme/récurrence/préparation. Qualifier l'entrée out bit à bit avant toute vitesse ; la compilation peut modifier la transcendantale, aucun contrat numérique présumé validé.
+- **T04** : seulement Cold sans regroupement ni masque Hot, frontière SwiGLU compilé → produit down.suh F16. Conserver l'arrondi SwiGLU F16 puis produit F16, H128 natif, splits/réductions et points de soumission. Option indépendante OFF ; ne pas répéter POSTPROFILE05-C (gather/scales). Si le compilateur ne préserve pas les bits ou ne supprime pas de dispatch utile, ne pas promouvoir.
+- **T01/T07/T09/T10/T12** : inspection/filtre uniquement tant que projection, coût après hit, répétitions B2 naturelles et spills ne sont pas attribués. Cache factories C++128 déjà présent ; aucun replay GPU déduit. **T18a** après ces filtres : file atomique dynamique, quatre lecteurs maximum inchangés, même validation/erreurs/drain/leases/destinations ; référence statique et option OFF. T18b publication Cold progressive explicitement différée, aucune somme ni publication partielle changée. T19 différé : dépend d'un vrai prefill chunké, pas un gain decode.
+- Protocole prévu : tests déterministes CPU sur options/contrats et ordonnanceur (sanitizers), tentative Kani/CBMC source réels ; fmt, Clippy strict, build/tests CPU pertinents ; tentative build `mlx,chat` avec diagnostic de plateforme conservé. Tests physiques ajoutés mais non exécutés ici : B1/B2/B4/B8, layouts/dtypes, formes/erreurs/finitude/octets, GDN états et chaque préfixe accepté/rollback, MoE Hot/Cold/référence. Ensuite bridge AR/MTP/DFlash et A/B release MAIN/HOLD alterné, même checkpoint/draft/3 Gio/4 lecteurs, warm128/mesure128, processus indépendants, swap/thermique/alimentation et source/binaire hashés. Aucun pourcentage promis ; T05 reste mixte/non robuste, ARC et cache statique 47/55 restent rejetés.
+- Résultats, commandes et décision finale à consigner dans `docs/measurements/cloud59-20261030/README.md` avant clôture. État : préenregistré avant prototype, aucune optimisation validée ni publiée.
+- **Clôture cloud** : T17 et T04 implémentés avec graphes compilés MLX et références indépendantes OFF, T18a avec file atomique et mode statique conservé. Les tests physiques ajoutés exigent les bits de l'entrée out, formes/finitude, gates F16, H128, B1/B2/B4/B8, états/tapes et commits/continuation du modèle ; non exécutés ici. Inspection finale a trouvé le validateur de profil encore lié aux bandes statiques : ajout du mode réel du lot depuis la FFI et validation dynamique stricte avec compatibilité des anciennes traces. Pas de travail Desktop.
+- Checks finaux : Rust CPU/chat **245 passés/6 ignorés** (lib159/bin35/contracts16/autre harnais35), runtime_gpu0 sur Linux ; fmt, Clippy strict et build CPU passent. **312 tests Python** pertinents passent, Ruff/format/py_compile et YAML/diff passent. Ordonnanceur C++ : **4084 cas** dans chacune des exécutions ASan+UBSan et TSan, mutation job+1 détectée ; cache factory128 existant repasse son oracle, aucun gain inféré. Typecheck puis Clippy strict Rust MLX/chat tous targets passent pour Apple dans un manifest temporaire explicitement non livré (build.rs OFF, tokenizers fancy-regex pour éviter C cross), sans liaison FFI ; ce n'est pas un buildMLX de production.
+- Limites conservées : vrai buildMLX refuse Linux, crosscheck initial chat sans compilateur C Apple et variante sanschat avec imports tokenizer préexistants échouent ; logs archivés. Kani/CBMC/CrossHair tentés mais absents, harnais réels conservés, aucune preuve revendiquée. I/O GCD macOS, compilationFFI/GPU, égalité réelle, oracles modèle/bridge et vitesse **non exécutés**. Aucun pourcentage ni dispatch supprimé mesuré. Diff, matrices et commandes M5/MAIN/HOLD/AR/MTP/DFlash dans [le rapport](docs/measurements/cloud59-20261030/README.md) ; les archives négatives des issues restent intactes.
+- Décision : conserver prototypes uniquement dans la branche/session avec options0 ; T01 filtré sans nouveau cache/replay, T07/T09/T10/T12 différés faute d'attribution/routes/spills ; T18b différé avec leases/sommes à qualifier séparément ; T19 différé faute de chunks prefill. Tous essais cloud clos, aucun essai GPU/débit lancé ou laissé actif ; aucun push/PR/merge/release/app installée modifiée.
+- Contre-exemple statique trouvé à la revue finale T04, avant tout essai physique : `expert_mapped_layout` restitue le dtype de son entrée ; GU peut donc être F32 en production. Le premier garde T04 n'acceptait que F16 et le wrapper aurait retourné F16 au lieu de F32. Correction préenregistrée ici : garder le dtype GU pour le SwiGLU, caster son résultat F16 exactement à l'ancienne frontière, produit suh F16/H128 inchangés, puis restaurer le dtype GU à la sortie down. Étendre l'oracle aux deux dtypes et recontrôler types/Clippy affectés ; aucun résultat GPU antérieur à invalider puisque rien n'a été exécuté. Les checks CPU précédents ne prouvaient pas cette propriété. Correction effectuée, cinquième test physique sanscheckpoint ajouté sur le vrai helper EXL3 (dtype/forme/bits), fmt et Clippy strict isolé repassent ; cet oracle reste non exécuté sans Metal.
+
 ### DESKTOP-2026-10-27-BETA5-STUDIOS — validé dans le domaine testé, publié beta5/build36
 
 - Clôture publication : https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.5 ;4assets distants SHA/taille concordants, tag f200014a4e68b698c0a1a1b840e3411f3f329c2c. Flux anonyme de production sélectionne beta5/build36 et stable1.5.1 ; aucun remplacement d’app installée. PR57 pour intégration. CI exact b3163dddd398a9838bef6907155b5991071250eb inspectée : packing-proof réussi,6autresjobs en cours, aucun succès global revendiqué. Dernier commit de reçus uniquement documentaire [skip ci], code de production identique au source qualifié ; checks de ce reçu absents par choix explicite, CI source conservée. Tous essais locaux fermés ; conversions publiques volumineuses, preuve Swift/CrossHair et reproduction exacte disparition restent non vérifiés.
@@ -4607,6 +4797,7 @@ essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 ```text
 ### OPT-AAAA-MM-JJ-NN — Nom — statut
 - Hypothèse / changement :
+- Étape : exploration sans vitesse / qualification / validation finale ; périmètre affecté :
 - Antécédents consultés / raison de retester, le cas échéant :
 - Baseline / candidat (commit + diff ou options) :
 - Environnement : matériel, OS, dépendances, alimentation, conditions connues.
@@ -4614,6 +4805,7 @@ essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 - Commandes et preuves :
 - Résultats avant → après, unités et dispersion :
 - Qualité / exactitude vérifiée ; contrôles non effectués :
+- Validations reprises (preuve + identité + absence d'impact) / invalidées / à refaire :
 - Conclusion / limites / prochaine condition de réexamen :
 - Intégration : prototype / code local / app / publication, selon vérification.
 ```

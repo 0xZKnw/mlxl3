@@ -1206,6 +1206,9 @@ pub(crate) struct ExpertSlots {
 }
 
 impl ExpertSlots {
+    pub(crate) fn supports_swiglu_down_boundary(&self) -> bool {
+        !self.masked && self.groups.is_none()
+    }
     pub(crate) fn new(ids: &[u32], capacity: i32) -> Result<Self> {
         ensure!(
             crate::flash_support::slots_fit(ids, capacity),
@@ -1316,6 +1319,53 @@ impl ExpertSlots {
             &[vec![self.indices.shape()[0],shape[1],shape[2]]], &[Dtype::Float16], [count,1,1], [128,1,1],
         )?.remove(0))
     }
+}
+
+pub(crate) fn expert_slots_swiglu_down(
+    gu: &Array,
+    trellis: &Array,
+    suh: &Array,
+    svh: &Array,
+    selected: &ExpertSlots,
+    stable_shapes: bool,
+) -> Result<Array> {
+    let rows = selected.indices().shape()[0];
+    ensure!(
+        selected.supports_swiglu_down_boundary()
+            && gu.shape() == [rows, 2, 640]
+            && trellis.shape().len() == 5
+            && trellis.shape()[0] == selected.capacity,
+        "T04 only supports unmasked, ungrouped Cold expert slots"
+    );
+    let scaled = gu
+        .slice(1, 0, 1)?
+        .reshape(&[rows, 640])?
+        .swiglu_scaled(&gu.slice(1, 1, 2)?.reshape(&[rows, 640])?, suh)?;
+    let xhat = scaled
+        .reshape(&[rows, 5, 128])?
+        .hadamard_transform(Some(1.0 / 128.0f32.sqrt()))?
+        .reshape(&[rows, 640])?;
+    expert_mapped_layout(
+        &xhat,
+        trellis,
+        None,
+        Some(svh),
+        selected.indices(),
+        2560,
+        1,
+        0,
+        2,
+        Codebook::Mul1,
+        true,
+        false,
+        true,
+        false,
+        None,
+        stable_shapes,
+    )
+    // expert_mapped_layout normally returns the original activation's dtype.
+    // The pretransformed path above sees F16 xhat; restore the GU/SwiGLU dtype.
+    .and_then(|output| output.astype(gu.dtype()))
 }
 
 #[allow(clippy::too_many_arguments)]

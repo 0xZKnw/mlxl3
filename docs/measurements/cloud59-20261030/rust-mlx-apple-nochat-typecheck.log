@@ -1,0 +1,262 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling syn v2.0.119
+   Compiling serde_core v1.0.229
+    Checking tracing-core v0.1.36
+    Checking colorchoice v1.0.5
+    Checking anstyle v1.0.14
+   Compiling getrandom v0.4.3
+    Checking core-foundation-sys v0.8.7
+   Compiling rustix v1.1.4
+    Checking futures-sink v0.3.32
+    Checking is_terminal_polyfill v1.70.2
+   Compiling httparse v1.10.1
+    Checking hashbrown v0.16.1
+    Checking anstyle-query v1.1.5
+    Checking equivalent v1.0.2
+    Checking futures-task v0.3.34
+    Checking anstream v1.0.0
+    Checking futures-util v0.3.34
+    Checking indexmap v2.13.0
+    Checking core-foundation v0.10.1
+    Checking tracing v0.1.44
+   Compiling foreign-types-macros v0.2.4
+    Checking malloc_buf v0.0.6
+    Checking clap_lex v1.1.0
+   Compiling serde_json v1.0.151
+   Compiling signal-hook v0.3.18
+   Compiling anyhow v1.0.104
+    Checking foreign-types-shared v0.3.1
+   Compiling serde v1.0.229
+   Compiling heck v0.5.0
+    Checking slab v0.4.12
+    Checking try-lock v0.2.5
+    Checking strsim v0.11.1
+    Checking clap_builder v4.6.6
+    Checking want v0.3.1
+   Compiling clap_derive v4.6.4
+    Checking foreign-types v0.5.0
+    Checking objc v0.2.7
+    Checking zmij v1.0.23
+    Checking core-graphics-types v0.2.0
+   Compiling paste v1.0.15
+    Checking http-body v0.4.6
+    Checking futures-channel v0.3.32
+    Checking socket2 v0.5.10
+    Checking deranged v0.5.8
+    Checking time-core v0.1.9
+    Checking httpdate v1.0.3
+    Checking block v0.1.6
+    Checking fastrand v2.5.0
+    Checking tower-service v0.3.3
+    Checking log v0.4.34
+    Checking powerfmt v0.2.0
+    Checking num-conv v0.2.2
+    Checking metal v0.33.0
+    Checking time v0.3.55
+   Compiling tokio-macros v2.6.1
+   Compiling zerocopy-derive v0.8.57
+    Checking tempfile v3.27.0
+    Checking tokio v1.50.0
+    Checking clap v4.6.6
+    Checking fs2 v0.4.3
+    Checking zerocopy v0.8.57
+    Checking tokio-util v0.7.18
+    Checking h2 v0.3.27
+    Checking half v2.7.1
+    Checking hyper v0.14.32
+    Checking mlxl3-native v2.0.1 (/tmp/cloud59-typecheck)
+error[E0432]: unresolved import `crate::tokenizer`
+    --> /workspace/mlxl3/native/src/qwen35.rs:3932:20
+     |
+3932 |         use crate::tokenizer::ChatTokenizer;
+     |                    ^^^^^^^^^ could not find `tokenizer` in the crate root
+     |
+note: found an item that was configured out
+    --> /workspace/mlxl3/native/src/lib.rs:57:9
+     |
+  56 | #[cfg(feature = "chat")]
+     |       ---------------- the item is gated behind the `chat` feature
+  57 | pub mod tokenizer;
+     |         ^^^^^^^^^
+
+error[E0432]: unresolved import `crate::tokenizer`
+    --> /workspace/mlxl3/native/src/qwen35.rs:4006:20
+     |
+4006 |         use crate::tokenizer::ChatTokenizer;
+     |                    ^^^^^^^^^ could not find `tokenizer` in the crate root
+     |
+note: found an item that was configured out
+    --> /workspace/mlxl3/native/src/lib.rs:57:9
+     |
+  56 | #[cfg(feature = "chat")]
+     |       ---------------- the item is gated behind the `chat` feature
+  57 | pub mod tokenizer;
+     |         ^^^^^^^^^
+
+error[E0433]: cannot find `tokenizer` in the crate root
+    --> /workspace/mlxl3/native/src/qwen4.rs:2685:32
+     |
+2685 |         let tokenizer = crate::tokenizer::ChatTokenizer::load(Path::new(&path))?;
+     |                                ^^^^^^^^^ could not find `tokenizer` in the crate root
+     |
+note: found an item that was configured out
+    --> /workspace/mlxl3/native/src/lib.rs:57:9
+     |
+  56 | #[cfg(feature = "chat")]
+     |       ---------------- the item is gated behind the `chat` feature
+  57 | pub mod tokenizer;
+     |         ^^^^^^^^^
+
+error[E0433]: cannot find `tokenizer` in the crate root
+    --> /workspace/mlxl3/native/src/qwen4.rs:2686:66
+     |
+2686 |         let tokens = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+     |                                                                  ^^^^^^^^^ could not find `tokenizer` in the crate root
+     |
+note: found an item that was configured out
+    --> /workspace/mlxl3/native/src/lib.rs:57:9
+     |
+  56 | #[cfg(feature = "chat")]
+     |       ---------------- the item is gated behind the `chat` feature
+  57 | pub mod tokenizer;
+     |         ^^^^^^^^^
+
+warning: methods `quantize4` and `slice_update` are never used
+    --> /workspace/mlxl3/native/src/array.rs:1097:19
+     |
+ 546 | impl Array {
+     | ---------- methods in this implementation
+...
+1097 |     pub(crate) fn quantize4(&self) -> Result<(Self, Self, Self)> {
+     |                   ^^^^^^^^^
+...
+1114 |     pub(crate) fn slice_update(&self, update: &Self, start: &[i32]) -> Result<Self> {
+     |                   ^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `mlxl3_array_quantize4` is never used
+  --> /workspace/mlxl3/native/src/array.rs:92:8
+   |
+92 |     fn mlxl3_array_quantize4(
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `mlxl3_array_slice_update` is never used
+  --> /workspace/mlxl3/native/src/array.rs:98:8
+   |
+98 |     fn mlxl3_array_slice_update(
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> /workspace/mlxl3/native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `PreDraftBudget` is never constructed
+ --> /workspace/mlxl3/native/src/flash_draft_budget.rs:9:19
+  |
+9 | pub(crate) struct PreDraftBudget {
+  |                   ^^^^^^^^^^^^^^
+
+warning: methods `choose` and `observe` are never used
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:14:19
+   |
+13 | impl PreDraftBudget {
+   | ------------------- methods in this implementation
+14 |     pub(crate) fn choose(&self, maximum: usize) -> usize {
+   |                   ^^^^^^
+...
+36 |     pub(crate) fn observe(&mut self, width: usize, emitted: usize, nanos: u64) -> Option<()> {
+   |                   ^^^^^^^
+
+warning: struct `Label` is never constructed
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: function `best_prefix` is never used
+  --> /workspace/mlxl3/native/src/flash_draft_budget.rs:94:15
+   |
+94 | pub(crate) fn best_prefix(probabilities: &[f64], costs: &[f64]) -> Option<usize> {
+   |               ^^^^^^^^^^^
+
+warning: function `ring_writes` is never used
+   --> /workspace/mlxl3/native/src/flash_draft_budget.rs:118:15
+    |
+118 | pub(crate) fn ring_writes(start: i32, rows: i32) -> Option<[(i32, i32, i32); 2]> {
+    |               ^^^^^^^^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> /workspace/mlxl3/native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: function `draft_demand_bytes` is never used
+  --> /workspace/mlxl3/native/src/flash_support.rs:92:15
+   |
+92 | pub(crate) fn draft_demand_bytes(total: u64, before: u64, after: u64) -> Option<u64> {
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: function `fixed_draft_width` is never used
+   --> /workspace/mlxl3/native/src/flash_support.rs:389:15
+    |
+389 | pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
+    |               ^^^^^^^^^^^^^^^^^
+
+warning: function `prediction_rows` is never used
+ --> /workspace/mlxl3/native/src/ssd_prefetch.rs:4:15
+  |
+4 | pub(crate) fn prediction_rows(rows: usize) -> Option<usize> {
+  |               ^^^^^^^^^^^^^^^
+
+warning: `mlxl3-native` (lib) generated 17 warnings
+Some errors have detailed explanations: E0432, E0433.
+For more information about an error, try `rustc --explain E0432`.
+error: could not compile `mlxl3-native` (lib test) due to 4 previous errors

@@ -14,6 +14,7 @@ int main() {
   assert(std::fwrite(source.data(), 1, source.size(), file) == source.size());
   assert(std::fflush(file) == 0);
   size_t cases = 0;
+  for (auto schedule : {mlxl3::DiskSchedule::Static, mlxl3::DiskSchedule::Dynamic}) {
   for (size_t start = 0; start <= 16; ++start) {
     for (size_t length = 0; length <= 16 - start; ++length) {
       std::array<uint8_t, 32> bank;
@@ -60,13 +61,15 @@ int main() {
       for (size_t i = 0; i < count; ++i)
         reads.push_back({fd, i * 32, {{banks[i].data() + 2, 9}, {banks[i].data() + 17, 7}}});
       std::vector<mlxl3::DiskTiming> timings;
-      mlxl3::read_disk_records(reads, workers, &timings);
+      mlxl3::read_disk_records(reads, workers, &timings, schedule);
       assert(timings.size() == count);
       for (size_t i = 0; i < count; ++i) {
         const auto& t = timings[i];
-        assert(t.job == i && t.worker == i % std::min(workers, count));
+        assert(t.job == i && t.worker < std::min(workers, count));
+        if (schedule == mlxl3::DiskSchedule::Static) assert(t.worker == i % std::min(workers, count));
         assert(t.end_ns >= t.start_ns && t.bytes == 16 && !t.failed);
-        if (i >= workers) assert(t.start_ns >= timings[i - workers].end_ns);
+        if (schedule == mlxl3::DiskSchedule::Static && i >= workers)
+          assert(t.start_ns >= timings[i - workers].end_ns);
       }
       for (const auto& read : reads) assert(read.bytes_read == 16);
       for (size_t i = 0; i < count; ++i)
@@ -81,7 +84,7 @@ int main() {
     auto rejects = [&](std::vector<mlxl3::DiskRead> reads, size_t threads) {
       bank.fill(0xa5);
       bool failed = false;
-      try { mlxl3::read_disk_records(reads, threads); }
+      try { mlxl3::read_disk_records(reads, threads, nullptr, schedule); }
       catch (const std::exception&) { failed = true; }
       assert(failed);
       assert(std::all_of(bank.begin(), bank.end(), [](auto x) { return x == 0xa5; }));
@@ -110,11 +113,12 @@ int main() {
                          {{bank.data() + i * 2, 2}}});
       bool failed = false;
       std::vector<mlxl3::DiskTiming> timings;
-      try { mlxl3::read_disk_records(reads, workers, &timings); }
+      try { mlxl3::read_disk_records(reads, workers, &timings, schedule); }
       catch (const std::runtime_error&) { failed = true; }
       assert(failed && timings.size() == reads.size());
       for (size_t i = 0; i < timings.size(); ++i) {
-        assert(timings[i].job == i && timings[i].worker == i % workers);
+        assert(timings[i].job == i && timings[i].worker < workers);
+        if (schedule == mlxl3::DiskSchedule::Static) assert(timings[i].worker == i % workers);
         assert(timings[i].end_ns >= timings[i].start_ns);
         assert(timings[i].bytes == reads[i].bytes_read && timings[i].failed == (i == 0));
       }
@@ -125,10 +129,11 @@ int main() {
         assert(bank[i * 2 + 1] == source[i * 32 + 1]);
       }
       std::vector<mlxl3::DiskRead> retry{{fd, 0, {{bank.data(), bank.size()}}}};
-      mlxl3::read_disk_records(retry, workers);
+      mlxl3::read_disk_records(retry, workers, nullptr, schedule);
       assert(std::equal(bank.begin(), bank.end(), source.begin()));
       ++cases;
     }
+  }
   }
   assert(std::fclose(file) == 0);
   std::cout << cases << " disk reader cases passed\n";

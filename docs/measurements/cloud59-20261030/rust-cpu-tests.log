@@ -1,0 +1,288 @@
+   Compiling mlxl3-native v2.0.1 (/workspace/mlxl3)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.61s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-bbcf9692804da7ca)
+
+running 165 tests
+test codec::tests::reference_header_cpu_microbench ... ignored, CPU microbenchmark only; run release separately from GPU measurements
+test codec::tests::permutation_is_bijective ... ok
+test codec::tests::static_reference_header_preserves_legacy_bytes_and_every_position ... ok
+test contracts::biased_router_offsets_cover_registered_rows_and_all_expert_widths ... ok
+test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... ok
+test contracts::dense_mlp_batch_requires_supported_weights_and_rows ... ok
+test contracts::dense_qmm_large_tile_preserves_ragged_and_small_fallbacks ... ok
+test contracts::exl3_lane_order_default_is_on_and_explicit_values_are_strict ... ok
+test contracts::exl3_lane_order_matches_all_sixteen_inventory_shapes_and_fallbacks ... ok
+test codec::tests::pack_tail_biting_all_bitrates ... ok
+test contracts::flash_reference_batch_covers_odd_rows_without_extra_outputs ... ok
+test contracts::gdn_history_capacity_covers_partial_commits ... ok
+test contracts::gdn_tape_requires_a_valid_commit ... ok
+test contracts::generation_stop_reason_preserves_cause_and_openai_mapping ... ok
+test contracts::biased_router_domain_covers_both_simd_halves ... ok
+test contracts::grouped_mb3_requires_opt_in_and_measured_shape ... ok
+test contracts::idle_cache_policy_boundaries ... ok
+test contracts::lfm_context_memory_rejects_invalid_dimensions_without_changing_state ... ok
+test contracts::lfm_context_memory_rejects_product_and_sum_overflow ... ok
+test contracts::exl3_lane_permutation_matches_independent_table_for_every_inventory_input ... ok
+test contracts::lfm_context_memory_sampled_dimensions_match_wide_integer_oracle ... ok
+test contracts::lfm_context_memory_matches_independent_tensor_shapes ... ok
+test contracts::lfm_moe_exact_prefill_geometry_requires_the_qualified_projection_layout ... ok
+test contracts::lfm_context_memory_supports_empty_history_and_mixed_layer_geometry ... ok
+test contracts::lfm_prefill_end_rejects_empty_invalid_and_overflowing_ranges ... ok
+test contracts::lfm_moe_prefill_selection_preserves_default_and_explicit_fallback ... ok
+test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+test contracts::mtp_pipeline_default_requires_measured_geometry ... ok
+test contracts::older_gpus_never_select_tensor_ops ... ok
+test contracts::pipeline_layer_stays_inside_model ... ok
+test contracts::smallm_kernel_key_distinguishes_all_options ... ok
+test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+test dflash::managed_tests::flash_inspection_rejects_symlink_files_and_never_accepts_packed_abi ... ok
+test dflash::managed_tests::packed_target_selection_preserves_both_legacy_families ... ok
+test dflash::managed_tests::flash_target_selection_uses_geometry_and_pins_raw_abi ... ok
+test dflash::tests::dense_layout_and_convolution_boundaries ... ok
+test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+test dflash::tests::plans_match_the_published_splash_layout ... ok
+test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+test dflash::tests::inspects_published_dense_geometry_without_target_weights ... ok
+test dflash::managed_tests::target_config_limit_is_exact_and_missing_or_malformed_config_fails ... ok
+test flash_cache_profile::profile53::tests::replay_profile53_routes_with_constant_budget ... ignored, CPU-only experiment55, requires validated53 routes and fresh output
+test flash_cache_profile::profile53::tests::real_cache_replay_counts_unique_jobs_and_warm_generations ... ok
+test flash_cache_profile::tests::allocation_matches_exhaustive_assignments_and_rejects_invalid_budgets ... ok
+test flash_cache_profile::tests::replay_physical_trace_and_allocate_fixed_expert_budget ... ignored, offline experiment47; requires a complete physical calibration trace, no GPU work
+test codec::tests::codebooks_are_finite_exhaustively ... ok
+test flash_draft_budget::pre_draft_tests::pre_draft_explores_all_three_shapes_and_clips_to_remaining_budget ... ok
+test flash_draft_budget::pre_draft_tests::pre_draft_integer_prices_and_long_trace_stay_bounded ... ok
+test flash_draft_budget::pre_draft_tests::pre_draft_rejects_invalid_or_exhausted_counters_without_mutation ... ok
+test flash_draft_budget::pre_draft_tests::pre_draft_warms_each_legal_shape_then_prices_emitted_tokens ... ok
+test flash_cache_profile::tests::trace_validation_and_real_cache_replay_cover_cold_warm_and_corruption ... ok
+test flash_draft_budget::tests::newton_fit_matches_independent_one_dimensional_posterior ... ok
+test flash_draft_budget::tests::learning_is_bounded_and_never_labels_a_tail_after_rejection ... ok
+test flash_draft_budget::tests::ring_writes_match_independent_unbounded_history ... ok
+test flash_draft_metadata::tests::config_size_limit_accepts_exact_boundary_and_rejects_one_more_byte ... ok
+test flash_draft_metadata::tests::geometry_fields_are_checked_by_shared_inspector ... ok
+test flash_draft_metadata::tests::inspected_tensor_handle_preserves_truncation_guard ... ok
+test flash_draft_metadata::tests::invalid_offsets_truncated_files_and_invalid_config_are_rejected ... ok
+test flash_draft_metadata::tests::kinds_preserve_capture_mask_rope_width_and_dspark_is_separate ... ok
+test flash_draft_metadata::tests::pinned_sparse_header_and_qwen3_config_are_accepted ... ok
+test flash_draft_metadata::tests::qualified_local_raw_header_matches_fixture ... ignored, requires MLXL3_FLASH_DRAFT_PATH; CPU header-only inspection, no payload reads
+test flash_draft_metadata::tests::tensor_dtype_shape_name_missing_and_extra_are_rejected ... ok
+test flash_profile::modes_remain_thread_local ... ok
+test flash_profile::nested_intervals_are_complete_and_disabled_is_a_noop ... ok
+test flash_support::draft_contract_tests::draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes ... ok
+test flash_support::draft_contract_tests::draft_prefix_matches_exhaustive_quarter_probability_outcomes ... ok
+test flash_support::draft_contract_tests::draft_prefix_rejects_invalid_profiles_and_prefers_shorter_ties ... ok
+test flash_support::draft_contract_tests::expert_cohorts_fit_even_the_smallest_streaming_cache ... ok
+test flash_support::draft_contract_tests::expert_output_strides_match_wide_arithmetic_and_reject_empty_or_overflow ... ok
+test flash_support::draft_contract_tests::fixed_draft_width_rejects_nonliteral_and_adaptive_controls ... ok
+test flash_support::draft_contract_tests::gpu_hot_wide_accepts_only_explicit_boolean_literals ... ok
+test flash_support::draft_contract_tests::unique_prefix_matches_set_oracle_and_respects_pending_ownership ... ok
+test flash_support::draft_demand_counts_deltas_and_rejects_reversal_or_exhaustion ... ok
+test flash_support::gdn_epilogue_shape_rejects_broadcasting_and_non_decode_layouts ... ok
+test flash_support::grouped_route_tests::grouped_dispatch_threshold_matches_wide_arithmetic_at_all_boundaries ... ok
+test flash_support::grouped_route_tests::grouped_routes_preserve_every_original_position_and_reject_invalid_slots ... ok
+test flash_support::slot_read_segments_initialize_every_byte_before_publication ... ok
+test flash_support::tests::automatic_cache_reserves_headroom_and_stays_bounded ... ok
+test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+test flash_support::tests::disk_ranges_reject_empty_overflow_and_out_of_bounds ... ok
+test flash_support::tests::fill_reservation_preserves_ready_weights_only_on_commit_and_keeps_pending ... ok
+test flash_support::tests::free_slots_precede_evictions_through_failed_and_duplicate_publications ... ok
+test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+test flash_support::tests::les_admission_retains_recent_unused_records_without_inventing_frequency ... ok
+test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+test flash_support::tests::pending_records_never_hit_alias_or_publish_over_a_demand ... ok
+test flash_support::tests::per_layer_slots_preserve_budget_and_reject_malformed_profiles ... ok
+test flash_support::tests::persistent_prefetch_sequences_preserve_cache_invariants ... ok
+test flash_support::tests::predictions_protect_victims_without_inventing_frequency_or_blocking_demand ... ok
+test flash_support::tests::predictive_victims_replay_symbolic_case_and_all_protection_masks ... ok
+test flash_support::tests::publication_clock_exhaustion_frees_pending_without_a_false_hit ... ok
+test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+test flash_draft_budget::tests::prefix_optimum_and_ties_match_bernoulli_enumeration ... ok
+test flash_support::tests::resident_slot_snapshot_is_read_only_and_excludes_pending_writes ... ok
+test flash_support::tests::slot_validation_and_les_controls_reject_invalid_inputs ... ok
+test flash_support::tests::speculative_admission_preserves_actual_cohort_space_and_failed_reservations ... ok
+test flash_support::tests::wide_cohorts_exclude_pending_slots_before_reserving ... ok
+test hub::dflash_download_tests::flash_cache_hit_never_needs_server_and_corrupt_destination_is_preserved ... ok
+test hub::dflash_download_tests::published_flash_metadata_accepts_git_config_and_rejects_pin_changes ... ok
+test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+test hub::dflash_download_tests::raw_flash_cancel_before_and_during_transfer_keeps_resume_data ... ok
+test hub::dflash_download_tests::raw_flash_rejects_symlink_roots_locks_files_and_extra_entries ... ok
+test hub::dflash_download_tests::raw_flash_fresh_download_reuses_range_partial_and_replaces_full_corruption ... ok
+test hub::dflash_download_tests::retained_size_does_not_follow_symlink_cycles ... ok
+test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+test hub::tests::discovers_root_and_named_quantizations ... ok
+test hub::tests::flash_sidecars_stay_in_the_variant_folder_and_do_not_match_quantized_names ... ok
+test hub::tests::flash_variants_include_present_sidecars_and_exact_total ... ok
+test hub::tests::preview_reports_architecture_and_keeps_hybrid_cache_unknown ... ok
+test hub::tests::selected_flash_variant_assembles_into_an_inspectable_checkpoint ... ok
+test mcp::tests::mcp_url_validation_matches_the_desktop_transports ... ok
+test mcp::tests::parses_json_and_sse_responses ... ok
+test memory_policy::tests::adaptive_excludes_two_cold_samples_and_rejects_invalid_samples ... ok
+test memory_policy::tests::adaptive_uses_costs_hysteresis_and_reprobes ... ok
+test memory_policy::tests::allocator_tuning_keys_distinguish_default_and_all_valid_limits ... ok
+test memory_policy::tests::budget_includes_draft_logits_history_and_backing_without_overflow ... ok
+test memory_policy::tests::capture_selects_only_the_named_request_once ... ok
+test memory_policy::tests::compact_view_requires_material_waste_without_overflow ... ok
+test memory_policy::tests::mib_limits_reject_invalid_and_overflowing_values ... ok
+test mtp::draft_projection_tests::compact_rows_are_nonempty_ordered_unique_and_in_target_vocab ... ok
+test mtp::draft_projection_tests::optional_projection_must_match_target_and_affine_contract ... ok
+test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+test mtp::tests::managed_head_uses_target_geometry_and_rejects_unknown_variants ... ok
+test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+test speculative::tests::dflash_copy_bounds_prompt_and_committed_history ... ok
+test speculative::tests::dflash_copy_remembers_only_commits_and_stops_after_total_refusal ... ok
+test speculative::tests::dflash_copy_transitions_match_bounded_stream_over_long_sequences ... ok
+test speculative::tests::dflash_modes_bound_every_small_budget_and_reject_unknown_modes ... ok
+test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+test speculative::tests::lookup_uses_latest_known_continuation_and_respects_limits ... ok
+test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+test ssd_prefetch::tests::candidates_interleave_strongest_ranks_and_reject_invalid_shapes ... ok
+test ssd_prefetch::tests::draft_predictions_only_cover_valid_prefix_rows ... ok
+test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+test streaming::tests::markers_split_at_every_character ... ok
+test streaming::tests::prefilled_and_incomplete_markers ... ok
+test streaming::tests::unfinished_cr_is_preserved ... ok
+test structured::tests::arrays_alternatives_and_nullable_values ... ok
+test structured::tests::length_boundaries_exhaustive_small_domain ... ok
+test structured::tests::numeric_equivalence_is_enforced_recursively ... ok
+test structured::tests::objects_fail_closed_and_preserve_unicode ... ok
+test structured::tests::project_permissions_are_exact_and_default_deny ... ok
+test structured::tests::structured_retries_share_one_token_budget ... ok
+test structured::tests::unsupported_or_malformed_schemas_fail_before_inference ... ok
+test tokenizer::tests::explicit_thinking_preserves_undefined_default_and_other_context ... ok
+test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+test tokenizer::tests::renders_tools_and_tool_results ... ok
+test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+test tool_call::tests::tool_preparation_is_visible_for_every_marker_chunk_boundary ... ok
+test flash_cache_profile::tests::allocation_files_reject_partial_false_counts_and_overwrite ... ok
+test hub::dflash_download_tests::raw_flash_server_failure_short_body_and_inspection_refusal_never_publish ... ok
+test flash_cache_profile::profile53::tests::held_out_routes_cannot_fit_the_profile_and_successful_files_are_preserved ... ok
+
+test result: ok. 159 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 34.52s
+
+     Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-46a3c372b06098ab)
+
+running 35 tests
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::structured_requests_validate_schema_before_inference ... ok
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+test openai::tests::finish_reason_honors_explicit_budget ... ok
+test openai::transport::tests::a_stalled_writer_wakes_without_a_socket_event ... ok
+test openai::transport::tests::partial_progress_does_not_extend_the_write_phase ... ok
+test openai::transport_tests::a_partial_bridge_write_is_bounded_and_poisons_the_session ... ok
+test openai::tests::structured_http_never_publishes_invalid_bridge_output ... ok
+test openai::transport::tests::a_completed_flush_allows_a_later_write_phase ... ok
+test openai::transport_tests::bridge_errors_have_a_bounded_valid_utf8_http_body ... ok
+test openai::transport_tests::bridge_metadata_whitelist_rejects_bad_types_and_private_strings ... ok
+test openai::transport_tests::capabilities_describe_validator_and_hide_private_ready_fields ... ok
+test openai::transport_tests::admission_rejects_before_reading_slow_body_and_recovers_after_timeout ... ok
+test openai::transport_tests::continuous_stale_events_cannot_extend_generation_deadline ... ok
+test openai::transport_tests::explicit_terminal_reason_controls_streaming_and_nonstreaming ... ok
+test openai::transport_tests::health_checks_reap_an_idle_dead_child ... ok
+test openai::transport_tests::host_validation_is_required_only_for_keyless_sessions ... ok
+test openai::transport_tests::listen_addresses_accept_loopback_ipv4_and_ipv6_without_dns ... ok
+test openai::transport_tests::loopback_origin_parser_rejects_authority_confusion ... ok
+test openai::transport_tests::backpressure_and_output_limit_are_bounded_and_do_not_signal_next_request ... ok
+test openai::transport_tests::missing_unknown_eof_invalid_or_oversize_bridge_is_not_reused ... ok
+test openai::transport_tests::disconnect_or_timeout_without_terminal_marks_bridge_unhealthy ... ok
+test openai::transport_tests::origins_and_authentication_agree_for_preflight_errors_and_real_http ... ok
+test openai::transport_tests::malformed_usage_is_a_protocol_error_without_false_completion ... ok
+test openai::transport_tests::penalties_representable_only_in_f64_are_rejected_before_prefill ... ok
+test openai::transport_tests::oversized_and_failed_http_bodies_never_reach_bridge ... ok
+test openai::transport_tests::shutdown_after_ready_reaps_child_and_joins_stderr ... ok
+test openai::transport_tests::nonstreaming_backpressure_keeps_admission_bounded_until_abort ... ok
+test openai::transport_tests::sigterm_during_startup_kills_and_reaps_bridge ... ok
+test openai::transport_tests::startup_timeout_invalid_ready_and_missing_pipes_reap_the_child ... ok
+test openai::transport_tests::slow_headers_close_without_claiming_generation_admission ... ok
+test openai::transport_tests::tcp_disconnect_before_first_delta_drains_then_next_request_is_clean ... ok
+test openai::transport_tests::a_real_nonreading_tcp_client_is_closed_before_it_resumes_reading ... ok
+test openai::transport_tests::silent_bridge_timeout_cancels_and_drains_a_terminal ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+     Running native/tests/contracts.rs (target/debug/deps/contracts-96002b9cb17d8652)
+
+running 16 tests
+test checkpoint_round_trip_and_lazy_payload_read ... ok
+test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+test checkpoint_validates_trellis_and_scale_layouts ... ok
+test checkpoint_rejects_missing_or_inconsistent_files ... ok
+test cli_codec_recovers_after_invalid_request ... ok
+test cli_default_registry_respects_explicit_app_home ... ok
+test cli_empty_app_home_uses_user_config_directory ... ok
+test flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail ... ok
+test cli_relative_registry_mutations_succeed ... ok
+test inspected_tensor_source_rejects_hostile_offsets_and_truncation ... ok
+test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+test registry_replacement_and_remove_protect_model_files ... ok
+test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+test safetensors_rejects_invalid_headers_and_ranges ... ok
+test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+test concurrent_registry_writers_do_not_lose_entries ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/openai_transport.rs (target/debug/deps/openai_transport-1b41abe5c365f49b)
+
+running 35 tests
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::structured_requests_validate_schema_before_inference ... ok
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+test openai::tests::finish_reason_honors_explicit_budget ... ok
+test openai::transport::tests::a_stalled_writer_wakes_without_a_socket_event ... ok
+test openai::transport::tests::partial_progress_does_not_extend_the_write_phase ... ok
+test openai::transport_tests::a_partial_bridge_write_is_bounded_and_poisons_the_session ... ok
+test openai::tests::structured_http_never_publishes_invalid_bridge_output ... ok
+test openai::transport::tests::a_completed_flush_allows_a_later_write_phase ... ok
+test openai::transport_tests::bridge_errors_have_a_bounded_valid_utf8_http_body ... ok
+test openai::transport_tests::bridge_metadata_whitelist_rejects_bad_types_and_private_strings ... ok
+test openai::transport_tests::capabilities_describe_validator_and_hide_private_ready_fields ... ok
+test openai::transport_tests::admission_rejects_before_reading_slow_body_and_recovers_after_timeout ... ok
+test openai::transport_tests::continuous_stale_events_cannot_extend_generation_deadline ... ok
+test openai::transport_tests::explicit_terminal_reason_controls_streaming_and_nonstreaming ... ok
+test openai::transport_tests::health_checks_reap_an_idle_dead_child ... ok
+test openai::transport_tests::host_validation_is_required_only_for_keyless_sessions ... ok
+test openai::transport_tests::listen_addresses_accept_loopback_ipv4_and_ipv6_without_dns ... ok
+test openai::transport_tests::loopback_origin_parser_rejects_authority_confusion ... ok
+test openai::transport_tests::backpressure_and_output_limit_are_bounded_and_do_not_signal_next_request ... ok
+test openai::transport_tests::missing_unknown_eof_invalid_or_oversize_bridge_is_not_reused ... ok
+test openai::transport_tests::disconnect_or_timeout_without_terminal_marks_bridge_unhealthy ... ok
+test openai::transport_tests::origins_and_authentication_agree_for_preflight_errors_and_real_http ... ok
+test openai::transport_tests::malformed_usage_is_a_protocol_error_without_false_completion ... ok
+test openai::transport_tests::penalties_representable_only_in_f64_are_rejected_before_prefill ... ok
+test openai::transport_tests::oversized_and_failed_http_bodies_never_reach_bridge ... ok
+test openai::transport_tests::shutdown_after_ready_reaps_child_and_joins_stderr ... ok
+test openai::transport_tests::sigterm_during_startup_kills_and_reaps_bridge ... ok
+test openai::transport_tests::nonstreaming_backpressure_keeps_admission_bounded_until_abort ... ok
+test openai::transport_tests::startup_timeout_invalid_ready_and_missing_pipes_reap_the_child ... ok
+test openai::transport_tests::slow_headers_close_without_claiming_generation_admission ... ok
+test openai::transport_tests::tcp_disconnect_before_first_delta_drains_then_next_request_is_clean ... ok
+test openai::transport_tests::a_real_nonreading_tcp_client_is_closed_before_it_resumes_reading ... ok
+test openai::transport_tests::silent_bridge_timeout_cancels_and_drains_a_terminal ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+     Running native/tests/runtime_gpu.rs (target/debug/deps/runtime_gpu-3051c2b94b3c631a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests mlxl3_native
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

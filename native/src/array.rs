@@ -65,8 +65,16 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_array_swiglu_scaled(
+        gate: *mut c_void,
+        up: *mut c_void,
+        scale: *mut c_void,
+        out: *mut *mut c_void,
+    ) -> i32;
     #[cfg(test)]
     fn mlxl3_disk_profile_enable(enabled: bool);
+    #[cfg(test)]
+    fn mlxl3_disk_profile_dynamic() -> bool;
     #[cfg(test)]
     fn mlxl3_disk_profile_copy(output: *mut u64, capacity: usize) -> usize;
     fn mlxl3_start_capture(path: *const c_char) -> i32;
@@ -262,6 +270,15 @@ pub(crate) fn disk_profile() -> Result<Vec<[u64; 6]>> {
         "invalid disk profile length"
     );
     Ok(values[..count].as_chunks::<6>().0.to_vec())
+}
+
+#[cfg(test)]
+pub(crate) fn disk_profile_schedule() -> &'static str {
+    if unsafe { mlxl3_disk_profile_dynamic() } {
+        "dynamic"
+    } else {
+        "static"
+    }
 }
 
 fn checked(status: i32) -> Result<()> {
@@ -1291,6 +1308,39 @@ impl Array {
 
     pub fn swiglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 6, 0, 0.)
+    }
+    /// T04: preserve the F16 activation boundary and the F16 scale product.
+    pub(crate) fn swiglu_scaled(&self, up: &Self, scale: &Self) -> Result<Self> {
+        ensure!(
+            self.shape().len() == 2
+                && self.shape()[0] > 0
+                && self.shape()[1] == 640
+                && self.shape() == up.shape()
+                && self.shape() == scale.shape()
+                && matches!(self.dtype(), Dtype::Float16 | Dtype::Float32)
+                && up.dtype() == self.dtype()
+                && scale.dtype() == Dtype::Float16,
+            "invalid Flash SwiGLU/down boundary inputs"
+        );
+        Self::output(|out| unsafe {
+            mlxl3_array_swiglu_scaled(
+                self.handle.as_ptr(),
+                up.handle.as_ptr(),
+                scale.handle.as_ptr(),
+                out,
+            )
+        })
+    }
+    /// T17: native norm remains outside; sigmoid and product are explicitly F32.
+    pub(crate) fn qwen4_gdn_epilogue(&self, z: &Self) -> Result<Self> {
+        ensure!(
+            crate::flash_support::gdn_epilogue_shape(self.shape())
+                && self.shape() == z.shape()
+                && self.dtype() == Dtype::Float16
+                && z.dtype() == Dtype::Float16,
+            "invalid Flash GDN epilogue inputs"
+        );
+        self.binary(z, 14, 0, 0.)
     }
     pub fn logaddexp(&self, other: &Self) -> Result<Self> {
         self.binary(other, 7, 0, 0.)
