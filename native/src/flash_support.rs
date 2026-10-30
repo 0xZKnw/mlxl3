@@ -1844,15 +1844,20 @@ mod verification {
     }
 
     #[kani::proof]
+    #[kani::solver(kissat)]
     #[kani::unwind(513)]
     fn resident_slot_snapshot_excludes_pending_and_preserves_lfu() {
-        let mut cache = ExpertCache::new(20).unwrap();
+        let mut keys = [None; 20];
+        let mut pending = [None; 20];
         for slot in 0..20 {
             let id: u32 = kani::any();
             kani::assume(id < 512);
-            cache.keys[slot] = if kani::any() { Some(id) } else { None };
-            cache.pending[slot] = if kani::any() { Some(id) } else { None };
+            keys[slot] = if kani::any() { Some(id) } else { None };
+            pending[slot] = if kani::any() { Some(id) } else { None };
         }
+        let mut cache = ExpertCache::new(20).unwrap();
+        cache.keys.copy_from_slice(&keys);
+        cache.pending.copy_from_slice(&pending);
         let query: u32 = kani::any();
         kani::assume(query < 512);
         let expected = cache
@@ -1864,7 +1869,9 @@ mod verification {
         let map = cache.resident_slot_map().unwrap();
         assert_eq!(map[query as usize], expected);
         assert_eq!(cache.clock, 0);
-        assert!(cache.counts.iter().all(|&count| count == 0));
+        // query is universally chosen over 0..512 and is not an input to the
+        // snapshot. This checks every LFU entry without a second 512-step loop.
+        assert_eq!(cache.counts[query as usize], 0);
         kani::cover!(query == 511 && expected == 19);
         kani::cover!(expected == u32::MAX && cache.pending[0].is_some());
         kani::cover!(expected == 0);
