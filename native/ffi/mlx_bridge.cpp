@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -578,6 +579,16 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           return mix({a, b})[0];
         }
         case 13: return mx::power(a, b);
+        case 14: {
+          // T17 deliberately leaves fast::rms_norm and the recurrence native.
+          // There is no extra factor z (this gate is sigmoid, not SwiGLU).
+          thread_local auto epilogue = mx::compile([](const std::vector<mx::array>& x) {
+            auto normed = mx::astype(x[0], mx::float32);
+            auto gate = mx::sigmoid(mx::astype(x[1], mx::float32));
+            return std::vector<mx::array>{mx::astype(mx::multiply(normed, gate), mx::float16)};
+          }, true);
+          return epilogue({a, b})[0];
+        }
       }
       throw std::invalid_argument("invalid binary operation");
     };
@@ -586,6 +597,17 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
 }
 int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::concatenate(arrays(inputs, count), axis)); });
+}
+int mlxl3_array_swiglu_scaled(void* gate, void* up, void* scale, void** out) noexcept {
+  return protect([&] {
+    thread_local auto prepare = mx::compile([](const std::vector<mx::array>& x) {
+      // This is the existing compiled F16 SwiGLU graph with one downstream
+      // F16 product. Do not cast the inputs to F32 or absorb native H128 here.
+      auto activated = mx::astype(mx::multiply(mx::multiply(x[0], mx::sigmoid(x[0])), x[1]), mx::float16);
+      return std::vector<mx::array>{mx::astype(mx::multiply(activated, x[2]), mx::float16)};
+    }, true);
+    *out = new mx::array(prepare({arr(gate), arr(up), arr(scale)})[0]);
+  });
 }
 int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
                         void* indices, void** out) noexcept {

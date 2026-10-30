@@ -49,6 +49,9 @@ pub struct SsdMoe {
     unique_cohorts: bool,
     shared_exl3: bool,
     stable_expert_kernels: bool,
+    pub(crate) swiglu_down_boundary: bool,
+    #[cfg(test)]
+    pub(crate) swiglu_down_calls: std::cell::Cell<usize>,
     shared_batch: bool,
     pub(crate) prefetch_pipeline: bool,
     #[cfg(test)]
@@ -131,6 +134,9 @@ impl SsdMoe {
         let shared_batch =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
+        let swiglu_down_boundary =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_FLASH_SWIGLU_DOWN", "0")?)
+                .context("MLXL3_FLASH_SWIGLU_DOWN must be 0 or 1")?;
         let prefetch_pipeline =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
                 .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
@@ -233,6 +239,9 @@ impl SsdMoe {
             unique_cohorts,
             shared_exl3,
             stable_expert_kernels,
+            swiglu_down_boundary,
+            #[cfg(test)]
+            swiglu_down_calls: std::cell::Cell::new(0),
             shared_batch,
             prefetch_pipeline,
             #[cfg(test)]
@@ -366,6 +375,21 @@ impl SsdMoe {
         .reshape(&[n, 2, I])?;
         #[cfg(test)]
         crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
+        if self.swiglu_down_boundary && slots.supports_swiglu_down_boundary() {
+            #[cfg(test)]
+            self.swiglu_down_calls.set(self.swiglu_down_calls.get() + 1);
+            let down = linear::expert_slots_swiglu_down(
+                &gu,
+                &self.banks[1],
+                &slots.gather_scales(&self.banks[4])?.reshape(&[n, I])?,
+                &slots.gather_scales(&self.banks[5])?.reshape(&[n, H])?,
+                slots,
+                self.stable_expert_kernels,
+            )?;
+            #[cfg(test)]
+            crate::flash_profile::stage("expert_down_completion", &down)?;
+            return Ok(down);
+        }
         let activated = gu
             .slice(1, 0, 1)?
             .reshape(&[n, I])?
@@ -2179,6 +2203,12 @@ mod tests {
                     counters == (moe.hits, moe.misses, moe.read_bytes),
                     "invalid shape changed cache counters"
                 );
+                if moe.swiglu_down_boundary && !moe.shared_exl3 {
+                    ensure!(
+                        moe.swiglu_down_calls.get() > 0,
+                        "T04 Cold path was not exercised"
+                    );
+                }
                 moe.drain()?;
                 moe.cache.borrow_mut().invalidate();
                 let expert = moe.route(&inputs[0])?.0.to_u32()?[0] as usize;

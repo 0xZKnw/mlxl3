@@ -1,6 +1,45 @@
 //! CPU contracts for Flash Next's disk rows and exact expert cache.
 use anyhow::Result;
 
+/// The first T17 experiment only covers the production Flash decode/verify layout.
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn gdn_epilogue_shape(shape: &[i32]) -> bool {
+    matches!(shape, [1, rows, 48, 128] if (1..=8).contains(rows))
+}
+
+#[test]
+fn gdn_epilogue_shape_rejects_broadcasting_and_non_decode_layouts() {
+    for rows in [1, 2, 4, 8] {
+        assert!(gdn_epilogue_shape(&[1, rows, 48, 128]));
+    }
+    for shape in [
+        &[][..],
+        &[1, 48, 128],
+        &[1, 0, 48, 128],
+        &[1, 9, 48, 128],
+        &[2, 1, 48, 128],
+        &[1, 2, 16, 128],
+        &[1, 2, 48, 64],
+        &[1, -1, 48, 128],
+    ] {
+        assert!(!gdn_epilogue_shape(shape));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn gdn_epilogue_accepts_only_production_decode_shapes() {
+    let shape: [i32; 4] = kani::any();
+    let accepted = gdn_epilogue_shape(&shape);
+    assert_eq!(
+        accepted,
+        shape[0] == 1 && shape[1] >= 1 && shape[1] <= 8 && shape[2] == 48 && shape[3] == 128
+    );
+    kani::cover!(accepted && shape[1] == 1);
+    kani::cover!(accepted && shape[1] == 2);
+    kani::cover!(!accepted);
+}
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(14)]

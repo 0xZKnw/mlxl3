@@ -187,6 +187,9 @@ struct Gdn {
     norm: Norm,
     state: Option<Array>,
     history: Option<Array>,
+    fused_epilogue: bool,
+    #[cfg(test)]
+    fused_epilogue_calls: std::cell::Cell<usize>,
 }
 impl Gdn {
     fn load(c: &Checkpoint, p: &str, eps: f32) -> Result<Self> {
@@ -207,6 +210,14 @@ impl Gdn {
             norm: Norm::load(c, &format!("{p}.norm.weight"), 128, 1, eps, false)?,
             state: None,
             history: None,
+            fused_epilogue: match std::env::var("MLXL3_FLASH_GDN_EPILOGUE") {
+                Ok(value) => flash_support::parse_gpu_hot_wide(&value)
+                    .context("MLXL3_FLASH_GDN_EPILOGUE must be 0 or 1")?,
+                Err(std::env::VarError::NotPresent) => false,
+                Err(error) => return Err(error.into()),
+            },
+            #[cfg(test)]
+            fused_epilogue_calls: std::cell::Cell::new(0),
         })
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
@@ -264,14 +275,28 @@ impl Gdn {
         stage!("z", z);
         let normed = self.norm.forward(&value)?;
         stage!("normed", normed);
-        let gated = normed
-            .astype(Dtype::Float32)?
-            .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
-            .astype(Dtype::Float16)?;
+        let gated = self.gate_output(&normed, &z)?;
         stage!("gated", gated);
         self.out
             .forward(&gated.reshape(&[1, 6144])?)?
             .astype(Dtype::Float32)
+    }
+    fn gate_output(&self, normed: &Array, z: &Array) -> Result<Array> {
+        if self.fused_epilogue
+            && flash_support::gdn_epilogue_shape(normed.shape())
+            && normed.shape() == z.shape()
+            && normed.dtype() == Dtype::Float16
+            && z.dtype() == Dtype::Float16
+        {
+            #[cfg(test)]
+            self.fused_epilogue_calls
+                .set(self.fused_epilogue_calls.get() + 1);
+            return normed.qwen4_gdn_epilogue(z);
+        }
+        normed
+            .astype(Dtype::Float32)?
+            .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
+            .astype(Dtype::Float16)
     }
     fn convolve(&mut self, qkv: &Array) -> Result<(Array, Array, Array, Array)> {
         #[cfg(test)]
@@ -392,24 +417,28 @@ impl Gdn {
         crate::flash_profile::stage("gdn_rows_z_completion", &z)?;
         #[cfg(test)]
         let post_profile = crate::flash_profile::span("gdn_norm_gate_build");
-        let mut gated = Vec::with_capacity(inputs.len());
-        for row in 0..rows {
-            let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
-            gated.push(
-                normed
-                    .astype(Dtype::Float32)?
-                    .mul(
-                        &z.slice(1, row, row + 1)?
-                            .astype(Dtype::Float32)?
-                            .sigmoid()?,
-                    )?
-                    .astype(Dtype::Float16)?
-                    .reshape(&[1, 6144])?,
-            );
-        }
+        let gated = if self.fused_epilogue {
+            // Keep exactly the native norm call per row. Only the epilogue is batched.
+            let normed = (0..rows)
+                .map(|row| self.norm.forward(&value.slice(1, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let normed = Array::concatenate(&normed.iter().collect::<Vec<_>>(), 1)?;
+            self.gate_output(&normed, &z)?.reshape(&[rows, 6144])?
+        } else {
+            let mut gated = Vec::with_capacity(inputs.len());
+            for row in 0..rows {
+                let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
+                gated.push(
+                    self.gate_output(&normed, &z.slice(1, row, row + 1)?)?
+                        .reshape(&[1, 6144])?,
+                );
+            }
+            Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?
+        };
+        #[cfg(test)]
+        self.stages.push(("gated".into(), gated.try_clone()?));
         #[cfg(test)]
         drop(post_profile);
-        let gated = Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?;
         #[cfg(test)]
         crate::flash_profile::stage("gdn_rows_norm_gate_completion", &gated)?;
         let output = verification_projection(&self.out, &gated)?.astype(Dtype::Float32)?;
@@ -427,6 +456,10 @@ impl Gdn {
         self.history = None;
     }
 }
+
+#[cfg(test)]
+#[path = "flash_boundary_tests.rs"]
+mod boundary_tests;
 
 struct Qsa {
     #[cfg(test)]
