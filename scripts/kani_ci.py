@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-SHARDS = ("core", "flash", "speculative", "allocator")
+SHARDS = ("core", "flash", "routes", "speculative", "allocator")
 VERSION = "0.68.0"
 API_HARNESS = "openai::proofs::validated_usage_respects_budget_without_total_overflow"
 INVALID_BUDGET_HARNESS = (
@@ -65,6 +65,8 @@ def inventory_names(payload):
 def shard_for(name: str) -> str:
     """post: __return__ in SHARDS"""
     module = name.split("::", 1)[0]
+    if name.startswith("flash_support::grouped_route_verification::"):
+        return "routes"
     if module == "flash_cache_profile":
         return "allocator"
     if module in ("flash_support", "flash_draft_budget"):
@@ -246,7 +248,6 @@ def main(argv=None):
                         "1",
                         "--output-format",
                         "regular",
-                        "--verbose",
                     ],
                 }
             )
@@ -272,7 +273,6 @@ def main(argv=None):
                         "1",
                         "--output-format",
                         "regular",
-                        "--verbose",
                     ],
                 }
             )

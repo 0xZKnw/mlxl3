@@ -1914,13 +1914,11 @@ mod verification {
         let pending: [Option<u32>; 24] = kani::any();
         let prefetched: [bool; 24] = kani::any();
         let complete: bool = kani::any();
-        let cache = Rc::new(RefCell::new(ExpertCache::new(24).unwrap()));
-        {
-            let mut state = cache.borrow_mut();
-            state.keys.copy_from_slice(&keys);
-            state.pending.copy_from_slice(&pending);
-            state.prefetched.copy_from_slice(&prefetched);
-        }
+        let mut state = ExpertCache::new(24).unwrap();
+        state.keys.copy_from_slice(&keys);
+        state.pending.copy_from_slice(&pending);
+        state.prefetched.copy_from_slice(&prefetched);
+        let cache = Rc::new(RefCell::new(state));
         {
             let fill = ExpertFill::new(&cache);
             if complete {

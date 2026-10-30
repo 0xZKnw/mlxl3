@@ -52,6 +52,7 @@ def test_real_baseline_inventory_has_complete_disjoint_shards():
     assert ci.select_names(names, "all") == names
     assert ci.shard_for("new_module::new_proof") == "core"
     assert ci.shard_for("flash_cache_profile::proof") == "allocator"
+    assert ci.shard_for("flash_support::grouped_route_verification::future_proof") == "routes"
     with pytest.raises(ValueError, match="zero"):
         ci.select_names(["only::core"], "flash")
 
@@ -195,6 +196,7 @@ def fake_cargo(tmp_path, monkeypatch):
         "  Path('kani-list.json').write_text(os.environ['FAKE_INVENTORY'])\n"
         " sys.exit(0)\n"
         "name = sys.argv[sys.argv.index('--harness') + 1]\n"
+        "if name.endswith('tuning_never_selects_missing_or_slower_candidate') and '--verbose' in sys.argv: sys.exit(101)\n"
         "if os.environ.get('FAKE_SLEEP'):\n"
         " Path('started').write_text(str(os.getpid()))\n"
         " time.sleep(30)\n"
@@ -234,6 +236,13 @@ def test_stale_inventory_cannot_turn_missing_listing_into_success(fake_cargo, mo
     report = json.loads(Path("results/report.json").read_text())
     assert report["status"] == "failure"
     assert report["proofs"] == []
+
+
+def test_speculative_cli_avoids_kani_068_verbose_statistics_crash(fake_cargo):
+    assert ci.main(["--shard", "speculative", "--report-dir", "results"]) == 0
+    report = json.loads(Path("results/report.json").read_text())
+    assert len(report["proofs"]) == 198
+    assert all(r["status"] == "success" for r in report["proofs"])
 
 
 def test_whole_job_deadline_marks_pending_proofs_failed(tmp_path):
