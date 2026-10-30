@@ -4,6 +4,14 @@
 aucune app modifiée, aucun push/PR/merge/release, aucune commande sur le Mac.
 Baseline propre : `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`.
 
+Révision de procédure du 30 octobre : la [procédure courante d'opti.md](../../../opti.md#procédure-courante--exploration-courte-qualification-proportionnée--30-octobre-2026)
+sépare le premier oracle, la qualification du candidat et la validation avant
+promotion. Les 25 tests et la matrice complète décrits plus bas restent le
+protocole complet enregistré ; ils ne sont pas à rejouer en entier à chaque
+édition ni pour réfuter une seule idée. Réutiliser uniquement les preuves
+compatibles, tracer ce qui est invalidé, et qualifier les parcours numériques
+affectés avant toute vitesse. Aucun résultat historique n'est modifié.
+
 Branche de session : `codex/cloud59-engine-options`. Commits de code :
 `4d34e61c` (T17/T04, options séparées), `bb8bab02` (T18a/profil),
 `40f45f80` (correction du dtype de production T04). Utiliser les trois ; le dernier
