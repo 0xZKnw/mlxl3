@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on build directory
+    Checking mlxl3-native v2.0.1 (/tmp/cloud59-typecheck)
+error[E0433]: cannot find module or crate `metal` in this scope
+   --> /workspace/mlxl3/native/src/array.rs:498:18
+    |
+498 |     let device = metal::Device::system_default().context("no Metal device")?;
+    |                  ^^^^^ use of unresolved module or unlinked crate `metal`
+    |
+    = help: if you wanted to use a crate named `metal`, use `cargo add metal` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

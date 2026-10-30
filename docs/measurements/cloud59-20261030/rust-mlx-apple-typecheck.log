@@ -1,0 +1,118 @@
+ Downloading crates ...
+  Downloaded malloc_buf v0.0.6
+  Downloaded foreign-types v0.5.0
+  Downloaded core-foundation v0.10.1
+  Downloaded objc v0.2.7
+  Downloaded foreign-types-macros v0.2.4
+  Downloaded core-graphics-types v0.2.0
+  Downloaded block v0.1.6
+  Downloaded core-foundation-sys v0.8.7
+  Downloaded foreign-types-shared v0.3.1
+  Downloaded metal v0.33.0
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+    Checking cfg-if v1.0.4
+   Compiling serde v1.0.229
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+    Checking errno v0.3.14
+   Compiling cc v1.4.5
+   Compiling syn v2.0.119
+   Compiling syn v3.0.5
+   Compiling zerocopy v0.8.57
+   Compiling crossbeam-utils v0.8.23
+    Checking once_cell v1.21.4
+   Compiling ident_case v1.0.1
+    Checking memchr v2.8.3
+   Compiling crossbeam-epoch v0.9.21
+    Checking pin-project-lite v0.2.17
+   Compiling getrandom v0.3.4
+    Checking itoa v1.0.18
+    Checking bytes v1.11.1
+    Checking bitflags v2.13.2
+   Compiling crossbeam-deque v0.8.8
+    Checking signal-hook-registry v1.4.8
+   Compiling rayon-core v1.13.0
+    Checking futures-core v0.3.34
+   Compiling darling_core v0.20.11
+   Compiling rustversion v1.0.23
+   Compiling pkg-config v0.3.34
+   Compiling onig_sys v69.9.3
+    Checking mio v1.2.0
+    Checking socket2 v0.6.3
+   Compiling portable-atomic v1.15.0
+   Compiling serde_derive v1.0.229
+   Compiling paste v1.0.15
+   Compiling version_check v0.9.5
+    Checking fnv v1.0.7
+    Checking either v1.18.0
+    Checking utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling zerocopy-derive v0.8.57
+   Compiling tokio-macros v2.6.1
+   Compiling darling_macro v0.20.11
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+    Checking tokio v1.50.0
+    Checking anstyle-parse v1.0.0
+    Checking http v0.2.12
+   Compiling ahash v0.8.12
+warning: onig_sys@69.9.3: cc: error: unrecognized command-line option '-arch'
+warning: onig_sys@69.9.3: cc: error: unrecognized command-line option '-mmacosx-version-min=11.0'
+error: failed to run custom build command for `onig_sys v69.9.3`
+
+Caused by:
+  process didn't exit successfully: `/workspace/mlxl3/target/debug/build/onig_sys-451575e618c2f3a6/build-script-build` (exit status: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=RUSTONIG_DYNAMIC_LIBONIG
+  cargo:rerun-if-env-changed=RUSTONIG_STATIC_LIBONIG
+  cargo:rerun-if-env-changed=RUSTONIG_SYSTEM_LIBONIG
+  cargo:rerun-if-env-changed=CC_FORCE_DISABLE
+  CC_FORCE_DISABLE = None
+  cargo:rerun-if-env-changed=CC_aarch64-apple-darwin
+  CC_aarch64-apple-darwin = None
+  cargo:rerun-if-env-changed=CC_aarch64_apple_darwin
+  CC_aarch64_apple_darwin = None
+  cargo:rerun-if-env-changed=TARGET_CC
+  TARGET_CC = None
+  cargo:rerun-if-env-changed=CC
+  CC = None
+  cargo:rerun-if-env-changed=CROSS_COMPILE
+  CROSS_COMPILE = None
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  cargo:rerun-if-env-changed=MACOSX_DEPLOYMENT_TARGET
+  MACOSX_DEPLOYMENT_TARGET = None
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=TARGET_CFLAGS
+  TARGET_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64_apple_darwin
+  CFLAGS_aarch64_apple_darwin = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64-apple-darwin
+  CFLAGS_aarch64-apple-darwin = None
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=TARGET_CFLAGS
+  TARGET_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64_apple_darwin
+  CFLAGS_aarch64_apple_darwin = None
+  cargo:rerun-if-env-changed=CFLAGS_aarch64-apple-darwin
+  CFLAGS_aarch64-apple-darwin = None
+  cargo:warning=cc: error: unrecognized command-line option '-arch'
+  cargo:warning=cc: error: unrecognized command-line option '-mmacosx-version-min=11.0'
+
+  --- stderr
+
+
+  error occurred in cc-rs: command did not execute successfully (status code exit status: 1): LC_ALL="C" "cc" "-O0" "-ffunction-sections" "-fdata-sections" "-fPIC" "-g" "-gdwarf-2" "-fno-omit-frame-pointer" "-arch" "arm64" "-mmacosx-version-min=11.0" "-I" "/workspace/mlxl3/target/aarch64-apple-darwin/debug/build/onig_sys-0077a784504b0422/out" "-I" "oniguruma/src" "-w" "-DHAVE_UNISTD_H=1" "-DHAVE_SYS_TYPES_H=1" "-DHAVE_SYS_TIME_H=1" "-DHAVE_ALLOCA_H=1" "-o" "/workspace/mlxl3/target/aarch64-apple-darwin/debug/build/onig_sys-0077a784504b0422/out/a445302c6d3dcb51-regexec.o" "-c" "oniguruma/src/regexec.c"
+
+
+warning: build failed, waiting for other jobs to finish...
