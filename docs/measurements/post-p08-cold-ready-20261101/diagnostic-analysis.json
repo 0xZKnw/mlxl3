@@ -1,0 +1,844 @@
+{
+  "status": "validated_host_diagnostic_external_golden_not_gpu_time_or_gain",
+  "files_sha256": {
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/complete.json": "272e9b11ee822c4b73665874d4e15b5a44a3ec79a994d49dcb6a7def86a5d1e8",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/manifest.json": "4b6535f3268f9f31be64359c3cb4e9cdb3ef8d2ef2e678202fa44b11d6f4c91b",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json": "076a73c6c69c521bfae1eb86d74e7f506e4d47a74e5a83d9650014c9513c349c",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_1-prefill.json": "3e3c57d2484f3c735bd3332174d736b45d489458e2521b066cb06f6e8b88d941",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_1-decode.json": "12bcad75e68ef05e8e75a5925c1f582e7b23d66a78ecbd12132755bfde2c79df",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_2-prefill.json": "3dc40f753b3a1f1d81ecd0d6e4fa5b417c911c35c2c0dbc1fca4d2e563b0279d",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_2-decode.json": "b81539fb40eb820d6cb2d46a7895d831980464186ec4b41d53607947ec223063",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_3-prefill.json": "41976fc971f5b8edd500b1f79d2aef56c615547bcf20f754c73cc1ca889fa49c",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-ar-main/trace_3-decode.json": "1cf937b0da7b0ef5baf2f786e59554265f4458d61e63e5abbdec505448b08659"
+  },
+  "traces": {
+    "trace_1-prefill": {
+      "units": 87,
+      "batches": 2315,
+      "split": 2280,
+      "all_ready_initial": 35,
+      "all_ready_before_submit": 111,
+      "partial_before_complete_after": 426,
+      "partial_after_submit": 1743,
+      "wave_rows": {
+        "2/8": 60,
+        "2/6": 99,
+        "2/7": 73,
+        "4/6": 1,
+        "2/1": 616,
+        "2/2": 471,
+        "2/5": 164,
+        "2/4": 253,
+        "2/3": 360,
+        "3/2": 50,
+        "3/1": 62,
+        "3/3": 31,
+        "4/3": 5,
+        "3/4": 8,
+        "3/7": 2,
+        "3/5": 5,
+        "4/5": 3,
+        "3/6": 3,
+        "4/4": 8,
+        "4/1": 3,
+        "4/2": 3
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5453838275862068,
+        "w2_overlap_min_build_and_finish": 0.42076079310344827,
+        "submit_in_already_complete_batches": 0.0707016551724138
+      },
+      "host_times": {
+        "begin": {
+          "count": 2315,
+          "sum_ms_per_unit": 0.36113928735632184,
+          "mean_us": 13.571973218142547,
+          "median_us": 13.042,
+          "p95_us": 18.834,
+          "max_us": 59.875
+        },
+        "wait": {
+          "count": 2315,
+          "sum_ms_per_unit": 11.85885451724138,
+          "mean_us": 445.66753477321816,
+          "median_us": 485.791,
+          "p95_us": 892.708,
+          "max_us": 6643.0
+        },
+        "first_build": {
+          "count": 2280,
+          "sum_ms_per_unit": 0.6862568965517242,
+          "mean_us": 26.18611842105263,
+          "median_us": 24.334,
+          "p95_us": 36.542,
+          "max_us": 119.042
+        },
+        "snapshot_before_submit": {
+          "count": 2280,
+          "sum_ms_per_unit": 0.014613045977011494,
+          "mean_us": 0.5576030701754385,
+          "median_us": 0.333,
+          "p95_us": 0.875,
+          "max_us": 16.292
+        },
+        "first_submit": {
+          "count": 2280,
+          "sum_ms_per_unit": 1.4854994597701148,
+          "mean_us": 56.68353201754386,
+          "median_us": 54.5625,
+          "p95_us": 70.917,
+          "max_us": 188.708
+        },
+        "snapshot_after_submit": {
+          "count": 2280,
+          "sum_ms_per_unit": 0.014162919540229885,
+          "mean_us": 0.5404271929824562,
+          "median_us": 0.25,
+          "p95_us": 2.291,
+          "max_us": 51.084
+        },
+        "finish": {
+          "count": 2315,
+          "sum_ms_per_unit": 7.2085978390804595,
+          "mean_us": 270.9062686825054,
+          "median_us": 192.625,
+          "p95_us": 888.208,
+          "max_us": 2045.291
+        },
+        "batch": {
+          "count": 2315,
+          "sum_ms_per_unit": 21.734900724137933,
+          "mean_us": 816.8191632829373,
+          "median_us": 789.834,
+          "p95_us": 1571.125,
+          "max_us": 6658.583
+        }
+      }
+    },
+    "trace_1-decode": {
+      "units": 127,
+      "batches": 3241,
+      "split": 3168,
+      "all_ready_initial": 73,
+      "all_ready_before_submit": 245,
+      "partial_before_complete_after": 614,
+      "partial_after_submit": 2309,
+      "wave_rows": {
+        "2/8": 15,
+        "2/5": 201,
+        "3/4": 30,
+        "2/1": 952,
+        "2/3": 468,
+        "2/2": 664,
+        "2/4": 348,
+        "2/6": 85,
+        "3/3": 70,
+        "3/1": 117,
+        "4/3": 9,
+        "4/4": 16,
+        "3/2": 101,
+        "3/6": 6,
+        "2/7": 49,
+        "3/5": 18,
+        "4/2": 6,
+        "4/1": 5,
+        "4/5": 5,
+        "6/4": 1,
+        "4/6": 1,
+        "3/7": 1
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5516327007874016,
+        "w2_overlap_min_build_and_finish": 0.4071667401574803,
+        "submit_in_already_complete_batches": 0.11385165354330708
+      },
+      "host_times": {
+        "begin": {
+          "count": 3241,
+          "sum_ms_per_unit": 0.3668642834645669,
+          "mean_us": 14.375737118173403,
+          "median_us": 13.541,
+          "p95_us": 19.917,
+          "max_us": 121.167
+        },
+        "wait": {
+          "count": 3241,
+          "sum_ms_per_unit": 8.42595690551181,
+          "mean_us": 330.1748000617094,
+          "median_us": 181.5,
+          "p95_us": 785.125,
+          "max_us": 2687.458
+        },
+        "first_build": {
+          "count": 3168,
+          "sum_ms_per_unit": 0.7582352913385826,
+          "mean_us": 30.396427398989896,
+          "median_us": 26.542,
+          "p95_us": 52.042,
+          "max_us": 258.375
+        },
+        "snapshot_before_submit": {
+          "count": 3168,
+          "sum_ms_per_unit": 0.015392133858267716,
+          "mean_us": 0.6170457702020202,
+          "median_us": 0.375,
+          "p95_us": 1.125,
+          "max_us": 59.458
+        },
+        "first_submit": {
+          "count": 3168,
+          "sum_ms_per_unit": 1.5382042913385827,
+          "mean_us": 61.66412405303031,
+          "median_us": 56.792,
+          "p95_us": 86.667,
+          "max_us": 346.125
+        },
+        "snapshot_after_submit": {
+          "count": 3168,
+          "sum_ms_per_unit": 0.01399971653543307,
+          "mean_us": 0.56122601010101,
+          "median_us": 0.291,
+          "p95_us": 2.25,
+          "max_us": 77.833
+        },
+        "finish": {
+          "count": 3241,
+          "sum_ms_per_unit": 5.700160732283464,
+          "mean_us": 223.3632869484727,
+          "median_us": 179.125,
+          "p95_us": 691.084,
+          "max_us": 1442.167
+        },
+        "batch": {
+          "count": 3241,
+          "sum_ms_per_unit": 16.93163890551181,
+          "mean_us": 663.4736627584078,
+          "median_us": 636.084,
+          "p95_us": 1179.542,
+          "max_us": 2734.542
+        }
+      }
+    },
+    "trace_2-prefill": {
+      "units": 87,
+      "batches": 2333,
+      "split": 2299,
+      "all_ready_initial": 34,
+      "all_ready_before_submit": 92,
+      "partial_before_complete_after": 456,
+      "partial_after_submit": 1751,
+      "wave_rows": {
+        "2/8": 64,
+        "2/6": 116,
+        "2/7": 67,
+        "2/2": 491,
+        "2/3": 347,
+        "2/4": 256,
+        "2/5": 154,
+        "2/1": 644,
+        "3/3": 22,
+        "3/1": 49,
+        "3/4": 10,
+        "4/3": 5,
+        "3/7": 4,
+        "4/1": 4,
+        "3/2": 43,
+        "3/6": 3,
+        "3/5": 5,
+        "4/2": 6,
+        "4/4": 6,
+        "4/5": 3
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5501345862068966,
+        "w2_overlap_min_build_and_finish": 0.4197062988505747,
+        "submit_in_already_complete_batches": 0.061382229885057475
+      },
+      "host_times": {
+        "begin": {
+          "count": 2333,
+          "sum_ms_per_unit": 0.36963962068965517,
+          "mean_us": 13.78424646378054,
+          "median_us": 13.166,
+          "p95_us": 19.5,
+          "max_us": 43.792
+        },
+        "wait": {
+          "count": 2333,
+          "sum_ms_per_unit": 12.052972448275863,
+          "mean_us": 449.4678966995285,
+          "median_us": 509.208,
+          "p95_us": 888.5,
+          "max_us": 5665.708
+        },
+        "first_build": {
+          "count": 2299,
+          "sum_ms_per_unit": 0.6927657471264368,
+          "mean_us": 26.21601565898217,
+          "median_us": 23.917,
+          "p95_us": 37.209,
+          "max_us": 186.625
+        },
+        "snapshot_before_submit": {
+          "count": 2299,
+          "sum_ms_per_unit": 0.011729333333333335,
+          "mean_us": 0.4438677685950413,
+          "median_us": 0.334,
+          "p95_us": 0.792,
+          "max_us": 10.584
+        },
+        "first_submit": {
+          "count": 2299,
+          "sum_ms_per_unit": 1.544589379310345,
+          "mean_us": 58.451185732927364,
+          "median_us": 54.875,
+          "p95_us": 73.083,
+          "max_us": 1696.458
+        },
+        "snapshot_after_submit": {
+          "count": 2299,
+          "sum_ms_per_unit": 0.008383172413793103,
+          "mean_us": 0.3172405393649413,
+          "median_us": 0.25,
+          "p95_us": 0.5,
+          "max_us": 7.792
+        },
+        "finish": {
+          "count": 2333,
+          "sum_ms_per_unit": 7.295599908045977,
+          "mean_us": 272.0605195027861,
+          "median_us": 189.625,
+          "p95_us": 895.541,
+          "max_us": 1832.042
+        },
+        "batch": {
+          "count": 2333,
+          "sum_ms_per_unit": 22.075255137931034,
+          "mean_us": 823.209257179597,
+          "median_us": 791.875,
+          "p95_us": 1556.834,
+          "max_us": 7785.125
+        }
+      }
+    },
+    "trace_2-decode": {
+      "units": 127,
+      "batches": 3261,
+      "split": 3167,
+      "all_ready_initial": 94,
+      "all_ready_before_submit": 228,
+      "partial_before_complete_after": 612,
+      "partial_after_submit": 2327,
+      "wave_rows": {
+        "2/7": 46,
+        "2/5": 203,
+        "2/1": 952,
+        "2/3": 474,
+        "4/2": 4,
+        "2/2": 682,
+        "2/4": 343,
+        "2/6": 93,
+        "3/2": 77,
+        "2/8": 21,
+        "3/3": 59,
+        "3/4": 26,
+        "3/1": 118,
+        "4/4": 22,
+        "3/5": 10,
+        "4/6": 2,
+        "4/5": 13,
+        "3/6": 6,
+        "4/3": 10,
+        "4/1": 6
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.518255905511811,
+        "w2_overlap_min_build_and_finish": 0.3858530078740158,
+        "submit_in_already_complete_batches": 0.09849375590551182
+      },
+      "host_times": {
+        "begin": {
+          "count": 3261,
+          "sum_ms_per_unit": 0.346308094488189,
+          "mean_us": 13.48700643974241,
+          "median_us": 13.042,
+          "p95_us": 18.375,
+          "max_us": 50.042
+        },
+        "wait": {
+          "count": 3261,
+          "sum_ms_per_unit": 8.680052960629922,
+          "mean_us": 338.04560748236736,
+          "median_us": 183.416,
+          "p95_us": 783.167,
+          "max_us": 1254.75
+        },
+        "first_build": {
+          "count": 3167,
+          "sum_ms_per_unit": 0.6854697874015748,
+          "mean_us": 27.488052731291443,
+          "median_us": 25.291,
+          "p95_us": 40.375,
+          "max_us": 138.333
+        },
+        "snapshot_before_submit": {
+          "count": 3167,
+          "sum_ms_per_unit": 0.011061070866141732,
+          "mean_us": 0.44356046731922955,
+          "median_us": 0.334,
+          "p95_us": 0.792,
+          "max_us": 10.958
+        },
+        "first_submit": {
+          "count": 3167,
+          "sum_ms_per_unit": 1.4466486062992128,
+          "mean_us": 58.01211651405115,
+          "median_us": 55.833,
+          "p95_us": 73.167,
+          "max_us": 262.709
+        },
+        "snapshot_after_submit": {
+          "count": 3167,
+          "sum_ms_per_unit": 0.008306425196850395,
+          "mean_us": 0.33309630565203663,
+          "median_us": 0.25,
+          "p95_us": 0.542,
+          "max_us": 10.625
+        },
+        "finish": {
+          "count": 3261,
+          "sum_ms_per_unit": 5.748514283464567,
+          "mean_us": 223.876514566084,
+          "median_us": 179.0,
+          "p95_us": 700.042,
+          "max_us": 1390.834
+        },
+        "batch": {
+          "count": 3261,
+          "sum_ms_per_unit": 17.021663787401575,
+          "mean_us": 662.9105492180312,
+          "median_us": 635.416,
+          "p95_us": 1165.708,
+          "max_us": 1923.625
+        }
+      }
+    },
+    "trace_3-prefill": {
+      "units": 87,
+      "batches": 2364,
+      "split": 2332,
+      "all_ready_initial": 32,
+      "all_ready_before_submit": 100,
+      "partial_before_complete_after": 448,
+      "partial_after_submit": 1784,
+      "wave_rows": {
+        "2/8": 70,
+        "2/7": 71,
+        "2/6": 112,
+        "2/2": 488,
+        "2/4": 267,
+        "2/5": 156,
+        "3/4": 10,
+        "2/3": 377,
+        "3/2": 43,
+        "2/1": 628,
+        "3/1": 56,
+        "3/3": 20,
+        "4/3": 7,
+        "3/6": 5,
+        "3/7": 2,
+        "4/2": 3,
+        "4/4": 7,
+        "4/5": 2,
+        "3/5": 5,
+        "4/1": 2,
+        "4/6": 1
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5567124942528736,
+        "w2_overlap_min_build_and_finish": 0.42643197701149427,
+        "submit_in_already_complete_batches": 0.06180654022988506
+      },
+      "host_times": {
+        "begin": {
+          "count": 2364,
+          "sum_ms_per_unit": 0.38023977011494253,
+          "mean_us": 13.99359560067682,
+          "median_us": 13.375,
+          "p95_us": 19.917,
+          "max_us": 46.375
+        },
+        "wait": {
+          "count": 2364,
+          "sum_ms_per_unit": 12.090056701149425,
+          "mean_us": 444.9386349407783,
+          "median_us": 476.25,
+          "p95_us": 887.125,
+          "max_us": 3274.125
+        },
+        "first_build": {
+          "count": 2332,
+          "sum_ms_per_unit": 0.7124376781609196,
+          "mean_us": 26.57893567753002,
+          "median_us": 24.5,
+          "p95_us": 37.042,
+          "max_us": 136.084
+        },
+        "snapshot_before_submit": {
+          "count": 2332,
+          "sum_ms_per_unit": 0.012096574712643679,
+          "mean_us": 0.45128730703259,
+          "median_us": 0.334,
+          "p95_us": 0.791,
+          "max_us": 24.084
+        },
+        "first_submit": {
+          "count": 2332,
+          "sum_ms_per_unit": 1.549758183908046,
+          "mean_us": 57.81687907375643,
+          "median_us": 55.458,
+          "p95_us": 72.042,
+          "max_us": 233.458
+        },
+        "snapshot_after_submit": {
+          "count": 2332,
+          "sum_ms_per_unit": 0.009319528735632184,
+          "mean_us": 0.34768396226415094,
+          "median_us": 0.25,
+          "p95_us": 0.583,
+          "max_us": 14.667
+        },
+        "finish": {
+          "count": 2364,
+          "sum_ms_per_unit": 7.42419843678161,
+          "mean_us": 273.22557698815564,
+          "median_us": 190.229,
+          "p95_us": 862.792,
+          "max_us": 1923.167
+        },
+        "batch": {
+          "count": 2364,
+          "sum_ms_per_unit": 22.28109412643678,
+          "mean_us": 819.9895046531303,
+          "median_us": 787.9165,
+          "p95_us": 1570.583,
+          "max_us": 3377.333
+        }
+      }
+    },
+    "trace_3-decode": {
+      "units": 127,
+      "batches": 3280,
+      "split": 3181,
+      "all_ready_initial": 99,
+      "all_ready_before_submit": 232,
+      "partial_before_complete_after": 617,
+      "partial_after_submit": 2332,
+      "wave_rows": {
+        "2/7": 47,
+        "2/5": 202,
+        "2/1": 949,
+        "2/4": 369,
+        "2/3": 473,
+        "4/2": 6,
+        "2/2": 659,
+        "2/6": 95,
+        "3/3": 61,
+        "2/8": 14,
+        "3/4": 27,
+        "3/1": 104,
+        "4/5": 12,
+        "4/4": 10,
+        "3/2": 108,
+        "3/6": 7,
+        "3/5": 12,
+        "3/7": 3,
+        "4/3": 12,
+        "4/1": 6,
+        "4/6": 5
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.530376,
+        "w2_overlap_min_build_and_finish": 0.39321141732283466,
+        "submit_in_already_complete_batches": 0.1031108503937008
+      },
+      "host_times": {
+        "begin": {
+          "count": 3280,
+          "sum_ms_per_unit": 0.3587385354330708,
+          "mean_us": 13.890181097560975,
+          "median_us": 13.041,
+          "p95_us": 19.125,
+          "max_us": 66.375
+        },
+        "wait": {
+          "count": 3280,
+          "sum_ms_per_unit": 8.521300850393702,
+          "mean_us": 329.94061219512196,
+          "median_us": 182.5,
+          "p95_us": 774.625,
+          "max_us": 944.709
+        },
+        "first_build": {
+          "count": 3181,
+          "sum_ms_per_unit": 0.7084899842519684,
+          "mean_us": 28.286145237346748,
+          "median_us": 25.25,
+          "p95_us": 43.0,
+          "max_us": 210.584
+        },
+        "snapshot_before_submit": {
+          "count": 3181,
+          "sum_ms_per_unit": 0.010873464566929133,
+          "mean_us": 0.434118201823326,
+          "median_us": 0.334,
+          "p95_us": 0.791,
+          "max_us": 20.875
+        },
+        "first_submit": {
+          "count": 3181,
+          "sum_ms_per_unit": 1.5008775275590551,
+          "mean_us": 59.921862936183594,
+          "median_us": 55.625,
+          "p95_us": 80.083,
+          "max_us": 509.208
+        },
+        "snapshot_after_submit": {
+          "count": 3181,
+          "sum_ms_per_unit": 0.009056976377952757,
+          "mean_us": 0.36159572461490097,
+          "median_us": 0.25,
+          "p95_us": 0.583,
+          "max_us": 49.208
+        },
+        "finish": {
+          "count": 3280,
+          "sum_ms_per_unit": 5.7225361417322835,
+          "mean_us": 221.57380792682926,
+          "median_us": 176.896,
+          "p95_us": 670.958,
+          "max_us": 1623.208
+        },
+        "batch": {
+          "count": 3280,
+          "sum_ms_per_unit": 16.92931555905512,
+          "mean_us": 655.4948402439024,
+          "median_us": 634.4165,
+          "p95_us": 1157.416,
+          "max_us": 2097.458
+        }
+      }
+    }
+  },
+  "pooled": {
+    "prefill": {
+      "units": 261,
+      "batches": 7012,
+      "split": 6911,
+      "all_ready_initial": 101,
+      "all_ready_before_submit": 303,
+      "partial_before_complete_after": 1330,
+      "partial_after_submit": 5278,
+      "wave_rows": {
+        "2/8": 194,
+        "2/6": 327,
+        "2/7": 211,
+        "4/6": 2,
+        "2/1": 1888,
+        "2/2": 1450,
+        "2/5": 474,
+        "2/4": 776,
+        "2/3": 1084,
+        "3/2": 136,
+        "3/1": 167,
+        "3/3": 73,
+        "4/3": 17,
+        "3/4": 28,
+        "3/7": 8,
+        "3/5": 15,
+        "4/5": 8,
+        "3/6": 11,
+        "4/4": 21,
+        "4/1": 9,
+        "4/2": 12
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5507436360153257,
+        "w2_overlap_min_build_and_finish": 0.4222996896551724,
+        "submit_in_already_complete_batches": 0.0646301417624521
+      },
+      "host_times": {
+        "begin": {
+          "count": 7012,
+          "sum_ms_per_unit": 0.37033955938697316,
+          "mean_us": 13.784744010268112,
+          "median_us": 13.208,
+          "p95_us": 19.417,
+          "max_us": 59.875
+        },
+        "wait": {
+          "count": 7012,
+          "sum_ms_per_unit": 12.000627888888888,
+          "mean_us": 446.6862348830576,
+          "median_us": 486.896,
+          "p95_us": 889.041,
+          "max_us": 6643.0
+        },
+        "first_build": {
+          "count": 6911,
+          "sum_ms_per_unit": 0.6971534406130269,
+          "mean_us": 26.32861351468673,
+          "median_us": 24.25,
+          "p95_us": 36.916,
+          "max_us": 186.625
+        },
+        "snapshot_before_submit": {
+          "count": 6911,
+          "sum_ms_per_unit": 0.012812984674329501,
+          "mean_us": 0.48389364780784255,
+          "median_us": 0.334,
+          "p95_us": 0.792,
+          "max_us": 24.084
+        },
+        "first_submit": {
+          "count": 6911,
+          "sum_ms_per_unit": 1.5266156743295018,
+          "mean_us": 57.653985096223415,
+          "median_us": 54.958,
+          "p95_us": 72.083,
+          "max_us": 1696.458
+        },
+        "snapshot_after_submit": {
+          "count": 6911,
+          "sum_ms_per_unit": 0.01062187356321839,
+          "mean_us": 0.401144407466358,
+          "median_us": 0.25,
+          "p95_us": 0.583,
+          "max_us": 51.084
+        },
+        "finish": {
+          "count": 7012,
+          "sum_ms_per_unit": 7.309465394636016,
+          "mean_us": 272.07222875071307,
+          "median_us": 191.062,
+          "p95_us": 880.167,
+          "max_us": 2045.291
+        },
+        "batch": {
+          "count": 7012,
+          "sum_ms_per_unit": 22.030416662835247,
+          "mean_us": 820.0140828579578,
+          "median_us": 789.75,
+          "p95_us": 1563.625,
+          "max_us": 7785.125
+        }
+      }
+    },
+    "decode": {
+      "units": 381,
+      "batches": 9782,
+      "split": 9516,
+      "all_ready_initial": 266,
+      "all_ready_before_submit": 705,
+      "partial_before_complete_after": 1843,
+      "partial_after_submit": 6968,
+      "wave_rows": {
+        "2/8": 50,
+        "2/5": 606,
+        "3/4": 83,
+        "2/1": 2853,
+        "2/3": 1415,
+        "2/2": 2005,
+        "2/4": 1060,
+        "2/6": 273,
+        "3/3": 190,
+        "3/1": 339,
+        "4/3": 31,
+        "4/4": 48,
+        "3/2": 286,
+        "3/6": 19,
+        "2/7": 142,
+        "3/5": 40,
+        "4/2": 16,
+        "4/1": 17,
+        "4/5": 30,
+        "6/4": 1,
+        "4/6": 8,
+        "3/7": 4
+      },
+      "placement_estimates_ms_per_unit": {
+        "observed_w2_build": 0.5334215354330708,
+        "w2_overlap_min_build_and_finish": 0.39541038845144355,
+        "submit_in_already_complete_batches": 0.10515208661417323
+      },
+      "host_times": {
+        "begin": {
+          "count": 9782,
+          "sum_ms_per_unit": 0.3573036377952756,
+          "mean_us": 13.916651604988754,
+          "median_us": 13.167,
+          "p95_us": 19.167,
+          "max_us": 121.167
+        },
+        "wait": {
+          "count": 9782,
+          "sum_ms_per_unit": 8.542436905511812,
+          "mean_us": 332.7201452668166,
+          "median_us": 182.292,
+          "p95_us": 780.833,
+          "max_us": 2687.458
+        },
+        "first_build": {
+          "count": 9516,
+          "sum_ms_per_unit": 0.7173983543307086,
+          "mean_us": 28.723074085750316,
+          "median_us": 25.667,
+          "p95_us": 45.375,
+          "max_us": 258.375
+        },
+        "snapshot_before_submit": {
+          "count": 9516,
+          "sum_ms_per_unit": 0.012442223097112862,
+          "mean_us": 0.4981596258932324,
+          "median_us": 0.375,
+          "p95_us": 0.833,
+          "max_us": 59.458
+        },
+        "first_submit": {
+          "count": 9516,
+          "sum_ms_per_unit": 1.495243475065617,
+          "mean_us": 59.866305590584275,
+          "median_us": 56.042,
+          "p95_us": 79.833,
+          "max_us": 509.208
+        },
+        "snapshot_after_submit": {
+          "count": 9516,
+          "sum_ms_per_unit": 0.010454372703412073,
+          "mean_us": 0.4185704077343422,
+          "median_us": 0.25,
+          "p95_us": 0.625,
+          "max_us": 77.833
+        },
+        "finish": {
+          "count": 9782,
+          "sum_ms_per_unit": 5.723737052493438,
+          "mean_us": 222.93435054181148,
+          "median_us": 178.3955,
+          "p95_us": 687.333,
+          "max_us": 1623.208
+        },
+        "batch": {
+          "count": 9782,
+          "sum_ms_per_unit": 16.96087275065617,
+          "mean_us": 660.6105620527499,
+          "median_us": 635.5415,
+          "p95_us": 1166.25,
+          "max_us": 2734.542
+        }
+      }
+    }
+  },
+  "parity": "six phases full internal logits/states; external 128 token IDs/hash/text",
+  "limits": "Instrumentation perturbs scheduling. Nested host intervals are not additive GPU times. Completion after async_eval does not exclude GPU overlap."
+}

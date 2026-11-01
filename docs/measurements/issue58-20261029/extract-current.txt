@@ -1,0 +1,119 @@
+"""Extract existing physical AR observations; no model or GPU is launched."""
+
+import gzip
+import hashlib
+import json
+import runpy
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+API = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+
+
+def extract(events, steps):
+    assert type(steps) is int and 1 <= steps <= 512
+    API["validate_events"](events)
+    layers, rows = [], []
+    for event in events:
+        parent = event["parent"]
+        layer = layers[parent] if parent is not None else None
+        if event["name"].startswith("layer_"):
+            layer = int(event["name"].removeprefix("layer_"))
+        layers.append(layer)
+        if event["name"] == "moe_forward_rows":
+            data = event["data"]
+            assert layer == len(rows) % 48, "incomplete/reordered layer sequence"
+            assert data["rows"] == 1 and data["capacity"] == 53
+            assert data["completed_hot"] is False
+            rows.append({"ids": data["ids"], "slots_hit": data["slots_hit"]})
+    assert len(rows) == steps * 48, "incomplete route capture"
+    return rows
+
+
+def main(output):
+    manifest = []
+
+    def read(path):
+        if not path.exists():
+            path = Path(str(path) + ".gz")
+        assert 0 < path.stat().st_size <= 128 << 20
+        encoded = path.read_bytes()
+        raw = gzip.decompress(encoded) if path.suffix == ".gz" else encoded
+        assert 0 < len(raw) <= 128 << 20
+        manifest.append(
+            {
+                "path": str(path.relative_to(ROOT)),
+                "sha256": hashlib.sha256(encoded).hexdigest(),
+                "decoded_sha256": hashlib.sha256(raw).hexdigest(),
+            }
+        )
+        return json.loads(raw)
+
+    cases = []
+    for label in ("MAIN", "HOLD"):
+        directory = ROOT / f"docs/measurements/ultra-profile-20261027/natural/AR-{label}/profile"
+        complete = read(directory / "complete.json")
+        assert (
+            complete["status"] == "complete_diagnostic_internal_full_parity_external_golden_pending"
+        )
+        assert (
+            complete["kind"] == "natural"
+            and complete["mtp"] is False
+            and complete["dflash"] is False
+        )
+        assert [s["phase"] for s in complete["summaries"]] == [
+            "warmup",
+            "control_before",
+            "trace_1",
+            "trace_2",
+            "trace_3",
+            "control_after",
+        ]
+        golden = read(ROOT / f"docs/measurements/sushi-20261027/gold-AR-{label}.json")
+        phases = []
+        for summary in complete["summaries"]:
+            API["validate_summary"](summary, "natural", golden, golden["tokens"])
+            assert (
+                summary["prompt"] == label
+                and summary["mtp"] is False
+                and summary["dflash"] is False
+            )
+            if not summary["phase"].startswith("trace_"):
+                continue
+            phase = {
+                "name": summary["phase"],
+                "before": summary["before_counts"],
+                "after_prefill": summary["prefill_counts"],
+                "after": summary["after_counts"],
+            }
+            for part, steps in (("prefill", len(summary["prompt_ids"])), ("decode", 127)):
+                phase[part] = extract(read(directory / f"{phase['name']}-{part}.json"), steps)
+            phases.append(phase)
+        cases.append(
+            {
+                "name": label,
+                "prompt_tokens": len(complete["summaries"][0]["prompt_ids"]),
+                "phases": phases,
+            }
+        )
+    with output.open("x") as stream:
+        json.dump(
+            {"status": "complete_ar_routes", "initial_generations": 2, "cases": cases},
+            stream,
+            separators=(",", ":"),
+        )
+    with Path(str(output) + ".sources.json").open("x") as stream:
+        json.dump(
+            {
+                "status": "extracted_not_replayed",
+                "capture_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+                "sources": manifest,
+            },
+            stream,
+            indent=2,
+        )
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1]))

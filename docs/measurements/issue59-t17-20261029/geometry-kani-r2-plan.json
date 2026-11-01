@@ -1,0 +1,25 @@
+[
+  {
+    "name": "t17-geometry-kani-r2",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "gdn_epilogue_geometry_checks_symbolic_shapes_and_addresses",
+      "--solver",
+      "kissat"
+    ],
+    "env": {
+      "PATH": "/Users/justin/.kani/kani-0.68.0/bin:/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-path:/Users/justin/Downloads/instantclient_23_26:/Users/justin/.nvm/versions/node/v24.20.0/bin:/Users/justin/.mtplx/bin:/Users/justin/.local/bin:/Users/justin/.local/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/Library/Apple/usr/bin:/opt/homebrew/bin:/Users/justin/.codex/tmp/arg0-macos/codex-arg0ZG96Zp:/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-path:/Users/justin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override:/Users/justin/Downloads/instantclient_23_26:/Users/justin/.nvm/versions/node/v24.20.0/bin:/Users/justin/.mtplx/bin:/Users/justin/.local/bin:/Users/justin/.lmstudio/bin:/Users/justin/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:/Applications/ChatGPT.app/Contents/Resources:/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS:/Users/justin/.lmstudio/bin",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 180,
+    "expected_exit": 0,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]

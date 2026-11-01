@@ -65,8 +65,15 @@ impl Dtype {
 }
 
 unsafe extern "C" {
+    fn mlxl3_metal_os_capabilities(out: *mut u32) -> i32;
+    #[cfg(test)]
+    fn mlxl3_readback_profile_enable(enabled: bool);
+    #[cfg(test)]
+    fn mlxl3_readback_profile_copy(output: *mut u64, count: usize) -> i32;
     #[cfg(test)]
     fn mlxl3_disk_profile_enable(enabled: bool);
+    #[cfg(test)]
+    fn mlxl3_disk_profile_dynamic() -> bool;
     #[cfg(test)]
     fn mlxl3_disk_profile_copy(output: *mut u64, capacity: usize) -> usize;
     fn mlxl3_start_capture(path: *const c_char) -> i32;
@@ -159,6 +166,31 @@ unsafe extern "C" {
         segments: usize,
         workers: usize,
     ) -> i32;
+    fn mlxl3_disk_batch_begin(
+        fds: *const i32,
+        offsets: *const u64,
+        records: usize,
+        buffers: *const *mut c_void,
+        buffer_count: usize,
+        indices: *const usize,
+        starts: *const usize,
+        lengths: *const usize,
+        segments: usize,
+        workers: usize,
+        out: *mut *mut c_void,
+    ) -> i32;
+    fn mlxl3_disk_batch_wait_ready(
+        handle: *mut c_void,
+        minimum: usize,
+        mask: *mut u8,
+        count: usize,
+    ) -> i32;
+    fn mlxl3_disk_batch_finish(handle: *mut c_void) -> i32;
+    fn mlxl3_disk_batch_free(handle: *mut c_void);
+    #[cfg(test)]
+    fn mlxl3_disk_batch_hold_job_for_test(job: usize);
+    #[cfg(test)]
+    fn mlxl3_disk_batch_ready(handle: *mut c_void, mask: *mut u8, count: usize) -> i32;
     fn mlxl3_disk_read_prepare(
         fd: i32,
         offset: u64,
@@ -250,8 +282,20 @@ unsafe extern "C" {
 }
 
 #[cfg(test)]
+pub(crate) fn readback_profile_enable(enabled: bool) {
+    unsafe { mlxl3_readback_profile_enable(enabled) }
+}
+#[cfg(test)]
 pub(crate) fn disk_profile_enable(enabled: bool) {
     unsafe { mlxl3_disk_profile_enable(enabled) };
+}
+#[cfg(test)]
+pub(crate) fn disk_profile_schedule() -> &'static str {
+    if unsafe { mlxl3_disk_profile_dynamic() } {
+        "dynamic"
+    } else {
+        "static"
+    }
 }
 #[cfg(test)]
 pub(crate) fn disk_profile() -> Result<Vec<[u64; 6]>> {
@@ -494,6 +538,65 @@ pub fn is_m5_gpu() -> Result<bool> {
     Ok(*IS_M5.get_or_init(|| is_m5))
 }
 
+#[cfg(test)]
+thread_local! {
+    static METAL_OS_TEST_OVERRIDE: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(None) };
+}
+
+fn metal_os_capabilities() -> Result<u32> {
+    #[cfg(test)]
+    if let Some(flags) = METAL_OS_TEST_OVERRIDE.get() {
+        return Ok(flags);
+    }
+    static FLAGS: OnceLock<u32> = OnceLock::new();
+    if let Some(&flags) = FLAGS.get() {
+        return Ok(flags);
+    }
+    let mut flags = 0;
+    checked(unsafe { mlxl3_metal_os_capabilities(&mut flags) })?;
+    Ok(*FLAGS.get_or_init(|| flags))
+}
+
+/// EXL3 cooperative-input kernels require macOS 26.3 as well as the M5 policy.
+/// A 26.2 runtime retains the existing QMV path, including on an M5.
+pub(crate) fn supports_exl3_tensor_ops() -> Result<bool> {
+    let flags = metal_os_capabilities()?;
+    if !crate::metal_capabilities::exl3_tensor_ops(flags, true) {
+        return Ok(false);
+    }
+    Ok(crate::metal_capabilities::exl3_tensor_ops(
+        flags,
+        is_m5_gpu()?,
+    ))
+}
+
+/// Packed Splash Q4 uses native int4 tensors, available since macOS 26.4.
+pub fn supports_packed_dflash_q4() -> Result<bool> {
+    Ok(crate::metal_capabilities::native_q4(
+        metal_os_capabilities()?
+    ))
+}
+
+pub(crate) fn require_native_q4() -> Result<()> {
+    ensure!(
+        supports_packed_dflash_q4()?,
+        "packed DFlash Q4 requires macOS 26.4 or newer (native Metal int4 tensors); use ordinary generation or MTP on this macOS version"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+pub(crate) fn with_metal_os_for_test<T>(flags: u32, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<u32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            METAL_OS_TEST_OVERRIDE.set(self.0);
+        }
+    }
+    let _restore = Restore(METAL_OS_TEST_OVERRIDE.replace(Some(flags)));
+    run()
+}
+
 #[derive(Debug)]
 pub struct Array {
     handle: NonNull<c_void>,
@@ -508,6 +611,61 @@ pub(crate) struct PreparedRead {
     handle: NonNull<c_void>,
     _file: File,
     _not_send: PhantomData<Rc<()>>,
+}
+
+/// The creating thread owns the files/MLX leases until every OS writer has joined.
+pub(crate) struct ReadBatch {
+    handle: NonNull<c_void>,
+    records: usize,
+    _files: Vec<File>,
+    _not_send: PhantomData<Rc<()>>,
+}
+impl ReadBatch {
+    pub(crate) fn wait_ready(&mut self, minimum: usize) -> Result<Vec<bool>> {
+        ensure!(
+            (1..=512).contains(&minimum),
+            "invalid async disk readiness minimum"
+        );
+        let mut mask = vec![0u8; self.records];
+        checked(unsafe {
+            mlxl3_disk_batch_wait_ready(
+                self.handle.as_ptr(),
+                minimum,
+                mask.as_mut_ptr(),
+                mask.len(),
+            )
+        })?;
+        ensure!(
+            mask.iter().all(|&value| value <= 1),
+            "invalid async disk readiness mask"
+        );
+        Ok(mask.into_iter().map(|value| value != 0).collect())
+    }
+    pub(crate) fn finish(&mut self) -> Result<()> {
+        checked(unsafe { mlxl3_disk_batch_finish(self.handle.as_ptr()) })
+    }
+    #[cfg(test)]
+    pub(crate) fn ready(&self) -> Result<Vec<bool>> {
+        let mut mask = vec![0u8; self.records];
+        checked(unsafe {
+            mlxl3_disk_batch_ready(self.handle.as_ptr(), mask.as_mut_ptr(), mask.len())
+        })?;
+        ensure!(
+            mask.iter().all(|&value| value <= 1),
+            "invalid async disk readiness mask"
+        );
+        Ok(mask.into_iter().map(|value| value != 0).collect())
+    }
+}
+impl Drop for ReadBatch {
+    fn drop(&mut self) {
+        // C++ joins before destroying bank owners; Rust files are dropped after this returns.
+        unsafe { mlxl3_disk_batch_free(self.handle.as_ptr()) };
+    }
+}
+#[cfg(test)]
+pub(crate) fn hold_read_batch_job_for_test(job: Option<usize>) {
+    unsafe { mlxl3_disk_batch_hold_job_for_test(job.unwrap_or(usize::MAX)) };
 }
 impl PreparedRead {
     pub(crate) fn token(&self) -> usize {
@@ -749,9 +907,25 @@ impl Array {
         converted.into_iter().collect()
     }
     pub fn eval(&self) -> Result<()> {
-        checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) })
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("host_eval_inclusive");
+        #[cfg(test)]
+        let ready = profile
+            .as_ref()
+            .map(|_| self.is_available_for_test())
+            .transpose()?;
+        let result = checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) });
+        #[cfg(test)]
+        if let Some(profile) = profile {
+            profile.data(
+                serde_json::json!({"ready_before":ready,"shape":self.shape,"ok":result.is_ok()}),
+            );
+        }
+        result
     }
     pub fn async_eval(&self) -> Result<()> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("host_async_submit");
         checked(unsafe { mlxl3_array_async_eval(self.handle.as_ptr()) })
     }
 
@@ -768,12 +942,12 @@ impl Array {
     }
 
     /// As above, with disjoint destinations and all readers joined before return.
-    pub(crate) fn read_records(
+    fn validate_read_records(
         sources: &[(&File, u64)],
-        buffers: &mut [Self],
+        buffers: &[Self],
         destinations: &[&[(usize, usize, usize)]],
         workers: usize,
-    ) -> Result<()> {
+    ) -> Result<usize> {
         ensure!(
             (1..=512).contains(&sources.len())
                 && sources.len() == destinations.len()
@@ -806,6 +980,16 @@ impl Array {
                 "invalid disk source range"
             );
         }
+        Ok(segments)
+    }
+
+    pub(crate) fn read_records(
+        sources: &[(&File, u64)],
+        buffers: &mut [Self],
+        destinations: &[&[(usize, usize, usize)]],
+        workers: usize,
+    ) -> Result<()> {
+        let segments = Self::validate_read_records(sources, buffers, destinations, workers)?;
         let ptrs = buffers
             .iter()
             .map(|a| a.handle.as_ptr())
@@ -837,6 +1021,65 @@ impl Array {
                 segments,
                 workers,
             )
+        })
+    }
+
+    /// Start writes into exclusive disjoint Cold slots while other slots may be read by the GPU.
+    ///
+    /// # Safety
+    /// Drain earlier users of these destination slots first. Until finish/drop joins the batch,
+    /// never read a Pending slot, submit another writer to it, or reuse its cache reservation.
+    /// Keep every submitted GPU consumer fenced before invalidation/reuse, including on errors.
+    pub(crate) unsafe fn begin_read_records(
+        sources: &[(&File, u64)],
+        buffers: &mut [Self],
+        destinations: &[&[(usize, usize, usize)]],
+        workers: usize,
+    ) -> Result<ReadBatch> {
+        let segments = Self::validate_read_records(sources, buffers, destinations, workers)?;
+        let files = sources
+            .iter()
+            .map(|(file, _)| file.try_clone())
+            .collect::<std::io::Result<Vec<_>>>()?;
+        let fds = files.iter().map(AsRawFd::as_raw_fd).collect::<Vec<_>>();
+        let offsets = sources.iter().map(|s| s.1).collect::<Vec<_>>();
+        let ptrs = buffers
+            .iter()
+            .map(|a| a.handle.as_ptr())
+            .collect::<Vec<_>>();
+        let indices = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.0))
+            .collect::<Vec<_>>();
+        let starts = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.1))
+            .collect::<Vec<_>>();
+        let lengths = destinations
+            .iter()
+            .flat_map(|r| r.iter().map(|d| d.2))
+            .collect::<Vec<_>>();
+        let mut handle = std::ptr::null_mut();
+        checked(unsafe {
+            mlxl3_disk_batch_begin(
+                fds.as_ptr(),
+                offsets.as_ptr(),
+                sources.len(),
+                ptrs.as_ptr(),
+                buffers.len(),
+                indices.as_ptr(),
+                starts.as_ptr(),
+                lengths.as_ptr(),
+                segments,
+                workers,
+                &mut handle,
+            )
+        })?;
+        Ok(ReadBatch {
+            handle: NonNull::new(handle).context("missing async disk batch")?,
+            records: sources.len(),
+            _files: files,
+            _not_send: PhantomData,
         })
     }
     /// Caller drains prior consumers and excludes these slots until publication.
@@ -957,6 +1200,8 @@ impl Array {
     }
     /// Submit graphs together; reading an output still waits for completion.
     pub fn async_eval_all(inputs: &[&Self]) -> Result<()> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("host_async_submit_all");
         let pointers: Vec<_> = inputs.iter().map(|value| value.handle.as_ptr()).collect();
         checked(unsafe { mlxl3_arrays_async_eval(pointers.as_ptr(), pointers.len()) })
     }
@@ -964,12 +1209,22 @@ impl Array {
         Self::output(|out| unsafe { mlxl3_array_clone(self.handle.as_ptr(), out) })
     }
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        #[cfg(test)]
+        let profile = crate::flash_profile::span("host_readback");
         let mut bytes = vec![0; bytes_for(&self.shape, self.dtype)?];
         #[cfg(test)]
         HOST_READBACKS.set(HOST_READBACKS.get().saturating_add(1));
         checked(unsafe {
             mlxl3_array_copy_bytes(self.handle.as_ptr(), bytes.as_mut_ptr(), bytes.len())
         })?;
+        #[cfg(test)]
+        if let Some(profile) = profile {
+            let mut sample = [0; 8];
+            checked(unsafe { mlxl3_readback_profile_copy(sample.as_mut_ptr(), sample.len()) })?;
+            let sample = crate::flash_profile::validate_readback_sample(sample, bytes.len())
+                .context("invalid readback telemetry")?;
+            profile.data(serde_json::json!({"sample":sample,"shape":self.shape,"dtype":format!("{:?}",self.dtype)}));
+        }
         Ok(bytes)
     }
     #[cfg(test)]
@@ -1437,6 +1692,162 @@ pub fn metal_kernel(
 #[cfg(test)]
 mod tests {
     #[test]
+    #[ignore = "Apple MLX owned storage; isolated process with an invalid reader option"]
+    fn disk_schedule_invalid_option_is_rejected_by_ffi_without_writes() -> Result<()> {
+        use std::io::Write;
+        ensure!(std::env::var("MLXL3_SSD_DYNAMIC_READERS")? == "invalid");
+        let mut file = tempfile::tempfile()?;
+        file.write_all(&[1, 2, 3, 4, 5, 6, 7, 8])?;
+        let mut banks = (0..5)
+            .map(|_| Array::from_bytes(&[0xa5; 8], &[8], Dtype::UInt8))
+            .collect::<Result<Vec<_>>>()?;
+        let ranges = (0..5).map(|i| vec![(i, 0, 8)]).collect::<Vec<_>>();
+        let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        let error = Array::read_records(&[(&file, 0); 5], &mut banks, &views, 4)
+            .expect_err("invalid option accepted by real FFI");
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
+        );
+        for bank in banks {
+            ensure!(bank.to_bytes()? == [0xa5; 8]);
+        }
+        println!("T18A_INVALID_OPTION rejected_by_ffi=true records=5 unchanged_bytes=40");
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Apple MLX owned storage and real GCD I/O; run alone per option process"]
+    fn disk_schedule_profile_matches_real_batch_assignment() -> Result<()> {
+        use std::io::Write;
+        let dynamic_requested = match std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() {
+            Ok("1") => true,
+            Ok("0") | Err(std::env::VarError::NotPresent) => false,
+            _ => anyhow::bail!("test requires the production 0/1 option"),
+        };
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                disk_profile_enable(false);
+            }
+        }
+        let _reset = Reset;
+        let source = (0..512 * 32)
+            .map(|i| ((i * 31 + i / 251) % 256) as u8)
+            .collect::<Vec<_>>();
+        let mut file = tempfile::tempfile()?;
+        file.write_all(&source)?;
+        let (mut cases, mut dynamic_batches, mut records, mut bytes) = (0, 0, 0, 0);
+        for workers in [1, 2, 4] {
+            for count in [1usize, 4, 5, 9, 17, 512] {
+                let mut banks = (0..count)
+                    .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
+                    .collect::<Result<Vec<_>>>()?;
+                let sources = (0..count)
+                    .map(|i| (&file, (i * 32) as u64))
+                    .collect::<Vec<_>>();
+                let ranges = (0..count)
+                    .map(|i| vec![(i, 4, 16), (i, 40, 16)])
+                    .collect::<Vec<_>>();
+                let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
+                disk_profile_enable(true);
+                ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
+                Array::read_records(&sources, &mut banks, &views, workers)?;
+                let dynamic = dynamic_requested && workers > 1 && count > workers;
+                ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
+                let timings = disk_profile()?;
+                ensure!(timings.len() == count);
+                let mut worker_end = [0u64; 4];
+                let mut per_worker = [0usize; 4];
+                for (job, &[index, worker, begin, end, read_bytes, failed]) in
+                    timings.iter().enumerate()
+                {
+                    ensure!(
+                        index == job as u64
+                            && worker < count.min(workers) as u64
+                            && end >= begin
+                            && read_bytes == 32
+                            && failed == 0
+                    );
+                    if !dynamic {
+                        ensure!(worker as usize == job % count.min(workers));
+                    }
+                    ensure!(begin >= worker_end[worker as usize]);
+                    worker_end[worker as usize] = end;
+                    per_worker[worker as usize] += 1;
+                }
+                ensure!(per_worker.iter().sum::<usize>() == count);
+                for (i, bank) in banks.iter().enumerate() {
+                    let mut expected = [0xa5; 64];
+                    expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
+                    expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
+                    ensure!(
+                        bank.shape() == [64]
+                            && bank.dtype() == Dtype::UInt8
+                            && bank.to_bytes()? == expected
+                    );
+                }
+                cases += 1;
+                dynamic_batches += usize::from(dynamic);
+                records += count;
+                bytes += count * 32;
+            }
+        }
+        ensure!(
+            cases == 18
+                && records == 1644
+                && bytes == 52608
+                && dynamic_batches == if dynamic_requested { 9 } else { 0 }
+        );
+        println!(
+            "T18A_STORAGE cases={cases} records={records} payload_bytes={bytes} dynamic_batches={dynamic_batches} static_batches={}",
+            cases - dynamic_batches
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn metal_os_capability_query_and_rejections_need_no_gpu_work() -> Result<()> {
+        assert!(checked(unsafe { mlxl3_metal_os_capabilities(std::ptr::null_mut()) }).is_err());
+        let flags = metal_os_capabilities()?;
+        // Compare the native availability predicates against an independent OS
+        // version source; this test neither initializes MLX nor queries a GPU.
+        let version = std::process::Command::new("/usr/bin/sw_vers")
+            .arg("-productVersion")
+            .output()?;
+        ensure!(version.status.success(), "sw_vers failed");
+        let version = String::from_utf8(version.stdout)?;
+        let mut parts = version.trim().split('.');
+        let major: u32 = parts.next().context("missing macOS major")?.parse()?;
+        let minor: u32 = parts.next().unwrap_or("0").parse()?;
+        assert_eq!(flags & 1 != 0, (major, minor) >= (26, 3));
+        assert_eq!(flags & 2 != 0, (major, minor) >= (26, 4));
+        assert_eq!(flags & !3, 0);
+        with_metal_os_for_test(0, || {
+            assert!(!supports_exl3_tensor_ops().unwrap());
+            assert!(!supports_packed_dflash_q4().unwrap());
+            assert!(
+                require_native_q4()
+                    .unwrap_err()
+                    .to_string()
+                    .contains("26.4")
+            );
+            with_metal_os_for_test(1, || {
+                assert!(!supports_packed_dflash_q4().unwrap());
+                assert!(require_native_q4().is_err());
+            });
+            assert!(!supports_exl3_tensor_ops().unwrap());
+        });
+        with_metal_os_for_test(3, || {
+            assert!(supports_packed_dflash_q4().unwrap());
+            assert!(require_native_q4().is_ok());
+        });
+        assert_eq!(metal_os_capabilities()?, flags);
+        Ok(())
+    }
+
+    #[test]
     fn memory_stats_decode_keeps_zero_valid_and_preserves_all_fields() {
         for fill in [0, u64::MAX] {
             for mask in 0..16u64 {
@@ -1730,6 +2141,48 @@ mod tests {
     fn actual_scheduled_raw_readback_preserves_bytes_and_source_event() {
         scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges().unwrap();
         scheduled_route_readback_does_not_wait_for_later_gpu_work().unwrap();
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; telemetry must preserve raw bytes and the source-only wait"]
+    fn readback_profiling_preserves_layouts_errors_and_overlap() -> anyhow::Result<()> {
+        crate::flash_profile::start(false)?;
+        scheduled_route_readback_does_not_wait_for_later_gpu_work()?;
+        scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges()?;
+        let mut invalid_destination = [0u64; 8];
+        assert!(
+            checked(unsafe { mlxl3_readback_profile_copy(invalid_destination.as_mut_ptr(), 7) })
+                .is_err()
+        );
+        assert!(checked(unsafe { mlxl3_readback_profile_copy(std::ptr::null_mut(), 8) }).is_err());
+        let events = serde_json::to_value(crate::flash_profile::finish()?)?;
+        let reads = events
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|event| event["name"] == "host_readback")
+            .collect::<Vec<_>>();
+        assert!(reads.len() > 39);
+        assert_eq!(reads[0]["data"]["sample"]["bytes"], 16);
+        assert_eq!(reads[0]["data"]["sample"]["direct"], true);
+        for direct in [false, true] {
+            assert!(
+                reads
+                    .iter()
+                    .any(|event| event["data"]["sample"]["direct"] == direct)
+            );
+        }
+        println!(
+            "ULTRA_READBACK telemetry_reads={} raw_gpu_cases=39 cpu_float64_cases=3 delayed_overlap=true errors=true parity=byte_exact",
+            reads.len()
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_profiled_readback_path_preserves_metadata_and_overlap() {
+        readback_profiling_preserves_layouts_errors_and_overlap().unwrap();
     }
 
     #[test]
@@ -2347,6 +2800,26 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+    #[kani::proof]
+    #[kani::unwind(25)]
+    fn actual_dynamic_disk_batch_reads_real_owned_storage() {
+        use std::io::Write;
+        let values: [u8; 5] = kani::any();
+        let mut file = tempfile::tempfile().unwrap();
+        file.write_all(&values).unwrap();
+        let mut banks = (0..5)
+            .map(|_| Array::from_bytes(&[0xa5], &[1], Dtype::UInt8).unwrap())
+            .collect::<Vec<_>>();
+        let sources = (0..5).map(|i| (&file, i as u64)).collect::<Vec<_>>();
+        let destinations = (0..5).map(|i| vec![(i, 0, 1)]).collect::<Vec<_>>();
+        let views = destinations.iter().map(Vec::as_slice).collect::<Vec<_>>();
+        Array::read_records(&sources, &mut banks, &views, 4).unwrap();
+        for (bank, expected) in banks.iter().zip(values) {
+            assert_eq!(bank.to_bytes().unwrap(), [expected]);
+        }
+        kani::cover!(values[0] == 0 && values[4] == 255);
+    }
+
     #[kani::proof]
     fn disk_batch_reads_real_owned_storage() {
         use std::io::Write;

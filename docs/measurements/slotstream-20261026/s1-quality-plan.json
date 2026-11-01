@@ -1,0 +1,26 @@
+[
+  {
+    "name": "s1-full-states",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-tests",
+      "qwen4::tests::decoded_ple_cache_preserves_full_logits_states_and_warm_rows",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+    },
+    "native_test": "qwen4::tests::decoded_ple_cache_preserves_full_logits_states_and_warm_rows",
+    "expected_exit": 0,
+    "timeout_seconds": 300
+  }
+]

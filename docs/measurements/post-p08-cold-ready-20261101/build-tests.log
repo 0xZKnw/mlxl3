@@ -1,0 +1,47 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error[E0433]: cannot find module or crate `metal` in this scope
+   --> native/src/array.rs:535:18
+    |
+535 |     let device = metal::Device::system_default().context("no Metal device")?;
+    |                  ^^^^^ use of unresolved module or unlinked crate `metal`
+    |
+    = help: if you wanted to use a crate named `metal`, use `cargo add metal` to add it to your `Cargo.toml`
+
+error[E0631]: type mismatch in function arguments
+   --> native/src/ssd_moe.rs:414:45
+    |
+414 |         let views = destinations.iter().map(Vec::as_slice).collect::<Vec<_>>();
+    |                                         --- ^^^^^^^^^^^^^
+    |                                         |   |
+    |                                         |   expected due to this
+    |                                         |   found signature defined here
+    |                                         required by a bound introduced by this call
+    |
+    = note: expected function signature `fn(&[(usize, usize, usize); 12]) -> _`
+               found function signature `fn(&Vec<_, _>) -> _`
+note: required by a bound in `std::iter::Iterator::map`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/iter/traits/iterator.rs:831:4
+help: consider wrapping the function in a closure
+    |
+414 |         let views = destinations.iter().map(|arg0: &[(usize, usize, usize); 12]| Vec::as_slice(/* &Vec<_, _> */)).collect::<Vec<_>>();
+    |                                             ++++++++++++++++++++++++++++++++++++              ++++++++++++++++++
+
+error[E0599]: the method `collect` exists for struct `Map<Iter<'_, [(usize, usize, usize); 12]>, ...>`, but its trait bounds were not satisfied
+   --> native/src/ssd_moe.rs:414:60
+    |
+414 |         let views = destinations.iter().map(Vec::as_slice).collect::<Vec<_>>();
+    |                                                            ^^^^^^^ method cannot be called on `Map<Iter<'_, [(usize, usize, usize); 12]>, ...>` due to unsatisfied trait bounds
+    |
+    = note: the following trait bounds were not satisfied:
+            `<for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice} as FnOnce<(&[(usize, usize, usize); 12],)>>::Output = _`
+            which is required by `std::iter::Map<std::slice::Iter<'_, [(usize, usize, usize); 12]>, for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice}>: Iterator`
+            `for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice}: FnMut<(&[(usize, usize, usize); 12],)>`
+            which is required by `std::iter::Map<std::slice::Iter<'_, [(usize, usize, usize); 12]>, for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice}>: Iterator`
+            `std::iter::Map<std::slice::Iter<'_, [(usize, usize, usize); 12]>, for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice}>: Iterator`
+            which is required by `&mut std::iter::Map<std::slice::Iter<'_, [(usize, usize, usize); 12]>, for<'a> fn(&'a Vec<_, _>) -> &'a [_] {Vec::<_, _>::as_slice}>: Iterator`
+    = note: the full name for the type has been written to '/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/release/deps/mlxl3_native-c765f63360c2d173.long-type-16001541970936850746.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+Some errors have detailed explanations: E0433, E0599, E0631.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib test) due to 3 previous errors

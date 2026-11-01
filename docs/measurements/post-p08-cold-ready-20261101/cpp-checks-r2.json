@@ -1,0 +1,75 @@
+[
+  {
+    "name": "cpp-asan-build-r3",
+    "command": [
+      "/usr/bin/c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader_async.cpp",
+      "-o",
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-asan"
+    ],
+    "exit": 0,
+    "seconds": 1.238122916998691
+  },
+  {
+    "name": "cpp-asan-tests-r2",
+    "command": [
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-asan"
+    ],
+    "exit": 0,
+    "seconds": 0.2799158330017235
+  },
+  {
+    "name": "cpp-tsan-build",
+    "command": [
+      "/usr/bin/c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=thread",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader_async.cpp",
+      "-o",
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-tsan"
+    ],
+    "exit": 0,
+    "seconds": 0.6220189590021619
+  },
+  {
+    "name": "cpp-tsan-tests",
+    "command": [
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-tsan"
+    ],
+    "exit": 0,
+    "seconds": 2.7039067090008757
+  },
+  {
+    "name": "cpp-proof-syntax",
+    "command": [
+      "/usr/bin/c++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I",
+      "native/ffi",
+      "-fsyntax-only",
+      "native/tests/disk_reader_async_proof.cpp"
+    ],
+    "exit": 0,
+    "seconds": 0.28494154100189917
+  }
+]

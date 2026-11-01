@@ -1,0 +1,82 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+....................................................ss.................. [ 11%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+.................................................s...................... [ 22%]
+........................................................................ [ 26%]
+........................................................................ [ 30%]
+........................................................................ [ 34%]
+..................................s..................................... [ 37%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 53%]
+.................s...................................................... [ 56%]
+........................................................................ [ 60%]
+........................................................................ [ 64%]
+............ssss...........................sssssss.sssssssssssssssssssss [ 68%]
+sssss..............................................sssssssssss.......... [ 71%]
+.......ssss............................................................. [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+...ss................................................................... [ 94%]
+........................................................................ [ 98%]
+.............................                                            [100%]
+=============================== warnings summary ===============================
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[timeout]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[incomplete]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[truncated]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[invalidlist]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[badshape]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[missing]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[complete]
+  /tmp/mlxl3-venv/lib/python3.12/site-packages/modal/_functions.py:1965: UserWarning: The diagnose function is executing locally and will not have access to the mounted Volume or NetworkFileSystem data
+    warnings.warn(
+
+tests/test_lfm25_tuning.py::test_real_archived_source_imports_through_sdk_without_importing_cuda
+tests/test_lfm25_tuning_modal.py::test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk[None]
+  /workspace/mlxl3/scripts/diagnose_lfm25_tuning.py:87: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    original = inspect.unwrap(namespace["diagnose"].get_raw_f())
+
+tests/test_lfm25_tuning_modal.py::test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount
+  /workspace/mlxl3/tests/test_lfm25_tuning_modal.py:468: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    functions.append(inspect.unwrap(function.get_raw_f()))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_quantize_k4_boundaries.py:6: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_quantize_packing.py:6: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_experimental_draft_head.py:264: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_flash_gpu_hot.py:17: clang unavailable; control shader not verified
+SKIPPED [1] tests/test_flash_pair_kernel.py:22: clang preprocessor unavailable; original shader equivalence unverified
+SKIPPED [1] tests/test_flash_qmv54.py:21: clang unavailable; unchanged control shader not verified
+SKIPPED [4] tests/test_lfm25_group_profile.py:207: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [7] tests/test_lfm25_moe_conversion.py:124: could not import 'ponyexl3.cli.convert': No module named 'mlx'
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:207: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [4] tests/test_lfm25_moe_conversion.py:261: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:371: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [8] tests/test_lfm25_moe_conversion.py:398: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [3] tests/test_lfm25_moe_conversion.py:457: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:510: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [5] tests/test_lfm25_moe_conversion.py:539: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:555: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_lfm25_reference.py:121: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_reference.py:144: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:153: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:168: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:196: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_reference.py:236: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:51: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_trace.py:67: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:76: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_quantize_packing_benchmark.py:72: could not import 'mlx.core': No module named 'mlx'
+1842 passed, 67 skipped, 2 deselected, 10 warnings in 98.58s (0:01:38)

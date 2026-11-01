@@ -3,7 +3,9 @@
 #include <array>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -17,9 +19,12 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include "kernel_cache_key.h"
+#include "metal_os_capabilities.h"
 #include "disk_reader.h"
+#include "disk_read_batch.h"
 #include "process_memory.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
@@ -37,7 +42,11 @@ static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_P
 namespace {
 thread_local std::array<char, 2048> last_error{};
 thread_local bool disk_profile_enabled = false;
+thread_local bool disk_profile_dynamic = false;
 thread_local std::vector<mlxl3::DiskTiming> disk_profile;
+thread_local size_t held_disk_batch_job = std::numeric_limits<size_t>::max();
+thread_local bool readback_profile_enabled = false;
+thread_local std::array<uint64_t, 8> readback_profile{};
 template<class F> int protect(F&& f) noexcept {
   last_error[0] = 0;
   try { f(); return 0; }
@@ -123,10 +132,30 @@ struct PreparedDiskRead {
   std::vector<mx::array> owners;
   std::vector<mlxl3::DiskRead> reads;
 };
+struct PreparedDiskBatch {
+  // Destruction is reversed: batch joins before the MLX owners are released.
+  std::vector<mx::array> owners;
+  std::unique_ptr<mlxl3::DiskReadBatch> batch;
+};
 }
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_metal_os_capabilities(uint32_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null Metal capability output");
+    // Query the running OS without initializing MLX, submitting GPU work or
+    // introducing a compiler-rt availability symbol into Rust's native link.
+    std::array<char, mlxl3::metal_os_version_capacity> version{};
+    size_t bytes = version.size();
+    if (sysctlbyname("kern.osproductversion", version.data(), &bytes, nullptr, 0) != 0)
+      throw std::runtime_error(std::string("reading macOS product version failed: ") +
+                               std::strerror(errno));
+    const auto flags = mlxl3::metal_os_capabilities(version.data(), bytes);
+    if (!flags) throw std::runtime_error("invalid macOS product version from sysctl");
+    *out = *flags;
+  });
+}
 int mlxl3_synchronize() noexcept {
   return protect([] { mx::synchronize(); });
 }
@@ -268,6 +297,7 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
 }
 void mlxl3_disk_profile_enable(bool enabled) noexcept {
   disk_profile_enabled = enabled;
+  disk_profile_dynamic = false;
   disk_profile.clear();
 }
 size_t mlxl3_disk_profile_copy(uint64_t* output, size_t capacity) noexcept {
@@ -278,12 +308,14 @@ size_t mlxl3_disk_profile_copy(uint64_t* output, size_t capacity) noexcept {
     for (auto v : {t.job, t.worker, t.start_ns, t.end_ns, t.bytes, t.failed}) output[i++] = v;
   return count;
 }
+bool mlxl3_disk_profile_dynamic() noexcept { return disk_profile_dynamic; }
 int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
                         void* const* buffers, size_t buffer_count,
                         const size_t* indices, const size_t* starts,
                         const size_t* lengths, size_t segments, size_t workers) noexcept {
   return protect([&] {
     disk_profile.clear();
+    disk_profile_dynamic = false;
     if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
         !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
       throw std::invalid_argument("invalid disk reader metadata");
@@ -311,8 +343,91 @@ int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
       }
       reads.push_back(std::move(read));
     }
-    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr);
+    // Fixed for this thread/process; use separate processes for the two A/B arms.
+    // Persistent speculative readers retain their existing scheduling policy.
+    thread_local const auto requested = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
+    const auto schedule = mlxl3::effective_disk_schedule(requested, records, workers);
+    disk_profile_dynamic = schedule == mlxl3::DiskSchedule::Dynamic;
+    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr, schedule);
   });
+}
+void mlxl3_disk_batch_hold_job_for_test(size_t job) noexcept { held_disk_batch_job = job; }
+int mlxl3_disk_batch_begin(const int* fds, const uint64_t* offsets, size_t records,
+                          void* const* buffers, size_t buffer_count, const size_t* indices,
+                          const size_t* starts, const size_t* lengths, size_t segments,
+                          size_t workers, void** out) noexcept {
+  const auto held_job = held_disk_batch_job;
+  held_disk_batch_job = std::numeric_limits<size_t>::max();
+  return protect([&] {
+    if (!fds || !offsets || !buffers || !buffer_count || !indices || !starts || !lengths ||
+        !out || !records || records > 512 || !segments || segments > 64 ||
+        !workers || workers > 4)
+      throw std::invalid_argument("invalid async disk reader metadata");
+    *out = nullptr;
+    auto prepared = std::make_unique<PreparedDiskBatch>();
+    prepared->owners = arrays(buffers, buffer_count);
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (auto& owner : prepared->owners) {
+      owner.eval();
+      if (!owner.flags().row_contiguous)
+        throw std::invalid_argument("noncontiguous async disk buffer");
+      pointers.push_back(owner.data<uint8_t>());
+      capacities.push_back(owner.nbytes());
+    }
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        const auto i = r * segments + s;
+        const auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid async disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
+      }
+      reads.push_back(std::move(read));
+    }
+    disk_profile.clear();
+    disk_profile_dynamic = false;
+    prepared->batch = std::make_unique<mlxl3::DiskReadBatch>(
+        std::move(reads), workers, disk_profile_enabled, held_job);
+    *out = prepared.release();
+  });
+}
+int mlxl3_disk_batch_wait_ready(void* opaque, size_t minimum, uint8_t* mask,
+                               size_t count) noexcept {
+  return protect([&] {
+    if (!opaque || !mask) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    if (count != batch.size()) throw std::invalid_argument("invalid async ready mask");
+    const auto ready = batch.wait_ready(minimum);
+    std::copy(ready.begin(), ready.end(), mask);
+  });
+}
+int mlxl3_disk_batch_ready(void* opaque, uint8_t* mask, size_t count) noexcept {
+  return protect([&] {
+    if (!opaque || !mask) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    if (count != batch.size()) throw std::invalid_argument("invalid async ready mask");
+    const auto ready = batch.ready();
+    std::copy(ready.begin(), ready.end(), mask);
+  });
+}
+int mlxl3_disk_batch_finish(void* opaque) noexcept {
+  return protect([&] {
+    if (!opaque) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    batch.join();
+    disk_profile = batch.timings();
+    disk_profile_dynamic = false;
+    batch.finish();
+  });
+}
+void mlxl3_disk_batch_free(void* opaque) noexcept {
+  delete static_cast<PreparedDiskBatch*>(opaque);
 }
 int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,
                             const size_t* indices, const size_t* starts, const size_t* lengths,
@@ -435,17 +550,49 @@ int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
 }
 int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
   return protect([&] {
+    using Clock = std::chrono::steady_clock;
+    const bool profiling = readback_profile_enabled;
+    if (profiling) readback_profile.fill(0);
+    const auto now = [&] { return profiling ? Clock::now() : Clock::time_point{}; };
+    const auto ns = [](Clock::time_point start, Clock::time_point end) {
+      return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    };
+    const auto start = now();
     auto& source = arr(p);
     if (source.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
     if (count && !out) throw std::invalid_argument("null byte output");
+    const bool ready = profiling && source.is_available();
+    const auto read = [&](mx::array& value, bool direct, uint64_t build_ns) {
+      const auto wait_start = now();
+      value.eval();
+      const auto* data = count ? value.data<uint8_t>() : nullptr;
+      const auto copy_start = now();
+      if (count) std::memcpy(out, data, count);
+      const auto end = now();
+      if (profiling)
+        readback_profile = {1, ns(wait_start, copy_start), ns(copy_start, end), build_ns,
+                            uint64_t(count), uint64_t(ready), uint64_t(direct), ns(start, end)};
+    };
     // A new Contiguous primitive would wait behind unrelated work submitted later.
     if (source.status() != mx::array::Status::unscheduled && source.flags().row_contiguous) {
-      source.eval();
-      if (count) std::memcpy(out, source.data<uint8_t>(), count);
+      read(source, true, 0);
       return;
     }
+    const auto build_start = now();
     auto a = mx::contiguous(source);
-    a.eval(); if (count) std::memcpy(out, a.data<uint8_t>(), count);
+    const auto build_end = now();
+    read(a, false, profiling ? ns(build_start, build_end) : 0);
+  });
+}
+void mlxl3_readback_profile_enable(bool enabled) noexcept {
+  readback_profile_enabled = enabled;
+  readback_profile.fill(0);
+}
+int mlxl3_readback_profile_copy(uint64_t* output, size_t count) noexcept {
+  return protect([&] {
+    if (!output || count != readback_profile.size())
+      throw std::invalid_argument("invalid readback profile destination");
+    std::copy(readback_profile.begin(), readback_profile.end(), output);
   });
 }
 // Opcodes stay private to array.rs; every operation returns a fresh owned handle.

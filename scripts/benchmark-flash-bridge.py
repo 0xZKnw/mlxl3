@@ -339,6 +339,7 @@ if __name__ == "__main__":
     parser.add_argument("--prompt", choices=tuple(PROMPTS), help="measure only this fixed prompt")
     parser.add_argument("--repeats", type=int, default=3, help="measured repetitions after warmup")
     parser.add_argument("--tokens", type=int, default=64)
+    parser.add_argument("--timeout", type=float, default=300.0)
     args = parser.parse_args()
     run(
         args.engine,
@@ -351,6 +352,7 @@ if __name__ == "__main__":
         prompt=args.prompt,
         repeats=args.repeats,
         tokens=args.tokens,
+        timeout=args.timeout,
         dflash_draft=args.dflash_draft,
         dflash_mode=args.dflash_mode,
     )

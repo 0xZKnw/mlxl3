@@ -9,7 +9,8 @@ export PYTHONPATH="$PWD/src:$PWD/scripts:$PWD/benchmarks:$PWD/apps/MLXL3Studio/V
 swift_args=(--package-path apps/MLXL3Studio)
 swiftc_args=(-swift-version 6 -warnings-as-errors -parse-as-library -module-cache-path "${test_dir}/modules")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
-    swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
+    # shortcut: keep the same explicit-SDK backend as check-desktop.sh until Swift Build honors it.
+    swift_args+=(--build-system native --sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
 fi
 swift build "${swift_args[@]}"

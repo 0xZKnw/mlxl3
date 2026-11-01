@@ -1,0 +1,57 @@
+{
+  "results": [
+    {
+      "mutation": "guard",
+      "command": [
+        "prlimit",
+        "--as=6442450944",
+        "--",
+        "timeout",
+        "--kill-after=5s",
+        "60s",
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--exact",
+        "--harness",
+        "flash_cache_profile::verification::cache_allocation_rejects_every_invalid_two_layer_budget",
+        "--jobs",
+        "1",
+        "--output-format",
+        "regular"
+      ],
+      "returncode": 1,
+      "detected": true
+    },
+    {
+      "mutation": "optimality",
+      "command": [
+        "prlimit",
+        "--as=6442450944",
+        "--",
+        "timeout",
+        "--kill-after=5s",
+        "60s",
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "-Z",
+        "stubbing",
+        "--exact",
+        "--harness",
+        "flash_cache_profile::verification::cache_allocation_budget_one_is_optimal_and_exact",
+        "--jobs",
+        "1",
+        "--output-format",
+        "regular"
+      ],
+      "returncode": 1,
+      "detected": true
+    }
+  ],
+  "restored_sha256": "546dad9f1873482a4187e887588e4a4914ebadf23fa23aa0168f06addd500467"
+}

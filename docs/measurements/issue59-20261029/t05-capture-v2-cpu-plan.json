@@ -1,0 +1,108 @@
+[
+  {
+    "name": "t05-capture-v2-good-fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 60,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t05-capture-v2-clippy-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 180,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t05-capture-v2-build-good-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 240,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t05-capture-v2-mlx-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 300,
+    "expected_exit": 0,
+    "required_text": [
+      "test result: ok."
+    ]
+  },
+  {
+    "name": "t05-capture-v2-good-libtest-inventory",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 240,
+    "expected_exit": 0,
+    "required_text": []
+  }
+]

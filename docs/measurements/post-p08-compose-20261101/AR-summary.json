@@ -1,0 +1,118 @@
+{
+  "status": "complete_AR_only_MTP_DF_pending",
+  "order": "AGFCCFGA",
+  "measured_generations": 16,
+  "all_samples_retained": true,
+  "warmups_excluded_from_speed": 16,
+  "results": [
+    {
+      "arm": "A",
+      "decode_tps": 10.481548246616873,
+      "prefill_tps": 10.273119623419044,
+      "mean_ttft_seconds": 8.22583048925,
+      "peak_footprint_bytes": 7121737608,
+      "peak_lifetime_bytes": 7123670896,
+      "runs": [
+        {
+          "name": "compose-pilot128-AR-1-A",
+          "decode_tps": 10.48322463537107,
+          "prefill_tps": 10.52775858878859
+        },
+        {
+          "name": "compose-pilot128-AR-8-A",
+          "decode_tps": 10.479872393924818,
+          "prefill_tps": 10.030507853737431
+        }
+      ],
+      "prompts": {
+        "MAIN": 10.69870493545685,
+        "HOLD": 10.273031650356115
+      },
+      "decode_gain_percent": 0.0,
+      "prefill_gain_percent": 0.0,
+      "ttft_change_percent": 0.0
+    },
+    {
+      "arm": "G",
+      "decode_tps": 10.41333977372324,
+      "prefill_tps": 10.432403701372413,
+      "mean_ttft_seconds": 8.100157729,
+      "peak_footprint_bytes": 7123752792,
+      "peak_lifetime_bytes": 7123752792,
+      "runs": [
+        {
+          "name": "compose-pilot128-AR-2-G",
+          "decode_tps": 10.599781175872257,
+          "prefill_tps": 10.474730622929979
+        },
+        {
+          "name": "compose-pilot128-AR-7-G",
+          "decode_tps": 10.233343704253732,
+          "prefill_tps": 10.390417477444572
+        }
+      ],
+      "prompts": {
+        "MAIN": 10.740290862359057,
+        "HOLD": 10.105706418418542
+      },
+      "decode_gain_percent": -0.6507480697391044,
+      "prefill_gain_percent": 1.5504937525526286,
+      "ttft_change_percent": -1.52778203263777
+    },
+    {
+      "arm": "F",
+      "decode_tps": 10.456753873910102,
+      "prefill_tps": 10.212035030917333,
+      "mean_ttft_seconds": 8.2749932495,
+      "peak_footprint_bytes": 7141955488,
+      "peak_lifetime_bytes": 7141971872,
+      "runs": [
+        {
+          "name": "compose-pilot128-AR-3-F",
+          "decode_tps": 10.335365871927044,
+          "prefill_tps": 9.96541218184387
+        },
+        {
+          "name": "compose-pilot128-AR-6-F",
+          "decode_tps": 10.581027146884162,
+          "prefill_tps": 10.471174424511423
+        }
+      ],
+      "prompts": {
+        "MAIN": 10.626915290616358,
+        "HOLD": 10.291955928913897
+      },
+      "decode_gain_percent": -0.23655257909797056,
+      "prefill_gain_percent": -0.5946060665200426,
+      "ttft_change_percent": 0.5976631820245659
+    },
+    {
+      "arm": "C",
+      "decode_tps": 10.579614947806473,
+      "prefill_tps": 10.46604321555765,
+      "mean_ttft_seconds": 8.074193395750001,
+      "peak_footprint_bytes": 7132796832,
+      "peak_lifetime_bytes": 7132796832,
+      "runs": [
+        {
+          "name": "compose-pilot128-AR-4-C",
+          "decode_tps": 10.605069435926396,
+          "prefill_tps": 10.45140327112952
+        },
+        {
+          "name": "compose-pilot128-AR-5-C",
+          "decode_tps": 10.55428235978669,
+          "prefill_tps": 10.480724231717724
+        }
+      ],
+      "prompts": {
+        "MAIN": 10.749622168830822,
+        "HOLD": 10.414901396405615
+      },
+      "decode_gain_percent": 0.9356127442456064,
+      "prefill_gain_percent": 1.8779455434239312,
+      "ttft_change_percent": -1.8434259458442237
+    }
+  ],
+  "limits": "two independent processes per arm, MAIN/HOLD each; no statistical proof or measured causal interaction"
+}

@@ -1,0 +1,94 @@
+{
+  "status": "cloud_preparation_complete_physical_qualification_pending",
+  "formal_proof": false,
+  "performance_validated": false,
+  "checks": {
+    "rust_cpu": {
+      "command": "cargo test --locked --no-default-features --features chat",
+      "result": "passed",
+      "passed": 245,
+      "ignored": 6,
+      "gpu_selected": 0,
+      "log": "rust-cpu-tests.log",
+      "raw_log": "rust-cpu-tests.raw.log.gz",
+      "readable_log_normalization": "trailing blank lines removed only; exact original bytes preserved in raw gzip"
+    },
+    "cpu_lint": {
+      "command": "cargo clippy --locked --all-targets --no-default-features --features chat -- -D warnings",
+      "result": "passed",
+      "log": "clippy-cpu.log"
+    },
+    "cpu_build": {
+      "command": "cargo build --locked --no-default-features --features chat",
+      "result": "passed",
+      "log": "build-cpu.log"
+    },
+    "rust_format": {
+      "command": "cargo fmt --check",
+      "result": "passed"
+    },
+    "python": {
+      "command": "python -m pytest -q tests/test_flash_profile_export.py tests/test_flash_profile.py tests/test_flash_quality_run.py tests/test_flash_benchmark.py tests/test_flash_drafts.py tests/test_dflash2_check.py tests/test_mtp_bridge.py",
+      "result": "passed",
+      "passed": 312,
+      "log": "python-tests.log"
+    },
+    "queue_sanitizers": {
+      "command": "c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I native/ffi native/tests/disk_work_queue.cpp -o /tmp/cloud59-disk-queue && /tmp/cloud59-disk-queue; repeat with -fsanitize=thread",
+      "result": "passed",
+      "cases_per_sanitizer_run": 4084,
+      "logs": [
+        "queue-asan.log",
+        "queue-tsan.log"
+      ]
+    },
+    "queue_proof_syntax": {
+      "command": "c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_work_queue_proof.cpp",
+      "result": "passed_syntax_only"
+    },
+    "isolated_rust_mlx_frontend": {
+      "command": "cargo clippy --manifest-path /tmp/cloud59-typecheck/Cargo.toml --target aarch64-apple-darwin --all-targets --features mlx,chat -- -D warnings",
+      "result": "passed_with_explicit_abstractions",
+      "changes": "build=false; absolute original Rust source paths; tokenizers native backends replaced with fancy-regex only in isolated manifest; MLX build variables identify unlinked check",
+      "not_checked": "actual shipped build configuration, linking, C++ FFI or Metal",
+      "manifest": "isolated-typecheck-manifest.txt",
+      "lock": "isolated-typecheck-lock.txt",
+      "log": "clippy-mlx-isolated.log"
+    },
+    "native_mlx_build": {
+      "command": "cargo build --locked --no-default-features --features mlx,chat",
+      "result": "blocked_platform",
+      "reason": "build.rs requires macOS; host Linux",
+      "log": "build-mlx-unavailable.log"
+    },
+    "native_disk_reader": {
+      "command": "c++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/disk_reader.cpp",
+      "result": "blocked_platform",
+      "reason": "dispatch/dispatch.h missing",
+      "log": "disk-reader-unavailable.log"
+    },
+    "kani": {
+      "command": "cargo kani --lib --no-default-features --harness gdn_epilogue_accepts_only_production_decode_shapes",
+      "result": "not_verified_tool_absent",
+      "log": "kani-unavailable.log"
+    },
+    "cbmc": {
+      "command": "cbmc native/tests/disk_work_queue_proof.cpp -I native/ffi --function proof --unwind 10 --unwinding-assertions --bounds-check --pointer-check --signed-overflow-check --unsigned-overflow-check",
+      "result": "not_verified_tool_absent",
+      "log": "cbmc-unavailable.log"
+    },
+    "crosshair": {
+      "command": "python -m crosshair check --analysis_kind=asserts scripts/profile_flash.py",
+      "result": "not_verified_tool_absent",
+      "log": "crosshair-unavailable.log"
+    },
+    "gpu_numerics_and_speed": {
+      "result": "not_executed",
+      "reason": "No Apple Metal/M5/checkpoint in cloud"
+    },
+    "remote_ci": {
+      "result": "not_executed",
+      "reason": "No push or PR authorized"
+    }
+  }
+}

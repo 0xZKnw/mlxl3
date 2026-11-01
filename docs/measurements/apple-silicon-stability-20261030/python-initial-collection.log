@@ -1,0 +1,61 @@
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/test_lfm25_modal.py __________________
+ImportError while importing test module '/workspace/mlxl3/tests/test_lfm25_modal.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_lfm25_modal.py:9: in <module>
+    from quantize_lfm25_modal import conversion_command, convert_model, run_logged
+scripts/quantize_lfm25_modal.py:19: in <module>
+    import modal
+E   ModuleNotFoundError: No module named 'modal'
+_____________ ERROR collecting tests/test_lfm25_v3_calibration.py ______________
+ImportError while importing test module '/workspace/mlxl3/tests/test_lfm25_v3_calibration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_lfm25_v3_calibration.py:11: in <module>
+    from quantize_lfm25_v3_modal import convert_candidate, fetch_trace_sources, make_mix, ngrams
+scripts/quantize_lfm25_v3_modal.py:12: in <module>
+    import modal
+E   ModuleNotFoundError: No module named 'modal'
+____________ ERROR collecting tests/test_ling_conversion_adapter.py ____________
+ImportError while importing test module '/workspace/mlxl3/tests/test_ling_conversion_adapter.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_ling_conversion_adapter.py:4: in <module>
+    import mlx.core as mx
+E   ModuleNotFoundError: No module named 'mlx'
+_______________ ERROR collecting tests/test_ling_integration.py ________________
+ImportError while importing test module '/workspace/mlxl3/tests/test_ling_integration.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_ling_integration.py:7: in <module>
+    from mlx_lm.models.bailing_moe_v3 import ModelArgs
+E   ModuleNotFoundError: No module named 'mlx_lm'
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_quantize_k4_boundaries.py:6: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_quantize_packing.py:6: could not import 'mlx.core': No module named 'mlx'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+ERROR tests/test_lfm25_modal.py
+ERROR tests/test_lfm25_v3_calibration.py
+ERROR tests/test_ling_conversion_adapter.py
+ERROR tests/test_ling_integration.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
+8 skipped, 4 errors in 1.54s

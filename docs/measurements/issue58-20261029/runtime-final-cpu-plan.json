@@ -1,0 +1,69 @@
+[
+  {
+    "name": "pool-kani-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_shared_exl3_bank_edge_projection_and_runtime"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 1,
+    "timeout_seconds": 60,
+    "require_quiet": false,
+    "required_text": [
+      "intrinsics.rs:243",
+      "internal compiler error"
+    ]
+  },
+  {
+    "name": "pool-final-libtest",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "pool-final-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  }
+]

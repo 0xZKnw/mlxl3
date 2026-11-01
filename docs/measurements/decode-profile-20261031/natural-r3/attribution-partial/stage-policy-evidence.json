@@ -1,0 +1,51 @@
+{
+  "status": "closed_phase_metadata_checked_not_full_run_parity",
+  "parity": false,
+  "summaries": [
+    {
+      "phase": "warmup",
+      "test_stage_retention": true,
+      "test_stage_count": 789,
+      "full_logits_target_head_states_byte_exact": true,
+      "logit_count": 248320,
+      "diagnostic_tps": 10.618850364083553,
+      "decode_seconds": 11.959863417,
+      "decode_epoch": 1793463791.085631
+    },
+    {
+      "phase": "control_before",
+      "test_stage_retention": false,
+      "test_stage_count": 0,
+      "full_logits_target_head_states_byte_exact": true,
+      "logit_count": 248320,
+      "diagnostic_tps": 11.076594468728798,
+      "decode_seconds": 11.465617917,
+      "decode_epoch": 1793463811.624637
+    },
+    {
+      "phase": "trace_1",
+      "test_stage_retention": false,
+      "test_stage_count": 0,
+      "full_logits_target_head_states_byte_exact": true,
+      "logit_count": 248320,
+      "diagnostic_tps": 9.583647007829233,
+      "decode_seconds": 13.251740167,
+      "decode_epoch": 1793463832.498269
+    },
+    {
+      "phase": "trace_2",
+      "test_stage_retention": false,
+      "test_stage_count": 0,
+      "full_logits_target_head_states_byte_exact": true,
+      "logit_count": 248320,
+      "diagnostic_tps": 6.67858228291099,
+      "decode_seconds": 19.016011875,
+      "decode_epoch": 1793463855.752395
+    }
+  ],
+  "missing_full_completion": [
+    "control_after-summary.json",
+    "complete.json",
+    "final-snapshot.json"
+  ]
+}

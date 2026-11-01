@@ -1,0 +1,45 @@
+[
+  {
+    "name": "t17-full-clippy-cpu",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 120,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "t17-full-cpu-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "timeout_seconds": 240,
+    "expected_exit": 0,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

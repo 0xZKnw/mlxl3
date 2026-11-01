@@ -1,0 +1,37 @@
+Job https://github.com/0xZKnw/mlxl3/actions/runs/41035881383/job/123996460969
+Source 6500262bbac0f73df5e5ae3c53697dc586b14fc7
+Excerpt of the actual failed shipped-variant link; remaining job cleanup omitted.
+2026-10-30T09:57:21.4320200Z error: linking with `cc` failed: exit status: 1
+2026-10-30T09:57:21.4325710Z   |
+2026-10-30T09:57:21.4332980Z   = note:  "cc" "<143 object files omitted>" "/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/{libmlxl3_native-605f328af3bd5954,libesaxx_rs-61b71ef16b00fedd,libonig_sys-6b86ffa7d7dd9b35}.rlib" "<sysroot>/lib/rustlib/aarch64-apple-darwin/lib/libcompiler_builtins-*.rlib" "-lmlx" "-lc++" "-lc++" "-framework" "Metal" "-lSystem" "-lSystem" "-framework" "CoreGraphics" "-framework" "CoreFoundation" "-lobjc" "-liconv" "-lSystem" "-lc" "-lm" "-arch" "arm64" "-mmacosx-version-min=11.0.0" "-L" "/Users/runner/work/mlxl3/mlxl3/target/release/build/mlxl3-native-13724abda0436466/out" "-L" "/Users/runner/work/mlxl3/mlxl3/target/release/build/esaxx-rs-dc0a9156b7053280/out" "-L" "/Users/runner/work/mlxl3/mlxl3/target/release/build/onig_sys-76cc666c6887eb3f/out" "-L" "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/mlx/lib" "-o" "/Users/runner/work/mlxl3/mlxl3/target/release/deps/mlxl3_rs-2a1c8033b565beb6" "-Wl,-dead_strip" "-nodefaultlibs" "-Wl,-rpath,@executable_path" "-Wl,-rpath,/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/mlx/lib"
+2026-10-30T09:57:21.4429190Z   = note: some arguments are omitted. use `--verbose` to show all linker arguments
+2026-10-30T09:57:21.4495640Z   = note: ld: warning: ignoring duplicate libraries: '-lSystem', '-lc++'
+2026-10-30T09:57:21.4500550Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libmlxl3_native-605f328af3bd5954.rlib[2](mlx_bridge.o)) was built for newer 'macOS' version (26.0) than being linked (11.0)
+2026-10-30T09:57:21.4503450Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[2](a445302c6d3dcb51-regexec.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4505070Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[3](a445302c6d3dcb51-regerror.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4506830Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[4](a445302c6d3dcb51-regparse.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4508410Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[6](a445302c6d3dcb51-regcomp.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4510300Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[8](a445302c6d3dcb51-regenc.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4512240Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[12](a445302c6d3dcb51-st.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4561290Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[14](a445302c6d3dcb51-unicode.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4573920Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[15](a445302c6d3dcb51-ascii.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4576080Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[16](a445302c6d3dcb51-utf8.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4579250Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[46](a445302c6d3dcb51-unicode_unfold_key.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4580960Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[47](a445302c6d3dcb51-unicode_fold1_key.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4583180Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[48](a445302c6d3dcb51-unicode_fold2_key.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4585810Z           ld: warning: object file (/Users/runner/work/mlxl3/mlxl3/target/release/deps/rustcNCnweS/libonig_sys-6b86ffa7d7dd9b35.rlib[49](a445302c6d3dcb51-unicode_fold3_key.o)) was built for newer 'macOS' version (26.5) than being linked (11.0)
+2026-10-30T09:57:21.4587400Z           ld: warning: building for macOS-11.0, but linking with dylib '@rpath/libmlx.dylib' which was built for newer version 26.2
+2026-10-30T09:57:21.4588330Z           Undefined symbols for architecture arm64:
+2026-10-30T09:57:21.4588730Z             "___isPlatformVersionAtLeast", referenced from:
+2026-10-30T09:57:21.4589370Z                 _mlxl3_metal_os_capabilities in libmlxl3_native-605f328af3bd5954.rlib[2](mlx_bridge.o)
+2026-10-30T09:57:21.4590030Z                 _mlxl3_metal_os_capabilities in libmlxl3_native-605f328af3bd5954.rlib[2](mlx_bridge.o)
+2026-10-30T09:57:21.4590900Z           ld: symbol(s) not found for architecture arm64
+2026-10-30T09:57:21.4591580Z           clang: error: linker command failed with exit code 1 (use -v to see invocation)
+2026-10-30T09:57:21.4592520Z           
+2026-10-30T09:57:21.4592650Z 
+2026-10-30T09:57:21.6739520Z error: could not compile `mlxl3-native` (bin "mlxl3-rs") due to 1 previous error
+2026-10-30T09:57:21.7365030Z ##[error]Process completed with exit code 101.
+2026-10-30T09:57:21.7679340Z Post job cleanup.
+2026-10-30T09:57:22.1750300Z [command]/opt/homebrew/bin/git version
+2026-10-30T09:57:22.2047140Z git version 2.56.0
+2026-10-30T09:57:22.2071730Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/1159fec9-79e4-4f57-85c1-f0bf387094c5/.gitconfig'

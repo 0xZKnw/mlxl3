@@ -31,6 +31,57 @@ fn prime_half(moe: &mut SsdMoe, input: &Array) -> Result<Vec<u32>> {
 }
 
 #[test]
+#[ignore = "physical Apple GPU, Flash fixtures and WEIGHTED_EPILOGUE=1; select alone"]
+fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Result<()> {
+    ensure!(
+        std::env::var("MLXL3_SSD_WEIGHTED_EPILOGUE").as_deref() == Ok("1"),
+        "select this test with MLXL3_SSD_WEIGHTED_EPILOGUE=1"
+    );
+    let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+    let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
+    ensure!(
+        moe.weighted_epilogue,
+        "weighted epilogue flag was not loaded"
+    );
+    moe.gpu_hot = true;
+    prime_half(&mut moe, &input)?;
+    crate::weighted_epilogue::reset_kernel_requests_for_test();
+    let actual = moe.forward(&input)?;
+    ensure!(
+        crate::weighted_epilogue::kernel_requests_for_test() == 1,
+        "real mixed MoE did not construct the weighted epilogue"
+    );
+    ensure!(
+        crate::weighted_epilogue::last_geometry_for_test() == (10, 5, 10),
+        "masked Hot physical height was replaced by the five logical hits"
+    );
+    ensure!(moe.hits == 5 && moe.misses == 5);
+    ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
+    let values = actual.to_f32()?;
+    ensure!(values.len() == H as usize && values.iter().all(|v| v.is_finite()));
+    ensure!(
+        moe.forward(&input)?.to_bytes()? == expected
+            && crate::weighted_epilogue::kernel_requests_for_test() == 1,
+        "fully Hot control entered the mixed weighted epilogue"
+    );
+    moe.drain()?;
+    let mut cold = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
+    ensure!(
+        cold.weighted_epilogue,
+        "Cold control lost the configured flag"
+    );
+    cold.gpu_hot = false;
+    ensure!(
+        cold.forward(&input)?.to_bytes()? == expected
+            && crate::weighted_epilogue::kernel_requests_for_test() == 1,
+        "all-Cold control entered the mixed weighted epilogue"
+    );
+    ensure!(cold.hits == 0 && cold.misses == 10);
+    cold.drain()?;
+    Ok(())
+}
+
+#[test]
 #[ignore = "physical Apple GPU; verify early hot does not block routes or demanded reads"]
 fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
     let (checkpoint, input, expected) = super::tests::admission_fixture()?;

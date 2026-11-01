@@ -1,0 +1,34 @@
+{
+  "status": "preregistered",
+  "cases": [
+    {
+      "mode": "AR",
+      "plan": "docs/measurements/ultra-profile-20261027/cli/AR-r2/run.json",
+      "sampler": "reuse opt49 snapshot/main around quiet zero-swap supervisor;2second system samples;not exclusive modelGPU",
+      "retry_reason": "initial timeout1500 unsupported; monitor cap900; child stopped before helper import/model; old failure retained"
+    },
+    {
+      "mode": "MTP",
+      "plan": "docs/measurements/ultra-profile-20261027/cli/MTP/run.json",
+      "sampler": "reuse opt49 snapshot/main around quiet zero-swap supervisor;2second system samples;not exclusive modelGPU"
+    },
+    {
+      "mode": "DF",
+      "plan": "docs/measurements/ultra-profile-20261027/cli/DF/run.json",
+      "sampler": "reuse opt49 snapshot/main around quiet zero-swap supervisor;2second system samples;not exclusive modelGPU"
+    },
+    {
+      "mode": "AR gold512/1024",
+      "plan": "docs/measurements/ultra-profile-20261027/cli-gold/run.json",
+      "sampler": false
+    }
+  ],
+  "purpose": "independent old CLI golden for long inputs; current release CLI steady resident-mode observations; request reuse disabled; context4096;3GiB",
+  "guards": "same w2 anchor;quiet;AC;zeroSwapouts;boundedprocessgroups",
+  "cpu_profile_only": {
+    "plan": "docs/measurements/ultra-profile-20261027/cli/AR-stacks/run.json",
+    "reason": "AR initial sample missed; acquire new observable only; not a speed repeat/replacement",
+    "mode": "AR",
+    "included_in_release_throughput_summary": false
+  }
+}

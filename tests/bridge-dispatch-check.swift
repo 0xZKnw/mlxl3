@@ -32,9 +32,116 @@ private final class JSONDecoder {
     var readyModels: [String] = []
     var exitCount = 0
     var deliveries = 0
+    var exitMessages: [String] = []
 }
 
 extension MLXL3Bridge {
+    @MainActor fileprivate func checkOutputFrameBounds() async {
+        let valid = MLXL3Bridge()
+        let samples = DispatchSamples()
+        valid.onEvent = { event in
+            if event.type == "ready", let model = event.model { samples.readyModels.append(model) }
+        }
+        valid.onExit = { message in samples.exitMessages.append(message ?? "") }
+        let validTicket = valid.generationID.withLock { $0 }
+        let json = Data(#"{"type":"ready","model":"boundary"}"#.utf8)
+        let frame = json + Data(repeating: 0x20, count: Self.maximumOutputFrameBytes - json.count)
+        precondition(frame.count == Self.maximumOutputFrameBytes)
+        valid.ioQueue.sync {
+            let middle = frame.count / 2
+            valid.consumeOutput(frame.prefix(middle), ticket: validTicket)
+            precondition(valid.outputBuffer.count == middle)
+            valid.consumeOutput(frame.dropFirst(middle) + Data([0x0A]), ticket: validTicket)
+            precondition(valid.outputBuffer.isEmpty && !valid.outputFailed)
+        }
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        precondition(samples.readyModels == ["boundary"] && samples.exitMessages.isEmpty,
+                     "An exactly bounded split JSON frame was rejected")
+
+        let small = Data(#"{"type":"ready","model":"batch"}"#.utf8)
+            + Data(repeating: 0x20, count: 65_536)
+            + Data([0x0A])
+        var batch = Data()
+        for _ in 0..<128 { batch.append(small) }
+        precondition(batch.count > Self.maximumOutputFrameBytes)
+        valid.ioQueue.sync { valid.consumeOutput(batch, ticket: validTicket) }
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        precondition(samples.readyModels.filter { $0 == "batch" }.count == 128
+                     && samples.exitMessages.isEmpty,
+                     "A large read containing bounded frames was rejected by aggregate size")
+        valid.stop()
+
+        for split in [false, true] {
+            for terminated in [false, true] {
+                let invalid = MLXL3Bridge()
+                let failures = DispatchSamples()
+                invalid.onExit = { message in failures.exitMessages.append(message ?? "") }
+                let ticket = invalid.generationID.withLock { $0 }
+                invalid.ioQueue.sync {
+                    if split {
+                        invalid.consumeOutput(Data(repeating: 0x20, count: Self.maximumOutputFrameBytes), ticket: ticket)
+                        precondition(invalid.outputBuffer.count == Self.maximumOutputFrameBytes)
+                        invalid.consumeOutput(Data(terminated ? [0x20, 0x0A] : [0x20]), ticket: ticket)
+                    } else {
+                        var oversized = Data(repeating: 0x20, count: Self.maximumOutputFrameBytes + 1)
+                        if terminated { oversized.append(0x0A) }
+                        invalid.consumeOutput(oversized, ticket: ticket)
+                    }
+                    precondition(invalid.outputFailed && invalid.outputBuffer.isEmpty,
+                                 "Oversized frame remained retained")
+                    invalid.consumeOutput(Data(#"{"type":"ready"}"#.utf8), ticket: ticket)
+                }
+                await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+                precondition(failures.exitMessages.count == 1 && failures.exitMessages[0].utf8.count < 256,
+                             "Oversized output did not report one bounded error")
+            }
+        }
+        let stale = MLXL3Bridge()
+        let staleFailures = DispatchSamples()
+        stale.onExit = { _ in staleFailures.exitCount += 1 }
+        let staleTicket = stale.generationID.withLock { $0 }
+        stale.ioQueue.sync {
+            stale.consumeOutput(Data(repeating: 0x20, count: Self.maximumOutputFrameBytes + 1), ticket: staleTicket)
+        }
+        stale.stop()
+        await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
+        precondition(staleFailures.exitCount == 0, "Delayed frame failure survived generation replacement")
+    }
+
+    @MainActor fileprivate func checkOversizedProcess() async throws {
+        let samples = DispatchSamples()
+        onEvent = { event in
+            if event.type == "ready", let model = event.model { samples.readyModels.append(model) }
+        }
+        onExit = { message in samples.exitMessages.append(message ?? "") }
+        try await start(model: "bridge-oversized")
+        for _ in 0..<100 where !samples.readyModels.contains("bridge-oversized") {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(samples.readyModels == ["bridge-oversized"] && isRunning)
+        let pid = process!.processIdentifier
+        try generate(GenerationRequest(requestID: "oversized", conversationID: "oversized",
+                                       messages: [PromptMessage(role: "user", content: "overflow")],
+                                       maxTokens: 1, temperature: 0, topK: 0, repetitionPenalty: 1))
+        for _ in 0..<500 where samples.exitMessages.isEmpty {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(samples.exitMessages.count == 1 && !isRunning,
+                     "Oversized real engine output did not stop with an error")
+        await stopAndWait()
+        precondition(kill(pid, 0) == -1 && errno == ESRCH,
+                     "Oversized output left the SIGTERM-ignoring engine alive")
+        precondition(retiringProcesses.withLock { $0.isEmpty }, "Failed engine was not joined")
+        try await start(model: "frame-recovery")
+        for _ in 0..<100 where !samples.readyModels.contains("frame-recovery") {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        precondition(samples.readyModels.contains("frame-recovery") && isRunning
+                     && samples.exitMessages.count == 1,
+                     "Bridge did not recover after rejecting an oversized frame")
+        await stopAndWait()
+    }
+
     @MainActor fileprivate func checkDispatchLatency(legacy: Bool) async -> Double {
         let event = try! JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"ready"}"#.utf8))
         let samples = DispatchSamples()
@@ -125,9 +232,11 @@ extension MLXL3Bridge {
         precondition(independent < legacy / 2, "UI callback still waited for the occupied IO queue")
         await bridge.checkStaleDispatch()
         await bridge.checkStopDuringDecode()
+        await bridge.checkOutputFrameBounds()
 
         precondition(CommandLine.arguments.count == 2)
         setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
+        try await bridge.checkOversizedProcess()
         let samples = DispatchSamples()
         bridge.onEvent = { event in
             if event.type == "ready", let model = event.model { samples.readyModels.append(model) }
@@ -148,6 +257,6 @@ extension MLXL3Bridge {
         bridge.stop()
         precondition(!bridge.cancelGeneration())
         print(String(format: "Bridge callback with 50 ms occupied IO: legacy %.3f ms; independent UUID %.3f ms", legacy * 1_000, independent * 1_000))
-        print("Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit")
+        print("Bridge checks passed: stale/current callbacks, stop during decoding, per-frame boundaries, oversized-process cleanup/recovery, reload, cancellation, stale/current process exit")
     }
 }

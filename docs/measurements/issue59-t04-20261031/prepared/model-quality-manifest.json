@@ -1,0 +1,51 @@
+{
+  "experiment": "ISSUE59-T04-COLD-01",
+  "status": "prepared_not_executed",
+  "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/model-quality-plan.json",
+  "template": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan.json",
+  "template_sha256": "a618a0bc6add909460ec437b22acbcc4695720a5b3335004b84b6e8117184d86",
+  "plan_sha256": "6a679b7bb793a9664358719f5664bfc2acd9ecb710dc65b2487054450ea5637b",
+  "same_future_libtest": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t04-20261031/libtest-final/prototype-engine",
+  "binary_sha256": null,
+  "identity_status": "pending_root_freeze_after_build; no binary hash or execution invented",
+  "processes": 6,
+  "selections": [
+    {
+      "name": "t04-final-model-moe-integration",
+      "native_test": "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+      "status": "prepared_not_executed"
+    },
+    {
+      "name": "t04-final-model-oracle",
+      "native_test": "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+      "status": "prepared_not_executed"
+    },
+    {
+      "name": "t04-final-model-components",
+      "native_test": "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+      "status": "prepared_not_executed"
+    },
+    {
+      "name": "t04-final-model-pairs",
+      "native_test": "qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states",
+      "status": "prepared_not_executed"
+    },
+    {
+      "name": "t04-final-model-mtp",
+      "native_test": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "status": "prepared_not_executed"
+    },
+    {
+      "name": "t04-final-model-dflash",
+      "native_test": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "status": "prepared_not_executed"
+    }
+  ],
+  "minimum_available_bytes": 12000000000,
+  "T04_flag": "1",
+  "T17_flag": "0",
+  "T05_flag": "0",
+  "T18_flag": "absent",
+  "execution": "root_only_after_remaining_CPU_and_full_quality_gates",
+  "runner_started": false
+}

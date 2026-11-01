@@ -1,0 +1,40 @@
+{
+  "status": "passed_cpu_inspection_and_cli_adapter_checks_not_model_qualification",
+  "sources": {
+    "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py": "8db37b0640da05e28a1b619406387a16abe38076595d5d2565df207a0605c16a",
+    "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py": "a633494764c2d48f31180a4baaf9679825f4d3cae02604f66b303a4e61607ee2",
+    "scripts/benchmark-flash-bridge.py": "72f744728631e109d7c72b549b2862e76cfcffd54ffdabd718d0dca96589e06a",
+    "tests/test_flash_benchmark.py": "571aae9ba5d3b4b5284c173e15019ac0ec7d11a2f1f7a1c209fd6456f45653ae"
+  },
+  "inspector_selftests": {
+    "total": 52,
+    "positive": 12,
+    "negative": 40,
+    "receipt": "inspection-selftest-after-timeout.json"
+  },
+  "bridge_pool_pytest": {
+    "passed": 82,
+    "receipt": "bridge-tools-timeout-final-r2.log"
+  },
+  "ruff_strict": "passed",
+  "format": "passed",
+  "python_byte_compilation": "passed",
+  "diff_check": "passed",
+  "mutation": {
+    "mutation": "omit report F02 flag validation",
+    "original_sha256": "8db37b0640da05e28a1b619406387a16abe38076595d5d2565df207a0605c16a",
+    "engine_executed": false,
+    "exit": 1,
+    "mutation_detected": true,
+    "restored_byte_exact": true
+  },
+  "rust_engine_executed": false,
+  "synthetic_bridge_children_executed": true,
+  "formal_verification": "not_verified_CrossHair_absence_reused_no_reinstallation",
+  "real_candidate_binary_anchor_and_launch_plans": "pending_root_after_build",
+  "earlier_failures_retained": [
+    "inspection-selftest-r1.log",
+    "cli-timeout-before.log",
+    "bridge-tools-timeout-final.log"
+  ]
+}

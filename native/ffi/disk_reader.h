@@ -1,5 +1,7 @@
 #pragma once
 
+#include "disk_work_queue.h"
+
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
@@ -111,23 +113,26 @@ inline void validate_disk_reads(const std::vector<DiskRead>& reads) {
 
 // Destinations must remain owned until this synchronous call returns, including on error.
 inline void read_disk_records(std::vector<DiskRead>& reads, size_t workers,
-                              std::vector<DiskTiming>* timings = nullptr) {
+                              std::vector<DiskTiming>* timings = nullptr,
+                              DiskSchedule schedule = DiskSchedule::Static) {
   if (!workers || workers > 4) throw std::invalid_argument("invalid disk worker count");
   validate_disk_reads(reads);
   workers = std::min(workers, reads.size());
   const auto epoch = timings ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
   if (timings) timings->assign(reads.size(), {});
   std::vector<std::exception_ptr> errors(reads.size());
+  DiskWorkQueue jobs(reads.size(), workers, schedule);
   struct Work {
     std::vector<DiskRead>& reads;
     std::vector<std::exception_ptr>& errors;
-    size_t workers;
+    DiskWorkQueue& jobs;
     std::vector<DiskTiming>* timings;
     std::chrono::steady_clock::time_point epoch;
-  } context{reads, errors, workers, timings, epoch};
+  } context{reads, errors, jobs, timings, epoch};
   auto apply = [](void* opaque, size_t worker) noexcept {
     auto& work = *static_cast<Work*>(opaque);
-    for (size_t i = worker; i < work.reads.size(); i += work.workers) {
+    size_t cursor = worker;
+    for (size_t i = work.jobs.claim(cursor); i < work.reads.size(); i = work.jobs.claim(cursor)) {
       auto ns = [&] { return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(
           std::chrono::steady_clock::now() - work.epoch).count()); };
       if (work.timings) (*work.timings)[i] = {i, worker, ns(), 0, 0, 0};

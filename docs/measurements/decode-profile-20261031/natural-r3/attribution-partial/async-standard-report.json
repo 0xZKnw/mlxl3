@@ -1,0 +1,828 @@
+{
+  "status": "sampled_stagefree_partial_diagnostic_not_release",
+  "full_run_parity": false,
+  "series": "standard",
+  "inference_tid": 291767,
+  "steps": [
+    76,
+    115
+  ],
+  "complete_outputs": 40,
+  "exact_role_intervals": {
+    "resident_slot_indices_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 18.648642525,
+      "cpu_running_gpu_idle_ms_per_output": 11.767626875,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1375": 11.821497675000002,
+        "0": 11.767626875,
+        "1375": 11.713631074999999
+      }
+    },
+    "resident_hot_output_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 3.736786375,
+      "cpu_running_gpu_idle_ms_per_output": 0.086223875,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1375": 0.087272775,
+        "0": 0.086223875,
+        "1375": 0.08519372500000001
+      }
+    }
+  },
+  "all_raw_types_for_target_process": {
+    "('0', 'Timer Fired')": 3661,
+    "('3', 'Stackshot')": 9
+  },
+  "main_samples_in_selection": 1543,
+  "main_selected_raw_types": {
+    "[('0', 'Timer Fired')]": 1543
+  },
+  "main_weight_histogram_ns": {
+    "1000000": 1543
+  },
+  "mapping_counts": {
+    "running_predecessor_of_interrupt_derived": 1543
+  },
+  "eligible_samples": 497,
+  "samples_by_role": {
+    "resident_slot_indices_async_eval": 494,
+    "resident_hot_output_async_eval": 3
+  },
+  "missing_backtrace_samples": {
+    "all_selected_process_samples": 4
+  },
+  "eligible_raw_types": {
+    "[('0', 'Timer Fired')]": 497
+  },
+  "top_leaf_samples": [
+    [
+      "__kdebug_trace64",
+      123
+    ],
+    [
+      "_xzm_xzone_malloc_tiny",
+      41
+    ],
+    [
+      "<deduplicated_symbol>",
+      26
+    ],
+    [
+      "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+      25
+    ],
+    [
+      "_xzm_free_main",
+      21
+    ],
+    [
+      "AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3EncodedInstr<AGXIotoInstruction_SPECLM_0>::AGX3EncodedInstr(AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3Instr<AGXIotoInstruction_SPECLM_0> const&)",
+      17
+    ],
+    [
+      "mach_msg2_trap",
+      15
+    ],
+    [
+      "void std::__1::__tree_remove[abi:nqe210106]<std::__1::__tree_node_base<void*>*>(std::__1::__tree_node_base<void*>*, std::__1::__tree_node_base<void*>*)",
+      10
+    ],
+    [
+      "malloc_type_malloc",
+      9
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::performEnqueueKernel(eAGXDataBufferPools, unsigned long long, unsigned int, unsigned long long*)",
+      8
+    ],
+    [
+      "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<void const*, void*>*>, bool> std::__1::__hash_table<void const*, std::__1::hash<void const*>, std::__1::equal_to<void const*>, std::__1::allocator<void const*>>::__emplace_unique_key_args<void const*, void const*>(void const* const&, void const*&&)",
+      8
+    ],
+    [
+      "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+      7
+    ],
+    [
+      "std::__1::__murmur2_or_cityhash<unsigned long, 64ul>::operator()[abi:nqe210106](void const*, unsigned long) const",
+      7
+    ],
+    [
+      "kevent_id",
+      7
+    ],
+    [
+      "_free",
+      7
+    ],
+    [
+      "_platform_memmove",
+      7
+    ],
+    [
+      "_kernelrpc_mach_port_mod_refs_trap",
+      7
+    ],
+    [
+      "objc_msgSend",
+      6
+    ],
+    [
+      "AGX::PassiveResourceGroupUsage<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses>::bindPassiveResource(_PassiveResourceInfo const&)",
+      4
+    ],
+    [
+      "mlx::core::array::~array()",
+      4
+    ],
+    [
+      "pthread_mutex_lock",
+      4
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::reserveEnqueueDatabufferSpace(eAGXDataBufferPools, bool)",
+      4
+    ],
+    [
+      "void agxaReserveCDMTokenSpace<AGX::HAL300::Encoders, AGX::HAL300::DataBufferAllocator>(eAGXDataBufferPools, AGX::HAL300::DataBufferAllocator&, unsigned long, bool, bool, unsigned int, AGX::FlagsConfiguration<eAGXDataBufferReserveFlags> const&)",
+      3
+    ],
+    [
+      "IOGPUResourceListAddResource",
+      3
+    ],
+    [
+      "operator new(unsigned long)",
+      3
+    ],
+    [
+      "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<MTL::Resource*, void*>*>, bool> std::__1::__hash_table<MTL::Resource*, std::__1::hash<MTL::Resource*>, std::__1::equal_to<MTL::Resource*>, std::__1::allocator<MTL::Resource*>>::__emplace_unique_key_args<MTL::Resource*, MTL::Resource* const&>(MTL::Resource* const&, MTL::Resource* const&)",
+      3
+    ],
+    [
+      "__bzero",
+      3
+    ],
+    [
+      "mlx::core::gpu::eval(mlx::core::array&)",
+      3
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+      3
+    ],
+    [
+      "AutoreleasePoolPage::releaseUntil(objc_object**)",
+      3
+    ]
+  ],
+  "nearest_mlx_frame_samples": [
+    [
+      "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+      73
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::dispatch_threads(MTL::Size, MTL::Size)",
+      68
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::get_command_encoder()",
+      62
+    ],
+    [
+      "mlx::core::gpu::eval(mlx::core::array&)",
+      56
+    ],
+    [
+      "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+      51
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::set_input_array(mlx::core::array const&, int, long long)",
+      26
+    ],
+    [
+      "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+      17
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)",
+      17
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::end_encoding()",
+      12
+    ],
+    [
+      "mlx::core::array::~array()",
+      10
+    ],
+    [
+      "mlx::core::fast::CustomKernel::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+      9
+    ],
+    [
+      "mlx::core::binary_op_gpu_inplace(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&, char const*, mlx::core::Stream const&)",
+      8
+    ],
+    [
+      "mlx::core::metal::EventImpl::EventImpl(mlx::core::metal::Device&)",
+      8
+    ],
+    [
+      "mlx::core::array::outputs() const",
+      8
+    ],
+    [
+      "mlx::core::metal::Device::get_kernel(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, MTL::Library*, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, std::__1::vector<std::__1::tuple<void const*, MTL::DataType, unsigned long>, std::__1::allocator<std::__1::tuple<void const*, MTL::DataType, unsigned long>>> const&, std::__1::vector<MTL::Function*, std::__1::allocator<MTL::Function*>> const&)",
+      5
+    ],
+    [
+      "mlx::core::metal::MetalAllocator::malloc(unsigned long)",
+      5
+    ],
+    [
+      "mlx::core::array::detach()",
+      5
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::set_output_array(mlx::core::array&, int, long long)",
+      5
+    ],
+    [
+      "mlx::core::copy_gpu_inplace(mlx::core::array const&, mlx::core::array&, mlx::core::SmallVector<int, 10ul, std::__1::allocator<int>> const&, mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&, mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&, long long, long long, mlx::core::CopyType, mlx::core::Stream const&, std::__1::optional<mlx::core::array>, std::__1::optional<mlx::core::array>)",
+      5
+    ],
+    [
+      "mlx::core::fast::CustomKernel::~CustomKernel()",
+      4
+    ],
+    [
+      "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+      4
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::dispatch_threadgroups(MTL::Size, MTL::Size)",
+      3
+    ],
+    [
+      "mlx::core::async_eval(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>)",
+      2
+    ],
+    [
+      "mlx::core::strided_reduce_general_dispatch(mlx::core::array const&, mlx::core::array&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char>> const&, mlx::core::ReductionPlan const&, std::__1::vector<int, std::__1::allocator<int>> const&, mlx::core::metal::CommandEncoder&, mlx::core::metal::Device&, mlx::core::Stream const&)",
+      2
+    ],
+    [
+      "mlx::core::array::is_tracer() const",
+      2
+    ],
+    [
+      "mlx::core::array::copy_shared_buffer(mlx::core::array const&, mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&, mlx::core::array::Flags, unsigned long, long long)",
+      2
+    ],
+    [
+      "mlx::core::Gather::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, mlx::core::array&)",
+      2
+    ],
+    [
+      "mlx::core::Multiply::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, mlx::core::array&)",
+      2
+    ],
+    [
+      "mlx::core::array::ArrayDesc::~ArrayDesc()",
+      2
+    ],
+    [
+      "mlx::core::metal::new_scoped_memory_pool()",
+      2
+    ]
+  ],
+  "first_user_frame_samples": [
+    [
+      "__kdebug_trace64",
+      123
+    ],
+    [
+      "_xzm_xzone_malloc_tiny",
+      41
+    ],
+    [
+      "<deduplicated_symbol>",
+      26
+    ],
+    [
+      "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+      25
+    ],
+    [
+      "_xzm_free_main",
+      21
+    ],
+    [
+      "AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3EncodedInstr<AGXIotoInstruction_SPECLM_0>::AGX3EncodedInstr(AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3Instr<AGXIotoInstruction_SPECLM_0> const&)",
+      17
+    ],
+    [
+      "mach_msg2_trap",
+      15
+    ],
+    [
+      "void std::__1::__tree_remove[abi:nqe210106]<std::__1::__tree_node_base<void*>*>(std::__1::__tree_node_base<void*>*, std::__1::__tree_node_base<void*>*)",
+      10
+    ],
+    [
+      "malloc_type_malloc",
+      9
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::performEnqueueKernel(eAGXDataBufferPools, unsigned long long, unsigned int, unsigned long long*)",
+      8
+    ],
+    [
+      "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<void const*, void*>*>, bool> std::__1::__hash_table<void const*, std::__1::hash<void const*>, std::__1::equal_to<void const*>, std::__1::allocator<void const*>>::__emplace_unique_key_args<void const*, void const*>(void const* const&, void const*&&)",
+      8
+    ],
+    [
+      "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+      7
+    ],
+    [
+      "std::__1::__murmur2_or_cityhash<unsigned long, 64ul>::operator()[abi:nqe210106](void const*, unsigned long) const",
+      7
+    ],
+    [
+      "kevent_id",
+      7
+    ],
+    [
+      "_free",
+      7
+    ],
+    [
+      "_platform_memmove",
+      7
+    ],
+    [
+      "_kernelrpc_mach_port_mod_refs_trap",
+      7
+    ],
+    [
+      "objc_msgSend",
+      6
+    ],
+    [
+      "mlx::core::array::~array()",
+      5
+    ],
+    [
+      "AGX::PassiveResourceGroupUsage<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses>::bindPassiveResource(_PassiveResourceInfo const&)",
+      4
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+      4
+    ],
+    [
+      "pthread_mutex_lock",
+      4
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::reserveEnqueueDatabufferSpace(eAGXDataBufferPools, bool)",
+      4
+    ],
+    [
+      "void agxaReserveCDMTokenSpace<AGX::HAL300::Encoders, AGX::HAL300::DataBufferAllocator>(eAGXDataBufferPools, AGX::HAL300::DataBufferAllocator&, unsigned long, bool, bool, unsigned int, AGX::FlagsConfiguration<eAGXDataBufferReserveFlags> const&)",
+      3
+    ],
+    [
+      "IOGPUResourceListAddResource",
+      3
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::ComputeContext<AGX::HAL300::EncoderComputeServiceConfigA>(ComputeContextConfig, AGX::HAL300::EncoderComputeServiceConfigA)",
+      3
+    ],
+    [
+      "operator new(unsigned long)",
+      3
+    ],
+    [
+      "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<MTL::Resource*, void*>*>, bool> std::__1::__hash_table<MTL::Resource*, std::__1::hash<MTL::Resource*>, std::__1::equal_to<MTL::Resource*>, std::__1::allocator<MTL::Resource*>>::__emplace_unique_key_args<MTL::Resource*, MTL::Resource* const&>(MTL::Resource* const&, MTL::Resource* const&)",
+      3
+    ],
+    [
+      "__bzero",
+      3
+    ],
+    [
+      "mlx::core::gpu::eval(mlx::core::array&)",
+      3
+    ]
+  ],
+  "other_engine_threads_separate": [
+    {
+      "name": "prototype-engine (0x47481) (prototype-engine, pid: 27154)",
+      "samples": 314,
+      "weight_ns": 314000000,
+      "leaf": [
+        [
+          "preadv",
+          160
+        ],
+        [
+          "iokit_user_client_trap",
+          62
+        ],
+        [
+          "start_wqthread",
+          32
+        ],
+        [
+          "_xzm_free_main",
+          10
+        ],
+        [
+          "mach_msg2_trap",
+          8
+        ],
+        [
+          "__kdebug_trace64",
+          7
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          4
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          3
+        ],
+        [
+          "_xzm_xzone_malloc_tiny",
+          3
+        ],
+        [
+          "objc_object::sidetable_clearDeallocating()",
+          2
+        ]
+      ],
+      "nearest_mlx": [
+        [
+          "<no MLX frame>",
+          292
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::end_encoding()::$_0::~$_0()",
+          8
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          7
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          4
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::metal::CommandEncoder::end_encoding()::$_0, void (MTL::CommandBuffer*)>::~__func()",
+          1
+        ],
+        [
+          "mlx::core::metal::MetalAllocator::free(mlx::core::allocator::Buffer)",
+          1
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)::$_0::~$_0()",
+          1
+        ]
+      ],
+      "raw_kinds": {
+        "[('0', 'Timer Fired')]": 314
+      },
+      "tid": 291969
+    },
+    {
+      "name": "prototype-engine (0x4762b) (prototype-engine, pid: 27154)",
+      "samples": 205,
+      "weight_ns": 205000000,
+      "leaf": [
+        [
+          "preadv",
+          104
+        ],
+        [
+          "iokit_user_client_trap",
+          44
+        ],
+        [
+          "start_wqthread",
+          27
+        ],
+        [
+          "__kdebug_trace64",
+          4
+        ],
+        [
+          "_xzm_free_main",
+          4
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          4
+        ],
+        [
+          "_free",
+          2
+        ],
+        [
+          "mach_msg2_trap",
+          2
+        ],
+        [
+          "_platform_memset",
+          1
+        ],
+        [
+          "-[_MTLCommandBuffer didCompleteWithStartTime:endTime:error:]",
+          1
+        ]
+      ],
+      "nearest_mlx": [
+        [
+          "<no MLX frame>",
+          192
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          7
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          2
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::end_encoding()::$_0::~$_0()",
+          2
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::metal::CommandEncoder::end_encoding()::$_0, void (MTL::CommandBuffer*)>::operator()(MTL::CommandBuffer*&&)",
+          1
+        ],
+        [
+          "mlx::core::allocator::allocator()",
+          1
+        ]
+      ],
+      "raw_kinds": {
+        "[('0', 'Timer Fired')]": 205
+      },
+      "tid": 292395
+    },
+    {
+      "name": "prototype-engine (0x473d3) (prototype-engine, pid: 27154)",
+      "samples": 200,
+      "weight_ns": 200000000,
+      "leaf": [
+        [
+          "preadv",
+          103
+        ],
+        [
+          "iokit_user_client_trap",
+          42
+        ],
+        [
+          "_xzm_free_main",
+          13
+        ],
+        [
+          "start_wqthread",
+          9
+        ],
+        [
+          "mach_msg2_trap",
+          6
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          4
+        ],
+        [
+          "__kdebug_trace64",
+          4
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          3
+        ],
+        [
+          "free",
+          2
+        ],
+        [
+          "0x19e1384fd",
+          1
+        ]
+      ],
+      "nearest_mlx": [
+        [
+          "<no MLX frame>",
+          182
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          6
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::end_encoding()::$_0::~$_0()",
+          6
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          5
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::metal::CommandEncoder::end_encoding()::$_0, void (MTL::CommandBuffer*)>::~__func()",
+          1
+        ]
+      ],
+      "raw_kinds": {
+        "[('0', 'Timer Fired')]": 200
+      },
+      "tid": 291795
+    },
+    {
+      "name": "prototype-engine (0x473d5) (prototype-engine, pid: 27154)",
+      "samples": 181,
+      "weight_ns": 181000000,
+      "leaf": [
+        [
+          "preadv",
+          104
+        ],
+        [
+          "iokit_user_client_trap",
+          34
+        ],
+        [
+          "start_wqthread",
+          21
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          4
+        ],
+        [
+          "__kdebug_trace64",
+          3
+        ],
+        [
+          "_xzm_free_main",
+          3
+        ],
+        [
+          "mach_msg2_trap",
+          2
+        ],
+        [
+          "_xzm_xzone_malloc_tiny",
+          2
+        ],
+        [
+          "_pthread_wqthread",
+          1
+        ],
+        [
+          "_NSIsNSArray",
+          1
+        ]
+      ],
+      "nearest_mlx": [
+        [
+          "<no MLX frame>",
+          171
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          6
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::end_encoding()::$_0::~$_0()",
+          2
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::metal::CommandEncoder::end_encoding()::$_0, void (MTL::CommandBuffer*)>::~__func()",
+          1
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          1
+        ]
+      ],
+      "raw_kinds": {
+        "[('0', 'Timer Fired')]": 181
+      },
+      "tid": 291797
+    },
+    {
+      "name": "prototype-engine (0x473d2) (prototype-engine, pid: 27154)",
+      "samples": 178,
+      "weight_ns": 178000000,
+      "leaf": [
+        [
+          "preadv",
+          92
+        ],
+        [
+          "iokit_user_client_trap",
+          40
+        ],
+        [
+          "start_wqthread",
+          12
+        ],
+        [
+          "__kdebug_trace64",
+          6
+        ],
+        [
+          "_xzm_free_main",
+          6
+        ],
+        [
+          "mach_msg2_trap",
+          3
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          3
+        ],
+        [
+          "_kernelrpc_mach_port_mod_refs_trap",
+          2
+        ],
+        [
+          "<no captured backtrace>",
+          1
+        ],
+        [
+          "_xzm_xzone_malloc_tiny",
+          1
+        ]
+      ],
+      "nearest_mlx": [
+        [
+          "<no MLX frame>",
+          166
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::end_encoding()::$_0::~$_0()",
+          4
+        ],
+        [
+          "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+          4
+        ],
+        [
+          "mlx::core::BufferCache<MTL::Buffer>::recycle_to_cache(MTL::Buffer*)",
+          2
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)::$_0::~$_0()",
+          2
+        ]
+      ],
+      "raw_kinds": {
+        "[('0', 'Timer Fired')]": 178
+      },
+      "tid": 291794
+    }
+  ],
+  "resolved_engine_mlx_binaries": [
+    {
+      "id": "16",
+      "name": "libmlx.dylib",
+      "UUID": "F949D357-CE50-3CDC-BD53-D49566E9F72C",
+      "arch": "arm64",
+      "load-addr": "0x104e98000",
+      "path": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/libmlx.dylib"
+    },
+    {
+      "id": "22",
+      "name": "prototype-engine",
+      "UUID": "C7BF0A50-5036-358D-AB53-8E8233FF20D6",
+      "arch": "arm64",
+      "load-addr": "0x102ba8000",
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/decode-profile-20261031/stages-01/libtest/prototype-engine"
+    }
+  ],
+  "limits": [
+    "Weights and frame counts are statistical sample evidence, not exact exclusive CPU durations.",
+    "Only the standard 1ms provider exists in this capture; no HF data or cross-series claim.",
+    "Derived interrupted points are labeled separately from direct Running points.",
+    "Other-thread frame presence does not prove it extends the main-thread critical path.",
+    "Interrupted workflow and remaining profiling observer effects prevent release-app equivalence; native stage retention off metadata checked."
+  ]
+}

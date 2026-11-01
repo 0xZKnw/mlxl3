@@ -1,0 +1,259 @@
+{
+  "baseline_counts_and_every_slot_hit": "exact_all_three_phases_both_prompts",
+  "cases": [
+    {
+      "metadata_allocated_bytes_after": 290432,
+      "phases": [
+        {
+          "baseline_prefill_decode_jobs": [
+            13498,
+            18212
+          ],
+          "candidate_prefill_decode_jobs": [
+            13982,
+            19477
+          ],
+          "phase": "trace_1",
+          "read_reduction_percent": [
+            -3.5857164024299895,
+            -6.945969690314079
+          ],
+          "t1_t2_b1_b2_lengths": [
+            35,
+            2509,
+            2508,
+            36
+          ],
+          "target_recent": 35
+        },
+        {
+          "baseline_prefill_decode_jobs": [
+            13564,
+            18260
+          ],
+          "candidate_prefill_decode_jobs": [
+            13924,
+            19461
+          ],
+          "phase": "trace_2",
+          "read_reduction_percent": [
+            -2.6540843409023887,
+            -6.577217962760131
+          ],
+          "t1_t2_b1_b2_lengths": [
+            25,
+            2519,
+            2518,
+            26
+          ],
+          "target_recent": 25
+        },
+        {
+          "baseline_prefill_decode_jobs": [
+            13766,
+            18412
+          ],
+          "candidate_prefill_decode_jobs": [
+            13982,
+            19477
+          ],
+          "phase": "trace_3",
+          "read_reduction_percent": [
+            -1.5690832485834665,
+            -5.7842711275255265
+          ],
+          "t1_t2_b1_b2_lengths": [
+            35,
+            2509,
+            2508,
+            36
+          ],
+          "target_recent": 35
+        }
+      ],
+      "prompt": "MAIN",
+      "slots_by_layer_after": [
+        65,
+        65,
+        72,
+        46,
+        41,
+        53,
+        60,
+        63,
+        59,
+        50,
+        58,
+        58,
+        69,
+        73,
+        58,
+        38,
+        48,
+        61,
+        63,
+        62,
+        69,
+        65,
+        57,
+        43,
+        60,
+        50,
+        55,
+        57,
+        62,
+        66,
+        54,
+        39,
+        43,
+        61,
+        65,
+        55,
+        59,
+        52,
+        63,
+        40,
+        43,
+        51,
+        34,
+        37,
+        26,
+        24,
+        26,
+        26
+      ]
+    },
+    {
+      "metadata_allocated_bytes_after": 290432,
+      "phases": [
+        {
+          "baseline_prefill_decode_jobs": [
+            12755,
+            19694
+          ],
+          "candidate_prefill_decode_jobs": [
+            12601,
+            20146
+          ],
+          "phase": "trace_1",
+          "read_reduction_percent": [
+            1.2073696589572716,
+            -2.29511526353204
+          ],
+          "t1_t2_b1_b2_lengths": [
+            172,
+            2372,
+            2371,
+            173
+          ],
+          "target_recent": 172
+        },
+        {
+          "baseline_prefill_decode_jobs": [
+            12834,
+            19626
+          ],
+          "candidate_prefill_decode_jobs": [
+            12601,
+            20146
+          ],
+          "phase": "trace_2",
+          "read_reduction_percent": [
+            1.8154901044101606,
+            -2.6495465199225516
+          ],
+          "t1_t2_b1_b2_lengths": [
+            172,
+            2372,
+            2371,
+            173
+          ],
+          "target_recent": 172
+        },
+        {
+          "baseline_prefill_decode_jobs": [
+            12933,
+            19685
+          ],
+          "candidate_prefill_decode_jobs": [
+            12601,
+            20146
+          ],
+          "phase": "trace_3",
+          "read_reduction_percent": [
+            2.5670764710430682,
+            -2.3418846837693676
+          ],
+          "t1_t2_b1_b2_lengths": [
+            172,
+            2372,
+            2371,
+            173
+          ],
+          "target_recent": 172
+        }
+      ],
+      "prompt": "HOLD",
+      "slots_by_layer_after": [
+        64,
+        64,
+        59,
+        52,
+        55,
+        60,
+        65,
+        61,
+        60,
+        53,
+        60,
+        42,
+        64,
+        56,
+        56,
+        31,
+        43,
+        54,
+        67,
+        50,
+        55,
+        62,
+        65,
+        47,
+        57,
+        49,
+        58,
+        44,
+        63,
+        56,
+        54,
+        36,
+        41,
+        52,
+        61,
+        48,
+        50,
+        52,
+        57,
+        31,
+        43,
+        50,
+        52,
+        47,
+        50,
+        50,
+        50,
+        48
+      ]
+    }
+  ],
+  "confirmed_tps_gain": false,
+  "eligible_for_runtime_trial": false,
+  "expert_bank_bytes": 3174942528,
+  "ghost_expert_payload_bytes": 0,
+  "in_flight_gpu_leases": "not modeled; demand-only drained consumers",
+  "initial_state": "empty; two reconstructed full generations before three observed phases",
+  "policy": "ARC_global_complete_batch_protection",
+  "primary_source": "https://www.usenix.org/legacy/event/fast03/tech/full_papers/megiddo/megiddo.pdf#page=10",
+  "status": "complete_simulation_not_speed",
+  "total_slots": 2544
+}

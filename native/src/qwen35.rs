@@ -382,17 +382,18 @@ impl Attention {
         theta: f32,
         eps: f32,
     ) -> Result<Self> {
+        let [query_width, kv_width, output_width] =
+            crate::qwen35_config::attention_widths(heads, kv_heads, head_dim)
+                .context("invalid or overflowing Qwen attention projection widths")?;
         ensure!(
             hidden > 0
-                && heads > 0
-                && kv_heads > 0
-                && heads % kv_heads == 0
-                && head_dim > 0
                 && rope_dims > 0
                 && rope_dims <= head_dim
                 && rope_dims % 2 == 0
                 && theta.is_finite()
-                && theta > 0.,
+                && theta > 0.
+                && eps.is_finite()
+                && eps > 0.,
             "invalid Qwen attention dimensions"
         );
         Ok(Self {
@@ -400,15 +401,15 @@ impl Attention {
                 checkpoint,
                 hidden,
                 vec![
-                    (format!("{prefix}.q_proj"), heads * head_dim * 2),
-                    (format!("{prefix}.k_proj"), kv_heads * head_dim),
-                    (format!("{prefix}.v_proj"), kv_heads * head_dim),
+                    (format!("{prefix}.q_proj"), query_width),
+                    (format!("{prefix}.k_proj"), kv_width),
+                    (format!("{prefix}.v_proj"), kv_width),
                 ],
             )?,
             output: Projection::load(
                 checkpoint,
                 &format!("{prefix}.o_proj"),
-                heads * head_dim,
+                output_width,
                 hidden,
                 false,
             )?,
@@ -1038,9 +1039,48 @@ impl Qwen35Moe {
                 && config.head_dim > 0
                 && config.partial_rotary_factor > 0.
                 && config.partial_rotary_factor <= 1.
+                && config.num_experts >= 0
                 && !config.tie_word_embeddings,
             "unsupported Qwen3.5 configuration"
         );
+        ensure!(
+            config.rms_norm_eps.is_finite()
+                && config.rms_norm_eps > 0.
+                && config.rope_parameters.rope_theta.is_finite()
+                && config.rope_parameters.rope_theta > 0.,
+            "invalid Qwen3.5 numerical configuration"
+        );
+        let rope_dims = (config.head_dim as f32 * config.partial_rotary_factor) as i32;
+        // Validate every layer before materializing resident weights. Public layer
+        // constructors below repeat these guards for their direct/FFI callers.
+        for kind in &config.layer_types {
+            match kind.as_str() {
+                "linear_attention" => ensure!(
+                    config.linear_conv_kernel_dim > 0
+                        && crate::qwen35_config::gated_delta_widths(
+                            config.linear_num_key_heads,
+                            config.linear_num_value_heads,
+                            config.linear_key_head_dim,
+                            config.linear_value_head_dim,
+                        )
+                        .is_some(),
+                    "invalid or overflowing Qwen Gated DeltaNet dimensions"
+                ),
+                "full_attention" => ensure!(
+                    rope_dims > 0
+                        && rope_dims <= config.head_dim
+                        && rope_dims % 2 == 0
+                        && crate::qwen35_config::attention_widths(
+                            config.num_attention_heads,
+                            config.num_key_value_heads,
+                            config.head_dim,
+                        )
+                        .is_some(),
+                    "invalid or overflowing Qwen attention dimensions"
+                ),
+                other => anyhow::bail!("unsupported Qwen layer type {other}"),
+            }
+        }
         let mlp_hidden = if config.num_experts > 0 {
             ensure!(
                 config.num_experts_per_tok > 0
@@ -1072,7 +1112,6 @@ impl Qwen35Moe {
         )?;
         let norm = sanitized_norm(checkpoint, "model.language_model.norm.weight", &[hidden])?;
         let head = Projection::load(checkpoint, "lm_head", hidden, config.vocab_size, false)?;
-        let rope_dims = (config.head_dim as f32 * config.partial_rotary_factor) as i32;
         let mut layers = Vec::with_capacity(config.num_hidden_layers);
         for (index, kind) in config.layer_types.iter().enumerate() {
             layers.push(match kind.as_str() {
@@ -1884,22 +1923,13 @@ impl GatedDelta {
         conv_length: i32,
         eps: f32,
     ) -> Result<Self> {
+        let [_keys, values, conv_dims] =
+            crate::qwen35_config::gated_delta_widths(key_heads, value_heads, key_dim, value_dim)
+                .context("invalid or overflowing Qwen Gated DeltaNet projection widths")?;
         ensure!(
-            hidden > 0
-                && key_heads > 0
-                && value_heads > 0
-                && value_heads % key_heads == 0
-                && key_dim == 128
-                && value_dim > 0
-                && value_dim % 8 == 0
-                && conv_length > 0
-                && eps.is_finite()
-                && eps > 0.,
+            hidden > 0 && conv_length > 0 && eps.is_finite() && eps > 0.,
             "invalid Qwen Gated DeltaNet dimensions"
         );
-        let keys = key_heads * key_dim;
-        let values = value_heads * value_dim;
-        let conv_dims = 2 * keys + values;
         let weight = half_weight(
             checkpoint,
             &format!("{prefix}.conv1d.weight"),
@@ -2245,6 +2275,164 @@ impl GatedDelta {
 mod tests {
     use super::*;
     use std::time::Instant;
+
+    fn empty_checkpoint(path: &Path) -> Checkpoint {
+        Checkpoint {
+            path: path.to_owned(),
+            model_type: "qwen3_5".into(),
+            bits: None,
+            size_bytes: 0,
+            modules: Vec::new(),
+            tensors: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn invalid_config_is_rejected_before_weight_loading() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let checkpoint = empty_checkpoint(directory.path());
+        let valid = serde_json::json!({
+            "model_type": "qwen3_5", "text_config": {
+                "hidden_size": 5120, "vocab_size": 248320,
+                "num_hidden_layers": 2, "max_position_embeddings": 4096,
+                "num_attention_heads": 24, "num_key_value_heads": 4, "head_dim": 256,
+                "linear_num_key_heads": 16, "linear_num_value_heads": 48,
+                "linear_key_head_dim": 128, "linear_value_head_dim": 128,
+                "linear_conv_kernel_dim": 4, "intermediate_size": 17408,
+                "rms_norm_eps": 1e-6, "partial_rotary_factor": 0.25,
+                "rope_parameters": {"rope_theta": 10000000},
+                "layer_types": ["full_attention", "linear_attention"],
+                "tie_word_embeddings": false
+            }
+        });
+        let load_error = |config: &serde_json::Value| -> Result<String> {
+            std::fs::write(
+                directory.path().join("config.json"),
+                serde_json::to_vec(config)?,
+            )?;
+            Ok(Qwen35Moe::from_checkpoint(&checkpoint)
+                .err()
+                .context("empty checkpoint unexpectedly loaded")?
+                .to_string())
+        };
+        assert!(load_error(&valid)?.contains("missing tensor"));
+        for (pointer, value, expected) in [
+            (
+                "/text_config/rms_norm_eps",
+                serde_json::json!(0),
+                "numerical",
+            ),
+            (
+                "/text_config/rms_norm_eps",
+                serde_json::json!(-1),
+                "numerical",
+            ),
+            (
+                "/text_config/rope_parameters/rope_theta",
+                serde_json::json!(0),
+                "numerical",
+            ),
+            (
+                "/text_config/rope_parameters/rope_theta",
+                serde_json::json!(-1),
+                "numerical",
+            ),
+            (
+                "/text_config/num_attention_heads",
+                serde_json::json!(i32::MAX - 3),
+                "attention dimensions",
+            ),
+            (
+                "/text_config/num_key_value_heads",
+                serde_json::json!(0),
+                "attention dimensions",
+            ),
+            (
+                "/text_config/partial_rotary_factor",
+                serde_json::json!(0.012),
+                "attention dimensions",
+            ),
+            (
+                "/text_config/linear_num_value_heads",
+                serde_json::json!(i32::MAX - 15),
+                "Gated DeltaNet dimensions",
+            ),
+            (
+                "/text_config/linear_key_head_dim",
+                serde_json::json!(64),
+                "Gated DeltaNet dimensions",
+            ),
+            (
+                "/text_config/linear_conv_kernel_dim",
+                serde_json::json!(0),
+                "Gated DeltaNet dimensions",
+            ),
+            (
+                "/text_config/layer_types/0",
+                serde_json::json!("unknown_attention"),
+                "unsupported Qwen layer type",
+            ),
+        ] {
+            let mut config = valid.clone();
+            *config.pointer_mut(pointer).context("missing test field")? = value;
+            let error = load_error(&config)?;
+            assert!(error.contains(expected), "{pointer}: {error}");
+        }
+        let mut negative_experts = valid;
+        negative_experts["text_config"]["num_experts"] = serde_json::json!(-1);
+        assert!(load_error(&negative_experts)?.contains("unsupported Qwen3.5 configuration"));
+        Ok(())
+    }
+
+    #[test]
+    fn public_layers_reject_overflow_and_invalid_epsilon_before_weights() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let checkpoint = empty_checkpoint(directory.path());
+        for (heads, kv_heads, head_dim, eps, expected) in [
+            (i32::MAX, 1, 128, 1e-6, "projection widths"),
+            (1, 1, i32::MAX, 1e-6, "projection widths"),
+            (24, 4, 256, 0., "attention dimensions"),
+            (24, 4, 256, -1., "attention dimensions"),
+            (24, 4, 256, f32::INFINITY, "attention dimensions"),
+            (24, 4, 256, f32::NAN, "attention dimensions"),
+        ] {
+            let error = Attention::load(
+                &checkpoint,
+                "unused",
+                5120,
+                heads,
+                kv_heads,
+                head_dim,
+                64,
+                1e7,
+                eps,
+            )
+            .err()
+            .context("invalid attention unexpectedly loaded")?;
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+        for (key_heads, value_heads, value_dim) in [
+            (i32::MAX, i32::MAX, 128),
+            (1, 1, i32::MAX - 7),
+            (1 << 23, 1 << 23, 8),
+        ] {
+            let error = GatedDelta::load(
+                &checkpoint,
+                "unused",
+                5120,
+                key_heads,
+                value_heads,
+                128,
+                value_dim,
+                4,
+                1e-6,
+            )
+            .err()
+            .context("overflowing GDN unexpectedly loaded")?;
+            assert!(error.to_string().contains("projection widths"), "{error}");
+        }
+        Ok(())
+    }
 
     pub(super) fn state_bytes(model: &Qwen35Moe) -> Result<Vec<Vec<u8>>> {
         model

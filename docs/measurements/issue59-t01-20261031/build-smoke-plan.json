@@ -1,0 +1,64 @@
+[
+  {
+    "name": "t01-fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "required_text": []
+  },
+  {
+    "name": "t01-clippy-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "required_text": []
+  },
+  {
+    "name": "t01-libtest-build",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 300,
+    "required_text": []
+  }
+]

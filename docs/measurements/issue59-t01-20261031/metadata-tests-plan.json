@@ -1,0 +1,34 @@
+[
+  {
+    "name": "t01-ffi-collector",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t01-20261031/libtest-r1/prototype-engine",
+      "kernel_build_profile",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "required_text": [
+      "7 passed; 0 failed; 0 ignored"
+    ]
+  },
+  {
+    "name": "t01-report-validation",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t01-20261031/libtest-r1/prototype-engine",
+      "linear::launch_profile_tests::launch_profile",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "required_text": [
+      "2 passed; 0 failed; 0 ignored"
+    ]
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "legacy_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/analyze.py",
+  "legacy_sha256": "e969f3b12cbeb892508dc32236fe21fc44bba2525ad30b43880f46a20c2c0e64",
+  "new_sha256": "8d41fb27e3959d05e52b0bcf63190786b2245dc6d1c05f3c79e0dcf1ecb84456",
+  "changes": [
+    {
+      "old": "schema = root.find(\".//schema\")\n    assert schema is not None",
+      "new": "schemas = root.findall(\".//schema\")\n    assert len(schemas) == 1, \"export must contain exactly one schema\"\n    schema = schemas[0]"
+    },
+    {
+      "old": "steps = [e for e in ev if e[\"name\"] == \"output_step\" and span(e)[0] >= first and span(e)[1] <= last]",
+      "new": "covered_steps = [e for e in ev if e[\"name\"] == \"output_step\" and e[\"data\"][\"step\"] >= 16 and span(e)[0] >= first and span(e)[1] <= last]\nsteps = covered_steps[:40]"
+    },
+    {
+      "old": "assert n > 5",
+      "new": "assert n >= 16, \"fewer than 16 complete transitions\""
+    },
+    {
+      "old": "assert first <= lo < hi <= last\ngroups = {",
+      "new": "assert first <= lo < hi <= last\nreselected = [e for e in ev if e[\"name\"] == \"output_step\" and e[\"data\"][\"step\"] >= 16 and span(e)[0] >= first and span(e)[1] <= last][:40]\nassert reselected == steps, \"clock correction changed selected transitions; explicit review required\"\ngroups = {"
+    },
+    {
+      "old": "\"status\": \"partial_observed_diagnostic_not_baseline_validation\",",
+      "new": "\"status\": \"interrupted_workflow_partial_observer_biased_diagnostic_not_release\",\n    \"full_run_parity\": False,\n    \"available_complete_steps_at_initial_alignment\": len(covered_steps),\n    \"selection_policy\": \"first up to40 complete transitions with step>=16; minimum16; rechecked after clock fit\","
+    },
+    {
+      "old": "\"note\": \"All5244returnedreadrecords independently match native job counts/bytes; exact containment bounds for constant clock offset, before adding boundary tolerance.\",",
+      "new": "\"note\": \"Read counts and returned bytes independently matched native jobs; exact containment bounds for constant clock offset, before adding boundary tolerance.\","
+    },
+    {
+      "old": "\"Original campaign aborted swap after trace1; snapshots verify no new Swapouts through trace1 end.\",",
+      "new": "\"Current r2 workflow aborted at tracer join60; 0Swapout/Swapin; no control_after/final-snapshot/complete.json, full run parity false.\",\n    \"OBSERVER-AUDIT01: cfg(test) stage retention can inhibit donation even in controls; results are diagnostic harness costs, not release app attribution.\","
+    }
+  ],
+  "verification": "legacy finite interval/XML selfchecks retained; new selection assertions active; no proof of OS/MLX/Metal",
+  "crosshair": "previous controller attempt documented absent, not reinstalled",
+  "initial_pre_format_sha256": "2114df43cf1d8b58b8a282f7450c7917e4bc16df36c35303e33456148a739d81",
+  "final_async_sha256": "3cb783f2617b0b05fd897864c0d098c463cc626c67156494c84e60b60ea3713c",
+  "post_initial_changes": "Ruff formatting only in primary adapter; async explicit unknown-backtrace preservation and linear span flattening. Failed initial source/log and final rerun preserved."
+}

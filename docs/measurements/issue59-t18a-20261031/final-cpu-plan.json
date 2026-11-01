@@ -1,0 +1,20 @@
+[
+  {
+    "name": "t18a-final-cpu-fmt",
+    "command": ["/Users/justin/.cargo/bin/cargo", "fmt", "--check"],
+    "env": {"CARGO_BUILD_JOBS": "1"},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 300,
+    "required_text": []
+  },
+  {
+    "name": "t18a-final-cpu-suite",
+    "command": ["/Users/justin/.cargo/bin/cargo", "test", "--locked", "--release", "--no-default-features", "--", "--test-threads=1"],
+    "env": {"CARGO_BUILD_JOBS": "1"},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 900,
+    "required_text": ["test result: ok."]
+  }
+]

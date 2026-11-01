@@ -57,7 +57,217 @@ def test_worker_overlap_and_nested_times_are_not_added_as_exclusive_gpu():
     assert root["wall_ns"]["total"] == 1000 and root["host_self_ns"]["total"] == 2
     assert out["disk_batches"][0]["last_completion_ns"] == 50
     assert out["disk_batches"][0]["worker_finish_spread_ns"] == 20
+    assert out["disk_batches"][0]["schedule"] == "static"
     assert "not exclusive GPU" in out["limits"]
+
+
+def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation():
+    rows = trace()
+    data = rows[3]["data"]
+    data["schedule"] = "dynamic"
+    # One worker may drain the batch while the others have not started.
+    data["timings_job_worker_start_end_bytes_failed"] = [
+        [i, 1, i * 10, (i + 1) * 10, 1248012, 0] for i in range(10)
+    ]
+    out = API["validate_events"](rows)
+    assert len(out["disk_jobs"]) == 10
+    assert sum(job["bytes"] for job in out["disk_jobs"]) == 12480120
+    assert {job["worker"] for job in out["disk_jobs"]} == {1}
+    batch = out["disk_batches"][0]
+    assert batch["jobs"] == 10 and batch["schedule"] == "dynamic"
+    assert batch["last_completion_ns"] == 100 and batch["worker_finish_spread_ns"] == 0
+    data["schedule"] = "static"
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+    del data["schedule"]
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+
+
+def test_dynamic_job_assignment_allows_idle_workers_without_dropping_jobs():
+    rows = trace()
+    data = rows[3]["data"]
+    data["schedule"] = "dynamic"
+    data["timings_job_worker_start_end_bytes_failed"] = [
+        [i, 2 * (i % 2), 20 * (i // 2), 20 * (i // 2) + 10, 1248012, 0] for i in range(10)
+    ]
+    out = API["validate_events"](rows)
+    assert len(out["disk_jobs"]) == 10
+    assert {job["worker"] for job in out["disk_jobs"]} == {0, 2}
+    assert out["disk_batches"][0]["last_completion_ns"] == 90
+    assert out["disk_batches"][0]["worker_finish_spread_ns"] == 0
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "unknown",
+        "null_schedule",
+        "integer_schedule",
+        "workers_zero",
+        "workers_five",
+        "worker",
+        "negative_worker",
+        "small_batch_worker",
+        "overlap",
+        "failed",
+        "job",
+        "duplicate_job",
+        "reordered_jobs",
+        "incomplete",
+        "bytes",
+        "backward",
+    ],
+)
+def test_dynamic_job_assignment_rejects_invalid_or_incomplete_execution(fault):
+    rows = trace()
+    data = rows[3]["data"]
+    data["schedule"] = "dynamic"
+    timings = data["timings_job_worker_start_end_bytes_failed"]
+    if fault in ("unknown", "null_schedule", "integer_schedule"):
+        data["schedule"] = {"unknown": "future", "null_schedule": None, "integer_schedule": 1}[
+            fault
+        ]
+    elif fault in ("workers_zero", "workers_five"):
+        data["workers"] = 0 if fault == "workers_zero" else 5
+    elif fault == "worker":
+        timings[0][1] = 4
+    elif fault == "negative_worker":
+        timings[0][1] = -1
+    elif fault == "small_batch_worker":
+        data["jobs"] = data["jobs"][:2]
+        del timings[2:]
+        timings[0][1] = 2
+    elif fault == "overlap":
+        timings[4][2] = 0
+    elif fault == "failed":
+        timings[0][5] = 1
+    elif fault == "job":
+        timings[0][0] = 1
+    elif fault == "duplicate_job":
+        timings[1][0] = 0
+    elif fault == "reordered_jobs":
+        timings[0], timings[1] = timings[1], timings[0]
+    elif fault == "incomplete":
+        timings.pop()
+    elif fault == "bytes":
+        timings[0][4] -= 1
+    elif fault == "backward":
+        timings[4][3] = 19
+    with pytest.raises(AssertionError):
+        API["validate_events"](rows)
+
+
+def test_shared_physical_slots_allow_2543_but_keep_expert_ids_bounded():
+    source = trace()
+    source[2]["data"].update(capacity=2544, slots_hit=[[2534 + i, False] for i in range(10)])
+    assert API["validate_events"](source)["routes"][0]["capacity"] == 2544
+    for field, value in [
+        ("capacity", 2545),
+        ("ids", [512] + list(range(1, 10))),
+        ("slots_hit", [[2544, False]] + [[2535 + i, False] for i in range(9)]),
+    ]:
+        bad = trace()
+        bad[2]["data"].update(source[2]["data"])
+        bad[2]["data"][field] = value
+        with pytest.raises(AssertionError):
+            API["validate_events"](bad)
+
+
+def rich_trace():
+    return trace() + [
+        event(
+            "expert_kernel_signature",
+            2,
+            901,
+            902,
+            {"id": 0, "stable": False, "key": ["name", "header", "source"]},
+        ),
+        event("expert_kernel_request", 2, 903, 904, {"signature": 0}),
+        event("expert_kernel_request", 2, 905, 906, {"signature": 0}),
+        event(
+            "host_readback",
+            2,
+            910,
+            990,
+            {
+                "shape": [10],
+                "dtype": "UInt32",
+                "sample": {
+                    "wait_ns": 10,
+                    "copy_ns": 5,
+                    "contiguous_build_ns": 0,
+                    "bytes": 40,
+                    "ready_before": False,
+                    "direct": True,
+                    "total_ns": 40,
+                },
+            },
+        ),
+    ]
+
+
+def test_readback_components_and_kernel_requests_preserve_distinct_meanings():
+    out = API["validate_events"](rich_trace())
+    assert len(out["kernel_signatures"]) == 1 and len(out["kernel_requests"]) == 2
+    assert out["kernel_signatures"][0]["source_bytes"] == 6
+    sample = out["readbacks"][0]
+    assert sample["layer"] == 0 and sample["bytes"] == 40 and sample["wait_ns"] == 10
+    assert sample["copy_ns"] == 5 and sample["ready_before"] is False
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "unknown_signature",
+        "bool_identity",
+        "repeated_identity",
+        "duplicate_key",
+        "no_requests",
+        "overflow",
+        "backwards_sample",
+        "copy_on_direct",
+        "wrong_bytes",
+        "wrong_shape",
+        "invalid_dtype",
+        "integer_flag",
+        "outside_host_interval",
+        "missing_sample",
+    ],
+)
+def test_rich_profile_rejects_corrupt_or_incomplete_records(fault):
+    rows = rich_trace()
+    sample = rows[-1]["data"]["sample"]
+    if fault == "unknown_signature":
+        rows[5]["data"]["signature"] = 1
+    elif fault == "bool_identity":
+        rows[4]["data"]["id"] = False
+    elif fault == "repeated_identity":
+        rows[5] = event("expert_kernel_signature", 2, 903, 904, rows[4]["data"].copy())
+    elif fault == "duplicate_key":
+        rows[5] = event("expert_kernel_signature", 2, 903, 904, {**rows[4]["data"], "id": 1})
+    elif fault == "no_requests":
+        rows = [r for r in rows if r["name"] != "expert_kernel_request"]
+    elif fault == "overflow":
+        sample["total_ns"] = 1 << 64
+    elif fault == "backwards_sample":
+        sample["total_ns"] = 14
+    elif fault == "copy_on_direct":
+        sample["contiguous_build_ns"] = 1
+    elif fault == "wrong_bytes":
+        sample["bytes"] = 44
+    elif fault == "wrong_shape":
+        rows[-1]["data"]["shape"] = [True]
+    elif fault == "invalid_dtype":
+        rows[-1]["data"]["dtype"] = "unknown"
+    elif fault == "integer_flag":
+        sample["ready_before"] = 0
+    elif fault == "outside_host_interval":
+        sample["total_ns"] = 81
+    elif fault == "missing_sample":
+        del rows[-1]["data"]["sample"]["copy_ns"]
+    with pytest.raises((AssertionError, KeyError)):
+        API["validate_events"](rows)
 
 
 @pytest.mark.parametrize("width", range(1, 9))
@@ -256,6 +466,111 @@ def test_summary_full_shape_memory_boundary_and_prefix_are_checked():
     )
     assert result["decode_vm_counter_pages_delta"]["Compressions"] == 0
     assert "not model-exclusive" in result["limits"]
+
+
+def draft_summary_fixture():
+    data = summary_fixture()
+    data.update(
+        mtp=False,
+        dflash=True,
+        full_draft_states_byte_exact=True,
+        dflash_stats=[8, 8, 8, 1.5],
+        dflash_profile={
+            "draft_seconds": 0.1,
+            "verification_seconds": 1.2,
+            "commit_cache_seconds": 0.1,
+            "verified_rows": 16,
+            "drafted_rows": 16,
+            "expert_demand_bytes": 0,
+            "verified_widths": [0, 8, 0, 0, 0, 0, 0, 0],
+            "drafted_widths": [0, 8, 0, 0, 0, 0, 0, 0],
+        },
+    )
+    for row in data["steps"]:
+        block = row["step"] % 2
+        row.update(
+            mtp_proposed=0,
+            mtp_accepted=0,
+            mtp_blocks=0,
+            dflash={
+                "proposed": block,
+                "accepted": block,
+                "blocks": block,
+                "verified_rows": 2 * block,
+                "drafted_rows": 2 * block,
+                "expert_demand_bytes": 0,
+            },
+        )
+    return data
+
+
+def test_draft_summary_validates_full_kv_states_counters_and_width_histograms():
+    API["validate_summary"](
+        draft_summary_fixture(), "quality", {"cache_context": "known prefix continued"}
+    )
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "kv",
+        "missing",
+        "accepted",
+        "verified",
+        "width",
+        "zero_width",
+        "bytes",
+        "bool",
+        "time",
+        "nan",
+        "mode",
+    ],
+)
+def test_draft_summary_rejects_corrupt_or_missing_verification(fault):
+    data = draft_summary_fixture()
+    if fault == "kv":
+        data["full_draft_states_byte_exact"] = False
+    elif fault == "missing":
+        del data["steps"][0]["dflash"]
+    elif fault == "accepted":
+        data["steps"][0]["dflash"]["accepted"] = 2
+    elif fault == "verified":
+        data["dflash_profile"]["verified_rows"] = 15
+    elif fault == "width":
+        data["dflash_profile"]["verified_widths"][1] = 7
+    elif fault == "zero_width":
+        data["dflash_profile"]["drafted_widths"][0] = 1
+    elif fault == "bytes":
+        data["steps"][0]["dflash"]["expert_demand_bytes"] = 1
+    elif fault == "bool":
+        data["steps"][0]["mtp_proposed"] = False
+    elif fault == "time":
+        data["dflash_profile"]["verification_seconds"] = 2.0
+    elif fault == "nan":
+        data["dflash_stats"][3] = float("nan")
+    elif fault == "mode":
+        data["mtp"] = True
+    with pytest.raises((AssertionError, KeyError)):
+        API["validate_summary"](data, "quality", {"cache_context": "known prefix continued"})
+
+
+def test_context_summary_requires_128_outputs_and_full_external_golden():
+    data = summary_fixture()
+    with pytest.raises(AssertionError):
+        API["validate_summary"](data, "context", {"cache_context": "known prefix continued"})
+    data["tokens"] = [0] * 128
+    h = 0xCBF29CE484222325
+    for _ in range(128 * 4):
+        h = (h * 0x100000001B3) % (1 << 64)
+    data.update(
+        token_hash=f"{h:016x}",
+        steps=[{"step": i, "token": 0, "seconds": 0.1} for i in range(1, 128)],
+        diagnostic_tps=63.5,
+    )
+    golden = {"cache_context": "known prefix", "token_hash": data["token_hash"]}
+    API["validate_summary"](data, "context", golden, [0] * 128)
+    with pytest.raises(AssertionError):
+        API["validate_summary"](data, "context", golden, [1] * 128)
 
 
 @pytest.mark.parametrize(

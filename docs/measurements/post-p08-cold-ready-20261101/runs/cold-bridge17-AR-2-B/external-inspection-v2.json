@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "cold-bridge17-AR-2-B",
+  "phase": "bridge17",
+  "mode": "AR",
+  "arm": "B",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-2-B/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "4b46ba2824c9f47c",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 87,
+      "decode_seconds": 1.374677458999999,
+      "decode_tps": 11.63909387998484,
+      "prefill_tps": 10.631456856155234,
+      "prefill_seconds": 8.183262292,
+      "ttft_seconds": 8.18437775,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7050188632,
+      "lifetime_peak_bytes": 7050434392
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "bf1f7927af918558",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 82,
+      "decode_seconds": 1.3665593339999997,
+      "decode_tps": 11.70823659238202,
+      "prefill_tps": 11.60000850557892,
+      "prefill_seconds": 7.068960334,
+      "ttft_seconds": 7.069386832999999,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7050598256,
+      "lifetime_peak_bytes": 7050598256
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "4b46ba2824c9f47c",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 87,
+      "decode_seconds": 1.3737129169999998,
+      "decode_tps": 11.64726618058,
+      "prefill_tps": 11.538967451787416,
+      "prefill_seconds": 7.539669417,
+      "ttft_seconds": 7.5400415,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7051040624,
+      "lifetime_peak_bytes": 7051040624
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "bf1f7927af918558",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 82,
+      "decode_seconds": 1.3611420830000007,
+      "decode_tps": 11.75483456123514,
+      "prefill_tps": 11.672900695537617,
+      "prefill_seconds": 7.02481775,
+      "ttft_seconds": 7.025183251,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7059363696,
+      "lifetime_peak_bytes": 7059658608
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/anchor-gpu1.json",
+  "swap_anchor_sha256": "9fdf6028af0a9f59b2af1e06198bc3f18ce01aed0d3932b21a6992c333272294",
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 75267129344,
+    "Swapins": 31404785664
+  },
+  "report_sha256": "588a7403471a6df996a466bc2fab3ccefa6d00817786720b9376da0711b0c477",
+  "cumulative_swapouts_before_bytes": 0,
+  "cumulative_swapouts_after_bytes": 0,
+  "maximum_cumulative_swapouts_bytes": 0,
+  "cumulative_swapins_before_bytes": 129646592,
+  "cumulative_swapins_after_bytes": 134889472,
+  "maximum_cumulative_swapins_bytes": 134889472,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-AR-2-B-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

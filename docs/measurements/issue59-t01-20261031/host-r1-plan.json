@@ -1,0 +1,31 @@
+[
+  {
+    "name": "t01-host-r1",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t01-20261031/libtest-r1/prototype-engine",
+      "linear::launch_profile_tests::hot_gu_post_hit_construction_profile",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_T01_REPORT": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t01-20261031/host-profile-r1.json",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40",
+      "MLXL3_FLASH_GDN_EPILOGUE": "0",
+      "MLXL3_SSD_WEIGHTED_EPILOGUE": "0"
+    },
+    "require_quiet": true,
+    "minimum_available_bytes": 2000000000,
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "native_test": "linear::launch_profile_tests::hot_gu_post_hit_construction_profile",
+    "required_text": [
+      "running 1 test",
+      "T01_HOST_BUILD status=validated_host_only lots=8 modes=3 calls_per_sample=256 measured_calls=6144 warmup_calls=64 numerical_parity=not_evaluated gpu_execution=not_requested",
+      "1 passed; 0 failed"
+    ]
+  }
+]

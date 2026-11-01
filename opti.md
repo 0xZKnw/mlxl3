@@ -1,5 +1,766 @@
 # MLXL3 — journal des optimisations
 
+## Procédure courante — conserver les petits gains et mesurer leur composition — 1 novembre 2026
+
+Révision demandée explicitement par Justin le 1 novembre : assouplir la décision
+de conservation. Elle remplace prospectivement l'obligation de qualifier un
+gain modèle isolé pour chaque petit candidat ; elle ne transforme pas un ancien
+résultat bruité en gain confirmé et ne supprime aucune preuve historique.
+
+- **Aucun gain minimum individuel.** Un changement simple, correct sur son
+  périmètre, à coût mémoire borné et au mécanisme plausible peut être conservé
+  pour composition même si le micro est petit ou indécis. Noter séparément
+  qualité, performance et intégration ; statut **prometteur conservé** autorisé.
+- **Le bruit n'est pas un veto.** Consigner moyenne, dispersion, ordre et tous
+  les échantillons. Un passage négatif ou une dérive ne déclenche pas de retrait.
+  Ne pas transformer une incertitude en garantie d'absence de régression.
+- **Une validation par petit ensemble**, typiquement 2–4 changements compatibles,
+  avec liste/version fixe : qualité de chacun puis de leur composition,
+  comparaison de l'ensemble à une référence fixe sur le vrai moteur. Pas de
+  campagne modèle complète obligatoire par micro-optimisation ; aucune somme
+  de pourcentages, aucun gain global attribué d'office à chaque membre.
+  Chaque option reste isolable ; les flags lus au chargement sont comparés
+  dans des processus propres, sans basculer l'environnement d'un modèle vivant.
+  Inclure la RAM cumulée et les interactions d'allocations/états dans la qualification.
+- **Pilote borné et décision pratique.** Préenregistrer modes/prompts affectés,
+  warmup, ordre A/C/C/A (ou équivalent équilibré), longueur et budget de runs.
+  Sans autre contrat, une perte de débit répétée supérieure à 2 % par mode ou
+  une hausse répétée du TTFT supérieure à 2 % déclenche un examen ciblé avant
+  activation de ce mode ; 2 % est un seuil d'investigation, pas une perte
+  automatiquement acceptable ni une preuve statistique. Une perte plus petite
+  mais cohérente avec le mécanisme mérite aussi examen. Un cas isolé ne suffit
+  pas. Une seule série de confirmation planifiée après audit si ambiguïté ;
+  ensuite conserver comme indécis ou isoler le coût, sans relancer jusqu'au vert.
+- **Activer selon la portée mesurée.** Un ensemble correct dont le pilote
+  montre un bénéfice cohérent et aucune régression pratique identifiée peut
+  être retenu sans exiger une p-value par membre. Si le bruit empêche la décision,
+  garder le code expérimental disponible pour le prochain ensemble pertinent,
+  sans annoncer un boost établi. Une régression reproduite appelle un audit,
+  une ablation ciblée ou un réglage par mode. Pas de produit cartésien systématique.
+- **Vérifications proportionnées.** Oracles du composant avant son micro ;
+  logits/états, erreurs et vrai bridge/CLI des chemins affectés avant le pilote
+  modèle. Réutiliser les preuves inchangées, refaire les contrôles affectés et
+  la suite pertinente finale. Capture Xcode seulement si elle répond à une
+  incertitude utile ; ce n'est pas une condition générale pour garder un candidat.
+- Les contrats numériques, le budget experts de 3 Gio et les gardes mémoire
+  restent applicables. Pour la campagne actuelle, le plafond utilisateur de
+  32 Mio de nouveaux Swapout reste cumulatif depuis l'ancre originale F02.
+  Cette révision ne change ni l'ancre, ni les seuils de ressources, ni les
+  autorisations de publication ou de remplacement de l'app.
+
+### Étapes de qualification (PR61 reprise, décision de conservation révisée)
+
+Ajout demandé par Justin : reprendre les vérifications de la
+[PR61, tête a36ba507](https://github.com/0xZKnw/mlxl3/pull/61), y compris sa
+procédure documentaire du 30 octobre. Cette reprise s'applique aux nouveaux
+essais ; elle ne réécrit aucun résultat, seuil ou protocole historique et ne
+fusionne pas les options de la PR. [AGENTS.md](AGENTS.md) reste applicable.
+[Correspondance des tests et limites locales](docs/measurements/issue59-t01-20261031/pr61-staged-verification-audit.md).
+
+| Étape | Vérifications requises | Décision |
+| --- | --- | --- |
+| **1. Exploration ciblée** | Préenregistrer hypothèse, antécédents/différence, sources/options, entrée de production et risque. Compiler la variante réelle ; petit oracle déterministe sur le chemin visé, formes/dtypes/nombre de valeurs/finitude, frontières et erreurs pertinentes. Sélection explicite non nulle. | Arrêter et consigner compilation refusée, contre-exemple ou invariant violé. Auditer l'adaptation avant rejet/retrait ; corriger un défaut concret et préenregistrer les contrôles affectés. Ce smoke ne qualifie aucun gain modèle. |
+| **2. Conservation du candidat** | Format/lint/types/build réel, oracle indépendant du composant et frontières affectées, erreurs/reprise, vérification source applicable avec limites. Micro ciblé après qualité ; coût mémoire et complexité consignés. | Conserver les petits candidats plausibles, y compris indécis, pour composition. Audit avant rejet. Aucun gain modèle requis individuellement ni attribué au micro. |
+| **3. Validation de l'ensemble avant activation/merge** | Code final : suite pertinente et composition, formes/modes affectés ; logits/états, KV/récurrence/acceptation/rollback et vrai bridge/CLI avant pilote modèle. Référence/ensemble alternés en release, MAIN/HOLD, mêmes checkpoint/draft/budgets/options ; dispersion et CI du SHA exact inspectées. | Décision pratique selon les règles ci-dessus, par portée mesurée. Régression : audit/ablation ciblée. Indécis : conserver expérimental. Aucun changement d'app, publication ou merge implicite. |
+
+Pas de suite globale ou produit cartésien automatique à chaque édition : cibler
+d'abord ce qui peut réfuter l'hypothèse, puis couvrir complètement le périmètre
+retenu. Ne pas lancer de vitesse modèle après le seul oracle de kernel. Un
+changement partagé AR/MTP/DFlash touche les trois chemins ; un texte identique
+ne remplace pas les logits/états. Un contrôle CPU ou frontend croisé ne prouve
+pas Metal. Un filtre hôte sans évaluation, tel T01-P, indique explicitement
+**parité numérique non évaluée**, sans fabriquer de validation de valeurs.
+
+Pour reprendre une preuve compatible, enregistrer commande/résultat, identité
+source/binaire/dépendances, fixture/checkpoint, options, formes/dtypes/modes,
+propriété et absence d'impact sur les appelants/composition. Identifier aussi les
+preuves invalidées et contrôles restant à faire. Pas de réinstallation ou
+répétition automatique d'un outil inchangé incompatible ; conserver diagnostic
+et tentative applicable, statut non vérifié. Ni logs manquants, ni timeout, ni
+sélection vide ne valent succès. Les outils lourds se préparent avant la mesure
+GPU ; un seul modèle, aucune compilation/preuve/inférence concurrente, budgets
+et gardes mémoire/thermiques préenregistrés, chauffe et conditions comparables.
+Une pause ou exigence historique n'est pas une recette universelle pour un
+contrôle CPU fonctionnel ; ne jamais neutraliser une garde du harnais choisi.
+
+Reprise documentaire vérifiée contre la description et le diff PR61 épinglés ;
+la lecture de fichier GitHub a renvoyé un contenu vide, **pas une source lue**.
+Les cinq oracles PR61 sont distingués des adaptations/reçus M5 dans l'audit lié.
+État historique au moment de cette revue : T17 conservé OFF ; T04 qualifié puis
+archivé/retiré ; T18a restait à porter avec ses tests GCD/I/O/leases. Son portage
+et sa conservation opt-in ultérieurs figurent dans ISSUE59-T18A-FINAL ci-dessous.
+Aucune performance cloud attribuée au Mac,
+aucun nouveau benchmark requis par ce seul ajout documentaire.
+
+
+### ISSUE59-T18A-FINAL — clôture T18a, 31 octobre 2026
+
+- **Qualité validée ; performance générale mixte/non concluante ; code local conservé en option, défautStatic.** ARw110,435302→10,659297tok/s(+2,1465%),préfill+1,9158% ; MTPw2 10,588494→10,899938(+2,9413%),préfill+3,4376% ; DFw2 11,621159→11,428779(−1,6554%),préfill+1,3020%. Aucun mélange de mode/fenêtre,aucun échantillon exclu. Dérives témoinsMTPMAIN−8,05%/candidatDFHOLD−6,43% visibles,pas de campagne pour décimales. [Bilan complet et commandes](docs/measurements/issue59-t18a-20261031/README.md).
+- Avant décision, [audit final adaptation](docs/measurements/issue59-t18a-20261031/postreboot-w2/adaptation-final-audit.md) : aucun défaut concret de port,allocation/copie/fence ajouté trouvé ; même demande logique I/O et compteurs. LeHOLDDF lent n’ajoute aucune décompression native observée,aucune causalité compression/atomiques établie ; histogramme des lots/retries CAS non mesurés. Aucun retraitautomatique,aucune activationgénérale ; `MLXL3_SSD_DYNAMIC_READERS=1`resteopt-in. ContrôleurSHAstreamé validé séparément et conservé,sansgainmodèleattribué.
+- Toutes campagnes clôturées : w1interruption1,5Mio conservée(AR4complets/MTP3partiels/DF0),w2admission105prospective après refus10,8conservés,3qualités+8pilotes complets/32réponsesgolden,mêmeancrew2/0Swapout/Swapin. Source541et3bins conformes. CPUfinal256passés/8ignorés ; MLX/chat293passés/187ignorés ;0échec,tousprocessusjoints. CBMCparsing/KaniICE243/CrossHairabsent restentnonvérifiés ; CIducode local nonpubliénonexécutée. Précisions/bornesdanslebilan. Aucun modèle/compiler/proveur restant observé àclôture.
+- IdentitésCLI1fea100a…/libde3616e…et11sources candidat inchangées,code local noncommitté,appinstalléeinchangée,aucunpush/publication. Révisionclôture supersédant les états « en cours » historiques T18A01/admission108/controller-memory/reboot/admission105 sans effacer leurs échecs.
+
+### DECODE-PROFILE-08-FINAL — analyse close, campagne physique interrompue, 31 octobre 2026
+
+- **Aucun nouveau boost moteur.** [Rapport complet](docs/measurements/decode-profile-20261031/README.md) et [lecture directe Turbo](docs/measurements/decode-profile-20261031/turbo-read-01/README.md). NPU clos : GPU Metal, pas de backend ANE ; Flash reste token-séquentiel malgré chunks8. Préfill par blocs = potentiel futur non mesuré.
+- P08r3 corrigé du biais stages : 40transitions, soumissions22,385ms/sortie dont11,854msCPU Running∩GPUidle ; premierasync11,768ms exposées, Hot0,0862ms. Routes36,756ms dont36,626msGPUactif, copie0,00431ms. Queue POSIX exposée conditionnelle27,166ms, pas tempsNAND. Les497samples standard et4830HF r2 identifient encodeur/driver/graphe/allocations ; **pas de durées exclusives exactes par fonction ni budget CLI garanti**. Bornes conditionnelles non additives dans le rapport.
+- Défaut d'observateur corrigé uniquement sous cfg(test) : stages warmup789 puis0, logits/états complets byte-exact des phases fermées. Libtest32cc1c36…, CLI/app inchangés. Format/Clippy/build passent ; CPUlib171passés/8ignorés, MLXlib199passés/178ignorés ; contrôleur final106tests. Kani réel95obligations/4covers, 2bool, unwind33, TLS séquentiel abstrait ; pas preuve concurrence/Metal. Analyses20tests/13500checks finis, mutations refusées, Ruff/format/compile passent.
+- **Aucun run natural six phases complet validé.** R1 join10, r2 join60, r3 fauxRSS terminalE/cleanupEPERM conservés ; FIX06 corrige ces transitions. R4 stoppé par256Kio de nouveau Swapout global, cible/traceur joints, aucunprocessus restant ; pas contrôleaprès ni MTP/DF/CPUonly séparé. Fin des lancements, ancre/seuils inchangés, aucun nouvel essai encore actif. Les captures r2/r3 partielles restent qualifiées comme diagnostics avec limites, sans statut fullparity.
+- TURBO-READ-01 **lecture terminée**, pin087c7572 comparé au345bee9e historique. T09 DEC-ONE puis T12 restent les mieux alignés, pas des idées nouvelles ; sixblobsMetalDEC-ONE inspectés inchangés. Réglage160groupes/40cœurs, arrondis propres et frontièresSSD interdisent un copier-coller M5. Aucun port/benchmark Turbo lancé, plafonds propres non mesurés.
+- CI PR/main câblée pour contrôleur, analyses et nouveau harnais Kani ; commandes locales/YAML passent, actionlint absent et CI distante du code local non publiée non exécutée. L'édition CI finale est postérieure à l'identitér4, sans changement natif/binaire. Aucun push, merge, release ou remplacement d'app. Cette clôture supersède seulement les états «en cours» P08/TURBO-READ01 conservés ci-dessous.
+
+### DECODE-PROFILE-08-TOOLS-01 — préparation des outils avant capture, 31 octobre 2026
+
+- InventaireXcode27.2(27B52)/macOS27.2(26B123),DeveloperDirglobalresteCLT ; utiliserDEVELOPER_DIRexplicite,nepasmodifierxcode-select. TemplatesMetalSystemTrace/TimeProfiler/SystemTrace/CPUCountersdisponibles ; recordingoptionsMetalGPUCounters/MetalApplicationrenvoient{} (pasqualificationducompteurhardware). TimeProfiler optionshighFrequencySampling/contextSwitchSampling/recordKernelStacks/recordWaitingThreads disponibles,ProcessorTracehardware nonqualifié. Symboleslibmlx locauxgpu::eval/eval_impl/CustomKernel/CommandEncoder présents,doncpasrebuildMLXàcepoint.
+- ComposantoptionnelMetalToolchainbuild27B47 **uninstalled**,xcrunmetalrefusefautecomposant. L'utilisateur aexplicitementautoriséinstallationXcodeet ses étapes ; installationdececomposantutileàladissectiondes shadersdanscettemêmescope. Commandeprévue:`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -downloadComponent MetalToolchain`,puisshowComponentetxcrunmetal--version ; conserverlog/version/état. Ce téléchargement n'estnipreuvequ'uncompteurGPUfonctionneniunbenchmark. AucunGPU/modèle/build/proveurpendantinstallation,aucunchangementmoteur,nipréférenceglobale.
+- Aprèsoutilprêt,préenregistrerun témoinGPU court visant noms/durées/counters effectivementexportables surlenouvelOSavantdechargerlemodèle ; nepasrejouerlescapturesvidesanciennescommevalidation. LescapteursphysiquesSSDrestentinconnusjusqu’àtémoinpositifqualifié,aucuntempsNANDinventé. État : **préenregistré avant téléchargement et capture**.
+
+### DECODE-PROFILE-08-PLAN — préenregistrement lecture et préparation, 31 octobre 2026
+
+- Demande utilisateur aprèsT18 : finir vérificationNPU,puisprofilage décode encore plus précis,ensuite examiner **directement TurboEXL3** et confronter ses mécanismes aux postes mesurés. **Aucun nouveau port moteur ni benchmark à ce stade.** Relire les historiques post-profile/ultra-profile/post-sushi/post-T01 avant de proposer le protocole physique ; ne pas refaire les captures antérieures sans nouvelle propriété mesurable.
+- NPU vérifié en lecture : FlashNext.forward_tokens boucle token par token ; EXL3qwen4_exp impose accumulation de référence avant sélectionTensorOpsgénérique≥24lignes ; expertsSSDutilisentQMVMetal. Pas de backendANE/CoreML. Distinguer NeuralEngine séparé et NeuralAcceleratorsdansGPU M5/TensorOps. Une utilisation des unités par lesopérateursMLXinternes n’a pas été mesurée. SourceslocalesetApplehttps://developer.apple.com/videos/play/tech-talks/111432/. Nouveau préfillparblocs est une piste future,**aucun gain chiffré/validé**,contraintesGDN/3Gio/SSDàqualifier,nonportéeici.
+- But du nouveau profilage : mieux attribuer CPUactif∩GPUidle(~12,14ms historiques) àdes appels/coûts réels, distinguer GPUutile/synchronisations/idle etSSDcritique/masqué,et obtenir autant que praticable des temps GPUexclusifs parchaîne sansconfondrefencesintrusives etcoûtrelease. Préparer inventaire outils/counters surle nouvelOS/Xcode,entréeARnativebaseline d’abord,puisMTP/DFsi lesgaps techniques lejustifient. Lesagentsfont lecture/inventaireseulement,pasdeGPU/build/preuve. Enregistrer une sousentrée/protocole physique précis **avant** instrumentation ou capture. TurboEXL3 sera examiné après le profilage,comme demandé. État : **en cours — lecture ciblée et préparation sans mesure**.
+
+### ISSUE59-T18A-W2-ADMISSION105 — amendement prospectif avant tout modèle w2, 31 octobre 2026
+
+- Fenêtre r4 de repos bornée90s conservée,0Swapout, disponibilité oscillant10,6–10,74Go sans atteindre10,8Go ; aucun PID modèle w2 ni chrono A/C n'a été lancé. Les refus r1/r2/r3 restent visibles. Utilisateur a fermé Ollama/Deezer/Brave et demandé suppression du démarrage des3apps ; ne pas demander indéfiniment des fermetures pour une marge arbitraire.
+- Après audit indépendant des reçus w1 : pic natif vie max **7896947264B** (MTP128C2/HOLD),DFbridge7825463584B,qualitéDF7385077976B ; RSSwait4max7490732032B est une autre métrique. Les10,8Go étaient une heuristique, pas une précondition numérique. Avant toute mesure w2, choisir **10,5Go** pour les3qualités et8pilotes, même seuil pour tous les bras et mêmes binaires/sources/paramètres. Écart au pic historique≈2,60Go, **pas une garantie de RAM physique** ; w1 a swappé1,5Mio malgré10,8Go/contrôleur corrigé, ce risque reste explicite.
+- Archiver tous plans/manifeste/identité10,8Go avant modification ; nouvelle identité et observation3instantanés20s≥10,5Go,secteur/quiet avant ancrew2 explicite (aucune ancrew2 existante). 0nouveauSwapout strict,Swapin<=256Mio,RSS<=10Gio,picnatif<12Go inchangés,aucune compilation/inférence concurrente. Aucun ajustement supplémentaire automatique après un nouveau refus/incident. Aucune comparaison avec bras w2 à10,8Go puisqu'aucun n'existe. **État : préenregistré avant modification et lancement**.
+
+### ISSUE59-T18A-REBOOT-01 — clôture de la fenêtre w1 et reprise explicite, 31 octobre 2026
+
+- Observation d'admission r4 prévue avant modèle : après libération post-compilation10,598→10,685→10,732Go, attendre au plus90s avec10s entre instantanés et demander3passes consécutives(20s)≥10,8Go. Conserver aussi chaque instantané sous seuil ; pas de modèle lancé tant que condition non satisfaite,ancrew2 créée seulement après cette fenêtre. Seuil/gardes inchangés,un seul essai d'observation borné,aucun réancrage d'un événement swap.
+
+- Suite finale MLX/chat ordinaire terminée :293passés/0échec/187ignorés (lib198/177,bin44/8,contracts16,transport35,runtimeGPU0/2,docs0),157,67s dont131scompilation,tousprocessusjoints,0Swapout/Swapin,picenfants1057259520B. Admission r3 **refusée avant PID modèle** au seul premier instantané10,5985Go<10,8Go ; ce refus n'est pas3snapshots stables. `postreboot-admission-r3.json` conservé,aucun modèleGPUw2 démarré. Audit demandé de la marge contre pics réels avant toute modification prospectivement consignée ; aucune garde abaissée à cet instant.
+
+- Après fermeture Brave : estimation11,1545Go (3,0306Go libres+8,1239Go file-backed récupérables),Swapins/Swapouts0. Diagnostic demandé par utilisateur : `postreboot-memory-explanation.json` conserve instantanés et limites (topMEM des descendants ChatGPT/Codex≈3,799Go, pas somme de pages physiques uniques). Les10,8Go sont une marge heuristique de campagne, **pas un minimum RAM du moteur** ; aucun abaissement requis à cet instant. Le seuil doit être revérifié après fin de la suite MLX ordinaire et trois instantanés avant modèle. Agents de démarrage demandés tous désactivés/déchargés,aucun processus des3apps observé ; persistance au prochain reboot non testée.
+
+- Révision de l'ordre avant lancement : CPU complet final terminé256passés/0échec/8ignorés,fmt OK,processus joints,0Swapout/Swapin. Pendant l'attente RAM, exécuter maintenant la suite MLX/chat ordinaire release complète avec un seul thread ; tests physiques ignorés non sélectionnés, aucun chargement de gros modèle. Pas de benchmark concurrent/compilation concurrente. Cet avancement de qualification n’altère aucun bras ni mesure prévue ; nouveaux plans/logs dédiés et inspection des skips/échecs. Admission r2 modèle refusée avant PID à9,616/9,630/9,457Go sous10,8Go après fermeture Ollama/Deezer ; aucune mesure GPU modèle w2. Réglages de démarrage Steam/Ollama/Epic désactivés sur demande, sauvegarde hors dépôt `/Users/justin/Library/Application Support/Codex/startup-backups/20261031-145011/changes.json`, pas de boost attribué à cette action.
+
+- Admission postreboot r1 **refusée avant PID modèle** :3instantanés/20s=8,154/8,039/8,135Go<10,8Go,0Swapout ; preuve `postreboot-admission-r1.json`. Ollama fermé par utilisateur ensuite, instantané8,879Go toujours sous la marge ; fermeture supplémentaire demandée, aucune baisse de garde ni nouveau modèle. Plans futurs distincts préparés dans `postreboot-w2/`, identité541 reprend531empreintes r3+10métadonnées ; trois oracles ciblés logits/états,MTP,DFlash avant8pilotes128ACCA. Tous les anciens fichiers restent inchangés. **État : en attente marge RAM, CPU final en cours ; zéro lancement GPU w2.**
+
+- Fenêtre T18A-w1 **interrompue** : 7/12 processus pilote128 terminés et inspectés (AR4/4,MTP3/4,DF0/4). Le dernier A MTP s’est arrêté pendant sa chauffe après14,329s, 0chauffe/0mesure complètes : **+1572864B=1,5Mio de Swapouts** globaux contre l’ancre. Parent arrêté−15 et joint ; rapport interne incomplet, flags de jointure internes non renseignés, aucune parité revendiquée. Le champ maximum_live_swapout=0 est incomplet après exception ; le delta du trigger est la preuve. Résultats/rapports partiels inchangés, [checkpoint interruption](docs/measurements/issue59-t18a-20261031/interruption-before-system-update.json). L’AR historique +2,1465% reste attaché à w1 ; MTP incomplet ne constitue aucun ACCA.
+- Utilisateur a demandé d’attendre sa mise à jour, puis « c’est bon ». Il n’a pas autorisé les32Mio proposés ; **zéro nouvelle écriture swap reste requis**. Aucun moteur/compiler/proveur restant observé à la reprise ; Mac sur secteur, macOS27.2 build26B123, nouveau boot31oct14:38:43Europe/Paris, compteurs Swapins/Swapouts remis à0. Ancienne version OS non conservée dans ce checkpoint : changement exact de version non attribué.
+- Protocole prospectif w2 avant tout lancement : source/dépendances/bins revérifiés contre r3 ; nouvelle ancre explicite due au reboot et aux compteurs réinitialisés, ancienne conservée. Même admission10,8Go,3snapshots20s,cache3Gio/4lecteurs,pics/gardes/ordre et options. Après vérification indépendante logits/états sur le nouvel OS, refaire **MTP128 ACCA et DF128 ACCA** sur MAIN/HOLD (8processus,16chauffes+16mesures), chaque rapport inspecté avant suivant ; aucun A postreboot ajouté aux C w1, aucun gain interfenêtres. AR déjà complet w1 non répété uniquement pour décimales. Nouveaux plans/noms/identité/checkpoints sans écraser w1. Réutiliser les contrôles source et CPU inchangés ; suites finales après phase GPU seulement. Défaut encoreStatic,app inchangée. État : **en cours — admission et vérification identité postreboot**, pas de mesure w2 encore.
+
+### T18A-CONTROLLER-MEMORY-01 — diagnostic CPU du lanceur avant nouveau modèle, 31 octobre 2026
+
+- Résultat CPU : même529empreintes vérifiées en deux processus, hashes identiques ; bulk RSSavant19,087Mo→RSSaprès/pic225,034Mo, streaming19,104→19,399Mo. Le fichier182351120B est bien le plus gros. Ce résultat établit une pression du parent évitable d'environ205,6Mo, sans isoler tous les facteurs OS du refus. `controller-memory-comparison.json` conserve les chiffres/limites ; aucun GPU ni tok/s mesuré.
+- Correction appliquée au lanceur : `file_sha` utilise `hashlib.file_digest` par blocs, toutes sources et tous binaires restent vérifiés ; mêmes VM/admissions/options et source du superviseur inchangée.7 nouveaux cas déterministes (vide,1octet,seuils chunks,>1Mio/NUL,manquant/dossier,erreur avant lancement par vraie entrée), **44 tests du superviseur passent** ; Ruff/format/py_compile passent après correction d'un simple import I001 initial (échec conservé dans le journal). Vérificateur Python inchangé absent lors de la tentative précédente : aucune preuve source générale revendiquée. CI PR/main exécute déjà ces fichiers/tests. Sources avant édition conservées `controller-before/`, mutation de queue isolée supprimée après copie de sa preuve, header production inchangé.
+- Reprise prévue avant modèle : identité r3 préservant r1/r2, nouveau plan r3 pour ne pas écraser le refus sans PID ; même admission10,8Go, même T18A-w1/0Swapout, mêmes deux binaires natifs. Cette correction de l'outil et ses tests peuvent être conservés indépendamment du futur résultat T18a ; **aucun boost modèle ne lui est attribué**. Précision provenance : les copies r1 CLI/libtest ont été faites après l'édition des régressions cfg(test), depuis les binaires terminés avant cette édition ; il n'existe pas d'empreinte globale source r1 antérieure revendiquée. L'identité529 précise le CLI release réutilisé (tokens release non affectés) et le vrai libtest reconstruit r2.
+
+- Observation r2 passe3 instantanés sur20s à10,961/10,971/10,990Go, puis le superviseur refuse AVANT PID à10,775Go<10,8Go. Rapport modèle partiel conservé, aucun modèle ni tok/s lancé, ancre T18A-w1 inchangée/0Swapout. Ne pas baisser encore la marge pour passer ce refus.
+- Hypothèse à tester avant correction : le contrôleur alloue les fichiers complets pour leurs SHA (`Path.read_bytes`), dont metallib182351120B, et augmente sa propre pression mémoire. Mesurer en processus CPU séparés bulk et streaming les mêmes529 empreintes, RSS courant/pic et VM avant/après ; vérifier tous les hashes identiques et ne pas confondre pic et RSS vivant/causalité du refus. Aucun benchmark du moteur ou GPU pendant cette étude.
+- Si le pic est évitable, remplacer uniquement les vérifications SHA du lanceur par `hashlib.file_digest` en lecture bornée, sans retirer de fichier ni de garde. Tests : vide,payload>plusieurs chunks,octets NUL,chemin inexistant/erreur,refus d'utiliser read_bytes et chemin de production lié ; suite du superviseur,Ruff/types applicables et tentative de vérificateur Python. Archiver sources du lanceur/tests avant édition ; nouvelle identité future, sources/bins moteur inchangés, ancienne identité et refus conservés. Relever le pic après correction, même admission10,8Go/tous bras et même ancre ; aucune réduction du parent n'est un boost tok/s moteur. État : **en cours — diagnostic CPU**, pas de correction encore appliquée.
+
+### ISSUE59-T18A-ADMISSION108 — amendement prospectif avant premier modèle, 31 octobre 2026
+
+- Les3 sélections stockage et9 composants sont terminés avec succès, processus joints et0nouveauSwapout sous **la même ancre T18A-w1**. Le modèle n'a PAS été lancé : observation r1 refusée dès le premier instantané à **10961993728B**, soit38,0Mo sous la marge heuristique11Go. Ce refus ne constitue ni20s stables ni un échec numérique ; `model-admission-r1.json` conservé.
+- Avant toute qualité modèle et tout tok/s, choisir **10,8Go** d'admission pour TOUS les futurs oracles modèle/bridge/pilote. 11Go était une marge volontaire, pas une propriété du moteur ou une valeur imposée par AGENTS ; le protocole historique a aussi utilisé8,5/12Go et T04 a amendé12→11 avant ses mesures. Configuration identique historiquement à≈7,9Go de pic natif ; la nouvelle politique n'ajoute ni poids ni banques, seulement une petite file atomique et des métadonnées. Marge restante≈2,9Go, sans prétendre qu'elle garantisse le comportement de l'OS. T17 a swappé malgré une estimation11,95Go : cette limite est maintenue visible.
+- Conserver11Go original dans une archive et identité r1, aucun résultat ni échantillon supprimé. Modifier uniquement les admissions des futurs plans et le texte de protocole, publier identité r2 avec différences ; binaires/sources de calcul/options/prompts/ordre inchangés. Réutiliser les12 qualités légères non affectées, pas de répétition inutile. Refaire3instantanés sur20s secteur/quiet avant modèle. **Ancre inchangée**,0Swapoutstrict,Swapin<=256Mio,RSS<=10Gio,picnatif<12Go,cache3Gio/4lecteurs et isolation inchangés ; aucun réancrage pour effacer un incident.
+- Aucun modèle ni tok/s n'existe encore à cet amendement. Tous les bras à venir utilisent10,8Go ; aucune comparaison avec un bras mesuré sous11Go n'est prévue. État : **en cours — observation r2 avant oracles**.
+
+### ISSUE59-T18A-01 — rééquilibrage des lecteurs, 31 octobre 2026 — préenregistré avant code et exécution
+
+- Critère pratique précisé par l'utilisateur pendant le pilote : « la dérive vraiment on s'en fiche tant que c'est pas genre50% ». Ne pas transformer cette remarque en seuil scientifique de50%, ni masquer les contrôles ; elle autorise d'accepter des variations modestes et interdit de bloquer uniquement sur un ancien seuil de bruit. Terminer les12processus/3modes prévus, conserver chaque résultat et interpréter des ordres de grandeur par mode. **Pas de nouvelle matrice longue uniquement pour stabiliser les décimales.** Un ralentissement net/une divergence/une garde violée exige toujours analyse et empêche une promotion générale. La qualification du code final et de son défaut éventuel reste requise ; elle n'est pas une campagne de chasse au bruit.
+- Première séquence AR128 terminée4/4 : agrégé MAIN10,440963→10,771817tok/s(+3,1688%),HOLD10,429647→10,549104(+1,1454%),ensembleAR10,435302→10,659297(**+2,1465%**),préfillensemble+1,9158%. DriftA MAIN−0,2529%/HOLD−3,8694%,C MAIN−0,8382%/HOLD−1,0923% ; signal pratique positif, pas de conclusion globale avant MTP/DF. Audit indépendant `pilot128-AR-inspection.{json,md}`,16réponses(chauffes incluses)qualifiées,0Swapout,footprint/picnatif≤7158421480B. Aucun mode additionné aux autres, aucune attribution à T01 ou au correctif mémoire du lanceur.
+
+- Bridge17 **terminé6/6 inspectés externes avant chaque suivant**,24 réponses(12chauffes+12mesures),texte/hashgolden17 et compteursmodes identiques A/C,3Gio/4lecteurs/pics natifs contrôlés,lecteurs/processus joints,0Swapout sousT18A-w1 inchangé ; [séquence](docs/measurements/issue59-t18a-20261031/bridge17-sequence.json). Les débits16transitions sont mixtes, pas de gain qualifié ni rejet sur ce petit nombre. La qualité complète a son audit indépendant [17 exécutions/13sélecteursdistincts](docs/measurements/issue59-t18a-20261031/quality-inspection.md). Lancer le pilote128ACCA×AR/MTP/DF prévu,24chauffes+24mesures/12processus,inspection externe après chacun, mêmebinaireCLI1fea…/identité531r3/gardes10,8Go etancre inchangées. Auditer avant toute conclusion décevante.
+
+- Qualité physique **terminée17/17 sélections non vides** :3 stockage(fallback/static,dynamic9lots+9fallback,optioninvalide refusée par vraieFFI sans40octets écrits),9composants(deuxbras MoE/B2/erreurs,reprise,overlapHot/Wide/pending),5oraclesmodèle indépendants(logits/états,composants,paires,MTP,DFlash) ; tousjoints,0nouveauSwapoutT18A-w1. Libtest r2 de3616e…/CLI1fea100a… inchangés ; identitér3=531sources ajoute correction streaming du contrôleur et son test,binairesinchangés. Admissionr3passed3snap20s à10,975/10,948/10,952Go sous10,8Go ; ancienrefusr1etrefuslanceurr2avantPID gardés. Détail `storage-plan-result.json`,`component-plan-result.json`,`model-quality-r3-plan-result.json`. Aucun chrono modèle publié à cette entrée.
+- Commencer maintenant le bridge17 AC×AR/MTP/DF prévu,contrôle externe APRÈS CHAQUE processus avant suivant. Un seul processus/modèleGPU,sourceidentitér3/contrôleurstreamé/mêmeancreT18A-w1 ; scriptvalidateur17autotests synthétiques passés, pas des résultats moteur. Après qualité bridge seulement,pilote128ACCA×3modes suivant la matrice préenregistrée. Les12tests légers restent attachés à identités r1/r2 avant correction du contrôleur,leurs données/moteur inchangés autorisent reprise ; pas de nouvelle exécution inutile.
+
+- Préparation physique : premier générateur de plans s'est arrêté AVANT PID/mesure sur une assertion d'indice de commande (le binaire moteur est argv[2] du lanceur Python, pas argv[1]). Seuls les deux binaires copiés et common-env ont été créés ; vérifier leurs empreintes puis reprendre sans écraser de résultat. Correction du contrôle de préparation uniquement. CPU :308 cas lecteur×2sanitizers,4084 cas concurrents+4096 politiques×2sanitizers,233 tests Python passent ; CBMC parsing/Kani ICE243/CrossHair absent restent non vérifiés. Mutation CAS+2 sur copie isolée détectée par abort attendu, production inchangée. Clippy/fmt/build réels passent ; correction du diagnostic stale et nouveau test FFI option invalide ajoutés sous cfg(test), libtest reconstruit r2. Aucun résultat GPU/tok/s à ce stade.
+
+- Audit avant première mesure : un rejet Rust avant FFI dans `fill_many` pouvait joindre au lot en échec les timings/politique du lot précédent (le validateur refuse déjà ok=false, donc pas de faux vert, mais attribution incorrecte). Correction ciblée préenregistrée : reset du profiler sous cfg(test) uniquement lorsqu'un span de lecture est actif ; étendre l'oracle MoE existant dans le seul cas53slots/4lecteurs/overlap pour succès5jobs→banque temporairement trop courte→refus avant FFI, timings vides/politique Static et compteur inchangé, banque restaurée avant assertions. Tenter aussi un contrôle négatif de cette régression sans reset sur une copie source/libtest si pratique ; rien de modèle n'a encore été exécuté. Refaire uniquement fmt/ClippyMLX/buildlibtest et qualités touchées, sources r1/CLI archivées avant correction. Aucun changement du code release de politique par ce correctif de diagnostic.
+
+- **Exploration puis qualification, aucune activation générale présumée.** Choix après les trois lectures `post-t01-priority-20261031/{cpu,gpu,io}-priority.md` : T18a a un budget exposé conditionnel identifiable d'environ3ms/pas dans les fenêtres AR, contre0,0335ms de closure T01-P projetée ; T09/T12 nomment de grosses chaînes mais n'ont pas de coût GPU exclusif attribué. Cette différence justifie de tester T18a d'abord, sans lui attribuer les27–31ms de queue entière ni promettre15tok/s. POST-T01-PROFILE-01 lecture/classement clos ; aucune nouvelle capture nécessaire à ce choix.
+- Changement : reprendre sélectivement `DiskWorkQueue` de PR61 tête a36ba507… (file atomique bornée,static conservé). Option `MLXL3_SSD_DYNAMIC_READERS=0/1`,absente=0,fixée au premier lot par thread ; bras séparés en processus. **Adaptation annoncée avant essai :** activer Dynamic uniquement si workers>1 ET jobs>workers ; sinon garder Static, car aucun worker ne peut alors recevoir de second job utile. Même nombre maximal4,cache3Gio/53×48,requêtes/offsets/destinations,validations,drainage,ordre des erreurs,publication après jointure,kernels/sommes/routes/soumissions inchangés. Pas de T18b ni de port T17/T04/T01B simultané. Profil rapporte la politique réellement exécutée par lot, pas seulement le flag demandé.
+- Baseline : HEAD7978fceac30d991a8c06d72114fc932b2443f555 avec modifications antérieures conservées,190 sources identiques avantT01,CLI202f96dc…/liba751cf59…,MLX0.32.2/M5 24Gio/Qwen3.8FlashNextEXL3 2.05bpw ; T17/T05 OFF,T04 retiré,4lecteurs,lookahead0,Hot/Wide/Unique activés,MLX40ops/40MB,allocator64Mio. Snapshots avant édition et nouvelle identité avant exécution physique ; aucun remplacement d'app,push ou publication.
+- Qualité ciblée CPU avant modèle : tests portables PR61 Static/Dynamic sur1..512jobs et1..4workers admissibles (4084 cas),épuisement stable,réaffectation d'un worker retardé,littéraux invalides ; couvrir la garde effective jobs<=workers/workers1. Lecteur GCD/preadv réel dans les deux politiques,octets/sentinelles/EINTR lorsque couvert,troncature/erreurs/jointure/reprise,affectation et intervalles par worker. ASan+UBSan puis TSan séparés,mutation pertinente du claim détectée puis restauration. Tentative CBMC sur vrai helper et harnais borné8jobs/4workers,aucun stub d'atomique pour forcer le succès ; limites C++ actuelles conservées si parsing refusé. Pour Rust/FFI affectés,tentative Kani réelle ; pour Python,règles dynamiques et traces invalides/incomplètes,réutiliser suite et vérificateur disponibles. Fmt/Clippy strict CPU+MLX/build livré et CI PR/main concernés.
+- Qualité physique avant vitesse : sélections explicites du vrai stockage I/O,cohortes Cold/Hot/B2/erreurs/reprise,overlap et slots en vol,flag0/1 séparément ; puis candidat1 sur les cinq oracles existants modèle indépendant/logits+états/composants/paires+rollback/MTP/DFlash. Les qualités T17/T04 non affectées ne sont pas répétées. Vérifier au moins un vrai lot Dynamic>workers et des lots Static de fallback dans les traces contrôlées ; aucune parité sur sélection vide ni sur seul texte. Toutes sorties finies et nombres exacts avant acceptation.
+- Conditions physiques : un modèle GPU à la fois,aucune compilation/preuve/inférence concurrente,secteur,ancre fraîche **T18A-w1 après phase CPU**,0nouveauSwapout,Swapin<=256Mio/RSS<=10Gio/picnatif<12Go ; admission modèle11Go estimés disponibles,composant léger2Go,3instantanés sur20s avant le premier modèle. Ces marges sont heuristiques et ne garantissent pas zéro swap ; conserver toute interruption sans réancrage automatique. Gardes identiques pour les bras futurs.
+- Après qualification : bridge17 A/C pour AR,MTPdepth1,DFlashmode1/width1 ; MAIN/HOLD,mêmes golden externes indépendants/hash/counters/budgets. Puis pilote128 **ACCA par mode**,chaque processus chauffe MAIN/HOLD et mesure une fois MAIN/HOLD (12 processus/24 mesures),agrégation tokens/secondes,dérives et flags réels. Référence0/candidat1,même binaire ; pas de seuil universel ni de suppression d'échantillon. Comparer fin/p95 des lots dans un diagnostic séparé,non mélangé au débit release. Si signal favorable sur les chemins affectés,préenregistrer confirmation indépendante sur code final avant promotion ; sinon audit adaptation/chemin/fallback/atomiques avant correction ciblée ou retrait. Toute intégration générale exige absence de ralentissement du decode qualifiée,et suites pertinentes complètes finales. Statut : **en cours — prototype et smoke CPU**.
+
+### POST-T01-PROFILE-01 — choisir une cible selon le chemin critique, 31 octobre 2026 — préenregistré
+
+- Demande : chercher une piste plus prometteuse selon les profils, avec profilage supplémentaire si nécessaire. **Exploration initiale sans modification du moteur ni nouvelle mesure.** T01-P a borné uniquement le travail hôte avant évaluation ; le hash/pipeline/encodeur GPU restent non attribués. Ne pas repartir sur T01A source-seule, T17/T04 ou un essai négatif inchangé.
+- Hypothèse : une attribution du temps GPU utile et du CPU pendant GPU idle aux chemins effectivement servis permet de choisir une optimisation dont le budget est supérieur aux microsecondes de T01-P. Reprendre les traces existantes, les données de l'issue60, l'ordre courant de l'issue59, les sources MLX0.32.2 épinglées et les antécédents pertinents avant de choisir.
+- Trois lectures indépendantes : kernels GPU/EXL3 et formes répétées ; CPU/MLX pendant les bulles et opérations d'encodeur ; SSD critique/lectures masquées et dépendances du routage. Produire coûts, couverture, incertitudes et conditions de récupération sans addition de temps inclusifs ni assimilation « attente routes = SSD idle ». Toute projection reste conditionnelle tant que le chemin critique n'est pas établi.
+- Baseline : arbre7978fce… local modifié préservé,190 sources moteur identiques avant T01 ; CLI202f96dc…/libtesta751cf59…, MLX0.32.2, M5 24 Gio, Flash-Next EXL3 2.05bpw, budget3 Gio/53 slots×48 couches/4 lecteurs, T17/T05 OFF et T04 retiré. Aucun modèle à charger pendant ces lectures. Les outils et oracles existants seront réutilisés selon leur identité.
+- Avant tout nouveau relevé ou prototype : nommer la cible, inscrire la différence avec les essais antérieurs, la propriété/qualité, les sources/binaires et le protocole concret. Un profilage court peut précéder le portage si une durée importante reste non attribuée. Alimentation/quiet/mémoire/ancre VM vérifiés pour les mesures GPU, aucune compilation/preuve/inférence concurrente. État : **en cours — lecture et classement**, aucun gain promis ni changement activé.
+
+### ISSUE59-T01 — clôture finale, 31 octobre 2026
+
+- **TERMINÉ : diagnostic hôte T01-P, aucun gain modèle appliqué.** Six mille cent quarante-quatre constructions réelles Hot GU,64 chauffes,24 échantillons : boucle externe Off5,529µs/appel, closure C++ incluse0,698µs ;2048 hits Fine directement comptés,0 miss/éviction, sorties différées et0 readback. Audits source/données terminés avant retrait, aucun défaut bloquant. Compte historique48 appels/pas confirmé sur127 pas à signature exacte ; projections hôte0,265ms boucle/0,0335ms closure seulement conditionnelles, pas des plafonds prouvés sous charge modèle. **T01A source-seule différé ; T01B hash/pipeline/encodeur non mesuré et non réfuté.**
+- Instrumentation retirée sélectivement :5 snapshots restaurés,2 nouveaux modules archivés puis retirés,493 autres sources/dépendances figées inchangées. Sources instrumentées7/libtest20a/identité500 et échecs r1 conservés. Sources moteur **190/190 identiques pré-T01** ; CLI reconstruit **202f96dc…**, libtest **a751cf59…**, tous deux byte-identiques aux binaires avant T01. Aucun launcher préparé activé ; ajout documentaire de la procédure PR61 conservé, T18a non porté. [Bilan](docs/measurements/issue59-t01-20261031/README.md), [reçu](docs/measurements/issue59-t01-20261031/retirement-result.json).
+- Contrôles finaux **tous terminés** : fmt/Clippy strict CPU+MLX/buildCLI passent ; CPU**256 passés/0 échec/8 ignorés**, MLX**293/0/185**. Six processus joints,0 nouvelle écriture swap ; aucun benchmark modèle ni nouvelle évaluation GPU numérique. La suite du prototype archivé207/0/176 et ses9 tests ciblés ne remplacent pas ces résultats du code conservé. Kani257 obligations/0 échec/1 unreachable corefmt et4 covers, unwind129, s'applique au collecteur archivé uniquement ; vraie entrée MLX ICE243 et C++ parsing refusé restent **non vérifiés**. [Commandes, bornes et limites](docs/measurements/issue59-t01-20261031/verification.md). Workflow PR/main inspecté, aucun run distant de modifications locales non poussées ; aucune app remplacée, publication, commit ou push.
+- Tous essais lancés SCOPE/P-01 et leurs répétitions de contrôle clos ; aucun essai T01 encore en cours. Les entrées ci-dessous conservent leurs états intermédiaires historiques. Toute nouvelle piste T01B/T09/T12 exigera un nouveau préenregistrement ; aucune campagne automatique laissée active.
+
+### ISSUE59-T04 — clôture finale le 31 octobre 2026
+
+- **REJETÉ POUR INTÉGRATION ; T04 RETIRÉ**, candidat numérique qualifié dans son domaine, gain général non établi (AR−1,6413%,MTP+0,4320%,DF+0,9420%,préfill−0,4288/−0,7380/+0,1798%,contrôlesdérivants). Audits adaptation/source/données48réponses terminés avantretrait, aucun défaut concret découvert. Preuves/codesources9/patch/binaires81bc+220 conservés, aucune addition entre modes/anciens protocoles, aucune app/publi/push.
+- Vérification du code conservé **TERMINÉE** : fmt/ClippystrictCPU+MLX/buildCLI passent ; suites complètes CPU**256passés/0échec/8ignorés**,MLX**293passés/0échec/185ignorés**. Sixprocessusjoints/0Swapout, aucunGPU/compile/proveurencours aprèsfin. Source190/190 identiqueavantT04, CLIreconstruit202f96dca5ceed6cd78f70c524ad48b324e2c35a347cd7dc0bcabb11baf141aa **byteidentiquepréT04**, candidatT04n'estpaslecodeconservé. Contrôlesdans `docs/measurements/issue59-t04-20261031/retained-checks-inspection.json`, identitédans `retained-engine-identity.json`. Pas de répétitionGPUinutileduprototype retiré ; CImodèledistantnonexécuté,preuvesMLX/Metalnonvérifiées(ICE/parsing), Kani166/12/unwind17applicableauprototypeCPUarchivé uniquement. TousessaisT04closourefusés/interrompusexplicitement, protocoleadmission12→11prospectifetrefusr1préservés.
+
+### ISSUE59-T01-SCOPE-01 — prochaine piste demandée, préenregistrée avant recherche/mesure le 31 octobre 2026
+
+- Lecture close : trois rapports `docs/measurements/issue59-t01-20261031/scope-{rust-ffi,upstream,quality}.md` confirment source/signature réécrites APRÈS hit, distinct des factories19/headers80M. Headers backend disponibles mais instables ; amont LaunchCached gardePSObrut/variantesnonbornées et son micro ajoute une copie `state()` côté référence, ne pas reprendre cette asymétrie. Copies primaires57 absentes du build de ce worktree mais retrouvées dans le checkout Documents (à vérifier SHA), pas de perte silencieuse ni nouveau GPU pour les reconstituer. SourceofficielleMLXv0.32.2 `mlx/backend/common/metal_kernel.cpp` blob7a2eef51fcfa04d1e6828ca72be100235fded40f relue/archivée. Aucun coûtT01 encore mesuré.
+- L'utilisateur demande « teste celui d'après maintenant ». Ordre révisé de #59 : aprèsT17/T04, **T01 filtre borné des coûts après hit de cache**, puisT09/T12selonattribution. Relire la version actuelle de #59 et les antécédents19/67/80M/POSTPROFILE03 et rapports `T01-read` ; rechercher l'existant avant portage. Ne pas confondre le cachefactory128 déjà présent avec une vraie primitive préparée, ni lui attribuer les12ms d'encodeur MLX du profilage.
+- Périmètre initial lecture seule : tracer Rust Array/linear→FFI`mlxl3_metal_kernel`→CustomKernelFunction→pipeline/alloc/encode, cachehit/marshalling/génération/hash et dépendancesprivéesMLX0.32.2. Comparer launchermlx-serve épinglé de #59 et Turbo/Sushi seulement aux sources utiles. Déterminer une projectionHotGU/géométrie réellement servie et les métriquesCPU isolables, gardesvie/bornes/cacheinvalidation/streams à préserver. Aucun kernel/math/routes/cacheshared/soumissionprécoce changé ; T17/T05OFF et T04retiré.
+- Baselinecodeconservé : arbre7978fceac30d991a8c06d72114fc932b2443f555modifié/préservé, identité190préT04 et CLI202f…/bibliothèqueMLX0.32.2 ; Qwen3.8FlashNextEXL3/M524Go/cache3Gio/53×48/4lecteurs. Nouvelleidentitérequise si prototypeplus tard. Trois lecturesindépendantesréutilisantsources/rapports existants ; aucunecompilation/proof/GPU/benchmarkavantnouveaupréenregistrementdufiltre concret. État : **recherche en cours**, aucun gainT01mesuré ni prototype activé.
+
+### ISSUE59-T01-P-01 — filtre CPU de construction Hot GU après hit, préenregistré AVANT instrumentation/exécution, 31 octobre 2026
+
+- Audits terminés avant retrait : [source/adaptation](docs/measurements/issue59-t01-20261031/audit-before-decision.md) et [données indépendantes](docs/measurements/issue59-t01-20261031/host-inspection.md), aucun défaut bloquant identifié. **T01-P terminé comme diagnostic hôte ; T01A source-seule différé ; T01B non mesuré/non réfuté.** Instrumentation retirée sélectivement : 5 fichiers restaurés depuis snapshots préexistants SHA vérifiés, 2 nouveaux modules archivés puis retirés, 493 autres sources/dépendances figées inchangées. Sources instrumentées7/binaire20a/identité500 et tous échecs/résultats conservés. [Prévol et reçu](docs/measurements/issue59-t01-20261031/retirement-result.json). Aucun launcher préparé ni gain appliqué ; procédure documentaire PR61 conservée en tête. Suite du code conservé **encore à vérifier** : fmt/ClippyCPU+MLX/buildCLI/suites CPU+MLX complètes, comparaison190sources et binaires préT01. La suite lib instrumentée a passé **207 tests/0 échec/176 ignorés**, sans substituer ces résultats au code retiré.
+
+- **Mesure terminée, filtre hôte seulement** :`host-r1-plan-result.json`/`host-profile-r1.json`,1testphysiquesélectionné/1passé,64warmups+6144builders/24échantillons/8lots,0SwapoutT01-w1/processusjoint. Offexterne5529,215ns/appel(médiane5509,439,5276,043..5801,105),coarse5369,507,fine5883,117 ; coarseplusrapidequ'off=>variabilité/observateur, pasdesoustractioncorrectrice. FineRust2853,624ns(val15,331/CString691,616/marshal62,532/init19,884/FFI2027,743/adoption36,517), C++total1992,708inclusFFI,lookup650,401/closure697,541ns ;source14733/header1842bytes. C++compte**2048appelsFine**directement(0miss/éviction,maxcache2),pas6144comptésC++ ;64warmups=1miss+63hits. AucuneévalGPU/valeur/logit/état/tok/s ; pariténumérique **non évaluée**. RustArraytotalexclutdestructionCString/Vec/collecteur, externeinclutbuilder/drop/checks ; CPPtotalinclutcleanup/timers/strlen. Ne pasadditionnerenveloppesniattribuer12,142msidleàceposte.
+- Comptehistoriquevérifié sansnouveauGPU :traceattributionARMAIN27oct SHA6de2cf… exact3champssignatureidentiques ;6096requêtes=48pourCHACUNdes127output_stepB1,127par48couches,ancêtresvalidés `historical-call-count.json`. ProjectionhôteINDICATIVEGU48× :enveloppeexterne0,265402ms/step,closureinclusive0,033482ms/step ;pasplafondmodèleprouvésouschargeGPU,nirécupérabilitécomplètedesallocations/marshalling,nimesureT01Bhash/pipeline/encodeur. FichiersnaturalARMAINtrace_1etanalysisattributionattendusabsentslorslecturesexploratoires ;aucunerelancepourlesrecréer,rawattributionexistantutilisé.
+- **Décision prospective de clôture après audits indépendants** :si aucuneerreurconcrète trouvée, cloreT01-Pcomme diagnosticvalidédanssaportée ; différer leportprivéT01Asource-seule(budgethôtefaible),pasderejetglobalduT01Bnonmesuré. Aucunlauncheroptimisén'aétéactivé. Archiver7sourcesinstrumentéesetlib20a/identité500/données/proofs, puisrestaurerSEULEMENT5fichiers`before-identity.json`vérifiésSHA etsupprimerSEULEMENT2nouveauxmodules(collecteur/testHotGU)aprèsvérificationarchive. Préservertoutesmodificationsantérieuresetl'ajoutdocumentairePR61 ; aucuneapp/publi/push. Aprèsretrait,fmt/ClippyCPU+MLX/buildCLI/suitespertinentes,identitécomparéepréT01 ; nepasattribuerchrono20aaucodeconservé. Audit/retirage encoreENCOURSàcetteentrée, aucunnouveauchromodèleprévu.
+
+- Prêtàmesure :fmt/ClippyCPU+MLXstrict passent,r2buildApplelibtest passe ;9tests rapidesApple(7collecteur/FFI+2rapport/validateur) passent nonvides,4collecteurCPUégalement. Kanidétailléconfirme257/0échec,1unreachableuniquementshiftinternecorefmt,4coversatteints ; pasdecontratassertioninatteignable identifié. Fixesavantpremierrun :guardownershipclock/validationpartition/cleanupstylistique. Source+deps**500empreintes**,libtest**20a0006f54e00bbae2e937b9c86f73fcc24dfe8262d36b7c5d1179984cae8e0c**,copies7sourcesinstrumentées conservées `instrumented-source/`, identité`instrumented-identity-r1.json`. Nouvellecampagneexplicite**T01-w1**aprèscompilations/proofs,Swapouts140865945600B,Swapins53830844416B,secteur/quiet/disponible10,478Go ; ancienneT04close0Swapout, aucunréancragepourmasquerincident. Exécuter `host-r1-plan.json`180s/2Go via gpu-runner existant,strict0nouveauSwapout. ProcédurePR61 ajoutée prospectivementen têtedujournal ; aucunancienrésultatréécrit.
+
+- Smokepréfiltre :4testscollecteurCPU passent ;fmtpasse ;ClippyMLXr1 refuseunifimbriquéducleanup (`collapsible_if`) avantbuildlibtestetavanttoutchrono. Correctionstylistiqueciblée, refairefmt/ClippyMLX/buildsmokeaffectés sur r2 ; r1échouéconservé, pasderelancedemesure. ValidateurdesphasesrenforcéAVANTpremièreexécution : sommecheckedRustexacte, C++inclusFFI, factorytime0surhits ; fixturesfaussepartition/overflow/posteinclusifincohérentrefusées.
+
+- Contrôles intermédiaires AVANT mesure : collecteurKani réel passe257obligations/0échec/1inatteignable,4covers ; entréesu64/boolsymboliques sansassume, unwind129. Répétition de validation prévue avec sortie détaillée (même code/domaine, pasdebenchmark) pour identifier l'obligation inatteignable, ne pas prétendre7covers indépendants. Kani vrai builderMLX tente puisICEintrinsics243avantobligations ; CBMC vraiFFI/headers échoueparsinglibc++/C++11vs20, propriétésMLX/C++NONvérifiées. Revue indépendante a trouvé retourd'erreur de clock aprèsFFIavantadoption : corrigéAVANTpremièreexécutionmesurée en adoptant toushandlesavantpropagation ; pasdedonnéeschronoantérieures. Enveloppe lot externe inclura checksmetadata/pending identiques avecconstruction/drop (bornehaute), sans soustraction. Les6phasesRust partitionnent l'enveloppe Array fine ; bookkeepingd'unephase peut charger suivante, collecteurhorsenveloppe, C++inclusdansFFI. PR61head a36ba507 relue àdemandeutilisateur ; qualificationstaged ettestsconcernés repris proportionnellement, pasdeportageT18simultané.
+
+- Question bornée : combien coûte réellement la construction d'UN appel HotGU, avant toute évaluation, et quelle part de cette enveloppe est dans Rust/CString/métadonnées, lookup/factory C++, closure MLX avec génération signature/source et nouveaux primitives ? Ce filtre **ne porte pas encore le launcher préparé**, n'évalue aucun graphe GPU et ne mesure ni hash d'eval_gpu, ni pipeline, encodeur/idle, SSD ou tok/s. Ne pas lui attribuer les12,142ms du profil. Factory128/vueclé/strides/normalisation/EXL3/sommes/flags et soumissions existantes inchangés.
+- Signature réelle produite par `linear::expert_slots`, pas un faux kernel :10routes résidentes masquées/53slots, GU20×2560→640,K2/MUL1,NT1/SG4/splits1 ; nom `mlxl3_rs_expert_2560_640_2_2_1_4_1_slots1_resident53`, xhat[51200]F16/trellisflattenU32/tile_map&sub[10]U32, partial[1,20,640]F32, grille[102400,1,1],threads[128,1,1]. Fixture synthétique sans poids checkpoint ; métadonnées/chemin de production vérifiés, valeurs NON calculées et **parité numérique non vérifiée** à ce stade. Aucun modèle complet chargé.
+- Instrumentation temporaire : Rust cfg(test) uniquement dans Array::metal_kernel, compteurs fixes/horodatages monotones et accumulationchecked atomique ; C++ opt-in privé/test sur le seul nom HotGU, compteurs13champs valides, erreurs null/longueur refusées avant copie, cachelookup/factorymiss/outputmetadata/invocation(qui inclut marshalling des handles)/adoption séparés. BaselineCLI202f… non remplacée, nouveau libtest identifié. Trois niveaux **off/coarse/fine** : off ne chronomètre que le builder externe, coarse mesure l'enveloppe Array avec deux timestamps, fine ajoute phasesRust et C++. Estimer l'effet observateur par lots séparés, ne pas soustraire arbitrairement les durées ni additionner les postes inclusifs (C++ est dans FFI).
+- Protocole : initialmiss et63hits de warmup, puis8lots alternés off/coarse/fine en ordre avant/arrière,256graphesparniveau/lot (=6144appelsmesurés). Détruire chaque sortie sans eval/async_eval/readback/attenteGPU ; vérifier chaque forme[20,640]F16 et disponibilité différée, nombreexact d'appels et aucun nouveau hostreadback, cachemiss0surleslotsmesurés. Conserver variante/source/header complets de la vraie première signature. Temps hôte externes et phases ns/call, counts/misses/octets/maxcache et coûtobservateur rapportés ; toute vacuité/overflow/erreur laisse statusfailed/incomplete, jamais paritytrue. Aucun chiffre micro traduit en gainmodèle ; borne48appelsHotGU/cibleAR seulement si comptage réel confirmé, sinon non mesurée.
+- Contrôles avant filtre : tests purs du collecteur (addition checked, échec atomique/limites), Kani sur ce vrai collecteur (u64symboliques/chaquechamp/unwind129 sans hypothèses indues), tentative Kani de vraie entrée Array MLX ; C++CBMC réel avec headers/contextes disponibles, limitesparsingpréservées. Fmt/Clippy strict/buildApplelibtest, testsCPU ciblés et erreursFFI de collecte. Inspecter CI PR/main et adapter checks touchés. Filtre180s/2Go admission/secteur/quiet/0nouveauSwapout à nouvelleancreT01-w1 expliciteaprèscompilations ; pasautrebuild/proveur/inférence durant le relevé. Libtesthash/sources/options/libs figés avant exécution.
+- Décision : analyser l'enveloppe APRÈS hit et ses limites, auditer instrumentation avant toute conclusion décevante. Si le poste justifie un port, préenregistrer T01A minimal (étatimmuable+nouveauprimitiveparappel,délégationevalGPUstock) avant code puis oracles numériques/pending/éviction/clear/bridge/A-Brelease. Sinon clore le filtre sans prétendre avoir réfuté T01B/GPU et retirer seulement instrumentation propre, preuves conservées. **Aucun changement numérique/runtime préparé ni gain T01 encore appliqué.**
+
+### ISSUE59-T04-PILOT-CLOSE — 31 octobre 2026, résultats complets avant décision de retrait
+
+- Vérificationsducodeconservé, étapeintermédiaire : fmt/ClippyCPU/ClippyMLX passent ; suiteCPU **256passés/0échec/8ignorés**, buildCLI passe. Binaire restauré **202f96dca5ceed6cd78f70c524ad48b324e2c35a347cd7dc0bcabb11baf141aa**, **byteidentique au CLI avantT04** ;190sourcespréT04toutesidentiques, nouveaumoduletestabsent. SuiteMLXencoreencoursàcetteentrée : nepasl'annoncerverteavantfin. AucunretourGPU/chronoaprèsinterruption niaprèsretrait ; résultatsT04restentattachésauxbinairesarchives81bc/220.
+- Audit final48réponses : aucun défautconcret nouveau ; vraisflags/CLI/tokens/compteurs cohérents, demandeslogiquesDF/rowsstrictementidentiquesA/C, pasdepreuvecausale compression/IO. CodePR61formuleidentique, H128/splits/dtypes/fallbacks corrects, pasdecopiereadback/syncajoutée ; coûtsdu3einput/vues/métadonnées non isolés. Critèreintégrationgénéraleéchoue sansprétendrequel'idéeestuniversellementinefficace. **REJETÉ pour intégration** ; petitesvariationsspéculativesnonqualifiéescommenouveauboostgénéral.
+- Retrait sélectif **appliqué**, vérification finale encore en cours :9sourcesT04exactes+patchlocalcomplet archivés sous `candidate-source/`/`candidate-complete-local.patch`, binsCLI81bc/lib220 et toutespreuves conservés. Restaurésuniquement8fichiersavantT04 et suppriméuniquementnouveautestaprèscopiebytevérifiée ; contrôleSHA**190/190 identiquesàpré-T04**, toutesautreslocalespréservées, T17/T05inchangés. Rapport `retirement-result.json`/`candidate-source-identity.json`. Aucun modèle/bench/proveractif ; lancer maintenantseulementfmt/lints/buildCLI/suitesCPU+MLXsurlecodeconservé, pasderépétitionGPUinutileduprototype retiré.
+- Pilote128 **terminé12/12**,24chauffes+24mesures,48réponsescomplètes qualifiées externes (texte/hash128 indépendants,127transitions, modes/countersactifs et homologuesA/Cidentiques, budgetcache3Gio/footprint/pic<12Go). Tousprocessus/lecteursjoints ;0nouveauSwapout depuis T04-w1, ancre jamaisréinitialisée ; alimentationsecteur/admission11Go documentée avant lancement. Picnatifrapporté7902009944B. Source/binaireCLI81bc…/lib22073b… inchangés. L'interruption du chat est arrivée après fin du dernierDF-A : matrice complète surdisque, aucunmoteur/compilateur/proveurrestant, pas de nouvelle GPU lancée après reprise.
+- Décode agrégé somme transitions/somme durées, MAIN/HOLD réunis uniquement au sein de chaque mode : AR10,468587→10,296765tok/s (**−1,641318%**), MTP10,543890→10,589444(**+0,432035%**), DFlash11,187542→11,292933(**+0,942043%**). Préfill agrégé respectivement−0,428787%/−0,738049%/+0,179787%. Détails MAIN/HOLD et dérives des contrôles dans `docs/measurements/issue59-t04-20261031/pilot128-inspection.json` ; dérivesjusqu'à+4,3818%MTPHOLD/−3,5466%DFHOLD, pas de régression universelle ni gain causal certain revendiqué. Aucun mélange avec T17/admissions12Go, aucune addition de gains entre modes.
+- Critère utilisateur « boost sans ralentir le décode » **non satisfait pour une activation générale** : code de PR61 correctement repris/qualifié,3→2dispatchsréels, mais AR négatif et petits signaux spéculatifs mixtes. T04 reste OFF, aucune promotion/appinstallation/publication. Audit source avantrejet fait (aucun défautconcret trouvé, coûtsmétadonnées/3einput/vue non isolés) ; compléter l'audit données48réponses avant restauration sélective du seul deltaT04. Toute découverteconcrète nouvelle sera préenregistrée et corrigée avant rejet définitif, pas de retrait aveugle.
+- **Retrait conditionnel préenregistré avant édition** : si l'audit final ne révèle pas de défaut concret, archiver sourcesT04exactes+patches/bins81bc/220/données/tests/proofs, puis restaurer SEULEMENT8fichiers avantT04 vérifiés parSHA190 et supprimer SEULEMENT le nouveau module testT04 après copie vérifiée. Prévol `retirement-preflight.json` : sauvegardes explicitement reconstituées après édition mais bytes/SHA identiques aux contenus figéspré-T04. Préserver toutes les autres modifications locales, T17/T05 et historiques. Refairefmt/ClippyCPU+MLX/buildCLI/suites pertinentes aprèsretrait, comparer l'arbreau190pré-T04 et qualifier explicitement le code final sans attribuer les mesures d'un prototype retiré au moteur conservé. État : **audit final/retrait en cours, aucune GPU active**.
+
+### ISSUE59-T04-ADMISSION11-01 — amendement prospectif, 31 octobre 2026, AVANT tout modèle complet/chrono T04
+
+- **T04-AUDIT-PERF-01 préenregistré avant diagnostic** : premiercoupleAR128 A→Cpluslent(MAIN10,7929→10,4865,HOLD10,4227→10,2300), pasdedécisionavantACCAetautresmodesprévus. Auditlectureseule en parallèle de l'avancement(notests/build/proveur/profilage/GPUconcurrent) : recouper flags/hash/routeplain vsmasqué/groupé/lectureslogiques/C++compile3args/copies-vues/donation/synchronisations et métriques mémoire/compression, comparer adaptationPR61. Raison nouvelle=observationdécodeAR, pas répétitiondeSwiGLUinterne. Ne pasrelierunepagecompressoraucoûtpréfill sans attribution, ni attribuer12msencoder àT04. Codegelé ; toutecorrectionconcrète nécessitera nouvelessai ciblépréenregistré avantrejet/retrait.
+- Bridge17 **terminé6/6 qualifiés externes** :24réponses(12chauffes+12mesures),17tokens/16transitions, MAIN87/HOLD82 ; texte/hashpréfixeindépendantnonvide, modesAR/MTPdepth1/DFmode1largeur1, compteursactifs8/8/8 et A/Cidentiques parmode/prompt/chauffemesure, footprint/picnatif<12Go, processus/lecteursjoints,0SwapoutstrictT04-w1. Preuve `bridge17-inspection.json`/6rapports+inspections. Ce ne sont PAS des chronos128 ni un gain. Passer au pilote128 ACCA×AR/MTP/DF prévu12processus/24mesures+24chauffes, mêmesourceCLI81bc/flagsT04seuls/admission11Go/3Giocache/40ops40MB/ancrew1/guards. Inspecter chaque processus avant suivant et conserver dérive/contre-exemples, pas de promotion sur chiffre court.
+- Modèle qualité **PASSÉ5/5** sous admission11Go (ancienMoEisolé1/1 conservé séparément), lib22073b…/sourcesinchangés/ancreT04-w1/joints/0Swapout : oracleindépendant5positions×248320logits+états,composants,paires/préfixes, MTPbudgets1/2/3/17 etDFlash36préfixeslargeurs1..8. Durées3,199/3,392/9,973/9,059/26,571s horsmesurevitesse. Total **10sélections physiquesuniques**=4composants(smk/boundary/down/capture)+1MoEisolé+5modèle, pas de preuveGPUformelle. Rapport `model-quality-inspection.json`. Qualitéavantvitesse satisfaite dans ces domaines ; commencer bridge17AC×3modes préparé, inspection externe chaqueprocessus avant suivant, aucun gain128promu.
+- Observation11Go **PASSÉE** :4instantanéssur60,289s, disponibilité11,404/11,392/11,358/11,402Go, secteur/quiet, SwapoutstrictementstabledepuisT04-w1. Sources219/0écart àl'identitér3, mêmeCLI81bc…/lib22073b…, diffcheckpasse. Démarrer seulementles5oraclesmodèlecomplet restants souscetteadmissionrévisée, aucunchronoavantleurqualité. Preuve `model-admission-observation-r2.json` ; ancienrefusr1à12Goconservé, aucunresetd'ancre.
+- Condition externe nouvelle : l'utilisateur a libéré la RAM ; Brave est désormais fermé, aucun Xcode/compilateur/proveur/moteur restant, principaux processus = Codex/OS. Disponibilité observée11,392Go, toujours<12Go. Les12Go étaient une marge heuristique volontaire reprise de T17-w2, pas une propriété numérique ni une exigence AGENTS indépendante. Le protocole historique initial modèle utilisait8,5Go. La revue indépendante confirme qu'un amendement explicite AVANT résultats est permis, sans prétendre garantir l'absence de swap.
+- **Remplacer prospectivement l'admission12Go par11Go**, avant CHAQUE processus des5oracles48couches restants et des6bridge17/12pilote128. Conserver60s d'observation stable secteur/quiet avant reprise, la même ancre **T04-w1** (aucun reset : Swapouts140865945600B),0nouveauSwapout/Swapin<=256Mio/RSS<=10Gio/footprintnatif<12Go/cacheexperts3Gio/4lecteurs/bins81bc… et22073b… inchangés. Ce n'est pas une hausse du budget experts ni un assouplissement de la garde swap. Arrêter au premier nouveau Swapout, y compris en chargement, conserver les rapports incomplets ; pas de réancrage automatique.
+- Justification bornée : picnatif historique mêmecheckpoint/draft/cache≈7,89Go ; T04 n'ajoute ni poids résidents ni banques et les composants/sources sont déjà qualifiés. Cela ne garantit rien sur l'OS : **T17 a swappé1MiB avec11,952Go estimés**, incident explicitement conservé. L'admission11Go est donc un protocole distinct annoncé, pas une explication causale ni un « gain ».
+- Archiver avant édition les plans12Go et le manifeste, conserver les identités215/r2=218 et le refus d'admissionr1. Modifier uniquement les champs d'admission des plans FUTURS, enregistrer les différences et une identitér3 ; aucun code natif, booléen candidat, ordre, prompt ou compteur modifié. Contrôleur externe et ses15selftests restent identiques. Aucun résultat modèle T04 ni tok/s n'existe encore au moment de ce choix ; tous les bras de cette campagne utiliseront11Go, jamais mélangés avec T17/anciens protocoles12Go. État : **en cours — observation puis oracles avant vitesse**.
+
+### ISSUE59-T04-SCOPE-01 — audit de la prochaine frontière, préenregistré le 31 octobre 2026
+
+- Demande utilisateur après clôture T17 : poursuivre la prochaine piste de #59, implémenter et tester, conserver seulement un gain sans régression du décode. La relecture de #59 confirme l'ordre révisé : **T04 SwiGLU → préparation down**, et non le catalogue initial. T17 reste local OFF/non concluant ; T05 OFF. Aucun gain additionné.
+- Audit prospectif en lecture seule avant prototype : tracer `SsdMoe::calculate_slots` → SwiGLU compilé → `expert_mapped_layout`/down, dtypes, vues, arrondis F16, H128 MLX et chemins Hot/Cold/B1/B2. Vérifier si la frontière est déjà fusionnée, et les différences avec POSTPROFILE05-C (gather/scale rejeté après audit). Relire la source amont épinglée et les rapports existants ; aucun nouvel essai identique sans différence concrète.
+- Baseline de périmètre : arbre local `7978fceac30d991a8c06d72114fc932b2443f555` modifié et préservé, CLI T17 `202f96dca5ceed6cd78f70c524ad48b324e2c35a347cd7dc0bcabb11baf141aa`, flags T17/T05 OFF, Qwen3.8 Flash-Next EXL3 2.05 bpw, M5 24 Gio, cache experts 3 Gio/53 slots/48 couches/4 lecteurs. Ce SHA n'identifie pas seul les sources modifiées ; nouvelle identité requise avant exécution.
+- Trois revues indépendantes : raccord/coûts, contrat numérique et tests existants, fidélité amont/antécédents. Aucune compilation, preuve ou GPU durant cet audit. Préenregistrer ensuite le candidat minimal, les oracles et les mesures avant toute modification/exécution ; fermer cette revue même si aucune frontière utile n'est identifiée. État : **terminé, frontière de graphe distincte identifiée**, coût physique non mesuré. La PR61 archivée possède déjà un portage non qualifié M5 : réutiliser sélectivement sa FFI et son raccord corrigé `40f45f8016ef68881bad9b6344fc6022b28fc038`, sans importer T17/T18. Q27-17 dense H17408 n'a pas qualifié de gain ; nouvelle propriété ici : Cold SSD slot-major K2/H640, pas sa fusion custom avec H128.
+
+### ISSUE59-T04-COLD-01 — frontière SwiGLU/down, préenregistrée avant code et tests, 31 octobre 2026
+
+- Première observation d'admission après réponseRAM : arrêt avantPID à11,244Go estimés<12Go,0,042s d'observation, PAS60sstables ; fichier `model-admission-observation-r1.json` explicite refus/no model launched. Disponibilité remontée depuis10,210Go mais garde complète non atteinte ; laisser la libération en cours, ne pas compter comme échec numérique ni mesure modèle. Ancienneancrew1inchangée.
+- L'utilisateur répond « Je libère de la RAM » à la demande de marge complète. Vérifier prospectivement60s sans moteur/compilation/preuve, secteur/quiet, Swapoutstable et disponibilité>=12Go avant le modèle48couches. Ancres/échecs/T17préservés ; aucune baisse de seuil ni lancement sur la seule réponse. Cinqoraclesmodèlerestants puis6bridge17 et12pilote128 restent autorisés et préparés, jamais présentés comme exécutés.
+- Oracle MoE isolé **PASSÉ**,1test/0échec/0ignoré,joint10,350s,0Swapout : vraie coucheSSD, caches10/19/20/24/53/71/80/89/512, overlap0/1/lecteurs1/2/4, cold/hot/paires/rows1..8/écheclecture ; compteurT04ON réellement non nul (masqué/groupé garde stock), oracleindépendant complet. Même libtest22073b…, aucune modificationnative. IdentitéR2 **218fichiers** après format seul inspecteur+plans de staging+selftest ; prégel refusé avantPID pour nomselftestincorrect(hyphen/underscore), corrigé sansGPU ni code numérique. 5oraclesmodèle complets toujours en attente de marge12Go ; aucun bridge/chrono lancé.
+- Contrôleur externe réutilisé/paramétré T04 qualifié avant chronos : Ruffformat/lint passent après deux refus de style conservés ; AST de `inspect` inchangé par nettoyage. **3positifs AR/MTP/DF17 +12négatifs** sur fixtures synthétiques explicitement étiquetées, vraies fonctions inspect/validate/check_golden, cwd/journaltemporaires supprimés : invalides lèvent et laissent `failed_external_inspection`, jamais paritytrue. Aucunmoteur/GPUlancé par ces selftests. CrossHair absent (tentative/diagnostic conservés), **Python non formellement vérifié**. Preuves `inspection-python-checks.json`/`inspection-selftest-summary.json`/`inspection-crosshair-result.json`. Seul script de contrôle/style a changé depuis identité215 ; nouveaugel avant prochainsGPU, binaires/sourcesnatives191 inchangés.
+- Avant modèles complets, admission bloquée à10,185Go estimés<12Go ; demande de libération RAM envoyée, aucun chargement48couches lancé. **Amendement prospectif de staging, avant exécution** : l'oracle MoE isolé (première sélection des6) ne charge qu'UNE couche, banques10..512slots, et non le modèle48couches ; même parcours déjà employé par la capture réelle. Le lancer séparément comme composant sous la garde micro2Go, 900s/quiet/0Swapout, au lieu de lui appliquer la marge complète12Go par simple héritage de plan. Aucun assouplissement pour les5oracles modèle ni bridge/chronos (toujours12Go+60sstables). Fichierdistinct `moe-component-plan.json` et enregistrement unique ; ne pas le relancer dans la suite restante sans changement affecté. ContrôleurPython en vérificationCPU d'abord, aucune GPU concurrente.
+- Phase finale CPU/MLX terminée : Clippy strict deux variantes et buildCLI Apple passent, suites complètes CPU258/0/8ignorés et MLX295/0/189ignorés (vérifier ventilation dans `full-cpu-inspection.json`), tousjoints/0Swapout. CLI figé `81bc3a14d509224d77fd6d98d8dc64f9b840c0094f7376f5f004e924849732cd`, libtest-final **même** `22073b88203fa4db0a3e2792f03f99c0e52f1a131c27f2f6d37c535ac10b384d` déjà qualifié 4sélections physiques ;191sourcesnatives/protocoleinitialinchangées. Aucun nouveaucode numérique depuis les qualités ; aucune répétitionGPUT17 ni nouvellecapture requise. Modèle complet/bridge/tok/s encore non exécutés. CIYAMLparsepasse/actionlintabsent ; arbrelocalnonpublié,CIremote non exécutée.
+- Clippy strict CPU et MLX **PASSENT** (2,271s/6,702s), suite CPU complète sans défaut **258passés/0échec/8ignorés**,88,460s/joint/0Swapout. BuildCLI/suiteMLX encore en cours, pas de vitesse lancée. Le contrôleur externe du pilote T17 est réutilisé à paramètres T04 (répertoire/identité/flag +GDN0 explicite), source figée `benchmark-inspection.txt` ; ses validations de budget natif proviennent du vrai `check_golden` existant (pas d'un compteur absent). Manifestenvsource corrigé avant lancement pour pointer common-envT04 ; sourceoriginaleT17 conservée comme provenance.
+- Capture réelle **PASSÉE**,1sélection/2traces/12800valeursF16partracefiniesexactes/immutabilité/0Swapout,joint2,106s. Taille cumulative521317700B<1GiB (limite cumulative respectée). Replay Xcode27.2 physique : **3→2 dispatchs**, SwiGLUcompilé+`vv_Multiplyfloat16`+`n2hadamard_128_float16` → SwiGLU+scalecompilé+**même H128**, grilles/détails dans `xcode-dispatch-inspection.json`. ProfileafterreplayOFF,0ns nonmesuré, outilshaderdebugoptionnelabsent/replayfonctionnel. Deuxreplaysstoppés/Xcodequitté/isRunningfalsevérifié ; aucunbuild/proveur/inférenceconcurrent. Aucunevitessemodèleencoreétablie ; prochainephaseClippy/suites/buildCLI puisoraclesréels, sansnouvellecapture.
+- Matrices physiques **PASSÉES2/2**, mêmes sources/libtest22073b…/ancreT04-w1/0Swapout/joints : frontière56cas/640000valeurs avantH128+autantaprès, deuxR80supplémentaires102400valeurs couvrent63488gatesF16finies (pas cartésien exhaustif up/scales/F32), dtypesF16/F32/strides/phaseslimites/immutabilité. 13refusArrayavantFFI/readback, contrôle négatif arrondi différé détecté dans chacun des deux dtypes et valeurs du mutant vérifiées finies/complètes. HelperdownK2slot-major56cas/2560000valeurs exactes, stable0/1/slotsrépétés/F16F32/strides et16refusavantFFI dontmasqué/groupé. Chaque sélection1passé0échec0ignoré ; logs `t04-boundary-r1.log`/`t04-down-r1.log`. Les2captures/modèlecomplet/bridge/vitesse restent non exécutés.
+- Premier smoke physique **PASSÉ** : libtest `22073b88203fa4db0a3e2792f03f99c0e52f1a131c27f2f6d37c535ac10b384d`,8cas/7680valeurs F16 finales, gatesF16/F32/R1R2 et ancres indépendantes gate0/16 ; vraie FFI appelée, aucune lecture hôte à la construction, inputs inchangés, bytes complets/finitude. Exactement1testpassé/0échec/0ignoré, processusjoint1,121s,0nouveauSwapout. Ancre nouvelle T04-w1 explicite140865945600B, secteur/quiet,11,416Go estimés disponibles pour ce micro (seuil2Go). Matrices élargies/helper/capture/modèle et vitesse encore **non exécutés** ; ne pas qualifier une accélération.
+- Phase initiale CPU (sources191 figées) : fmt passe ; les **2 tests CPU de géométrie passent**,0ignoré,180sélectionslibau total dont178filtrées (pas une suite complète). Tentative Kani de la **vraie entrée Array/FFI MLX** `actual_swiglu_scaled_mlx_entry` : même ICE `intrinsics.rs:243:17`, exit1 avant obligations, **MLX non vérifié** ; le statut superviseur attendu de cet échec n'est pas une preuve. Plans/logs sous `initial-cpu-plan*` et `t04-actual-mlx-kani.log`. Libtest Apple release en compilation, aucune GPU encore lancée.
+- Tentative CBMC6.11 sur vraie FFI `mlxl3_array_swiglu_scaled`/fichierentier/headersMLX échoue au parsing des headers libc++ (`integral_constant.h`, `PARSING ERROR`), exit6 avant obligations : **FFI non vérifiée**. Outil limité à C++11, build réel C++20 ; aucun stub/réécriture/preuve GPU revendiqué. Commande complète et diagnostic `docs/measurements/issue59-t04-20261031/cbmc-ffi-result.json`/log conservés.
+- Premier contrôle source CPU terminé : Kani `swiglu_down_elements_checks_symbolic_shapes_and_bounds` sur la garde réellement appelée par Array, **0/166 obligations en échec, 12/12 couvertures satisfaites, unwind17**, dimensionsi32 symboliques/rangs0..5/rows1..80/640/indicesu32, sans assume ; 3,966s, processus joint,0Swapout. Résultat `docs/measurements/issue59-t04-20261031/geometry-kani-plan-result.json`, log complet conservé. Ce résultat ne prouve ni FFI, ni arithmétique MLX, ni GPU ; tests physiques encore non lancés.
+- Direction utilisateur confirmée : « va voir la PR qui a déjà implémenté ça ». PR61 relue en direct et attachée au chat : tête `a36ba5077bf386466660d6b478058fbe6880245c`, inchangée depuis l'archive, draft/open, base `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`. Fichiers réellement listés puis patches individuels récupérés ; versions conservées sous `docs/measurements/issue59-t04-20261031/pr61-*`. Réutiliser son T04 corrigé plutôt que réinventer une autre implémentation ; adaptation uniquement aux changements locaux et validations avant soumission. Ni merge ni modification GitHub.
+- Hypothèse : élargir la closure `mx::compile` existante à gate/up/suh retire le produit d'entrée down séparé, sans nouveau calcul approximatif, gather bancaire fusionné ou modification du H128 MLX. Premier périmètre : routes CPU non masquées et non groupées ; chemin GPU Hot masqué/groupé conserve sa référence. Le nom Cold décrit ce périmètre, pas une preuve que chaque appel n'utilise que des misses. SwiGLU conserve le dtype GU F16 **ou F32**, puis cast activation F16, produit suh F16, H128 existant ; restaurer le dtype GU en sortie down. Aucun cumul avec T05/T17.
+- Adaptation locale minimale depuis les blocs PR61 archivés (pas de merge) : FFI protégée `mlxl3_array_swiglu_scaled`, méthode Array strictement validée, helper slot-major `expert_slots_swiglu_down`, option stricte `MLXL3_FLASH_SWIGLU_DOWN=0|1` défaut0 lue au chargement. Préserver slots/capacité, EXL3, splits, H128, ordre de somme, soumissions précoces et cache3Gio. Compteur test-only pour refuser une qualification sans passage réel.
+- Qualité avant vitesse : filtre GPU court sur vraie FFI gate/up F16 et F32, zéro gate et valeurs non triviales, puis matrice rows1/2/4/8/10/20/80, strided/contigu, saturation/subnormaux/arrondis et erreurs dtype/forme. Oracle stock `swiglu → astypeF16 → mul(suh)` et H128 stock, forme/compte/finitude/bytes non vides ; contrôle négatif sans frontière F16. Tester véritable helper down K2/MUL1 slot-major, slots répétés, stable_shapes0/1 et dtype de sortie. Les valeurs non finies sont classifiées hors contrat fini et ne prouvent pas la parité numérique modèle.
+- Intégration : MoE réel cold/hot/cache10..53/erreurs et compteur non nul/fallback inchangé ; logits/états modèle indépendant, paires/préfixes acceptés/rollback, MTP et DFlash existants avec seul T04 actif. Sélections exactes et une à la fois. Tenter Kani sur garde CPU de forme réellement employée (rangs0..5/dimensionsi32/rows1..80,width640, unwind17) et sur vraie entrée Array MLX ; CBMC FFI avec contexte réel si praticable, conserver erreurs/ICE/non prise en charge. fmt/Clippy strict CPU+MLX/build réel/tests ciblés puis suites pertinentes et workflow PR/main avant qualification finale.
+- Captures : après parité, comparer stock/fusion sur même GU réel de forme [20,2,640], deux captures seulement, sorties F16 finies/byteexactes et sources/binaire hachés ; plafond **cumulatif 1 Gio**, pas de capture supplémentaire sans nouvel amendement. Compter les dispatchs réels si replay disponible ; ne pas déduire un gain GPU de leur seul nombre, ni appeler une vue un kernel.
+- Mesures conditionnelles après qualité : même nouveau CLI OFF/ON, cible/draft identiques, 3Gio/53×48/4lecteurs/alloc64Mio/40ops40MB/lookahead0/greedy/contexte4096, MAIN87/HOLD82, réutilisation de préfixe OFF. Bridge17 AC par mode AR/MTP/DF (6 processus), puis pilote128 ACCA par mode (12 processus), chaque processus chauffe MAIN/HOLD puis mesure MAIN/HOLD une fois. Tokens/texte/hashes indépendants complets, modes/compteurs actifs et empreinte qualifiés avant processus suivant ; agrégat somme transitions/somme secondes par mode, pas moyenne des TPS. Confirmation ciblée seulement après signal utile et adaptation auditée ; aucun seuil de bruit automatique remplaçant le jugement utilisateur, aucune promotion de dérive comme gain.
+- Conditions prospectives : secteur, GPU seul sans compilation/proveur/autre inférence ; ancre VM nouvelle nommée **T04-w1** avant premier GPU (ancienne campagne T17 close et échecs préservés), zéro nouveau Swapout, Swapin<=256Mio, RSS<=10Gio et footprint natif<12Go aux observations. Admission2Go micros, **12Go modèle complet** (condition renforcée T17 maintenue), 60s swap stable avant modèle ; waits/cleanup bornés, erreurs/rapports partiels conservés. Sources/options/bins/dépendances et conditions exactes figées avant exécution. État : **en cours — implémentation autorisée, aucune exécution T04 encore lancée**. Si décevant, audit adaptation avant retrait ; jamais activer par défaut sans gain confirmé sans régression décode/préfill.
+
+### SLOTSTREAM-2026-10-26-S4-TAP — rejet de l'entrée HC seule, pas du correcteur non encore évalué
+
+- ÉcranH-C terminé/joint : H158,641s/C175,742s,0Swapout,16réponses128exactes,3mesures/prompt/bras. MAIN11,853120→10,239466tok/s(−13,613745%), HOLD11,290350→9,709127(−14,005088%) ; stabilitéintrabrastouscas≤3%. ConfirmationCH nonlancée selonprotocole, runtimeHCseul nonretenu.
+- PrélecturesCréelles : premièreMAIN6436émises/5408utilisées, HOLD6557/5652 ; volumesdemandésmédiansMAIN23889445704→25765207740B etHOLD25768951776→27719594532B. Ce sontoctetslogiques(même servicedepuiscachefichier), pasduNVMephysique. Le bridge17ajouté avantchrono passe4réponsesexactes/B2, C751lecturesémises/696utilisées surmesure, H0 ; budget2 initial n'était qu'unfallbackterminal, conservécommecontrôlelimité.
+- Le correcteurappris n'estpas encoreimplémenté/mesuré. Sonamont3bfc81efaétéapprofondi : ridgecentréeparcouche, λchoisieparrequêtesgroupées, troncaturerang128 puisproduitsF16/F32 ; sonétudeemployait12540lignesd'entraînement/couche, validationindépendante et35,2Mio. Préparer unpilotebornéEXL3 séparéci-dessous, sansattribuer−14%àunalgorithmenonexécuté. Aucunnouveaugainpromu.
+
+### SLOTSTREAM-2026-10-26-S4-L — correction apprise EXL3, pilote borné — préenregistré avant capture/fit
+
+- Implémenter lechargementd'un correcteurprévisionuniquement(schéma/config/dtypes/formes/finitude vérifiés), A47×2560×128F16/B47×128×512F16/µ47×2560F32/δ47×512F32, targets1..47 ; mêmeformulecentréeF16wide/F32narrowamont. Aucune routevraie/poidsmodèlechangés. Le fichierreste unartefactlocal tantqu'aucungainn'estqualifié, réserve≈36Mio incluseauxcomptesmémoires. Le flag requierttapHCactif etlookahead2/pipeline1 ; refuser sidecarsincomplets/incompatibles.
+- Capturetest-only surl'implémentationréelle : àchaqueprédictiont, retenirfeatures/predlogits etlesapparierdansl'ordreauxvraislogits du routeurt ; jamaisdeslabels de draft oudesrequêtesHOLD/MAINdu benchmark. Huitpromptspublicsd'entraînement etquatrevalidation, langues/code/raisonnement/structure, identifiantsdisjoints fixés avantGPU ;64lignesdecode/couche/prompt,512train/256validation/couche, plafonds64parcoucheenmémoire (≈40Mio/cas), fichiersf32/hashes/comptes/finitude etstatutpartiel stricts. Vérifierunegénération64avecsanscapture exactemêmesIDs/états, unseulmodèleGPU, bornes900s/gardeszéroswap12Gioinchangées. Publierlesprompts exacts dansleplan avantlancement ; donnéesutilisateurs exclues.
+- FitCPU seulementaprèsGPUjoint, NumPyexistant ; ridgeλ[1,0.1,0.01] choisieparvalidationcroiséegroupée4foldssur8requêtestrain, moyennes/interceptnonpénalisés, λ×moyennediagonaleGramnoncentrée ; solveurdal siN<H puisSVDdeW/troncature128. SauverfacteursF16/moyennesF32, provenance/config/IDs/sourceSHA, scoresMSE/top10/recall16sur4requêtesvalidationjamaisutiliséespourλ. Domainepilotepluspetitquel'amont : unéchecn'invalidepasuniversellementlaméthode.
+- TestsCPUanalytiques/isotropes, shapes/rangs/donnéesNaN/incomplètes/doublons/splits ; tentativeCrossHair(référencePythonlue,moduleabsentconstaté,réutiliserunoutilprésentseulementsitrouvé,sansgrosajout). QualitéMLXavantvitesse : formulecontreNumPysur32lignes/couche, ≥99%ensemblestop10identiquesnatif/offline, logitsprédictifsfinis etcompteexact ; inférencecible/captures/commits/bridgebyteexacts, refuscorruptions/schema/dtypes/target/config. TentativeKaniMLXréelle restebloquéeICE243, pasdepreuveGPUinventée.
+- Gateavantbench : heldoutcorrectiontop10nonrégressif etMSE≤tap, chargement/qualitéfonctionnellevalidés ; sinonarrêtpilotenonqualifié sansnouveauchrono. PuisHnofetch/CcorrigécontrelebestB2actuel, mêmes128/3répétitionsHCCH/00 etplafondsmémoire, legacytapdiagnostiqueseulement. Aucunetranspositiondes+10,8%amont ; conserver touséchecs/étapesnonlancées.
+
+### SLOTSTREAM-2026-10-26-S4-Q — correction physique validée avant vitesse
+
+- Sources/binairesfigésdansprototype-identity.json/all-prototypes.patch ; S1retiré. Fmt, ClippystrictMLX/CPU passent ;242CPU/5ignorés,119Pythonbenchmarket966suiteFlashpassent. Fixturebenchmarkreusecorrigée aprèséchec d'unappeldecomparaison nonpertinentquiomettaitleflag ; logs initiaux gardés. CrossHair tenté survalidate réel/contratsPEP316 : moduleabsentdansvenv, **nonvérifié**, aucuneinstallationlourde. Kani prefixréel v2 :0/81échec,3/3couverturessatisfaites,1assertionstdformatshiftinatteignable ; huitu32symboliquesparvecteur,longueurs0..8/unwind34,1,091sbackend. OFF timeout180s conservé ; KaniMLXvraisharnaispréfill/lookahead bloqueICE243avantobligations, aucune preuveGPU.
+- PlanS4qualité clos : suiteslib/mainet8testsoptions isolés passent, tapHC2,358s (paramètresciblevérifiés, mauvaisesshapesrefuséessansI/O), modèle17,944s (40combinaisons profondeur/précision/commit, logits/états byteexacts etprélecturesréellementémises), captures31,587s (36préfixeslargeurs1..8,64000valeurscapturéesbyteexactes, états/logits byteexacts). Tousenfantsjoints/0Swapout ; ancreVMdansprototype-vm-anchor.json, processuscompilateurs/proveursterminésavantphase. La RMSEcaptures0 ne remplacepas laqualitégénérale ducheckpoint.
+- AvantchronoS4 : bridgeHnofetch/CtapHC surMAIN2sortieswarmup+1mesure, mêmesIDs/textes ; puisécranHC MAIN/HOLD128sorties/3mesures etconfirmationCH seulementsigain≥1%surlesdeuxetstabilité≤3%. Contrastecompletcontrelebestnofetch, pascontrelegacydégradé. Mêmescritères00, mémoireC≤H+256Mio/pic≤12Gio/zéroswap. Les autresprototypesS2/S3/S5restentoffdanscebinaire ; aucunevitesseS4encorelancéeàcetteentrée.
+- Bridge2sorties passé (4réponsesexactes/40s/joint/0Swapout), maisvérificationmontre que ce budget ne produit qu'un fallbackterminal et lescompteursspéculatifsrestent0. Ne paslecomptercommequalificationdupréchargementDFlash. **Avantvitesse**, ajouter uncontrôlebridge17sorties (H/C, warmup+1mesureMAIN) imposant histogrammeB2etprélecturesCémises/consommées>0, Hprélecture0, mêmeshash/textes. C'estuncontrôledecouvertureaffectée, aucunbenchmarkreprispouraméliorerunscore ; anciensrésultatsconservés.
+
+### SLOTSTREAM-2026-10-26-CPU — vérification des prototypes S2/S3/S4/S5, avant GPU
+
+- ClippystrictMLX etsuiteCPU242passés/5ignorés passent après correctiond'un importCodebook lorsduretraitS1 etd'uncastredondant dansuntest ; logs initiauxconservés. BuildreleaseMLX/chat passe ; testsphysiques/prototypesnouveauxencorenonexécutés. Lescompteursplain/calibration sontaussicumulés dansNativeStats ettestés, pasperdus entre tours.
+- PremièreKaniCPU : contrôleurOFF atteinttimeout180s (aucuneobligationcomplète), prefixéchoueàlabornememcmp10 pour32octets comparés (1échec/80indéterminés,2couverturessatisfaitesavantfailure). Domaineinchangé : deuxvecteursu32symboliquesdelongueur0..8, unwindcorrigé34 (>32octets), assertionsunwindingconservées ; relanceprefixseulement autorisée par diagnosticconcret. OFF reste nonvérifié, pasdedomaine réduit ni répétitionidentique ; commande/groupejoint183,609s/RSSsondé448Mio.
+- TentativeMLX : harnaisréel ajoutépourpréfill/cachereprise avec tokenu32symbolique complet, vrai modèle/FFI/sansstub ; sélectionneraussiharnaismodèlelookaheadexistant pourS4. LesAPIOS/MLXpeuventbloquer, aucunepreuved'inférence/GPU/concurrencedéduitedeshelpersCPU. Geler lesbinaisfinaux aprèsajoutsdepreuves/tests avant tousnouveauxGPU.
+
+### SLOTSTREAM-2026-10-26-S1 — clôture vitesse : rejeté, runtime retiré
+
+- ÉcranHC terminé/joint sansnouveauswap : H160,954s/C159,981s, mêmes128tokens parréponse (127decode),2warmups+6mesuresparbras,16réponsescomplètesexactesentrebras. Médianesdecode MAIN11,688953→11,774199tok/s(+0,729294%), HOLD11,210482→11,152025tok/s(−0,521443%). Variabilitéintrabrastouscas≤3%, maisaucungain≥1%surlesdeuxprompts. **Rejeté au seuil préenregistré, confirmationCH nonlancée**, pasunerégressionuniverselleprouvée.
+- Contrôlesqualité : parité18positions/logitscomplets/états/cachechaud passée, puis4réponsesbridge2token exactes ; premierpostprocesseurbridge attendaitstatuscomplete au lieu devalidated, corrigésurlesmêmesdonnées sansnouvelleGPU. CPU241passés/5ignorés, mutationrotationdétectée/restaurée ; KaniICE243/nonvérifié conservé. Preuves s1-speed-summary.json, brasH/C/report.json etsuperviseurs/empreintes/patch sousdocs/measurements/slotstream-20261026/. LesVM/RSS du superviseur sont distinctes descompteursfootprint du moteur ; traficNVMephysiquenonmesuré.
+- Décision : retirer uniquement helper/cachedécodé/testS1 du codeexécutable courant, conserver s1-prototype.patch/sourcesviaGitbase/binaires/rapports. AutresprototypesS2/S3/S4/S5 localementpréparés ne sontpasvalidésparcesrésultats. AucunessaiS1encours, aucuneinstallation/push/publication.
+
+### SLOTSTREAM-2026-10-26-S5 — vrai OFF avant calcul du draft — préenregistré
+
+- Contrôleur expérimental parrequête MLXL3_FLASH_COST_OFF=0|1, défaut0 : trois pas ordinaires utiles pourprixbaseline, puis comparer coûtpar tokenréel de trois cyclesspéculatifs. Retour définitifAR si médianecoûtcycle/token>1,05×médianeAR ; pasde calculdraft surlabrancheOFF. Maintenir captures/KVdraft pendantlesseulescalibrations, enexcluantcette maintenance duprixAR ; lachargertoutefoisau tempscomplet. Pasdecalibrationcontreun coûtdraftdéjàpayé, pasdeconversiond'acceptation enTPS.
+- États/décisions danshelperCPUréel, observationsnanosecondesu64checked, emitted1..8, ratioen u128/arrondisbornés ; invalides ne mutentpasl'état. Testsborne5%, coûts0/max, division, brancheOFFabsorbante etreset, séquencesdéterministes ; Kani propriété/séquences≤6observations symboliques avantGPU. Calibrationinitiale seulementdanscepremieressai ; extension contextuelle ultérieure silessessionslonguesmontrentunbesoin.
+- OracleGPUvraientréeSession::advance : troisstepscalibration sansforwarddraft, forcageoffaprèscoûtslents, continuationtoken/étatcibleexacte, KVdraftmaintenusavantarrêt etjamaislusaprèsdésalignementOFF, reset/error/cancelretourpropre. Mesurerplain_steps/calibration_steps/tempsréels enplusdeshistogrammesdraft, sanstricherleurscomptes. Muterlebranchagepré-draftoulenombredetokens/coût etvérifierdétection.
+- VitesseH-C-C-HMAIN/HOLDtunedB2etAuto séparément si pertinent, mêmescache/allocateur/conditions00 ; qualitéavantvitesse, seuils00inchangés. CompareràOFFfixeau mêmebudgetpouréviterunfauxgaincontreunmauvaismode. Ne pasreteniruncontrôlehorlogesi seulslescalibrages/changementsdecalendrierexpliquentunécartinstable.
+
+### SLOTSTREAM-2026-10-26-S4 — prédiction depuis les HyperConnections de la cible — préenregistré
+
+- Première variante isolée avant entraînement : MLXL3_FLASH_FORECAST_HC=1 reconstruit l'entrée du routeur suivant via sa propre mlp_hc sur les quatre flux après attentioncourante, au lieu du mixedcourant. TouscheminsAR/MTPpair/DFlashB1..B8 utilisent le mêmechoix ; garderexactement vraiesroutes/calculs/slots/réduction/annulation. Les logits prédictifs gardent leur précisionactuelle, aucunegateFP32résidente nouvelle ni classementweighted72 réintroduit. Défaut0 ; requiert lookahead>0 pour avoir uneffet. Les reads peuventchanger, jamaisleslogitscibles.
+- Oracle : comparer touslogits/états/captures/commits avecnofetch etavecprédictionlegacy, cohortes1/2/8/split, cachefroid/chaud/échec, forcerdesprélecturesnonvides. Vérifier sur entréesHCcapturées que le prédicteurutilise bien les paramètrescible (mutationmixedcourant détectée), erreurformes avantmutationcache ; tentativeKanivoieMLXréelle, limites explicites. Vérifier aussi appelDFlashdeproduction, pasunhelperinutilisé.
+- Vitesse : B2fixeMAIN/HOLD, mêmes3Gio53slots/64Mio etsorties128/3répétitionsHCCH, HnofetchcontreCtapHC/lookahead2/pipeline1 ; comparaisonlegacylookahead2 séparée diagnostique siCgagnecontrebestnofetch. Critères00 inchangés etcompteursread/usage/tardifs/gaspillésnonvides. Correctionbasrang réajustéeEXL3 seulementaprèssignalutiledu tapetbudget, jamaispoidsamont4bitscopiéscommequalifiés. Les deux étapes restent séparées, aucunmodèleentrainé/gainnouveaurevendiqué àcestade.
+
+### SLOTSTREAM-2026-10-26-S1-R — reprise après libération de RAM — préenregistré avant GPU
+
+- L'utilisateur répond « Je libère de la RAM maintenant ». Changementobservé : Pagesfree30771→356043 (~0,47→5,43Gio), processusMLXL3/build/proveur absents, secteurAC100%. L'échecS1 ànouveauSwap resteconservé ; compteur courant448404pages contre424617aupremieressai, pasderéinitialisationdesrésultats. Nouvellephaseàconditionsexternesréellementchangées ; nouvelleancre448404×16384B àenregistrerprospectivement et vérifierviaVMavantchaquelancement, mêmesseuilszéroswap.
+- Reprendre seulement levraitestS1interrompu, mêmesbinaires898b3515/tests et sourceS1v2 figée/s1-prototype.patch, mêmeplan/capacité53/3Gio, mêmeoracle18positions. S2/S3sontpréparésen parallèle surdisque sanscompilation ni exécutionpendantGPU ; ils ne sontpas inclusdanslebinaireS1mesuré. Borne300s, jointure/12Gio etsurplus256Mioinchangés. Aucunevitesseavantparitéphysiqueetbridge ; aucunanciengainpromu.
+- Reprisephysique passée :1test/0échec/0ignoré (337filtrésannoncés),5,102s/joint,18positions×248320logits etétats byteexacts/cachechaudsanslecture ; RSSmaxenfant4,26Gio, Swapin/Swapout0B. Nouvelleancre7346651136B, logs/resultatrepris conservés. PasdepreuveGPUKani etpasencoredevitesse.
+- Amendementprospectif avantpremierchrono : vrai bridgeS1flag0/1 surMAIN,2sorties/warmup+1mesure pourparitéintégration ; puisécranH-CcompletMAIN/HOLD warm128+3mesures128. ConfirmationC-H exécutée seulement si lesdeuxgainsappariés≥1% ; sinonécranrejeté etconfirmationnonlancée, sansrépétitiondeconvenance. Les seuils00stabilité/RAM/zéroswaprestentinchangés. Comparaison aux3premièresmesures identiquesdeH, pasàunancienbinairepluslent ; mêmesources/binaireS1v2figés.
+
+### SLOTSTREAM-2026-10-26-S3 — checkpoint RAM du préfill Flash+DFlash — préenregistré
+
+- Un seul checkpoint par session, pris après le prompt et avant génération : tokens, snapshotsGDN/QSA/PLE/HCfinaux, logits et KVdraft. Reprise uniquement si modèle/options inchangés, requête autorise reuse_prompt_cache et prompt commenceparl'intégralité des tokenssauvegardés. Modepréfill sérielT1 seulement pendant cet essai ; refuserla combinaison avec cohortes tant que les frontières batch ne sontpasqualifiées. Aucun cachepersistantSSD ni historiquegénéré sauvegardé comme préfillbatch.
+- Restaurer le checkpoint puis traiter seulement le suffixe ; le champ cached_prompt_tokens du vrai bridge doit rapporter les tokens réellement réutilisés. Reset, erreur, annulation ou reconfiguration invalidante suppriment le checkpoint. Les buffersMLX sont clonés viaAPIexistante ; tester l'indépendance après misesàjour fonctionnelles ringKV etétats, pas supposer qu'une copie de handle garantit l'absence d'alias.
+- Oracles avant mesure : répétition exacte etextension, divergenceaupremiertoken/milieufin, requête reuse=false, annulation/invalides et reprise ; touslogits/états cible+draft et trois tokens suivants byteexactscontrepréfillfrais. Parcoursbridge avec conversation répétée etmodifiée ; testnegatif checkpointcorrompu détecté. Kani réel sélection/reprise via contrat réutilisable et vraie voieMLX tenté. Plafonds00 mémoire/swap ; lacharge ducheckpoint faitpartie du surplusC≤256Mio.
+- TTFT/tempscomplet : deuxpromptsMAIN/HOLD, premierchargement nonchronométré commegaindecache, troisreplaysidentiques puisextensionpublique fixes, H-C-C-H/protocole00, mêmes256tokensdecontextevisésàfixeravantmesure. Comparerreuseoff/onniveauinterne maismêmesrequêtesreuse=true ; nouveaupromptfroid contrôlé. AucunbenchmarkGPUavantrepriseconditionsmémoire.
+
+### SLOTSTREAM-2026-10-26-S2 — préfill sans heads jetés et cohortes causales bornées — préenregistré
+
+- Deux variantes indépendantes avant prototype : S2A retire seulement le lm_head des tokensintermédiaires, conserve captures/tronc/offsets/caches et le headfinal ; S2B parcourt chaque couche pour huit tokenscausaux auplus et réutilise le MoE multilignes exactdéjàprésent, ses réservations/déduplicationsSSD/MB2 et son fallbackdecache. Aucun nouveau kernelGEMMaffine, aucune banque512experts, pasdeportapproximatif. C'est le premier sweepborné adaptéànotrebudget, pasl'enveloppe16Kamont. Appenddraft reste uniligne pour préserver sesarrondis.
+- Contrastes internes MLXL3_FLASH_PREFILL_HEADS=0|1 (1=retirerheadsjetés), MLXL3_FLASH_PREFILL_COHORT=0|1, défauts0 ; tester séparément, combinerseulementaprèsqualificationisolée. TestsGPUcontreT1sur1/2/7/8/9/17tokens/EOS, captures/touslogitsfinaux/états cible+draft byteexacts, continuationgreedyetannulation/invalides ; mutations headfinal manquant/lignecapturée décalée détectées. TentativeKani vraievoieMLX et contrôlesstricts/suites comme00, ICEconservées.
+- MesureTTFTettempscomplet : mêmespromptsMAIN/HOLD128sorties/protocole00, warmup puis3mesures, HCCH. Réponses/qualitéavanttimings. Ajouter un promptpublic~256tokenspourcohortes, mêmebinaire/options entreH/C, seuilsgain/stabilité00. Pasdegain decode revendiqué pour un gainpréfill ; pic/swap inchangés.
+- Préparation CPU autorisée pendant la résolutionmémoireS1 ; aucune nouvelleGPU avantchangement réel desconditions. L'utilisateur indique libérer laRAM ; recontrôlerVM/processus/AC et enregistrerlesconditionsavantreprisedistincte, sans effacer l'échecS1 ni modifierlesseuils.
+
+### SLOTSTREAM-2026-10-26-S1-GPU — interrompu, aucune mesure de vitesse
+
+- Compilationv2/Clippystrict passent, mutationrotationdétectée/restauréeexactement ; binaires/sourcesfigés danss1-identity.json et patcharchivé. Premierloaderdusuperviseur échoueavantlancement(KeyError monitor surmoduleparseur), conservé, corrigé sansmodifierplan/binaire. Le vraitest sélectionné s1-full-states démarreensuite et est arrêté4,108s aprèsdépart àcausede nouvellesSwapoutssystème pendantchargement48couches ; parent/enfantjoints, code−15, aucunlogitcomparé etaucunbenchmarkexécuté. Ancreavant6956924928octets ; résultatquality-plan-result.json explicite failed_or_interrupted. **CachePLE GPU nonvérifié, gainnonmesuré, prototype nonintégré.** Postflight/processus/VMconservés ; pasderelanceinchangée. Userprévenu puisdéclarelibérerRAM, reprisedistincteàjustifierparconditionsobservées.
+
+### SLOTSTREAM-2026-10-26-S1 — cache PLE décodé — préenregistré avant prototype
+
+- Changement isolé : déplacer le décodage de ligne EXL3 actuel dans codec::decode_ngram_row, garder les160bitsF16 finaux par rowID au lieu des41mots compressés. Les plages globales des16têtes sont disjointes et validées au load ; le biais propre à la tête est inclus sur miss uniquement. Garder le FIFO et16384entrées. Contraste interne MLXL3_FLASH_PLE_DECODED=0|1, défaut0 pendant expérience ; aucune autre piste activée.
+- Régression : oracle indépendant des fenêtres circulaires, valeurs finies et bits, treillis aux frontières159→0, biais distincts, NaN/inf/overflow et entrées tronquées ; échec ne doit pas évincer une ligne valide. TestGPU sur vrai modèle compare caches chaud/froid et désactivation après vidage, tous logits248320/états/préfixes/EOS byteexact, missneuf et reset ; test de mutation cache biais/clé détecté puis restauré. Tentative Kani réelle decode_ngram_row avec mots symboliques, unwind162, budget180s/4Gio ; une limitationFP/complexité reste non vérifiée. ContrôlesCPU avantGPU, aucun nouveau gain allégué.
+- Vitesse aprèsqualité : protocole00 H-C-C-H B2fixe MAIN/HOLD et trois mesures128, uniquement ce flag change, source/binaireuniques. Critères00 conservés ; overheadpayload3,71875Mio plusallocateur àmesurer, aucunbudgetexpert modifié. Si nonconcluant/rejet : archiver patch/tests/preuves puis retirer runtime.
+- PréparationCPU : première fixtureoverflow incorrecte (codeword choisi négatif) échoue ; corrigée en choisissant un symbole dont le codeword positif provoque réellement l'overflowFP16, loginitialconservé.160lignes×160valeurs passent (25600valeurs), erreursforme/NaN/inf/biaisinvalides refusées ;241testsCPU/5ignorés passent. Mutation rotationtreillis inversée détectée(exit101), originalrestauré/hashidentique ettestrepassé. Fmt/ClippyMLXstrict/buildinitial passent. Relecture avantvitesse supprime une allocation temporaire parhit ajoutée par l'extraction du helper : sortie écrite directement dans le Vecfinal comme la baseline ; v2 àrecompiler/revérifier, aucunevitessev1exécutée. Kani réelv1 puisv2 échoue avantobligations avecICEintrinsics.rs243, domaine32bitssymboliques(scaleetpremiermot), unwind162 ; nonvérifié, aucunstub/domaineajustépourverdir. Premierprocessusjoint7,77s/RSSgroupesondé1,31Gio, logsconservés.
+
+### SLOTSTREAM-2026-10-26-00 — cinq pistes, implémentation et qualification séparées — préenregistré
+
+- Autorisation : « implemente les, test les, si on valide un gain tu le met dans le code ». Base main7978fceac30d991a8c06d72114fc932b2443f555 ; worktree isolé slotstream-flash, checkout personnel et autres campagnes préservés. Recherche SlotStream3bfc81ef et historique52/31/38/41/49/69/72W-STOP/79 relus. Nouveau motif : entrée HC cible, sweep/préfill, reprise exacte, véritable OFF pré-draft et cache PLE décodé, distincts du weighted retiré. Seul un gain qualifié sera conservé en production ; prototypes négatifs/nonconcluants archivés et retirés.
+- Ordre : S1 PLE déjà décodé (mêmes bits, biais propres à chaque tête) ; S2 suppression des heads de préfill inutiles puis sweep par expert à calcul causal identique ; S3 reprise RAM exacte cible+draft aux frontières de prompt compatibles ; S4 tap HyperConnections cible seul puis correction apprise EXL3 séparée si le tap et le budget le justifient ; S5 choix OFF réellement avant draft, coûts par token et maintien exact des captures. Chaque sous-essai recevra son changement précis et ses oracles avant prototype ; dépendances non réalisées restent explicitement non vérifiées.
+- Qualité avant vitesse : tests déterministes limites/erreurs/reset/annulation, mutation négative détectée, logits248320 nonvides/finis et tous états byteexact contre parcours séquentiel inchangé, vrais CLI/bridge. Fmt, Clippystrict avec/sansMLX, buildmlx,chat, suitesCPU/Python pertinentes et testsGPU explicitement sélectionnés un à un. Formal-proof-skill/référencesRust/Python/C++ et Kani lus ; tenter Kani fonctions réelles (180s/4Gio par harnais), conserver échecsICE/timeouts et aucun stub injustifié. Adapter CI PR/pushmain si du code conservé le requiert. Aucune preuveGPU déduite de KaniCPU.
+- Protocole vitesse : M5standard24Gio, MLX0.32.2, checkpoint65c89531 EXL3 2,05bpw, draftDFlash2a22a1744 Q4/ring, ctx4096, greedy, lecteurs4/overlap1/cacheexperts3Gio53slots/allocator64Mio,63/HotWide/UNIQUE1, lookahead0 sauf contrasteS4 ; comparer au meilleur B2 fixe et mesurer les TTFT/seconds tours séparément. Warmup128 puis3mesures128/prompt, MAIN/HOLD publics historiques, ordreH-C-C-H par candidat. Dérive des témoins≤3%, chaque paire de médianes≥1%, étendue des gains≤3points, toutes sorties/états exacts ; sinon nonconcluant/rejeté sans relance de convenance. Prompts longs/répétés préfill à fixer avant mesure des variantes concernées.
+- Isolement : aucun build/proveur/autre modèle pendant GPU ; vérifier processus avant chaque phase, secteur continu via superviseur existant, arrêt sur divergence, erreur, silence/timeout ou nouvelle sortie de swap système, picprocessus≤12Gio et surplusC≤256Mio. AncreSwapouts initiale424617pages×16384B (rafraîchir prospectivement avant premier GPU et conserver les deux valeurs), mémoirecompression/physique/I/Ologiques enregistrées séparément. Join/nettoyage sur tous chemins, statutpartiel jamaisvalidé. Conditions initialesAC100%,351GioSSDlibres ; aucune inférence de cette campagne lancée.
+- Preuves : docs/measurements/slotstream-20261026/ ; commandes, sources/binairesSHA256, versions, résultats bruts, propriétés/bornes et décisions parvariante. Aucun push/merge/release/remplacementapp autorisé ; code utile conservé localement seulement après qualification.
+## Procédure courante — exploration courte, qualification proportionnée — 30 octobre 2026
+
+Demande de Justin : réduire le coût de chaque idée sans dégrader la fidélité ni
+les critères de promotion. Cette procédure organise les **nouveaux essais** ;
+les protocoles, seuils, échecs et mesures historiques ci-dessous restent des
+preuves datées, pas des prescriptions cumulatives à rejouer pour chaque patch.
+Elle respecte [AGENTS.md](AGENTS.md), notamment correction avant vitesse,
+vérification des parcours affectés, tentatives formelles applicables, isolation
+des mesures GPU et autorisation séparée de publication/installation. Aucune de
+ces obligations n'est supprimée ou contournée ; AGENTS.md reste inchangé.
+
+### Trois étapes, avec une sortie possible après chacune
+
+| Étape | Indispensable et raison | À reporter ou réutiliser | Décision permise |
+| --- | --- | --- | --- |
+| **1. Exploration, sans campagne de vitesse** | Une courte entrée préalable : hypothèse, différence avec les essais antérieurs, base/diff/options, entrée de production et risque touché. Compiler la variante concernée et exécuter son petit oracle déterministe, avec forme/dtype/nombre de valeurs/finitude, frontières et erreur pertinentes. Un filtre doit sélectionner un nombre explicite de tests, jamais zéro. | Pas de suite globale, de tous les modèles/modes/largeurs ou de matrice MAIN/HOLD par défaut. Réutiliser les lectures et contrôles non affectés avec leur identité. Aucun profiling lourd systématique. | Arrêter dès une erreur de compilation, un contre-exemple numérique, un invariant mémoire/état violé ou une hypothèse contredite. Conserver le résultat ; aucune vitesse ni promotion déduite de ce smoke. |
+| **2. Qualification du candidat retenu** | Compléter les contrôles touchés : format/lint strict/types/build réel, oracle indépendant sur l'entrée de production et son intégration, formes/dtypes réellement servis, erreurs et reprise. Pour un changement numérique/cache : logits/états pertinents **et bridge/CLI réel avant vitesse**, puis KV/récurrence/acceptation/rollback et MTP/DFlash lorsqu'affectés. Tenter les vérificateurs source applicables sur les contrats modifiés, avec domaine et limites. | Ne pas refaire les preuves/suites d'un composant identique sans nouveau risque de composition ; ne pas réinstaller un outil inchangé indisponible à chaque idée. Une tentative bloquée reste non vérifiée, avec diagnostic et commande, jamais transformée en succès. | Après cette correction qualifiée seulement, autoriser un **pilote release court**, sur le mode/prompt représentatif annoncé. Un pilote défavorable peut suffire à abandonner la piste, sans prétendre établir une régression causale ; bruit ou dérive donnent « non concluant ». |
+| **3. Validation avant activation ou merge** | Sur le code final : suite pertinente complète, contrôles de composition et tous les modes/parcours affectés. Pour promouvoir un gain : comparaison release alternée référence/candidat, MAIN et HOLD, répétitions et processus indépendants adaptés au bruit observé, mêmes checkpoint/draft/budgets/options/conditions ; états et qualité restent requis. CI du SHA exact inspectée ; tests physiques explicitement sélectionnés si nécessaires. | Les validations compatibles de l'étape 2 ne sont pas relancées juste parce qu'on change d'étape. Un mode hors périmètre exige une justification par les appelants, pas une omission silencieuse. Les contrôles non exécutés restent visibles. | Promouvoir seulement la portée réellement qualifiée ; sinon garder OFF, différer ou rejeter. Une PR draft de travail n'est ni une activation ni une qualification matérielle. |
+
+L'étape 1 n'autorise pas à chronométrer le modèle après le seul test d'un kernel.
+Elle permet de jeter une mauvaise idée **avant** les contrôles d'intégration et
+les campagnes coûteuses. Une sortie texte identique n'est pas l'oracle des
+logits/états ; une preuve CPU, un microbenchmark ou un frontend Rust isolé ne
+valident pas Metal ni le parcours modèle.
+
+### Ce qui est allégé pour les nouveaux essais
+
+- **Une entrée courte et une matrice de périmètre suffisent.** Regrouper les
+  variantes d'une même expérience sous le même identifiant ; ajouter le diff et
+  les résultats de chaque variante, sans reconstruire le protocole après coup.
+- **Pas de validation globale à chaque édition.** Pendant l'exploration, lancer
+  les vérifications qui peuvent réfuter le changement courant. Réserver les
+  suites complètes pertinentes et les interactions au candidat final ; un
+  changement de dtype, de layout ou de wrapper rend aussi leurs tests concernés.
+- **Pas de produit cartésien automatique.** Commencer par la forme et le mode
+  réellement ciblés. Ajouter B2 si le vérificateur est touché ; B4/B8, autres
+  modèles et autres modes seulement selon la portée, puis couvrir toutes les
+  formes servies avant activation. Un kernel commun au decode AR/MTP/DFlash
+  touche ces trois parcours : l'étiquette « optimisation AR » ne les exclut pas.
+- **Pas de répétitions de vitesse avant un signal utile.** Après l'étape 2, un
+  pilote peut utiliser un seul prompt/mode et peu de générations. Sa taille et
+  son ordre sont annoncés avant lancement. Ne pas lancer automatiquement une
+  confirmation longue après parité échouée ou pilote défavorable. Pour retenir
+  une petite différence, augmenter les répétitions/processus selon dispersion,
+  dérive et coût d'échantillonnage ; arrêter non concluant si le budget est épuisé.
+  Aucun seuil universel de gain/spread ni pourcentage choisi après résultat.
+- **Pas de pauses fixes ou d'exigence secteur copiées d'une ancienne campagne
+  pour un test fonctionnel CPU/non chronométré.** Les mesures GPU gardent un seul
+  modèle, aucune compilation/proof/inférence concurrente, des conditions
+  comparables et les contrôles mémoire/thermiques pertinents. Une pause nécessaire
+  à leur stabilité reste justifiée ; sa durée n'est pas une recette universelle.
+  Ne pas neutraliser une garde d'un superviseur existant pour faire passer son
+  protocole : choisir un contrôle fonctionnel adapté et déclarer sa portée.
+- **Pas de recréation systématique de fixtures, warmups ou proveurs.** Conserver
+  fixtures épinglées et oracles indépendants. Réutiliser les checks inchangés selon
+  la règle ci-dessous. Une nouvelle variante/forme ou un nouveau processus doit
+  encore être chauffé selon le harnais ; ne pas prétendre réutiliser un état qui
+  a été réinitialisé, ni confondre cache chaud et lecture Cold.
+
+### Réutiliser une validation sans masquer ce qui a changé
+
+Pour chaque contrôle repris, consigner **preuve/commande et résultat antérieurs,
+SHA ou hash du code testé, binaire et dépendances, fixture/checkpoint, options,
+formes/dtypes/modes, propriété couverte et justification d'absence d'impact**.
+Identifier aussi les contrôles invalidés et ceux à exécuter. Un hash de fonction
+seul ne suffit pas si son appelant, sa configuration, son dtype/layout, une
+dépendance ou la composition a changé. Un ancien échec ou contrôle absent reste
+un échec ou une absence ; des logs manquants ne deviennent pas une validation.
+
+- Document seul : vérifier liens/commandes et identité des sources exécutables ;
+  conserver les résultats moteur compatibles, sans nouveau benchmark.
+- Kernel/épilogue : refaire bits, dtype, formes/queues et wrapper de production,
+  puis les logits/états/parcours dépendants. L'audit T04 ci-dessous montre qu'un
+  oracle d'activation seul ne couvre pas le dtype de sortie EXL3.
+- Cache/I/O/ordonnancement : refaire bornes, ownership/leases, erreur/lecture
+  courte/drain/reprise, données lues et publication ; ajouter la concurrence
+  pertinente. Préserver ordre des sommes, slots en vol et budgets mémoire.
+- KV/récurrence/spéculation : refaire état final, chaque préfixe accepté/rejeté,
+  rollback/reset/continuation et MTP/DFlash affectés. Aucun allègement de fidélité,
+  quantification, tolérance ou politique de cache sous couvert de rapidité.
+
+Les outils/proofs lourds se préparent avant une campagne GPU. Une incompatibilité
+de vérificateur est enregistrée une fois avec sa cause ; les tentatives ciblées
+requises restent tracées sur le code concerné. Réutiliser le diagnostic de setup
+n'autorise ni à annoncer une preuve ni à retirer l'obligation d'essayer le vrai
+contrat modifié.
+
+### Commandes existantes et volume initial, sans durée promise
+
+Le [guide M5 de CLOUD59](docs/measurements/cloud59-20261030/README.md) contient
+une **qualification complète de référence** ; ses cinq tests de frontière et
+ses cinq intégrations répétées sur quatre bras font **25 exécutions de tests**.
+Ce n'est pas la boucle obligatoire de chaque édition d'un seul candidat.
+Les tests physiques actuels ne sont pas tous subdivisibles : certains parcourent
+plusieurs dtypes/largeurs ou tous les candidats en interne. Un filtre Rust
+sélectionne un test entier, pas B1 ou un sous-cas ; ne pas inventer de flag.
+
+Exemples de premier oracle existant : choisir **seulement celui du candidat**,
+à exécuter **seul** sur le matériel approprié et après compilation du binaire de
+test ; chacun doit annoncer exactement un test
+passé, faute de quoi l'étape échoue :
+
+```sh
+# T17 : gates F16 / casts / sigmoid / produit, sans checkpoint.
+cargo test --locked --release --lib --features mlx,chat qwen4::boundary_tests::t17_epilogue_matches_uncompiled_fp32_sigmoid_product -- --exact --ignored --test-threads=1
+# T04 : activation, arrondis F16 et H128 en F16/F32, sans checkpoint.
+cargo test --locked --release --lib --features mlx,chat qwen4::boundary_tests::t04_swiglu_down_preserves_both_half_roundings_and_h128 -- --exact --ignored --test-threads=1
+# T18a : attribution des jobs, sans modèle ni GPU ; ce test ne couvre pas GCD/I/O.
+c++ -std=c++17 -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -pthread -I native/ffi native/tests/disk_work_queue.cpp -o /tmp/mlxl3-disk-work-queue
+/tmp/mlxl3-disk-work-queue
+```
+
+Pour une seule idée, **un oracle ciblé avant le reste**, au lieu des 25 exécutions
+communes, peut arrêter immédiatement un candidat incorrect. Un succès ne dispense
+pas de l'étape 2 : T04 doit notamment passer aussi le vrai helper down F16/F32 ;
+T17 les entrées out/états ; T18a le lecteur réel, les erreurs et les leases.
+
+Après qualification numérique/intégration seulement, le harnais
+[`scripts/benchmark-flash-bridge.py`](scripts/benchmark-flash-bridge.py) accepte
+réellement `--tokens`, `--repeats`, `--prompt`, `--mtp`, `--dflash-draft` et
+`--dflash-mode`. Exemple de **pilote T17**, avec environnement/baseline/candidat déjà
+définis, un dossier neuf par bras et les autres options de candidats à zéro :
+
+```sh
+MLXL3_FLASH_GDN_EPILOGUE=0 MLXL3_FLASH_SWIGLU_DOWN=0 MLXL3_SSD_DYNAMIC_READERS=0 python scripts/benchmark-flash-bridge.py target/release/mlxl3-rs "$MLXL3_FLASH_MODEL" build/pilot-A --cache-gib 3 --prompt MAIN --tokens 16 --repeats 1
+MLXL3_FLASH_GDN_EPILOGUE=1 MLXL3_FLASH_SWIGLU_DOWN=0 MLXL3_SSD_DYNAMIC_READERS=0 python scripts/benchmark-flash-bridge.py target/release/mlxl3-rs "$MLXL3_FLASH_MODEL" build/pilot-C --cache-gib 3 --prompt MAIN --tokens 16 --repeats 1
+```
+
+Ce harnais effectue une chauffe et une génération mesurée par bras avec ces
+options : **2 processus / 4 générations** pour A+C. La matrice complète CLOUD59
+pour **un** candidat (2 prompts × 3 modes × ACCA, chauffe +3 mesures) en compte
+**24 processus / 96 générations**. Le pilote réduit donc le volume initial ;
+il **ne remplace pas** la confirmation MAIN/HOLD et modes affectés d'un candidat
+retenu, et 16 tokens ne qualifient ni contexte long ni débit soutenu. Le retour
+`status: validated` du harnais valide ses gardes internes, pas le gain A/C ni la
+parité numérique ; comparer aussi les hashes/textes entre bras et les oracles.
+
+`--repeats` compte des mesures **dans un processus**, pas des essais indépendants.
+`--compare` alterne AR/MTP, pas référence/candidat. La chauffe n'a pas de flag de
+suppression ; le timeout interne vaut 300 s **par attente d'événement**, pas pour
+la campagne entière et n'est pas exposé par sa CLI. Le
+[superviseur de qualité existant](docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt)
+accepte `timeout_seconds` dans chaque entrée de matrice ; son moniteur impose
+une borne de processus (360 s par défaut, maximum 900 s), des gardes secteur/VM
+et le nettoyage du groupe enfant. Ces bornes ne sont pas une durée observée ni
+un timeout de toute la matrice ; ce superviseur n'est pas un smoke CPU portable.
+Choisir le harnais adapté sans neutraliser ses gardes ; conserver sorties
+partielles/erreurs et joindre les processus. Ne pas utiliser ces plafonds comme
+durées observées ou garanties. Garder mémoire, budgets et comparabilité ; signaler
+swap, changement de conditions ou divergence et arrêter le pilote si ses gardes
+ne sont plus satisfaites, sans supprimer les échantillons gênants.
+
+### PROC-2026-10-30-FAST — révision documentaire, aucun essai GPU
+
+- Hypothèse : écarter les pistes invalides avant la qualification/matrice complète
+  et réutiliser les preuves non affectées réduit le nombre d'étapes par édition.
+  Baseline : guide CLOUD59 et historique, source `f0818640` ; pas de durée mesurée.
+- Changement : procédure en trois étapes, réutilisation conditionnelle et pilotes
+  bornés ; obligations d'AGENTS.md, preuves anciennes, code, permissions et
+  protections système inchangés. Révision autorisée par Justin ; publication dans
+  la PR draft [61](https://github.com/0xZKnw/mlxl3/pull/61), sans merge/activation.
+- Vérification prévue : contrôler commandes, sélecteurs, comptes de tests/bras,
+  liens et conservation du journal ; tests CPU des harnais existants, aucun modèle.
+- Résultat : **81 tests CPU** des harnais benchmark/supervision passent ; aide CLI,
+  syntaxe shell, sélecteurs existants, liens et comptes 25/24/96/2/4 contrôlés.
+  Ancien journal conservé octet pour octet hors deux champs ajoutés au format des
+  nouvelles entrées ; seuls `opti.md` et le renvoi du guide M5 changent. Preuves
+  locales de ce contrôle sous `/workspace/scratch/mlxl3-opti-procedure-*` ; aucune
+  source exécutable ni AGENTS.md modifiés, aucun benchmark/Metal/Mac lancé.
+- Intégration : publication autorisée en commit documentaire séparé dans PR61 ; les
+  checks moteur cloud précédents restent des preuves de leurs sources identiques,
+  pas de nouvelle mesure. Aucun gain de durée garanti, aucune validation native
+  ni promotion acquise. La CI automatique reste inchangée et doit être inspectée
+  sur la nouvelle tête après publication.
+
+### CLOUD59-2026-10-30 — préparation cloud terminée ; prototypes OFF, qualification M5 non exécutée
+
+- Autorisation : préparer les optimisations moteur pour validation ultérieure sur M5 24 Gio ; aucun travail Desktop, lancement sur le Mac, push, PR ou installation. Baseline cloud propre `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6` (branche locale `work`). Issues 59/60 relues le 30 octobre, révision des priorités du 29 octobre ; les modifications locales non publiées `7978fce…` et les rapports post-profile cités ne sont pas dans ce checkout. Leur validation n'est pas attribuée à cet arbre.
+- Prérequis : `AGENTS.md` lu ; `.agents/skills` absent. Skill utilisateur retrouvé via `docs/qwen27-m5-round2.md`, cloné sous `/tmp/mlxl3-formal-proof-skill`, révision `5f00bb443c9d0d14f705a3098381850166a83e5c`, SKILL et références Rust/C++/Python lus. Linux cloud sans Metal/M5/modèle ; Rust initialement absent, installation isolée sous `/workspace/.tooling` prévue. Aucune inférence ni vitesse ici.
+- **T17** : conserver récurrence, H128 et norme native par ligne. Compiler exclusivement cast F32 + sigmoid F32 + produit F32 + cast F16 ; B1 puis une chaîne commune B2/B4/B8 après concaténation des normes par ligne. Option indépendante OFF par défaut ; référence conservée. Différence avec HENK0O09/Rapid/Flash25 : ni SiLU (facteur z interdit), ni fusion norme/récurrence/préparation. Qualifier l'entrée out bit à bit avant toute vitesse ; la compilation peut modifier la transcendantale, aucun contrat numérique présumé validé.
+- **T04** : seulement Cold sans regroupement ni masque Hot, frontière SwiGLU compilé → produit down.suh F16. Conserver l'arrondi SwiGLU F16 puis produit F16, H128 natif, splits/réductions et points de soumission. Option indépendante OFF ; ne pas répéter POSTPROFILE05-C (gather/scales). Si le compilateur ne préserve pas les bits ou ne supprime pas de dispatch utile, ne pas promouvoir.
+- **T01/T07/T09/T10/T12** : inspection/filtre uniquement tant que projection, coût après hit, répétitions B2 naturelles et spills ne sont pas attribués. Cache factories C++128 déjà présent ; aucun replay GPU déduit. **T18a** après ces filtres : file atomique dynamique, quatre lecteurs maximum inchangés, même validation/erreurs/drain/leases/destinations ; référence statique et option OFF. T18b publication Cold progressive explicitement différée, aucune somme ni publication partielle changée. T19 différé : dépend d'un vrai prefill chunké, pas un gain decode.
+- Protocole prévu : tests déterministes CPU sur options/contrats et ordonnanceur (sanitizers), tentative Kani/CBMC source réels ; fmt, Clippy strict, build/tests CPU pertinents ; tentative build `mlx,chat` avec diagnostic de plateforme conservé. Tests physiques ajoutés mais non exécutés ici : B1/B2/B4/B8, layouts/dtypes, formes/erreurs/finitude/octets, GDN états et chaque préfixe accepté/rollback, MoE Hot/Cold/référence. Ensuite bridge AR/MTP/DFlash et A/B release MAIN/HOLD alterné, même checkpoint/draft/3 Gio/4 lecteurs, warm128/mesure128, processus indépendants, swap/thermique/alimentation et source/binaire hashés. Aucun pourcentage promis ; T05 reste mixte/non robuste, ARC et cache statique 47/55 restent rejetés.
+- Résultats, commandes et décision finale à consigner dans `docs/measurements/cloud59-20261030/README.md` avant clôture. État : préenregistré avant prototype, aucune optimisation validée ni publiée.
+- **Clôture cloud** : T17 et T04 implémentés avec graphes compilés MLX et références indépendantes OFF, T18a avec file atomique et mode statique conservé. Les tests physiques ajoutés exigent les bits de l'entrée out, formes/finitude, gates F16, H128, B1/B2/B4/B8, états/tapes et commits/continuation du modèle ; non exécutés ici. Inspection finale a trouvé le validateur de profil encore lié aux bandes statiques : ajout du mode réel du lot depuis la FFI et validation dynamique stricte avec compatibilité des anciennes traces. Pas de travail Desktop.
+- Checks finaux : Rust CPU/chat **245 passés/6 ignorés** (lib159/bin35/contracts16/autre harnais35), runtime_gpu0 sur Linux ; fmt, Clippy strict et build CPU passent. **312 tests Python** pertinents passent, Ruff/format/py_compile et YAML/diff passent. Ordonnanceur C++ : **4084 cas** dans chacune des exécutions ASan+UBSan et TSan, mutation job+1 détectée ; cache factory128 existant repasse son oracle, aucun gain inféré. Typecheck puis Clippy strict Rust MLX/chat tous targets passent pour Apple dans un manifest temporaire explicitement non livré (build.rs OFF, tokenizers fancy-regex pour éviter C cross), sans liaison FFI ; ce n'est pas un buildMLX de production.
+- Limites conservées : vrai buildMLX refuse Linux, crosscheck initial chat sans compilateur C Apple et variante sanschat avec imports tokenizer préexistants échouent ; logs archivés. Kani/CBMC/CrossHair tentés mais absents, harnais réels conservés, aucune preuve revendiquée. I/O GCD macOS, compilationFFI/GPU, égalité réelle, oracles modèle/bridge et vitesse **non exécutés**. Aucun pourcentage ni dispatch supprimé mesuré. Diff, matrices et commandes M5/MAIN/HOLD/AR/MTP/DFlash dans [le rapport](docs/measurements/cloud59-20261030/README.md) ; les archives négatives des issues restent intactes.
+- Décision : conserver prototypes uniquement dans la branche/session avec options0 ; T01 filtré sans nouveau cache/replay, T07/T09/T10/T12 différés faute d'attribution/routes/spills ; T18b différé avec leases/sommes à qualifier séparément ; T19 différé faute de chunks prefill. Tous essais cloud clos, aucun essai GPU/débit lancé ou laissé actif ; aucun push/PR/merge/release/app installée modifiée.
+- Contre-exemple statique trouvé à la revue finale T04, avant tout essai physique : `expert_mapped_layout` restitue le dtype de son entrée ; GU peut donc être F32 en production. Le premier garde T04 n'acceptait que F16 et le wrapper aurait retourné F16 au lieu de F32. Correction préenregistrée ici : garder le dtype GU pour le SwiGLU, caster son résultat F16 exactement à l'ancienne frontière, produit suh F16/H128 inchangés, puis restaurer le dtype GU à la sortie down. Étendre l'oracle aux deux dtypes et recontrôler types/Clippy affectés ; aucun résultat GPU antérieur à invalider puisque rien n'a été exécuté. Les checks CPU précédents ne prouvaient pas cette propriété. Correction effectuée, cinquième test physique sanscheckpoint ajouté sur le vrai helper EXL3 (dtype/forme/bits), fmt et Clippy strict isolé repassent ; cet oracle reste non exécuté sans Metal.
+### STABILITY-2026-10-30 — Apple Silicon compatibility and bounded failures — code vérifié CPU, qualification native/matérielle distincte
+
+- Base `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`, branche `fix/apple-silicon-stability`, séparée de PR61. Passe de correction autorisée : contrats de lancement Agent, messages du bridge, configurations Qwen et capacités Metal réellement disponibles. Aucun changement de quantification, calcul numérique, défaut expérimental ou benchmark de vitesse prévu.
+- Hypothèses à vérifier : le test Agent exige encore deux arguments au lieu du contrat actuel à trois ; un flux moteur sans newline peut accumuler sans borne ; certaines largeurs de config sont multipliées avant contrôle ; les API TensorOps doivent être gardées selon leur disponibilité macOS, pas seulement le nom M5. Préserver les fallbacks portables et refuser explicitement les modes sans chemin exact disponible.
+- Protocole préenregistré : tests déterministes des entrées de production, frontières et erreurs ; échec sur base ou mutation ciblée ; Rust CPU format/Clippy/build/tests, C++ sanitizers pertinents, tests Python et CI macOS du SHA final. Tenter Kani sur les vrais contrats CPU ; skill formal-proof-skill et références recherchés mais absents de cet environnement cloud. Ne revendiquer aucune preuve à leur place. Les tests Swift/macOS/FFI et les oracles GPU physiques seront distingués des contrôles Linux. Matrice support et protocole M1/M2/M3/M4/M5 documentés ; RAM/performances non mesurées. Résultats et limites à clôturer dans `docs/apple-silicon-stability-20261030.md`.
+- Clôture locale :6correctifs ciblés (OS26.3 EXL3, OS26.4 nativeQ4 + capacités bridge, largeurs/numérique Qwen avant poids, DFlash libéré avant MTP, trames bridge bornées, contrat Agent). Rust CPU248passés/6ignorés ; Python ciblé335passés, portable1842passés/67sautés/2désélectionnés et4modules exclus, puis2modulesModal séparés35passés/8sautés après installation de la dépendance déclarée ; les échecs initiaux de dépendances sont conservés. Format/Clippy/buildCPU, frontend et Clippy AppleARM64 via manifeste temporaire sansFFI, C++ASan/UBSan et mutations de gardes réussis. Kani/CBMC absents ; pas de preuve source, Swift ou GPU exécuté localement. Aucun gain débit/RAM mesuré, aucun défaut expérimental activé. Rapport/protocole et reçus : [stabilité Apple Silicon](docs/apple-silicon-stability-20261030.md). CI exacte à suivre dans la PR avant bilan final ; aucune validation physique universelle revendiquée.
+
+- Suivi CI6500262b : Linux, conversion et packing réussis ; Kani global reçoit un arrêt du runner après47résultats de harnais réussis sur ses deux étapes, prochain harnais cache sans verdict. Le vrai buildMLXmacOS détecte un échec introduit de linkage : `__builtin_available` requiert `___isPlatformVersionAtLeast`, absent du lien Rust. Révision avant nouvel essai : lire `kern.osproductversion` via `sysctlbyname` sans runtime Clang supplémentaire, parseur C++ borné et testé (frontières26.2/26.3/26.4, erreurs), préserver les mêmes capacités ; aligner la cible CI macOS26.2 sur le packaging. Refaire tests du parseur/sanitizers puis CI native exacte. Échec conservé dans les preuves ; tests Swift et qualification Metal restent distincts.
+
+- Parseur final1190contrôles ASan/UBSan réussis, mutation26.3→26.2 détectée. Le nouveau runNative est pending derrière l'ancien run arrêté ; tentative d'annulation API41035881383 refusée `Forbidden`, aucune relance/contournement de cette annulation. Contrôle indépendant autorisé avant nouveau commit : workflow `Apple compatibility contracts` borné, buildMLX/FFI macOS26.2 et4oracles sansGPU, plus3gardesKani seules. Il ne modifie/annule pas le run bloqué et ne remplace pas la suite globale. Suivre la CI du SHA final ; qualifier chaque résultat séparément.
+### KANI-CI-2026-10-30 — réparation partielle qualifiée, CI finale en échec
+
+- **Clôture des essais DIRECTORACLES/induction8 à 18:16 UTC :** sidecar direct garde exactement les données de production8f mais termine avec `Out of memory` explicite après452,231s ; caller groupage8 avec induction termine aussi OOM94,816s. Aucun contre-exemple fonctionnel établi. Ce dernier journal contient en plus `not enough arguments, inserting non-deterministic value` dans l'itérateur du prédicat d'invariant : candidat impropre à qualification, même si un futur verdict était positif. Le lemme8 réel est positif12,374s, mutation nouvelle-racine row+1 détectée puis restauration positive3,322s. Lemme80 seul encore actif, plafond600s/AS6Gio ; aucune source de son worktree ne sera éditée avant arrêt/verdict.
+- **Avant TWOFREQ-FRAME (18:18 UTC), variante distincte du getter seul TWOFREQ rejeté :** dans le worktree frequencyTrial8f, extraire deux helpers purs de lecture et d'incrément saturant, qui ne reçoivent que le tableau LFU `[u32;512]` et l'ID. Dans le seul harnais deuxroutes, lectures remplacées par u32 arbitraires et écritures LFU par no-op. La projection clés/hits/slots du vrai programme est incluse : chaque lecture réelle est une valeur permise du modèle ; les écritures n'ont aucun effet projeté et leur seule influence ultérieure passe par une lecture déjà arbitraire. Cette abstraction couplée ne prouve pas l'ordre LFU, dont les autres harnais restent réels ; aucune entrée/branche ne disparaît, tous2^64 couples et les anciennes assertions/covers restent. Les signatures empêchent les stubs de modifier clés/pending/âges. Préconditions ID borné vérifiées par ASSERT dans les stubs, non supposées. Avant promotion : preuve réelle des deux helpers, compteur avec oracle indépendant/observation universelle de tous512indices, tests CPU existants, placement complet600s/6Gio/unwind12 puis mutation protectionrouted, restauration et témoins de couverture réels sansstub. Aucun changement de la CI ou de ses ressources à ce stade.
+
+- TWOFREQ-FRAME première commande de placement rejetée avant compilation : cargo absent du PATH (127,0,002s). Aucune preuve exécutée. Répétition autorisée avec `source /workspace/tooling/env.sh`, même source/hash et budget ; correction du validateur prototype pour lire les lignes `- Stub:` exactes, sans accepter d'autre substitution. Le validateur CI poussé n'est pas modifié.
+
+- **Avant PARSERCURSOR (18:20 UTC) :** les trois lemmes réels parse_slot_capacity restent positifs, mais composition avec Split<&[u8]> épuise6Gio même bornée4. Remplacer uniquement l'orchestration Split du prototype par un curseur explicite de virgules, avec même helper standard réel et mêmes48champs/validateur. Comportement attendu identique à `str.split(',')` puis parseusize sur toute str, y compris champs vides/manquants/surnuméraires/signes/Unicode/overflow ; tests natifs existants comparent l'ancien parser et65536suffixes, puis suiteFlash applicable. Le modèle composé conservera le helper prouvé0..2 octets avec ASSERTlength<=2 ; aucunassume sur champs. La boucle de scan réelle sera bornée4 seulement pour la fixture47×53,+2octets, avec toutesassertions d'unwinding. Le budget144 global et les bornesUTF8 justifiées précédemment restent,600s/6Gio. Aucune intégration avant oracleCPU et preuve composée/mutation/restauration ; les échecs Split demeurent archivés.
+
+- Lemme GROUPINDUCT80 termine **timeout600,002s**, processus borné arrêté par le contrôleur, aucune réfutation fonctionnelle. **Avant GROUPINDUCT2 :** le prédicat d'invariant remplacera son itérateur for par un while pur, pour retirer l'avertissement Kani de paramètres manquants, sémantique identique. Le lemme d'étape sera renforcé : ne supposer que les trois propriétés nécessaires de la racine du premier match réellement calculé, au lieu de supposer les propriétés de tout le préfixe. Ce prérequis plus faible admet davantage d'états, ne réduit pas les IDs/longueurs. Le constructeur établit l'ancien invariant plus fort ; la liaison logique est explicite. Kani réel8 puis80,600s/6Gio ; si succès, constructeur seul par induction avant composition/4Vec. Pas de réexécution inchangée du caller OOM.
+- PARSERCURSOR : oracle natif **24passed/0ignored** (0,84s), y compris tous65536suffixes et frontières standard. Inspection show-loops moderne provoque ParserItem ICE car le format de sortie attendu n'est pas une liste de boucles : aucun verdict de preuve n'était demandé. Répéter cette inspection uniquement en mode diagnostic old, puis qualifier en sortie moderne avec bornes résolues ; ne pas interpréter old comme un succès.
+
+- **Avant KANI-MODEL-WARNING-GUARD (18:26 UTC) :** le journal réel GROUPINDUCT8 montre `not enough arguments, inserting non-deterministic value` lors de la transformation d'un appel, donc le modèle n'est pas qualifiable, indépendamment d'un éventuel résumé SUCCESSFUL. Ajouter au validateur de verdict une exclusion explicite de cet avertissement précis et un test de non-régression construit à partir du message observé. Ne pas refuser les avertissements Rust ordinaires ni masquer les échecs ; aucune assertion, limite, sélection ou preuve modifiée. Protocole : nouveau test d'abord rouge sur validateur8f, correction, suite complète des34tests+nouveau, Ruff et contrôles de format/diff. Cette correction d'orchestration est distincte des prototypes de preuve non qualifiés.
+
+- KANI-MODEL-WARNING-GUARD : test rouge reproduit acceptation incorrecte de ce message dans un résumé autrement positif ; correctif puis **35tests passent9,79s**, Ruff/format/diff propres. Avant tentative formelle Python : rendre ce refus explicite en retour anticipé, même décision booléenne, puis CrossHair sur un harnais important le vrai check_verdict et ajoutant le message observé à un préfixe symbolique arbitraire. Postcondition : refus pour tous noms/comptes/préfixes, sans recopier l'implémentation ; budget10s/condition. Relancer les contrôles affectés après ce retour anticipé. Les logs bruts CI8f ne contiennent aucun de ces avertissements, mais ne sont pas les sorties individuelles nécessaires pour rejouer tous les verdicts ; aucun succès global déduit de ce scan.
+
+- TWOFREQ-FRAME : helpers réels **success10,239s**, toutes les couvertures atteintes. Placement complet avec lectures arbitraires+writeframe termine **timeout600,002s**, source b89eca4af595f69439f3bf7fb91e7e9d4717dd6953bf1d78df6481903cc489f6 inchangée et exactement deux stubs attendus. Aucune obligation réfutée ni qualification obtenue ; pas de relance identique. PARSERCURSOR composé lancé après libération de ce calcul, mêmes budgets, les noms de boucles proviennent de show-loops et aucune hypothèse ne restreint les entrées.
+- KANI-MODEL-WARNING-GUARD final retour anticipé : **35passed10,07s**, Ruff/format passent, CrossHair10s **Not confirmed** donc aucune preuvePython complète revendiquée. Régression rouge/verte conservée dans `/workspace/tooling/kani-next-warning-guard` ; correctif local, pas encore poussé.
+
+- **Avant TWOPAIR-COMPOSE (18:30 UTC) :** le couplage LFU seul n'élimine pas le coût de Vec::insert/unique exécuté au milieu des allocations du cache. Extraire exactement la boucle tri/dédoublonnage existante dans un helper pur recevant seulement ids, sans changer ordre/capacité/valeurs. Prouver le vrai helper sur deuxu32 complets avec oracle indépendant min/max/cardinalité, puis seulement remplacer ce helper dans le harnais deuxroutes par la construction directe exacte de son résultat à deux entrées. Le stub ASSERTlen==2 vérifie le contrat d'appel réel du harnais ; aucune hypothèse sur les valeurs. Couplage LFU reste le modèle conservateur documenté, aucun autre état abstrait. Le domaine demeure tous2^64 couples, mêmes assertions/covers. Tests CPUcache avant preuve ;600s/6Gio, auplus2proveurs simultanés. Pas de partition6cas lancée ni de changementCI sans qualification composée/mutation/témoinsréels.
+
+- **PARSERCURSOR composé VALIDÉ localement85,151s** : vrai parcours48champs/cursor, seul stub de conversion2octets déjà prouvé par3lemmes réels, toutesassertions/covers satisfaites, source7db64e4a5af300c524cd498f2345631b5e17d42226c15c3c8450f1e32fb374c7 inchangée. Avant mutation : insérer dans le vrai parser un refus au dernierchamp(index47), qui doit être réfuté par l'oracle d'acceptation du suffixe53 ; restauration enfinally, puis preuvecomposée exacte requalifiée. Ensuite promotion minimale des seules fonctions/parserfixture/tests/lemmes sur main8f, requalification sur ce sourcefinal avantCI. Les bornes d'unwinding spécifiques seront résolues et contrôlées explicitement, aucun changementmasqué de la borneglobale144 ni des domaines ; les noms manglés compilateur ne devront pas être supposés stables sans vérification.
+
+- GROUPINDUCT2 précondition plus faible : lemme8 **success5,034s**, lemme80 **timeout600,001s** ; les deux résultats sont conservés, aucun code de groupage promu. TWOPAIR-COMPOSE : tests CPU réels **21passed/0ignored0,73s**, helper tri/dédoublonnage réel **success4,534s**, entréesu32 complètes/cardinalité/min/max et3covers ; lancement du placement composé surmême source figée avec exactement3stubs documentés. Mutation/restaurationPARSERCURSOR active séparément, auplus2CBMC àlafois.
+
+- **Checkpoint PARSERCURSOR final,18:40 UTC :** source principal final6008e350ea651011f730e6e76a3ffe2e353d5625eaa74764578578f132c2cf4c, composition **success87,497s**, lemmes empty2,821s/one3,270s/two3,478s. Découverte des boucles réelle via le nouveau runner, toutesles assertions/covers satisfaites, source inchangée ; mutation refusdernierchamp détectée59,515s puisrestauration86,109s. Inventaire réel **322**, toutesobligations exigées(319anciennes+3compagnons), aucune supprimée. **240testsRustpassés/5ignorés**,44testsorchestrationpassés, Clippystrict/Ruff/formatpassent. PremierRuff signalait re.M(alias), corrigéenre.MULTILINE ; rien masqué. Gardewarning réel testérouge/vert ; CrossHairresteNotconfirmed. Tests CPU sur la variantecandidate23pass/0ignoré avantpromotionsuitecomplète.
+- TWOPAIR-COMPOSE caller reste **OOM183,484s**, troisstubs exacts, source figée ; malgrésonlemme réel4,534s positif, aucun de ses helpers/abstractions n'est promu. GROUPINDUCT2 80expire600,001s. À18:40 aucunCBMC vivant ; seuls zombies historiquespid1 sansCPU/RSS restent, aucuneannulationGitHubtentée. Archivespositives/négatives, commandes/sources/reçus dans `docs/measurements/kani-ci-repair/resume-parser-evidence.tar.gz` et `resume-parser-receipt.json` ; descriptions/liens/portée dans `resume-parser.md`. Le checkpoint qualifié est prêt à commit/push normal surPR63, CIexacte à suivre avanttouteconclusionglobale. Le dernierSHA distant8f reste314/319+API2avec5timeouts, pasencorevert.
+
+- **Avant GROUPINDUCT, worktree dédié8f :** reprendre le scatterCPUqualifiémais nonpromu, extrairela recherche de racine parroute. L'étape réelle renvoie la racine déjàétablie du premier ID identique, ou la nouvelleligne. Prouver séparémentpourN8/N80, tousIDs u32etlongueurs0..N : souspréconditionque lepréfixe possède desracinesbornées/idempotentes/du mêmeID, le résultat≤row et si antérieur pointeversuneracine dumêmeID. Préconditiongarantieparune invariant deboucle vérifiée(base+pas), terminaisonviaremainingdécrémenté(déjàtestoutil0.68positif). Aucunehypothèse desIDsvalides512nécessairepourceslemmesfortes. Ensuite seulement callerpeututiliser ce postcontratconservateur ; il autorise plusde partitionsque le codeexact, donc lesassertionsd'origines/capacité seront plusgénérales, pasaffaiblies. Lesdeux objectifsdecouverture(g0len8/g3len8) auront enplus des témoins sansstub/sansinduction, déroulant le vrai code sur8IDsdistincts/8identiques. LespreuvesLFU/cache/parseur restenthorsdeceworktree. D'abordoracleCPUindépendant puis lemme8avant80 ;600s/6Gio, aucuneintégration avanttousprérequis/verdicts.
+- GROUPINDUCT oracleCPUindépendant1passed/0ignored (0,08s), puis **lemme8réel positif12,374s**, deuxcoversatteints, domainesu32nonrestreints/longueurs0..8. Avantmutation : modifier seulement nouvelle-racine row→row+1dansroute_root ; lelemme8doit réfuterbornehead≤row, source restaurée enfinally puis mêmelemme8requalifié. Ensuite ajouterremplacementconservateur avecASSERTpréconditions et testerlecallersur son domaine0..8entier, pas lepilotcount8const. Vérifieraussi lesdeuxtémoinsréels sansflagd'induction/sansstub et lemme80 ; tousrestentexigésavantpromouvoir lesdeuxpreuvesdegroupage. Lespreuvesdesparseurs alignés restentenOOM334,783s/53,922s (scan4), aucuncontre-exemple deleurcontratétabli, aucuneoptionpromue.
+- GROUPINDUCT mutationrow+1 **réfutée**, source restaurée etlemme8requalifié. Pourlecaller8,d'abord conserverle vrai route_root SANSaucunstub : l'inductioncontracte seulementlaboucleextérieure et doit vérifierl'étape réelle, une fois surunétatpréfixearbitraire. C'est plusdirectquecelleabstractionprévue, et ne requiertaucunélargissementdesretoursduhelper. Mêmeancien domaine8IDs u32/count0..8/capacity0..513, oraclespointparpoint parindiceobservéuniversellementindépendant(équivalentàseen[8]) ; touschecks dechunketbornesconservés. Argumentdereachabilitécoupléaux2témoinsconcretsréels sansflagloopcontracts/sansstub.600s/6Gio ; objectbits10 pourcontenirl'instrumentationdynamicframe, toutdépassementd'objetsdoitéchouer. Lemme80réel àqualifierenparallèle danslemêmesourcefigée, aucune modificationjusqu'auxverdicts.
+- **Avant DIRECTORACLES :** tester une formulationKani pure des mêmesassertions, sursourceproductionstrictement8f dansfrequencyTrial (archiver avantretrait Getterprototype). Remplacer seulement assert_eq formatants par kani::assert surlesmêmesbools danssidecar/deuxroutes ; pourparser, remplacerégalitétableau48 par48conditionsélémentaires équivalentes et boolparsed==suffix53. Aucun champ/symbole/caller/API/loopbound/stub modifiéparrapport8f, mêmesharnessnames/covers/domaines. Hypothèse : éviter référencesDebug etcheminsdeformatage danslesoracles, commeanciennecauseMETA, sansla déclarerétablie. Productioninchangée,pasdetestCPUadditionnelnécessairepourcodecfgKani ; compiler/proverréels600s/6Gio, tousunwindingsmaintenus. Avantchangement, copiesdesprototypesGetter etHubbound1dansleur répertoiredepreuve ; pasd'effacementdesrésultatsnégatifs.
+
+- **Reprise autorisée, avant WIDEBASE et SNAPINIT (15:40 UTC).** Réconciliation exacte : sept noms uniques = 1 hub + 2 groupages + 4 Flash, listés dans la description de PR ; « deux routes » est le nom d'un seul harnais, pas deux expériences. WIDEBASE exécute pour la première fois seul le vrai harnais `wide_cohorts_fit_every_pending_pattern_in_eighty_slots` du SHA4ea54c7b : les 80 bools indépendants, ExpertCache réel, unwind81, 600 s / AS6 Gio, aucun changement de code. Le budget Flash global avait empêché son lancement ; ce protocole distingue budget de groupe et coût individuel. SNAPINIT, dans un nouveau worktree isolé depuis4ea54c7b, déplace uniquement la création des 20 Optionu32 symboliques vers deux tableaux stack avant leur copie dans le cache, en conservant chaque id0..511 partagé entre key/pending, tous les bools et query0..511 ; unwind513 et oracles/covers identiques. Comme FILLMINIMAL qualifié, chercher à éviter les alias heap pendant la symbolisation, sans modifier resident_slot_map. Aucun push/global avant qualification ciblée. Limites inchangées ; pas de nouvelle annulation distante.
+- Complément SNAPINIT avant lancement : remplacer la boucle d'oracle sur les 512 compteurs par `counts[query] == 0`, pour la même query universellement symbolique0..511 déjà utilisée par l'oracle map. C'est la quantification universelle point par point de l'ancienne conjonction : pour tout état d'entrée, un compteur non nul serait réfuté en choisissant cet indice. `query` n'est jamais passé à resident_slot_map ; aucune corrélation de production ne permet d'omettre un compteur. Garder assertion clock, tous keys/pending, absence/présence/19e-slot covers et borne513 ; aucune fonction de production changée.
+- WIDEBASE **validé** sans modification : 574 checks / 0 failed / 7 unreachable, covers3/3,13,052 s wall (10,160 s vérification). Rapport `/workspace/tooling/kani-next-widebase/report.json`. Avant PARSERLOOPS : journal CI montre run_utf8_validation.1 déroulé192 fois bien que la fixture mesure143 octets. Code officiel Rust relu : boucle de lecture ASCII par blocs16 octets, donc au plus9 passages pour143octets, puis boucle scalaire de queue≤15 ; choisir bornes conservatrices10/17 pour ces deux boucles, outer144 conservé, assertions d'unwinding maintenues. Tester seulement sur vrai parse_layer_slots/originalrepeat+suffixe2octets UTF8, valeurs u8 toutes inchangées. Remplacer uniquement oracle arraymemcmp48usize par48assertions identiques pour éviter le memcmp384octets artificiel, unwind192 global conservé. Aucun stub ni parseur réécrit ;600 s/AS6Gio. D'abord vérifier les identifiants compilés via show-loops (lecture≤20 s), ne pas promouvoir une option fragile sans contrôle de correspondance et régression. Si borne insuffisante, preuve doit échouer, jamais assume.
+- PARSERLOOPS, correction de correspondance avant exécution : `show-loops` réel identifie `.0` à ligne224 (blocs16), `.1` à ligne241 (queue scalaire), `.2` à ligne145 (outer). Appliquer donc `.0:10,.1:17` seulement ; outer conserve la borne globale192. Les suffixes entiers et les deux covers restent inchangés. Le texte précédent « outer144 » n'est pas appliqué, il s'agissait de la borne d'un ancien prototype ; ce nouveau test conserve192.
+- **Avant GROUPSCATTER (15:49 UTC), prototype isolé uniquement.** Contrairement à GROUPSTACK qui conservait la collecte80×80 et ses copies dans la boucle interne, remplacer expert_route_groups par trois passes : (1) trouver le premier indice de chaque ID et compter ses occurrences, (2) calculer les offsets des chunks complets/restes dans les quatre groupes, (3) disperser chaque indice original une seule fois dans quatre Vec de taille finale. La recherche de premier indice reste≤80×80 comparaisons simples ; les écritures/copies Vec ne sont plus dans cette boucle. Cinq tableaux stack80u8 =400octets, aucun tableau d'IDs512 ni limitation des u32/capacités ; garde d'entrée strictement identique. L'ordre par première occurrence, chunks de4, restes de1..3 et couverture exacte des positions doivent être identiques à l'oracle BTreeMap indépendant existant. Exécuter d'abord le vrai test exhaustif 0..7 sur alphabet3, frontières80/81 et1024cas déterministes. Puis harnais original8 et80 ciblés, un seul à la fois dans le worktree,600s/6Gio/unwinds9/81, sans autre global. Aucun gain runtime annoncé ni intégration avant qualification. Régression/mutation position ou offset obligatoire si positif.
+- GROUPSCATTER oracle indépendant **passe 1 test réel**, 0,08 s ; commande cargo test FQN exacte et récap1passed conservés dans `/workspace/tooling/kani-next-group-scatter-cpu.log`. Aucun résultat Kani encore.
+- **Avant TWOROUTECASES :** préparer six partitions exhaustives du domaine original `[u32;2]` : invalide (au moins un≥512), valide dupliqué, valides distincts hit/hit, hit/miss, miss/hit, miss/miss (hit=0..9, miss=10..511). Aucun état du cache modifié par rapport au harnais, ni hypothèse nouvelle sur la propriété globale : la conjonction des six partitions recouvre exactement tous les2^64 couples. Garder les assertions d'erreur/absence mutation, succès/hits/alias/slotbounds et unwinding12. Pilote isolé miss/miss distinct,600s/6Gio avec vrai reserve inchangé ; seul ce domaine partiel sera dit vérifié s'il passe. Si positif, qualifier les cinq autres et couvrir l'union des objectifs initiaux avant toute mise à jour du manifeste. Pas de matrice CI supplémentaire.
+- SNAPINIT termine **timeout600,002 s**, CPU observé9m26, RSS≈2,5Gio, solveur SAT sans verdict final ; log et état conservés dans `/workspace/tooling/kani-next-snapinit`. Nouvelle initialisation seule non qualifiée, pas d'intégration. Avant SNAPKISSAT : même source/propriété, seul solveur intégré Kissat à la place de Cadical,600s/AS6Gio inchangés ; aucune relance du même protocole. Attendre un slot mémoire avant départ.
+- **Avant PARSERBYTES :** la validation de sous-chaînes UTF8 est répétée par split str + usize::parse et reste coûteuse même avec bornes internes. Prototype de production isolé : split sur virgule dans value.as_bytes(), petit lecteur décimal checkedusize acceptant exactement un `+` facultatif suivi d'au moins un chiffre ASCII ; aucune espace, signe moins, Unicode ou overflow accepté. Le wrapper garde48champs, aucun champ supplémentaire, valid_layer_slots inchangé et toutes valeurs usize/uniform initiales. Cette décomposition supprime les conversions str intermédiaires, pas les vérifications. Avant Kani, comparer avec l'ancienne implémentation std sur les65536suffixes exacts (préfixe47×53,), profils/frontières existants, et helper vs usize::parse sur vide/signes/zéros longs/usizeMAX/overflow/chaînes déterministes. Ensuite même harnais original2octets symboliques, mêmescovers/oracles/unwind192/600s/6Gio, sans options personnalisées de boucles. Ajouter contrôle Kani du helper sur24octets arbitraires et longueur0..24 avec oracle u128/borneusize distinct ; conserver sa portée bornée. Aucun changement accepté sur foi des seuls tests.
+- PARSERLOOPS **échoue OOM / CBMC status6 après433,391 s** malgré bornes10/17, options rejetées/non promues. GROUPSCATTER original8 **échoue également backend status6 après147,086 s**, pas de contre-exemple établi ; oracle CPU positif insuffisant. Sources et logs préservés, aucune intégration. PARSERBYTES passe23testsCPU dont l'exploration exhaustive des65536suffixes et comparaisons usizeparse,0,40 s ; ce résultat précède encore sa preuve réelle.
+- **Avant GROUPSIZED :** le prototype SCATTER8 a déroulé2,31millions d'étapes et échoué pendant la réduction propositionnelle ; ses cinq tableaux80 surdimensionnent les accès symboliques pour seulement8routes. Extraire son corps en helper constN, appelé avecN8 si len≤8 etN80 sinon, après garde d'origine. Même fonction réelle, même domaine0..80, aucune entrée supposée valide ; buffer minimal pour petits appels, maximal400octets pour les80. Nouvelle propriété à vérifier : sélection du helper/capacité et tousoracles8/80 restent identiques. Archiver SCATTER80 négatif avant modification, répéter oracleCPU existant pour le nouveau wrapper puis preuve8 sous600s/6Gio ; aucune promotion si incomplet. Cette variante n'est pas GROUPSTACK antérieur : elle évite aussi les écritures dans la boucle de recherche et spécialise les tailles réelles.
+- **Avant HUBUTF8 :** original hub/variants et ses deux bools inchangés ; ancien HUB64 avait échoué, nouvelle variante borne spécifiquement les trois boucles run_utf8_validation sur chaînes de fixture≤42octets (`.0:4,.1:17,.2:44`, assertions d'unwinding maintenues), global64. Hypothèse : String/BTree répètent cette validation standard beaucoup au-delà de leur taille réelle.600s/AS6Gio ; relevé show-loops réel et sortie complète, pas de flags promus avant verdict. Les anciens plafonds BTree seuls étaient négatifs et restent conservés. Ne pas assimiler cette tentative bornée à une preuve obtenue.
+- SNAPKISSAT **passe**148,056 s wall,735checks/0failed/7unreachable,3/3covers ; sourceharness même SNAPINIT et seule nouvelle annotation Kissat, aucune modification resident_slot_map. Avant mutation ciblée SNAPMUT : retirer seulement pending.is_none du vrai resident_slot_map dans le worktree isolé, lancer le même harnais (attendre slot) ; il doit produire une FAILURE d'assertion. Sauvegarder/restaurer le fichier puis requalifier la source restaurée. Avant intégration, preuve finale main et tests snapshot réels obligatoires.
+- HUBUTF8 **non lancé, hypothèse inapplicable** : show-loops sur le vrai modèle ne contient aucune boucle UTF8, donc appliquer ces flags serait un essai inchangé inutile. Listing conservé. **Avant HUBSORT :** nouveau point confirmé par ce listing : BTreeMap::collect charge les tris génériques std, avec listes≤5 dans cette fixture. Borner uniquement boucles dont source contient `/slice/sort/` à6 (5éléments+terminaison), BTree à12 (11clés/12edges par feuille), dedup iterator à6, global64 conservé ; garder toutes unwindingasserts. Domainesbools/codeproduction/harness inchangés. Les ids sont lus du modèle réel et la sélection archivée, pas hardcodés aveuglément.600s/6Gio, un modèle ciblé, aucune promotion sans verdict et vérification robuste des options.
+- GROUPSIZED8 échoue encore OOM pendant réduction propositionnelle153,950s ; code non promu, négatif conservé. HUBSORT v1 rejeté par CLI en0,016s avant toute preuve : `--unwind` explicite est incompatible avec unwindset fourni à CBMC. Avant v2, placer seulement la même borne64 dans l'attribut local du harnais à la place de130 (comme borne64 déjà étudiée), retirer l'option CLI conflictuelle ; toutes assertions restent actives. Le listing76boucles et les flags sont conservés, aucun résultat ne vient de cette erreur de lancement.
+- **Avant GROUPSIZEDKISSAT :** N8 reste en OOM lors générationCNF avec Cadical in-process ; essayer uniquement solveur externe Kissat comme SNAP désormais positif, plafonds identiques6Gio hérités et600s. Aucun u32/capacité/count réduit, même prototype trois passes tailléN8/N80 et harnais original8. La séparation du solveur peut réduire la mémoire simultanée dans CBMC, elle ne constitue pas une hausse du plafond par processus ; suivre RSS de CBMC et Kissat séparément. Aucun succès ne sera supposé avant verdict.
+- SNAPMUT, protocole précisé avant mutation : trois modèles indépendants sont déjà actifs. Commencer par le vrai test natif `resident_slot_snapshot_is_read_only_and_excludes_pending_writes` sur suppression du garde pending, délai180 s, puis restaurer dans finally et réexécuter le même test exact. Cela contrôle immédiatement l'oracle de production sans ajouter un quatrième modèle à cette machine16Gio. La qualification formelle positive du harnais735checks reste distincte de cette mutation CPU ; Kani restauré final reste exigé avant intégration.
+- SNAPMUT **détectée** : test natif exact échoue avec assertion (1failed,exit101), source automatiquement restaurée, même test1passed/0ignored,0,11s. Empreintes et logs `/workspace/tooling/kani-next-snapmutation/` ; source positive SNAPKISSAT préservée.
+- **Avant PARSERFIXEDLOOPS** : nouvelle combinaison jamais testée, revenir au parseur de production str/usize::parse original ; conserver le helper décimal uniquement comme prototype indépendant, non promu. Harnais construit un tableau fixe143octets (47×b"53,"+2u8entiers) puis from_utf8 sûr, au lieu de Stringrepeat+concat ; contrôle CPU exhaustif65536 doit vérifier chaque octet identique à ancienne construction et équivalenceUTF8(prefix+suffix)↔UTF8(suffix). Oracles48assertions élémentaires etconditionbytes==b"53" équivalents, covers2 conservés. Bornesunwind144 (longueurmax143+terminaison) et UTF8.0:10/.1:17 conservatrices, toutes assertions maintenues. L'ancien FIXED144 négatif utilisait les deux boucles internes à144, PARSERLOOPS négatif utilisait le constructeur String ; cette combinaison vise ces deux causes indépendantes.600s/6Gio inchangés, aucune preuve revendiquée avant verdict.
+- PARSERBYTES **timeout600,002s**, donc aucune modification du parseur de production promue ; prototype/helper/23tests restent dans le snapshot local négatif. Son contrôle Kani24octets prévu n'est pas lancé car cette voie de production est abandonnée avant intégration, aucun statut validé associé. PARSERFIXEDLOOPS fixture complète65536suffixes **passe1test exact/0ignored**, récap conservé ; Kani ciblé devient la seule prochaine validation du parseur original inchangé.
+- HUBSORTv2 termine **OOM / CBMC status6,256,290s**, sans contre-exemple établi, boucles standards réduites insuffisantes ; flags non promus. GROUPSIZEDKISSAT8 termine **OOM / CBMC status6,209,308s**, donc changement solveur seul insuffisant pour ce modèle, pas d'intégration. Rapports et sources négatives conservés. TWOROUTECASES pilote miss/miss démarre seulement après libération de ces processus, protocole préenregistré inchangé.
+- **Avant GROUPPROJECTION :** les essais de buffers/solveurs sont insuffisants. Nouvelle décomposition logique de l'oracle : pour8origines, choisir un indice observé indépendant0..7 et compter ses occurrences dans tous les chunks, plutôt que modifier seen[8] à index symbolique. La quantification universelle de cet indice équivaut à toutes les anciennes assertions seen[row]==(row<count) ; les assertions bounds/égalité de slot parchunk restent. Pilote count8const d'abord (pas de prétention sur0..7 avant partition exhaustive0..8). Pour80, garder somme des4longueurs==80, puis choisir group0..3 et index0..79 universels pour vérifier le rowbound quand index<len ; puisque la somme est80, aucune position valide ne dépasse79, donc cela remplace exactement toutes les assertions dans les boucles originales. Domaines80u32/capacité0..513 entièrement conservés, algorithmeSCATTERN8/80 actuellementisolé inchangé, mêmes600s/6Gio. Si positif, refaire toutes longueurs/oracles/mutation avant promotion, sinon garder preuve non vérifiée.
+- **Avant HUBDESC, décomposition compositionnelle explicite :** le domaine original du harnais est exactement les cinq noms constants config/quantization_config/model/ngram/mtp et les deux bools de présence. Ajouter une preuve compagne sur indice symbolique0..4 que le vrai descriptor_label égale une table finie pour ces cinq noms. Dans SEUL le harnais de collection, remplacer descriptor_label par cette table au moyen de stub déclaré ; la table ASSERT que chaque appel reçoit l'un de ces cinq noms (panique hors domaine, aucun assume). Tous appels réels dans variants partent des clés d'entrée fixes ; les noms/propriétés des sidecars/tailles/mapping et les quatre combinaisons bool restent inchangés. Cela enlève des branches de parsing de labels impossibles dans ce domaine sans prétendre prouver variants sur tous fichiers arbitraires. La preuve compagne doit passer AVANT le top ; une mutation de la vraie classification quantization doit y échouer. Le manifeste final exigera la compagne et le validateur d'orchestration n'autorisera ce stub unique qu'avec son nom exact, sinon aucune intégration.600s/6Gio, unwind64 conservé ; d'abord sans options personnalisées de boucle, pas de modification de production.
+- GROUPPROJECTION8 pilote **échoue OOM47,419s** pendant réduction propositionnelle, après symex32,036s/459478étapes/35797VCC : l'oracle scalaire réduit fortement le modèle mais ne le qualifie pas. Tous résultats conservés. **Avant GROUPFLAT :** garder les trois passes N8/N80, mais troisième passe disperse dans un seul tableau stackN de u32, avec offsets globaux des quatre groupes ; construire les quatre Vec seulement APRÈS toutes écritures/symboles. Nouveau changement distingue les alias heap et les données, comme FILLMINIMAL positif ; pas le GROUPSTACK antérieur à80×80collecte. Stack maximale720octets métadonnées+données, aucune valeur/capacité restreinte ; oracleBTree indépendant avant Kani puis même pilote8 observé600s/AS6Gio. La propriété complète0..8 exigera toujours toutes les partitions et l'oracle80 reste requis. Ne pas présenter un pilote comme réparation globale.
+- **Avant SNAPMAIN :** intégrer SEULE la preuve snapshot positive SNAPKISSAT depuis le worktree, aucune production/prototype supplémentaire. Refaire Kani exact dans le checkout principal pour qualifier la source finale stock319, puis fmt/diffcheck et test natif snapshot. Répétition justifiée : le précédent verdict positif liait un checkout isolé contenant d'autres prototypes non promus ; on vérifie ici précisément le code conservé. Domaines/covers/oracles quantifiés/bornes/solveur identiques600s/6Gio, aucune relance globale avant ce verdict. Essais parseur/groupage/hub/deuxroutes encore indépendants et non intégrés.
+- PARSERFIXEDLOOPS **timeout600,002s**, malgré factory sansheap et assertions UTF8 serrées ; aucune intégration. TWOROUTECASES pilote miss/missdistinct **timeout600,004s**, domainepartiel non qualifié. HUBDESC compagne indice5symbolique **OOM / CBMC status6 après319,411s**, topavecstub NON lancé ; aucune abstraction admise dans l'orchestration principale.
+- **Avant HUBDESCSHAPE :** l'oracle de compagne utilise assert_eq sur Option<Option<String>>, qui charge la comparaison/Debug des labels possédés alors qu'aucun label possédé n'est attendu pour les cinq noms. Remplacer seulement cet oracle par un match structurel acceptant exactement (None,None) ou (Some(None),Some(None)), refusant toute autre paire ; la table ne produit jamais Some(Some), donc c'est strictement la même égalité. Même indice0..4 symbolique/domaines/fonctions réelles/unwind64/covers2,600s/6Gio ; hypothèse formatage à vérifier, pas une cause établie avant résultat.
+- **Avant TWOROUTE9 :** même pilote miss/missdistinct et vrai reserve, encoder les IDs valides par u32::from(anyu16 &511) plutôt qu'anyu32 puis assume<512 ; cela énumère exactement chaque valeur0..511, sans perdre de valeur miss10..511. La future partition invalide, si les valides passent, gardera le u32entier. Le pilote ne prouve toujours pas les autres classes ; les six partitions complètes restent exigées. Borne12,600s/6Gio, même oracle et cover(10,511).
+- **Avant PARSERCOMPOSE :** nouveau protocole compositionnel, pas d'abandon du contrat. Le parseur de production découpe les mêmes virgules ASCII dans value.as_bytes puis appelle un helper réel `from_utf8(bytes)?.parse::<usize>()` ; aucun algorithme décimal réécrit, mêmes résultats pour tout str et uniforme. Tous champs de la fixture originale47×53,+suffixe2octets ont longueur≤2, y compris les champs vides/créés par virgule dans le suffixe. Prouver le helper réel sur les trois domaines exhaustifs longueur0/1/2 (octetsu8tous), contre un petit match décimal fini ; helper de remplacementASSERTlongueur≤2, aucune hypothèse silencieuse. Dans SEUL le harnais complet, déclarer ce stub après succès des3preuves ; le manifeste et validateur devront exiger les3compagnes/stub exact. Factory143octets déjà exhaustivement comparée et oracles/covers2 maintenus ; d'abord600s/6Gio/unwind144 SANS options de boucle personnalisées. Le nouveau helper utilise exactement le parseur standard d'origine. Pour str valide, une coupe sur virguleASCII est toujours une frontièreUTF8 : CPU ancienne/nouvelle implémentation comparées sur65536suffixes + profils existants avant Kani. Mutation du helper réel doit être détectée dans une compagne et restaurée avant qualification. Le prototype décimal24 antérieur est retiré du code candidat, snapshot négatif conservé.
+- PARSERCOMPOSE : première préparation refusée par assertion du script (attendait2occurrences du corps au lieu de1), aucun fichier modifié ; la commandeCPU suivante a porté sur l'ancien prototype et son `cpu.log` est explicitement rejeté comme validation de cette nouvelle variante. Script corrigé avec arrêt immédiat sur erreur ; vraie variante passe24testsCPU/0ignored en0,39s (`cpu-corrected.log`), dont équivalence complète65536suffixes et fixturebytes. Trois compagnes Kani maintenant en cours ; topstub non exécuté avant leurs verdicts.
+- **SNAPMAIN qualifié**187,889s wall (vérification184,658s),735checks/0failed/7unreachable,covers3/3 ; testproductionexact1passed/0ignored,fmt/diffcheckpassent. Le diff principal est strictement limité au seul harnais cfg(kani) : préparationstack20+copie, quantificationpointparpointLFUquery0..511, solveurKissat ; aucune source de production modifiée. Préparer/pousser ce jalon cohérent sans prototypes non qualifiés, en suivant sa CI exacte pendant les expériences isolées restantes. Garder319obligations requises et toutes limites de ressources ; la qualification ciblée du changement précède cette nouvelle CI. Les essais group/parser/hub/deuxroutes restent marqués non qualifiés/en cours suivant leurs logs, pas de réparation globale revendiquée.
+- **Jalon poussé/vérifié distant8f0cea950acb21adafffd90468e2cf98f30c4bdb**, parent4ea terminé avant push, aucune nouvelle annulation. Archive48fichiers469104octets et reçu/rapport resume-snapshot committés ; CI exacte nouvelle en attente de lecture, réparation globale toujours incomplète.
+- PARSERCOMPOSE compagnes **3/3 passent**, vide2,724s/1octet3,273s/2octets3,476s, fonctions réelles et tousoctetsu8 ; parsercaller encore non lancé. Avant mutation, rejeter53 dans le vrai helper en ajoutant filter(value!=53), lancer la compagne2octets ; exiger FAILUREassertion puis restaurer et refaire même preuve. Ensuite seulement topcomposé600s/6Gio et validation stricte du seul stubparse_slot_capacity→proof_two_byte_capacity, tousautresstubsrefusés et verdict complet requis ; aucune modification du validateur principal avant qualification et dépendancesexhaustives. HUBDESCSHAPE échoue encore backendstatus6/272,707s, l'hypothèse comparaison/Debug ne suffit pas, zéro stubHub promu.
+- PARSERCOMPOSE mutationfilter53 **détectée par FAILUREassertion**, source restaurée dansfinally, compagne2octets restaurée passe. Rapport `/workspace/tooling/kani-next-parser-compose-mutation/report.json`. Le lancement GROUPFLAT a chevauché cette mutation dans le même worktree : résultat de compilation potentiellement ambigu, contrôleur local ciblé interrompu parSIGINT, rapportinterrupted conservé ; aucun résultat qualifié de ce lancement et aucune annulation distante. Protocole corrigé : vérifier empreinte de restauration, figer flash_support.rs pendant les deux preuves caller/group, puis relancer GROUPFLAT dans nouveau répertoire. Cette répétition corrige la provenance d'entrée, elle ne remplace pas un échec par un succès arbitraire.
+- **Avant HUBDESC5 :** compagne à indice symbolique5 reste en OOM même sansDebug. Partitionner exactement ses cinq noms fixes en cinq preuves déterministes du vrai descriptor_label ET de la table, au moyen de matches structurelsNone/Some(None), aucun labelStringattendu. Ce sont les cinq valeurs du domaine original decompagne, pas un sous-ensemble de noms arbitraires. Pas d'entrée artificiellement symbolique ajoutée pour cacher une énumération : il s'agit d'une vérification finie exhaustive de ces cinq noms. Chacune unwind64/600s/6Gio, exécuter MTP d'abord puis les quatre autres si positif ; topcollectionstub toujours interdit avant les cinq verdicts. FichierHub seul modifié, Flash figé pendant les preuves caller/group en cours.
+- PARSERCOMPOSE caller sansoptions échoue **backendstatus6/OOM261,805s**, tout en conservant sourceinchangée et stub explicitement affiché `super :: parse_slot_capacity -> proof_two_byte_capacity`. Les trois compagnes et mutation demeurent positifs, mais la composition ne suffit pas encore. GROUPFLATclean échoue **KaniParserItem101 après49,632s**, pas de verdictCBMC complet et pas de contre-exemple établi ; aucun succès accordé à cette erreuroutil. Archives conservées.
+- **Avant PARSERCOMPOSELOOPS :** même caller composé et trois compagnes réelles déjà qualifiées ; ajouter seulement les bornes internes UTF8.0:10/.1:17 garanties pour143octets, assertions maintenues, global144/600s/6Gio. L'ancienne tentative LOOPSFIXED négative conservait les48 parseursstr sans composition : cette nouvelle combinaison élimine les deux coûts. La validation locale doit accepter EXACTEMENT le libellé réellement émis `super :: parse_slot_capacity -> proof_two_byte_capacity`, aucun autre stub ; le texte attendu précédent sans `super ::` était erroné mais n'a masqué aucun échec, le processus avait déjà échoué/OOM.
+- HUBDESC5 MTPconstant échoue **OOM274,534s** ; autresquatrecas/top non lancés, pas de domainecompletprouvé. **Avant HUBBASE :** la classification retourne un Option<String> dont les branches de label dépendent de la sous-chaîne rsplit, même pour ce nom fixe. Décomposer via le helper existantbase(name) : remplacer la premièreligne de descriptor_label par letbase=base(name), équivalent pour tout str (rsplit frais produit au moins le segment vide). Prouver base sur les cinq noms constants comme identité de pointeurETlongueur (propriétéplusfortequecontenuégal, évite relecturecomparaisons). Ensuite seulement autoriser dans les compagnes descriptor un stubbaseidentité avecASSERTappartenanceaux5noms. Le topcollection restera interdit avant toutescompagnes base+descriptor et testsnatifs desvariantes.600s/6Gio, pas de changement des fichiers/domaines d'entrée du harnais ; aucun autre appel de production supposé identique sanspreuve. FichierHub seul modifié pendant Flashfigé.
+- **Avant GROUPFLATRAW :** diagnostiquer KaniParserItem en utilisant le format officiel `old` qui expose la sortie backend au lieu du parseurJSON du driver. Même code/solver/inputsbornes/600s/6Gio, aucune nouvelle formulation ni hausse ; sortie legacy seule ne sera PAS acceptée par le validateurCI strict. Il s'agit de savoir siCBMCfournituncontre-exemple, erreur mémoire, erreur solver ou sortie non reconnue ; garder le statutinvalid_output si seul le formatlegacy fonctionne, sans transformer une erreuroutil en preuvevert.
+- GROUPFLATRAW confirme **Out of memory** pendant réduction propositionnelle,55,738s,465419étapes/35961VCC ; le KaniParserItem101 précédent ne prouvait donc pas un contre-exemple. Aucune erreurCBMC convertie en succès. TWOROUTE9 **timeout600,004s**, PARSERCOMPOSELOOPS **timeout600,002s**, HUBBASE MTP **OOM288,439s** ; aucun modèle local encore actif après leur terminaison. Les valeurs fixes ne suffisent pas à simplifier certains modèles std. Le cgroup indique oom_kill0 : ne pas attribuer ces erreursAS6 à un arrêt du noyau/runner.
+- **Avant PARSERFIELD144 :** la fixture[143] dépasse le seuil64 de sensibilité parchamp deCBMC, ce qui peut empêcher la propagation des octets constants. Même caller composé/compagnesréelles, mêmes600s/6Gio/144 et limitesUTF8 vérifiées10/17, ajouter SEULEMENT --max-field-sensitivity-array-size144. Cela change l'encodage, jamais le domaine/assertions. AncienFIELD1024 concernait COPY1024, pas cette fixture143, et son résultat négatif reste conservé. FigerFlash pendant ce test. Aucun flag promu avant vrai verdict moderne complet.
+- **Avant TWOFREQ, nouveau worktree indépendant8f0cea95 :** extraire lecture réelle self.counts[id] dans ExpertCache::frequency, utilisée dans victim et l'incrément saturant ; comportement de production identique. Dans SEUL le harnais original deuxroutes, remplacer ce getter pur par un u32 arbitraire avecASSERTid<512. C'est une surapproximation de chaque lecture réelle, y compris les séquences cohérentes qui sont un sous-ensemble des séquences arbitraires. Aucune adresse/panique cachée, aucune écriture/état/ID/âge/pending modifié ; tous2^64couples d'IDs et les assertions/covers originaux restent. Le contrat de placement ne spécifie pas l'ordreLFU exact ; les preuvesLFU existantes restent réelles/sansstub. Vérifier d'abord testscache natifs sur getter réel, puis harnais complet600s/6Gio/unwind12. Si positif, mutationprotectionrouted doit être détectée par cet oracle abstrait, source restaurée et Kani réel du getter borné doit vérifier accès sûrs avant intégration. Aucun domaine réduit pour résoudre les cases miss/miss.
+- **Avant LOOPCAP20 :** tester uniquement les capacités0.68 dans un fichierRust isolé : bouclewhile bornée5 avec invariant et decreases sur variable restante, avec puis sans-Zloop-contracts,20s/6Gio parcommande. But : vérifier que les vraies preuves peuvent utiliser induction+terminaison et que les témoins decover peuvent encore être vérifiés par déroulage réel. Aucun flag/source du dépôt changé sur foi de ce testoutil ; garder les résultats positifs/négatifs et limites. Une abstraction de boucle sans preuve de terminaison ne sera pas admise.
+- LOOPCAP20 passe avecinduction0,524s (95checks, dont invariantbase/step) et sansflag0,337s (4checks, vraisunwindings),cover1/1danschaquemode. La bibliothèque ignoreexplicitement lesdecreases quandleflagn'estpasactivé, donc des témoinsréels restent possibles. Aucune inductiondeproduction intégrée pourl'instant. PARSERFIELD144 termine **timeout600,003s**, encodage144seulnonqualifié, gardesinchangées.
+- **Avant LOOPREFINE-HUB :** nouvelle stratégie de bornage par vérification, sur sourceHuboriginale8f (pas les prototypes de parsing). Démarrer avec unwind1 sur CESEULharnais pourréduire tousleschemins,stdinclus ; inspecter les FAILURE d'assertions d'unwinding, conserver touteautreassertionFAILED commecontre-exempleàinvestiguer. Accorder seulement auxboucles réfutées leurborne justifiée : fichiers≤5,feuilleBTree≤11,maxnom42octets,comparaisonsmémoire≤130octets danslafixture ; toutesautresbouclesrestent1, jamais no-unwinding-checks. Sérieexploratoirefinie≤10itérations×30s puis qualificationmoderne≤600s/AS6Gio. Les verdictslegacy sont uniquement un diagnostic ; un succèsfinal exige sortieKanimoderne,tousunwindings,covers2 et inventairecomplet. Siuneborneestiméeesttropfaible,l'assertiondoitéchouer ; aucuneassumptionnouvelle surles2bools. Objectiféviter quelebornageglobal130 déroule desbouclesgénériques inatteignables, cequ'une seuleborneBTree12/sort6 antérieure n'éliminaitpas. AucuneoptionCI avant qualification et résolutionrobuste desidentifiantscompilés.
+- **CI8f finale terminée,failure : 314/319lib et2/2instancesAPI passent**, aucune preuve nonlancée. Flash38/40 (snapshot+wide80 passent), core72/73lib+API2, routes2/4, spéculatif198/198,allocateur4/4. Cinq noms uniques restent en timeout600s : hubsidecars,group8,group80,parser,tworoutes. NatifsLinuxETmacOS verts, dont build/lintMLXet testsCPUsourceMLX/EXL3 ; conversion41090142626verte,Desktop41090142586préconditionconnueenfailure. Métadonnées/artefacts/logs6 dans `/workspace/tooling/final-ci-8f0cea95/receipt.json`, données sauvées surdisque après redémarrage de sessionoutils qui avait perdu sonstoreJS, fichiersworkspace conservés. Aucune annulation distante, tousrésultats surSHA8f exact. Réparationglobale resteouverte.
+- TWOFREQ (lecturesfréquencesseules surapproximées) **timeout600,005s**, pasdequalification/stubpromu. LOOPREFINEepoch0 termine11,948s : les3FAILURElegacy sont2marqueursauxiliaires dereachabilityKani (assertionsfausses servantàclasser l'atteignabilité, pasdesbugs) et1vraieassertiond'unwindingpourinsertion_sort_shift_left surl'arrayinitial3fichiers. Aucuneassertionfonctionnelle réfutéeétablie. Avantepoch1 : attribuer6 (maximum5fichiers+terminaison) àcetteboucleexacte, toutesautres1, via résolutionbijective dunomprettyduCheck versle symbolemanglé danspretty_name_mapcompilé. Nejamaisaccepter lesrésultatslegacy commeverdict ; lesmarqueursreachabilityserontretraitésparKanilorsdelaqualificationmoderne.
+- LOOPREFINEepoch1 **OOM23,285s**, malgré155357étapes/2857VCCrestants seulement ; zéroFAILURE ne vautrien car de nombreuxchecks sontERROR et le backend finitVERIFICATIONERROR. Pasdeborneajoutée àpartir decesERROR. **Avant OBJECT12 :** hypothèse d'encodage des pointeurs (CBMC utiliseobjectbits16par défaut). Vérifier d'abord parun microtestC deprotocole que l'option --object-bits finale remplace l'initiale et qu'un espace insuffisant échoue explicitement ; ce microtestneprouveaucunecodeRust. Si dernièreoptioneffective, essayer surle modèleHubepoch1 l'encodage12bitsobjets(4096objets), reste600s/AS6Gio/unwindingasserts inchangés et sortie moderne. Un dépassement d'objets est une erreur, jamaisunsuccès ; aucune hypothèse surles2bools n'estchangée. C'est une nouvelle variante finie dereprésentation, pasunehausse deressources. Ne pas attribuer un gain causal avant diagnostic réel.
+- Actualisationdu descriptifPR63 après reprise : outilupdate a renvoyé isError et aucunrésultatpositif n'aétéconfirmé ; le diagnostic de cet appel n'a pasétéconservé par erreur. Lectureindépendante confirme que l'ancien descriptif16:33 est toujoursprésent etSHA8f inchangé. Aucunréessai ni contournement de cette écriture. Nouveau bilancomplet prêt dans `/workspace/tooling/final-ci-8f0cea95/pr-body.md`, logs/reçus8f durables ; cause de l'échecAPI encore inconnue, cette seuleactualisation est bloquée, recherches localesautorisées continuent.
+- ProtocoleCBMC prouve que premièreoccurrence deobject-bits prévaut et qu'un espace1bit insuffisant échoue explicitement (status6,too manyaddressedobjects). PremièreinvocationKaniduprotocolerejetéepour-Zunstable-optionsmanquant, corrigéeavanttouteinterprétation. Le petitfichierRustn'adressepasassezd'objets pourréfuter1bit ; lecturedebugvérifiée montre néanmoins que Kani retire son défaut16 et transmet SEULEMENT--object-bits1quandl'utilisateurfournitcetteoption. Doncoptionréelle,sansdoubleflagignoré. AvantqualificationOBJECT12 : mêmeHubepoch1,formatmodernerégulier,objectbits12à4096objets/offsets52bits,600s/AS6Gio,aucunautreflagchangé. RapportsprimaireKani3797/4667 expliquent desexplosionsdesmodèlesdemémoire ; similitudedeformeestunehypothèse,pasencorecausedémontréesurMLXL3. URLspreuves https://github.com/model-checking/kani/issues/3797 et https://github.com/model-checking/kani/issues/4667 ; aucuntextereprislonguement.
+- OBJECT12 **OOM22,613s**, aucuncheckFAILURE maisnombreuxERROR etcoversnonatteints ; pasdeprogrèsprouvé du modèle. **Avant OBJECT10 :** étape finie10bits(1024objets), recommandéecommeexempleparmainteneurKani3797, mêmesautresparamètres etlimites. Un dépassementd'objets doit échouerexplicitement ; si telestlecas, nepasréduireencore. Si12et10restentOOM, unseulessaisolverKissatpour séparer mémoireCBMC/solveur serapermis, pasdehausseAS/temps.
+- **Avant PARSERALIGN :** dans le seul harnais composé deRepairNext, envelopper les mêmes143octets dans un stockage repr(align8) et ASSERTas_ptr.align_offset(8)==0. Les65536suffixes, contrôlesCPUd'identitébyte, lecteurstandarddeproduction/3compagnes et deuxcovers restent identiques. Cette disposition garantit le chemin UTF8 ASCII parblocs16 : préfixe141ASCII+suffixe2→auplus3passagesexternes, choisirborne4 pourUTF8.2 avec assertions d'unwinding conservées ; .0:10/.1:17, global144restent. Aucuneassumption d'alignement ajoutée : si garantie ou borne ne se démontre pas, modèleéchoue et candidatnonpromu. Seul le placement mémoirede la fixture change, pas son contenu/domaine symbolique utile.600s/AS6Gio ; ce test vise la constructionKani, pas une optimisationourestriction desstr applicatifs.
+- OBJECT10 resteOOM21,760s ; la variationKissatautorisée resteOOM22,472s : cette piste de pointeurs/solveurs estclose, aucuneoptionpromue. **Avant PARSERSCAN4 :** journalPARSERALIGNprogresseaudelàd'UTF8mais déroulepositiond'itérateurSplitu8jusqu'à144. Pourla fixtureexacte, chaque recherche trouve lavirguleaprès2octets ouexamine les2derniersoctets ; auplus3itérations, choisir4. Résoudre le symbole compilé unique deIterator::position<Splitu8<parse_layer_slots>> parshow-loops et borneruniquement cetteboucle à4, mêmesconditionssymboliques/alignementasserté/600s/AS6Gio/toutesunwindings. Contrôlerégalitédeshashsourcesavant/après. Nejamaisborner lalongueur deschampsparassume ; siune recherchepluslongueestpossible,l'unwindingdoitéchouer. Cette borne s'appuie surlecontratde la fixture, pas surle parseurgénéral.
+
+- **Clôture à 15:34 UTC, aucun essai encore actif.** PR draft [63](https://github.com/0xZKnw/mlxl3/pull/63), branche `fix/kani-ci-stability`, SHA poussé et distant vérifié `4ea54c7bab6dda58946d1e45e8c891c70963f4d2`, base inchangée `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`. Le [run exact 41073480178](https://github.com/0xZKnw/mlxl3/actions/runs/41073480178) et ses huit jobs sont tous terminés ; conclusion globale **failure**, sans annulation. Cette entrée de clôture reste locale et non poussée pour conserver le SHA dont tous les verdicts viennent d'être suivis ; le bilan final est publié dans la description de PR. Toutes les modifications exécutables qualifiées sont déjà poussées.
+- **Couverture constatée sur ce SHA : 312/319 cas de bibliothèque réussissent, ainsi que les deux instances API.** Allocateur 4/4, spéculatif 198/198, routes 2/4, Flash 36/40, core 72/73 cas de bibliothèque + les deux instances API (73 sélecteurs réussis). Toutes les 319 obligations restent exigées par le manifeste. Les partitions finies conservent les domaines d'origine ; aucun timeout ni absence de verdict n'est converti en succès. Les cinq groupes ont publié leurs rapports et logs : artifacts allocateur 12985563124, core 12986269752, spéculatif 12986984640, routes 12987536912, Flash 12989471351.
+- **Sept obligations non vérifiées en CI finale :** `hub::verification::flash_sidecar_collection_preserves_present_files_and_size` échoue après 438,372 s avec diagnostic explicite `Out of memory` / CBMC status 6 ; les deux groupages `grouped_expert_routes_cover_eight_symbolic_origins_exactly` et `grouped_expert_routes_eighty_symbolic_inputs_are_bounded` expirent chacun à 600,002 s ; le parseur `layer_slot_parser_checks_last_two_utf8_bytes_and_full_shape` et le snapshot `resident_slot_snapshot_excludes_pending_and_preserves_lfu` expirent chacun à 600,002 s ; `two_routes_preserve_hits_and_never_alias_distinct_experts` expire à 402,262 s lorsque le groupe atteint ses 2700 s ; `wide_cohorts_fit_every_pending_pattern_in_eighty_slots` n'est alors pas lancé. Pas de contre-exemple fonctionnel établi pour ces échecs. L'OOM du sidecar sur ce run ne détermine pas l'origine des anciens signaux d'arrêt du runner.
+- **Résultats positifs finaux :** rollback `failed_fill_invalidates_ready_keys_without_releasing_pending_slots` passe en 116,734 s ; tuning passe en 197,469 s et le groupe spéculatif complet est vert. Natifs Ubuntu et conversion EXL3 (41073480191) passent. macOS échoue dans un garde Python historique inchangé avec `KeyError: 'reaped'` ; les étapes MLX suivantes sont sautées et restent non validées sur ce SHA. Régression Desktop (41073480217) échoue sur la précondition connue `StudioModesCombined.swift:2250`, exit 133. Ne pas mélanger les succès d'étapes MLX d'un ancien SHA avec ce résultat final. Pas de validation numérique sur Mac Apple physique.
+- **État et preuves conservées :** aucun processus local de preuve vivant après inspection PID/CPU/RSS ; tous les délais sont clos. Reçus individuels, métadonnées exactes du run, empreintes d'artefacts et sept logs finaux dans `/workspace/tooling/final-ci-4ea54c7b/receipt.json` et fichiers voisins, hors dépôt ; qualifications locales et essais négatifs dans l'archive déjà poussée `docs/measurements/kani-ci-repair/qualification-evidence.tar.gz`. Limites inchangées : 600 s par sélecteur, 2700 s par groupe, AS 6 Gio par processus hérité, quatre workers maximum ; ce plafond n'est pas une mesure RSS agrégée. Les candidats non qualifiés restent isolés, non intégrés. Le dernier transfert Library Flash a échoué sans fichier installé et sans contournement. Aucune nouvelle tentative d'annulation du run refusé, aucun merge, déploiement ou changement de permissions. PR61/62 intactes ; leurs preuves et gardes requièrent l'intégration explicite décrite dans le rapport. **Réparation globale non achevée : les sept obligations ci-dessus nécessitent une nouvelle décomposition justifiée plutôt qu'une hausse aveugle des budgets.**
+
+- FILLMINIMALcompletpasse132,293senprototypepuis97,515sdansmainfinal,1247checks/0failed/12unreachable/2covers. IntégrationUNIQUEMENTinitialisationavantRc,symboleetboolcompletoriginalpréservés,319libinchangés. Mutationpending.clearinvalidatedétectéeparvraiunit(1échec),source restauréeetunit1pass. Parser144échoueencorebackendstatus6/OOM,prototype143octets+unitéexhaustiveNONpromus. Tousprocessuslocauxdepreuvearrêtésdansleurdeadline,aucunenouvelleannulationdistante. AideCLIhelperLibraryconsultéeavantrelectureréférence(quiinterdit--help),pasdesourcehelperinspectée ; transfertFlashensuiteviaformeofficielleuniqueretourneDownloadfailed,aucunZIPinstallé,aucunréessai/contournement.
+- Avantnouveaupushcohérent : loggernonverbosequalifié(34CLItests),groupageroutesisolé(5groupeslogiques/4workersmax),harnessfilloriginalqualifiédansmain ; aucuneautresourceRustchangedepuis1f918af9. CPU238/5ignored+unitfill1passréutiliséscarproductioninchangée ;Ruff/actionlint/fmt/diffcheckpassent. Archiverpreuvescompletespostfollowupetsources/hash,conserverleséchecs. NouveauSHAserapoussé normalementetCIexacteàsuivrejusqu'auxverdicts,réparationglobalenonrevendiquée.
+
+- InitialisationAVANTRcqualifiéeabort92,555s+commit112,016s,2/2covers,mêmesdomaines24slots/toutesOptionu32/bools,DropExpertFillréel. AvantFILLMINIMAL : tenterlaréunionenancienharnaiscompleteboolsymboliqueavecpourSEULdiffinitialisationavantRc(mêmes27/600s/6Gio). Hypothèseleproblèmed'alias/propriétéVecpendantinitialisationétaitmajeur ; sipasse,garder4lignesdediffetnomoriginal319obligations,plutôtquedeuxnouveauxharnais. Sinonretenirles2partitionsdéjàqualifiées(320obligations),jamaisdéclarerlaréunionvalidéesansverdict. Mutationtemporairepending.fill(None)dansinvalidate,dansworktreeindépendant,doitfaireéchouertestproductionréservepending ; restaurerensuite. Parser144encours,seulprocessusancien,sous600s/6Gio.
+
+- FLASHFOLLOWUP : commitconstpasse134,650s,abortconstéchoue70,327s(0assertionsFAILURE,ERRORsurunwindingSpecFillOption/bool),parserbuffer143échoueOOM182,778s enUTF8loop192. Rienpromudeceprototype. Contrôlefixtureinitialselect0tests(explicitementrejeté),FQNcorrigé1testpasse0,05s/65536suffixesbyte-identiques ; aucuneborne/domainechangédansparseproduction.
+- AvantFLASHFOLLOWUP2(fini) : derniercandidatinitialisationcacheAVANTRc/RefCell(mutstate.copydepuis3arrayssymboliquespuisRcnew),mêmestate24etsémantiquedrop ; évitealiasmutablependantinitialisation,aucunerestriction ni changementruntime. Abortconstd'abordpuiscommitconstsiabortpasse,600s/6Gio/unwind27. Pourparserseulementunwind144(143octetstotaux+terminaison ; loopsfields48/construct47/numparse2),toutesunwindingassertsgardées,sourceparseinchangée ; CPUfixture65536déjàvalidée. Sipisteséchouent,lescloreetpousseruniquementorchestration/loggerdéjàqualifiés,pasplusderessourcesaveugles.
+
+- Contrôlefixtureparser : aidercommun143octetscfg(test,kani)pourtesterexactementlamêmeconstructiondans65 536suffixes ; l'anciensélecteurcargoleaf+--exactrisquederendre0test,exigerlarécapitulation1passedavecFQNflash_support. Avantcasparser : remplacercomparaisonarray[usize;48](memcmp384octetssur64bits)par48assertionsélémentairesidentiques ; éviteborne192inadaptéeàmemcmp,sansaugmenterunwindniperdrerien(oraclesexactementéquivalents). Les2casfillindépendantsavaientdéjàdébuté ; lecontrôlefixturedoitprécéderlapreuveparserciblée,et toutétatrejeté/zéroselectionrestedocumenté.
+
+- CI1f918af9terminée14:06:23,failure. Logsdevenuslisiblesaprèsterminaison : speculative197/198success,uniqueICEstatistiquesidentiqueàlocal(diagnosticmaintenantCONFIRMÉdistant). Core73sélectionssuccess/1timeoutHUB ; allocator4success ; Flash29success,2groupagestimeout600,failed_fillprocess_error94s(0assertionFAILURE,ERRORbackend),parserinterrompu343,996sparbudget45min,11casnonatteintsàvérifierartefact. Macannulé20min(EXL3lane),Desktoppréconditionconnueconfirméeexit133. TouteslesnouvellespartitionsqualifiéesCOPY168/lookup21/prefix8/SSD3/rows passentdansCI,saufséquencetuningantérieureinchangéequiaétéfixéeensupprimantverbose :395checks/0failure/2covers,130,177s.34testsCLIpassent(9,02s). HUB10expire600,002s,AS10Gio,picRSSobservé7922200Kio(échantillonné2s) ; aucunehausseCIpromue.
+- AvantFLASHFOLLOWUP : (1) partitionnercompleteboolen2preuvesconstsurmêmeExpertFill/Rc/RefCell24slots, keys/pendingOptionu32 etprefetchedbooltoujourstoussymboliques,oraclesidentiques ; couvrircommitaveccléprésenteetabortaveccléinvalidée/pendingpréservé. Aucunruntimechangé,unwind27/600s/6Gio. (2) parser48slots : remplaceruniquementconstructionStringrepeat+concatparbuffer143octetsfixes(47×"53,"+2octetssymboliques),from_utf8réelsafeetparse_layer_slotsproductioninchangé ; mêmes65536suffixes/conditionUTF8,oracleSomeiff"53",unwind192conservé. ContrôleCPUexhaustifdes65536constructionsdoitmontrerbyte-identitéàanciennefixtureavantKani. Siéchecs,nepaspromouvoir.
+- AvantROUTESHARD : CIFlash45minlaisse11cas sansverdictcar2groupagesconsomment20min. Séparermodulegrouped_route_verificationdans5egrouplogiquededédié(4preuves),toujoursAU PLUS4workerssimultanés(flash1+matrixmaxparallel3),budgetpargroupe2700s/harnais600s/AS6Gioinchangés. Toutesobligationsassignéesexactementunefois,agrégatrequiert5groupes,aucunharnaisexclu,manifestemetàjouruniquementsi2casfillqualifiés. Butrendreverdictsrestantspossibles,sansplusderessourcesparrunnernimatriceparcas.
+
+- SPECEXACT1f918af9complet :197/198success,uniquetuning_never_selects_missing_or_slower_candidateéchoueavantproveravecICEKani0.68danskani_middle/analysis.rs29Option::unwrap(None). La nouvelleoption--verboseactive--log-level=infodanscompilateur ; ancienneterse/nonsverbosepreuvepassait. Pascontre-exemple,OOMoutimeoutdepropriété. AvantNOVerbose : retireruniquement--verbosedescommandesdepreuve,conserverregular/verdictstrict/domaines/inventaire ; vérifierlecasspécifiqueréelà600s/6GioettestCLIquiémulecetteICEpourcombinaisonverbose+tuning. AttribuerCIàcettemêmecauseRESTEuneinférencetantquelogdistantspéculatifindisponible. Siqualifié,poussercorrectifminimaletvérifiernouveauSHAfinalCI,aucuneobligationexclue.
+
+- GROUPWATCH8expire600s(exit124),GROUPVALID8pilotexpire600s(après582,043ssymex/1476409étapes/74105VCC),aucunprototypepromu ; domainegardecompletnonprouvéparcepiloteetnonaffirmé. HUBINTERNAL1échoueOOM(CBMC396,370s,total405,967s),domainesoriginaux2bools ; limiternœudsinternesnerésoutpaslapression. CoreCI1f918af9désormaiscomplet : seulsHUBsidecarstimeout600s,validateurrows+3SSDpassent,API2instancespasse ; nativeMacannuléau20minsurétapeEXL3lane-layoutpréexistante aprèsbuild/test/Clippyvalidés(13:38:06→13:40:46),nondiffGPUrequalifié.
+- AvantHUBMEM10 : diagnosticOOMexplicitesous6Gioborne1/12permetessainonaveugle10GioASsurCESEULharnaisCadicalin-process,600sinchangé,runnerpublic16Gio; symexresteavantSATdoncmesurerpiceffectifetverdict. Matricefinie6(déjàéchec)/10,aucunehausseCIavantpreuve ; si10échoue/expire,clorecettepiste,pasd'escalade14Gio/tempsillimité. Les4workersCIrestentinchangés6Gio,sourceoriginalHUB2boolsoufrontièrestdunwindassertsactifs. COPYMEM10antérieurnégatifnevalidepasHUB,domainesdistinctsjustifientunessaiunique.
+
+- NouveauCIspéculatif1f918af9échoueà13:37,artefact12982880490(2262017octets,sha256ba3a6e2586358acb81f1a1e120ebdc2bf44ab5b4b26f82631ab1f7807066ac92)créé ; causepasencorelisible. DeuxlecturesdedicatedjoblogsrenvoientInternalerror(-32603),lectureendpointgénériqueinvalid/unsupported400(nondisponibledanscetoutil,nonretentée),downloadartefactdedicatedégalementInternalerror ; aucuneactionannulée. AvantSPECEXACT : rejouerl'orchestrateurCOMPLETcommitté1f918af9(formatregular/verbose+manifest319)surshardspeculative198avec600s/6Gio/2700s,rapportneuf ; cettequalificationdiffèredel'anciengrille178carlookup21remplacéetformatlogchangé. Butreproduirel'échecCIréel,sansajusterressourcesniannoncercauseavantlogs.
+
+- HUBVIEW4/4échouentCBMCstatus6(178,571/183,220/182,597/187,249s),prototype nonpromu ; HUBLOOPS12échoueOOMégalement,statutnégatifconservé. AvantHUBINTERNAL1 : reveniràlapreuveETproductionHUBoriginalesdumain(2boolsymboliques,aucunrefactor),bouclesBTree≤12etméthodesmarker::Internal≤1(pasdenœudinternedansmap≤5/leafcapacity11). Kani/CBMCgardentunwindingassertionsetobligations originales,doncabsenceatteintedesinternalsdoitêtrePROUVÉE,pasassumée. IDsréelslistéssurGOTOduharnessexact,commandesetbudget600s/6Gioarchivés ; aucunhardcodagefragilepromuavantqualificationetvérificationdesmétadonnéesCI. Siéchec,clorecettepistesansmasquerdomaine.
+
+- AvantGROUPVALID8pilot : isolerlecorpsréelderoutagederrièrelegardeexistantdansgroup_routes_valid(ids),sanscapacitéparamétrée(lecorpsnel'utilisepas). Piloteidsvalides8×u32dans0..511encodéspareach(u16&511),capacity512,count8,oraclewatchedscalaire. DomainePARTIELvalideexplicite,aucuneintégration/validationglobaleavantpreuvecomplètegardeentrée(tousIDs32bits/capacité0..513/count0..8)etcorpsvalide8/80,couplageobligatoireduverdict. Tousinputscapacitésvalides1..512sontdescaspursdu même corpsaprèslegarde ; domaineinvalidedoittesterrejet+absenceappelvraiparstubpaniquejustifié,dispatchvalidedoitêtreprouvéaussi. Butsupprimercheminsvalidateurinhérentsaux2erreursdeclasseetconnaîtreles9bitsutiles,sansomettrelesIDsinvalidesdelapropriétéglobale. Même600s/6Gio/unwind9,aucuncontresenspilote→preuveentière.
+
+- GROUPSTACK8échoueexplicitementOOMpendantpropositionalreduction : symex201,984s,2528347étapes,65976VCC/21555aprèssimplification ; prototypeproductionrejeté/nonpromu. AvantGROUPWATCH8 : restaurerexpert_route_groupsproductionoriginalexact,réécrireseulementoraclecompteusagesparunindiceobservésymbolique0..7etcompteurscalaire ; quantificationforallindiceéquivautaux8assertionsseen[row]==row<count, mêmescontrôlesbounds/égalitédanschaquechunket2covers. Pilotecount8const,600s/6Gio/unwind9,aucuneréductiondu32bitsniassumptiondevalidité. Sipositifpartitioncomplètecount0..8avecgoalsapplicables. Butréduireupdatesarrayindexsymbolique,passupprimerpropriété.
+- AvantHUBLOOPS : conserverunwindingassertionsmaisbornerlesbouclesinternesBTreeà12(11clés/12edgesparnode,pourfixture≤5fichiers,h=0)au lieudeborneglobale64adaptéeauxnoms42octets. TouteborneinsuffisanteDOITéchouer ; pasd'assume/stub. ListerbouclesréellescompiléesviaCBMC--show-loops,choisirseulementcheminsstdlibcollections/btree,loggertousIDs/bornes,600s/6Gio. Essaisisolésd'abordsursourceHUBVIEWcourante ; siutile,retenterproductionoriginalpouréviterrefactorruntime. Aucunencodageversionfragilepromuavanttests/reproductibilité.
+
+- GROUPRESERVEetSYMCACHEtousdeuxexpire600s(exit124),sourcesproductionnonpromues ; logsverboseétablissentexplosiondedéroulagenested80×80avantSAT,aucuncontre-exemple. AvantGROUPSTACK : conserverexactementlesgardesetordrederoutage,remplacerVecappend/réallocationsdanslesbouclespar4buffersstack80u32+longueurs,puis4conversionsVecaprèscollecte. Borne80vientducontratréelguard,stack1280octets ; capacitéheapfinaleexactetotal≤80éléments,contreallocationscroissantesexistantes. AucunID/budgetrestreint,proof8exacteet80bornesréellesdevantpasser600s/6Gio ; CPUoraclesavantpreuve,codeisolérejetésiéchec. Cetteformulationchercheéliminercopies/réallocationssymboliques,domaineetassertionsinchangés. HUBVIEWpremierclippyéchouesurtypo(référenceànamesavantdéclaration),corrigéeavantpreuves,logsconservés.
+
+- NouveauSHAremotevérifié1f918af9f242b116b73da34de851a5939780b6e5,PR63draftactualisée ; Native41062436174/Regression41062436194/Conversion41062436199 encours. HUBBORROWéchoueexplicitement `Out of memory`dansBTreeMap::correct_childrens_parent_links,CBMCstatus6 ; GROUPRESERVEexpire600s,nonpromu,pasdegainprouvé. SYMCACHEencoursà9min,symexbouclesimbriquées80×80toujoursactif.
+- AvantHUBVIEW : diagnosticrévèleBTreeMapbulkconstruction/cloneentrantbranchesinternesinaccessiblespour5fichiersmaiscoûteusesavantSAT. Prototypeisolé : construirefixture5fichiersparinsertsexplicites(mêmemapping),variantsconserveoriginalBTreeMapetutiliseuneVecderéférencessafe_filestriéesparl'inputaulieudereconstruireunBTreeMapcloné. L'ordre/filtrage/lookup/sortieStringpossédée/sommesdoiventêtreidentiques,pasderestrictiondevaleurs ; filtresnommêmesfonctionsréelles,pasdestub. Clippy+testsvariantsavantKani4cas,600s/6Gio/unwind64 etunwindingactif,rejetersinonqualifié. PatchprototypeHUBBORROWnégatifàconserveravantremplacement.
+
+- Followupqualifiéavantpush : inventairecompilé319,33testsorchestrationpassent(5,01s),verdictregularréelMETA2accepté(67checks/0failure/4covers,0,129s). PremièrecommanderegularnomdeharnaisinexistantrefuséeparKani,logconservé ; correctedexactselectorvalidéensuite. CPU238pass/5ignored,Clippystrict/fmt/Ruff/actionlint/diffcheckpassent. Archivefollowup-evidence.tar.gz(167768octets)conservepreuves/mutations/échecsantérieurs ; empreintessourcesdansfollowup-source-sha256.json,rapportfollowup.md. GROUPRESERVE/SYMCACHE/HUBBORROWrestentisolésencours,nonpromus,CIglobaleencoreincomplète. PushautoriséparJustinetparent,rienmergé/annuléàdistance.
+
+- SSDshapev2qualifié3/3(5,381/9,104/73,505s),oraclesélémentaireset4anciensobjectifsfrontièresconservés,aucunchangementorder_predictions. IntégrerSSDpreuvesuniquementdansmain. GROUP8constexpire600s,sanscontre-exemple ; GROUPRESERVE80etSYMCACHE80encoreensymex,déroulageboucleinterne<80aprè>4min,pasdevictoireannoncée,codeproductionnonpromu. HUBBORROWclippystrictpasse,preuvesencours/nonintégré.
+- Avantfollowupremote : pousserlesseulsMETA2/COPY168/LOOKUP21/PREFIX8/SSD3qualifiés,maintenir4workerset600s/6Gio/45min. Ajoutermanifestexplicitedetoutesobligationscompiléespréservées(140baselineavec5remplacementsexhaustifs),testmanquantcas etinventairetotal ; nouveauxharnaisrestentacceptésetassignésunefois. Sortieproverregular+verbosepourdiagnosticsbackend,extraitbornéjoblogetfichierlogdurantstatutrunning ; testorchestrationetKaniciblédoiventqualifierceformat. Snapshotlocalnonpoussé/testéexactementàvérifieravantcommit ; CIheadàsuivre,jamaisprésentéeverteavantverdict.
+
+- SSDshape1échouesurassertiond'unwindingdansmemcmp(128octetsdelacomparaisonarrayajoutée),pascontre-exempled'order_predictions. Les2casSSDsuivantsontéchouélorscompilationduprototypeHUBBORROWconcurrent(clone&StringaulieudeString),doncaucunepropriétéévaluée ; nepasinterprétercommeéchecsfonctionnels. Corrigercloneetrestaurerl'oraclederejetélémentparélément(32entrées,unwind33suffisant),recompileravantrelancerSSD ; gelerlessourcesdurantcettequalification. HUBngram64aégalementCBMCstatus6à254,754savantarrêtlocal, MTPinterrompuetbothnonlancé,logsnégatifsconservés.
+
+- HUB64absentéchoueencoreCBMCstatus6,aucuneassertionréfutéeétablie ; formulebornée64nonqualifiée. ArrêterproprementlaqualificationlocaleHUB4restantepouréviter3reproductionscoûteusesdelamêmeformulationrejetée,puisqualifierSSDindépendamment. Garderleslogsetétatsinterrupted/pending,aucuneannulationdistante. AvantHUBBORROW : prototypevariantsgardeBTreeMaptriéeetfiltragesidentiquesmaisempruntelesclésStringdel'inputaulieudelesclonerinitialement ; supprimercopieintermédiairedechaquenom,sortieStringtoujourspossédéeidentique. Choisirles4casboolconst,unwind64/600s/6Gio,oraclesexistants ; aucuneintégrationsansKani/tests/effetsd'appelvérifiés. Hypothèsemémoiredepreuve,pasdegainruntimeannoncé.
+
+- HUB4premierabsent/unwind130échoueprocess_errorCBMCstatus6à478,161s,aucuncontre-exempleétabli ; sourcevariantsréelleinchangée,prototype4casnonintégré. HUB64absentapprochelimitemémoire(6GioRSS),aucunsuccèsannoncé. AvantSYMCACHE : optionofficielleCBMC6.11 --symex-cache-dereferences(repeateddereferencescached),surgroup80ORIGINAL(sansréservation)aprèsfin600s/Kissat ; sortieverbose/regularpouridentifiercoûtsymex. Même600s/6Gio,aucuneassertion/branche/sélectionchangée,optionrejetéesiparserincompatible. Butestl'encodage, sanshaussederessources.
+
+- AvantGROUPRESERVE : lespreuvesgroupage80/Kissatet8countconstrestentcoûteusesavantverdict ; préparerunprototypeisoléquiinitialiseles4Vecavecwith_capacity(ids.len())au lieudeVec::new, sanschangerordre/contenus/erreurs/guards. Hypothèse : supprimebranchesdereallocationssymboliquesdurantappend. Borneproductionpréexistante80→réservation≤4×80u32=1280octets(decapacity,horsoverhead), versuscapacitélazyexistante ; compromisexplicitemémoire,aucungaininférenceannoncé. Qualifier80et8sous600s/6Gio,oraclesunitexactschunks etmutationpertinente ; rejetersiinefficace. Aucunemodificationmainavantpreuvescomplètes.
+
+- AvantGROUP8CONST : essaiisolécount8constsurancienharnais8origines(ID8u32/capacitéu16%514inchangés,oracleexactseen/égalitévaleurs/chunks/unwind9). Garderles2coversgroupes0et3de8éléments ; sinonsuccèspasdedomainetotalrevendiqué. Sipositifpartitioncount0..8exhaustiveavecgoalsapplicables ; anciencountu8%9donneexactementces9valeurs. Pasdestubniabstractiondes32bitsd'ID. Plafond600s/6Gio.
+
+- PREFIXgrille8/8réussit,2..30,352s/caswall ; couverture0chaquerows et8rows8atteinte, sourceproductioninchangée. MutationsCOPY(ancre+1)etLOOKUP(rposition→position)sonttoutesdeuxréfutéesparassertionsoracle,0,228set9,255s ; restaurationavantvalidationfinale.
+- AvantHUB64 : premiercasboolconsttoujourscoûteuxaprès>3min,sansverdict ; réduireuniquementunwind130à64sur4fixturesconcrètes : pluslongnom42octets,bouclesprincipales≤5fichiers,filenamevalidation≤43itérations ; conserverTOUTESassertionsd'unwindingpourréfutertouteborneinsuffisanteycomprisstdlib. Ajoutcoverdelacollectionréelleparcas,les4combinaisonsremplacentexhaustivementles2bools. Même600s/6Gio,pasderéductiond'inputs. Sourcefonctionvariantsinchangée. Comparaisonlocalesansprétendreparitéentempsréeldeproduction.
+
+- LOOKUPgrille21/21 passe(cas0..20),20,363smaximumwallincluantcargo ; widthusize/20IDsu32/anchor/allowedinchangés,coversapplicables100%. Intégrationlocaleuniquementspeculative.rsdepuisworktreequalifié ; COPY168déjàvalidés,aucunchangementproduction. Avantmutations : dansunsecondworktreeisolé,copieancreomiseetlookupdernier→premierdoiventêtreréfutésparlesoraclesexistants ; restaureretvérifiercasaffectés. Aucuneconstatationdebugdansproductionnondéformée.
+
+- GrilleCOPY complète :168/168preuves réussies, groupe177success/1process_errorlookup, zérocoverrefusé ; ancienlookupresteéchecglobaleexplicite. AvantHUB4/SSDshape : diviserles2boolsidecarsen4casconstexhaustifs(variantesréellesBTreeMap/Stringinchangées,coversapplicables), etSSD en2casconstlen16/rows1,len32/rows2+rejetsautresgéométriesavecids32u32/length0..32/rowsusizecomplets. Lesgardesrésiduellesdoiventprouverlaissersortieinchangée, aucunassumptionsurIDsvalidesdansles2cas. Même600s/6Gio,pilotesisolés,pasdestub/restrictiondedomaine. Diagnosticgroupage80 : tentativeuniquementKissat/verboseà600s sursourceoriginale,donnéesetcapacitéinchangées,pouridentifierphasecoûteuse.
+
+- PREFIXCONST8pilot passe182obligations/0failure/3inatteignables,2/2covers,31,160s. AvantgrillesLOOKUP/PREFIX : partitionnerexhaustivement21longueurs0..20 et8rows1..8, mêmesfonctionsréelles/valeursu32etusizecomplètes/unwind33et81. Émettrelescoverscourts/longslookupseulementdanslescasapplicables ; prefix8seulementrows8,prefix0chaquerows. Qualifierchaquecasavec600s/6Gio, verdictstrict. Pasdehaussederessources ; grillesdansworktreeisoléavantcopie,domainecompletuniquementvalidéparconjonctiondetouslescas.
+
+- LOOKUP2LEN20pilot **réussit368obligations/0failure/1inatteignable**,16,347s,4/5covers(l'objectiflen<9n'estpasapplicabledanscepilote). Reprendrelemodèlegrilleexhaustive21longueursaveccoversémisstructuralementàl'échelledecasque, widthusizeTOUJOURScomplet ; pasdestub/restrictiondevaleurs.
+- PREFIXKISSAT1expire180s, nontestvalidé/nonintégré. **AvantPREFIXCONST8pilot** : appliqueràl'ancienharnais80uniquementrows=8const, nompiloteexplicite, resteinchangé(ID80u32complets/capacitéusize/unwind81/solverCadical). Domainepartiel8nonpromucommepropertyglobalavantpartitioncomplète1..8. HypothèseconfirméeCOPY/LOOKUP : leslongueursconstantes simplifientlesoffsets/stride/divisionsduvrai code, mieuxquelesvaleurssymboliquesbornées. Même180s/6Gio, pasdehaussederessources/abstraction.
+
+- **AvantLOOKUP2pilot** : LOOKUP1canonique8bits resteERROR(0assertionréfutée), pasqualifié. TesterunseulLEN20constavecwidthusize/anchoru32/20IDs u32/allowedbool inchangés, helperréelprompt_lookup etoracleforwardidentiques, unwind33/6Gio/180s. Pilotenomméexplicitement, domainepartielnonprésentécommepreuveglobale. Sipositif,partitionexhaustivedes21longueurs0..20,émissiondes5goalsoriginauxseulementdanslescasapplicables etcontrôled'inventaire ; nepasrestreindrewidthauxseulesvaleursvalides.
+
+- **AvantPREFIXKISSAT1** : surleharnais80ORIGINALdumain(toutesrowsusize1..8/80IDs u32/availableusize, aucun changementsource), remplaceruniquementsolverCadicalpardéjàembarquéKissat, plafond180s/6Gio. LesformulationsPREFIX1/2 restentretirées/nonvalidées. La comparaisonrelèveduchoixdeSATsolverdocumentéparKani, pasd'unesuppressiond'obligation ; sipositif,qualifierlesdeuxautrescas80avecmêmescommandesetdomaines.
+
+- Anciennebaseline locale143interrompue volontairementparSIGTERMduseulcontrôleuraprèséchecsglobauxétablis, avantchangementdesnomsCOPY : rapportfailure/interrupted/pendingconservé, aucunverdictcompletrevendiqué. Ce n'estpasuneannulationGitHub ; run41048437038 estdéjàterminéfailure, OSX/Linux/allocatorpassent, core/Flash/speculativefailure ; Desktopéchouesurlapréconditionconnue `Production helper receives the task folder`(exit133), horsdiffdececorrectif. Les3logsKani détaillés/sourceSHA sontconservéscôtéconnecteur ; transfertZIPspéculatiflocaltoujoursindisponible.
+- GrilleCOPY168casappliquéeaprèssourceSpecmaincomparéeinchangée ; lancementshardspeculativecompletdepuislesfichiersmainfinauxactuels, inventaireattendu290,178preuvesdanscegroupe, budget45min/600s/6Gioparprocessus inchangés. Lookupencoreàcorriger(essai8bitsERRORsansassertionréfutée,27,22s) : cemauvaisverdictdoitresteréchecd'agrégat tantqu'iln'estpasréglé. Tousles168COPYdoiventavoirverdict+coversvalides, aucunpilote seulnevalideces168cas.
+
+- COPYgrille4coins **passe4/4**,19/19coversatteints sanscoverinatteignable,0assertionréfutée :0,320/0,444/1,172/1,528s. Tableau1024 etfonctionsproductionstrictementinchangés. Qualificationdes168casviaorchestrateurdansworktreeàlancer,4groupesfixes inchangés ; inventaireattendu290(140+3allocateur+147partitionCOPY).
+- **AvantLOOKUP1** : leharnaislookup conserve `any::<usize>()%21`, opération64bits coûteuse pourneproduireque21longueurs. Remplaceruniquementparusize::from(any::<u8>()%21) : ensembleexact0..20identique, mêmes20IDsu32symboliques/anchoru32/widthusize/allowbool, mêmeoracleavant/rpositionréel/unwind33 et5covers. Aucunehypothèseajoutée, sourceprompt_lookupinchangée. Essaiisolé180s/6Gio, avantqualificationcomplètespéculative. Derniersuccèsglobaldu10/10 mesuraitdéjàlookup600,988s(52preuvesglobales) : bornesdepreuveancienneslentes, pascontre-exempleétabli. Changementdeboucles/domainesnonnécessaireàcetessai.
+
+- Reprise autorisée explicitement par Justin («vas y») : exception au seul prérequis skill absent pour cette tâche, aucune modification d'AGENTS.md. Vérification de reprise : branche/base et documents inchangés, origin/main restef3f2c1d5. Installer Rust stable et Kani0.68.0/CBMC6.11.0 dans/workspace/tooling, conserver les versions/empreintes. Le protocole de reproduction180s/6Gio préenregistré reste applicable ; compilation distincte de la preuve, pas de benchmarkGPU. Tests d'orchestration, preuves complètes et CI exacte restent obligatoires.
+- Baseline locale reproduite : Kani0.68.0/CBMC6.11.0, nightly2026-08-21, stable1.99.1 ; bundle SHA25632e2b484d73ede0bbf64a2cf0879c4259422497d8aec4ee67d448de9ae7843d3 vérifié. Inventaire compilé140harnais lib, compilation APIciblée passe. Ancien allocateur sous limiteAS6Gio : exit1 en58,11s, maxRSS5551224Kio, 0/1107assertions réfutées/2inatteignables mais verdictFAILED ; **pas un contre-exemple établi**. Log/échantillons baseline sauvegardés. Nouveau contrôle diagnostic préenregistré : même commande/domaine/limites, sortie regular+verbose et output-into-files pour récupérer l'erreurbackend que terse ne montre pas ; aucune modificationRust encore.
+- Diagnostic initial refusé parCLI avantpreuve (exit2) : output-into-files exige-Zunstable-options. Corriger cette seule option dans diagnostic-v2, mêmesdomaines/limites ; ancienlogconservé, aucunepreuveobtenue par cette commande invalide.
+- Préenregistrement orchestration : remplacer le bloclib opaque/Flashdupliqué par inventairecompilé versionnéKani140initial, partitionexhaustive4groupes(core,flash,speculative,allocator), nombre de jobsfixe etfailfastfalse. Chaqueharnais exact reçoit600s et6GioAS ; budgettotal45min/groupe, setupépinglé0.68.0, preuveAPI2instances maintenuecore. Rapportsatomiquesplanifiés/running/verdict et logs parharnais, absence/partiel/timeout/signal/erreur restent échec ; aucuncontinue-on-error. Testsréels subprocess/CLI poursélectionsvides/incomplètes, sortieinvalide, échec, silence/délai, signal, enfantignorantTERM etsuiteaprèséchec. DomainesRustinchangés pendantimplémentationd'orchestre ; partitionallocateur0/1/2+invalidedifféréejusqu'audiagnostic.
+- **Cause locale établie** diagnostic-v2 : CBMC dit «Solver ran out of memory during propositional reduction» (logligne746), exit1/57,07s/maxRSS5550548Kio sousAS6Gio. Aucun contre-exemple ; les obligations restantes sontERROR, pasFAILURE. Les shutdownCI sont compatibles avec cette pression mais leur expéditeur/éventuelOOMhôte reste nonétabli. Avant candidatRust : remplacer l'unique harnais par quatre partitions exhaustives budgetsconst0/1/2 et rejet deTOUTbudgetusize>2, quatrecoûtsu32 toujoursnonbornés, mêmevraieallocation etoracleindépendant, unwind5/covers maintenus. Aucune modificationproduction. Contrôles : Kani4preuves ciblées sousmêmeslimites, puisbibliothèque/API ; mutation temporaire duoracle/coût doit être réfutée puisrestaurée, testsallocation existants etfmt/Clippystrict/suiteCPU. Mesurer ressources uniquementaprèscorrectionvalidée ; pasdegaininférenceannoncé.
+- Partitionv1 :3/4preuvesvalidentlesbudgets0/1/2 ; rejetinvalidesencoreERROR sous6Gio, pascontre-exemple. Avantv2 : invalidesunwind3 carseulesles2lignesdevalidationpeuventêtrevisitées, puisretouravantDP ; assertiond'unwindingconservée vérifieprécisémentabsence decheminDP. Aucun changementdedomaineetaucuneassertionretirée. Rejouerseulementcettepartitionaffectée avantorchestrationcomplète.
+- Invalidesv2 encoreERROR sansassertionréfutée en20,58s sous6Gio. Avantv3 : mêmefonctionréelle `&[Vec<u32>]`, mêmefixturedeuxlignes/deuxcoûtsu32symboliques, construirelecontenantexternecomme tableau de2Vec (signature accepte déjàuneslice), etleslignesparlittéraux2valeurs plutôtqueclonagesdesous-slices. Cetteformulationn'enlèveaucuncoût/budget ; elleévitelamodélisationduVecconteneurinutileàlapropriété. Aucunefonctionproductionmodifiée. Rejouerinvalidesseul.
+- Invalidesv3 encoreERROR/20,52s ; l'encodeur explore le corpsDP inatteignable malgré la partition. **Avantv4, abstraction conservatrice explicite** : extraire lecorps inchangé danshelperprivé appeléuniquementaprèsvalidation, puisstubcehelperparPANIC dansleseulharnaisinvalides. Touteentréeaccidentelleestainsiréfutée ; aucunevaleursupposée/aucunrésultatfactice/admission. Les3partitionsvalidesappellentlecorpsréelsansstub, doncpropriétéinitialeexhaustivepréservée. Activation-Zstubbingnécessaire/listeconfigdéclarée, oracleindépendantetmutationenretirantlagardebudgetdoivent détecterl'appelinterdit ; testsexistantsvraieentréeontdéjàpassé avantcetteextraction etdoiventêtre répétésaprès. DémarchederaisonnementcompositionneldocumentéeparKani ; pasdestub GPU/OS ni decontratnonprouvé.
+- **V4 ciblée4/4passe**, covers5/5 : invalides0,273s/303obligations, budget2:9,133s/1100, budget1:8,592s/1099, budget0:4,577s/1098 ; inatteignables attendues2/11/11/14, aucuneassertionréfutée. Mutationsvraiegardeenlevée etcomparateurinversé chacune réfutée(exit1/StatusFAILURE) puis source restauréeSHA consignée. CPU238réussis/5ignorés,Clippystrict/fmtpasseaprès extraction. Testsorchestration32 passent ; uneattentePIDimmédiate avaitcourseSIGKILL, corrigéeparvérificationbornée1s, pasparsuppressionducontrôle. Actionlint1.7.12passe. CrossHair0.0.101/Z35.3.3 tentelepostcontratd'affectation etrépondNotconfirmed en10s : nonprouvé.
+- Premièreorchestrationglobale échoue correctement àl'inventaire, sanspreuve exécutée : le sous-commandelist ne reprendpas-Zstubbing placéavantlist. Avantv2 : placerceflagaprèslist (interface propre dusous-commande), etavant--harnesspourlespreuves ; fixtureCLIrenforcée pourdétecterleplacementinvalide. Rapportsd'échecconservés, nouvelledestinationlocal-all-v2, mêmesdomaines/budgets/limites.
+- Revueimplémentation : code/tests/workflow relus,32régressions/fmt/Ruff/actionlint passent ; preuveglobale locale séquentiellelocal-all-v2 lancée sur143harnaiscompilés +2instancesAPI (budgettotal5400s, plafond600s/6Gio inchangé), pasdeverdictglobalencore. Les4groupesCI restent chacunlimités2700s avecauplus4runnerspreuves. Premiercommit/PRdraft àpréparer pourvalidercesmêmescommandessurleSHAexact ; pasderéparationglobaleannoncée avantfin. Lesrapportsinitiaux/échecs/mutations sontconservés, logscompressés ; statutduprérequis skill désormaisrésolu parexceptionexpliciteutilisateur.
+- PRdraft63 ouverte, tête distante vérifiéedc889ba9 ; runexact41048437038 : allocator4/4réussit etartefact12973168636 publié ; natifLinuxpasse,3autresgroupes/natifmacOSencours. Suiteglobale locale53succès puis `raw_flash_draft_rows_reject_outside_one_to_seven` encoreencours après>4min, pasdecontre-exemple. InspectionduGOTO révèle desbouclesdesymbolisationbacktrace/addr2line appeléesparDebugd'anyhowviaexpectduharnais, sansrapportaveclegarderows. **AvantessaiisoléMETA1** : worktreedétachédc889ba9, remplaceruniquementexpectduharnaisparmatchOk/Err etassertionslogiquementéquivalentes survalidité/valeur ; mêmeproposalsusizeentier, mêmeKind::rowsréel, mêmes4covers, aucun stub ni nouvelassume/unwind. Vérificationciblée180s/6Gio etcomparaisonsources ; nepasmodifierlerunbaselineactif, conserversonverdict. L'essai vise àretirerformataged'erreurinatteignable, pas àprouverlabibliothèquedebacktrace.
+- META1 expire180s/exit124 sansverdict ; lematchseulneretirepaslesméthodesduvtableanyhow : hypothèseréductriceinitialenonconfirmée. Diff/logbouclesconservés. **AvantMETA2** : mêmecheckoutisolé, faire retournerunpetittypeErrorconcretparlavraieKind::rows au lieu d'anyhow::Error, avecmêmemessaged'erreur etconversionchecked i32maintenue. Ses7appelantspropagentdéjàpar? dansanyhow etcontinuentàconvertiraupointd'appel ; pasd'APIpubliqueaffectée. Lapreuvevérifieainsilavérificationréelleetlesdeuxvariants, sansintroduirestacktrace/vtablesdynamiques. Vérifier1..7/deuxKinds, rejets0/8/usizeMAX, messageetconversionanyhowdanslesvraistests, Clippy/buildCPU etcompilationMLXviaCI. Aucun nouveaubudget/domaines/stub ; source/patchisolé identifié avantcopieéventuelle.
+- **META2 validé ciblé** : vraieKind::rows avecerreurconcrète,67obligations/0échec/0inatteignable,4/4covers,0,133s ; MEMAS6Gio/deadline180sinchangés, mêmesusizeentiers. Ancienharnais dumainexpireeffectivement600,004s etl'orchestrateurcontinuelesautrespreuves toutenconservantéchecd'agrégat. Patchisoléappliquéaumainlocalaprèscomparaisonfichierinchangé ; revue7appelantsconfirmepropagation?compatible. Tests/Clippyciblés etmutationoffset+1 supprimé prévusdanscheckoutisolé, restaurationobligatoire avantqualification ; CIexactedunouveauSHAàfaireaprèsverdictsdupremierrun. Aucunemodificationdesbranches61/62.
+- META2 :7testsréussis/1ignoré(fichiermodèlephysique), Clippystrictpasse, mutationoffset+1supprimé réfutée etsourceisoléerestaurée. Laformattationinitialeestcorrigée avantchecks ; fonctionvalidéeencoreàrecontrôlersurletipfinalparCI.
+- **AvantPREFIX1isolé** : suiteglobale rencontre80routesencorecoûteux ; historiqueopt-64-unique-cohort/proof-results.json relu : déjàtimeout180s/RSS2,57Go, oracle20routespasse134s. Nouvellebaseline600s actuelleidentifie coût persistant, aucuncontre-exemple. Essai compositionnel : extrairel'opérationbitsetidentique dansmark_expert_seen, la prouver séparément surétat[8]u64arbitraire etid0..511 (préconditionvalidéeparl'appelant). Dansleseulharnaisbornes80, substituerunboolnon-déterministe àcetteopération ; lebitsetn'yestjamaisluautrement, doncTOUTEséquenceréelleestincluse. Touteslespropriétésoriginales(bornes, rejetIDs, capacité>=routes⇒préfixecomplet, capacité0⇒0), IDs80u32nonbornés/rows1..8/availableusizeetunwind81 restentidentiques ; exactitudedubitsetvérifiéparnouvellepreuve etoracle20réelsansstubmaintenu. Deuxpreuvesciblées180s/6Gio dansworktree, testsréelsréserve/bitmap etmutationbitmask%63, aucunnewflag/matrice/budgetillimité. Leparserexigeral'abstractiondéclaréeseulementpour80, jamaispourl'oracle20. Ne pas déduire l'optimalité80 complète au-delàdespropriétésinitiales.
+- PREFIX1 expire180s/exit124, puisrevuelogique rejettecetteabstractiontropgrande : elleautoriseàtortpremierfresh=false malgrébitsetinitialvide, doncnepeutétablircapacité0⇒préfixe0. Ce n'estpasuncontre-exempleproduction ; prototyperetiré entièrementducheckoutisolé, jamaiscopiéaumain. Baseline80réelleexpire600,002s ; verdict conservé. **AvantPREFIX2** : tenteruniquementlaformulation `rows=usize::from(any::<u8>() &7)+1`, quiénumère exactementles8valeursusize1..8duprécédentassume mais évitel'encodage64bitsdelongueursavantcontraintes. Le vraihelpercomplet/sesbitmaps, les80IDs u32 complets, availableusize complet, unwind81, assertions/covers restentidentiques ; aucun stub/helperproductionajouté. Même180s/6Gioisolé, sans modifierlessourcesmainactives.
+- **AvantSMT1** : CI spéculative terminéeenfailure (logs/artefact12975490045),21casDFlashcopy dontLEN0sortieinvalidepourparseret20process_error≈58schacun, lookupenprocess_error. Aucuncontre-exempleétabliàpartirdecesstatutsseuls. Le stockage réel esttableau1024u32 : testerbackendSMTZ3 surLEN1réel, mêmesfonctions/inputs/assumptions/unwind33/covers, sansréductiondestockage. Z3solver5.1.0.0épinglé estdéjàutiliséparlaCIquantization ; installationlocaleversion5.1.0confirmée. CLI--solverz3remplacel'attributkissatcommeprévuparKani0.68.0 ; plafond180s/6Gio etpreuvecomplèteexplicitementvérifiée. Aucunpaquetprodajouté, dépendanceCIseulementsisesuccèsjustifie. Récupérerlecontenudesrapportsavantinterprétationdesprocess_error/invalid_output.
+- PREFIX2expire180s sansverdict, variante3bitsnonintégrée ; mainflash_support resteidentiqueàbase. SMT1etdiagnosticverboseéchouentavantZ3dansCBMC6.11 (`converting SSA`, `map::at`, status6), pascontre-exemple ; aucunedépendanceZ3àajouteràCI. ArtefactspéculatiftéléchargécôtéconnecteurmaistransfertlocalLibraryéchoue `download failed`, aucunfichierinstallé, raisonréseaunonexplicitée etaucuncontournement/réessai. **AvantARRAY1** : testerl'optionnativeCBMC6.11 --arrays-uf-always, documentéedanssonhelp, surlavraiecopieLEN1/tableau1024inchangé, solverkissatexistant, Kani-Zunstable-options ; même180s/6Gio. L'optionmodifiel'encodagedestableaux, jamaislesassertions, domaines ouunwinding. Sielleréussit,vérifierLEN0/20,lookup etbornes80réelavantintégrationexpliciteparcommande. MémoiredupublicrunnerUbuntu22confirmée16Go dansdocsGitHub ; leplafond6Giointroduit resteunchoixlocalàréévaluerparmesure, pasunfaitsurlesancienséchecs.
+- ARRAY1échouedansleparserKani (cbmc_output_parser.rs:477,ParserItem), exit101 ; optionrejetée, aucuneobligationvalidée. **AvantCOPY2** : partitionnerles8longueursaccepted0..7 àl'intérieurdechaqueharnessLEN0..20, au moyen de8appelsconstgénériquesàlavraieDFlashCopy::{new,record}. Pasde168jobsmatriciels :21harnais restent21, chaqueprovervérifielaconjonctiondes8cas, variablesprompt/préfixe/anchor/flags toujourssymboliques, tableau1024réelinchangé etunwind33conservé. Adapteruniquementlescoversexistantsauxcasoùleursconditionssontpossibles(A0/A3/A7, index>len pourA>0), unionexactedesobjectifsprécédents ; aucuneassertionnechange. LEN1ciblé180s/6Gioisoléd'abord, puis0/20 etsuite21sivalide. But : évitercopymemcpyàlongueursymbolique, pasréduiredomaine.
+- COPY2échoueenallocationmémoirecôtédriver (`memory allocation of256bytesfailed`, exit101), prototypeisolé nonintégré. **AvantMEM10** : sourceSpeculative dumain inchangée, mesurerLEN1avecsolverCadicalintégré (évitele2eprocessusexterneKissat) etAS10Gio/180s ; c'estunbudgetfini compatibleavecrunnerpublic16Go(documentationGitHub), lesautrespreuveslocalessonttoujourslimitées6Gioparprocessus. Ne pasappelerOOMhistoriquelesnouveauxprocess_errorissusdenotreplafond6Gio ; ceplafondétaitconservateuretpeutintroduiredeséchecs. Capturerverbose/regularpourdistinguerphaseSymex/SAT/erreur, puisqualifierlesautreslongueursavanttoutchangementCI. Mêmesinputs/index/accepted/covers/unwind33 etstockage1024, pasderéécriture/stub/bonderéduite.
+- MEM10LEN1échoue encore avecdiagnosticexpliciteCBMC `Post-processing / Out of memory`,57,535s/status6, AS10Gio : pasuncontre-exempleetpasunejustificationpourbudgetillimité. **AvantFIELD1** : CBMC6.11helpindique field-sensitivitydetableaux désactivéeau-delà64éléments. Tester --max-field-sensitivity-array-size1024 surLEN1ORIGINAL, solverKissat/exactesvariablesetassertions/tableau1024, AS6Gio/180s initial. Cela peut évitermonolithesbitvectorpourtoutlestockageetsesoffsets ; aucuneborneréduite, stubs niinterprétationd'erreurcomme succès. Sisuccès, étendreexplicitementaux80routes/21copies/lookup etvérifierconservationdel'ensembledesverdicts. Leséchecsdutransfertd'artefactne bloquentpascesreproductionslocales.
+- FIELD1échouedansleparserKani (exit101), reproductionCBMCdirecteà90sconserveJSONpartielsansterminaison ; voirstdout/stderr etcommande. Kani0.68.0esttoujoursladernièrereleaseofficielle(vérifié), aucunemigrationaveugle. **AvantCOPY3pilot** : unseulcasconstLEN1/ACCEPTED7 dansharnaispilotenomméexplicitement, mêmevraistockage1024etfonctionsréelles, sanscouperdomainessilencieusementdanslasuite. Hypothèse : COPY2combinait8étatsarraydansunmodèle, causantOOM ; séparerlescas pourrait résoudrechaqueobligationavec6Gio/180s. Sipilotvalide, remplacerexplicitement21harnaispar168cas(LEN0..20×ACCEPTED0..7), toujours4runnersfixesetmêmesbudgetsglobaux ; laconjonctiondoitconserverTOUSanciensinputs/assertions/covers. Sinonretirerleprototype. Aucun pilote seul ne validera la propriété complète.
+- **COPY3pilot positif borné** : vraiLEN1/ACCEPTED7,185obligations/0failure/9assertionsinatteignables,1,245s. Les4coversinatteignablesproviennentdesconditionsconstantesdanshelpergénérique ; ce n'estpasunevalidationglobale(notreparserstrictlesrefuse). Avantgrille : émettrelesgoalsapplicablesparmacrosRustauxcaslittéraux, pournepasgénérerlescoversimpossiblesdestypesd'entréesabsents. Mêmeuniondesgoalsexistants, couvertsauxcaspertinents ; pasdetautologieajoutéepourverdir. Grille168explicitementnomméeLEN/acceptedàqualifierpar4coins(0,0),(0,7),(20,0),(20,7), puistous168etcontrôled'inventairecompilé. Les21anciensharnaisétaienteux-mêmessujetsà1coverstructurellementinatteignable(LEN0vsnonvide), expliquantinvalid_outputLEN0sansréfutation. Sourceproductiontoujoursidentique, seulespreuvespartitionnées.
+
+- Demande : réparer durablement Kani, sans supprimer d'obligation ni masquer un échec. Base `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`, branche `fix/kani-ci-stability`, PR61/62 conservées intactes. Relus AGENTS.md, historique Kani et diagnostic engine-v1.4.8 ; la réparation ne répète aucun benchmark GPU.
+- Baseline distante : runs41030107141/41038402005 globalKani interrompus pendant `cache_allocation_is_optimal_and_exact_on_two_layers_two_levels` après environ110/115s sur ce harnais ; signal explicite shutdown runner, pas de contre-exemple ni timeout60min établi. Flash passe séparément dans41030107141. Commandes/versions existantes : Kani0.68.0, CBMC à relever ; lib no-default-features jobs1, API tests ciblé ; bibliothèque globale duplique les sélections Flash. Les annulations de workflow par concurrency restent distinctes des shutdown runner. Log et snapshots : `docs/measurements/kani-ci-repair/`.
+- Avant reproduction locale : outillage Rust/Kani absent dans cette imagex86_64, RAMcgroup16Gio sansswap. Installer les mêmes outils dans un répertoire jetable de workspace, relever versions et empreintes. Reproduire le harnais existant sans modifier les sources, plafond180s et espace virtuel6Gio ; conserver stdout/stderr, exit, temps/RSS. Cette répétition doit isoler coût de preuve et arrêt hôte, sans interpréter une limite locale comme un bug fonctionnel.
+- Candidat à évaluer seulement après diagnostic : séparation explicite des preuves coûteuses, sélection exhaustive contrôlée (zéro preuve interdit), limites et verdicts par harnais, partitionnement du budget allocateur sans réduire les quatre valeursu32 symboliques ni enlever unwinding/covers. Toute adaptation des domaines sera documentée. Aucun prototype exécutable lancé : skill `formal-proof-skill` requis par AGENTS.md introuvable dans les dossiers locaux et le catalogue consulté ; demande de chemin en attente. Pas encore de PR, push ou CI du correctif.
+- État à la remise : dernier succès global retrouvé38064605338 du10/10, jobKani114249593414 en17m20s ; ce succès précède l'allocateur du20/10 et ne valide pas les harnais actuels. Reproduction180s/6Gio **non lancée**, aucun outil installé, aucun code exécutable modifié. Rapport `docs/measurements/kani-ci-repair/diagnosis.md` et logs PR61/62 conservés localement ; cause OOM/timeout non établie. Skill requis absent : blocage de prérequis, demande de chemin en attente, pas de refus d'approbation pour une édition. `gh run list` reçoit403 réseau mais connecteurGitHub lit correctement runs/jobs/logs ; aucun blocage des lectures distantes. Aucune nouvelle annulation tentée. Il faut fournir le skill/références ou une consigne explicite remplaçant ce prérequis pour implémenter et vérifier le correctif ; aucune réparation revendiquée.
+
 ### DESKTOP-2026-10-27-BETA5-STUDIOS — validé dans le domaine testé, publié beta5/build36
 
 - Clôture publication : https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.5 ;4assets distants SHA/taille concordants, tag f200014a4e68b698c0a1a1b840e3411f3f329c2c. Flux anonyme de production sélectionne beta5/build36 et stable1.5.1 ; aucun remplacement d’app installée. PR57 pour intégration. CI exact b3163dddd398a9838bef6907155b5991071250eb inspectée : packing-proof réussi,6autresjobs en cours, aucun succès global revendiqué. Dernier commit de reçus uniquement documentaire [skip ci], code de production identique au source qualifié ; checks de ce reçu absents par choix explicite, CI source conservée. Tous essais locaux fermés ; conversions publiques volumineuses, preuve Swift/CrossHair et reproduction exacte disparition restent non vérifiés.
@@ -4607,6 +5368,7 @@ essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 ```text
 ### OPT-AAAA-MM-JJ-NN — Nom — statut
 - Hypothèse / changement :
+- Étape : exploration sans vitesse / qualification / validation finale ; périmètre affecté :
 - Antécédents consultés / raison de retester, le cas échéant :
 - Baseline / candidat (commit + diff ou options) :
 - Environnement : matériel, OS, dépendances, alimentation, conditions connues.
@@ -4614,6 +5376,7 @@ essai**, y compris les essais ratés. Voir [AGENTS.md](AGENTS.md).
 - Commandes et preuves :
 - Résultats avant → après, unités et dispersion :
 - Qualité / exactitude vérifiée ; contrôles non effectués :
+- Validations reprises (preuve + identité + absence d'impact) / invalidées / à refaire :
 - Conclusion / limites / prochaine condition de réexamen :
 - Intégration : prototype / code local / app / publication, selon vérification.
 ```
@@ -17067,3 +17830,4369 @@ Limites : aucun kernel ni math de production n’est modifié, donc aucun harnai
 ### INTEGRATION-2026-10-26-PR47-51-53 — fusion demandée
 
 - Demande utilisateur de fusionner les trois PR. #53 (outils/mesures52) et #51 (archives46 et sonde test-only) fusionnées ; PR47 remise sur ce main. Unique conflit dans opti.md résolu en conservant intégralement les deux historiques, compte de chaque ligne non vide des parents vérifié. Aucun autre fichier édité manuellement ; sources exécutables identiques au main déjà fusionné. Archives K1/QSA restent rejetées/non concluantes, aucun kernel expérimental réactivé, aucune app ni poids remplacés. Contrôles principaux des anciennes têtes passent ; Kani global47 arrêté par shutdown runner et Kani global51 incomplet, aucune CI globalement verte annoncée. Nouvelle tête documentaire à pousser puis fusionner, sans nouvelle campagne GPU.
+
+- 45-Q/R processus s1-full-states : **failed_or_interrupted**, joint=True ; docs/measurements/slotstream-20261026/s1-quality-plan-result.json.
+
+- 45-Q/R processus s1-resumed-full-states : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s1-resumed-quality-plan-result.json.
+
+- 45-Q/R processus s1-bridge-0 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s1-bridge-plan-result.json.
+
+- 45-Q/R processus s1-bridge-1 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s1-bridge-plan-result.json.
+
+- 45-Q/R processus s1-speed-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s1-speed-0-H-plan-result.json.
+
+- 45-Q/R processus s1-speed-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s1-speed-1-C-plan-result.json.
+
+- 45-Q/R processus prototype-lib-unit : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus prototype-main-unit : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-2 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-3 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-4 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-5 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-6 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-7 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-8 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus option-9 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus s4-tap : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus s4-model : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus s4-captures : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-quality-plan-result.json.
+
+- 45-Q/R processus s4-bridge-0 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-bridge-plan-result.json.
+
+- 45-Q/R processus s4-bridge-1 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-bridge-plan-result.json.
+
+- 45-Q/R processus s4-bridge17-0 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-bridge17-plan-result.json.
+
+- 45-Q/R processus s4-bridge17-1 : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-bridge17-plan-result.json.
+
+- 45-Q/R processus s4-speed-0-H : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-speed-0-H-plan-result.json.
+
+- 45-Q/R processus s4-speed-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4-speed-1-C-plan-result.json.
+
+- 45-Q/R processus s2-prefill : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s2-prefill-quality-plan-result.json.
+
+- 45-Q/R processus s3-prefix : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s3-prefix-quality-plan-result.json.
+
+- 45-Q/R processus s5-off : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s5-off-quality-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S235-Q — qualification physique et bridge avant vitesse
+
+- Tests physiques S2/S3/S5 passent respectivement 18,872s/10,505s/6,286s, un test sélectionné chacun, processus joints, zéro nouveau Swapout. S2 couvre longueurs 1/2/7/8/9/17 et continuation, S3 replay/extension/divergence/opt-out/annulation contre état frais, S5 dix transitions identiques dont trois calibrages puis OFF forcé. Ce dernier ne démontre pas encore une décision OFF spontanée rentable. Preuves : remaining-quality-summary.json et *-quality-plan-result.json.
+- Prochaine qualification, plan s235-bridge-plan.json figé avant lancement : H et quatre C séparés sur même prototype SHA06445227, 17 sorties avec B2 réel, warmup+une mesure des deux prompts ; S3 MAIN seul/reuse=true pour rendre le checkpoint observé, H requêtes reuse=false n'est ici qu'un oracle de texte. Avant tout chiffre de cache, comparer H/C avec exactement les mêmes requêtes reuse=true. Critères de vitesse/mémoire00 inchangés, pas de chronométrage de gain déduit de ces contrôles courts.
+
+- 45-Q/R processus s235-bridge-H : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s235-bridge-plan-result.json.
+
+- 45-Q/R processus s2a-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s235-bridge-plan-result.json.
+
+- 45-Q/R processus s2b-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s235-bridge-plan-result.json.
+
+- 45-Q/R processus s3-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s235-bridge-plan-result.json.
+
+- 45-Q/R processus s5-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s235-bridge-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-A/E — audit causal demandé par l'utilisateur — préenregistré
+
+- L'utilisateur demande si le flop HC cache une erreur de portage. Révision de conclusion : le résultat S4-TAP −14 % rejette ce pipeline contre LFU sans préchargement, il n'isole PAS l'effet HC contre notre ancien prédicteur. Le +10,8 % amont comparait deux préchargements au même profil (≈101 slots/couche), pas notre LFU/53 slots. Le seuil amont de76 slots est une contrainte de son plan/MTP, pas une propriété démontrée de notre EXL3.
+- Audit source amont3bfc81ef/native : Model.swift825–855/994–1020 lit bien mlpHC[l+1] sur flux post-attention l, comme notre prepare()/p.0 puis next.mlp_hc ; pas de décalage trouvé. Mais amont transmet la prévision avec le readback de routage courant AVANT ses demandes d'experts ; notre forward_draft_lookahead_input appelle forward_draft_rows (lecture SSD synchrone comprise) AVANT next.prefetch. Notre pipeline change aussi de LFU à LRU prédictif. La causalité vitesse/qualité du tap ne se déduit donc pas du seul contraste S4.
+- S4-A diagnostic prospectif, binaire prototype06445227 inchangé : s4a-factor-plan.json, LRU sans préchargement puis ancien mixed/lookahead2/pipeline1,128sorties/MAIN/HOLD/warm+3mesures, critères mémoire/zéroswap00. Les bras S4 déjà conservés fournissent un contexte historique, pas un gain causal apparié confirmé. Ne pas refaire leurs bras pour chercher du bruit favorable. Comparaison HC/legacy contrôlée avec nouvelle version E ci-dessous ; limites temporelles explicites.
+- S4-E nouveau portage avant prototype : flag expérimental EARLY=1 (défaut0), pour1–2lignes avec capacité suffisante. Construire les vraies routes et Hot GPU puis la prévision, lire les deux, envoyer next.prefetch AVANT forward_rows_prepared(...depth0,PreparedRows) et ses demandes. Réutiliser la réservation/fill/déduplication/cleanup existants ; fallback ancien chemin si cohortes>2 ou capacité insuffisante. Prédicteur HC/mixed isolable, vrai calcul inchangé. HC mixed-only évite de construire une injection non utilisée (graphe lazy seulement, coûtGPU non attribué sans mesure). Tests prouveront par trace une émission nonvide avant première demande courante, oracle externe et logits/états/commits/bridge exacts, échec/précision/bornes/capacité. Tentative Kani voie réelle, format/Clippy/suites avant GPU. Ensuite trois bras contemporains Hnofetch, LlegacyEarly, CHCEarly au même budget53 : écran puis confirmation inverse seulement si gain≥1% stable sur MAIN et HOLD. Aucune promesse de gain ; correction apprise S4-L temporairement différée pendant cet audit, aucune capture/fit commencée.
+
+- 45-Q/R processus s4a-lru-nofetch : **failed_or_interrupted**, joint=True ; docs/measurements/slotstream-20261026/s4a-factor-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-A interruption mémoire / S235 qualification
+
+- S4-A LRU/nofetch interrompu après64,490s ànouveauSwapout ; parent reaped, groupe32328 terminé, aucun moteur/proveur/compilateur restant au postflight. +32pages×16384B=524288B observés après l'arrêt parrapport àl'ancre7346651136B ; quelques swapins aussi. Le compteur du dernier échantillon réussi n'incluait pas celui qui a déclenché la garde. Plan failed_or_interrupted, score noninterprétable, braslegacy nonlancé. Rapport bridge partiel sansjointurethreadconfirmée, nepas le qualifier de validated. Preuves s4a-factor-plan-result.json/s4a-interruption-postflight.json.
+- L'utilisateur répond de nouveau « Je libère de la RAM ». Continuer CPU puis constater une amélioration de mémoire avant de fixer une nouvelle ancre et de reprendre les seules étapes interrompues, en conservant cet échec. Pas de relance identique sous pression inchangée, garde zéro nouvelle écriture swap maintenue.
+- S235 bridge : H40,915s, heads42,615s, cohort37,788s, prefix22,797s, OFF41,635s, tousenfants/lecteurs joints et0nouveauSwapout. Dix-huitréponses17tokens exactes entreH/C ; S2 etS5paritéintégration passent. **S3 échoue au contrôle de couverture cache : cached=0/evaluated=87 sur les deux requêtes MAIN**, malgré le flag et reuse=true. s235-bridge-parity.json garde le statut partial_quality_s3_integration_failed, aucun gain de cache mesuré.
+- Bug reproduit dans le binaire antérieur au correctif : release_bridge_idle_state appelle model.reset après toute génération, ce qui efface Session.prefix avant la requête suivante. Réparer en conservant uniquement le checkpoint de préfill autorisé sur succès/reuse/!memory_saver, en libérant toujours les états de decode ; erreurs/annulations/reset explicites invalident. Ajouter regression àcette vraie frontière main/runtime et recontrôler le bridge/cache/logits avant vitesse. Cette réparation est requise par S3 initial, pas un élargissement de fonctionnalité.
+
+### SLOTSTREAM-2026-10-26-S4-E/S3 — contrôle CPU avant nouveaux binaires
+
+- ClippyMLX/chat/all-targets strict passe v3 après une erreur de configuration MLX_ROOT absente au premier appel et une erreur lint unnecessary_unwrap corrigée par emprunt conditionnel ; logs conservés. Fmt/diffcheck passent. Kani0.68 sur nouveaux harnais réels early_prefetch et préfill/release/replay(symboles tokenu32 complet/keepbool) échoue5,472s àl'ICEintrinsics.rs243 avant obligations ; nonvérifié, processus joint, pas de faux vert. Buildrelease et testsrelease figés en cours, identités/patchs4e après succès ; aucune nouvelleGPU exécutée depuis interruptionS4-A.
+
+### SLOTSTREAM-2026-10-26-S4-E-Q1 — nouvel oracle de calendrier à faible mémoire
+
+- Binairesrelease S4E figés/identités s4e-identity.json et patch s4e-sources.patch, builds34,554s/52,329s réussis. Suites nonignorées183passés/161ignorés (lib),44passés/9ignorés (main), aucunéchec. KaniMLX reste ICE/nonvérifié. Préparation initiale du plan échoue avant GPU sur clé identité relative/absolue ; corrigée par vérification SHA du fichier relatif réellement déclaré, aucun test rejoué.
+- Nouvel oracle physique spécifique E : seulement deux MoE/cache24pluscas10slots, pas de modèle complet ; source modifiée/calendrier corrigé et contrôle trace d'émission avant demande+oracle externe+erreur/fallbacks1/2/3rows. Ce n'est PAS une relance LRU128 interrompue. Une seule instance GPU, pas de compilation/proveur actif. Ancre actuelle448436pages/7347175424B enregistrée après CPU ; ancien échec448404→448436conservé. Apple memory_pressure-Q disponible dans s4e-vm-anchor.json, libre inférieur au lancement LRU ; ne pas revendiquer une amélioration de RAM suffisante pour relancer ce même benchmark. Nouvel essai court/180s distinct, garde zéro nouveau swapout/limites00 intactes.
+
+- 45-Q/R processus s4e-order : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-order-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-E-Q2/S3 — qualité source réellement corrigée, avant vitesse
+
+- Oracle E spécifique passé1,360s/1test/joint/0nouveauSwapout : vraies prélectures nonvides émises avant demande courante par trace, oracle externe byteexact pour1/2rows etfallbacks3rows/capacité10, échecprojection avantI/O et reprise. Ce succès ne mesure pas de gain de génération.
+- Exécuter sur les nouveaux binaires figés les contrôles affectés : HCmixed-only vsread complet +nextHCdiscriminant/mauvaisesformes ; modèle40combinaisons logits/états/commits ; captures36prefixes B1..B8 ; mainidlecheckpoint3cas(successreusetrue, optout, memorysaver) eterreur. Plan s4e-full-quality-plan.json ; mêmeancre Q1/gardeszéroswap, tentative de nouvelle version E numériquement, pas répétition LRU inchangée. Si incident, arrêteretconserverlepoint d'arrêt ; aucunevitesseavantparité. Premiermodèlecompletpourlecorrectifidle, contrôlecacheeffectifsobligatoire au vrai bridge avant tout chronoS3.
+
+- 45-Q/R processus s4e-hc-input : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-full-quality-plan-result.json.
+
+- 45-Q/R processus s4e-logits-states : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-full-quality-plan-result.json.
+
+- 45-Q/R processus s4e-draft-commits : **failed_or_interrupted**, joint=True ; docs/measurements/slotstream-20261026/s4e-full-quality-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-E-Q2 — deux contrôles passés, DFlash interrompu
+
+- HC mixed-only/nextHC/erreurs passe2,528s, modèle40combinaisons logits/états/commits passe21,466s, enfantsjoints et0Swapout. Oracle ordonnancement Q1 reste passé/nonvide. DFlash captures/touspréfixes interrompu6,171s sur nouveauSwapout (valeur déclenchante conservée trigger_vm_bytes), enfant/groupejoint, aucun scorevitesse. Test mainidleS3 nonlancé puisque matricearrêtée au premier échec ; aucune prétention de validation cache réelle àcestade.
+- Preuves s4e-full-quality-plan-result.json, s4e-q2-interruption-postflight.json ; pas d'effacement des succès ni des interruptions précédentes. Pas de répétition DFlash inchangée tant que les conditions mémoire ne sont pas améliorées. Aucun gain S4-E validé ni intégré. Les préinscriptionsS4-L et vitessesS2/S3/S5 restent nonlancées/conditionnelles ; garder la distinction codeprototype/qualification/app.
+
+### SLOTSTREAM-2026-10-26-S4-E-R — reprise expressément demandée après fermetures
+
+- L'utilisateur dit « re test, je ferme qlq apps ». Changement observé : processus>100Mo16→10 et sommeRSS5,73→3,45Gio (−2,28Gio), libre≈4,08Go contre2,25Go avantQ1, anciensSwapouts gardés. Nouvelleancre7347699712B(448468pages) danss4e-resume-anchor.json, AC100%, aucun autre moteur/build/proveur. Reprendre seulement DFlashcaptures interrompu et mainidle nonlancé, mêmesbinais/sources/flags/protocole, s4e-quality-resume-plan.json ; nepas répéter lesdeuxcontrôlesQ2passés. Zéro nouvelle écriture swap etbudgets00inchangés. Pas de vitesse avant parité de toute la voie DFlash etbridge.
+
+### SLOTSTREAM-2026-10-26-S4-E-R — parité native complète, conditions mémoire échouées, course de cleanup
+
+- Le binaire natif termine effectivement 1test/0échec/36préfixes, 64000captures byteexactes/RMSE0 et touslogits/états byteexacts (log s4e-draft-commits-resume.log,32,20s). Footprint7,350Gopluspeak7,406Go, MLXpeak6,791Go, logiquecompressée1,743Go, ledgerprocessusswapin0. Cette parité observée ne rend PAS lesconditions de campagne valides : le moniteur détecte unnouveauSwapout global en findetest etclasse l'essai échoué/interrompu. Ne pasl'utiliser pourune affirmationdevitesse.
+- Une course de nettoyage du superviseur historique est exposée : entre child.poll et os.killpg, le natif sort ; killpg renvoie EPERM et empêche child.wait/la sauvegarde finale reaped/seconds, remplaçant le diagnostic initial. Postflight desprocessusconservé, pasdeprocessusnatifrestant ; jointure directe nonenregistrée, nepasinventer reaped=true. Mainidle nonlancé. Pasderejeu de la pariténative complète uniquement pour changer son emballage.
+- Avant nouvelleexécution : conserver ce superviseurhistorique exact et créer une copie corrigée locale. Cleanup tolérera ESRCH/EPERM seulement si poll confirme lafin du processus, puis attendra/rejoindra ; permissionrefusée surprocessusencorevivant doitresteruneerreur. Enregistrer exitcode/postflight même suréchec du moniteur. Tests déterministes : vraienfanttué, sortiecourse simulée ESRCH/EPERM, permissionrefuséeenfantvivant (cleanup test explicite), résultat durable failed+reaped sans masquer diagnostic. SourcePython réelle/CrossHair tentative, pas de preuve inventée sioutil absent ; tests sansmodèle/GPU, donnéesjetables. Ensuite mainidle/bridge encoreàfaire avant vitesse, mêmesgardes mémoire et sourcesE figées.
+
+### SLOTSTREAM-2026-10-26-SUPERVISOR — course corrigée et détectée par contrôle négatif
+
+- Nouvelle copie supervisor.py, anciens .txt intacts :5testsCPU passent, dont2courses ESRCH/EPERM, vraie terminaison/jointure, permissionrefusée vivante nonmasquée et échecmoniteur durable après jointure duvraienfant. Reconstitution temporaire exacte de l'ancien bloc de cleanup dans stop : les2cas course échouent commeattendu ; source restaurée bytepourbyte,5tests repassés. Empreintes/diagnostic supervisor-negative-control.json/.log ; Ruffformat/lint passent. CrossHair tenté sursource réelle (contrat postpollterminé), moduleabsent, propriété nonvérifiée formellement.
+- CI PR/pushmain étendue aux5tests etlint du superviseur dansworkflow existant ; exécutionlocale seulement, pasdepush/runGitHubnouveau revendiqué. SuitePythonFlash complète relancée pour ce changement ; binaire/sourceRustE inchangés (empreintes revérifiées), aucunbuild/proveur ne doit rester avant prochaineGPU.
+
+### SLOTSTREAM-2026-10-26-S3-Q — frontière mainidle encore nonexécutée, première tentative isolée
+
+- SuitePythonFlash complète971passés (s4e-python-full.log) ; Ruff complet repère ensuite un ordreimports dans lenouveautest, corrigé, lint complet et5tests repassent. CI utilisera Ruff complet. Aucun codeRustE changé.
+- Tester seulement mainidleS3 (jamais lancé jusqu'ici), mêmes3Gio/flagprefix/reuse commeplanS3initial, binairemainEfigé ; nouveau superviseur CPUvérifié, s3-idle-standalone-plan.json etancrecurrente s3-idle-anchor.json. Lesparités36préfixesEobservéesdanslelogrestentdistinctesdeleuréchecconditionRAM ; pasdenouvellevitesseEprévueavantcampagnequalifiéesansswap. Utilisationcachepositive auvraibridge toujoursrequiseaprès cetest.
+
+- 45-Q/R processus s3-fixed-idle-standalone : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s3-idle-standalone-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S3-Q passé / S4-E-R2 avant toute reprise
+
+- MainidleS3 passe5,686s/1test/0ignoré/joint/0nouveauSwapout, comptesreuse4et0conformes aux3politiques, logits completsfinis/exacts, erreur invalide lecheckpoint. Premièrepreuve de cette frontière corrigée, pasencore vrai bridge répété.
+- Conditions observées aprèsfermetures utilisateur etfinCPU : libre6,977Go contre4,012Go avantrepriseR, +2,965Go ; mêmecompteur7348158464B depuisl'incidentR. Cette reprise cible la conditionzéroswap du corpusDFlash dontparitéestdéjàobservée, pas sonemballage. Nouveau superviseur corrige lacoursecleanup, binaisE/sourceMLXinchangés. Plan s4e-clean-qualification-plan.json etancre s4e-clean-anchor.json avantlancement : DFlash36préfixes puisbridges Hnofetch/LlegacyEarly/CHCEarly (2prompts,17sorties,warm+1mesure) etS3MAINreplay. Si interruption, garderlesanciennespreuves etarrêter, pasdevitesse.
+- Validationbridges imposée : mêmeshash/textes H/L/C, vraisblocsB2 etprélecturesL/Cémises/consommées>0, H0 ; S3premièrecache0puiscached==prompt>0/evaluated0, mêmesIDsH. Pasdegaintirédecestests courts. Ensuite seulementpréinscriptionvitessesHLC au mêmebudget53, etautrespistesqualifiées selon leurcontrat initial.
+
+- 45-Q/R processus s4e-draft-commits-clean : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-clean-qualification-plan-result.json.
+
+- 45-Q/R processus s4e-bridge-H : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-clean-qualification-plan-result.json.
+
+- 45-Q/R processus s4e-bridge-L : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-clean-qualification-plan-result.json.
+
+- 45-Q/R processus s4e-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-clean-qualification-plan-result.json.
+
+- 45-Q/R processus s3-fixed-bridge-C : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-clean-qualification-plan-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-E-Q clos / écran de vitesse et contrôles causaux prospectifs
+
+- Reprise propre passée/jointe sansnouveauSwapout : DFlash36préfixes31,085s et64000capturesRMSE0/logits+étatsbyteexacts ; bridgeH42,665s/L49,813s/C55,268s,12réponses17exactes/blocsB2effectifs/prélecturesL/Cémisesconsommées, puisS3replay15,080s/2réponses17exactes/cached87/evaluated0contre0enchauffe. Le bugidleestbiencorrigéauparcoursréel. Preuves s4e-clean-qualification-plan-result.json/s4e-bridge-parity.json, anomalies précédentes gardées. Aucunegainvitesse déduit dececourtparcours.
+- Avant chronos : s4e-speed-matrix.json (source/binaireE figés), HmeilleurLFU/nofetch, RLRU/nofetch (diagnosticS4-A interrompu, mêmealgorithme maisnouvellecampagnecontemporaine aprèsfermetures), Lancienmixed/Early, CHC/Early. R ajoute contrôlepolicy explicite AVANT collecte pourisolerleflop, pas aprèsunscore.128sorties/3répétitions/MAIN+HOLD, cache3Gio53slots/alloc64Mio/4lecteurs, contexte4096, greedyB2, Q4/ring, sansautreprototype. QualitéR utiliseoracleH etcontratcacheinchangé ; mêmeparitéallresponsesobligatoire, Rneprétendpasêtreuneoptimisationnouvelle. HLR/C screeninggaincontreH etC/L séparé ; confirmerordreinverse seulementsi≥1%both/stabilité≤3%, contrôlestémoins≤3%etgap≤3points, mêmesgatesmémoire pic12Gio/extra256Mio/zéroswap00. LégersgainsrelatifsàunpipelinepluslentnevalidentpasgaincontrelebestH. Ne pas réutiliserlesmesuresS4late commecontrasteapparié.
+
+- 45-Q/R processus s4e-speed-H : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-speed-matrix-result.json.
+
+- 45-Q/R processus s4e-speed-R : **completed_expected_outcome**, joint=True ; docs/measurements/slotstream-20261026/s4e-speed-matrix-result.json.
+
+- 45-Q/R processus s4e-speed-L : **failed_or_interrupted**, joint=True ; docs/measurements/slotstream-20261026/s4e-speed-matrix-result.json.
+
+### SLOTSTREAM-2026-10-26-S4-E-SPEED — non concluant, baseline instable, série arrêtée
+
+- H170,311s etR176,449s joints/0nouveauSwapout, mais contrôle a posteriori deH : MAIN11,901175/11,387002/9,885995tok/s (max/min1,203842), HOLD11,359223/9,877325/10,483261(1,150030), seuil1,03échoué. RMAIN1,093025échoue aussi, RHOLD1,022727passe. Les octets logiquesH varient<1%, insuffisants pour transformer20%dedérive eneffetcache démontré.
+- Décisionavantautrebras : campagne nonconcluante, interrompreLencours au nomducontrôlestabilité, Cnonlancé/confirmationaucune. s4e-speed-abort-reason.json etrapportsH/Rconservés ; nepasprésenterune médianeinstablecommegain ni compareràS4late. Diagnostiquer lacharge/mémoire avantnouvel essai, pasde répétitionidentique pourchercher duvert. Les testsnumériques/bridgesqualifiésrestentpassés, la vitesseEreste nonmesuréevalablement.
+
+### SLOTSTREAM-2026-10-26-QUIET — contamination externe identifiée, garde de charge avant nouvelle campagne
+
+- L'utilisateur confirme « je build une app en même temps » et demande de consulter l'autre conversation. Lecture autorisée seulement : tâche « Ajouter le mode agent et Lab », worktree desktop-v2-beta3, compilation/tests Swift de scripts/check-desktop.sh (486,843s) et autres vérifications pendant notre fenêtre ; swift-frontend observé65,4%CPU au diagnostic. Cette simultanéité est un facteur de confusion constaté, pas une décomposition causale chiffrée des20%.
+- Les valeursH restent11,90→9,89tok/s MAIN et11,36→9,88 HOLD ; les20,38%/15,00% désignent max/min−1 (baisse depuis max16,93%/13,05%). Ancienne série nonconcluante, L interrompu/joint, C nonlancé. Autre conversation toujours active ; aucune instruction ne lui est envoyée et aucun de ses processus n'est arrêté.
+- Avant toute relance : étendre seulement notre superviseur local, option de plan require_quiet stricte booléenne. Échantillon ps(pid/ppid/comm) avant lancement, pendant le moniteur existant (~2s) et après ; refuser compilateurs/proveurs connus, exécutables check-desktop et moteurs MLX externes ; reconnaître nos descendants via arbre PPID pour permettre le bridge enfant. Sauver détection/phase/snapshot et joindre notre processus sur échec. Ne pas prétendre couvrir tous programmes GPU anonymes ni des tâches brèves entre deux sondes. Les gardes swap/secteur/RAM/stabilité restent inchangées.
+- Tests déterministes du parseur (frontières/doublons/lignesinvalides), ascendance (plusieursniveaux/cycle/orphelin), compilateur et moteur externes, vraie détection avant lancement et échec durable avec cleanup. Contrôle négatif garde désactivée détecté puis source restaurée. Ruff complet/Pytest ciblé+suiteFlash et tentative sourceCrossHair avant GPU ; CI existante exercera ces tests automatiquement. Ensuite campagne E séparée motivée par suppression vérifiée des builds concurrents, mêmes sources/binaire/protocole ; analyser chaque bras avant de lancer le suivant, arrêter immédiatement si baseline instable. Aucune répétition pour sélectionner un score favorable.
+
+### SLOTSTREAM-2026-10-27-QUIET — garde prête, GPU différé pour concurrence réelle
+
+-16tests garde/cleanup passent,982suitePythonFlash passent38,86s, Ruffcomplet/fmt/diffcheck passent après fixation descaptures devariablesdeboucle. Mutation désactivant competing_processes détectée par2tests before/during ; original restauré bytepourbyte (quiet-negative-control.json/log). CrossHair tenté/moduleabsent ; ancienvenvtemporaireissue52 introuvable, logsanciensconservés ; aucune preuveformelle nouvelle revendiquée.
+- Sonde actuelle détecte cargo-kani/cbmc externes (63278/63279/63795), autre tâcheactive « Ajouter le mode agent et Lab ». Aucun GPU relancé. Les futurs plans exigeront require_quiet=true, vérificationcadence2s etvalidationimmédiatedebaseline ; source moteurE restefigée/qualitévalide, vitesseE nonconcluante.
+
+### SLOTSTREAM-2026-10-27-S3-BUDGET — plafond du checkpoint avant qualification de production
+
+- Le prototype S3 n'a pas encore de débit qualifié et reste désactivé. Avant sonactivationéventuelle, respecter le budget PromptCache déjàexistant : défaut256Mio, MLXL3_PROMPT_CACHE_MIB0..4096 via le parseur main existant, budget0désactive ; jamais ajouterun cachehorsbudget. Le défaut de borne du prototype est visible par inspection, pas présenté comme unbug livré.
+- Ajouter PromptState::admitted surles vrais backing allocations Array::retained_bytes (vuescomprises), étatsGDN/QSA/PLE, hidden/logits/KVdraft ettokens/métadonnées ; sommeschecked, pasdebancsd'experts/mémoire modèlepartagée comptéscommecheckpoint. Conserver le totalmesuréimmutable pourvérifier unbudgetréduit àla requête suivante ; dépassement donne fallbackpréfillfrais, erreursFFI/formes invalident comme le contratS3. Cetteborne debuffers ne prétendpas être lefootprintprocessus ; plafondcampagne extraC256Mio reste à mesurer indépendamment.
+- Câbler main.prefill_round→budget existant→session avant préfill, sans changer APIprefill ni les autres modèles. Snapshotseulementsireuse/options/budgetnonzero. Conserver undéfaut256Mio pourappel directlib. Tests limites budgettotal−1/égal/0, réductionentredeuxrequêtes, erreur atomiquesetter, checkpoint incomplet et vraiflagCLI/bridge0 ; logits/états/draft/continuations byteexacts et erreursreset. Kani voie réelle token/keep/budgetsymboliques tenté, cache_fitsCPU réutilisé/propriétéexistante complète ; limitesMLXICEexplicites.
+- Préparer/compiler/vérifierCPU pendantl'autre travail CPU, jamais pendants nosmesuresGPU. Requalification physique affectée aprèsbuildCAP(figé) avant tout chronoS3. S4E garde son binaire/patch E pour sa comparaisonindépendante ; aucune mesure d'unprototype retiré ne validera le codefinal. Aucun défaut deproduction activé avant gain qualifié.
+
+### SLOTSTREAM-2026-10-27-CLOSE — clôture demandée, aucun gain intégré
+
+- Demande utilisateur : « ça a pas l'air tres bon la ca, fini ça et vas voir la derniere issue github ». Clore la campagne actuelle ; aucune optimisation moteur activée ni conservée dans le code de production sans gain qualifié. La correction apprise S4-L n'a été ni implémentée ni entraînée ; son effet est nonmesuré, aucune invalidation universelle de SlotStream.
+- S1PLE : écran stable +0,7293%MAIN/−0,5214%HOLD, rejeté au seuilpréenregistré, code déjàretiré. S2préfill/S3prefix/S5OFF : prototypes implémentés et contrôles numériques/bridge passés, vitesse nonmesurée ; retirés comme nonqualifiés. S4pipelineancienHC −13,61/−14,01% contre nofetch ne mesure pas HC contre même préchargement ; envoi précoce corrigé/testé, mais vitesse nouvelle nonconcluante aprèsbaseline15–20%dedérive et buildSwiftconcurrent. Ne pas publier ces écarts comme une régression propre auxHC.
+- Dernière préparation budgetS3 : ClippystrictMLX/chat/all-targets passe5,45s ; nouvelleadmission backing/budgets/testsajoutés maisni testsruntime ni Kani exécutés sur cette révision avant demande de clôture. Cette révision est archivée puis retirée, pas transformée envalidation. Anciennes preuvesKaniCPU prefix8u32/longueurs0..8/unwind34/81obligations/3covers restent limitées àleur source ; OFF timeout180s et MLXICE243 conservés, pasdepreuveGPU.
+- Archive reconstructible prototypes-at-closure.patch +closure-source-identity.json (base7978fceac30d991a8c06d72114fc932b2443f555, SHA de chaque source etpatch). Restaurer seulement nos fichiers prototypes au HEAD isolé : moteur/benchmarkS3/supportstests correspondants ; checkout personnel et autres worktrees inchangés. Anciens binaires figés, données et échecs sont conservés. closure-results.json distingue chaque statut ; essais conditionnels nonlancés fermés, aucune attente GPU en cours.
+- Conserver uniquement lescorrectifs du superviseur local : course sortie/kill/join etgardeCPU/engine avant/pendant/après.16tests dédiés passent ;982suiteFlash avantretrait passent ; contrôle négatif anciencleanup2échecs etgardedésactivée2échecs/restaurations exactes ; CrossHairmoduleabsent(nonvérifié). CI PR/pushmain étendue àceharnais, aucun runGithubnouveau/push/merge/appinstall. Contrôles finaux surdiffretenu àeffectuer aprèsretrait.
+
+### SLOTSTREAM-2026-10-27-CLOSE — vérification finale terminée
+
+- Diff final retenu : superviseur local corrigé,16régressions/guard, trois lignesCI, journal/preuves. Aucun diff natif moteur ni du benchmarkFlash public après retrait.974testsPythonFlash passent41,26s ; Ruffcomplet/fmt, cargofmt--check etgitdiff--check passent. Pas de moteurprototype restant au postflight. Les982tests précédents incluaient8casbenchmarkreuse retirés avec ceprototype ; ce changement decompte ne masque pas des tests sautés. CrossHairmoduleabsent(nonvérifié), pas depreuveformelle dePython/MLX. Sources/mesures négatives etinterruptions conservées.
+- Aucune optimisation intégrée, aucun push/merge/release/appremplacée. Tous essais clos ou explicitement nonlancés/nonconcluants ; aucune mesure GPU à attendre en arrière-plan. Consulter maintenant l'issueGitHub demandée.
+
+### RESEARCH-2026-10-27-ISSUE54-READ — consultation demandée, suite d'inspection locale sans prototype
+
+- Dernière issue du dépôt0xZKnw/mlxl3 parcréation/is:issue :54 « Decode et préfill :30pistes issuesde15projets, prioritésMetal/MLXetqualification », ouverte, créée/miseàjour2026-10-26T19:02:22Z, aucuncommentaire. Corps lu via connecteurGitHub ; liste propose P06Gemma puisP01/P02/P03Flash. Référence7978fce identique ànotrebase. Aucun nouveau gain revendiqué par cetteissue.
+- La consultation et la recherche de la garde can_batch ont déjà identifié le dossier pertinent ; suite de contrôle statique prévue : relire les sections P03/P06/R05/historique et vérifier les vrais appelants locaux restaurés. Aucunbenchmark, aucunprototype, aucune écritureGitHub ; nepas réexécuter SlotS2/S3 àl'identique comme des idées neuves. Toute future implémentation exigera son entréeprospectiveetmotifnouveau avantmesure.
+
+### RESEARCH-2026-10-27-ISSUE54-READ — inspection terminée
+
+- Issue54 etzérocommentaire relus/sauvegardés dansissue54-inspection.json ;30mécanismes proposés,aucunperformancegainpublié. Contrôlelocalconfirme Gemma4::can_batch(native/src/gemma4.rs640) bornéparoffset+tokens≤batch_limit etsonappelproductionmain1459 : P06estunposteconcretàétudier, retirerlagardeseuleseraitincorrect. PourFlashNext :P01/P02préfilllayer/expert puisP03pipelinebornéàroutesconnues ; P03distinguedemandeconnueetprédictiondecode. R05mémoireadmissionpicàprofiler, aucunGo niTPSdéduit.
+- Inspectionstatique seulement surbase7978fce, aucune expérimentation/prototype/écritureGitHub, aucun gain promis ; nepasdupliquer lesprototypesSlotS2/S3 clos sansmotif/protocoleprospectif. La clôtureSlotStreamresteinchangée : moteurrestauré,correctifs deharnais conservés,974testsfinals, tous essaisqualifiésparleurstatut explicite.
+
+### ISSUE54-2026-10-27-P01 — backbone préfill commit-total, avant prototype
+
+- Autorisation nouvelle « bah go » après lecture de#54. Commencer P01/P02, puis P03 seulement après chemin synchrone qualifié. Base7978fce, origin/main7678456 rafraîchi : aucun diff native/src/ffi/shaders entrelesdeux, checkout/worktrees existants préservés. Skills formal-proof/Rust/Kani/Ponytail relus ; CI existantePR/pushmain inspectée.
+- Nouveauté explicite contre SlotS2 fermé (jamaismesuré) : partager la préparation multiligne GDN existante du vérificateur, scan final sans tape de rollback et sans snapshots de préfixes, sorties/captures selon consommateurs ; SlotS2 faisait des prepare sériels. Reprendre niHCprédictif niPLEcache niOFFniRAMprefix. LayersMoE≤8/capacité53/réductions inchangées ; QSA/PLE causaux, heads finauxM1, appendDrafttoujoursrow1. MTPpréfill demeure son parcoursconsommant chaquehidden, exclu de la spécialisation.
+- Un seul réglage interne expérimental MLXL3_FLASH_PREFILL_CHUNK=1|2|4|8, défaut1 pendantessai. Premier écran4 car40routes≤53slots, tester8 etsplitnumériquement, ne mesurer8 que surmotifnouveauprospectif après4. VoieARforward_tokens etvraientréeNative.forward_many pourFlash, DFlashprefill mêmesbuilder ; sharedprepare_rows reçoit conserve-prefixes=true pour verify/false pourpréfill. Pasdenouveaushader, pasd'approximation ou réassociation volontaire.
+- Qualité avant temps : CPUparseurlittéraux/invalides/Kani réel domaine symboliqueutf8≤2octets(unwind4,coversbranches), KaniMLX vraieentréepréfill (limitesICE connues), format/Clippystrict/buildmlx-chat etmlxseul, suitesCPU/Python/lib/main. GPU composant GDN scanT2/4/8 avec/sanshistory identiques ettapes verifierinchangées ; modèleT1vsblocs sur1/2/3/7/8/9/17/87/256tokens (numérique parbloc, logits248320/états/captures12800pardtoken/draftKV nonvidesfinis byteexacts), continuation, limitescontextetokenvide/invalide/annulé/reset, mutation capture décalée ou omissionfinale détectée puisrestaurée. TestsproductionAR/DFlashbridge/erreurs/reprise, untestsélectionné=1réelpass obligatoire.
+- Vitesse : M5standard24Gio/MLX0.32.2/cible65c89531 EXL3 2,05bpw/drafta22a1744 Q4ring/greedy/ctx4096/cache3Gio53slots/alloc64Mio/readers4overlap1/HotWideUNIQUE1/nofetch/B2fixe. Hflag1/Cflag4 surmêmebinairefigé, MAIN/HOLD87/82tokensetpromptLONGpublic~256 fixé avantmesure ;128sorties,warm+3mesures, HC puisCHseulement si≥1%TTFT/tempscompletchaqueprompt, aucune régressiondecode>1%, stabilité≤3%etdérivetémoins≤3%, gainsvariation≤3points. RapporterTTFT/préfill/total/décode séparés ; pasdeboostdécodeinféré. Qualifier avantpromotion, archiver/retirer sinon.
+- require_quiet=true : ps avant/pendant(~2s)/après, aucun build/proveur/moteurexterne ; stop immédiat etdurable si conflit, aucunprocessusd'autretâchearrêté. Zéro nouveauSwapout/secteurcontinu/pic12Gio/extraC256Mio, warmup/timings exacts etjournalsourcesSHA. Si contrôle échoue, arrêter avantbras suivant ; nouvellecampagne uniquement avec motif externe/source/protocolecorrectif documenté. Preuves docs/measurements/issue54-prefill-20261027/, aucunpush/installation/publication.
+
+**P01 — état avant GPU (2026-10-27).** Prototype Rust local, défaut sériel conservé. Appelants AR/bridge et DFlash câblés, MTP inchangé. Compilation MLX+chat, Clippy strict et compilation MLX sans chat (avec direct-metal) réussies. CPU sans GPU : 247 tests passés, 6 ignorés ; contrôle lib minimal : 155 passés, 5 ignorés. Kani parseur : 228 obligations, 0 échec, 12 inatteignables, 2/2 couvertures ; entrées UTF-8 symboliques sur 0..2 octets, unwind 4. Kani vraie entrée MLX : ICE intrinsics.rs:243 avant obligations, non vérifiée. Première compilation refusait un tableau de captures non emprunté : corrigé. Commande mlx seule sans direct-metal rejetée par le code préexistant array.rs:492 ; configuration corrigée réussie.
+Suite pytest générale lancée trop largement : 1849 passés, 64 sautés, 51 échecs (imports du paquet ponyexl3 absent, hors changement moteur). Unittest discover était un runner inadapté aux skips pytest : 7 erreurs de collecte ; aucun résultat de ce lancement ne valide le moteur. Pas de correction hors périmètre. Ces sorties sont conservées. Aucune mesure GPU ou vitesse P01 encore effectuée. Sources et binaires figés dans source-v1.json, plan composant et ancre mémoire avant GPU dans docs/measurements/issue54-prefill-20261027/.
+
+- 45-Q/R processus component-gdn : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/component-gdn-plan-result.json.
+
+**P01 — premier lancement composant interrompu.** La garde a classé le nom choisi mlxl3-check-prefill comme processus de vérification concurrent, bien que ce soit son propre enfant. Arrêt/jonction à ~2 s, aucun test terminé, aucune parité validée. Préserver component-gdn-plan-result.json. Correction de protocole avant répétition : réutiliser le nom prototype-engine déjà reconnu avec exclusion de son propre arbre ; copies lib/main avec mêmes empreintes. Aucun changement au superviseur ni au moteur. Attendre la fin du build Swift externe observé avant répétition v2.
+
+- 45-Q/R processus component-gdn-v2 : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/component-gdn-v2-plan-result.json.
+
+**P01 — v2 refusé avant lancement GPU.** Un contrôle compilé externe de l’autre chat (/var/folders/.../mlxl3-check.../check, PID 87480) a été détecté avant création du modèle. Aucun test exécuté, aucune vitesse mesurée. Rapport component-gdn-v2-plan-result.json conservé ; attendre la fin de cette charge externe pour la répétition v3, sans changer le moteur ni les seuils.
+
+- 45-Q/R processus component-gdn-v3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/component-gdn-v3-plan-result.json.
+
+**P01 — composant GDN v3 validé numériquement.** Un test Rust physique sélectionné, 1 passé/337 filtrés : scan sans tape contre scan avec tape et toutes les étapes sérielles, T=1..8, plusieurs géométries de têtes, préfixes et longueurs invalides. Sorties et états byte-exacts, 2,1 s de supervision (~1,72 s test), RSS enfant 74 383 360 octets, zéro nouveau Swapout, secteur, absence de conflit aux contrôles. Preuves component-gdn-v3-plan-result.json et .log. Cette validation composant ne mesure aucune vitesse et ne valide pas encore le modèle complet.
+
+- 45-Q/R processus model-short : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/model-short-plan-result.json.
+
+**P01 — modèle court refusé avant lancement.** Une nouvelle compilation Swift externe (PID 89500) a été détectée à la précondition de silence ; aucun chargement ni test modèle, aucune donnée de vitesse. Rapport model-short-plan-result.json préservé. Reprise strictement à source et protocole identiques après fin observée de la charge externe ; les contrôles GDN réussis ne seront pas répétés.
+
+- 45-Q/R processus model-short-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/model-short-v2-plan-result.json.
+
+**P01 — modèle court v2 validé numériquement.** 1 test physique passé (337 autres filtrés), 42 cas : longueurs 1/2/3/7/8/9/17 × blocs 2/4/8 × AR/DFlash. Référence sérielle avec captures et append draft row1 indépendant de la nouvelle boucle runtime ; 248 320 logits finaux et 12 800 valeurs de capture/token finies, états complets, KV du draft et trois tokens de continuation byte-exacts. Entrée vide, token invalide après un premier bloc, annulation, reset/reprise et limite de contexte contrôlés. 38,22 s de test, zéro nouveau Swapout, processus rejoint, silence contrôlé. Rapports model-short-v2*. Aucune vitesse établie.
+
+- 45-Q/R processus model-87 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/model-87-plan-result.json.
+
+**P01 — 87 tokens validés numériquement.** model-87 : 1 test physique passé, 6 cas AR/DFlash × blocs 2/4/8. Toutes les valeurs de capture (1 113 600), logits finaux, états, KV draft et continuation contrôlés comme le groupe court, byte-exacts ; 37,62 s, zéro nouveau Swapout, processus rejoint. Les contrôles d’erreurs sont également passés. Aucun résultat de vitesse.
+
+- 45-Q/R processus model-256 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/model-256-plan-result.json.
+
+**P01 — 256 tokens validés numériquement.** model-256 : 1 test physique passé/337 filtrés, 6 cas, 104,78 s ; mêmes contrôles complets, dont 3 276 800 valeurs de capture finies par variante. Totaux des trois groupes : 54 cas AR/DFlash, T1 contre blocs 2/4/8. Zéro nouveau Swapout, secteur, silence contrôlé, processus rejoints. Chaque rapport reste une validation numérique, aucune mesure de vitesse.
+
+- 45-Q/R processus verifier-prefixes : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/verifier-prefixes-plan-result.json.
+
+**P01 — contrôle indépendant/vérificateur validé.** verifier-prefixes : 1 test passé, 36 commits de préfixes pour largeurs 1..8, logits/états byte-exacts ; 64 000 captures comparées à la fixture NumPy indépendante, égalité byte et RMSE relative 0 (tolérance historique 0,004). 26,11 s, zéro nouveau Swapout, pic MLX 6 783 143 928 octets, empreinte processus max 7 378 327 744 octets. Rapports conservés.
+**Avant renforcement du harnais (aucun changement de calcul).** Ajouter aux comparaisons byte déjà passées les métadonnées explicites de forme/dtype des captures et KV draft ainsi que la finitude/non-vacuité des KV de référence. Répéter les 54 cas avec ces assertions supplémentaires ; anciennes preuves conservées. Ensuite mutation négative row0 répétée à la place de chaque capture de rang row : elle doit faire échouer le test puis être restaurée exactement. Pas de mesure GPU pendant compilation de ces seuls tests.
+
+**P01 — prompts figés avant mesure.** MAIN/HOLD historiques et LONG public (quatre paragraphes identiques sur LFU/MoE + question MAIN), texte exact dans prompts-v1.json. Taille de tokenizer brute calculée sans GPU, la taille réelle avec template sera relevée au bridge. Métadonnées de versions et SHA-256 JSON des deux checkpoints dans dependencies-v1.json (ne pas assimiler ces empreintes à celles de tous les poids). Chaque bras de vitesse utilisera ces mêmes textes ; aucun choix après résultats.
+
+**P01 — avant contrôles négatif/final.** Mutant row0 compilé dans un binaire distinct puis source restaurée byte pour byte avant exécution (negative-source.json et negative-control.patch). Le nouveau harnais v2 ajoute les métadonnées/finitude KV ; compléter prospectivement les longueurs 4/5/6 pour couvrir toutes les queues 1..8 du modèle, soit 72 cas finaux. Les 54 succès historiques restent conservés. Aucun changement au calcul de production depuis le binaire moteur v1.
+
+- 45-Q/R processus capture-row0-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/capture-row0-negative-plan-result.json.
+
+**P01 — contrôle négatif réussi.** capture-row0-negative : le mutant répète la première capture du bloc ; 1 test réellement exécuté, échec attendu 101/0 passé/1 échoué au contrôle des clés KV du draft (pas une erreur de chargement). 8,06 s, zéro nouveau Swapout, processus rejoint. Source bonne déjà restaurée et empreinte identique ; binaire mutant isolé. Reprendre avec le binaire v2 correct pour les 72 cas/métadonnées.
+
+- 45-Q/R processus model-short-metadata : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/model-short-metadata-plan-result.json.
+
+**P01 — renforcement métadonnées interrompu.** model-short-metadata a été interrompu par la garde après apparition d’un build Swift externe (PID 93148). Aucun groupe complet supplémentaire validé ; résultat partiel conservé, enfant arrêté et rejoint. La correction précédente, ses 54 cas et son contrôle négatif restent documentés ; le statut final moteur reste prototype/non qualifié en vitesse. Une préférence de priorité a été demandée au user entre attendre la fin de l’autre chat et l’autorisation explicite de lui demander une pause des builds/tests lourds. En attendant, aucun message envoyé à l’autre chat ; poursuivre les contrôles CPU.
+
+**P01 — priorité confirmée par l’utilisateur : attendre l’autre chat.** Réponse « attend quil finisse ». Ne pas lui envoyer de message ni modifier ses processus. Tous les essais GPU/speed P01 attendent sa fin ; aucune nouvelle conclusion de performance. Source correcte restaurée, contrôle négatif archivé. Poursuivre seulement la documentation/revue et les contrôles CPU pendant l’attente.
+
+### ISSUE54-2026-10-27-P01B — lots longs par couche, avant modification
+
+- Motif nouveau et limite explicite de P01A : le prototype A est validé numériquement sur 54 cas et 36 commits, mais n’a jamais été mesuré en vitesse ; il traverse encore les 48 couches pour chaque petit bloc 2/4/8. L’issue P01 précise que ces primitives de vérification ne constituent pas encore un préfill long. Conserver A, ses patches/binaires, son contrôle négatif et les interruptions.
+- Hypothèse B : traverser chaque couche sur un lot jusqu’à 128 tokens améliore la réutilisation et supprime davantage de heads inutiles. Préparer/calculer en tuiles de 4 tokens maximum dans chaque couche, avec budget expert inchangé (40 routes maximum par appel, 53 slots par couche), causalité QSA/PLE/GDN et ordre des réductions conservés. Captures de tous les tokens/layers requises, append draft toujours row1. MTP préfill inchangé. Getter de taille de lot pour le vrai Native.forward_many afin que le bridge AR atteigne effectivement les lots longs. Aucun nouveau shader, aucune seconde banque permanente, aucun préchargement prédictif. P03 reste une phase suivante conditionnelle.
+- Un seul réglage expérimental existant MLXL3_FLASH_PREFILL_CHUNK ; étendre ses littéraux à 32 et 128 (en plus de 1/2/4/8), défaut 1 conservé. Le 8 utilise désormais deux tuiles de 4 par couche : les validations A ne seront pas attribuées au code B. Premier candidat de vitesse B=128 contre H=1 sur le même binaire figé. Aucun résultat de vitesse A disponible ou transféré.
+- Vérification prospective B : parseur Rust et Kani sur 0..3 octets UTF-8 symboliques, unwind5, oracles de bytes pour 1/2/4/8/32/128 et couvertures 4/32/128/rejet. Tenter à nouveau la vraie entrée MLX, garder diagnostics si ICE. Format/Clippy/build mlx+chat et mlx sans chat ; suites Rust pertinentes. Numérique : lots 2/4/8/32/128 contre référence sérielle, longueurs 1/2/3/4/5/6/7/8/9/17/87/129/256/257, captures et KV non vides/finis/formes/dtypes, tous logits/états byte-exacts, continuation, contexte/erreurs/annulation. Répéter le contrôle négatif row0 sur ce code B et restaurer exactement.
+- Vrai bridge AR/DFlash sur MAIN/HOLD/LONG figés, 17 tokens puis campagne 128. Protocole vitesse H/C puis C/H, warmup +3 mesures/prompt/bras, critères P01A inchangés : ≥1% de TTFT et temps complet sur chaque prompt, pas de régression decode >1%, stabilité et dérive ≤3%, extra compression C≤256Mio, pic≤12Gio, zéro nouveau Swapout, secteur, require_quiet. Nouvelle ancre B prise uniquement avant GPU après fin de l’autre chat/contrôle absence de modèles concurrents ; l’attente et le changement de source interdisent d’utiliser silencieusement l’ancienne ancre pour comparer des résultats. Les preuves A restent valables pour A.
+- User a choisi d’attendre l’autre chat : préparer uniquement code, tests, contrôles CPU et plans jusque-là. Aucun message à l’autre chat ni arrêt de ses processus. État B : en cours, prototype local non mesuré, aucune intégration par défaut/push/release/app installée.
+
+**P01B — revue des appelants avant GPU.** Clippy B initial passé ; Kani du parseur étendu : 232 obligations, zéro échec, 8 inatteignables, 4/4 couvertures, UTF-8 symbolique 0..3 octets, unwind5. Revue du vrai prefill bridge : un lot AR128 retarderait l’annulation si forward_tokens continue d’utiliser son drapeau local toujours faux. Corriger avant test : méthode partagée avec drapeau réel, conserver l’API forward_tokens existante, brancher la voie Flash du préfill bridge sur ce drapeau et contrôler l’annulation dans chaque tuile/couche. Ajouter une injection de signal uniquement cfg(test), après deux tuiles réellement préparées/calculées, pour vérifier déterministement annulation AR et DFlash, états remis à zéro et reprise. Aucun gain ni parité B déduit de la revue ou du parseur. Comme demandé, aucune charge GPU tant que l’autre chat reste actif.
+
+**P01B — annulation source préparée, GPU toujours en attente.** API forward_tokens conservée, nouvelle entrée partagée prefill_tokens recevant le vrai AtomicBool du bridge AR. Contrôle dans les tuiles/couches et après drain avant commit ; test déterministe cfg(test) déclenche le signal après deux tuiles, compare tous les états au reset, vérifie KV draft vide et reprise dans les deux modes. Ces dernières modifications ne sont pas encore compilées/testées. L’autre chat a terminé son scénario Qwen3.6 mais reste actif pour rendu3D et dernière suite Desktop ; attendre sa fin selon instruction utilisateur.
+
+**P01B — plans préparés sans exécution.** Matrice finale explicite p01b/model-*-plan.json : 140 cas (14 longueurs × 5 lots × AR/DFlash). La même entrée physique testera l’annulation après deux tuiles et la reprise. En plus du contrôle row0, préparer une mutation désactivant le reset d’erreur dans le builder : le contrôle des états fresh doit la détecter. Les deux mutants seront compilés/isolés/restaurés et ne seront pas livrés. Bridge qualité17 et vitesse128 sur les trois textes figés ; candidat128, témoin1. Aucun de ces plans B n’est lancé avant fin de l’autre chat ; ancre mémoire B et binaires restent à produire.
+
+**P01B — reprise CPU après fin des tests locaux de l’autre chat.** Son compte rendu annonce dernière passe réussie et aucun nouveau test local ; il prépare désormais beta.4 (empaquetage/publication), donc GPU toujours réservé jusqu’à fin de la charge locale. Clippy strict MLX+chat avec annulation finale passé ; nouvelle tentative Kani vraie entrée B bloquée au même ICE intrinsics.rs:243 avant obligations, non vérifiée. Builds release/test et suite CPU B démarrés ; aucun GPU B ni vitesse lancé.
+
+**P01B — binaires de tests compilés.** Compilation release MLX+chat/no-run réussie ; lib/main copiés dans build/issue54-prefill/p01b-{lib,main}/prototype-engine, empreintes dans p01b/source-initial.json, patch complet p01b/prototype.patch. Suite CPU B : 247 passés, 6 ignorés, aucun échec. Construire ensuite le vrai moteur ; la qualification physique B et la vitesse sont toujours non exécutées.
+
+**P01B — builds finalisés avant GPU.** Vrai moteur release MLX+chat construit/copié (p01b/engine.json), configuration MLX sans chat compilée, 247 tests CPU passés/6 ignorés. Les deux mutants ont compilé dans des binaires distincts du bon ; bonnes sources restaurées exactement et vérifiées contre source-initial.json. Statut mutant : compilé/non exécuté, aucune conclusion de test négatif B. L’autre chat a publié beta.4 et termine sa fusion ; attendre sa fin puis absence de processus concurrents et ancre fraîche avant GPU. Les modifications P01B restent locales et ne sont pas automatiquement dans cette beta.4.
+
+**P01B — lancement physique après fin de l’autre chat.** Le thread est idle et sa beta.4/PR56 terminée ; CI distante encore en cours, sans travail local concurrent. Préflight processus silencieux passé, ancre fraîche p01b/anchor.json, MLX/librairies/système tracés dans runtime-identity.json. Sources correctes restaurées et figées. Lancer modèle court B (100 cas) puis autres groupes seulement après inspection, zéro nouvelle écriture Swapout depuis cette ancre. Les contrôles numériques A ne sont pas comptés comme B.
+
+- 45-Q/R processus model-short : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/model-short-plan-result.json.
+
+**P01B — premier modèle court interrompu par swap.** model-short-plan-result.json : 70 sous-cas achevés (longueurs1..7 ×5lots ×2modes), groupe final100 non achevé ; aucun succès de groupe B ni vitesse. Garde zéro nouveau Swapout déclenchée, delta observé 132300800 octets ; enfant arrêté/rejoint, exit -15. La suite des groupes et les contrôles négatifs B ne sont pas lancés. Diagnostiquer les conditions mémoire avant reprise explicitement motivée.
+
+**P01B — diagnostic mémoire avant nouvelle validation.** Delta précis 132 300 800 octets (126,17Mio). À l’ancre : pages libres1 364 344 832o, compresseur769 179 648o ; au déclenchement : libres147 865 600o, compresseur4 440 801 280o. Cache allocateur64Mio est bien appliqué par array::initialize, vérifié dans le code ; ne pas attribuer l’échec à une option oubliée. Aucun autre modèle/build détecté. Après arrêt, les principaux consommateurs visibles incluent Brave/Deezer et l’app ; demande de libération RAM envoyée, réponse requise avant relance dépendante. Ajouter uniquement une trace MemoryStats par sous-cas dans le harnais Rust pour distinguer croissance du processus et pression système à la prochaine validation. Aucun calcul de production ni budget modifié. Ancienne ancre et interruption conservées ; nouvelle tentative uniquement avec condition mémoire changée/documentée et nouvelle ancre dédiée.
+
+**P01B — attente de réponse RAM, état consigné.** Harnais diagnostique compilé et figé (p01b/memory-diagnostics-source.json), production inchangée vérifiée contre le préfixe de la source B initiale. Aucun nouveau GPU depuis l’arrêt. Récapitulatif mis à jour dans docs/measurements/issue54-prefill-20261027/README.md. Groupe B interrompu, mutants non exécutés, vitesse non mesurée, défaut sériel et app installée inchangés par cette tâche. Attendre la confirmation RAM ; ne pas relancer sur l’ancienne ancre ni remplacer l’app publiée par l’autre chat.
+
+**P01B — état à la remise en attente RAM.** Clippy strict du harnais diagnostique passé, diff sans erreur d’espaces, aucun processus de test GPU en cours. 247 tests Rust CPU passés/6 ignorés, 16 tests superviseur passés ; Kani parseur B borné0..3octets/unwind5 : 232 obligations/0 échec/8 inatteignables/4 couvertures ; Kani MLX ICE/non vérifié. Modèle B : groupe interrompu après70 sous-cas, pas de qualification complète ; mutants B compilés mais non exécutés ; vitesse non mesurée, défaut1 conservé. Réponse à la demande de libération RAM encore attendue. Reprise nécessaire pour achever l’objectif ; ne pas présenter ces travaux comme gain intégré ou tâche terminée.
+
+**P01B-R2 — reprise préenregistrée après libération RAM (2026-10-27).** L’utilisateur indique « je crois cest bon ». Répétition de validation explicitement motivée par la condition mémoire changée et le harnais diagnostique déjà compilé : même calcul B, mêmes poids/options/cache3Gio, même matrice140 cas, nouvelle ancre dans p01b/r2, échec B1 conservé. Relancer d’abord les100 cas courts avec MemoryStats par cas pour distinguer croissance du processus/pression système ; aucun bras suivant avant inspection. Ne pas compter les70 cas de l’essai interrompu comme groupe validé. Source de production inchangée, défaut1. Zéro nouveau Swapout, silence/secteur et seuils de qualification inchangés.
+
+- 45-Q/R processus model-short : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/model-short-plan-result.json.
+
+**P01B-R2 — groupe court validé.** model-short : 1 test réel passé/337 filtrés, 100 cas (longueurs1/2/3/4/5/6/7/8/9/17 ×5lots ×AR/DFlash). Logits248320, états/captures/KV/formes/dtypes/finitude et continuation3 byte-exacts. Annulation déterministe après2tuiles, états fresh, cache draft vide et reprise AR/DFlash contrôlés ; erreurs et limite contexte passées. 76,49s, zéro nouveau Swapout, pic empreinte processus7 847 188 936o ; mémoire stable sur les100cas (pas de croissance majeure observée). Secteur/silence et jonction vérifiés. L’échec B1 reste conservé, aucune vitesse mesurée.
+
+- 45-Q/R processus capture-row0-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/capture-row0-negative-plan-result.json.
+
+**P01B-R2 — contrôle négatif capture-row0-negative :** échec101 attendu sur la propriété ciblée, 1 test réel échoué ; zéro Swapout, enfant rejoint. Binaire mutant isolé, source bonne restaurée avant exécution. Preuve p01b/r2/capture-row0-negative-plan-result.json ; aucune mesure de vitesse.
+
+- 45-Q/R processus cancel-reset-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/cancel-reset-negative-plan-result.json.
+
+**P01B-R2 — contrôle négatif cancel-reset-negative :** échec101 attendu sur la propriété ciblée, 1 test réel échoué ; zéro Swapout, enfant rejoint. Binaire mutant isolé, source bonne restaurée avant exécution. Preuve p01b/r2/cancel-reset-negative-plan-result.json ; aucune mesure de vitesse.
+
+- 45-Q/R processus model-87 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/model-87-plan-result.json.
+
+**P01B-R2 — 87 tokens validés.** 1 test passé, 10 cas, 56,68s ; mêmes contrôles complets et annulation/reprise, zéro nouveau Swapout, pic empreinte7 905 860 088o. Aucun gain de vitesse déduit. Continuer129/256/257, inspection après chaque groupe.
+
+- 45-Q/R processus model-129 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/model-129-plan-result.json.
+
+**P01B-R2 — model-129 validé.** 1 test réel passé,10cas, logits/états/captures/KV et continuation byte-exacts, erreurs et annulation/reprise passées ; zéro Swapout, enfant rejoint, pic processus 7953013288o. Rapport p01b/r2/model-129-plan-result.json. Validation numérique, aucune vitesse mesurée.
+
+- 45-Q/R processus model-256 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/model-256-plan-result.json.
+
+**P01B-R2 — model-256 validé.** 1 test réel passé,10cas, logits/états/captures/KV et continuation byte-exacts, erreurs et annulation/reprise passées ; zéro Swapout, enfant rejoint, pic processus 7986403880o. Rapport p01b/r2/model-256-plan-result.json. Validation numérique, aucune vitesse mesurée.
+
+**P01B-R2 — vérification de l’entrée bridge avant vitesse.** Réutiliser JsonProcess et le validateur du benchmark existants pour un contrôle réel AR/DFlash du binaire cfg(non-test), lots128, prompt LONG figé. Golden17 puis annulation sur context_usage (préfill) et delta, reprise17 exacte après chaque annulation ; dépassement de contexte32×LONG rejeté et reprise exacte. 14 requêtes au total,4 annulations,2 erreurs attendues,8 réponses complètes ; aucun benchmark chronométrique revendiqué. Transport existant borné/joint et rapport durable incomplete/failed/validated. CrossHair non installé (find_spec=None) ; pas de preuve Python revendiquée, contrôles du transport et du validateur existants réutilisés. Aucun changement de moteur pour ce contrôle.
+
+- 45-Q/R processus model-257 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/model-257-plan-result.json.
+
+**P01B-R2 — model-257 validé.** 1 test réel passé,10cas, logits/états/captures/KV et continuation byte-exacts, erreurs et annulation/reprise passées ; zéro Swapout, enfant rejoint, pic processus 7985076752o. Rapport p01b/r2/model-257-plan-result.json. Validation numérique, aucune vitesse mesurée.
+
+**P01B-R2 — matrice numérique finale validée.** 140 cas complets,14longueurs ×5lots(2/4/8/32/128) ×AR/DFlash, groupes tous passés. Logits248320/états/captures12800par token/KV/formes/dtypes/finitude et continuation byte-exacts ; annulation/reprise et erreurs/contexte passent dans chaque groupe. Zéro nouveau Swapout sur tous les bras. Pics de processus <8 000 000 000o. Les deux mutations pertinentes échouent sur la propriété ciblée et bonnes sources restaurées. Aucune vitesse encore mesurée ; lancer suites lib/main puis vrai bridge/reprise.
+
+- 45-Q/R processus native-lib : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/native-lib-plan-result.json.
+
+**P01B-R2 — native-lib terminé.** Résultat attendu passé, zéro Swapout, processus rejoint ; résultat/log p01b/r2/native-lib. Pas de mesure de vitesse.
+
+- 45-Q/R processus native-main : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/native-main-plan-result.json.
+
+**P01B-R2 — native-main terminé.** Résultat attendu passé, zéro Swapout, processus rejoint ; résultat/log p01b/r2/native-main. Pas de mesure de vitesse.
+
+- 45-Q/R processus bridge-recovery : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/bridge-recovery-plan-result.json.
+
+**P01B-R2 — bridge-recovery terminé.** Résultat attendu passé, zéro Swapout, processus rejoint ; résultat/log p01b/r2/bridge-recovery. Pas de mesure de vitesse.
+
+**P01B-R2 — suites et bridge/reprise validés.** Lib MLX :182passés/156ignorés, main MLX :44passés/8ignorés (nonzéro,156/8 restent non exécutés). Vrai binaire bridge :14requêtes,4annulations sur contexte/delta,2erreurs de contexte attendues,8complétions17tokens ; reprise et AR/DFlash byte/hash texte identiques. Rapport bridge-recovery/report.json validated/reaped, zéro Swapout, 200,55s. Aucune performance inférée de ce contrôle de correction. Poursuivre qualité H1/C128 sur MAIN/HOLD/LONG avant vitesse.
+
+- 45-Q/R processus bridge-quality-AR-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/bridge-quality-AR-H-plan-result.json.
+
+**P01B-R2 — bridge-quality-AR-H qualité passé.** Rapport complet validé/reaped/reader_joint,3warmups+3réponses17tokens,87/82/246tokens de préfill, zéro Swapout. Parité H/C vérifiée à la clôture de chaque paire. Ces mesures de qualité ne valident pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-AR-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/bridge-quality-AR-C-plan-result.json.
+
+**P01B-R2 — bridge-quality-AR-C qualité passé.** Rapport complet validé/reaped/reader_joint,3warmups+3réponses17tokens,87/82/246tokens de préfill, zéro Swapout. Parité H/C vérifiée à la clôture de chaque paire. Ces mesures de qualité ne valident pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/bridge-quality-DF-H-plan-result.json.
+
+**P01B-R2 — bridge-quality-DF-H qualité passé.** Rapport complet validé/reaped/reader_joint,3warmups+3réponses17tokens,87/82/246tokens de préfill, zéro Swapout. Parité H/C vérifiée à la clôture de chaque paire. Ces mesures de qualité ne valident pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/bridge-quality-DF-C-plan-result.json.
+
+**P01B-R2 — bridge-quality-DF-C qualité passé.** Rapport complet validé/reaped/reader_joint,3warmups+3réponses17tokens,87/82/246tokens de préfill, zéro Swapout. Parité H/C vérifiée à la clôture de chaque paire. Ces mesures de qualité ne valident pas un gain de vitesse.
+
+**P01B-R2 — correction validée avant vitesse.** Parité H1/C128 sur6réponses17tokens par bras, dans les2modes AR/DF et3prompts(87/82/246), hashes/textes/nombre de tokens et compteurs DFlash identiques ; rapports validated/reaped/reader_joint, zéro Swapout. Les140cas physiques,2mutations,226tests lib/main et14requêtes de cancellation/recovery sont inspectés. Démarrer écran vitesse H1 puisC128, mêmes binaires/options et seuils préenregistrés,128sorties et3répétitions/prompt après warmup. Aucun gain encore revendiqué.
+
+- 45-Q/R processus speed1-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/speed1-DF-H-plan-result.json.
+
+**P01B-R2 — premier témoin vitesse terminé.** 3warmups+9mesures128tokens, sorties déterministes, processus et lecteur joints, zéro nouveau Swapout. Analyse stabilité brute dans p01b/r2/speed1-H-analysis.json : stable=False. Aucune comparaison ni gain encore disponible ; inspecter ce contrôle avant bras C.
+
+**P01B-R2 — écran vitesse interrompu avant C, témoin non stable.** MAIN/HOLD stables. LONG TTFT24,710..25,853s, range/médiane4,576%, total36,824..38,016s (3,206%), au-delà de3%. Aucun brasC de vitesse lancé, aucun gain/rejet de méthode inféré. R2 H conserve9mesures/3warmups, zéroSwapout et tous artefacts.
+**P01B-R3 — correction de protocole préenregistrée avant nouvelle mesure.** Hypothèse à vérifier : premier tour LFU/cache/JIT insuffisamment stabilisé sur LONG ; aucun diagnostic certain du bruit. Source/binaire/poids/options/mémoire inchangés. Deux tours de chauffe complets de3prompts puis3mesures par prompt. Réutiliser benchmark.run repeats=4 : repeat0 et1 classés warmup, repeat2/3/4 seuls mesurés, uniformément pour chaque prompt et bras, décision prise avant résultats. Raw report conservé sans réécriture. Même critèrestabilité3%, mêmes seuilsgain≥1/decoded≥-1/compression256Mio/pic12Gio, zéroSwapout/silence/secteur. Refaire H puis inspecter ; C seulement si Hqualifié, puis ordreC/H siécran favorable. Aucunassouplissement de seuil ni exclusion rétrospective d’un échantillon.
+
+**Révision utilisateur avant bras C (2026-10-27).** L’utilisateur indique « la variation on s’en fiche un peu tant que ça boost ». Lever le veto automatique range/dérive3% ; conserver et publier les plages brutes. Reprendre la comparaison appariée R2 (témoin complet3mesures/prompt, aucun point exclu) et lancer C avec le même warmup/protocole. La répétition R3 supplémentaire est arrêtée pour éviter de multiplier les témoins ; toute donnée partielle reste interrompue/non utilisée. Aucun changement de calcul/options/binaire, zéroSwapout, parité et limites mémoire inchangés. Juger TTFT et temps complet ; décodage et compression toujours contrôlés, ordre inverse si signal favorable. L’ancienne conclusion de stabilité R2false reste conservée et n’est pas renommée stable.
+
+- 45-Q/R processus speed1-DF-H : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r3/speed1-DF-H-plan-result.json.
+
+- 45-Q/R processus speed1-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/speed1-DF-C-plan-result.json.
+
+**P01B-R2 — première paire vitesse complète.** H/C128,12requêtes par bras dont3warmups et9mesures128tokens, parité hashes/textes/compteurs exacte, zéroSwapout et processus/lecteurs joints. Résultat et ranges complets p01b/r2/screen1.json ; favorable selon critères utilisateur sans veto3%=False. Ne pas appeler cette seule paire une qualification finale ; décision après examen.
+
+**P01B-R2 — écran positif en latence, qualification encore ouverte.** MAIN/HOLD/LONG : TTFT réduit24,49/24,83/28,05%, temps complet8,83/8,58/17,86%. Décodage -3,42/-3,29/-2,59%, compression logique C-H +2061,94/+1861,78/+2035,12Mio : les critères initiaux decode/compression ne sont pas satisfaits, ne pas annoncer qualification complète. ZéroSwapout, parité complète, source/binaire identiques.
+**Répétition de validation motivée avant mesure inverse.** Suite à l’instruction utilisateur acceptant les variations, conserver le signal latence sans l’activer par défaut ; effectuer une seule paire inverse C puisH prévue, pour vérifier si la compression et le décodage suivent l’ordre/la pression mémoire ou la variante. Même texte128/répétitions3/warmup/options, aucun point exclu et aucun seuil de correction/swap/peak relâché. Publier allocation/empreinte séparément des octets logiques compressés ; ne pas confondre compression supplémentaire et allocation supplémentaire. Arrêter/qualifier si divergence ou autre échec.
+
+- 45-Q/R processus speed2-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/speed2-DF-C-plan-result.json.
+
+**P01B-R2 — speed2-DF-C terminé.** Rapport128tokens complet, parité interne déterministe, zéroSwapout, lecteur/processus joints ; aucune sélection d’échantillon. Comparaison inverse à inspecter à clôture.
+
+- 45-Q/R processus speed2-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/speed2-DF-H-plan-result.json.
+
+**P01B-R2 — speed2-DF-H terminé.** Rapport128tokens complet, parité interne déterministe, zéroSwapout, lecteur/processus joints ; aucune sélection d’échantillon. Comparaison inverse à inspecter à clôture.
+
+**P01B-R2 — ordre inverse inspecté.** C/H confirme les réductions de TTFT et temps complet sur les trois prompts. Médianes groupées6mesures/bras : MAIN8,875→6,667s et19,880→18,187s ; HOLD8,412→6,252s et19,958→18,284s ; LONG24,624→17,969s et36,691→30,506s. Tous hashes/textes/compteurs identiques sur les4bras, aucun échantillon exclu ; zéroSwapout/lecteurs et processus joints. Décodage groupé -4,56/-3,83/-3,41% et compression logique supérieure aussi dans l’ordre inverse : ce n’est pas seulement un effet d’ordre. Les critères initiaux decode/compression restent non satisfaits ; utilisateur a levé seulement le veto de variation. Allocation MLX identique, empreinte/pic à distinguer de compression logique ; pas de revendication de qualification intégrale selon les critères initiaux.
+
+**P01B-LONGOUT — diagnostic préenregistré avant mesure.** Nouvelle raison : ralentissement du décodage répété dans les2ordres128tokens ; vérifier si le gain net disparaît sur une sortie plus longue avant décision de défaut. Même binaire/poids/options/cache/ancreR2 et prompt HOLD82tokens, plus faible économie de préfill des2prompts courts ; budget512 au lieu128,1warmup+2répétitions par bras H1 puisC128. Accepter une fin EOS native entre128 et512tokens, contrôler nombres effectifs/hash/texte/compteurs identiques entre répétitions et bras ; ne pas présenter512sorties si EOS plus tôt. Réutiliser le validateur existant avec nombre effectif explicite ; rejet des nombres invalides, manque/vides/timings/compteurs inchangés. Conserver durées/ranges, zéroSwapout/secteur/silence/pic12Gio. Ce diagnostic n’efface ni les résultats128 ni les seuils initialement échoués ; aucune modification native ni activation par défaut avant inspection.
+
+- 45-Q/R processus longout-DF-H : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/p01b/r2/longout-DF-H-plan-result.json.
+
+**P01B — REJETÉ et retrait demandé (2026-10-27).** L’utilisateur précise « si ça ralentit vire ça » puis demande d’autres boosts de préfill. Décodage -3,41 à-4,56% sur les médianes groupées malgré un gain TTFT24,9..27,0% et temps complet8,4..16,9% ; rejet selon sa priorité, aucune activation. Cause non établie : ordre d’accès/cache experts et compression logique suspects, pas démontrés. Diagnostic512H arrêté à sa demande : enfant/groupe22351 arrêté et rejoint,72,29s ; C512 non lancé. Rapport partiel conservé, aucun résultat de ce diagnostic utilisé pour qualification. Première commande de lancement avait SyntaxError avant tout enfant, corrigée avant le vrai lancement. Bonne source et patch P01B final archivés dans p01b/rejected-final ; restaurer uniquement les7fichiers natifs de cette expérience à leur base7978fce, retirer le harnais CI devenu absent ; préserver journal/archives et correctif superviseur indépendant. P01A/B clos sans intégration moteur/app/push.
+
+**PREFILL-2026-10-27-HEADONLY — recherche/préparation avant nouvel essai.** Demande explicite d’une autre piste préfill, sans régression decode. Examiner les appels des heads Flash sériels et DFlash avant modification ; relire anciens S2/P01 pour distinguer leur batching du mécanisme isolé. Hypothèse nouvelle : supprimer uniquement les heads intermédiaires inutiles, tout en préservant l’ordre token→couches, routes/lectures/cache et opérations récurrentes. P01B mélangeait ce mécanisme au parcours par couche/groupement MoE ; aucun gain ni échec de tête seule n’en découle. Réutiliser une entrée hidden existante si disponible, pas de nouveau kernel/banque/scheduler. Préciser contrat/oracles/protocole après inspection, avant prototype et mesure. Ce nouvel essai ne réactive pas P01B/P03.
+
+**HEADONLY — historique et protocole fixés avant prototype.** S2a ancien faisait déjà la tête finale seule en DFlash, parité courte passée mais **vitesse jamais mesurée** (closure-results.json) ; il a été retiré à la clôture, pas rejeté sur chrono. Réutiliser ce mécanisme isolé/compléter sa qualification, avec vraie voie AR8 en plus et matérialisation explicite du hidden pour éviter une rétention lazy des slots. Ce n’est pas une découverte nouvelle ni la relance d’un essai de vitesse négatif. Hypothèse et différence P01B inchangées : ordre token-major et caches experts inchangés ; ne pas attribuer ici les gains du batching.
+- Un booléen expérimental MLXL3_FLASH_PREFILL_HEADS=0|1, défaut0 ; API forward/trace/capture de decode continue toujours à calculer son head. AR forward_tokens : un head par appel (lot bridge8 conservé) ; DFlash : un head au dernier token, captures/draft.append à chaque token et casts inchangés. MTP inchangé. Pas de nouveau kernel ni cache.
+- Qualité avant vitesse : référence sérielle indépendante sur longueurs1/2/7/8/9/17/87/129/257, états/logits248320/captures/draftKV/continuation et nombre de heads effectivement exécutés via profiler existant ; erreurs/contexte/annulation/reprise. Mutant headintermédiaire rétabli doit échouer au contrôle du nombre de heads, et mutation capture doit être détectée. Vrai bridge AR/DF3prompts17tokens + annulation/recovery avant chrono.
+- Source Rust réelle/Kani MLX tenté (ICE antérieur conservé), CPU/tests/build/fmt/Clippy. Binaire figé commun H0/C1, modèle/draft/profil/matériel identiquesR2, mêmes textes87/82/246 et128sorties. Écran H puisC,1warmup+3mesures/prompt ; ordreinverse si TTFT+tempscomplet≥1%chaqueprompt et decode≥-1%. User tolère variation mais aucun relâchement correction/zéroSwapout/pic12Gio, mémoireprocessus extra256Mio contrôlée séparément de compression ; ranges conservés. Si régressiondecode répétée, retirer selon dernière instruction. Ne pas lancer pendant build/proof/inférence concurrente. Sourcebase restaurée7978fce et preuve du retraitP01B figées avant nouveaux changements.
+
+**HEADONLY — builds/CPU terminés avant GPU.** CPU246passés/6ignorés (le247e était le parseurP01B retiré). Première commandeClippy sansMLXL3_MLX_ROOT refusée parbuild.rs, aucuneexécutionGPU ; commande corrigée. Clippy initial signale méthodeinutilisée/typecomplexity, corrigés sansallow viaappelwrapperettraceparamètre ; Clippystrictv2 etbuildreleaseMLX+chat/tests passent. Kani première tentative sans--tests ne sélectionnait pas le harnais, résultat nonvalide ; tentativecorrecte --lib --tests --featuresmlx,chat --harnessactual_final_prefill_head_contract : ICEintrinsics.rs243 avantobligations, nonvérifié. Sources/binairesfigés headonly/source-v1.json/prototype-v1.patch. Deuxmutants isolés compilés avant GPU, sourcesbonnesrestaurées aprèschaque build ; plansqualité/écran/inverse préparés sans exécution. Défaut0, aucuneappmodifiée.
+
+**HEADONLY — précision état des mutants.** Au message précédent, leurs builds venaient de démarrer ; ils ne sont pas encore achevés/exécutés. Aucun succès mutant ni qualité GPU revendiqué. Le contrôleur restaurera les bonnes sources avant toute exécution. Les suites contracts/openai_transport/runtime_gpu normales (ignorés à compter) sont ajoutées à la qualification du package.
+
+**HEADONLY — préparation des contrôles négatifs.** Premiermutant(heads rétablies) compilé et sourcebonne restaurée. Préparationsecondmutant arrêtée avant modification : assertion de sélection de texte ambiguë(deux occurrences deconcat). Correction du constructeur en ciblant uniquementforward_captured_optional ; compilationcapture en cours, toutesrestaurations enfinally. AucunGPU lancé ni parité déduite de ces builds.
+
+**HEADONLY — qualité physique démarre.** Deuxmutants compilés/isolés et troisbonnes sources égales au gel source-v1.json. Contrôle silence sansprocessusconcurrent réussi, secteur et nouvelleancre de cetteexpérience dansheadonly/anchor.json ; tousrésultatsP01Bconservés. Lancer d’abord12comparaisons courtes(1/2/7/8/9/17 ×AR/DF), inspectionavantlongs/mutants/bridge ; aucunevitesse encore.
+
+- 45-Q/R processus model-short : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/model-short-plan-result.json.
+
+**HEADONLY — court validé.** 1testphysique réel passé/336filtrés ;12comparaisons H/C (1/2/7/8/9/17 ×AR/DFlash), logits248320/états/KV/formes/dtypes/continuationbyte-exacts,17capturesindividuelles12800finiesidentiques ; headsN→1 vérifiés parprofiler, erreurs/contexte/annulationprécoce/reprise passés.26,17s, zéroSwapout, processusjoint. Continuermutants/87/129/257/suitesetvraibridge ; aucunegainencoremesuré.
+
+- 45-Q/R processus head-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/head-negative-plan-result.json.
+
+**HEADONLY — head-negative terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/head-negative. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus capture-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/capture-negative-plan-result.json.
+
+**HEADONLY — capture-negative terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/capture-negative. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-87 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/model-87-plan-result.json.
+
+**HEADONLY — model-87 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/model-87. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-129 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/model-129-plan-result.json.
+
+**HEADONLY — model-129 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/model-129. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-257 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/model-257-plan-result.json.
+
+**HEADONLY — model-257 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/model-257. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-lib : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/native-lib-plan-result.json.
+
+**HEADONLY — native-lib terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/native-lib. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-main : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/native-main-plan-result.json.
+
+**HEADONLY — native-main terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/native-main. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus contracts : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/contracts-plan-result.json.
+
+**HEADONLY — contracts terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/contracts. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus openai_transport : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/openai_transport-plan-result.json.
+
+**HEADONLY — openai_transport terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/openai_transport. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus runtime_gpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/runtime_gpu-plan-result.json.
+
+**HEADONLY — runtime_gpu terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/runtime_gpu. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-recovery : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-recovery-plan-result.json.
+
+**HEADONLY — numérique/suites inspectés, bridge première préparation échouée.** 18comparaisons complètes(9longueurs ×AR/DF) passent, ycompris87/129/257 ; deuxmutants échouent101 surleurspropriétés, zéroSwapout, tousjoints. SuitesMLX : lib181passés/156ignorés, main44/8, contracts16/0, OpenAItransport35/0, runtime_gpu0/2ignorés(cesdeuxne sontpas exécutés). Total276passés/166ignorés, physiques sélectionnés séparément. Bridge-recoverypremière commandeéchoue0,10savanttoutmoteur : fixtureprompts.jsonmanquante dansnouveaudossier, rapportsincomplete/failedconservés ; pasdequalitébridge. Copierstrictement lafixturefigéeR2, mêmeshashes, relancepréenregistrée bridge-recovery-r2puisqualitéAR/DF ; aucunemodificationnative/nouvellecompilation, aucunevitesseencore.
+
+- 45-Q/R processus bridge-recovery-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-recovery-r2-plan-result.json.
+
+**HEADONLY — bridge-recovery-r2 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/bridge-recovery-r2. Ce résultat ne mesure pas un gain de vitesse.
+
+**PREFILL-2026-10-27-NEXT-READ — inspection statique avant recherche complémentaire.** Pendant les validationsHEADONLY, sans nouveauprototype/GPU/build : examiner les politiques de réserve/comptage des doublons et les autres frontières préfill pour sélectionner une piste réellement distincte si HEADONLY ne suffit pas. Relirelesantécédents regroupement65/66, LFUparoccurrence72R, PLE-S1 etP01B ; nepasrelancer àl’identique ni conclure que la cause du ralentissementP01B est prouvée. Aucune modification du cache ou réactivation du batching autorisée par cette seule inspection ; consigner résultat même négatif.
+
+- 45-Q/R processus bridge-quality-AR-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-quality-AR-H-plan-result.json.
+
+**HEADONLY — bridge-quality-AR-H terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/bridge-quality-AR-H. Ce résultat ne mesure pas un gain de vitesse.
+
+**PREFILL-NEXT-READ — différence cache concrète, sans causalité vitesse prouvée.** ExpertCache::reserve déduplique les IDs, incrémenteclock unefoisparréserve, divise lesfréquencespar2 tousles16appels et incrémenteuneseulefois parIDunique. Donc lesréservations multi-tokenP01B changent cadence de vieillissement/fréquences et protectiondesvictimes malgré étatsnumériquesexacts ; LFUparoccurrence déjànoté72R, pasunedécouverte niunfixporté. Cela ne prouvepas que les3–5% viennentduLFU (octetsdecodeCétaientlégèrementmoindres). HEADONLYpréserve lesmêmesréservations tokenmajor etévitecemélange. P03 resteconditionnel, aucuneimplémentation/campagnegroupéeréactivée par cetteinspection. Statiqueclose, poursuivrepreuveetchronoHEADONLY.
+
+- 45-Q/R processus bridge-quality-AR-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-quality-AR-C-plan-result.json.
+
+**HEADONLY — bridge-quality-AR-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/bridge-quality-AR-C. Ce résultat ne mesure pas un gain de vitesse.
+
+**HEADONLY — contrôle trace indépendant préenregistré.** Revuefinale identifie forward_trace public touché par leparamètretrace mutable(aucun calcul changé). Aprèslesbridges encours, sélectionner seul le testexistant flash_matches_independent_reference_states_and_logits avecoracle07/MLX0.32.2pinnés ; vérifiernonvacuitédeslignesdecontrôle attendues pourchaquetrace référencée, ≥5tokens/48couches/étatsGDN etlogits248320. Laqualitédifférentielle18cas resteacquise au mêmebinaire, mais n’exerce pas cetteAPItrace. Pasdenouveaucode/compilation/GPUconcurrent, seulcontrôleaffectéajouté ; aucunevitesseinférée.
+
+- 45-Q/R processus bridge-quality-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-quality-DF-H-plan-result.json.
+
+**HEADONLY — bridge-quality-DF-H terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/bridge-quality-DF-H. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/bridge-quality-DF-C-plan-result.json.
+
+**HEADONLY — bridge-quality-DF-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/bridge-quality-DF-C. Ce résultat ne mesure pas un gain de vitesse.
+
+**HEADONLY — vrai bridge qualifié avant vitesse.** 4brasAR/DF H0/C1, chacun3warmups+3réponses17tokens sur87/82/246 ; hashes/textes/nombres/compteursDFlash identiques entrevariantes etgoldensR2. Recovery14requêtes :4annulations,2erreursattendues,8complétions/reprisesexactes,247,79s. Tousrapportsvalidated, processus/lecteursjoints, zéroSwapout. Avantchrono128, exécutertraceoraclepréenregistré puis vérifierlignesnonvides ; pasdechiffredegain tirédequalité17.
+
+- 45-Q/R processus trace-oracle : **failed_or_interrupted**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/trace-oracle-plan-result.json.
+
+**HEADONLY — trace : test natif passé, garde de libellé échouée.** Test réel1passé/336filtrés,3,08s, logitsfinauxetreset byte-exacts ; enveloppesuperviseurfailed parcequelibelléattendu s4/gdn_state_46 absent. Inspectionfixture07 : elle contient les48layersmais uniquement GDN0/1 par token, pasGDN46. Ne pas annoncer un oracleindépendant des36états àpartirdecettefixture. Réanalyse sans nouvelleinférence :255contrôlesnonvides(240layers/10étatsGDN/5logits), RMSEetmax_abs0, reset248320,5tokens ; preuve headonly/trace-nonvacuity.json. Échecdel’enveloppe conservé, aucunseuilnumériquechangé. Les36étatsrestentcouvertsparledifférentielsériel18cas, pas indépendammentparcefixture. Sources/binairesidentiquesaugel, processusjoint/zéroSwapout. Démarrerécran128H0 puisC1 selonprotocole déjàpréenregistré, en conservanttoutesmesures ; aucunevitessejusqu’ici.
+
+- 45-Q/R processus speed1-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/speed1-DF-H-plan-result.json.
+
+**HEADONLY — speed1-DF-H terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/speed1-DF-H. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+- 45-Q/R processus speed1-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/speed1-DF-C-plan-result.json.
+
+**HEADONLY — speed1-DF-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/speed1-DF-C. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+**HEADONLY — écran H/C positif, avant confirmation.** 3warmups+9mesures128tokens parbras, source/binaire communfigés, textes/hashes/compteursDFlashexacts ; octetsdemandéspendantledécode identiques répétéparrépété. MAIN TTFT8,873→8,396s(−5,373%), total19,857→19,102s(−3,801%), decode+2,638% ; HOLD8,375→7,901s(−5,662%), total19,892→19,046s(−4,252%), decode+3,280% ; LONG24,656→23,096s(−6,328%), total36,781→34,793s(−5,404%), decode+4,102%. AllocationMLXidentique ; surchargeempreintemediane≈2,4..4Mio/pic+4,7Mio ; compressionlogiqueC≈352Mio moindre. Rangesetmedianscomplets headonly/screen1.json, stablefalseconservé(selonwaiveruserpasveto), favorabletruepourlesautrescritères. ZéroSwapout, processus/lecteursjoints. Ne pas promouvoirle+decodecommecausedémontrée ; confirmerordreinverseC/H déjàprévu.
+**Conditions avant ordre inverse.** Nouvelle réponse utilisateur àl’anciennedemandeRAM : « Je libère de la RAM ». L’alerte126,2Mio concernaitB1ancien, pasHEADONLY ; pasderebasagedel’ancre ni d’effacementd’échec. Lafermetured’appspeutmodifierlesconditionsdelapaireinverse : mêmesoptions/sources/poids, snapshotspré/postconservés, analyserlesdeuxpaires etcontrôlestémoinsaveccettelimite. LancerC1puisH0, mêmechauffeet3répétitions/prompt ; aucunpointéliminé, aucunegarantieDegainuniversel.
+
+- 45-Q/R processus speed2-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/speed2-DF-C-plan-result.json.
+
+**HEADONLY — speed2-DF-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/speed2-DF-C. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+**PREFILL-2026-10-27-P01L — nouvelle piste de localité, avant prototype.** Demande de boostspréfillplusimportants. Nouvelle raison tirée de l’inspectionLFU : isoler le simple ordre par couche deP01 en **gardant toutes les opérations et réservations d’experts scalaires**. S2b/P01A/B utilisaient MoEgroupé ; aucun deleursrésultats ne mesure cettevariante. Hypothèse : réutilisation poids d’unecouche et localité ducachefichierSDD, sansGDNmultiligne/nouveaukernel ni changementduvieillissementLFU. Aucunpourcentageanticipé/attribué, cause du−decodeP01B nonprouvée.
+- Prototype bloc≤128 : couches puis tokens, appelLayer::forward_lookahead(...None,0) inchangé pourchaquerow, matérialiserchaquesortieavant réutilisation desbanks ; mêmes headfinal/capturescausales/appenddraftrow1. Aucunbatch deroutes/dense, nouveaucacheexpert ou banque. Fallbackheadonly si lookahead>0 ouoptionHEADS0. MLXL3_FLASH_PREFILL_LAYERS=0|1, défaut0 ; headsresteconditionnéàvalidationHEADONLY. Vrai getterbridge128 et drapeauannulationpartagé, contrôleàchaquerow/couche, reset+reprise.
+- Exiger mêmesétats/logits/captures/KV et **métadonnéesLFU/slots** faceausériel depuiscacheinitialidentique ; clone/resetmétadonnéesuniquementcfg(test), GPUdrainavantreset etbankinchangée. Matricecourte+87/129/257, compteheadfinal, continuation, contexte/erreurs, annulationaprèsdébutdetuileetaprèsunpremierblocdéjàcommité ; mutationsdétectées, anciennelimite numéricalesconservée. Oracles/bridgeAR/DF/erreursavantvitesse, cache3Gio53slots/allocator64Mio. Kani réel symbolique tenté, MLX nonprouvé siICE ; tests/Clippy/build/cfgsanschat/CI applicables.
+- Baseline vitesse : HEADONLY1/LAYERS0 **seulement si confirmationHEADONLYpositive**, candidatHEADONLY1/LAYERS1 ; mêmesprompts/options/protocolerépétitions3 etordresH-C/C-Hconditionnels, seuilsTTFT+total≥1%chaqueprompt/décode≥−1%/extrafootprint256Mio/pic12Gio/zéroSwapout, ranges sansveto3% selonuser. Ne pasadditionnergainsincompatibles ; comparerchaquemécanismeisolément. DéfautLAYERS0 jusqu’àgainqualifié.
+- Préparer les sources pendantl’ordreinverseHEADONLY estpermis ; **pasdecompilation/proveur/modèleconcurrent**. MesuresHEADONLYtoujourssurbinaires/source-v1figés, copiescomplètesdansheadonly/source-v1 etpatchpourrestauration. P01L sera uneidentitédistincte etne pourrarevendiquercespreuves commequalification de ses nouvellesboucles.
+
+- 45-Q/R processus speed2-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/speed2-DF-H-plan-result.json.
+
+**HEADONLY — speed2-DF-H terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/speed2-DF-H. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+**HEADONLY — confirmation close, limites strictes conservées.** OrdreinverseC/H : TTFT MAIN/HOLD/LONG−3,094/−2,883/−3,310%, tempscomplet−1,225/−0,958/−1,998% ; decode−0,286/−0,708/−1,015%. Anciengateglobalfavorablefalse(HOLDtotal0,958%<1%, LONGdecode−1,015%<−1%), stablefalse ; nepasrenommer ceséchecs. Premierordre resteTTFT−5,373..−6,328 etdecode+2,638..+4,102.36réponsesmesurées+12warmups exactes, expert-demandbytesidentiques parrépétition/ordre, zéroSwapout/lecteurs etprocessusjoints. Résultatscomplets screen1/2 etpooled.json ; conditionsRAMchangéesparuserentrelespairesexplicitementnotées. PremièrecommandeanalysegroupéeSyntaxError avantécriture/calculeffectif, corrigée danscetterévision ; aucunnouveautestGPU.
+**Décision portant sur la priorité préfill.** GainTTFT confirmé3..6%danslesdeuxordres, tempscomplet positifdansles6comparaisons, aucunralentissementdecode répété. Qualifierle gainpréfill local deHEADONLY, sans qualifier un gaindecode ni prétendre que touslesseuilsglobaux initiaux ontpassé. La priorité utilisateur porte désormais surlepréfill et accepte lavariation ; garder headsfinal dans le code(local), défautHEADS1préparéaprèsmesures etencoreàcontrôlerensélectionsansvariable. Activationapp/push nonfaits. Lesnombresdécode restentsimplementdescriptifs etune garantieuniverselle serait injustifiée.
+**P01L — préparation source terminée, avantCPU.** Boucles scalaires par couche etgetter128préparés, capturesrow1 etannulationréelle ; métadonnéesExpertCacheclonablesuniquementcfg(test) etresetaprèsdrain pourlesoracles. ComparaisonscontreH0sériel, Cheadonly etClocal danslamatrice ; LFUcompletetI/Odoiventêtreégaux. Despatchesinitiaux ontétérefusés pourcontexte nonidentique, aucunesourcepartielle ; patchesciblésappliquésensuite. HEADONLYaétéchronométrésursonsource/binairev1figé, pas surP01L. NouveauKani porte surtokenU32symbolique(tousvalides+invalides) etdeuxbooléens,2tokens : forme/offsets/rejet,covers ; pasdestubGPU. Aucun résultatP01Lencore. Maintenant finGPUHEADONLY : compilation/proof autoriséesseules, puisqualificationavantnouveauchrono. BaselineP01LHEADS1/LAYERS0 commeprévu ; aucunpourcentaged’additionentreprotocoles. Lescopiesheadonly/source-v1permettrontleretraitdeP01LsansperdreHEADONLY ; sonnouveaudéfaut1devraquandmêmeêtrevalidédanslabinairesourcefinale.
+
+**HEADONLY — appréciation utilisateur explicite.** Après communication des écarts −1..+4%decode, user « ça va −1à+4% enmoyennec’estduboost ». Garderlesrésultatsgroupés sansmoyennedesextrêmes : médianes6/bras/prompt, decodeMAIN/HOLD/LONG+1,079/+0,955/+1,778%, TTFT−4,210/−3,827/−5,074%, total−2,509/−2,107/−4,008%. SonacceptationconfirmelemaintienHEADS1pardéfautdanslecode ; anciensgatesfalseconservés, aucunboostuniverselouappinstalléeprétendu. P01Lresteexpérimentaldéfaut0 etencoursdecompilation/vérification.
+
+**P01L — build etCPU terminés, premierGPUdémarre.** Clippystrictmlx/chat/all-targets passé, buildrelease moteur/tests passé, MLXsanschat compiledavec17warningspréexistants(notamment prédictionstests), CPU246passés/6ignorés. Kani réellement symbolique2tokens/U32+2bools : compilationICEintrinsics243 avantobligations, propriétésnonvérifiées. Source/binairegelp01l/source-v1.json etprototype-v1.patch ; HEADSdéfaut1/LAYERSdéfaut0, nosbenchmarksHEADONLYv1nonconfondus. Préflightsecteur/silenceréussi, nouvelleancrep01l/anchor.json pourcetteexpérience, aucuneanciennefailureeffacée. MatriceH0/Head1/Local1 depuismêmecachemétadonnéesfreshmaisbanquesinchangées ;24comparaisonscourtespuislongsseulementaprèsinspection. Mutantsseront compilésandexécutésdansphaseCPU/GPUdistinctesavantpromotion, pasenparallèledecepremiertest.
+
+- 45-Q/R processus model-short : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/model-short-plan-result.json.
+
+**P01L — premiermodèlecourt validé.** 1testphysique/336filtrés,24comparaisons(6longueurs×2modes×2candidats) faceausériel, LFUcomplet(keys/counts/ages/clock/pending/prédictions) etI/O exacts,248320logits/états/captures/KV/continuationbyte-exacts ; annulation après2rows et6146rows(premierbloc128déjàcommité), resetdraft/target/reprise passent.65,02s, zéroSwapout, enfantjoint. AvantautreGPU, phaseCPUcompile2mutantspréenregistrés : clockLFUcorrompuuniquementcheminlocal(doitéchouerLFUàlongueur1), capturesrow0répétéesuniquementlocal(doitéchouerKVàlongueur2). Sourcesnormalesrestauréesavanttouteexécution ; nivainepariténichronodéduitdesbuilds.
+
+**Suite utilisateur miseenfile(2026-10-27).** « PouraprèsregardeTensorFoldpourdesidéespréfilletdecode ». Terminer/qualifier ourejeterP01L etmaintenirHEADONLYvalidépréfill, puis rechercherTensorFold(identité/révisionetantécédentslocauxàrésoudreavantnouvelleanalyse). Cetteinstructionnedemandeaucunmessageexterne,pushouinstallation. Aucun nouveauportageTensorFoldpendantleprotocoleP01L ; futureinspectionpréenregistréedanssonentréepropreavantrecherche.
+
+- 45-Q/R processus lfu-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/lfu-negative-plan-result.json.
+
+**P01L — lfu-negative terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/lfu-negative. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus capture-negative : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/capture-negative-plan-result.json.
+
+**P01L — capture-negative terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/capture-negative. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-87 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/model-87-plan-result.json.
+
+**P01L — model-87 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/model-87. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-129 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/model-129-plan-result.json.
+
+**P01L — model-129 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/model-129. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus model-257 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/model-257-plan-result.json.
+
+**P01L — model-257 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/model-257. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-lib : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/native-lib-plan-result.json.
+
+**P01L — native-lib terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/native-lib. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-main : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/native-main-plan-result.json.
+
+**P01L — native-main terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/native-main. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus contracts : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/contracts-plan-result.json.
+
+**P01L — contracts terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/contracts. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus openai_transport : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/openai_transport-plan-result.json.
+
+**P01L — openai_transport terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/openai_transport. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus runtime_gpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/runtime_gpu-plan-result.json.
+
+**P01L — runtime_gpu terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/runtime_gpu. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-recovery-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/bridge-recovery-r2-plan-result.json.
+
+**P01L — bridge-recovery-r2 terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/bridge-recovery-r2. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-default-AR : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/bridge-default-AR-plan-result.json.
+
+**P01L — bridge-default-AR terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/bridge-default-AR. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-AR-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/bridge-quality-AR-C-plan-result.json.
+
+**P01L — bridge-quality-AR-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/bridge-quality-AR-C. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-default-DF : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/bridge-default-DF-plan-result.json.
+
+**P01L — bridge-default-DF terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/bridge-default-DF. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-quality-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/bridge-quality-DF-C-plan-result.json.
+
+**P01L — bridge-quality-DF-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/bridge-quality-DF-C. Ce résultat ne mesure pas un gain de vitesse.
+
+**P01L — correction complète inspectée avantvitesse.** 36comparaisonsfull-logits/états/captures/KV/continuation faceausériel :9longueurs×AR/DF×headonly/local ; LFUcompletetI/Oexacts depuismêmesmétadonnéesinitiales, nombredeheadsvérifié ; erreurs/contexte etannulationaprès2rows/aprèsbloc128avecreset/reprisepassent. Deuxmutants LFU/capture détectés101etsourcesnormalesrestauréesaugel. SuitesMLX276passés/166ignorés, CPU246/6 ; aucuneinférenceinventéedepuislesignorés. Bridge14requêtes/4cancellations/2erreurs/8réponses complètes passé,301,57s ; qualitéAR/DF3prompts87/82/246,3warmups+3réponses17parbras, hashes/textes/compteursidentiquesauxgoldHEADONLY, octetsdeDecodeDFégaux. DefaultH sansHEADS/LAYERSaexercéle sourceHEADS1/LAYERS0. ZéroSwapout/enfantslecteursjoints surchaquegroupe ; vraiKaniMLXICE/nonvérifié. Débutécran128H=HEADS1/LAYERS0 puisC=HEADS1/LAYERS1,mêmebinairesource-v1,mêmesrèglesdéjàpréenregistrées ; aucuneperformanceP01Lencorequalifiée.
+
+- 45-Q/R processus speed1-DF-H : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/speed1-DF-H-plan-result.json.
+
+**P01L — speed1-DF-H terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/speed1-DF-H. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+- 45-Q/R processus speed1-DF-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/p01l/speed1-DF-C-plan-result.json.
+
+**P01L — speed1-DF-C terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log p01l/speed1-DF-C. Bras vitesse complet, gain à analyser après comparaison appariée.
+
+**P01L — REJETÉ, retrait avant suiteTensorFold.** Écran128H=HEADS1/LAYERS0 vsC=HEADS1/LAYERS1 : MAIN TTFT8,827→9,969s(+12,935%temps), total20,205→21,666s(+7,231%), decode−3,394% ; HOLD8,554→9,437s(+10,328%), total20,630→21,815s(+5,742%), decode−2,433% ; LONG23,989→26,865s(+11,991%), total37,040→39,515s(+6,682%), decode−0,998%. Toushashes/textes/compteursetoctetsdemandésexacts ;3warmups+9mesuresparbras, zéroSwapout/lecteurs etprocessusjoints. Rangesetcomparaisonp01l/screen1.json, favourablefalse/stablefalse ; aucuneconfirmationinversée ni recherchedepointfavorable. Pertepréfillnette, doncretirerleprototype ;2eordrenonlancé. LesmétadonnéesLFUégales excluentcechangementdanscetessai, ellesneprouventpasunecausepourP01B. Synchronisationssupplémentairesparrowplausiblesmaisnonisolées ; aucunprofiltimingGPUexclusifréalisé.
+- Archivagep01l/rejected-final(sourcesentières/patch/SHA), modèles/tests/erreurs etmesuresconservés. Restaurer3sourcesHEADONLYv1dontdéfautHEADS1, main/ssd_moe/flash_supportàHEAD ; aucuneprotection oubarrièreGPUretiréepourforcerungain. GarderseulementlecodeHEADONLYqualifiéetlescorrectifssuperviseur. NouveauKaniSymboliquefinal2tokens/allU32+bool, puisformatClippy/buildmlxs/CPUetvraibridgedéfaut(headssansvariable)finalàinspecter. Aucunappinstall/push/release.
+
+**TENSORFOLD-2026-10-27-READ — avant recherche, suite explicitement demandée.** P01Lclos/rejeté, HEADONLYretenu ; lirel’historiqueTensorFold/TensorFlod etsesrapports, résoudrerepodéjàconsulté, vérifierSHAcourantviaGitHubetdiffdepuislespinsanciens. Lirelesfrontièrespréfill/décodepertinentesetnotrecodefinalpourretenirquelquespistesdistinctes ; neréexécuteraucunessaihistoriqueparsimplechangementdenom. Inspectionreadonlyseulement, rapportavecsrc/SHAs/limites etrésultatsdéjàconnus ; pasdenouveauproto/benchmark/processeurGPU avantpréenregistrementdistinct. Pasdemessageextérieuroupushautorisé. RéaliserpendantlesvérificationsCPUducodefinal, sansautreinférenceconcurrente.
+
+**HEADONLYfinal — source retenue construite, validationaffectée avantclôture.** P01Ltotalementretiré ;qwen4identiquev1mesuréexceptédéfaultexpliciteHEADS1, flash_draftbyteidentique, runtimehorsharnaisKaniidentique ; seulharnaisfinalmodifiépourtokenU32symbolique/headsbool/formes-offsets-rejet2tokens. Clippystrict/buildengine+tests/MLXsanschatpassent. Kani finalcompileICE(nonvérifié). Hashesheadonly/final/source.json, patchretained.patch. Préflightsecteur/silenceetnouvelleancrevalidationfinale ; exécuter12casphysiquescourts/suitesnormalesetvraibridgedéfautAR/DFsansvariableHEADS(autresflagsB2pinnés), comparésàgoldheadv1. Pasdenouveauchrono/répétitiondesmesuresinchangées. Sourcev1preuvesdéjàacquisescommecalculretenu, nouvellebranchdefaultàcontrôler.
+
+- 45-Q/R processus model-short : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/model-short-plan-result.json.
+
+**HEADONLY — model-short terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/model-short. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-lib : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/native-lib-plan-result.json.
+
+**HEADONLY — native-lib terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/native-lib. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus native-main : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/native-main-plan-result.json.
+
+**HEADONLY — native-main terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/native-main. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus contracts : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/contracts-plan-result.json.
+
+**HEADONLY — contracts terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/contracts. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus openai_transport : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/openai_transport-plan-result.json.
+
+**HEADONLY — openai_transport terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/openai_transport. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus runtime_gpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/runtime_gpu-plan-result.json.
+
+**HEADONLY — runtime_gpu terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/runtime_gpu. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-default-AR : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/bridge-default-AR-plan-result.json.
+
+**HEADONLY — bridge-default-AR terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/bridge-default-AR. Ce résultat ne mesure pas un gain de vitesse.
+
+- 45-Q/R processus bridge-default-DF : **completed_expected_outcome**, joint=True ; docs/measurements/issue54-prefill-20261027/headonly/final/bridge-default-DF-plan-result.json.
+
+**HEADONLY — bridge-default-DF terminé.** Résultat attendu vérifié, zéroSwapout, processusjoint ; rapport/log headonly/final/bridge-default-DF. Ce résultat ne mesure pas un gain de vitesse.
+
+**HEADONLYfinal — clos, code local retenu.** Inspection des8plans finale : statuts attendus complets, zéro nouveauSwapout,8enfants joints ; bridges AR/DF également reader_joined. Suites figées finales : lib181passés/156ignorés, main44/8, contrats16/0, OpenAI35/0, runtimeGPU0/2, total276/166. Test physique sélectionné séparément1passé/336filtrés :12cas1/2/7/8/9/17×AR/DF, logits248320/états/captures12800/KV/continuation bitexacts, headcounts et erreurs. Bridge final sans variablesHEADS/LAYERS :3warmups+3réponses17 parmode, textes/hash/comptes et profilDF horssecondes dont octetsdemandés égaux aux goldsHEADONLYv1explicite1 ; binaire SHA4e3fb4122b4a26b1dcc58ebdc75ef605b6263e5060d52b10f95b23d705f28125. La première lecture de comparaison traitait à tort dflash_profile=null enAR comme dictionnaire ; arrêt avant publication du rapport, erreur conservée inspection-r1-error.txt, lecteur corrigé puis comparaison réussie sans nouvelle inférence. verification-inspection.json et source.json décrivent le code réellement retenu : qwen4diffv1seulementdéfaut1, flash_draftbyteidentique, runtimehorscfgKaniidentique. CPU246/6 et testsPython16 du superviseur déjàpassés, compilationsfmt/Clippystrict/buildmlxchat/MLXsanschat réussies ; pasde répétition nonaffectée. Kani réel2tokens tokenU32/headsbool échoue avant obligations parICEintrinsics243 : nonvérifié, aucune preuveGPU. Aucun nouveauchiffre depuis les validations17 ; gains128DFB2 et anciensgatesreverseéchoués restent décrits sansrequalification dans README/pooled.json. P01B/P01L retirés, aucunessaiGPU encours, aucunpush/appinstall/release.
+
+**TENSORFOLD-2026-10-27-READ — terminé, recherche seulement.** Repo ashhart/TensorFold fixé b30d5b9d36786ff778b4bb7a7e1c4b5d26de126e (27oct09:35:14Z), moteur natifZig ; comparaison parblob avec pin46a08c18608153bfc566703a88acc883bc6140f4 et recherchePython0.6.6 antérieure. Treecomplet,18fichierscollectés/régionspertinentesinspectées ; listesAPIcompareplafonnées, pasd’auditcomplet1885commits. Manifeste URLs/blobs/SHA256 etlimites docs/measurements/tensorfold-20261027/sources.json ; sourcesamont sousbuild/tensorfold-review/<sha> horsGit. Deuxpistes distinctes : fusionexacte d’offsetsSSDadjacents versiovec(sanssurlecture, LFUinchangé) ; poolglobaldynamique multi-couches àsimuler avantport, déjàévoquéarchitecturalement59 etmaintenantillustréparFSR. Aucunbénéficechiffréprévu.
+- Recoupement final corrige la première idée cache :31 était préparation mais47R aensuitemesuréunprofilstatique(nonqualifié, OFF−0,766/−0,536%),55replaydédupliquérejetéhorsMAIN(HOLD+0,462/+0,541%jobs). VariableLAYER_SLOTSdéjàprésente ; aucunretry47/55 ni nouvellecalibration lancés. Rapport54/55 relu etrésultatsconservés. Le poolglobalCLOCK/leases est une autrearchitecture, pasunprofilretouché.
+- PrototypeMetalEXL3amont trouvéetinspecté(projection/kernel/tests/banc), maisBF16+sommescompenséesTwoSumdiffèrentdeFP16/FMA/splitK ; packEXL3pasencoreserviparmoteurnatif. Partage/décodagehoisté déjàprésentouexploréchez nous(Q27/54), pasdeportdirect. FSR9composants/qualification16..48Gio n’estpasnotreEXL3 12segments/cache3Gio ; testsdeviceetcheckpointencore requis parleurcontrat. Prioritédemandes/AIO nejustifiepasretourF_NOCACHE12F/G, prédictions72/73 ouPLEcacheS1déjàrejetés.
+- Rapport docs/measurements/tensorfold-20261027/README.md : sourcesprimairespinnées, différencescode/histoire, pistesetsuitesconditionnelles. Aucuneexécutionamont/prototype/benchmarkTensorFold, aucunevitesseprésumée, tousessaisactuelsclos ; touteexpériencefutureàpréenregistrerséparément.
+
+**TENSORFOLD-MIA-2026-10-27-READ — avant extension demandée par l'utilisateur.** Identifier le TensorFold de Mia via sourcesGitHub publiques, fixerrepo/branche/SHA/date et lienavecashhart(basediff/fork), puis lireleschangementspréfill/décode distincts. Compareraupinb30d5b9 etauxrejets47/55/Q27/54/P01B/P01L ; aucun doublon debenchmark ni code moteur modifié. Recherche seule, preuves/limites dansle dossierTensorFold ; aucun nouveauGPU/build/prover ni publication. HEADONLYfinaletvérifications restent clos.
+
+**TENSORFOLD-MIA-READ — terminé, aucune expérience.** MiaAI-Lab/TensorFold est un forkashhart, main71377a5373ed7b394f1b480ba2a6a3986b03af1c du28septembre, ancêtre4591commitsderrièreb30d5b9. Trentebrancheslistées ; flash-next-prefill-rows e0f08fa8adb86f657a489cd3e546adb376907718 a1commitnonamont du2octobre, mais overrideCUDAignoreEXL3. Travailrécent pertinent dans MiaAI-Lab/Qwen3.8-Flash-Next-Single-DGX-Spark-TensorFold e1f564eb915bb5272474b6c1c527aec3b9ed3de6 du25octobre, baseashhartdb281878ddb836fd0df510d8771ecb7e0fe47d26+patches, moteurZigCUDA. Neuffichierscollectés/régionscibléesinspectées, patches14/15/21/29/30 etconfigREADME, pasd’auditcompletdesgrossespatches0001..0013 ; sources/métadonnées/SHA sousdocs/measurements/tensorfold-20261027/mia-sources.json etbuild/tensorfold-review/mia/<sha>.
+- 0014 rapporte+13,4..14,7%préfill enA/Balternés3démarrages/bras×3prompts surGB10/FP4/KVFP8 : résultatamont seulement, pasreproduit. Vraikernelpartagepoids/cp.async/mémoirepartagée, seuil1024lignes ; pasactifsurnos82/87/246tokens. PasdeportCUDA/NVFP4→MetalEXL3présumébitexact, pasréactivationP01B/P01L ni promessedecodeinchangépournotrepipelineSSD.
+- Cachesnapshots0029/21(ownership/drain/générations/budgets) pertinent pourS3Flash+DFlash connu : productionclearePromptCache ; ancienS3replayexactmaisdernièreadmissionbackingnonqualifiéeavantretrait. Aucunerepriselancée, pasidéeprésentéeneuve. FaiblesTTFTamont68..78mssontpromptsrépétés/restaurationàun token, paspréfillfroid ; documentsdistinguentlesdeux.0015réactivitéconcurrente aveccoûttotalmixte+22%, pasgaindecodeisolé ; mémoiresystèmeCUDApasgaindébitdémontré.
+- Rapportmia.mdliédansREADME : critères/identités/limitesetantécédents. Aucunmoteurtiers/image exécuté, aucunnouvellemesure/prototype ni codeexécutablemodifié ; aucunessai encours, HEADONLYetbilanfinalinchangés. Touteimplémentationfutureàpréenregistrerséparément.
+
+### MIA-PREFILL-2026-10-27-M1 — tuile EXL3 partagée, avant prototype/mesure
+
+Demande explicite : adapter le kernel préfill de Mia à M5/EXL3, tester, conserver seulement si gain préfill sans ralentir le decode. Baseline = code HEADONLYfinal local déjà vérifié (SHA moteur4e3fb412…), baseGit7978fce avec trois fichiers natifs modifiés ; préserver ces changements et les correctifs du superviseur. Source d'idée : recetteMia e1f564eb915bb5272474b6c1c527aec3b9ed3de6, patch0014, partage d'une tuile de poids décodée entre plusieurs lignes et staging mémoire partagée ; pas son arithmétique NVFP4/BF16 ou CUDA.
+
+Différence justifiant cet essai : P01B utilisait les kernels groupés existants avec un autre ordre de réserve LFU, P01L gardait tous les calculs scalaires ; tous deux retirés. Ici développer d'abord un vrai kernel Metal EXL3 réutilisant le décodage des poids entre lignes, avec ordre FMA/réduction/casts du M1 conservé. Tracer linear/moe/slots et les chemins préfill appelants avant de fixer le plus petit raccord ; ne pas réactiver leurs simples permutations de boucles comme un gain neuf. Préfill et decode devront être distingués explicitement, et une baisse de temps composant ne qualifiera pas le modèle.
+
+Phases prévues : (1) oracle du kernel sur les vrais poids/formes GU/down/dense et tableaux de routes répétés/singletons/bords, sorties complètes finies et byte-exactes au chemin indépendant M1 ; contrôle négatif et tests des bornes/dispatch, Kani réel Rust et tentative source Metal la plus forte praticable, limites explicites ; (2) micro alterné sur formes/longueurs pertinentes, 3chauffes+12mesures par bras, aucun GPU pendant builds/provers ; (3) si mécanisme utile, raccord préfill réel avec fallback et test du cache/états/captures/KV/cancel/recovery face au sériel, puis bridge AR/DF. Si raccord exige changement de cache, le préenregistrer en sous-essai avant code/mesure ; pas assimiler une parité numérique à une parité LFU.
+
+Décision modèle : M5standard24Gio/MLX0.32.2, cibleEXL3 65c89531/draftQ4ring a22a1744,3Gio53slots/alloc64Mio/4lecteurs/overlap1/HotWideUNIQUE1/nofetch/B2fixe/ctx4096, source et binaires figés. Même corpus MAIN87/HOLD82/LONG246,128sorties,1chauffe+3mesures parbras/prompt, H-C puis C-H si premier écran favorable ; ordre/ranges intégralement conservés. Exiger préfill/TTFT et temps complet améliorés sur les prompts applicables, aucune régression decode répétée (seuil de crible−1%, étudier les deux ordres, pas promotion d'un ralentissement), textes/hashes/comptes identiques. Utilisateur accepte la variabilité, pas les régressions decode ; ne pas transformer bruit en gain. Secteur, zéro nouveauSwapout, pic≤12Gio, pas autre inférence/compilation/proveur, processus/lecteurs joints. Pas de nouvelle forme de prompt choisie après résultats ; si seuil kernel écarte les trois prompts, aucun gain sur eux revendiqué. Aucun push/appinstall/release autorisé. Statut en cours, aucune performance nouvelle mesurée.
+
+**M1 — matrice précisée avant code, avec l'image utilisateur.** Tester les projections EXL3 aux tailles1/2/4/8/16/32lignes (M1 contrôle inchangé), plus bords3/5/7 et routes mélangées/singletons. Prototype du partage dans un threadgroup : quatre SIMDgroups par ligne pour conserver la partitionK M1, au plus4lignes partagent une tuile décodée en mémoire threadgroup, mêmes FMA et mêmes sommes de référence ; sous-tuiles pour les groupes8 et masquage des lignes finales sans diverger aux barrières. D'abord test-binary seulement, aucun raccord CLI ni activation en decode. Réutiliser les banques réelles et l'entrée expert_slots/calculate_slots avec un constructeur de routes préfill explicite ; variantes témoin non groupé, groupé existant et nouveau partage. Les compteurs de lancements doivent prouver que les tailles2..32 n'ont pas seulement pris un fallback. Kernel seul puis transformationGU/down+MoE, ordre alterné12paires/32appels par échantillon après3chauffes ; trois couches0/23/47, pasd'I/Ochronométré. Séparer temps hôte+GPU de tempsGPUexclusif(nonmesuré). Chercher l'effet sur vérificationMTP/DFlash2 après correction et micro utile ; leurs temps incluent I/O/cache et ne sont pas du tempskernel pur. Aucun groupe/stub de preuve ne prouvera le shaderMetal ; harnaisCPU pour bornes/partition et tentativeMLX réelle, compilationMetalréelleettestsphysiques pourleGPU.
+
+**M1 prototypev1 CPU.** Partage effectif de la tuile par2/3/4lignes,4SIMDgroups/ligne, garde du constructor préfill test-only ; le partitionneur existant plafonne déjà ses groupes à4 (donc16/32lignes deviennent plusieurs groupes4, pasun nouveau plafond8). Shaderdistinct, M1 reprend source/dispatchoriginal ; expert_slots/calculate_slots et transformations/casts/ordreFMA restent le parcours testé. Le raccord CLI n'existe pas encore : nepasannoncergainmodèle. Clippystrictmlx,chat/alltargets passe. Kani du vrai sélecteurdewidth suru32arbitraire sansassume :106obligations0échec/3covers, identitéwidth2..4/threads≤512/mémoirethreadgroup≤20480B ; c'est un contrôleCPU, pasMetal. xcrun--findmetal échoue72(outilabsent), aucunecompilationofflineMetalprétendue ; le compilerMetalMLXréel sera exercé surGPU. TentativeKaniMLX réelle etbuilds/tests suivent séparément duGPU.
+
+**M1 v1 gelé, premier lancement bloqué.** CPU247passés/6ignorés ; Clippystrict final et buildrelease libtest passent. KaniMLX réel compileICEintrinsics243 avantobligations, nonvérifié. Ajout du contrôle des sommesFP32 brutes GU/down, puis contribution contre Exl3Linear résident indépendant :108cas complets et216comparaisonsbrutes, formes/compte/finitude et preuve de lancement du nouveau shader. Matricevitesse :108cellules(36formes×rawGU/rawDown/contribution),3variantes,12paires×32forwards,3chauffes ; baseline etanciengroupé explicitement séparés. Sources/binaires source-v1.json/57ffb2d8…, sources entières etprototype-v1.patch archivés. quality-plan s'arrête avant création du moindre enfant : gardequiet détecte swift-build93345/Swiftfrontend93405. Statut failed_or_interrupted/reaped, aucunecorrectness/vitesseGPU niSwapout attribuableànotremodèle ; qualité nonlancée. Ancre41013133312B distincte de campagneHEADONLY ancienne. Attendre fin du build externe selonpréférenceuser, poursuivreCPU ; aucunprocessusextérieurtué/messageenvoyé. Relance au mêmebinaire etnouveaunom/ancre explicitée quand calme, sans effacer cet arrêt.
+
+**Suite demandée après M1 (image utilisateur) :** examiner le pool global dynamique d'experts à budgettotalconstant, distinct des profilsstatiques47/55 ; recherche seulement tant qu'aucun prototype correspondant n'est préenregistré. Ne pas remplacer la prioritékernel encours et ne pas interpréter les nombresillustratifs25/78/39/88/35 comme une allocation validée.
+
+**M1v1 qualitéGPU réussie.** BuildSwift fini sansintervention ; relance explicitée quality-r2-plan au mêmebinaire57ffb2d8, ancre41013133312B inchangée/r1préservée. Lib182passés/157ignorés,18,400s ; testphysique1passé/338filtrés,108cas9tailles×2patterns×2dtypes/strides×3couches,5,578s. Chaque cascompare les3contributions àExl3Linear résident indépendant puis GU/down enFP32brut (216casbruts,2comparaisons/chaque faceauM1,432comparaisonsbrutes). Formes/compte/finitude/byteégalité et vraiscompteursnouveaushader pour2..32 ; M1fallbackinchangé. Erreursroutes/capacités refusées. Les2enfantsjoints/zéroSwapout, rapportsquality-r2.json/planresult/logs. Aucunevitesse mesurée encore. Prochainepreuveprévue : mutantshader remplace sum0par1024 pourcorrompre les sommes sanserreurdecompilation ; compiler séparément puis restaurersource normaleavantGPU, exiger échecfonctionnel101dansun casnonvide, ensuite seulement vitessev1normale au binairefigé. CetteCPUphase n'utiliseaucunGPU.
+
+**M1v1 contrôle négatif, échec de libellé conservé.** Mutant GPU compilé/restauré avantlancement ; sort101 après4contrôlesM1réussis, au gardeforme/nombre/finitude de la premièreforme2partagée. Donc sortiecorrompue détectée, maiswrapper échoue car attendait le libellé de comparaisonbitexacte «Mia tile differs» situé aprèscegarde. Planresultfailed_or_interrupted conservé telquel, zéroSwapout/enfantjoint ; pasdecompilationinvalidenifauxsuccès. Inspection séparée exigera101/4contrôles/absenced’erreurcompilation/restaurationSHA, sansréécrire lesanciensrésultats ni relancerpourmodifierlemessage.
+
+**M1v2 — témoin d'isolation avant toute vitesse.** Inspection du protocole : le groupé existant refuse moinsde16occurrences, alorsque le nouveau constructeur forcelegroupage pourtester2..8. Ajouter un4etémoin utilisant exactementlesmêmesgroupes/origins/restauration quelecandidat maisle shaderoriginal, pourséparer gainkernel et effetdegroupage ; mêmes108cellules et12paires alternées,4variantes0non-groupé/1groupéstock/2nouveautile/3groupageforcéancienkernel. Aucunevitessev1collectée, pasdechangementmathématique du nouveaukernel. Recompiler/figerv2 puisqualitéaffectée4variantes avantchrono ; v1/mutantetleurspreuves conservés. Ne pas qualifierungainkerneldepuis la seulelevée du seuil16.
+
+**Correction de suite par l'utilisateur :** aprèsfin deM1, examiner beamivalice/sushi (streamingSSD/buffersMetal/prélecture/slabs/cachepréfixes/budgetRAM), à la place de l'approfondissementpoolTensorFold. Lirel’historiqueSushi09/13 etlespinsanciens avantcomparaisonHEAD ; nepasréannoncerlecturedirecte/overlapdéjàprésents commefonctionneuve. PasderechercheSushi commencée tantquekernelnonclos, aucunprototype supplémentairepréenregistré.
+
+- 45-Q/R processus native-lib : **failed_or_interrupted**, joint=True ; docs/measurements/mia-prefill-20261027/quality-plan-result.json.
+
+- 45-Q/R processus native-lib-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/mia-prefill-20261027/quality-r2-plan-result.json.
+
+- 45-Q/R processus quality-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/mia-prefill-20261027/quality-r2-plan-result.json.
+
+- 45-Q/R processus negative : **failed_or_interrupted**, joint=True ; docs/measurements/mia-prefill-20261027/negative-plan-result.json.
+
+- 45-Q/R processus quality-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/mia-prefill-20261027/quality-v2-plan-result.json.
+
+**M1 quality-v2 terminé.** Processus joint/zéroSwapout ; 108cas complets +216casbruts, rapport docs/measurements/mia-prefill-20261027/quality-v2.json. Qualité quatre variantes réussie, shaderinchangévsqualitév1.
+
+- 45-Q/R processus speed-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/mia-prefill-20261027/speed-v2-plan-result.json.
+
+**M1 speed-v2 terminé.** Processus joint/zéroSwapout ; 108cas complets +216casbruts, rapport docs/measurements/mia-prefill-20261027/speed-v2.json. Vitesse composant à analyser ; aucun gainmodèle encore.
+
+**M1v2 analyse — REJETÉ, pas de raccord modèle.** 108cellules complètes,5184échantillons chronométrés/165888forwards,3warmups et12pairesalternées à4bras, aucuneexclusion. Tempshôte+GPU/fence, pasGPUexclusif ; source bde92e18 figée,79,535s, zéroSwapout/enfantjoint. Comparaison par cellule = médiane12rapportsappariés ; résumé entre3couches descriptif, ranges intégrales analysis-v2.json. Sur rowsrépétés, rawGU C/véritabletémoin : M2−10,02%,M4−4,39%,M8−2,71%,M16−2,68%,M32+0,89% ; rawdown−7,42/−4,31/−3,67/−0,23/−0,46%. Nouveau vs mêmesgroupes+ancienkernel : rawGU−3,73/−8,63/−18,53/−23,31/−32,72%, rawdown−1,35/−3,99/−11,90/−16,65/−22,69%. Lesgroupesmélangésn’inversentpasleconstat ; cas sanslancementTiled restentcontrôles/fallback, pasboostkernel.
+- Contributioncomplète rowsrépétés C/H : M2−4,17%,M4−4,57%,M8+0,08%,M16−0,10%,M32+1,24% ; ce dernier reste−33,29%faceaumêmegroupageavecl’ancienkernel. M1sourceGPUidentique donne variations−6..+3% seloncomposant/couche, pasun gaincausal ; nepasretenirun petitpointisolé. Le nouveaushadern’apportepasd’améliorationutileau-delàdescheminsexistants ; lespartagesenregistresdel’anciengroupésontdéjàefficaces. Lesbarrières/stagingajoutés sontuneexplicationplausible, nonprouvéeparprofilGPUexclusif.
+- La condition d’utilitécomposantprévueavantprototypene passepas ; préfillcomplet/MTP/DFlash2/décodeA/B **nonlancés**, aucuneralentissementmodèleinférédecesmicrotests. Ne pasréactiverP01B/P01L oulegroupéancien enappelantcelaungainMia. Archiverprototypes/mutant/sources/analyses, retirer touslesajoutsnatifsM1 et conserverHEADONLYdéjàqualifié. Aucunpush/appinstall/release. Vérificationrestaurationetrapportfinalsuivent, puisrechercheSushidemandée.
+
+**M1 clos — prototype retiré et preuves conservées.** contracts/linear/ssd_moe restaurés byteàbyteHEAD, nouveauxshader/testsupprimésaprèsarchivage ;3sourcesHEADONLY et toussesbinairesfinals vérifiésinchangés. Format/Clippystrict/diffcheckrestaurés passent ; aucunretestGPU nonaffecté. Rapportsources/commandes/bornes/limites/échecs : docs/measurements/mia-prefill-20261027/README.md, closure.json ; negative-inspection.json distingueéchecwrapperetdétectionfonctionnelle. AucunessaiM1 en cours, aucunboostMia intégré, appinchangée. Suiteuser : rechercheSushi seulement, àpréenregistreravantconsultationamont.
+
+### SUSHI-2026-10-27-READ — avant consultation, suite user après M1
+
+Hypothèse : des changements depuis nos pinsad562c4078a62d9d0a562add7e109cbc330de96b(09/13), ae63f880550fa52c0ea4549329ecc7a76e41e10d eteaaca12c5508e6a24a01671384a9a41089370058 peuvent apporter une différence concrète dans expert_stream/expert_io, gestiondeslabs, prélectureexacte etprefixSSD pourFlashNextEXL3/MTP/DFlash2. Relectureopti13 etrapportflash-ssd-upstream-2026-10-12.md avantrecherche : lecturespreadvdirectes/banksstables/4lecteurs/Hotavantreadback/overlapdéjàicietmesurés14B/56/63. Prototypescache47/55, prélecture72/73, groupés/P01/Mia restentnégatifs ; nepasrenommercesessais.
+
+Protocole recherche readonly : fixer HEAD/commit/date de beamivalice/sushi, comparer tree/commits/regions avecancienspins, lirecallers Qwen4/stream/io/cacheprefix/budgets etcontrats rollback/lifetimes ; contrôler les affirmations/hardwaredu screenshot àleurs sources, sanstransposerTPSM5Max128Go versM5standard24Gio. Distinguer déjàprésent/nouveaudistinct/incompatible/nonmesuré. Baseline MLXL3 = HEADONLYrestauré, source/engineclosureM1 inchangés. Pasdenouveaucodekernel/prototype/benchmark/inférence ni publication pourcettephase ; candidateséventuellesàpréenregistrerséparément. Statutencours.
+
+### SUSHI-2026-10-27-SYNC — diagnostic préenregistré après nouvelle priorité user
+
+L'utilisateur demande maintenant de comparer en priorité `specRoute`/`specMatches` et la vérification GDN différée à GPU Hot, puis de mesurer les synchronisations avant tout portage. Il rétablit aussi le suivi du pool global TensorFold. Antécédents relus : Sushi09/13, overlap56, profil53 et revue59 ; la spéculation entière et le rollback existent déjà au pinad562, ce n'est pas une nouveauté amont. Notre réutilisation Hot partielle existe aussi ; ne pas lui attribuer les14,1→17,9tok/s amont.
+
+Hypothèse à examiner, sans nouveau kernel : le report de vérification ne vaut le coût du rollback que si suffisamment de transitions vers GDN ont toutes leurs routes déjà résidentes, et si l'attente hôte qu'il peut recouvrir est matérielle. Mesurer les traces actuelles plutôt que supposer ces conditions. Baseline = lib test HEADONLYfinal SHA256 dab2481cff3001fe9513c07826d796e13e8d9967439c2926ff758cd45f7a385c ; source inchangée, modèle Qwen3.8 Flash Next EXL3 2,05bpw 65c89531, M5 standard24Gio/MLX0.32.2.
+
+Protocole : réutiliser uniquement le test physique existant `qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states`, mode natural/AR, MAIN puis HOLD, cache3Gio/53slots par couche, LFU,4lecteurs, Hot/HotWide/cohortesuniques ON, prélecture/lookahead OFF, allocateur64Mio. Chaque processus :128sorties ×6phases existantes (warmup, contrôleavant,3traces sans fences ajoutées, contrôleaprès). Égalité bitàbit IDs/logits248320/états complets nonvides et finis contre première phase, plus oracle externe historique128IDs/texte ; décompte réel1test, tous processus joints. Vérifier intégrité des sources/binaires avant départ ; ancreVM neuve explicite pour ce diagnostic distinct de M1 clos, zéro nouvelle écriture swap, secteur, processus<12Go, superviseur existant et absence d'inférence/build/prover concurrents. Sauver tout arrêt/échec, ne pas relancer pour bruit. Aucun changement d'exécutable, aucune nouvelle qualification de débit ni portage.
+
+Analyse prévue : par trace et prompt, distribution des attentes `route_readback_inclusive`, construction+attente route, attente utilisateurs de banques, lectures SSD ; ne pas additionner les scopes parents/enfants ni assimiler une attente inclusive au GPU inactif. Compter les cohortes toutes Hot et les transitions vers GDN séparément, calculer seulement des bornes optimistes explicitement conditionnelles. Ces mesures AR ne qualifient pas MTP/DFlash ; relire le garde seq=1 de Sushi et nos appels à2lignes. Conserver les traces de routes pour examen du pool TensorFold sans le confondre avec le profil statique47/55 rejeté. Sources, plans, observations et limites sous docs/measurements/sushi-20261027/. Statut : préparation ; aucune inférence de ce diagnostic encore lancée.
+
+**SUSHI-SYNC prévol1 bloqué avant GPU.** Le gardequiet détecte swift-frontend36959/parent36958 ; aucun enfant de modèle lancé, aucune ancreVM ni mesure créées. Preuve sync-preflight-r1.json ; attendre la fin de ce build sans le tuer ni contacter un autre chat, continuer la comparaison des sources. La relance du prévol au même binaire est une reprise après fin de compilation, pas une relance pour bruit.
+
+- 45-Q/R processus sync-AR-MAIN : **failed_or_interrupted**, joint=True ; docs/measurements/sushi-20261027/sync-AR-MAIN-plan-result.json.
+
+**SUSHI-SYNC r1 interrompu, non qualifié.** MAIN sort−15 après57,621s, enfantjoint ; nouvelle écritureSwapouts 1279918080octets (1.192Gio), ancre41013133312→42293051392. Deuxphases sans trace sauvées, aucun complete.json ni trace decode complète ; aucun coût/gain ne sera déduit de cette tentative. HOLD préparé mais jamais lancé. Ensuite l’utilisateur signale utiliser simultanément Qwen3.6 35BA3B, puis demande d’attendre son signal après son travail : aucune autre inférenceGPU de notre part avant ce signal/déchargement. Aucun lien causal parprocessus déduit des compteursVM globaux. sync-r1-closure.json/planresult/log conservés. Continuer analyse des sources et traces historiques explicitement datées ; ne pas les présenter comme mesures actuelles. Toute reprise r2 sera préenregistrée à même source/budget avec ancreVM neuve distincte après fin signalée du modèle concurrent.
+
+**SUSHI-SYNC r2 préenregistré après signal utilisateur « c’est bon ».** Reprise des mêmes deux profils128/6phases et du même binaire/source/budget3Gio ; aucun seuil ni code changé. Autre modèle annoncé terminé après demande de déchargement ; prévolquiet réussi. Nouvelle ancre explicite123565670400B, dossier sync-r2 distinct et r1 entièrement préservé. Gardes zéro nouvelle écritureSwapout/secteur/processus joints inchangées. Début autorisé ; aucune donnée r1 ne sera amalgamée aux coûts r2.
+
+- 45-Q/R processus sync-AR-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/sushi-20261027/sync-r2/sync-AR-MAIN-plan-result.json.
+
+- 45-Q/R processus sync-AR-HOLD : **failed_or_interrupted**, joint=True ; docs/measurements/sushi-20261027/sync-r2/sync-AR-HOLD-plan-result.json.
+
+**SUSHI-SYNC r2 MAIN terminé, HOLD interrompu.** MAIN1testpassé/336filtrés, six phases128,153,132s, zéroSwapout/enfantjoint ;128IDs/texte/hash de chaquephase égaux au golden53,248320logits et états complets bitexacts/finis. Trois tracesdecode complètes (~405Mo chacune) ; ne pas lancer de nouvelle mesure pendant leur analyse volumineuse. HOLD−15 après18,507s au gardequiet : swift-frontend40831/40830, avant warmup/trace, enfantjoint. DeltaSwapout jusqu’àaudit=2749792256B ; aucuncoûtHOLD. Preuves sync-r2/ et sync-r2-hold-closure.json. Reprise cibléeHOLD au mêmeprotocole après fin de compilation préenregistrée avant lancement, aucunretryMAIN pour bruit.
+
+**SUSHI-SYNC préparationHOLD r3 bloquée avant GPU.** Un nouveau swift-frontend47625/47507 apparaît au gardequiet ; pasd’ancre/plan ni enfantmodèle créés. Le wrapper suivant a été appelé à tort malgré ce prévol échoué : FileNotFoundError anchor.json avant lancement de toutenfant, conservé dans preflight-blocked.json. Corriger le chaînage en conditionnant désormais le lancement au succès du prévol ; aucune nouvelle expérience ou donnéeHOLD. MAINrestevalidé.
+
+**SUSHI-SYNC analyseMAIN terminée, pasgainvalidé.** Validateur53 existant réussi :6phases128/goldenexterne,logits/étatsbitexactsfinis,compteurs/bytes/imbrication. Trois traces :6096cohortes chacune ; attenteID totale52,534–52,620ms/pas émis,709–720cohortestoutesHot(11,63–11,81%),575–589Hot avecsuccesseurGDNsansPLE ; leurattente4,507–4,563ms/pas,3,777–4,061%dutempstrace. C’est unpostepotentiellementrecouvrableconditionnel, pasuneprédictiondegain ouunplafonduniversel ; misses~86%des4318transitionsadmissibles siportsystématique,coûtsrollbacknonmesurés. Contrôles13,964–14,119s vs traces14,267–15,155s : coûtinstrumentationvisible, aucunexclusifGPU ouTPSrelease déduit. RecouvrementHot/IOréelconfirméparsondes, encoreincomplet. RapportREADME/main-sync-opportunity.json ; source/binairemoteur inchangés, HOLDresteincompletaprèsbuilds, attente sans lancement concurrents selon préférenceuser. RevuecacheTensorFoldreprise : poolCLOCK+leases distinct de47/55 et du prêtDeepSeek ; invariantbanquesdistinctesrollbackincompatibleavecévictionsglobalessansprotection. Aucunpoolnouveau/prototypeporté.
+
+**SUSHI-READ clos ; SUSHI-SYNC limité à MAIN puis remplacé par la demande suivante.** Treize blobs amont et trois anciens vérifiés, mécanismes specRoute/specMatches/undo réellement relus ; rapport Sushi et revue poolTensorFold mis à jour. MAIN est un diagnostic validé, pas une optimisation ; HOLD demeure interrompu/non mesuré, préparationr3 sans enfant et sans ancre. L'utilisateur demande maintenant « avant de continuer » un profilage beaucoup plus complet : aucun portage ou optimisation supplémentaire avant ce profilage. Ne pas reprendre silencieusement l'ancienHOLD comme une campagne indépendante complète.
+
+### ULTRA-PROFILE-2026-10-27-A — préenregistrement avant instrumentation
+
+Objectif demandé : localiser les coûts du moteur actuel (préfill/decode/AR/MTP/DFlash2), en séparant construction CPU, attente hôte de travail GPU, GPU réellement observable, I/O, cache, spéculation et mémoire. Hypothèse : les52,6ms/pas observés au retour des routes ne sont pas52,6ms de transfert ; il faut remonter aux producteurs, aux soumissions et à la reprise du GPU. Le rollbackSushi et le poolTensorFold restent des pistes ultérieures, aucun gain supposé ni code d'optimisation à introduire pendant cette phase.
+
+Antécédents relus : profil53/naturel vs fenced, overlap56/63,45profile, échecsP01/Mia et SUSHI-SYNC MAIN actuel. Motif nouveau : source courante HEADONLY/Hot/HotWide/cohortes uniques et volonté de mesurer les trous d'observation restants ; profil53 antérieur à56 ne répond pas à ce chemin. Baseline figée engine4e3fb412/libdab2481c et les trois sources HEADONLY dans issue54-prefill-20261027/headonly/final/source.json ; M5standard24Gio, MLX0.32.2, checkpointFlashNext65c89531 EXL3 2,05bpw, drafta22a1744, experts3Gio/LFU/4lecteurs/allocateur64Mio/prélecture0. Aucun changement numérique.
+
+Première étape : inventaire des timers/captures/profilers déjà disponibles et des API Metal installées, vérifier les chemins de préfill de production face au driver de profilage (AR scalaire du diagnostic actuel ne qualifie pas le TTFT HEADONLY). Fixer les compteurs/horloges et la matrice complète après cette lecture, avant code et avant mesures. Préférer étendre les harnais existants ; éviter duplication massive des sourcesshader dans les événements. Étudier les timestamps de command buffers et la captureMetal existante ; ne pas annoncer de tempsGPUexclusif/perkernel si l'outil ne l'observe pas. TraceCPU, statistiquesI/O et snapshots système seront explicitement étiquetés s'ils perturbent le parcours.
+
+Instrumentation éventuellement nécessaire : timers aux frontières encore fusionnées (last.eval, soumission/retourIDs, Cold/Hot/partagé, calculGDN/QSA/HC/tête, proposition/vérification/commit/réparation), compteurs de dispatch et signatures, empreintes de mémoire/KV/draft, jobs/latences/skew/offsets/I/Ologiques et lecturesphysiques globales séparées. Rust/C++/scripts : formal-proof-skill et références pertinentes déjà appliqués, harnais/tests affectés et tentativeKani/outilsource avant tout GPU ; absence/incompatibilité restera visible. Oracles nonvides/finitude et logits/tousétats exacts entre contrôle et instrumentation, tests de rapport invalide/partiel et détection négative du chronométrage avant débit.
+
+Mesures prévues par familles : contrôlesCLI/bridge sans trace à mêmes options ; naturel répété MAIN/HOLD enAR/MTP/DFlash2 ; préfillréel à plusieurs longueurs ; decode à plusieurs contextes ; décomposition spéculative par largeur réellement supportée ; diagnostics fenced et composants séparés pour attribuer les gros postes. La matrice précise, répétitions/délais et tailles devront être figés avant exécution après inventaire ; ne pas lancer un sweep sans oracles ni répéter un rejet ancien sans nouvelle propriété. Les résultats naturels, fenced, micro et sampling ne seront pas additionnés.
+
+Conditions : un modèleGPU à la fois, aucune compilation/prover/autre inférence concurrente ; le chat « Ajouter le mode agent et Lab » est encore actif et construit/teste une bêta5. Préparer/valider le profilage horsGPU en attendant sa fin selon préférenceuser ; ne pas lui envoyer de message ni arrêter ses processus. Prévolquiet, secteur, ancreVM de campagne explicite, zéro nouveauSwapout, mémoireprocessus<12Go, enfants rejoints/timeout et rapport incomplet sur arrêt. Préserver toutes les anciennes interruptions et les frais d'observation. Livrable : rapport sourcé et priorités selon temps effectivement récupérable, avec données/export et limites ; aucun15tok/s promis, aucune app/publication. État : inventaire/préparation, aucun nouveauprofilGPU lancé.
+
+**ULTRA-A inventaire : points concrets.** Les traces actuelles répliquent header/source de chaque EXL3 dans expert_kernel_signature (~405Mo/decode) ; une table de signatures uniques et des événements de dispatch compacts permettra d'observer davantage avec moins de rétention. Le driverAR boucle sur forward(token), donc doit être rapproché du préfill de production HEADONLY. last.eval de Hot précède son scope ; son coût est seulement borné par le temps propre du parent routeur (0,269–0,354ms/pas MAIN), pas isolé. copy_bytes mélange attente source.eval et memcpy : séparer ces durées est nécessaire avant d'appeler les52ms « transfert ». GPUStartTime/GPUEndTime Metal sont relatifs à mach time et valides après completion, selon documentationApple ; MLX0.32.2 ne propose publiquement que capture/synchronisation, ses commandencoders sont threadlocal/global et remplacent le buffer à commit. Pas de lecture non sûre d'un buffer depuis un autre thread ni de tempsGPUexclusif inventé depuis les horloges CPU. SourcesMLXv0.32.2/device.cpp et Apple à archiver au protocole.
+
+### ULTRA-PROFILE-2026-10-27-B1 — avant première modification, instrumentation CPU/readback
+
+Changement de diagnostic uniquement, aucune optimisation arithmétique : (1) dédupliquer les signatures complètes de kernel par trace, garder IDs et compteurs de tous les vrais dispatchs ; conserver les métadonnées uniques nécessaires aux tests67 ; (2) spans explicites attente anciens lecteurs Hot, construction routeur/partagé/projections et soumissions async/eval ; (3) échantillon C++ opt-in pour chaque readback : attente-évaluation/contiguous, accès+copie, octets, disponibilité et voie directe/fallback, durée totale. Profilage désactivé par défaut ; pas de fence supplémentaire dans les parcours naturels. Les valeurs manquantes/invalides/overflow seront rejetées, jamais traitées comme des zéros.
+
+Portée à atteindre : flash_profile.rs et ses appels/testsinterning, linear.rs signature et test67, ssd_moe.rs frontières, array.rs et mlx_bridge.cpp trustboundaryreadback, analyseurs existants/CI si nouveaucontratd'export. API de profiling actuelle conservée autant que possible. Préserver tous les trois diffsHEADONLY et les anciensbinaires. PasdeGPU pendantimplémentation/vérificationCPU.
+
+Qualité prévue : testsCPU d'interning (répétitions, différences de nom/header/source/stable, disabled/nested/finish/erreurs), contrat réel de sample FFI sur données symboliques u64/usize et Kani sansassume (bools, compteurs exacts, overflow/rejet, somme≤total), tentative sur le vrai MLX puis diagnostic siICE ; C++CBMC au vrai contexte, sanitizers/compilation. Contrôlesphysiques ensuite : voies contiguës/stridées et dtypes/erreurs, lecture avant finHot avec délai réel, détecter un sample corrompu, puis modèles3modes17sorties avec logits/états exacts et contrôle du nombre de tests. Format/Clippystrict/buildmlxchat/suites pertinentes/CI avant campagne. Les horloges C++ sont des durées hôte, pas GPU ; GPUtimestamp/capture fera l'objet d'un raccord séparé seulement si la couverture/lifetime sont vérifiables. Statut : préparé, aucune modificationexécutable ni nouvellemesure encore.
+
+**ULTRA-B1 première vérification.** CPU4testsprofilagepassent/157filtrés ; releaseMLXchat3testsprofilagepassent/336filtrés et compilationCpp réelle réussie. Analyseurs120tests passent. PasdeGPUmodèle. Première tentativeKani --lib --no-default-features ne trouvepas leharnais carflash_profile est souscfg(test) : échecde sélection conservé kani-readback.log/json, aucunepropriétévérifiée. Reprendreavec --tests etnomqualifié pourcompilerl’implémentationréellement utilisée ; nepasélargirsilencieusementlegardeaucodeproduction. NouvellestentativesetCIciblée séparées.
+
+**ULTRA-B1 Kani testreadback : compilationICE, nonvérifié.** Invocationcorrigée --tests trouveleréelharnessmaisKani0.68panique intrinsics.rs243 avantobligations ; logs/testsjsonconservés, v1archivé b1-v1-source.json/patch etbuild/ultra-profile/b1-v1. Reprendre le validateur réel sous formeOption pure (erreuranyhowdéplacéeàlafrontièreappelante) pouréviter le cheminbacktrace/formatage nonnécessaireàlacondition ; mêmeoracleu128/domaineu64/usize/couvertures, aucuneassume/stub. Cettecauseestunehypothèseàtester, pasun diagnosticcertain. Preuvesignaturev1 indépendanteencours, nepaslaréécrireenvert.
+
+**ULTRA-B1 vérification ciblée v2.** Le validateur réellement appelé par Array::to_bytes passe Kani après séparationOption/frontièreanyhow : domainehuitu64+usize arbitraires, oracleu128 indépendant, zéroassume,4/4covers (vide,direct40nonprêt,fallbackavecconstruction,overflowrejeté). kani-readback-option.log/json ; preuveCPUducontratd'échantillon seulement, pasdeshorlogesCpp/Metal. L'harnessd'interning3requêtes/chaînesASCII1caractère/unwind8 dépasse4GioRSSaprès15,346s : interrompu/joint/nonvérifié, aucuncontre-exemple ; logsignature-testsconservé et harnaisgardé. Ne pasréduiresondomainepourvert. TestsprofilageCPU4réussis/157filtrés, releaseMLX3/336 avantpetiteévolutionOption(àrejouer), analyseurs120réussis. CIcibléecontratreadbackajoutée(pr/pushmain, Kani0.68) ; pasdeCI distante ducode noncommité déclarée. Nouveau testphysiquecompose39casraw13dtypes+3Float64, erreurs etGPUretardé pourvérifierqu’aucunefencen’estajoutée : écrit, non exécuté tantquemachinepartagée.
+
+### ULTRA-PROFILE-2026-10-27-B2 — avant raccord du driver et des exports
+
+Constatappels : ARproductionpréfilleparchunks8 viaforward_tokens (HEADONLY parchunk), MTPétendlacachetêtepuisforward scalaire, DFlashprefill_dflash2capturé ; eval_stateproductionFlashestunno-op. Corriger uniquementledriver pourreproduireceschemins, partagerlaconstante8sanschangerlavaleurproduction. Ajouterphases/métadonnéesversion2 etpromptsfichierspourcontexteslongs ; compterproposition/vérification/commit/budgetfallback etvraieslignes parsortieDF, paslesétiqueterAR. Extraireétatsdraft/capturesavecfinitude aprèslesclocks enplusdesétatscible/tête ; préserverlesinvalides/incomplets. Exportsreadbacks/signatures/requêtes séparés, requêtesdegraphelazy≠dispatchGPUréel.
+
+Matricecible àfigeravantGPU : naturelsMAIN/HOLD128sorties×AR/MTP/DFfixeB2 ; contexteslongs512/1024en3modes ; fencedMAIN33en3modes ; vérificationDF64largeursfixes3et7 (=4/8lignescibles, Options.readconfirmé1..7). Famillenaturelle :warmup+contrôleavant+3traces+contrôleaprès ; fenced4phasesexistantes, verifier6avecoracleséquentiel. Leslongueursfichiers/prompts/tokenisationexacte,options/délais/oraclesetmatriceJSONserontvalidés/gelésavantdépart. Préfilllongetdecodecoûtsdéjàdanslesmêmescas, pasdemultiplicationinutiledesmodèles/cachebudgets. TestsCPUparseurs/régressionsDF/exportsetsuitesaffectées,preuveKani surcodeRustmodifiéetcontrôlesphysiques courts avantvitesse. AucunportSushi/TF, aucunprofilGPUcompletlancé.
+
+**ULTRA-B2 raccord écrit, avantGPU.** AR suitmaintenantconstanteproduction8partagée, MTPscalarconservé, DFpréfillcapturé ; profilschema2, compteursDFparsortie/offset, comparaison des10KVdraft+offset/options/pending etfinitude horsclocks. Aucun algorithme cible/draft changé. BuildMLXchatlib réussi. Leuser demandeexplicitementd’êtreprévenuavantlancement pourcouperl’autrechat : aucunprocessusGPUnepartiraavantsonsignalaprèsnotification depréparationprête. ContrôlesCPU/Clippy/suites en cours, aucune nouvelleinstrumentation àajouteravantpremièrequalification physique etmesuresMAIN/HOLD.
+
+**ULTRA prêt pourqualificationphysique, attente signaluser.** fmt/Clippystrictmlxchat/fullsuitemlxchat etCPUchat passent :278passés/167ignorés enMLX,248/6 enCPU ;120testsPythonanalyseur. LesignorésGPU restentnonexécutés. Binairelibreleasefigéd4bb73099490a6908db442fac5337c44feefeab2910746af69aed5ec844c87b2 sousbuild/ultra-profile/v1/prototype-engine, dixsourcesSHA v1-source.json. Planscréésavantdépart :readback-physical puisqualityAR/MTP/DF17×4phases, mêmes3Gio/options/correctnessgates ; aucunmodèleGPUchargé. Attendreconfirmationaprèsnotificationuseravantcréationancre/lancement. ContratKani4coverspassé ; interner3requêtesnonvérifiélimiteRSS4Gio, échecsanciensconservés.
+
+**ULTRA premierGPU autorisé.** Userconfirme « C’est coupé, lance les tests GPU ». TouslesSHAfigésv1revérifiés, prévolquietréussi etancreVM 137433513984B crééeaprèsfinCPU/proveurs ; premierplanreadback-physicalpuisqualité3modes, aucunecompilationconcurrente. Lesbenchsnaturelsrestentconditionnésàcesqualifications.
+
+- 45-Q/R processus readback-physical : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/readback-physical-plan-result.json.
+
+- 45-Q/R processus quality-AR : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/quality-AR-plan-result.json.
+
+**ULTRA physique qualifié, métadonnéesinspectées.**1test/339filtrés,134lecturesprofilées,39casraw13dtypes+3Float64CPU+4IDspendantGPUretardé, interfacesinvalidespassent ;0,894s/enfantjoint/zéroSwapout. Deuxessaisdulecteurpostrunattendaientunmauvaislibellé top-level avantlecture (`completed_expected_outcomes_not_speed`) : erreursassertionsoutilconservéesdansreadback-physical-inspection.json, aucunGPUrejoué et aucune donnée modifiée. Plansstatutscorrectsinspectés, qualitéAR en cours ; pasde vitessequalifiée.
+
+**ULTRAqualitéARterminée.**1testpassé/339filtrés,4phases17sorties,90,130s/enfantjoint/zéroSwapout ; logits248320/tousétatsfinis bitexacts,IDstexte au goldenexterne17. Analyseurcontrôlelesnouveauxsamplesclock/signatures/parents/octetscomplets. Donnéesquality/AR/analysis.json. Modefencedresteintrusif,aucunTPSproductiondéduit. MTPensuiteaumêmebinaire/options/ancre.
+
+- 45-Q/R processus quality-MTP : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/quality-MTP-plan-result.json.
+
+**ULTRAqualitéMTPterminée.**1test/339filtrés,4phases17sorties,85,685s/enfantjoint/zéroSwapout ; cible et têteMTP/tousétats finisdéclarés/bitexacts etgolden17validés paranalyseur. quality/MTP/analysis.json. ContrôleARcourt :768lecturesroutes40Bdirectes,37,3246ms/pas dattenteévaluation/amont vs0,005453ms/pasdecopieCPU (préfixe17seulement, pascomparableaux128historiquespourgain). LancementqualitéDFaumêmebinaire3Gio ; aucuneconclusionvitesseprod.
+
+- 45-Q/R processus quality-DF : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/quality-DF-plan-result.json.
+
+**ULTRA qualitéDF terminée ; matrice naturelle figée avant départ.**1test/339filtrés,4phases17sorties,86,134s/joint/zéroSwapout. Cible/logits248320/états complets et10KVdraft+positions/options/pending finis bitexacts ; goldenexterne17 et nouvellesmétadonnées validés, quality/DF/analysis.json. Les trois qualifications passent au même v1d4bb7309. natural-matrix.json fixe6cas MAIN/HOLD×AR/MTP/DFB2,128sorties/6phases, warmup+contrôleavant+3traces+contrôleaprès,900s/cas ; plans/options/oracles explicites, mêmeancre137433513984B, sanscompilation/prover/inférenceconcurrente. Mesures deprofilage uniquement ; états/correction avant timing, coûtobservateur comparé auxcontrôles, pasdeboostdéclaré. Deuxprompts longs préparés séparément512/1024estimés (renduPython vérifiéauxIDsMAIN/HOLDnatifs), SHAetIDs sousprompts/inputs.json ; longueurs réelles àcontrôler avantinterprétation. DépartnaturalARMAIN puis modesalternés, aucunportage.
+
+- 45-Q/R processus natural-AR-MAIN : **failed_or_interrupted**, joint=True ; docs/measurements/ultra-profile-20261027/natural-AR-MAIN-plan-result.json.
+
+**ULTRA naturel premier départ interrompu avant chargement.** natural-AR-MAIN sort101 en0,083s au garde «output directory required» : préparation du dossier omise, aucun modèle chargé ni donnée de vitesse. Log/planresult conservés. Les six dossiers vides sont maintenant créés avant départ ; natural-AR-MAIN-r2 reprend le même binaire/options/ancre/protocole, sans changer les autres cas. Cette relance corrige seulement le prérequis de sortie, pas un résultat de performance.
+
+- 45-Q/R processus natural-AR-MAIN-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/natural-AR-MAIN-r2-plan-result.json.
+
+**ULTRA naturel ARMAIN-r2 terminé.**1test/339filtrés,6phases128sorties,132,46s natif, zéroSwapout/enfantjoint ; oracleexterne128IDs/texte/hash etétats/logitscompletsfinisbyteexacts contrôlés. natural/AR-MAIN/profile/analysis.json etdataset-result.json. Première tentativeavantchargement conservée séparément. Aucunretourdevitesseoptimisation ; prochainecase MTPMAIN mêmeancre/binaire/options.
+
+- 45-Q/R processus natural-MTP-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/natural-MTP-MAIN-plan-result.json.
+
+**ULTRA naturel MTPMAIN terminé.**6phases128sorties/1test, zéroSwapout/enfantjoint ; IDs/texte/hash128 au goldenexterne etlogits248320/tousétatscible+tête complets finis byteexacts natifs. Métadonnées/run/golden sousnatural/MTP-MAIN ; analyse détaillée des traces en attente des tests des exportsDF/contextes. SuiteDFMAIN au mêmev1/options/ancre ; aucunedécisionoptimisation.
+
+- 45-Q/R processus natural-DF-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/natural-DF-MAIN-plan-result.json.
+
+**ULTRA natural-DF-MAIN terminé.**6phases128sorties/1test, 124.384s, zéroSwapout/enfantjoint ; IDs/texte/hash128 au goldenexterne etlogits248320/tousétatscompletsfinisbyteexacts natifs et10KVdraft+positions/options/pending. Métadonnées/run/golden sousnatural/DF-MAIN ; analyse détaillée des traces en attente de validation des nouveauxexports. Aucunedécisionoptimisation.
+
+- 45-Q/R processus natural-AR-HOLD : **failed_or_interrupted**, joint=True ; docs/measurements/ultra-profile-20261027/natural-AR-HOLD-plan-result.json.
+
+**ULTRA naturel ARHOLD arrêté au prévol mémoire.** Aprèsla finDFMAIN (Swapoutsencoreàancre), le départHOLD observe 228999168B nouvellesécritures globales avantmonitor ; garde«new swap before GPU», enfantjoint en0,031s, aucunephase/mesureHOLD. Ancienneancre etrésultatsMAIN conservés, aucuneattributionaucalculGPUni faussevalidationHOLD. Diagnostiquer pressionRAM etterminervérificationsCPU ; pasderemiseàzérosilencieusepourcacherl’arrêt.
+
+**ULTRA exportsDF/contextes vérifiés horsGPU.**213testsPython réussis en2,59s ; Ruffcheck/format passent. Couverture finie exhaustive des7largeursDF×toutesacceptations×fallbackoui/non (70cas), compteurs/vraieslignes vscommits/queues/rejets etentréesinvalides ; mutantdésactivantbrancheDF détecté, sanschangerlesfichiers.30résumésphysiquesdéjàcollectés repassentlenouveaucontrat (summary-v2-validation.json). CrossHairabsent ; CBMCsurmlx_bridge.cpp réel échoueparser/Cpp20incompatible, KaniMLXréel échouecompilation avantobligations (logs/JSONspécifiques), aucunepreuveCpp/GPU déclarée. ContratCPUreadbackKani4covers antérieurrestevalide. ReleaseCLIcourantmlxchatbuildpasse, figé sousbuild/ultra-profile/v1/engine avecSHA cli-v1-source.json pourcontrôlesbridge ; aucuneappinstallée/push. GPUtoujoursenpausependantlibérationRAM/CPU.
+
+**ULTRA export réel MAIN v1 interrompu, échec conservé.** Analyses MTP/DF passent ; MAIN-only-export-v1/result.json reste failed_or_interrupted/parityfalse. L’ancienexport supposait une racineunique, mais le nouveauprobe révèle le readbackgreedy final horsspanprefill etbieninclusdansprefill_seconds. Corriger uniquementl’attribution des racines/enveloppe et conservation des tempspropres ; refuserautresracines/chevauchements, ajouterrégressionpositive/négative. Aucunexécutablenatif modifié niGPUrejoué ; v2exports aprèstests, anciennepreuveconservée.
+
+**ULTRA CPU clôturé avant reprise : exports MAIN v2 passent.**2 828 169événements,77 982readbacks et1 143pasexportés, modes/largeurs/counters/vraieslignes/commits etconservationtemps vérifiés, MAIN-only-export-v2 (MAINseulement, campagneglobaleincomplète). Exportv1échoué conservé. SuitePython élargie384passés18,92s puis214passés2,54s aprèscorrectifracines ; pasdeGPU/proverconcurrent. Archivesgzip vérifiées avantretraitdesJSONbruts, archive-v1.json. full-matrix.json fige17cas : MAINdéjàterminés, HOLDàreprendre,512/1024estimésen3modes, fenced33en3modes, vérificateur64largeurs3/7 ; plansw2/dossierspréparés avanttoutdépart, baseline/binaires/options inchangés. UserlibèreRAM ; attendreCPUfini/quiet/ressourcesstables avantancrew2explicite. Fenêtre1ancienne etincident218,4Mio jamais effacés ; pasderelanceMAINpourremplacerdesrésultats.
+
+**ULTRA fenêtrew2 ouverte explicitement aprèsRAM/CPU.** UserlibèreRAM, presseurcompresseur diminué ;5sdeprévolsansnouveauSwapout/secteur/quiet, SHA10sources/v1revérifiés. Ancreneuve 137662513152B souswindows/w2/anchor.json, ancienne137433513984B etarrêt218,4Mio conservés. Libre=2226864128B/filebacked=9117138944B (estiméreclaimable, pasgaranti). LesgardeszéroSwapout/liveprocess<12Go restentinchangés ; aucunecompilation/proveur/autremodèle. ReprendreHOLD-r2 seulement, pasrejouerMAIN. Ruf007corrigéviaitertoolspairwise ;101testsexportrepassent, preuvesanalysis-checks.json.
+
+- 45-Q/R processus natural-AR-HOLD-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/natural-AR-HOLD-r2-plan-result.json.
+
+**ULTRA natural-AR-HOLD terminé.**6phases128sorties/1test, 123.584s, zéroSwapout/enfantjoint ; IDs/texte/hash128 au goldenexterne etlogits248320/tousétatscompletsfinisbyteexacts natifs. Métadonnées/run/golden sousnatural/AR-HOLD ; analyse détaillée des traces en attente de validation des nouveauxexports. Aucunedécisionoptimisation.
+
+**ULTRA-B3 bridge/système préenregistré avant lancement.** cli-matrix.json : CLIreleasecouranta60eb4ad enAR/MTP/DFB2, MAIN/HOLD128×1chauffe+3mesures, contexte4096/cache3Gio/options identiques, réutilisationpréfixedésactivée ; APIbenchmarkexistante/registretemporaire/cleanup/gardesquietzéroSwap réutilisés. Sampleropt49toutes2s autourdusuperviseurquiet (10savant/après), CPU/GPU/disquesystèmeglobaux, pasGPUexclusifniI/Omodèlecausale. CesCLI n’ontpaslesgrosoraclesd’étatsenRAM du libtest ; comparaison descriptive, seulcontrôleavant/aprèssameprocess estimefraisobservateuravecdérive signalée. UnCLIARancien4e3fb412 indépendant desprobes produitgoldtext/hash128pour512/1024 (1chauffe+1mesure/prompt), avantprofilscontextes ; IDsdesprofilsAR serontcontrôlésaveccehash/texteetpromptidsréels. Tousprocessusmodèles séquentiels, scripts/optionsfigésavantlancement, ancrew2inchangée. AucunprofilGPUexclusifni15tok/sprétendu.
+
+- 45-Q/R processus natural-MTP-HOLD-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/natural-MTP-HOLD-r2-plan-result.json.
+
+**ULTRA natural-MTP-HOLD terminé.**6phases128sorties/1test, 126.023s, zéroSwapout/enfantjoint ; IDs/texte/hash128 au goldenexterne etlogits248320/tousétatscompletsfinisbyteexacts natifs. Métadonnées/run/golden sousnatural/MTP-HOLD ; analyse détaillée des traces en attente de validation des nouveauxexports. Aucunedécisionoptimisation.
+
+- 45-Q/R processus natural-DF-HOLD-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/natural-DF-HOLD-r2-plan-result.json.
+
+**ULTRA natural-DF-HOLD terminé.**6phases128sorties/1test, 122.747s, zéroSwapout/enfantjoint ; IDs/texte/hash128 au goldenexterne etlogits248320/tousétatscompletsfinisbyteexacts natifs et10KVdraft+positions/options/pending. Métadonnées/run/golden sousnatural/DF-HOLD ; analyse détaillée des traces en attente de validation des nouveauxexports. Aucunedécisionoptimisation.
+
+- 45-Q/R processus fenced-AR-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/fenced-AR-MAIN-plan-result.json.
+
+**ULTRA fenced-AR-MAIN terminé.**4phases/1test, 144.65s, zéroSwapout/enfantjoint ; sorties etlogits/étatscible/tête/KVdraft applicables finis etbyteexacts natifs, oracleexterne/compteurs/budget/bornephysique contrôlés. /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/fenced/AR-MAIN-fenced/profile ; analyse détaillée des traces en attente, aucuneoptimisationvitesse.
+
+- 45-Q/R processus fenced-MTP-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/fenced-MTP-MAIN-plan-result.json.
+
+**ULTRA fenced-MTP-MAIN terminé.**4phases/1test, 135.229s, zéroSwapout/enfantjoint ; sorties etlogits/étatscible/tête/KVdraft applicables finis etbyteexacts natifs, oracleexterne/compteurs/budget/bornephysique contrôlés. /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/fenced/MTP-MAIN-fenced/profile ; analyse détaillée des traces en attente, aucuneoptimisationvitesse.
+
+- 45-Q/R processus fenced-DF-MAIN : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/windows/w2/fenced-DF-MAIN-plan-result.json.
+
+**ULTRA-B3 précision callstacks avant CLI.** PourchaqueCLIcourantAR/MTP/DF, captureOSsample10s/intervalle10ms surPIDnatif enfant identifié parPPID/chemin, pendantchargement oupremièrechauffe exclue ; deadline30s/cleanup explicite, -mayDie, métadonnéespid/temps/statut/log. Échantillonsdepileshôte etthreads bloqués, pasCPUexclusif/GPU ni attributionphasedecodeprécise. Pasd’extensiondukernel ni nouvelleinstrumentationnative. Profilsystème2s opt49déjàpréenregistré ; référencesdébit seulementrépétitionsmesurées, chargement/chauffe distingués.
+
+**ULTRA fenced-DF-MAIN terminé.**4phases/1test, 133.592s, zéroSwapout/enfantjoint ; sorties etlogits/étatscible/tête/KVdraft applicables finis etbyteexacts natifs, oracleexterne/compteurs/budget/bornephysique contrôlés. /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/fenced/DF-MAIN-fenced/profile ; analyse détaillée des traces en attente, aucuneoptimisationvitesse.
+
+- 45-Q/R processus cli-AR : **failed_or_interrupted**, joint=True ; docs/measurements/ultra-profile-20261027/cli/AR/run-result.json.
+
+**ULTRA CLIAR premierdépart interrompu avant modèle.** Limitesuperviseur43≤900s ignorée dansmonplan1500 : arrêté/joint0,027s avantimportduhelper, logvide, aucuneinférence/mesureCLI. Samplerjoint etmarquéfailed ; tentativeOSsampleexpire35s fautePID, conservée. Correctionpréenregistrée : CLIAR-r2 répertoiredistinct/délai900, mêmesources/options/ancrew2 ; anciennespreuvesconservées. AutresplansCLI etcontextes/vérificateurs nonlancés corrigésà900 avantdépart avecsauvegardesdesanciensplans. Leurs délais précédents1200/1800 n’avaientjamaisétéexercés ; aucuneperformancereclassée.
+
+**ULTRA OSsampleAR-r2 nonexécuté.** PIDnatif repéré maiscontrôle«initialwarmup»refusecarpremièrechauffedéjàfinie ; aucunprocessussamplecréé, aucuneperturbationd’unerépétitionmesurée. os-sample.json conservéfailed_or_interrupted ; nepasrejouerCLIARpouraméliorerdesvitesses. CapturesMTP/DF àdéclencherdanslemêmecall queleurlancement pourrespecterlafenêtre ; ARstacks restentnonmesurées, échantillon séparépossibleàpréenregistrersinécessaire.
+
+- 45-Q/R processus cli-AR-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/cli/AR-r2/run-result.json.
+
+**ULTRA AR CPUstacks seul préenregistré.** B3captureARmanquée sansaltérationdesmesures ; programmerunprocessusséparé AR-stacks MAIN128(1chauffe+1réponse), mêmesa60/options/ancrew2, pouracquérirl’observableabsent10s/10ms. Déclencherl’observateur danslemêmecallquelelancement, conserverlesdeuxéchecsanciens. CettecaseCPU_profile_only estexcluedèsmaintenantdurésumédébitrelease ; timings brutsconservés, pasrépétitionpourgagnerunscreen. ModèleuniqueséquentielaprèsautresCLI, aucuneshader/Rustmodifié.
+
+**ULTRA CLI AR terminé.**6réponsesmesurées/2chauffes128, 160.204s, zéroSwapout, enfant/reader/samplerjoints ; modeeffectif/comptes/texte/hash128 au goldenexterne, empreintephysiquenative<12Go. docs/measurements/ultra-profile-20261027/cli/AR-r2/inspection.json. 89observationssystème/0erreursdechamps (globaux, pasGPUexclusif) ; aucunboostA/Bdéduit. Étatsnumériquesvalidésséparémentauparcoursphysiquenatif, paspartexteCLI.
+
+- 45-Q/R processus cli-MTP : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/cli/MTP/run-result.json.
+
+**ULTRA CLI MTP terminé.**6réponsesmesurées/2chauffes128, 165.673s, zéroSwapout, enfant/reader/samplerjoints ; modeeffectif/comptes/texte/hash128 au goldenexterne, empreintephysiquenative<12Go. docs/measurements/ultra-profile-20261027/cli/MTP/inspection.json. 91observationssystème/0erreursdechamps (globaux, pasGPUexclusif) ; aucunboostA/Bdéduit. Étatsnumériquesvalidésséparémentauparcoursphysiquenatif, paspartexteCLI.
+
+- 45-Q/R processus cli-DF : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/cli/DF/run-result.json.
+
+**ULTRA CLI DF terminé.**6réponsesmesurées/2chauffes128, 159.753s, zéroSwapout, enfant/reader/samplerjoints ; modeeffectif/comptes/texte/hash128 au goldenexterne, empreintephysiquenative<12Go. docs/measurements/ultra-profile-20261027/cli/DF/inspection.json. 88observationssystème/0erreursdechamps (globaux, pasGPUexclusif) ; aucunboostA/Bdéduit. Étatsnumériquesvalidésséparémentauparcoursphysiquenatif, paspartexteCLI.
+
+- 45-Q/R processus cli-AR-stacks : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/cli/AR-stacks/run-result.json.
+
+**ULTRA CLI AR-stacks terminé.**1réponsesmesurées/1chauffes128, 42.202s, zéroSwapout, enfant/reader/samplerjoints ; modeeffectif/comptes/texte/hash128 au goldenexterne, empreintephysiquenative<12Go. docs/measurements/ultra-profile-20261027/cli/AR-stacks/inspection.json. 31observationssystème/0erreursdechamps (globaux, pasGPUexclusif) ; aucunboostA/Bdéduit. Étatsnumériquesvalidésséparémentauparcoursphysiquenatif, paspartexteCLI.
+
+**ULTRA nouvellepriorité utilisateur — attribution CPU/GPU/SSD avant optimisation.** Neufprofilsnatifs terminés (6naturels128+3fenced33), troisCLIreleaseAR/MTP/DF128×6mesures+2chauffes etAR-stacksseul terminés/zéroSwapoutdansw2. OSsampleMTP/DF réussissent10s/10ms ; AR-stacksobservateur échoueIndexError surcommands[] transitoire avantPID, aucuneéchantillonnageARPunivé, donnéeconservée. PasdenouveaurerunARPpourvitesse. Contextes512/1024 etverifier4/8lignes nonlancés, explicitementenattenteselonprioritéuser, full-matrixactualisée. Leshorlogeshôte nepermettentpasladécompositionexclusiveCPUactif/GPUutile/synchronisations/GPUidle ; nepasinventerlapartition niadditionnerposteschevauchants. UserautoriseexplicitementinstallationXcode ; aucuneinférencedurantinstallation. xctrace/instruments absents, xcode-select CLT, macOS27.2,332Giodisponibles. ChercheroutillageAppleprimaire/installerXcodeofficiel ; utiliserDEVELOPER_DIR parcommande pourpréserverconfigurationglobale etbinairesfigés. Aucunecorrectionarithmétique/cache/kernel envisagéeavantattribution.
+
+### ULTRA-ATTRIB-2026-10-27-A — avant collecte fine, nouvelle demande user
+
+Décomposerles38–39msattenteroutes et17–19mssoumissionMLXenCPUactif/attentespréemption/GPUmodèleoccupé/idle, I/Oexposéevsmasquée, puisplafonds/risques. LescatégoriesCPUetGPUpeuventsechevaucher : pasdepartitionadditivefabriquée. Aucunemodificationarithmétique/ordonnancement/cache/kernel ; garderbinairesv1d4bb etCLIa60figés. Xcode27.1 installéAppStoreofficielaprèsTouchIDuser ; outillageCLIencorebloquéparlicenceaffichée, consentementuserenattente. xcode-selectglobalresteCLT. macOS27disposeaussidegpucapture/gpudebug/metalperftracevérifiés.
+
+PhaseA : collecte rétrospective bornée80s de lacampagneCLIARterminée, commandes/options/logs sousattribution ; donnéesglobalesgardéeslocalement, analyseruniquementnotrePID. Cela neconstituepasuneinférencenouvelle ; sil’outilnecontientpasleMetalheadless, marquernonmesurépournotreprocessus. Puisinspectertemplates/Instruments/ProcessorTraceM5avantpréenregistrementdesnouvellescaptures. Leplanfin/limitesdurée/taille/horloges/oracles serafigéavantleurpremierlancement. Plafondsparcontrefactuels surchemincritique, pasadditiondecoûtshôteavecGPUchevauchant ni conversionentièreduwaitengainpossible. Contexteslongsetlargeurs4/8antérieurementprévusrestentnonlancés sousnouvellepriorité.
+
+**ULTRA-ATTRIBA rétrospective nonconcluante pournotremodèle.** metalperftracecollect80s sort0 en1,838s/joint etcrée.atrc ; overviewjsonfiltrépid86468 sort0 maisrenvoie1entréePIDdifférent/0entréePIDcible. Inspectionrejecte cettefausseattribution, donnéesbrutesgardéeslocalement. Ce n’estpasGPUidle=100% niGPUtime0 ; absencedemesureduMetalheadlesspournotreprocessus. retro-AR-inspection.json. InstallationXcode27.1complète, utilisationd’InstrumentsencorebloquéeparaccordAppleprésentéàl’utilisateur ; attenteacceptationexplicite, aucuntestGPUencours ni code moteur modifié.
+
+**ULTRA neufanalysescomplètes inspectées horsGPU.** Les6naturels128+3fenced33 passentl’analysecomplète desévénements/parents/jobs/octets/routes/samples ; completed-nine-matrix.json. Complémentread-functions-union.json : uniondesduréesdeslectures entreworkerssansdoublescomptes, conservationduréesettestsfrontières ; nepasconfondreunionI/OavecmasquageGPU ni letempsrésiduel duscopeaveccalculCPU. Pasdenouvelleinférence ni mutationmoteur. AttributionfineCPU/GPU encoreenattenteduconsentementlicenceXcode ; anciennesdonnéesneprouventpasGPUidle.
+
+**ULTRA-ATTRIB état à la relève : attente accordApple.** Xcode27.1 installé/vérifié, dialoguelicenceouvert, confirmationexplicitedemandéeavant«Agree». TouslesprocessusGPU/observateurslancés terminés/joints ; aucune nouvellecapturefineCPU/GPUlancée, plafondsrécupérables/classificationcritiquenonmesurés, pasd’invention. DonnéesCPU/I/Ocomplémentaireset9analyses inspectées, statutattribution/STATUS.json. gitdiffcheckpasse, binairesarithmétiquesfigésinchangés ; aucunpush/appMLXL3miseàjour. ContinuerconfigurationInstrumentsaprèssignaluser, préparerprotocoleboundedcaptureavantGPU.
+
+**Correction contrôlefinal :** lapremièrecommandegitdiffchecksignalait4espacesfinauxdansmesentréesCLI ; lasuitedelacommandestatmasquaitsoncodederetour. La mentionprécédente«passe»étaitprématurée. Ces4espaces ontétéretirés sanschangerlesrésultats, contrôleisolérejouéci-dessous ; aucunecodeexécutablemodifié.
+
+### ULTRA-ATTRIB-B — validationoutillageavantcapturemodèle
+
+Userautoriseexplicitement«accepteletruc», maisMacverrouillé etsudo-nlicenceexigeauthadmin ; aucuneauthentificationcontournée ni préférenceslicencemodifiées. xctracepublicdirect27.1(27A9275) démarre etlistetemplates/instrumentsavecpermissionspréexistantes(_developer), sanspasserparxcrun ; accordjuridiqueuserreçu, enregistrementadminresteenattente. Testermaintenantcapacitécapturependantverrouillage surprocessusPythonjetablesleep2s, sansmodèleGPU : GamePerformance+ProcessorTrace, limite3s, deadline60s,1Giofichiermax, enfantsnettoyés. Aucun--no-prompt, aucunchangementdeDevToolsSecurity/xcode-select/moteur. Conserveréchecs ; unlistingréussinevautpasunecapturevalide. Protocolemodèleàfigerséparémentsilesmokesontvalides.
+
+**ULTRA-ATTRIBB smoke1 interrompu/nonvalidé.** CaptureCPUjetablesleep2s/GamePerformance+ProcessorTrace limitée3s, sort2 en8,787s/joint, message«Importsourcefiledoesnotcontainvalidprocessortracedata» ; .tracepartielleconservée, aucuneperformanceGPUmesurée. ExportTOC/inspectionavantnouvelessai ; nepasdéclarerl’outillagepleinementqualifiédepuisversion/listing. Accorduserexplicitebienreçu ; Macverrouillé bloqueUI etsudo-nexigepassword, aucuncontournementauth/licence. CLIxctracedirect fonctionne avecdroitsdéjàprésents, étatdistinguédel’enregistrementadminencorebloqué.
+
+**ULTRA-ATTRIBB smoke2 préenregistré avantcapture.** TOCsmoke1 montrequeletargetaétéSIGKILLàlalimite3s ; tablesCPU/GPU/syscalls déclaréesmaiscaptureinvalide. Nouvellepropriété : GamePerformance seul enattach5s surPIDCPUjetable25s(bouclelégère+sleep), sansProcessorTraceoptionnel, niplusdelimiteruncourtprocessuslaunch. Exigertracesort0/présencetargetetdonnéesCPU, vérifierattachne tuepasleciblepuisnettoyerlesdeuxgroupes ; deadline60s/1Giomax. ModèleGPUtoujoursnonlancé, ancienéchecconservé.
+
+**ULTRA-ATTRIBB smoke2 capture réussie, contenuCPUàinspecter.** GamePerformanceattach5s sort0 en10,360s, targetsurvitpuisgroupesnettoyés ; Macverrouillén’empêchepasleCLIavecpermissionsprésentes. ExportsTOC/thread-stateencours, pasencorepreuveGPU. Prochainmicropréenregistré : mêmeGamePerformance sansProcessorTrace, launchtestphysiqueArrayv1d4bb(39rawGPU/3F64/134reads/lateGPU),20slimitepouréviterSIGKILLprématurésmoke1,90sdeadline/1Giomax. Exigertest1passé/nonvides/byteégalité/overlap conservé etvraisintervallesGPUavantmodèle. Aucuneinférencecomplète ni code modifié ; précédentséchecs conservés.
+
+**ULTRA-ATTRIB microGPUlaunch nonvalidé, prochainessaiattach préenregistré.** GamePerformancelaunchArraytest sort54 en28,202s, targetSIGKILL9àlimite20s/stdoutvide ; aucuneparité niGPUtimingvalidée, tousfichiersconservés. Ne pasrépéterlaunch. MéthodeattachCPUdéjàréussie : lancermaintenantparsuperviseurhabituel lequalAR17v1d4bb(4phases/logitsétatsbyteexacts/golden17), puisxctraceGamePerformanceattach8s surPIDdirect, contexte3Gio/optionsstrictementidentiques. Capture1Giomax/deadline90s, pasdeProcessorTraceoptionnelni--no-prompt ; exigeGPUintervalscible nonvides etpariténativecomplète avanttouteattributionvitesse. Ancreexplicitew3=137662513152B sousattribution/anchor.json aprèstousGPUsw2clos/installationCPU, ancienneregardeetancresconservées. MACverrouillé/secteur ; caffeinate-i éphémèrepourprévenirsommeilduprocessussuperviseur, aucunparamètresystèmechangé. GardezéroSwapout/nativephysique<12Go/quiet, cibleettraceursbornésrejoints. Aucunmoteur/kernelmodifié.
+
+**ULTRA-ATTRIBB qualARattach trace interrompue par garde1Gio.** Le processusRust a démarré par chemin normal ; warmup-summary présent, attachGamePerformance8s commence/atteintsa limite. Durantlafinalisationtaillelogiquede.trace dépasse1Gio : contrôleurinterromptetjointxctrace, étatinterrupted consigné capture.json. Ne pasinterpréterla.tracepartielle commeprofilageGPUvalidé ; attendreparitéfinieetinspecterdonnées/occupationphysiqueavantdéciderunnouveauprotocole. Le superviseurRust et sesgardesrestentactifs.
+
+- 45-Q/R processus qual-AR-attach : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/attribution/qual-AR-plan-result.json.
+
+**ULTRA-ATTRIBB qualARattach moteur terminé.** Superviseur completed_expected_outcomes_not_speed ; natif completed_expected_outcome,1testpassé/reaped,86,869s, zéroécritureSwapouts. warmup/oracle/trace/fenced présents. Capture interrompue1Gio =1,2085Gophysiques, exporttentéavanttoutnouvelessai ; paritéfinelogits/états àcontrôlerdansmétadonnées. Aucunrésultatvitesseattribuableannoncé.
+
+**ULTRA-ATTRIBB qualAR clos, passagecapturecomplète préenregistré.** Les4phases/17tokens/248320logits chacune etfull_logits_target_head_states_byte_exact=true,IDs/texte/hashégaux ; gardeSwapoutrespectée. Exporttraceinterrompue échoue10 DocumentMissingTemplateError : inutilisable, preuvesconservées. La seulecauseobservée d’arrêtduprofileurestcaplogique1Gio(1,2085Gophysiquesenfinalisation), pasunéchecnatif ; nerefaispasqual17. ProchainARMAIN128v1natural6phases inchangé, captureGamePerformanceattach20s déclenchéeparcontrol_before-summary ; garde8Gio/.traceet180sprofileur(borneoutillagerehausséeavantcapture),900ssuperviseur/modèle,zéroSwapout/nativephys<12Go, secteur/quiet/caffeinateéphémère. Finalisertraceavantexport, pasdecompilation/proveur, paritécomplèteobligatoire. VérifiercouverturedecodeetévénementsGPUréelsavantestimations ; toutepartiecapturemanquanteseraexclue/qualifiée. Prioritéfineattribution, aucunportagemoteur.
+
+- 45-Q/R processus attribution-AR-MAIN : **failed_or_interrupted**, joint=True ; docs/measurements/ultra-profile-20261027/attribution/AR-MAIN-plan-result.json.
+
+**ULTRA-ATTRIBB ARMAINcapture finalisée.** GamePerformanceattachPID94523/20s sort0 etjoint,40,975s avecfinalisation, capture.tracecomplète. Moteurcontinuephases/parité ; pasencored’exportlourdpendantGPU. Ancienécheccap1Gio conservé. ContenuGPU/coûtd’observation/couvertureetcontratsnumériquesrestentàqualifieravantattribution.
+
+**ULTRA-ATTRIBB ARMAIN campagne interrompueSwap.** Nativefailed_or_interrupted/reaped72,135s, AssertionErrornewSwapout ; warmup/control_before/trace_1 résumés128tokens/248320logits/full_logits_target_head_states_byte_exact=true. trace_1decode13,605s contrecontrol_before11,726s, contrôleaprèsettrace2/3absents : aucunecampagnecomplètenigainvalidé. CaptureGamePerformance20ssort0/finalisée223532559B ; CPUexportexécuteaprèsarrêtGPU. Inspectiontable/horloges/couverture nécessaire, observeretSwaprestentlimitesvisibles. Gardeconservée, pasdefresheancresilencieuse.
+
+**ULTRA-ATTRIBB ARMAIN contenu inspecté, attribution refusée.** Exports9499GPU/152968threadstate/100744syscall lignes, PID94523présent, maisTOCdurée10sexactes pour20s demandées, vraisévénementskernel6,1907–10s seulement etRunIssues contient«Datastream:TimeMapping». Métadonnéetargetexit0 duTOCestuninstantané, contrediteparsuperviseurSIGTERM-15 ; nepasl’utilisercommeparité. Swapoutdelta109248512B(104,19Mio), valeursmaximum_live=0 legacyécritesavanttriggernefontpasfoi. Pasd’attributionhorloges/GPUidlevalidée. Nouvellequalificationpréenregistrée : templateTimeProfiler+GPU+ThreadActivity+SystemCallTrace, sansGamePerformance/MetalApplication ; ownPythonPIDsleep10puisexecvtestArrayd4(mêmePID),attach20s/deadline90s/8Gio,aucunmodèleGPU. Exiger1testpasséetmetadataqualitécomplète, événementsGPUduPID, duréeet horloges cohérentes ; paritécapturepartiellepréservée, capRAM1Gionatif/zeroSwapvérifié. PasdeGPUmodèleavantqualificationnouvelleconfiguration.
+
+**ULTRA-ATTRIBC configuration légère qualifiée sur micro.** TimeProfiler+GPU+ThreadActivity+SystemCallTrace attach au PID94899 qui execv le libtest Rust d4 : test physique 1 passé/0failed/339filtered,39casGPUraw13dtypes+3Float64CPU,134reads,byteégalité+GPUlateencorepending préservés. Capture0/17,045s cible et traceur joints,zéroSwapout ; 80événementsGPU du PID (nomhistoriquePython malgréexec),time-info donne epoch UTC précise et timebase125/3. PremièrecaptureGamePerformance récupère aussi time-info : sonepoch est1793131257,551689 et diffèrede10,786sduTOC ; TOCseul estdoncunsoclehorlogeincorrect, ne pasconfondreprésenceTimeMappingavecuneerreurdiagnostiquée. Corrélationexecve et bornes àvérifieravantattribution.
+
+### ULTRA-ATTRIB-C2 — capture AR complète au niveau de la phase, arrêt planifié avant les allocations suivantes (préenregistrement)
+
+Le micro léger a passé 1 test physique (39 cas GPU, 3 F64 CPU, 134 lectures, byte-exact et overlap préservé), zéro Swapout, tous enfants joints. Correction du compte recopié dans l’entrée précédente : **41** intervalles GPU du PID94899, et non80. L’epoch précise de time-info est cohérente avec la paire UTC/perf_counter du helper à ~9,3us ; le TOC de GamePerformance n’est pas la bonne origine des timestamps exportés. Aucun calcul d’attribution ne doit employer ce TOC seul.
+
+Nouvelle capture : libtest Rust d4 / MAIN128 / EXL3 / cache3Gio / options natural inchangées. Exécuter warmup, control_before et trace_1, puis **terminer volontairement par SIGTERM le processus possédé après la ligne stdout trace_1**, qui arrive après la validation numérique et la fermeture des deux fichiers d’événements. Ce protocole ne prétendra pas que le test natif à6phases est passé :3phases suivantes et contrôle après explicitement non exécutés. Il libère le modèle avant la finalisation Instruments pour éviter le pic RAM observé après trace_1. Exiger tokens128/hash/texte golden, logits248320 finis et états byte-exact imposés par le binaire figé dans chacune des3phases ; conserver son SHA et la distinction fin de phase/fin de test.
+
+TimeProfiler + GPU + ThreadActivity + SystemCallTrace + Disk I/O Latency, attach ~5s après control_before (prefill précédent8,26s), limite18s,8Gio sur disque/180s traceur,900s superviseur, cible et traceur tous rejoints. Vérifier la couverture réelle du decode et time-info plutôt que la durée demandée ; paires UTC/monotone encadrées pour calibrer. Zéro nouvelle écriture swap sous **nouvelle ancre explicite w4** (ancien essai et ses104,19Mio conservés), secteur/quiet, aucune compilation ni autre inférence. Aucun changement du moteur. Pas de gain annoncé depuis cette capture et pas de décomposition baseline si horloges/couverture/contrats échouent. Artéfacts attribution/lean/.
+
+- 45-Q/R processus AR-MAIN-three-phases-planned-stop : **failed_or_interrupted**, joint=True ; docs/measurements/ultra-profile-20261027/attribution/lean/AR-MAIN-plan-result.json.
+
+**ULTRA-ATTRIB-C2 interrompu avant la phase tracée complète.** Les deux premières phases warmup/control_before sont enregistrées ; le contrôleur a détecté5701632B (5,44Mio) de nouvelles écritures Swapout pendant la capture. Il a terminé et rejoint le traceur puis SIGTERM au processus Rust possédé, lui aussi rejoint. Le résumé trace_1 et l’arrêt planifié n’ont pas été atteints : full_native_test_passed non établi, aucune parité de phase tracée revendiquée. Le superviseur a également rejeté l’absence de la ligne trace_1, comme prévu pour un arrêt sur garde. Ne pas relancer le modèle avec la même capture lourde et la même disponibilité RAM. Examiner maintenant les sources déjà acquises, les horloges time-info, et la possibilité de collecter après libération du modèle via les outils système rétrospectifs ; aucun nouveau GPU/modèle lancé par cette inspection CPU.
+
+**ULTRA-ATTRIB-B révision après inspection des snapshots de phase.** Pour le premier ARMAIN PID94523, before/prefill_boundary/after de chacune des phases warmup/control_before/trace_1 enregistrent tous Swapouts8402253pages (137662513152B). Le dernier after de trace_1 est1793131268,718379 : la hausse104,19Mio détectée par le superviseur arrive après cette phase, et non pendant sa mesure. Ses128sorties/logits/états sont validés ; l’essai à6phases reste interrompu et son surcoût observateur/control_after absent reste visible. Les ~3,81s de vrais événements GPU/CPU exportés peuvent être examinées comme diagnostic partiel après calibration indépendante de time-info, sans revendiquer une attribution complète de la baseline.
+
+Inspection CPU préenregistrée : importer la collecte système rétrospective retro-AR déjà conservée (ancien essai non concluant car aucun PID cible dans overview) avec le xctrace désormais disponible. Propriété nouvelle : des événements GPU headless existent-ils dans le raw .atrc malgré leur absence dans overview ? Aucun modèle ou nouveau GPU lancé ; deadline90s/import8Gio, conserver les0lignes éventuelles et ne pas convertir une absence en GPUidle100%.
+
+**ULTRA-ATTRIB rétrospective importée, non concluante.** ImportCPU de .atrc officiel puis exportmetalgpu termine ; 0 lignes GPU. La collecte always-on conservée ne fournit pas un substitut à la capture GPU headless ; aucune nouvelle inférence lancée, aucun GPUidle déduit de cette absence.
+
+### ULTRA-ATTRIB-D — fenêtre courte2s, nouvelle hypothèse de coût de collecte (préenregistrement)
+
+C2 a déclenché5,44Mio de Swapout environ8s après le début du traceur ; le micro léger sans modèle était passé. Une collecte2s limite les événements et leur finalisation à une fraction du volume18s, et se termine avant les allocations de la phase suivante. C’est la différence de protocole explicite, aucune garde relâchée. Dernier contrôle GPU dans ces conditions : même modèle/cache3Gio/binaire d4, trois phases avec arrêt volontaire après trace_1 validée, trace TimeProfiler/GPU/ThreadActivity/SystemCallTrace/Disk I/O Latency **2s** déclenchée9s après control_before. Les processus sont tous bornés/rejoints et la campagne complète6phases reste explicitement non exécutée. Secteur/quiet, zéro nouveau Swapout sous ancreexplicitew5 ; aucun build/proveur concurrent. Si la garde échoue, ne pas relancer une autre collecte du modèle dans les mêmes conditions mémoire.
+
+Les calculs CPU du premier raw ont trouvé36steps complets84–119 et5244preadv/6544574928B concordant exactement avec les jobs natifs. Calage indépendant par inclusion de toutes ces lectures dans leurs scopes parents : décalage natif compatible[-25019,-22228]ns, correctioncentrale-23624ns, demi-largeur1396ns (sous hypothèse d’offset constant sur3,72s). Les297jobs de taille1 durent583–10958ns de plus que leur syscall, cohérent avec les enveloppes utilisateur. L’addition CPU/GPU n’est pas un partitionnement ; activité GPU ne prouve pas activité ALU utile. Analyse standalone+CI self-check ajoutés :3375requêtesunion+3375intersection sur oracle discret indépendant, bornes invalides et XML corrompu ; Ruff/py_compile passent, CrossHair tenté mais module absent, aucune preuve formelle revendiquée. Contrôle source du moteur toujours inchangé.
+
+- 45-Q/R processus AR-MAIN-three-phases-planned-stop : **completed_expected_outcome**, joint=True ; docs/measurements/ultra-profile-20261027/attribution/short/AR-MAIN-plan-result.json.
+
+**ULTRA-ATTRIB-D acquisition réussie, attribution en vérification.** PID95831, capture2s exit0/finalisée ; trois phases warmup/control_before/trace_1 avec128tokens et paritélogits248320/états byte-exact vérifiées contre golden, puis SIGTERM **planifié** après fermeturedesJSONetligne trace_1. Superviseur completed_expected_outcomes_not_speed/exit-15 attendu/reaped65,787s ; contrôleur et traceur tous rejoints69,225s ; zéro nouvelle écriture Swapout sur toute la fenêtre5 (137777463296B inchangés). Ce n’est pas un test natif6phases passé, remaining3phases non exécutées. Nativephysique mesurée aux frontières <12Go. ExportCPU/GPU/syscalls/DiskIOLatency/horloges en vérification, aucun boost validé et aucun moteur modifié.
+
+### ULTRA-ATTRIB-E — témoin positif des événements disque, sans modèle/GPU (préenregistrement)
+
+D a réussi :20steps complets48–67,2619preadv et3268543428B concordants ; scope lectures38,108ms/token dont31,409ms après dernière activité GPU indépendante. Cependant **DiskIoRoutines=0** malgré5868appelsVFS, les moyenneslatence sont vides/sentinel ; absence de requête ne prouve pas absence deSSD. Le moteur ouvre des File ordinaires et faitpreadv sansF_NOCACHE (recherche native/src etffi, checkpoint.rs::TensorInfo::source/array.rs::read_records) : le cache fichier macOS peut servir des données en plus du cache experts3Gio.
+
+Pour distinguer cacheRAM et instrumentationindisponible : processusPython possédé avec fichierjetable128Mio sousdossier temporaire dédié ; F_NOCACHE48 etF_FULLFSYNC51 vérifiés dans le headerSDK officiel sys/fcntl.h. Quatreécritures32Mio de données déterministes nontriviales, fsync+FULLFSYNC, quatrelectures32Mio vérifiées byte-à-byte, puis nettoyage. Capturer mêmesinstrumentsDiskIOLatency/TimeProfiler/GPU/ThreadActivity/Syscall, attach6s aprèsun délai3s duhelper ; 90sdeadline/8Giofichiermax, processusrejoints, aucunmodèleGPUchargé. Relever rusageinblock/outblock et iostat disque0 avant/après si disponible. Si aucun événementbloc sous ce témoinpositif, déclarer ce chemin physique nonobservé/instrumentationnonqualifiée, **jamais SSD0ms**. Aucun changement moteur ou réglagesglobal/F_NOCACHE sur le modèle.
+
+**ULTRA-ATTRIB-E témoin byte-exact passé, observationbloc non qualifiée.** Helper/traceur sortent0 et sont joints8,797s, fichierjetable128Mio supprimé ;128Mio écrits+128Mio lus,F_NOCACHE/F_FULLFSYNC succès,byteégalité ;ru_inblock/oublock=0 non utilisables comme preuve de0I/O. iostatdisk0global augmente1241,80MB et10256transferts (inclut écritures du traceur, pas une attribution au helper). DiskIoRoutines 0lignes sous ce témoin : ne pas interpréter le0de la capture modèle comme0SSDphysique.
+
+**ULTRA-ATTRIB-E contrôle de couverture.** Les syscalls du témoin sont bien dans la capture : {'BSC_sys_fcntl': 2, 'BSC_pwrite': 4, 'BSC_fsync': 1, 'BSC_pread': 4}. DiskIoRoutines reste0 malgré ce contrôle actif, donc pas de conclusion SSD0. Prochain contrôle CPU seulement, préenregistré : même témoinjetable/F_NOCACHE/FULLFSYNC avec template **System Trace** +DiskIOLatency,6s/deadline60s et workloadrépétéde3à5s pour couvririnitialisation. Propriété : le provider Kernel de SystemTrace rend-il disponibleslesI/OBlocabsentesduTimeProfiler+instruments ? Tous processus bornés/rejoints/fichierssupprimés ; aucunmodèleGPU lancé.
+
+**ULTRA-ATTRIB-E2 SystemTrace clos.** Contrôle6s sort0/cible0,3itérations de128Mioécriture+128Miolecture byte-exact avecF_NOCACHE/FULLFSYNC,tousprocessusjoints7,999s etscratchsupprimé ; exportDiskIoRoutines=0lignes. Ce capteur reste nonqualifié malgré deuxtemplates et témoins actifs ; attribution SSDphysique marquéeNONMESURÉE, aucune conclusion SSD0. Pas de nouveau modèle pour masquer cette limite.
+
+### ULTRA-ATTRIB-F — fonctions précises dans les12,14ms de soumission exposée (préenregistrement CPU)
+
+À la demande de l’utilisateur : reprendre uniquement la capture D validée PID95831/20steps48–67/3Gio/zéroSwapout, sans relancer de modèle. Exporter time-profile/time-sample à1kHz, restreindre au TID d’inférence, aux spans host_async_submit et aux états Running où aucunGPU n’est actif, avec le calage existant. Distinguer durées exactes des spans et échantillonnage statistique des fonctions : ne pas attribuer une durée exacte à une frame depuis un simple compte. Regrouper par piles exclusives (MLX graphe/encodageMetal/allocateur/trace/unknown) et montrer les symboles concrets, inconnus et couverture ; ne pas sommer les frames inclusives. Retrouver aussi les deux callsites natifs async_eval par couche. Conserver toute absence ou couverture insuffisante. Aucun changement moteur ni nouveau GPU.
+
+**ULTRA-ATTRIB-F résultat intermédiaire / filtre de sampling rejeté.** Les1920host_async_submit appartiennent à960préparationsgpu_resident_hot_prepare, exactementdeuxappelsordonnéschacune : slots.indices().async_eval puisoutput.async_eval (source ssd_moe.rs560/569). L’exposition mesurée separtage11,897307ms/token et0,244761ms/token. Le premierfiltre exigeant Running à l’instant exact de l’échantillonCPU donne0points et échoue explicitement ; ne pas annoncer une décomposition depuis0samples. Les757samples du TID dansledecode sont àexaminer dans le contexte Interrupted du sampling. Nouveau contrôleCPU : n’accepter qu’unpointdansunintervalleInterrupted avec prédécesseurRunning, rattacheraucontexte justeavantinterrupt et vérifier l’appartenance async/GPUidle ; compter lesrefus/bords, ne pas renormaliserlesinconnus. Aucunmodèle relancé.
+
+**Xcode — révision après action utilisateur.** L’utilisateur confirme «j’ai acceptéXcode». Vérifications immédiates : DEVELOPER_DIRapp xcodebuild-checkFirstLaunchStatus sort0 et xcrunxctraceversion donne27.1(27A9275). L’enregistrement administrateur n’est donc plus le blocage de lancement ; xcode-select global resteCLT, inchangé. Historique des échecs d’authentification conservé.
+
+**ULTRA-ATTRIB-E3 préenregistré CPU seulement.** Nouvelle condition explicite : Xcode officiellement initialisé/licence enregistrée, contrairement aux deux contrôles précédents. Répéter le témoin positif128Mio F_NOCACHE/F_FULLFSYNC +4pwrite/4pread byte-exact, mêmesinstrumentsTimeProfiler/GPU/ThreadActivity/Syscall/DiskIOLatency6s ; utiliserxcrun maintenantexécutable, deadline60s/8Gio/scratchsupprimé/tousprocessusjoints. Vérifier si le capteurbloc devient disponible aprèssetup, sans charger de modèleGPU et sans réinterpréter les anciens0lignes commeSSD0ms. Si toujoursvide, clore cette attribution physique commeNONMESURÉE.
+
+**ULTRA-ATTRIB-F validé comme diagnostic échantillonné.**960soumissionsindices+960soumissionsHot sur20tokens : CPUactif/GPUinactif11,897307ms/token vs0,244761ms/token. Après rattachement aux contextesRunning juste avant les interruptions du profiler,757points du thread sont résolus,249appartiennent aux fenêtres exposées (243indices/6Hot). Une seuleframeMLXchoisieparpile :143/249CommandEncoder(57,4%),23gpu::eval(9,2%),21eval_impl(8,4%) ; feuilleskdebug48/249. Pourcentagesstatistiques, aucune duréeexacteparfonction ni gainhorsInstruments annoncé. Les0points du premierfiltre sont conservéscommeéchec, pascommeparité. Sources/piles sousshort/AR-MAIN/async-*.json etsourcearchivée sousshort/async-stack-analysis-source.txt. Les estimations v1/v2 noncalées sont remplacées parv3 ; compteur de selfcheck corrigé3375unions+3375intersections, sanschangementdesbruts.
+
+**Clôture diagnostic ciblé.**230testsCPU exports/profilage/supervision passent,6750requêtesdiscrètes union/intersection et5XMLinvalides/3bornesinvalides passent, mutationmax→min détectée, Ruff/format/py_compile/YAML+câblageCI passent. CrossHair tenté mais absent : aucunepreuveformellePython. Les empreintes de toutes les sources natives figées et du libtestd4 sont inchangées ; aucun algorithme/kernel/app modifié pour cette attribution. Rapport et classement : docs/measurements/ultra-profile-20261027/attribution/README.md. MTP/DFlash2 fin/contexteslongs/largeursrestantes nonmesurés ; matriceglobale noncomplète ; CI distante arbrelocal nonpublié nonexécutée. Les essais lourds interrompus et témoins physiques nonqualifiés restent visibles.
+
+**ULTRA-ATTRIB-E3 clos après setup Xcode.** Témoin128Mioécrits/lus byte-exact,helperettraceursortent0/tousjoints9,694s/scratchsupprimé. ExportDiskIoRoutines=0lignes. Capteur toujoursnonqualifié mêmeaprèslicence/initialisationconfirmées ; SSDphysique NONMESURÉ, jamaisSSD0ms. AucunmodèleGPUrelancéparcetémoin.
+
+### POSTPROFILE-01 — préflight interrompu, aucun GPU lancé
+
+Essai prévu : ops20/40/80 avec40MB constant, distinct des anciens1000ops/1024MB rejetésQwen3.6. La préparation s’est arrêtée sur une assertion de préflight avant création de l’ancre/plan ; la tentative suivante de superviseur a refusé l’absence d’ancre. Aucun modèle n’a démarré et aucune vitesse n’est mesurée. Diagnostic exact dans docs/measurements/post-profile-20261027/preflight-failed.json. Réparer uniquement la préparation ; aucune nouvelle ancre tant que conditions de lancement non réunies. Le défaut de séquencement des appels préparateur/lanceur est corrigé en inspectant désormais l’exit avant lancement.
+
+**POSTPROFILE-01 protocole avant GPU.** CibleFlashNext/M5/MLX0.32.2/cache3Gio/53slots/alloc64Mio/overlapHot/lookahead0 inchangés ; prototype=seulement MLX_MAX_OPS_PER_BUFFER20/40/80, MLX_MAX_MB_PER_BUFFER40 constant. Le seuilpréparateur10Go libres+filebacked était une heuristique, pas la gardeSwap ; pour les tests légers sansInstruments/événements volumineux, employer8,5Go de disponibilitéestimée (dernierpicnatifmesuré7,55Go). Gardes effectives secteur/quiet/zéroSwapout/RSS10Gio/footprintCLI<12Go inchangées. Si la pression réelle déclencheSwap, interrompre et ne pas annoncer un résultat.
+
+Qualité : oraclecompletindépendant≥5steps,248320logits complets byteexacts etétatsGDNcouplés byteexacts/routes ; reset/erreurs ; composantsQSA/PLE/GDN auxentréesidentiques ; Arrayraw39GPU/3Float64/134reads/source-onlywait pour20/80. A40 oraclecontrôle puisC20/C80. TestsPhysiques explicites/exclusifs, mêmebinairelibtestd4 ; aucune compilation/proveur ni autre modèle pendantGPU. Ancienne expérience1000ops/1024MB Qwen3.6rejetée conservée ; raisonsnouveautest : modèle/M5/périmètre borné20/80 etprofilageencodage, pasmêmeconfig.
+
+Après qualité uniquement : piloteCLIproductiona60 ARMAIN128,1chauffe+2mesures/processus, ordreA40,C20,C80,A40 ; décodage/préfill/mémoire distincts, hashes/textesgolden nonvides. Gagnant candidat à confirmer ordreinverse etMAIN/HOLD128/3répétitions, puisMTP/DF si intégrationdéfautFlash. Ne pas étendreunparamètreglobalauxautresarchitecturessansvalidation. Aucun code/app/pushmodifié à cette étape. Varianceuserautorisée ne dispense ni parité ni zéroSwap. Protocole/identités/preuves dansdocs/measurements/post-profile-20261027/.
+
+- 45-Q/R processus quality-ops40-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops20-readback_profiling_preserves_layouts_errors_and_overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops20-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops20-flash_components_match_reference_on_identical_inputs : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops80-readback_profiling_preserves_layouts_errors_and_overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops80-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+- 45-Q/R processus quality-ops80-flash_components_match_reference_on_identical_inputs : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/quality-plan-result.json.
+
+**POSTPROFILE-01 qualité passée avant vitesse.**7tests physiques sélectionnés explicitement passent/0ignoré, tousprocessusjoints/zéroSwapout : A40 oracle5steps ; C20/C80 Array134reads+39GPU+3F64/source-onlywait, oracle5steps/logits248320/GDNcouplébitexact/routes, etcomposantsGDN/QSA/PLE/HCentréeidentique. Mêmebinaired4/optionsmodèle, pasdesortiesvides. Ceci ne constitue pasune preuveuniverselle128états. Pilotepréenregistré préparéordreA40,C20,C80,A40, CLIa60/MAIN128/1chauffe+2mesures/parprocessus, même3Gio53slots/40MB, aucuneInstrumentationInstruments. Vérificationgoldenexterne encoursdebranchement avantlancement.
+
+- 45-Q/R processus A40-before : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/pilot-plan-result.json.
+
+- 45-Q/R processus C20 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/pilot-plan-result.json.
+
+- 45-Q/R processus C80 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/pilot-plan-result.json.
+
+- 45-Q/R processus A40-after : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/pilot-plan-result.json.
+
+**POSTPROFILE-01 pilote terminé — non concluant, variantes non retenues.** 4processus/4chauffes+8mesures MAIN128, tousjoints/zéroSwapout/goldenexterne validé/comptes128/127 ; qualité7tests déjàpassée. A40avant 11,1302/11,1180tok/s (moy11,1241), C20 10,9420/11,0176 (10,9798), C80 10,5648/10,3722 (10,4685), A40après 10,7017/10,4654 (10,5836). Dérivecontrôle−4,86% : pasdegaincausalétabli, pasd’intégration ni publication. TTFTparréponse/mémoire/provenance danspilot-inspection.json etrapportsbruts. Pasdeconfirmationinverse/HOLD/MTP/DF : aucungagnantpilote.
+
+### POSTPROFILE-02 — seuil de ressources Metal, préenregistré avant essai
+
+Hypothèse distincte : compter seulement les opérations ne suffit pas ; MLXv0.32.2 suit aussi les ressources uniques enregistrées dansCommandEncoder::set_input_array et sonseuilMLX_MAX_MB_PER_BUFFER. Comparer20/40/80 pourceseuil enfixantMLX_MAX_OPS_PER_BUFFER=40 ; lesindicationsMBsontlenomduparamètreMLX, pasunplafondRAMphysique. Modifierlebudgetdecommandes peutchangerlatencederemiseGPU etcoûtencodage ; aucunebarrièredehazarddésactivée. Nouvelle raison vs1000ops/1024MBrejeté : FlashNext/M5/profilprécis, changementisolé/borné. Sourcev0.32.2 device.cpp etutils.h déjàinspectée, aucuneéditionMLXglobale.
+
+BaselineCLIa60/libtestd4/HEAD7978arbrelocalfigé/optionsmodèleinchangés, cache3Gio53slots, sansInstruments. Qualité avantvitesse : pourMB20et80 oracleindépendant5steps/248320logits+GDNbitexacts, composantsidentiquesetArray134reads ; mêmesgardesstrictesancrew6, pasdecompilation/proveurs/inférenceconcurrente. PuispiloteMAIN128,1chauffe+1mesureparprocessus, ordre A40,C20,A40,C80,A40,C80,A40,C20,A40 : 2candidatsrépétésensensinverse/chacunencadrécontrôles. Préfill/décode/mémoire/golden séparés ; baselinevarianceconsignée ; gainéventuelàconfirmer3répétitionsMAIN/HOLDetMTP/DFavantintégration. Conserverlesnégatifs ; nepasconvertir12msobservésavecInstruments engainreleasepromis. Protocolesresource-*-plan.json ; aucuneappinstalléemodifiée.
+
+- 45-Q/R processus quality-mb20-readback_profiling_preserves_layouts_errors_and_overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+- 45-Q/R processus quality-mb20-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+- 45-Q/R processus quality-mb20-flash_components_match_reference_on_identical_inputs : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+- 45-Q/R processus quality-mb80-readback_profiling_preserves_layouts_errors_and_overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+- 45-Q/R processus quality-mb80-flash_matches_independent_reference_states_and_logits : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+- 45-Q/R processus quality-mb80-flash_components_match_reference_on_identical_inputs : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-quality-plan-result.json.
+
+**POSTPROFILE-02 qualité passée avant pilote.**6testsphysiques/0ignoré, oracleindépendant/composants/Array pourMB20et80, processusjoints/zéroSwapout. AucunéchauffementniInstrumentationcachée. Lancementpilote9casespréenregistrées, mêmesa60/MAIN128/1chauffe+1mesure, goldenexterne validéàchaqueréponse etgardesRAM/quiet/secteur/zéroSwap effectives. LesflagsMLX sontconservésdansplanJSON (lerapportbridgepréexistantnesérialisequelesflagsMLXL3). Aucunmoteur/appmodifié.
+
+- 45-Q/R processus R1-mb40 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R2-mb20 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R3-mb40 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R4-mb80 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R5-mb40 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R6-mb80 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+### POSTPROFILE-03 — une soumission du graphe GPU Hot, préenregistrement
+
+Préparation pendant POSTPROFILE02 ; aucun build/proveur ni modification exécutable avant fin de ses GPU. Fonction SsdMoe::prepare_resident_hot appelée par forward_rows_prepared/forward_unique_rows, puis bridge FlashNext AR/MTP/DF. Les indices résidents sont une dépendance des gathers de scales et kernels experts calculate_slots ; output.async_eval soumet déjà ces ancêtres. Prototype minimal prévu : retirer uniquement slots.indices().async_eval anticipé, conserver output.async_eval avant readback CPU/routes et toutes les fences last/ownership/cache. Aucun changement de poids/kernel/math/budget3Gio ni nouveau flag. API batch async_eval_all existe déjà ; inutile d’ajouter une API/FFI.
+
+Hypothèse : réduire 96→48 appels async hôte/token et l’amorçage répété eval_impl ; risque opposé : attendre la construction Hot retarde le premier départ GPU et peut ralentir. Le plafond ne se déduit pas des12ms profilées : encodage réel nécessaire conservé, seconde soumission seulement0,245ms/tokenCPUexposé danstrace20pas, éventuels autres coûts partagés nonmesurés. Aucun gain présumé. Pas d’essai identique trouvé dans journal/code ; recherches de callsites et anciens async group conservées.
+
+Protocole : sauvegarder sources préexistantes, ajouter régression physique à l’entrée MoE (0/5/10résidents : sortie byteexacte, hits/misses/read_bytes, trace une soumission par préparation nonvide), vérifier qu’elle échoue sur l’ancienne double soumission, puis supprimer la ligne. Rejouer régression, overlap pending routes/I/O, erreurs/reprise, unique/wide ownership et oracleindépendant logits/états/composants. Binaire baselinea60 figé ; nouveau binaire/empreintes/source exacts distincts. Skill formal-proof-skill+réfRust chargés ; tenter Kani --tests sur la vraie régression/implémentation MLX, limites FFI/GPU explicitement nonprouvées ; fmt/clippy/build/suite native mlx,chat et CPU nécessaires, CI existante inspectée. Après qualité seulement : comparatif release ARMAIN/HOLD128 alterné ABBA (1chauffe+3mesures), même golden/cache/conditions/gardes ; confirmer MTP/DF si candidat retenu. Si pas de gain ou régression, retirer le prototype sans effacer résultats. Aucun déploiement/push/appinstallée.
+
+- 45-Q/R processus R7-mb40 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R8-mb20 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+- 45-Q/R processus R9-mb40 : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/resource-pilot-plan-result.json.
+
+**POSTPROFILE-02 clos — rejeté, aucun réglage intégré.**9processus/9chauffes+9mesuresMAIN128, tousjoints/zéroSwapout/goldenexterne validé ; sixoracles physiquespassés avantvitesse. Comparaisonschaquecandidatàlamoyennedescontrôlesimmédiats : [{'candidate': 'R2-mb20', 'bracket_reference_tps': 10.700576031262766, 'candidate_tps': 10.574316379359308, 'decode_delta_pct': -1.1799332254130879, 'ttft_delta_pct': 1.7322907465121107}, {'candidate': 'R4-mb80', 'bracket_reference_tps': 10.54156027177438, 'candidate_tps': 10.13274346077371, 'decode_delta_pct': -3.8781432772840962, 'ttft_delta_pct': 2.4188067752723974}, {'candidate': 'R6-mb80', 'bracket_reference_tps': 10.56936919361246, 'candidate_tps': 10.602642660278255, 'decode_delta_pct': 0.31481033594609187, 'ttft_delta_pct': 2.416459832724671}, {'candidate': 'R8-mb20', 'bracket_reference_tps': 10.531876444061744, 'candidate_tps': 10.514708722347033, 'decode_delta_pct': -0.16300724572582137, 'ttft_delta_pct': -0.011097694807937764}]. Seulement1mesure/processus,2passages/candidat ; aucunboostreproductible, préfill surveillé. PasdeconfirmationHOLD/MTP/DF, aucunjustificatifpourchangerlesdéfauts. Preuves resource-pilot-inspection.json/plans/logs ; échecs01conservés.
+
+**POSTPROFILE-03 périmètre affiné avant édition/build.** Conserver la soumission anticipée des indices pour x.shape()[0]!=1 ; retirer ce double amorçage seulementM1. Les calculs multi-tokens, plus longs à construire et employés aupréfill/vérification, gardentleurchemin antérieur. Mêmecontrat/error/ownership/cache ; régressionM1 0/5/10résidents ettestsWide/unique existants obligatoires. ParamètresMLX remis40/40 pourtousbras. Aucuneautreoptimisationjointeauprototype.
+
+- 45-Q/R processus single-hot-old-regression : **failed_or_interrupted**, joint=True ; docs/measurements/post-profile-20261027/single-hot-old-plan-result.json.
+
+**POSTPROFILE-03 régression reproduite avant correctif.** Nouvelle régression physique sur production nonmodifiée : all-cold valide puis mixed échoue exactement «expected one Hot submission, got 2», exit101, 0passé/1échec/340filtrés, processusjoint/aucunSwapout. Le superviseur générique exige malgré expected_exit101 une ligne «test result: ok» et marque failed_or_interrupted : conserver ce diagnostic de supervision, ne pas relancer pour le masquer. Inspection directe du log prouve l’échec attendu de la nouvelle invariant, pas une divergence numérique. Plan/log/source old-test-identity.json conservés. Correctif M1 à appliquer maintenant, puis vérification physique à réexécuter après builds/proveur séparés du GPU.
+
+**POSTPROFILE-03 correction du diagnostic superviseur et tentative Kani.** L’inspection du superviseur montre que le premier échec de supervision venait du champ native_test resté au nom de l’oracle copié dans le plan, et non d’une exigence universelle «ok». Le log natif établit bien l’échec attendu 2soumissions/exit101 ; ne pas modifier ce plan déjà exécuté ni le relancer. Deux tentatives Kani --tests (filtre court puis pleinement qualifié) ne sélectionnent aucun harnais, car la régression est #[ignore] : aucune propriété vérifiée. Adapter uniquement son attribut en cfg_attr(not(kani), ignore=...), pour garder son exclusion physique normale tout en permettant la vraie tentative Kani sur le même corps. Aucune abstraction/stub ajouté ; preuves de sélection manquée conservées dans kani*.log. Prochain Kani borné120s, sans GPU concurrent, puis fmt/lint/build/tests.
+
+**POSTPROFILE-03 Kani sélection non résolue par cfg_attr.** Le troisième essai ne trouve toujours pas l’entrée ; l’explication par #[ignore] était une hypothèse insuffisante, aucune propriété ni corps GPU exploré. Restaurer l’attribut physique standard et ajouter un vrai #[kani::proof] appelant directement la même régression, comme les harnais réels SsdMoe déjà présents. Une dernière tentative ciblée avec ce point d’entrée explicite ; conserver tous diagnostics, ne pas remplacer l’implémentation par un modèle CPU/stub pour obtenir un succès. Demandeuser renforcée : si prototype négatif, chercher à éviter la reconstruction/réencodage pour réduire le coût exposé, pas seulement déplacer les synchronisations ; 12msinstrumentées ne valent pas12msrécupérables release.
+
+**POSTPROFILE-03 Kani réel tenté, non vérifié.** Le nouveau point d’entrée #[kani::proof] appelle directement la régression et SsdMoe réel ; cette fois compilation libtest MLX échoue avec ICE Kani0.68.0 intrinsics.rs243, exit101. Pas de CBMC exécuté ni obligation prouvée ; kani-proof-entry.log conservé. Les trois sélections manquées restent visibles. Source protoM1=3lignes, test cold/mixed/hot+ordrepréreadback ; lancement des contrôlesCPUfmt/clippystrict/buildrelease/suiteMLXchat/suiteCPUchat bornés300s chacun, aucun benchmark GPU concurrent.
+
+- 45-Q/R processus single-hot-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-cpu-plan-result.json.
+
+- 45-Q/R processus single-hot-clippy : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-cpu-plan-result.json.
+
+- 45-Q/R processus single-hot-build : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-cpu-plan-result.json.
+
+- 45-Q/R processus single-hot-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-cpu-plan-result.json.
+
+- 45-Q/R processus single-hot-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-cpu-plan-result.json.
+
+**POSTPROFILE-03 contrôlesCPU passés avant GPU.** fmt/clippystrict/buildrelease/MLXchat278passés168ignorés etCPUchat248passés6ignorés ; tousprocessusjoints/zéroSwapout. Lesignorés physiques ne sontpascomptéscommeexécutés. Nouveau CLI/libtest figés sousbuild/post-profile/single-hot, empreintes etsource danssingle-hot/identity.json ; CI existantePR/pushmaincompileFFIMLXetlint, pasdeCIremote pourarbrelocalnonpoussé. Lancementqualité12testsphysiques explicites/déterministes/oracles indépendants/GDNcouplé/Wideownership/erreurs-reprise/MTP-vérificationavantvitesse, mêmeancre/secteur/3Gio/options40/40.
+
+- 45-Q/R processus sh-quality-regression : **completed_expected_outcome**, joint=True ; docs/measurements/post-profile-20261027/single-hot-quality-plan-result.json.
+
+- 45-Q/R processus sh-quality-pending : **failed_or_interrupted**, joint=True ; docs/measurements/post-profile-20261027/single-hot-quality-plan-result.json.
+
+**POSTPROFILE-03 rejeté au contrôle d’overlap, prototype retiré.** Régressioncount/numérique cold/mixed/allHot passe3cas ; test demanded_reads_start_while_gpu_resident_experts_are_pending échoue exactement «routes waited for resident compute» : routes_cpu137,655ms, hot_ready_at_routes=true ethot_ready_at_demand=true avecGPUartificiellementretardé. Sourcevaleurs identiques, maiscontratdechevauchementviolé. Une seule soumission regroupe l’événement de disponibilité des ancêtres avec la queueHot ; ilfautpréserverunesoumission/sourcecompletionplusprécoce pourlirelesroutespendantHot. Ce sontdesdonnéesdedétectionfonctionnelle/latencesynthétique, pasundécodeproductionde137ms. Aucunbenchmarkdevitesse lancé ; les10autresoracles prévusnonexécutés, CLI/MTP/DFperformance nonmesurés. Tousprocessusjoints, zéroSwapout (trigger_vm_bytes etancre). Restaurerexactementlesdeuxsourcespréexistantes parleursbackups/hashes ; lesversionsrejetées/test/harnessKani etbinaires restentarchivés, aucuneappinstallée touchée. CPUchecks278/248passaient, maiscelanenvalidaitpasl’overlapGPU. La suppressiondesappelsn’estpasunesolutionaux12ms ; prochainerecherche : réduirelesopérations/ressourcesréencodées enconservantl’événementrouteprécoce.
+
+### POSTPROFILE-04-UPSTREAM — Sushi, Strata, TensorFold après attribution, recherche préenregistrée
+
+Nouvelle demande explicite user : rechercher dans Sushi/Strata/TensorFold une réponse aux12msCPUexposées de soumissionMLX. Avant toute nouvelle implémentation, relire revues13/56S/59/70/71 et Sushi/TensorFold/Mia ; identifier les HEAD/SHA actuels et ne réexaminer que les différences pertinentes ou sous le nouveau profil. Périmètre : gestion des command encoders/buffers/graphes réutilisables, fusiongather/scale/Hadamard, routageGPU/specRoute/specMatches, séparation événementroutes/Hot, préparationsCPU/tables/cache/leases. Distinguer Niko1221/Strata natifMetal, yibie/strata-mlx, ashhart/TensorFold ZigMetal et recetteMiaCUDA. Capturer source/commit/blob/lignes et comparer au codeMLXL3 réellement retenu, contraintesexactFP16/EXL3/3Gio. Aucun chiffreupstreamrepriscommegainlocal ; aucuncode tiers exécuté, aucunnouveauGPU/build/proveur, aucunport avant préenregistrement distinct/qualité. Le prototype de fusion proposé reste nonimplémenté pendant cette revue.
+
+Le retrait03 a été reconstruit : target/release/mlxl3-rs SHA256a60eb4ada3a948110fc057d9551032b6d03598ab404201145f5a5410f26f8e75 identique à baselinefigée, deuxsources restauréesexactement. 01/02/03clos ; aucuneexpérienceGPUencours. Résultat04 attendu : pistes nouvelles/déjàprésentes/incompatibles, nombre d’opérations potentiellement supprimables et plafonds avec limites, puis proposition concrète testable. Priorité user à cette recherche avant prototypefusion.
+
+**POSTPROFILE-04-UPSTREAM terminé — recherche seule, aucun gain validé.** HEADs27UTC épinglés Sushi3fc47d8a/Strata5e8a4cca/TensorFolda1e6d342/strata-mlx94817fd0 ;20fichiers archivés, blobsGit+SHA256 vérifiés, lecture ciblée avec limites explicites. Mia recetteHEAD relevé seulement. Sushi rapporte aussi l’échec des seuilsbuffer et privilégie moins de dispatchs ; fusionsEXL3 indexées concrètes, mais ses arrondisFP32/Hadamard et sonpreparedMidMiMo ne sontpasnotrecontratexact. Nos gatesGDN et plusieursqueuesélémentairesHC/SwiGLU sontdéjàfusionnées/compilées. Strata réutilisebienwcache_ parforme etscratchs, avecMTLSharedEvent auxcoupures ; ilréencodeencorelesdispatchs dansrun_graph_seg, aucunerelectureICBmodèleentier démontrée. LesappelsICB retrouvésStrata/TensorFold sonttests/microbenchmarks. TensorFoldnativeMetalneserttoujourspasEXL3 ; poolCLOCK/leases2blobsinchangés àl’ancienne revue, pasnouveaugain.
+
+Priorité concrète : viserCold+producteursamont du premierasync(11,897msCPUexposé danscapture) plutôtqueHotseul(second0,245ms). Fusiongather+produitdeséchelles enconservantHadamardstock pourraitretirer4primitivesparcalculate_slots etdiffèreduK1rejeté, dontlesgathersétaientconservés/Coldstock ; coûtCPUexclusifetgainrelease nonmesurés. K1quatrecomparaisonsDFlashdéfavorables etsourcearchivéerelus, aucunrerun/prototypefusionlancé. Puisgraphepréparé àmutableinputsexplicites, puisplanMetalplusprofond ; ICB/poolglobal àfiltrerséparément. Rapportdocs/measurements/post-profile-20261027/upstream/README.md,manifestesources.json. Tousessais01/02/03/04clos ; aucunmodèleGPU/build/proveuractif. Sourcesv1hashesinchangées etbinairea60reconstruitidentique ; aucuneapp/push/release.
+
+### POSTPROFILE-05 — Sushi : gather+produit des échelles EXL3 Cold et Hot — préenregistré
+
+28 octobre2026. User choisit l'approche Sushi et demande de continuer. Hypothèse : supprimer les quatre primitives de gather par calculate_slots pour les petits groupes plats (1..10routes), en combinant l'indexation des banques d'échelles avec le produitFP16. Cold etHot couverts ; Hadamard MLX, QMV/splits/FMA, SwiGLU, réductiontop10, routage, LFU, deuxsoumissionsasync etfencesbank restentidentiques. Pasde nouveauflag public ; prototype enbinaireB séparé, baselineA immuablea60eb4ad/HEAD7978fcea/arbrelocalv1. Cache3Gio/53slots, alloc64Mio,4lecteurs, overlap/Hot/Wide/UNIQUE1, lookahead0, opérations/ressourcesMLX40/40.
+
+Différence vsK1 rejeté : garderlesHadamardstock, enleverlesgathersquiétaientconservés, exercerCold autantqueHot ; aucunrerunK1. Nouveau moduleRust deprojectionbankée réutilisant expert_mapped_layout avecentrée déjàtransformée/sortieraw, nouveaukernel deproduitindexé (pasde réduction), helperCPU réel devalidationformes/bornes. Périmètreprojections1/2,largeurs640/2560,slots1..512,routes1..80pourhelper ; activationproduction seulementn<=10/groupementabsent, fallbackhistoriqueailleurs. Aucunebanque/temporairepersistantenplus, tensors intermédiaires degatherenmoins ; RAMprocessus àmesurer séparément.
+
+Qualité avantvitesse : oracleGPU historique gather_scales+mul bitexact (valeursnormales/sousnormales/signées/zéros, layoutsstridés,répétitions,slotsabsents/invalides,formes/dtypes/bornesrefusés), comptages/finitude/nonvide ; mutation réelle du slotMSL doitêtre détectée puisrestauration. Kani symbolique surhelperCPU sansassume etavec covers, tentative vraieAPI MLX avecpointd'entrée explicite/ICE éventuelle ; aucunepreuveMetal inventée. Skillformal-proof/Rust etKaniRUST déjàchargés. Fmt/lintstrict/buildrelease/suitesCPU+mlx,chat, CI existante adaptéeaucontratCPU. PuisMoE Cold/Hot/Wide/unique/pending/erreurs etoverlapretardé, oracleindépendant5positions/248320logits etGDN/composants, vérificationpaires/MTP, bridgeavantpromotion. Aucunchronoavantqualité.
+
+Siqualitépasse : CLIréelAR MAIN/HOLD128,1chauffe+3mesures/processus, ordreABBA avec2processus/bras, goldenexternetexte/hash/comptes128/127 etfootprint<12Go, mêmesoptions ; profilsCPU/GPUinstrumentés séparés. ConfirmationMTP/DF avantdéfautretenusigainAR ; nepasprésenterdurée12msinstrumentéecommerecouvrableentièrement. AucunboostdeSushitransposé. ExécutionGPUsansbuild/proveur/autreinférence, quiet/secteur/zéroSwapout ; nouvelancrew1 pourcettenouvellecampagneaprèsphaseCPUfermée, ancienséchecs03 inchangés. Rejet/retraitsi divergence,overlapcassé ouabsencedegain. Pasdepush/appinstall/release. Preuves dansdocs/measurements/post-sushi-20261028/ ; étatencoursavanttoutcode/mesure.
+
+**POSTPROFILE-05 première implémentation / lint passé.** Nouveauxmodulelinear/banked_scales.rs etMSL indexé, helperCPUflash_banked_scale_count +test/frontières/harnesssymbolique ; callsiteSsdMoe n<=10 Cold/Hot, aucunefenceasyncchangée. Clippystrictmlx/chatall-targets passe4,75s (warningdépendanceblockpréexistant). AvantGPU : planCPUbornéfmt/helper/Kani150s/entréeMLXréelle120s/builds/suites. Le harnaisMLX expliciteévite lesfiltresvides03 ; échecICEattendu documentécommeNONVÉRIFIÉ, jamaiscommeparité. Protocole inchangé, aucunevitesse mesurée.
+
+- 45-Q/R processus fmt : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus cpu-geometry : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus kani-geometry : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus kani-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus build-tests : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+- 45-Q/R processus cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-result.json.
+
+**POSTPROFILE-05 PAUSE EXPLICITE USER avant GPU, 28octobre.** User teste lui-même3.8 horsdomicile/surbatterie etdemande de nepascontinuer. AucunGPU05n'aétélancé ; aucunanchor.jsonnouveaucréé. DernierClippyboundaries terminéexit0/3,57s, aucunprocessuscompile/proveur/prototype identifié actifdansnotretravail. Ne pasarrêtersoninférence ni reprendrelesGPU avantsonsignalderetour/secteur. CPUgeometry/Kani146SUCCESS+6coverssansassume passent, vraieentréeKaniMLX ICE243/NONVÉRIFIÉ ; suites279passés168ignorésMLX et249passés6ignorésCPU ; buildstest frontièrescomplété. DeuxbornesGPUcap1/512 ajoutées avanttoutGPU :50casprévus+poison/5erreurs ; actualitétestsfigésdansidentity-v1.json (CLI67434011…,libtest21788afe…). CompilerMetalofflineretourne1 carcomposantMetalToolchainabsentmalgréXcode ; log proof/metal-compile.log, compilationruntimeMLXetnumériqueencorenonexécutées. Aucunboostvalidé, prototypeprésentseulementdanscode/binairelocaux, appinstalléeinchangée.
+
+Reprise : garderlespreuvesCPU etbinairesfigés, vérifieridentités/sources etconditionsquiet/secteur/RAM, créerpremièreancrew1 de05 puis lancerquality-plan.json (premierscale50cas,overlap,puisoracles/erreurs/Wide/paires/MTP). MutationMSL puisrestaurationavantvitesse ; comparatifreleaseABBAetMTP/DF de promotion ensuite siqualité/gain. Pasderecompilation/rerunCPU inchangé nécessaire. Userdemande de lirelanouvelleissuemaintenant, implémentationissue seulementAPRÈSfinissailSushi àsonretour. RevueGitHublectureseule/autoriséeencours ; aucunemutationmoteur/benchmarkpendantpause.
+
+**ISSUE58-READ lecture/tri terminé pendant pause05.** Dernièreissue58ouverte28oct10:05:07UTC,0commentaire ;50dossiers etleurscontre-conditions examinés, snapshot63ko/hashconservébuild/post-sushi-20261028/issue58.md+issue58-source.json. LectureseulelocaleconfirmeSIMD256/top8vslegacy512,appendDFlashpartoken,RESIDENT_GATESexistant etGCD4workersàrépartitionstatique. Intérêtprioritaireaprès05 : pool/admission/suffixes/ARC12–15/49 avecsimulationàcapacitéégale, top10SIMD10distinctF06, maintenancecacheDFlash24 etPLEcertain33 ; graphes01–06visentencodagemaisplusgroschantier, option45déjàprésenteàqualifieravec240Miofacturés. I/O16–20àfiltrerpartraîne/contiguïtés/métadonnées, paspar31msprésuméesNVMe. Ancien4,5msGDN23ne vautpasfenêtreidleactuelle, pasdegainadditionné. Aucunprototype/benchmark/recompilation/proveur/installation/commentaireGitHub ; usertest3.8laisséintact. POSTPROFILE05restePAUSÉexpliciteuser, GPUjamaislancé, prochaineétapesaprèsretoursecteur dansPAUSED.md ; issueàtraiteraprèsfindutestSushi. Sources/runtimeinchangésparcetterevue.
+
+**POSTPROFILE-05 CPU-PREP autorisé, GPU toujours en pause.** Nouvelleinstructionuser : implémenter dèsmaintenantlepluspossibledeTESTSsansutiliserGPU, attendre sonsignalchezluipourleslancerphysiquement. Cetteautorisation lève l'attente pourpréparation/contrôlesCPUseulement ; elle n'autoriseaucuneinférenceGPU,benchmarkMetal, installationniinterruptiondesontest3.8. Préparerlesrégressionsdeprojectionbankéecomplète, wiringMoECold/Hot/fallback/erreurs,contrôlesdeplans/golden/provenanceetfixturesutilesauxpistes58 sansimplémenterleursoptimisationsmoteuravantfindeSushi. Compiler/checkCPUàunjob ettestsPython/CPUbornésseulement, aucunevalidationperformancesurbatterie. Lesnouveaxtestsphysiquesrestent#[ignore], leursplansne serontlancésqu'ausecteuraprèsaccorduser. PréservergelV1/50casetanciensrésultats ; versionnerlesnouvellessources/plans,nepasprétendrequ'unbinaireancieninclutlesnouveauxtests. Formal-proof/Rust/PythonetKaniRUSTréférenceschargées ; nouvellespreuvesCPU oudiagnosticsd'outilsàrapporteravecportée. L'ordreSushipuisimplémentationsissue58resteinchangé.
+
+**POSTPROFILE-05 reprise autorisée GPU le28octobre.** User confirme retourdomicile etautoriseGPU/mesures. PréparationV2 terminée :96casprojectioncomplèteGU/Down/F16/F32/masks/strides/stable+16refus,9casMoECold/mixte/Hotavecassertionchemin4produitsparcohorte<=10etfallback>10. Testsphysiquesencorenonexécutés ; V1préservé. Cargo checkmlx/chat--tests6,79s etClippystrict4,66s passent ;151testsPython(superviseurs/profilage/golden)passent3,44s,dont7nouveauxrésultatssélectionnés/tronqués/ignorés/erreurs. Kani vraieprojectioncomplète tenté : mêmeICEintrinsics.rs243,exit1,NONVÉRIFIÉ, pasdepreuveMLX ; contratCPU146/6inchangé. PremièrecommandecargoabsentduPATHsort127,relancecheminabsolu réussie. CPUformat/lint Pythonpassent ; buildlibtestreleaseV2 encoursavantGPU. Aucuneancre05niGPU05jusqu’ici.
+
+**POSTPROFILE05 V2 avant GPU.** LibtestreleaseV2 compilé68s ; kernel/moteurproductioninchangésdepuisV1,nouveaxtests#[ignore] ajoutés. 14contrôlesphysiquespréparésdont2microproduit/projectioncompletsavant12contrôlesMoE/modèle/états/erreurs. Gardereprise : secteur/quiet,deadline300s/RSS10Gio/CLIfootprint12Go,0nouveauSwapoutcumulédepuispremièreancre05,Swapins<=256Mio. EstimationadmissionhistoriquePagesfree+Filebacked>=8,5Go pourmodèle,>=512Mio pour2microbornés ; c’estuneheuristiquepasdeRAMlibregarantie. Le runnerarchivéréutiliselesuperviseurprocessus/moniteurhistorique,sanssamplerInstruments. 14caslimitesVMadditionnelspassent(total37testssuperviseurV2),CrossHairabsent(moduleintrouvable). AucunesoumissionGPUtantquebuildCLIen cours ; identitésfigéesetquietcontrôlésensuite.
+
+- 45-Q/R processus quality-scale : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/micro-plan-v2-result.json.
+
+- 45-Q/R processus quality-projection : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/micro-plan-v2-result.json.
+
+**POSTPROFILE05 V2 premièrequalitéGPU passée.** Secteur/quietconfirmés,ancrePOSTPROFILE05-w1crééeaprèsphaseCPU ; CLIrebuildV2byteidentiqueV1SHA67434011…,libtestV2SHA0e24b725… . 2testsphysiquesexplicitessortis0/1passé0échecchacun/tousjoints,1,218set1,329s,zéroSwapout :50casproduit+poison/5refus puis96projectionscomplètesGU/DownF16/F32/masques/strides/stable+16refus,nonvides/finies/bitexactesfaceaugatherstock. Aucunbuild/proveurconcurrent. Planmicro-plan-v2.json,résultats/logsconservés. Aucunbenchmarkvitesseencore ; modèlecomplet/états/overlap/mutationencoreàvalider. UserconfirmeavoirlibéréRAM ; prévolmodèlepuis12contrôlesprévus.
+
+- 45-Q/R processus quality-moe-wiring : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-components : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-early-error : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-wide : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-unique : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-claims : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-hot-error : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-verify : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+- 45-Q/R processus quality-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/model-quality-plan-v2-result.json.
+
+**POSTPROFILE05 qualitéGPUV2 14/14 passée.** Les12contrôlesmodèle/MoEpassent,0échec/0ignorépourlessélectionsexactes,tousprocessusjoints,zéroSwapoutcumulédepuisw1. Nouveauwiring9cas :smallCold/mixte/Hot=[1,3,1],7calculswidefallback,exactoracle ; overlapdemandeSSDpendantHotlentpréservé ; oracleindépendant5positions/248320logits+étatsGDN/composantspassent ; erreurHot/reset,Wide/Unique/claims,2routes,verificationpairesetMTPexactspassent. Brutsmodel-quality-plan-v2-result.jsonetquality-*.log. Ceci ne prouvepasles128étatsdechaquetexteCLI. Avantvitesse : mutationMSLpréenregistréefaitlireuneautrecasevalide,compilelibtestmutantséparépuisexécuteuniquementtestproduitaveccode101/divergenceattendue ; restaurationsourceexacteetcontrôlebinaireV2figéensuite. AucunGPUpendantcompilationmutant,aucunmodèleconservé.
+
+- 45-Q/R processus quality-wrong-slot-mutant : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/mutant-plan-result.json.
+
+**POSTPROFILE05 contrôle négatif MSL détecté.** Mutantdeproductionchoisit(slots[row/projections]+1)%capacity,compiléreleaseàpart. L’uniquevraitestproduitéchouecommeattendu(code101,0passé1échec)surroutes1/projections1/width640/unmasked/contiguous :bankedproductdivergence. Superviseurjoint0nouveauSwapout ; mutant-plan-result.json+quality-wrong-slot-mutant.log+identity-mutant.json. C’estunéchecnumériqueattendu,pasuntestqualitépassé. SourceMSLoriginalerestauréedepuiscopieexacte ; rebuildlibtestoriginalavantcontrôlesaffectés puisvitesseABBApréparée8processusMAIN/HOLD,24générationsmesurées+8chauffes. CLIoriginalB67434011restefigéinchangé ; aucunvitesseencoremesurée.
+
+- 45-Q/R processus quality-scale-restored : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/restored-micro-plan-result.json.
+
+- 45-Q/R processus quality-projection-restored : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/restored-micro-plan-result.json.
+
+**POSTPROFILE05 restauration vérifiée avant vitesse.** Rebuildlibtestoriginaltermineexit0 ; SHA0e24b725identiqueàV2avantmutation. Les2contrôlesaffectésproduit50cas/projection96casrepassent/0ignoré,tousjoints,zéroSwapout ; restored-micro-plan-result.json. SourcesetbinairesA/Bfigésdansidentity-speed.json. LancementpréenregistréABBA MAIN puisHOLD,2processusparbras/prompt,1chauffe+3mesures/parprocessus :24mesures+8chauffes,externeGoldenAR128fulltexte/hashàchaqueréponse,mémoirephysique<12Goetcache3Gio. Pasdecompilation/proveur/autreinférencependantmesures,ancrew1conservée.
+
+- 45-Q/R processus AR-MAIN-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+- 45-Q/R processus AR-MAIN-2-B : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+- 45-Q/R processus AR-MAIN-3-B : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+- 45-Q/R processus AR-MAIN-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+**Consigne utilisateur28octobre — audit avant rejet.** AjoutéeàAGENTS.md§journal11 : avantretirerchaquecandidatdécevant,vérifieradaptation/cheminréel/formes/dtypes/fallbacks/copies/allocations/synchronisations/options/fidélitéamont ; corrigerundéfautconcretetpréenregistrerréessai avantconclure. PourPOSTPROFILE05,aucunretraitdécidéprematurément. Auditstatiqueencoursenparallèledelacampagnefigée(sansmodifierlesexécutables) : les9casMoE prouventl’activationCold/mixte/Hotetfallbackwide ; comparermaintenantlesgraphesconstruits/argumentsprétransformés/rawetcoûtsgénériquesdel’adaptation. MesureducoûtaffectéaprèsfinABBA,pasdeGPUconcurrent.
+
+- 45-Q/R processus AR-HOLD-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+- 45-Q/R processus AR-HOLD-2-B : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+- 45-Q/R processus AR-HOLD-3-B : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+**POSTPROFILE05-AUDIT-A préenregistré avantprofilage.** NouvelleinstructionauditavantrejetetrevuecodesansmodifiercandidatpendantABBA. Contrôlesstatiques : gu/downprétransformés/rawactivéscorrectement,aucuneHadamarddoublée,Cold/Hotactivésconformémentaucontrat,n>10fallbackvoulu. Hypothèseadaptation : scale_rowsajoute2vuesflatten+x_shape/métadonnéesparproduit ; factoryMetal/dispatchgénériquepeutabsorbergathersretirés. Pasencoreuncoûtmesuré. Aprèsfinde8processusABBAuniquement : profilerdétailléhistoriquequalité17tokens/4phases(warmup/oracle/trace/fenced)A[d4]puisB[0e24],mêmesMAIN/3Gio/40/40,sorties/étatsfinauxcompletsinternesetgoldenpréfixeexternes. ComparertraceunfencedconstructionGU/Down/cohortes/scaleetasync,nombre/appels,distributionparn ; fencedresteuncoûtavecattentepasGPUexclusif. Aucunevitesseinstrumentéemélangéeàrelease. Réutiliserbinairesexistants,pasderecompilationnioptimisationissue58 ; audit-plan.json/identity-audit.json. Si aucuncoûtd’adaptationconcretétabli,consignerlimitesplutôtquerejeterl’idéeamontouinventerunfix.
+
+- 45-Q/R processus AR-HOLD-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-v2-result.json.
+
+**POSTPROFILE05 V2 ABBA terminé, audit avant décision.**8processusjoints/24mesures+8chauffes/128tokens/127decode,externeGoldencompletpassé,zéroSwapout. RésultatsmeansA→B : MAIN decode 10.2849→10.2311tok/s (-0.52%),TTFT+0.17%,prefill-0.19%; HOLD decode 9.8749→10.0470tok/s (+1.74%),TTFT+0.25%,prefill-0.24%. Dérivecontrôlesetvaleursparprocessusdansspeed-inspection-v2.json ; pasdeboostcausalétabliparcesmoyennes,aucunretraitimmédiat. Pointconcretd’adaptation :4produits/calculate,chacunaplatitxetbankvia2FFIreshape ; ces8vuesremplacentnotamment4vuesdesgathers,doncmoinsdegathersneprouvepasmoinsdenœudsCPU. Audit-Aprévu lancéaprèsfinGPUABBA,sansmodifierBfigé. Premièreanalysesynthèseinterrompuesurassertionstatuscomplete(lesrapportsbridgeutilisentvalidated),corrigéesansrelanceGPU ; donnéesbrutesconservéesetanalysées.
+
+- 45-Q/R processus audit-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/audit-plan-result.json.
+
+- 45-Q/R processus audit-B : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/audit-plan-result.json.
+
+**POSTPROFILE05-AUDIT-A GPUclos.** A91,347s/B90,582s,tousjoints,zéroSwapout. Deuxphysiquestests/1passé0échecchacun,17tokens/complets248320logits+étatsfinauxinternesidentiquesentre4phases ; tokens/hash/texte/promptIDsA/Bégauxetpréfixegoldenexternevérifié. Spanshosttrace,différenceinstrumentationetlimitesdansaudit-inspection.json ; duréesnestéesnonadditives,pasCPUactif/GPUexclusif. Aucunretraitprototypeavantcetteanalyse.
+
+### POSTPROFILE05-C — correction d’adaptation avant décision, préenregistrement
+Userexigel’auditavantrejet. Audit-AexactA/B17tokens/étatsinternespassé,zéroSwapout :1460calculs/16tokens ; constructionscalcul2,279→4,083ms/token,GU0,966→2,576,Down0,880→1,184 ;5840spansproduitB1,434ms/token. SpanshostnestésetinstrumentationsupplémentaireB,doncpasCPUactif/GPUidleexclusifniestimationgainrelease. Maisdéfautconcretstatique : scale_rowsaplatitxetbankàchaqueappel(8FFIreshape/calculate),alorsquel’accèsMetalcontigupeututiliserleursrangs2/3directement. CorpsMLX0.32.2CustomKernel::eval_gpuinspecté(sourceprimairearchivéeproof/mlx-v0.32.2-custom-kernel.cpp.txt) : corrigecontiguïtépuispassepointeurs/bribesdemétadonnées,rankbanknechangepasl’indexationlinéaire.
+
+CorrectionminimaleC : retirerles2reshapeparproduit,passerxetbankdirectement ; gardebornesMSLdevienti>=x_shape[0]*WIDTH(xrank2). GéométrievalidéeCPUidentique(count=rows*width<=409600),aucunchangementréduction/dtype/slots/async/cache/3Gio. Avantmodification :copiesdansbefore-c.json,binairesBetpreuvesnégativesconservés ; nepasprésenterCcommeversiondéjàmesurée. BaselineAoriginalea60,ancienportB67434figés.
+
+QualitéCavantvitesse :Kani vraieAPI(ICEpossibleàconsigner),format/lintstrictmlxchat/buildsrelease/suitelibnonignorée ; reprendreproduit50cas,projections96+16refus,Moe9caset14testsphysiquescompletsaffectés(pasdemutationwrong-slotrépétée:indexationinchangéeetmutantprécédentdétecté). EmpreintesCfigées/nouvellecampagneCidentifiéeaprèsCPU,pasdeGPUconcurrentcompilateurs/proveurs. Siqualitépasse:ARMAIN/HOLD128/1chauffe+3mesures/8processusABBA,Goldenexternetexte/hashcomplets/0Swapout/RSS10Gio/footprint12Go,3Gio53slots/40/40inchangés ; métriquesreleaseetprofilagedistincts. MTP/DFqualificationavantconservationdéfautsihypothèseARconfirmée ; sinonrevueadaptationfinaleetdécisiondocumentée. Aucunappinstallée/push/publication.
+
+- 45-Q/R processus C-kani-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-c-result.json.
+
+- 45-Q/R processus C-build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-c-result.json.
+
+- 45-Q/R processus C-build-tests : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-c-result.json.
+
+- 45-Q/R processus C-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/cpu-plan-c-result.json.
+
+**POSTPROFILE05-C phaseCPU close.** Fmt etClippystrictmlx/chatalltargets5,47spassent ; buildsCLI57,00setlibtest65,38s ; suitecomplètemlx/chat279passés170ignorés0échec(physiquesignorésexplicitesàlancerensuite),tousprocessusjoints/0SwapoutCPU. KaniAPIréelle5,49sretombesurICE243/exit1,NONVÉRIFIÉ ; validateurCPU146/6inchangé.165testsPythonpassent3,52s,CIYAMLBaseLoader/triggersPR/mainetliaisonscheckspassent ; CIarbrenonpubliéNONEXÉCUTÉE. Empreintesidentity-c.json,binairestargetcopiésimmuables ; nouveauwindowC-w2aprèsCPU,deltaSwapoutdepuisw1=0vérifié. LancementqualitéC14casexactsexclusifsaveclesmêmesoptions/oraclesetgardes3Gio/0Swapout,aucuncompiler/proveuractif.
+
+- 45-Q/R processus C-quality-scale : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-projection : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-moe-wiring : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-overlap : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-components : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-early-error : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-wide : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-unique : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-claims : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-hot-error : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-verify : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+- 45-Q/R processus C-quality-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/quality-plan-c-result.json.
+
+**POSTPROFILE05-C qualitéGPU14/14 passée avant vitesse.** SourcesCfigéesCLI1cf6523b…/libtest126a72c2…;50produits+96projectionscomplètes/16refus+9MoEchemins,oraclesindépendants5positions248320logits/GDN/composants,Cold/Hot/overlap/erreurs/Wide/Unique/paires/MTPpassent,pasdesortiesvides,0échec0ignorépourlessélections,tousjoints,zéroSwapoutdepuisw1vérifiéavantC-w2. Brutsquality-plan-c-result.json. NouvellemesureACCA MAIN/HOLD8processus24mesures+8chauffes128tokens/127decode,mêmesGolden/caches3Gio/secteur/quiet/gardes ; ArefreshauxconditionsC,pascomparaisoncausaleCavecanciennesmoyennesB. AncienportBetsonauditconservés ; aucundéfautfinaladmisavantageabsent.
+
+- 45-Q/R processus C-AR-MAIN-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-MAIN-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-MAIN-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-HOLD-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+- 45-Q/R processus C-AR-HOLD-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+**POSTPROFILE05-C-AUDIT préenregistré, pasencorelancé.** AprèsfinACCAreleaseuniquement,reprendremêmeprofilter17tokens/4phasespourC(1processus)afindecomparerB/Càinstrumentationbankedidentique,etAcommecontrôlehistoriqueinstrumenté. VentilerconstructionetasyncparHot(ancêtregpu_resident_hot_prepare)/Cold,comptes/taillesn,conservermédians/totauxhostnonadditifs. Vérifierinternestokens/logits248320/étatsfinauxsur4phases,prefixegoldenexternesetcrossarmsA/B/Ctokens ; nepasconvertirtempsavecprofilerenboostrelease. Raison : compléterl’auditd’adaptationaprèsretraitdes8vues ; nepasjeterl’idéeamontsurunrésultatglobaldécevant. SourcesFFIlectureSSDdéjàvérifiéesexigentrow_contiguoussurlesbanquesréelles,doncpasdecopieentièreévidentecrééeparlepassagerank3 ; masque/tailles/fallback/rotationsrestentvérifiés. MêmeancreC-w2/3Gio/quiet/secteur/0Swapout/RSS10Gio/footprint12Go. AucunoptimisationDniissue58lancée.
+
+- 45-Q/R processus C-AR-HOLD-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/speed-plan-c-result.json.
+
+**29octobre — POSTPROFILE05-C ACCA terminé avant audit final.**8processusjoints/24mesures+8chauffes/128tokens/127decode,externeGoldenvalidé,zéroSwapout. MAIN A→C decode 10.5593→10.1602tok/s (-3.78%), agrégé-3.81%,TTFT+3.02%,prefill-2.89%; HOLD A→C decode 10.4442→10.3891tok/s (-0.53%), agrégé-0.54%,TTFT+0.33%,prefill-0.33%. Valeursparprocessus/bornes/footprintdansspeed-inspection-c.json. Pasdegainétabliaprèscorrection,minimalauditCcomponentavantdécisionconformémentàconsigneuser ; aucunequalificationMTP/DFperformance lancéesurunARsansgain.
+
+- 45-Q/R processus audit-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/audit-plan-c-result.json.
+
+**POSTPROFILE05-C audit final physique terminé.**1processus85,051s/1testpassé0échec0ignoré,tousjoints,zéroSwapout ; sortie17tokens/hash/texte/promptIDsidentiquesA/B/C,prefixegoldenexterne,248320logits+étatsfinauxcompletsinterneségauxentre4phasespourchaquebras. VentilationHot/Cold/tailles/clésdansaudit-abc-inspection.json ; mêmeinstrumentationB/C,nestingsnonadditifs etconditionshistoriquesdistinctesinterdisentd’endéduireCPUactif/GPUidleexclusif. Revueadaptationenfinalisationavantdécisionetintégration/retrait.
+
+**29octobre — POSTPROFILE05 rejet APRÈSaudit etcorrection.** AuditA/B/Cclos,tousGPUjoints/0nouveauSwapout ; lescompteursLFUhits/miss/bytesavantpréfill/aprèsidentiquesbitexactA/B/Cdansdiagnostic17tokens,22clésEXL3observéesdanschaquebras(coveragefactoryglobaleincomplète). CconstructioncomplèteHot1,051+Cold1,080=2,132ms/tokencontreA1,157+1,122=2,279 ; hostasync14,843vs16,940ms/token,donnéeshostinstrumentéesetconditionshistoriquesdistinctes,pasGPUidleexclusif. **Rectificationdesous-spansGU** : Aconstruitgathersd’entréeAVANTlegu_build,B/Càl’intérieur ; leschiffresGUprécédentsontdesfrontièresdifférentes,nepasinterpréterleursdeltascommeuncoûtàcalculégal. Comparerl’enveloppeexpert_calculate_build ; limitesconservéesaudit-abc-inspection/retirement.json.
+
+Défautd’adaptationidentifié(8reshapes),corrigéetretéstéCPU+14GPU+ACCA24mesures/8chauffesavantdécider. RésultatC−3,78%decodeMAIN/−0,53%HOLD,aucunboostpréfill. Pasd’autredéfautconcretévidentaprèsrevueformes/dtypes/masques/n<=10/fallback/rotations/contiguïté/CPUcache/async. Rejetdelavarianted’adaptationincrémentaleB/Cdansceprotocole,pasdel’approcheSushiglobale ; causetemporelleGPUexclusiveencorenonmesurée,ni«toutespistesépuisées». Aucunmodedégradéconservépar défaut.
+
+SourcesCcomplètesfigéesretired-c-sources.tar.gz(empreintedansretirement.json),binaires/anciensrésultatsnégatifspréservés. Retraituniquementdesdelta05 :3fichiersrestaurésdepuisbefore-sourcepréexistantvérifié,moduleMSL/Rust/testswiringprototypesretirésaprèsarchivage,harnessCIretiréavechelperinutilisé. ConsigneAGENTS11,testsPythondegardesetCIassociéeconservés. Aucuneappinstallée/push/release. Dernierscontrôlessurcodefinalrestauréenpréparation ; pasdeGPUàrelancerpourunbinairestatuidentiquedèsquehashAconfirmé. MTP/DFperformancesnonmesuréescarARn’aqualifiéaucungagnant ; qualitéMTP/pairesdéjàpassée,nonsubstitutvitesse.
+
+- 45-Q/R processus restored-final-build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/restored-final-cpu-plan-result.json.
+
+- 45-Q/R processus restored-final-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/post-sushi-20261028/restored-final-cpu-plan-result.json.
+
+**29octobre — POSTPROFILE05 clos, code final vérifié.** Rejetaprèsaudit→correction→nouvellemesure,pasderetraitimmédiat. Cheminstockrestaurédepuis3sauvegardespréexistantesvérifiées ; hybrid_testségalaugelV1horsnouveautestretiré ; archive101sourcesCcomparéesauxempreintesidentité,toutesexactes. Buildfinal54,34s donneCLIa60eb4ad…etfullsuite164,08slibtestd4bb7309…,tousdeuxbyteidentiquesauxréférencesavant05. Suitefinale278passés0échec167ignorés ;165testsPythonpassent ; fmt/Clippystrictmlxchat(5,68s)/Ruff/format/build/YAMLPR/mainetCItestsguardspassent. Derniersprocessuscompiler/testsrécoltés ; aucunprototypeGPUactif.
+
+Totalcampagne05 :33contrôlesphysiquespositifs+1mutantMSLéchouécommeattendu,48générationsreleaseMESURÉES+16chauffes(sériesBetCdistinctes,nepasadditionnerleursdeltas),0Swapoutpendantlesmesures. CPUKani146obligations+6coversréussiesdansprototypearchivé ; vraieAPIKaniMLXICEetCrossHairabsentnonvérifiés,pasdepreuveMetal/concurrence. MTP/DFperformanceetcontexteslongsnonmesurés,nongagnantARdoncpasdepromotion ; qualitépaires/MTPpasséesavantrejet. AGENTS11auditavantrejetettestsPython/CIdegardesconservés ; autresmodificationslocalespréservées,aucunpush/merge/appinstall/release. CIarbrenonpubliéNONEXÉCUTÉE,requêtebaseHEADnevoitaucunrundePR(paspreuveabsencederunpush). Résumédocs/measurements/post-sushi-20261028/README.md,identitésfinal-state.json,décisionretirement.json. Aucunessai05encours.
+
+### ISSUE58-POOL-01 — pool global à capacité égale, replay CPU exact — préenregistrement 29 octobre
+
+Demande utilisateur : implémenter et tester les pistes proposées après le rejet audité POSTPROFILE05. Ordre : pool global/replay, vrai top10 SIMD512, maintenance préfill DFlash, puis segment préparé ciblé selon les coûts. Aucun gain présumé, aucun push/app installée autorisé. HEAD7978fcea modifié, moteur de référence a60eb4ad/libtestd4bb7309 restaurés ; modifications locales préexistantes préservées. Skills formal-proof/Rust/Python et Ponytail relus ; Kani sur le vrai état CPU, tests d’oracle et mutation avant verdict.
+
+Antécédents47/55 et rapportTensorFold relus : ne pas refaire l’allocation statique20..512 déjà négative ; replay55 froid ne reproduit pas les profils chauds53. Nouveau mécanisme : slots réellement partagés entre couches et politique d’éviction globale, pas une nouvelle répartition fixe. Premier jeu = calibration47 (deux générations128 depuis vide, cache conservé entre générations, routes par token), déjà capturé et validé ; vérifier de nouveau sur ExpertCache Rust actuel les compteurs de chaque phase/couche à53 avant tout calcul partagé. Cette répétition contrôle la compatibilité de l’oracle historique avec le cache actuel, pas sa vitesse. Corpus MAIN/HOLD actuel à capturer avec état initial complet si un candidat passe ce premier filtre ; aucune extrapolation de l’anglais historique vers notre débit actuel.
+
+Matrice fixée avant exécution : LFU global et CLOCK global, chacun plancher0 ou20slots/couche, capacité totale2544=48×53 identique (2544×EXPERT_BYTES<3Gio), experts séparés par clé(couche,id), sélections complètes protégées pendant chaque réserve. Pour LFU conserver vieillissement après16réservations de CHAQUE couche, compter une seule fois chaque expert par cohorte ; départager par âge global/slot. CLOCK ne change pas la fréquence des routes. Modèle hors ligne sans leases GPU en vol : le résultat ne valide pas la sûreté/latence d’un futur port et n’est pas une borne universelle. Score principal = chargements uniques du decode de seconde génération, préfill/première phase conservés séparément. Porte pour approfondissement = économie>=1% et baseline exacte ; audit de l’implémentation avant rejet. Aucun ajustement post-hoc des planchers/politiques.
+
+Implémentation CPU isolée dans flash_cache_profile, réutiliser CacheTrace/ExpertCache et validation existants. Tests déterministes labels inter-couches/budget/floors/protection batch/doublons/erreurs atomiques/aging/CLOCK, oracle explicite et traces invalides/rapport incomplet/overwrite ; tentative Kani réel sur petits états symboliques, bornes explicites. Format/Clippy/checks/tests CPU et CI PR/main touchée ; essai fichier borné180s, artefacts/source/binaire/traceSHA dans docs/measurements/issue58-20261029/. Aucun GPU ou changement de politique runtime pour ce filtre.
+
+- 45-Q/R processus pool-kani : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/pool-kani-plan-result.json.
+
+**POOL01 contrôles initiaux.** Première compilation refuse tableau48 nonSerialize etfs::write(File), corrigésparVecetserde_json::to_writer(create_new), logsinitiauxconservés.3testsCPUréelspassent0,10s/1offlineignoré,incluant8192réservationsdéterministescontreoracleindépendantdemembership/budget/floors ; pasencorereplaytrace. KaniAPIréelleexpire150s,tousprocessusjoints,NONVÉRIFIÉ : unwinding1100 appliquéàtouslespetitsloops,mêmeuniquebatch2,explorationredondante ; pasdeverdict.
+
+**POOL01 vérificationv2 avantrelance** : mêmeétats2couches/3slots,LFU/CLOCK,plancher0/1,au32symboliquedérivéd’u16(valide0..511etinvalide512..65535),batch2IDsindépendants0..511,4réservations. Remplaceruniquementl’égalitédugrandvecteurcounts1024parégalitéàunindiceindépendantsymbolique0..1023,touslesautreschampsrestentcomparés ; propriétépointwiseuniversellesansassume,domainenonréduit. Borne8surlesbouclespetitesavecassertionsd’unwindingconservées(aging16nonatteintdanscedomaine,untest16réservationscouvresoncalcul). Pasdestub ; timedoutv1conservé. Mutationdufiltredeprotectionbatchdoitfaireéchouertestavantrestauration ; puisreplayCPUreleasecomparantles4politiquespréenregistrées.
+
+- 45-Q/R processus pool-replay-calibration : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-replay-plan-result.json.
+
+- 45-Q/R processus pool-kani-v2 : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/pool-kani-plan-v2-result.json.
+
+**POOL01 premier replay terminé.** Uniforme53 reproduitexactementles2phases/48coucheshits/miss/octetsdutrace47,chargementsdecodechaud17419.2544slots/3174942528Bidentiques : LFUfloor0et20=17435(+0,092%lectures),CLOCK0=18538(+6,424%),CLOCK20=18533(+6,395%).1testofflineexécuté1,39s,0ignoré/sourcehashespool-identity.json,rapportpool-report.json. Mutationdufiltrebatchdétectée(testcode101),sourcerestauréeet3testsreleasepassent ;8192réservationsfrontières. Kaniétatv2expireaussi150s,mêmeAPI/domaine,boucles8assertionsconservées,tousprocessusjoints,NONVÉRIFIÉ ; pasdenouvellepreuvecomplète.
+
+**POOL01-A audit avant rejet / correction préenregistrée.** BaselinehistoriqueexactemaiscomparaisonsLFUglobalesbiaiséesàl’aging : àl’appel16d’unecouche,sescomptessonthalvés,tandisquelesuivantessontencoreàl’époqueprécédente. Fréquencesbrutesnoncomparablespendantcettevague. Reproductiondéterministe2couches/2slots :15touchesL1puis15L0,puisnouvellecléL0 ; àfréquencesnormaliséeségales,l’ancienneL1doitpartirselonâge,alorsquev1évinceL0récemmentvieillie. Ajoutercecontre-exemplesurl’anciencode(failattendu),puisnormaliserseulementlafréquencecomparéeversmax(layer_clocks)/16,sanschangerlesagingphysiques/politiques/planchers/2544slots,niroutes. Reprendreexactementles4cellulesetbaseline,mêmescores. Sources/reportv1conservés. HarnaisKaniétatscompletsrestentnonvérifiésaprès2timeouts ; tenterciblemathématiquehelperréeldecomptesnormaliséssurtousu32/u64symboliques,avecunoraclearithmétiqueindépendant,pasprétendrequelacacheestprouvée.
+
+- 45-Q/R processus pool-kani-aging : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-kani-aging-plan-result.json.
+
+- 45-Q/R processus pool-replay-aligned : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-replay-aligned-plan-result.json.
+
+**POOL01-A correction testée, filtre clos.** Contre-exemple2coucheséchouesurv1(code101),passeaprèsnormalisation.4testsCPU/8192réservationspassent,baseline53exacte2phases48couchesencorevalidée. LFUglobalaligné0/20=17474(+0,316%chargementsvs17419),CLOCKinchangé18538/18533(+6,424/+6,395%) ; aucune celluleatteint1%d’économie. PasdeportageGPUdecettepolitiqueàcestade,sourceofflineconservéepourreproductibilité. NiARCnitraceschaudesMAIN/HOLDnileasesGPUqualifiés : négatiflimitéaucorpus/politiques,différentdesallocationsstatiques47/55. Rapportpool-report-aligned.json,décisionpool-decision.json.
+
+Kanimathnormalisationréellepasse0/22échecs,4/4covers,tousu32count/u64epochs/sansassume ;1diagnosticoverflowformatinatteignable(shift<=32),paspropriétéprincipalevide. Cela ne prouvepaslapool :2timeout150sd’étatcompletconservés,nonvérifiés. ClippystrictCPUalltargetspasse3,26s ; checksfull/CIrestentàfinaliseraveclesprochainscontrôles. AucunmodèleGPUchargé.
+
+### ISSUE58-SIMD-01 — reprise auditable du prototype28, formes actuelles — préenregistrement29octobre
+
+Recoupementhistoriquecompletavantcode :28avaitdéjàimplémenté16SIMDgroups×10puisfusion160→10 ;192comparaisons/états/bridgepassaient.28Bvitesse5Gio/allocator512MioanciennebaselineHC20interrompuepartémoinHOLDinstable,uniquepaireOFFMAIN−0,474%,MTPnonmesuré ; retiré,gainglobalnonétabli. La formulationpréparatoire«nonexécuté»dansl’ancienentêteaétésupplantéeparlaclôture19octobre ; n’enpasdéduireabsencehistorique. Source docs/flash-top10-router-2026-10-13.md/candidate.patch/shader relus.
+
+Raisonnouvelessai : pipelineFlashactuelGPUHot/Wide/Unique+EXL3SSD3Gio53slots/allocator64Mio,formes1..8contre1..2anciennement,cache/debugactuelssortentd’auditPOST05 ; protocoleancieninconcluantcorrigéavecsecteur/quiet/0Swapoutetcontrôlesalternés. Réutilisershader28inchangé(bits/opérations/scoreadd/divide),étendreseulementdomaineà1..8F16/F32,routes512/top10. Autresformes/top8/biased/drafttop16inchangés. Baselinea60/d4etétatlocalsauvegardésbefore-router ; replaypoolCPUseulnechangeaucunruntime. Pasd’early-exitF06niportedergather05.
+
+Avantvitesse :oraclehistoriqueétendu192combinaisons/384comparaisons(contig/stride,rows1/2/4/8×F16/F32×12fixtures×normON/OFF),CPUtriindépendantindices/legacytousbitsscores,cardinalités/NaN/Inf±0/finitudeattendue,rawscorescontreCPUetdépartagelittéral ; erreurs/fallback9lignes ; mutationtiehistoriquevérifiéeetnouvelleextensiontestée. NouveaucontratCPUdegéométrieutiliséparledispatcher,testsfrontièresetKanitousi32/usize/bool,bornes512threads/160candidats/5candidatsparlane,aucunepreuveMSLprétendue ; tentativevraieentréeKaniMLX/CBMCactuelaveclimites. Format/Clippystrict/buildsmlxchat/suitescomplètes/CIavantGPU,1modèleGPUetseulementaprèscompilers/proveursjoints.
+
+Puis14qualitésphysiquespertinentes(parité5positions248320logits/GDN/composants,MoE/overlap/erreurs/Wide/Unique/paires/MTP)+oracleSIMD,bridgeCLIréel/externegolden. Siqualitépasse :baseline/candidatARMAIN/HOLD128,1chauffe+3mesures/bras/8processusACCA(2processusparbras/prompt),cache3Gio/4lecteurs/overlapHotWideUnique1/lookahead0/40ops40MB,0nouveauSwapout/RSS10Gio/footprint<12Go/secteur/quiet. Aucun%amontpromis ; auditerl’adaptationavantrejet. SiARutile,seulementalorsqualifierMTP/DFavantdéfautconservé. MaintenancepréfillDFlashindépendanteensuite,pasdecombinaisonsnonmesurées. Pasdepush/appremplacée.
+
+**SIMD01 prototype appliqué.** Shader28copiébitàbit,guard1..8+oracleétendu192combinaisons/384comparaisons,détecteurdispatchréeltest-onlyetaucunreadbackhôteàconstruction. Réapplicationpatchhistoriquereproduitl’ancienlintchunks_exact ; remismêmeas_chunksdéjàcorrigéen28,loginitialgardé. ClippystrictMLXv2passéavantCPUplan. CBMCbundléKaniappelésurleMSLréeléchoueparlangage/fichiernonpris encharge(aucuneobligation,nonvérifié) ; tentativeKaniMLXréelleencoreprévue. ContratCPUutiliséparpublictopk,bornesettestfrontières,CIFlashKaniciblée+agingCPUetvraireplaytraceajoutésPR/main. Builds/suite/KaniplanbornésavanttoutGPUrouteur ; sourcepoolrestetest-only.
+
+- 45-Q/R processus router-kani-domain : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/router-cpu-plan-result.json.
+
+- 45-Q/R processus router-kani-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/router-cpu-plan-result.json.
+
+- 45-Q/R processus router-build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/router-cpu-plan-result.json.
+
+- 45-Q/R processus router-build-tests : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/router-cpu-plan-result.json.
+
+- 45-Q/R processus router-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/router-cpu-plan-result.json.
+
+**SIMD01 phaseCPU terminée, priorité cache demandée par utilisateur.** PlanCPU5processus tous joints/exitattendus, buildsCLI/libtest et suiteMLXpassent ; détails/compteurs router-cpu-plan-result.json et router-mlx-suite.log. Kani contratCPU réussit, vraieAPIKaniMLXICE243/nonvérifiée. Binairesrouteur figés build/issue58-20261029/router/{engine,libtest}/prototype-engine avant toute autre édition ; aucunGPUrouteur encore lancé. Ne pas les présenter comme qualifiés/intégrés. Reprise après étude cache explicitement demandée.
+
+### TENSORPOOL-02 — contrôle fidèle TensorFold et traces actuelles, préenregistrement29octobre
+
+Nouvelle demande explicite utilisateur : tester le cache adaptatif où les couches ne possèdent pas toutes53slots. Priorité temporaire sur SIMD01. Le premier filtre POOL01 reste négatif sur calibration47 uniquement, pas un rejet universel. Raison nouvelle : comparer précisément CLOCK/protection/leases TensorFold au simulateur, puis exploiter les traces AR actuelles déjà enregistrées si leur état initial peut être reconstruit et contrôlé. Lire source TensorFold épinglée et vérifier le blob courant ; pas de répétition inchangée calibration47. 2544slots/3174942528octets pour les banques identiques, aucun slot additionnel ni réglage de budget selon résultat. Aucun gain TPS déduit des compteurs.
+
+Avant nouveaux essais : identifier trace et phase initiale complètes ; reconstruire les48ExpertCache53 et exiger compteurs exacts à chaque couche/phase. Si traces existantes insuffisantes, préenregistrer capture physique bornée sur MAIN/HOLD indépendants : état initial vide explicite, préfill+première génération de chauffe puis seconde génération128, même budget/cache/allocator/protocole, sources/binaire et oracles exacts avant toute mesure. LFUaligné et CLOCKglobal0/20 inchangés, contrôle CLOCKlocal53 pour isoler partage/politique ; simulations sans leases en vol restent nonqualifiées pour GPU. Pas de retuning pour obtenir un chiffre favorable. Auditer implémentation avant décision ; formal-proof/Rust/Python références relues. Aucunport runtime avant signalutile et protection/rollback exacts, aucunpush/appinstall.
+
+**TENSORPOOL02 protocole affiné avant exécution.** Les profilsnaturalAR MAIN/HOLD contiennent trois générations tracées après deux générations complètes nontracées(warmup/control_before), démarrageFlashNextneuf. Reconstruction proposée : depuis48cachesvides rejouer deux fois les routes du premier tracé ; accepter cette reconstruction SEULEMENT si les compteurs cumulésavanttrace1 et CHAQUE paire(slot,hit) de CHAQUE appel/phase des trois traces sont exactement reproduits, avec contrôles des compteurspréfill/final. Le score partagé n'est calculé que si ces contrôles indépendants passent. Sinon aucune conclusion et capturefreshbornée à préparer, pasdefallbacksilencieux. LFUglobalaligné0/20 et CLOCKglobal0/20, plus CLOCKlocal53 pour isoler lapolitique ; aucun réapprentissage/réglage. Mêmeétat initial vide et deuxchauffes pourchaque variante ; conserver les troisdecode séparés et demander>=1%économie surchacunMAIN/HOLDpourenvisagerunruntime. Les routesrécentes qualifiées sontARseulement. Pasde leases en vol/forecasts/latenceGPU ouTPS qualifiés.
+
+TensorFoldmain7c0688951584497dad8b0d5894b657d432fa917f(28oct21:05Z) relu : cache.zig inchangé facepinb30 ; arena.demand protège l'union, trie lesclés, réserveCLOCK, publieaprèslectures puis résident. Le tri de nos experts reproduitdoncl'amontARavecforecastsOFFetdrainentreappels. Les leases empêchent l'écrasementpendantl'utilisation mais necréentpasderéutilisation supplémentaire ; sécuritéasynchrone nonportée/nonprouvée.
+
+- 45-Q/R processus current-pool-replay : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/current-replay-plan-result.json.
+
+- 45-Q/R processus current-pool-kani : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/current-kani-plan-result.json.
+
+**TENSORPOOL02 premier résultat courant, audit avant clôture.** Replay1test/0échec0ignoré7,90s/0Swapout : lesdeuxchauffes reconstruites et chaque(slot,hit) de troisphasesMAIN/HOLD reproduisent exactementExpertCache53actuel, compteurscumulés/préfill/décode48couches compris. AucunGPUrelancé. LFUglobal MAINlecture−0,915%à+0,944%(selonphase), HOLD+1,087..1,320%; CLOCKglobalMAIN+2,460..3,586%, HOLD+3,829..4,188%. Répartition réelleLFU21..73slots etCLOCK26..81, budgetbanques3174942528Bconstant. Aucunbras>=1%économie surlesdeuxprompts/troisphases. ContrôleCLOCKlocal53encorepire : partageCLOCKaideunpeucontreCLOCKlocal, maistoujourspiresurLFUuniforme. PasdeTPS déduits. Rapports current-report.json et current-replay-plan-result.json. Audit indépendantCLOCKetvérificationsfinales encoreàterminer avantdécision.
+
+Kani observe/réserveCPU tenté avec53slots/source réelle,symbolicallusizefirstslot+boolhit(unwind55), compilationICEintrinsics.rs243avantobligations ;NONVÉRIFIÉ,mêmehorsMLX. Log current-pool-kani.log et rapportcurrent-kani-plan-result.json, processusjoint. CrossHairmoduleabsent,current-crosshair.log. La preuveaging22obligations/4coversPOOLO1reste limitéeauhelper.
+
+### TENSORPOOL-03-ARC — demande explicite, préenregistrement avant recherche/implémentation
+
+Utilisateurdemande«etarc?» ; ARC pasencoreimplémenté/mesuré. Vérifieralgorithme primaireMegiddo/Modhaetantécédents58/59 avantport. Une seule variante globaleARC avecT1/T2résidentesetB1/B2fantômes(listeidentifiantsuniquement), ciblep adaptativebornée[0,2544], résidents<=2544 etfantômes<=2544,total<=5088. Pasdechargeexpertfantôme,banquesidentiques3174942528B(3Gio), métadonnéesRAMdistinctesnonqualifiéesphysiquement. Aucuntuningp/floor aprèsrésultats, p0initial,domaine[0,512)×48couches.
+
+Réutiliser mêmesroutesMAIN/HOLD et reconstruction baseline exacte02 ; deuxgénérationsdechauffedepuisvidepuis troisphases observées parprompt. Avantvitesse : oracle indépendant/testsexplicitantT1/T2/B1/B2/REPLACE etp, protection de l'union complète avant touteéviction,mêmesordres experttrié/conventionsdedup10/20/80, erreurs/bornes/budgets/clé(couche,id), ghostsanspoids. Cachemultiroute : leshitsprédemandesdoiventresterhitsmêmes'ilsarriventtard, promotionsunefoisparclé ; documenter l'adaptation exactedeREPLACE auxexpertsprotégés etconserverminimumfindépart(T1/T2)si possible. Oracle de référence distinctpourstreamscalaire etunions, testsdéterministes/mutationpertinente,KaniAPIréelborné sansfaussepreuve. AucunportGPUavantéconomie>=1% chacune destroisphasesMAIN/HOLDetauditimplémentation ; leases/readers/retoursGPU nonprouvésparsimulation. Rapports/code003distinctspourconserver02.
+
+**ARC03 qualité avant replay.** Troiscontrôles ARC passent : étatslittérauxfigure4,ratioB2/B1=3/clamp/tieB2,scanrésistantet8192réservationsmulticouches/unions/doublons/erreurs/budgets. Échecinitialtestlittéralconservé : aprèsrequête4,B1contient3(plutôtqu'êtrvide),attenteoraclecorrigéeaprèsvérificationfigure4 ; algorithmeinchangé. PremierbuildempruntdoubleT2refuséparRust,corrigéenretraitpuispromotion. Avantreplay : mutationréelle supprimeaugmentationp surghostB1 ; oraclelittéraldoitéchouer, puisrestaurationexacteettestsaffectés. Sourceavantmutationarchivée. Les8192fluxCLOCKsupplémentairescomparent aussi toutesclés/references/handàfilecirculaireindépendantepourauditTensorFold02.
+
+- 45-Q/R processus arc-feedback-mutant : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/arc-mutation-plan-result.json.
+
+- 45-Q/R processus arc-current-replay : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/arc-replay-plan-result.json.
+
+- 45-Q/R processus arc-kani : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/arc-kani-plan-result.json.
+
+**Révision utilisateur29octobre avant décisionARC/POOL : lectures≠TPS.** L'utilisateur rappelle qu'une augmentation deslectures peutcoexisteravecungaindébit siellesmieuxmasquées ouleCPUmoinscoûteux. Le seuil>=1%lectures estunfiltre demétriqueslogiques,pasundroitdeconclure«runtimepluslent» ; aucunevariante02/03n'aétéchronométréeenproduction. Retirer touteconclusiondevitesse/abandonfinalfondéeseulementsurcefiltre. Lesrapportsnégatifsdelecturesrestentexacts/conservés. Comparerunport réellementbranché àlabaseline, correctionavantvitesse/0swap/3Gio/sorties/états exacts ; évaluercoûtsmétadonnées/ordonnancement/leasesetattenteI/Oexposéeavecscopesnonadditifs.
+
+Étapeimmédiate : achevercontrôlesCPUde02/03etinspecterfrontièresréelles nécessairesaupool(7banquespartagées/12segmentsEXL3,slotsglobaux>512,mapsparcouche,leases/fills/Hot/casdemiss), préparerunprototypeexpérimentalminimalisolable. Ne pasrenommeruneallocationfixe«pooladaptatif» niassurerunTPSavantmesure. LeprototyperouteurSIMDdoitresterisolépournepasconfondrelescauses. Aprèsarchitecturefigée,préenregistrermatrice/braspooluniforme/global/LFU/CLOCK/ARC,domaineARpuisMTP/DFetqualiténumériqueavantlancerGPU. AucunGPU/proveurconcurrent,aucunappinstall/push.
+
+### TENSORPOOL-04-RUNTIME — préenregistrement avant code, comparaison A/U/C
+
+Instructionglobaleimplémenter/testermaintenue ; rappelutilisateur«plusdelecturespeutboosterTPS» lèvela limitation01/02/03d'admissionbaséesurjobsseuls. PréparerportminimalréelARFlashEXL3 :7banquespartagées2544slots, mapslocales512IDsversslotsglobaux, politiqueARC03inchangéeetcontrôleUsharedavecpartitionuniforme53/LFUréel. A=baselineavantSIMD(a60),U=banquescommunesavec48LFU53,C=mêmesbanquesARCglobal. 3174942528octetsexpertsidentiques,envprototypeexplicite/défautoff, budget3Gioexactpourpremièrequalification ; refusercombinaisonsnonqualifiéeslookahead/prélectures/layer_slots/groupedsharedEXL3 plutôtquefallbackcaché. GarderGPUHot/Wide/Uniqueetlecturedirecte4workers,pasmodifierlesréductions/EXL3/précision. Lesleasesconsommateursprécédents doiventêtredrainéesavantévictionglobale ; protégerunioncouranteHot+Cold, publieraprèsfillcomplet/erreurinvalideaupluspoolentier. Décrirebarrièresajoutéesetlesmesurersanslesqualifierdirectement«GPUidle».
+
+Isolation : SIMD01nonqualifiéarchivéavecbinaires68d/5db ; restaurerseulement3sourcesbaselineavantSIMDetretirershadercopié/sauvegardé,aucunemodificationlocalepréexistanteécrasée. Copiesavantpool/manifestdansbefore-runtime-pool. PasdegainARCvalidé ; échecs/rapports03etKani120stimeoutjointsconservés. HarnaisARCcorrigépourpermettreaussiunpréfixerésidentoptionnel : deuxbatchesdepuisvide seulsnepeuventpasatteindreB1, nouvellecouverturehonnêteencorenonexécutée.
+
+AvantGPU : testsréelsdesviews/indicesglobaux>512/budget/étiquettesetpartitions53/exact53, invalidation/pending/refus, KaniCPUAPIréelle(géométrie/tickets/états), fmt/ClippystrictCPU+mlxchat/buildrelease/suitespertinentes/CI. Qualiténumériquekernelsauxslots512/2543etgarde2544/padding, oraclesFlash5positions248320logits+étatsGDN, Hotenattente/lectures/défauts/rollback/MTPpairesavanttoutchrono. A/U/CbridgeMAIN/HOLD17puis128goldenexterneetcache3Gio ; performanceAR1281chauffe+3mesuresA-U-C-C-U-Aparprompt(12processus),mem<12GoRSS10Gio,secteur/quiet0Swapoutancrecumulée,1modèleetaucuncompiler/proveurconcurrent. Siunsignalutile,confirmationcontrôles/modesMTP/DFavantpromotion. Lesbenchmarksréels restentnonlancésàcetteentrée, aucunpush/appinstall.
+
+**POOL04 premier câblage préparé, aucunGPU.** Nouvellevariableoff/uniform/arc, défautoff ; poolingactuel3Gioexact/lookahead0/autoexplicite/groupedEXL3off. Modèlecible48vuespartage7buffers2544slots ; MTPheadresteisolée. PolitiqueARC03réutiliséesourceidentique(horsvisibilité/invalidation) maintenantdansmodulenatifexpert_pool ; pasdecopiealgorithme non testée. Wrappercache garde ready/pendingetpublieseulementExpertFill.commitaprèsretourI/O,dropechec invalidepool ; uniformedélègueaux48ExpertCache53réels. Drainconsommateursglobauxaprèsreadbackroutesetavantéviction,pasavantconstructiondurouteur. PrototypesSIMDsourcearchivés/restaurésbaselineisolée,appinstalléeinchangée. Deuxnouveauxphysiquesignorésexplicites préparés(globalcoords512/2543/masks+MoEsharedlabels/Hotpending/échec/recovery),nonexécutés.
+
+NouveauxcontrôlesCPU :4096réservationsuniformescontrebaselineLFUindépendante,publisnonvisiblesavantcommit/invalidationerreurs/sameIDdifferentlayer,refusprélecturesetconfig ;bornesdestinationsélargiesà2544avecKanicommande/propriétéàrelancer(domainevraimentélargi,paspreuve512réutilisée). PremierscompileCPUrésident/checkmlx7,09spassentavertissementsconstructeursnonencoreexercés,testsenvueajoutésensuite ; lintstrict/fullsuiteetpreuveen coursavantGPU.
+
+- 45-Q/R processus pool-kani-geometry : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-proof-plan-result.json.
+
+- 45-Q/R processus pool-kani-first-fill : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/runtime-proof-plan-result.json.
+
+- 45-Q/R processus pool-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-cpu-plan-result.json.
+
+- 45-Q/R processus pool-build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-cpu-plan-result.json.
+
+- 45-Q/R processus pool-build-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-cpu-plan-result.json.
+
+- 45-Q/R processus pool-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-cpu-plan-result.json.
+
+**POOL04 CPUv1 terminé avantGPU.** CPUfullsuite/buildCLI56,36s/buildlibtest67,85s/MLXfullsuite104,11s terminés/joints/0Swapout,logs pool-*-suite.log et runtime-cpu-plan-result.json. ClippystrictCPU/MLXpassent(aprèsgatingdesmodulesMLXhorsbuildCPU),aucunGPUencorelancé. Prototypesappdefautoff,binaireARCnouveaupasencorequalifié. Slotdestinations<=2543 etremappinguniformeKani passent7/7covers,bornearithmétiquetoususize ; paspreuveGPU. VraipremierfillglobalARC+publish/invalidateavec2544slots,symboliquesu8layer/u16id,sansassume,unwind2546 :timeout90s/tousjoints/nonvérifié, preuveentièrecache nonétablie. Harnaisétatscompletslongsplacéssouscfg(kani,test) pournepasfairependrelasuiteKanicourteCI ; commandesciblées explicitesàconserver, aucunstub/réductiondedomaine.
+
+**ARC03 scoreslogiquesclos, décisionTPSouverte.** currentreconstruction60912appels/609120paires(slot,hit) physiquesexactes sur3phases×2prompts. ARCMANdecode19477/19461/19477 vs18212/18260/18412(+5,78..6,95%lectures),HOLD20146×3vs19694/19626/19685(+2,30..2,65%). Banques3174942528Bconstantes,ghostpayload0,stockagemétadonnéesVecs290432Baprèschaqueprompt(niRAMprocessusniallocationMetal). AucunrejetTPSfondésurcesjobs ; port04enpréparationpourvraiA/U/C. ARCmutantadaptpB1détecté/restauréexact ; auditétestsétatsratio/clamp/tie/scans et8192réservations, CLOCK8192contreoracledéfilerotative completpasse.
+
+AprèsCPUv1 : ajoutseulementtestsphysiquesassertionHotencorependingàdébutI/Oetparitédelasortieétrangèrepending,testPythoncap2544/garde2545,spécificationsKani lourdesisoléesharness tests. Aucune arithmétiqueproductionchangéeparcesajouts. Profilageparseracceptecapacitéphysique2544sansélargir512IDsexperts. Rebuildlibtest/CLI finauxetKaniFFIréelavantGPU, sourceidentitésàgelerensuite ; pasdevitesseprétendue.
+
+- 45-Q/R processus pool-kani-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-final-cpu-plan-result.json.
+
+- 45-Q/R processus pool-final-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-final-cpu-plan-result.json.
+
+- 45-Q/R processus pool-final-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/runtime-final-cpu-plan-result.json.
+
+**POOL04 sources/binaires finaux figés avantpremierGPU.** KaniFFIréel sharedbank tenté5,36s :ICEintrinsics243/exit1avantobligations,NONVÉRIFIÉ ; physique encoreàexécuter. Libtestfinal17fcdf66(68,19s),CLI934164bd(55,87s),baselineA a60eb4ad ; identitépool-identity-v1.json contientles sourcesnatives/scriptsrequis. 266Pythonpassent2,87s ; fmt/ClippystrictCPU+MLXpassent. CPUfull254passés8ignorés,MLXfull290passés172ignorés(physiquesàsélectionnerexplicitement). Aucuncompiler/proveur/inférenceconcurrent identifié,secteur100%,admissionfree+file>=8,5Go ; premièreancreGPU04danspool-gpu-anchor.json,cumul0Swapout/Swapin<=256Mio. Premièrepréparationancreavecpython3système3.9échouesurannotationdict|None,aucuneancre/aucunGPUcréé ; lancementmanquantancreéchoueavantinférence,aussiarchivé. Relancecorrecteinterpréteurvenv3.12ci-dessus,aucundégâtsmesureniancienrésultatsupprimé.
+
+Qualitéconcrète :2physiquesbornes16projections+48masques/runtime2politiques+Hotpending+échec,puistestsindépendantsmodèle/composants/paires/MTP/DFlash36préfixespourUetC(10tests),toussolo/exacts/0ignoré/nonvides,pool-micro-quality-plan.json/pool-model-quality-plan.json. Modesexplicitesoff/uniform/arc ; aucunSIMD. Pasdevitesseavantcescontrôlesetbridge17MAIN/HOLDgoldenexterne. Aucunappinstall/publication.
+
+- 45-Q/R processus pool-edges : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-micro-quality-plan-result.json.
+
+- 45-Q/R processus pool-runtime : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-micro-quality-plan-result.json.
+
+**POOL04 premiers tests GPU physiques réussis, 29 octobre.** Les deux sélections exactes passent chacune 1 test/0 échec/0 ignoré : bornes des banques 1,94 s (16 projections EXL3 et 48 masques FP16/FP32, lignes 1/2/4/8, slots 512/2543, capacité 2544, égalité exacte avec banque53), puis runtime MoE 1,40 s (Uniform/ARC, namespaces0/47, Hot encore pending au démarrage I/O, consommateur étranger en vol, erreur et récupération exactes). Sorties non vides/finies ; tous processus joints, zéro nouvelle écriture swap depuis l’ancre04-w1. Preuves pool-micro-quality-plan-result.json et logs pool-edges/pool-runtime. Aucun débit encore mesuré. La qualité modèle U/C préenregistrée (10 tests indépendants, paires, MTP et DFlash) est l’étape suivante ; sources/binaires V1 inchangés.
+
+- 45-Q/R processus pool-uniform-oracle : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-plan-result.json.
+
+**POOL04 admission modèle interrompue avant GPU.** Le premier contrôle U-oracle est arrêté AVANT création du processus : free+file=7 815 446 528 B, sous8 500 000 000 B. Aucun PID de modèle, aucun test modèle ni vitesse exécuté ; résultat/runner conservés sous admission-pool-model-quality-*. L’utilisateur libère de la RAM. Reprise autorisée du même plan/sources/binaires/ancre si gardes cumulées toujours valides ; sinon consigner la cause sans effacer cette interruption. Préparation CPU seule du driver bridge17/128 réutilisant benchmark-flash-bridge ; contrôler FNV des IDs externes, préfixe texte17/nonvide et texte128 exact, rapport échoué et processus joints sur erreur. Nouveaux scripts d’artefact ajoutés à une identité distincte sans modifier les sources natives figées. Tests déterministes de ces gardes et tentative CrossHair (déjà absent) avant leur exécution physique.
+
+**POOL04 préparation des mesures terminée, GPU modèle toujours non lancé.** Driver pool-speed-driver.py réutilise le vrai benchmark bridge ; oracles externes128 tokens et FNV17 confirmé par les anciennes captures natives A/B/C (4b46ba2824c9f47c MAIN), texte nonvide/préfixe17 et texte128 exact, footprint/lifetimepeak<12Go. Tests driver+runner78 passent (5,76s), puis mutation supprimant le contrôle hash détectée par les tests (2 échecs attendus), source restaurée bitexact et12tests driver repassent. Ruff/format passent ; CrossHair tenté : module absent, vérification symbolique NON EXÉCUTÉE. CI PR/main couvre ces tests ; YAML parse,3jobs ; CI distante non exécutée pour cet arbre local non publié.
+
+Matrice figée pool-bridge17-plan.json (6 processus A/U/C×MAIN/HOLD, chacun1chauffe+1mesure), puis pool-speed128-plan.json (A-U-C-C-U-A×2prompts,12processus,36mesures+12chauffes), identité pool-identity-v1-speed.json inclut driver/configs/golden/workflow/tests. Comparer A→U (banques) puis U→C (politique), A→C (total), sans addition de pourcentages. Pas de vitesse avant qualité modèle ; aucune de ces18commandes n’est lancée.
+
+Audit statique en attendant mémoire : 7allocations Metal communes à la création, vues des48couches par clonage de handles, pas copie de banques par token ; seulement maps512 et métadonnées CPU. Drain global explicite après readback routes/avantreserve, ajouté aux gardes de consommateurs par couche ; sa durée exclusive GPU reste non mesurée. Erreurs fill_many drainent déjà Hot avant retour et invalidation RAII, pas de défaut concret constaté dans cette branche. ARC utilise recherches VecDeque et scan2544 pour resident_map/free slot : coût CPU potentiel, pas encore chronométré, à vérifier dans l’audit si C déçoit avant tout rejet. Capacité logiqueU53 préserve les cohortes existantes, C2544 peut éviter leur fractionnement ; numériquement à qualifier avec les10tests modèle prévus. Aucun changement des kernels/arithmetic EXL3, aucun défaut de perf affirmé sans mesure. État04 : microqualité validée, modèle/bridge/débit en attente de marge RAM ; aucun modèle/proveur/compileur actif.
+
+**POOL04 reprise après interruption utilisateur, 29 octobre.** Aucun processus GPU/compilation/proveur actif ; sourcesV1 exactes, secteur100%, nouvelle disponibilité free+file=9 001 369 600 B ≥8,5Go. Swapouts8597703pages inchangés depuis04-w1 ; Swapins3277201pages (hausse4543pages=74 432 512B <256Mio). Admission antérieure archivée, même plan10qualités U/C et même ancre cumulative repris sans changement de protocole ou de source. Modèle complet puis bridge17 puis vitesse128, sous gardes inchangées.
+
+Reprise04 : le superviseur refuse de réutiliser le nom du rapport d’admission existant avant tout démarrage. Aucun résultat écrasé, aucun GPU lancé. Plan strictement identique copié sous pool-model-quality-resume1-plan.json pour rapport distinct ; ancien résultat en place, refus conservé pool-model-quality-resume-overwrite-refused.log. Aucun paramètre modifié.
+
+- 45-Q/R processus pool-uniform-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-uniform-components : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-uniform-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-uniform-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-uniform-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-arc-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-arc-components : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-arc-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-arc-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+- 45-Q/R processus pool-arc-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-model-quality-resume1-plan-result.json.
+
+**POOL04 qualité modèle physique terminée : 10/10 réussis avant vitesse.** U et C passent chacun oracle indépendant5positions/248320logits et étatsGDN, composants, paires de vérification, séquence MTP cible+tête, DFlash captures et36préfixes largeurs1..8/commit/états/logits complets. Chaque sélection exacte1passé/0échec/0ignoré, sorties nonvides/finies selon assertions ; tous10processus joints, zéro Swapout depuis04-w1. Oracle indépendant utilise ses tolérances explicites (logits0,003, composants0,005, captures0,004), étatsGDN bitexact et comparaisons sérialisées/paires/MTP/DFlash bitexact selon tests : ne pas confondre ces contrats ni prétendre tous les futurs tokens prouvés. Preuves pool-model-quality-resume1-plan-result.json, logs individuels et pool-model-quality-inspection.json. Aucun gain vitesse encore établi. Passage au bridge17 A/U/C MAIN/HOLD préenregistré, même ancre/sources et3Gio.
+
+- 45-Q/R processus pool-17-MAIN-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+Précision contrat qualité04 après inspection directe : le test trajectoire vérifie EN PLUS du résumé de tolérance l’égalité bit à bit des248320logits FP32 à chacune des5positions, les étatsGDN bitexact et les routes exactes. Le check final de logits est0,01 avant cette égalité,0,003 concerne les entrées de trace hors couches ; la formulation précédente «logits0,003» était trop imprécise. Les composants/captures gardent leurs tolérances0,005/0,004 et les assertions exactes explicitement présentes. Aucune modification/test relancé pour cette correction descriptive.
+
+- 45-Q/R processus pool-17-MAIN-2-U : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+- 45-Q/R processus pool-17-MAIN-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+- 45-Q/R processus pool-17-HOLD-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+- 45-Q/R processus pool-17-HOLD-2-U : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+- 45-Q/R processus pool-17-HOLD-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-bridge17-plan-result.json.
+
+**POOL04 bridge17 réel réussi sur les6processus.** A/U/C×MAIN/HOLD passent tokens17/16decode, FNV externe et texte nonvide préfixe du golden128, compteurs/modes/temps/footprints valides. Chacun1chauffe+1mesure, rapports validated, enfants/lecteurs et superviseurs joints,0nouveauSwapout cumulatif. Preuves pool-bridge17-plan-result.json, pool-bridge17-inspection.json et rapports individuels. Les petits chronos17 ne servent pas à décider d’un gain. Qualité préalable donc passée ; lancement matrice128 alternée A-U-C-C-U-A pour chacunMAIN/HOLD, mêmes3Gio/Hot/Wide/Unique/4lecteurs/lookahead0/allocator64/40ops40MB,36mesures+12chauffes, sources/binairesV1/ancre04-w1 inchangés. Aucun MTP/DFlash chrono avant un signal utile AR.
+
+- 45-Q/R processus pool-128-MAIN-1-A : **failed_or_interrupted**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-plan-result.json.
+
+**POOL04 vitesse128 interrompue sur A avant première mesure.** Série pool-speed128-plan-result.json : premierprocessusbaselineA seul,43,03s puis8pages×16384=131072B (128Kio) nouvelles écritures swap système. Garde stricte déclenchée, processusgroup arrêté/joint(exit−15), aucun autre moteur/proveur/compileur actif aprèsnettoyage. Une chauffe128 a terminé et validé goldenexterne (9,753tok/sdecode,13,021s,87prompt/127decode,empreinte7,156Go) ; **0mesure**,5brasMAINet6HOLD NONLANCÉS. Rapportbridge incomplete conservé ; ne pas transformer cette chauffe en référence mesurée ni conclure surU/C. Swapins cumulés75 612 160B<256Mio ; Swapout ancre04-w1 désormaisdépassé. Cette ancre est close,nepasla remplacer silencieusement ni reprendre des mesures propres sous elle.
+
+Lecturediagnostique : modèleA7,156Gofootprint et~2,191Gocompressionlogiqueaprèschauffe, souslesplafondsprocessus ; lecompteurSwapoutestglobaletsapuissance131072Bnepeutpasêtreattribuéeaucachepartagé(aucunU/Cchrono lancé). L’utilisateur libère de nouveau de la RAM aprèsdemande de fermerBrave/Deezer pendantcampagne. Nouvelle série de validation128 autorisée aprèscechangementexterne documenté, mêmesourcesV1/matriceA-U-C-C-U-A/3Gio/36mesures+12chauffes, nouvelleancre04-w2distincte,0nouveauSwapout, gardes/processusinchangés. Conserverqualités10+bridge6déjàpasséesavantécriture ; nepaslesrelancer sanschangementcode. État : qualitévalidée, TPSnonconcluant/interrompu, aucunmodèleactif ; nouvelancresetmatrice128pasencorecréés/lancés.
+
+**POOL04-w2 démarrage après libération RAM observée.** Plusieurs gros processus Brave/Deezer ont disparu du haut RSS, free+file remonté de7,815Go à13777256448B, compresseur3068706816B. Nouvelle ancre distincte pool-gpu-anchor-w2.json : Swapouts=140864897024B, Swapins=53695807488B ; secteur100%. Ancienne04-w1 close/131072Bécritureconservée, aucun résultat déclaré effacé. Même matrice128/qualitédéjàpassée/sourceV1/binaire934164/a60/3Gio,0nouvelleécrituresous04-w2, pas de relâchement de garde. Plan pool-speed128-w2-plan.json, identité pool-identity-v1-speed-w2.json.
+
+- 45-Q/R processus pool-128-MAIN-1-A-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-MAIN-2-U-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-MAIN-3-C-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-MAIN-4-C-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-MAIN-5-U-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+### TENSORPOOL-04-AUDIT — préenregistrement conditionnel, avant diagnostic
+
+Les deux premiers processusC surMAIN ont chacun3mesures cohérentes autour10,38tok/s, souspremiersA/U ; campagne128encours, ne pas conclure/rejeter. Aprèsfin des12processus seulement, si l’écartdéfavorable seconfirme, auditer adaptation aveclesbinairesV1 existants, aucun nouveaucodekernelnipolitique. Nouveau motif : mesurer les coûts réels de ARC/banques/barrières, jamais chronométrés sous ce port, conformémentAGENTS11.
+
+Matrice diagnosticMAIN : (1) 3processus `flash_light_profile_preserves_natural_decode` enoff/uniform/arc, mêmes3Gio etoptions, chaqueprocessus2phases64tokens (chauffe+diagnostic) ; sorties64IDs exactscontre128goldenexterne/textepréfixe/nonvide,248320logitsfinis,empreinte<12Go. **Limitepréenregistrée** : ce harnaispréremplitserial1token contrairementbridgechunk8, donc sesTPSnevalidentpasledébitrelease ; lescompteursI/Oetroute/fill/importCPU serventaucoûtdesappelsréels. A0=nouveaulibtestV1modeoff, contrôlemêmeinstrumentation, pasnouvellebaselineCLIrelease. (2) 2processus `flash_detailed_profile_preserves_full_outputs_and_states` U/C, kindquality17/4phases, préfillchunks8. Exiger4summaries, tokens/texte et248320logits+étatsfinauxexactsinternes, oraclegoldenexterne, parsercap2544, profilsroute/bank/Hot/Cold/fills etleases. Mesurershared_pool_previous_consumers_wait etduréeshostnombre/taillescohortes ; scopesinclusifsnonadditifs, aucunGPUidle exclusif oulecturephysiqueSSDprétendu. RecouperI/Ologiqueutile/masquée sansaddition wallspans.
+
+Même ancre04-w2/secteur/quiet/0Swapout/Swapin<=256Mio/RSS10Gio/footprint12Go, sélectionsexactes1passé0ignoré, délais300/600s, tousprocessusjoints. Résultatsauditsdistinguésdelavitesse. Siuncoûtd’adaptationconcretdominantesttrouvé, corrigeretpréenregistrerseulementcontrôlesaffectésavantnouvellemesure ; nepasretirercandidat surseule régression. PréparationdesplansseulependantGPUrelease, aucuncompiler/proveur/secondmodèleconcurrent.
+
+- 45-Q/R processus pool-128-MAIN-6-A-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-HOLD-1-A-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+**POOL04-w2 MAIN terminé, HOLD encours.** 6processusMAIN/18mesures+6chauffes joints, goldenexternevalidé/0Swapout. Agrégé127tokens/tempsdecode : A=10.7033tok/s, U=10.7658tok/s, C=10.3304tok/s ; comparaisonC/A=-3.485%, C/U=-4.044%. ContrôleA dérive entre début/fin (plage[10.310271310240019, 10.867745826148472]), nepasqualifierunpetitgainUcommeétabli. Bruts et calcul pool-speed128-MAIN-partial-inspection.json ; HOLDnonterminé, décisiontoujoursouverte/auditpréenregistrépasencorelancé.
+
+- 45-Q/R processus pool-128-HOLD-2-U-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-HOLD-3-C-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-HOLD-4-C-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-HOLD-5-U-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+- 45-Q/R processus pool-128-HOLD-6-A-w2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-speed128-w2-plan-result.json.
+
+**POOL04-w2 release128 terminé, avant audit.** 12processus/36mesures+12chauffes validésgoldenexterne128/127decode, tousjoints,0nouveauSwapout sous04-w2. Donnéescomplètes/footprints/dérive/agrégationtokens÷temps dans pool-speed128-w2-inspection.json. MAIN A=10.70334tok/s, U=10.76577tok/s, C=10.33036tok/s ; C/A=-3.485%, C/U=-4.044%, U/A=0.583%. HOLD A=10.58490tok/s, U=10.66413tok/s, C=10.35785tok/s ; C/A=-2.145%, C/U=-2.872%, U/A=0.748%. PasdegainARC, petitdeltabanquespartagéesnonétablivuplages/retourscontrôles ; aucunretraitencore. ConditionAUDITpréenregistréeatteinte : lancerles5diagnosticsMAINsoloavecmêmesbinaires/ancre04-w2, pasdecompiler/proveurconcurrent ; pasdeMTP/DFperformance caraucunbrasARqualifiégagnant.
+
+- 45-Q/R processus pool-audit-light-off : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-audit-plan-result.json.
+
+- 45-Q/R processus pool-audit-light-uniform : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-audit-plan-result.json.
+
+- 45-Q/R processus pool-audit-light-arc : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-audit-plan-result.json.
+
+- 45-Q/R processus pool-audit-detail-uniform : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-audit-plan-result.json.
+
+- 45-Q/R processus pool-audit-detail-arc : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/pool-audit-plan-result.json.
+
+**POOL04 audit terminé avant décision, 29 octobre.** Cinq diagnostics physiques réussis/5tests exacts1passé0échec0ignoré, tousjoints/0Swapout04-w2 ; sorties64IDs/textespréfixes externesvalidées(light), qualité17×4phases/248320logits+étatsfinauxinternesbitexacts etgoldenexterne(detail), parseur/signatures/jobs/compteurs contrôlés. pool-audit-light-inspection.json et pool-audit-detail-inspection.json, analyses/csvU/C.
+
+Coûts observés diagnosticlight MAIN63decode : reserve/importCPU off0,1103ms/token,U0,1161,C0,6633 ; jobslogiquesoff/U9207,C10115(+9,862%) ; fillwall inclusifoff26,833,U27,964,C30,752ms/token (nonadditifs/GPUHotmasqué, pasNVMephysique). Diagnosticdetail17 : attenteconsommateursglobaleU0,02427/C0,01873ms/token ; host-selfrouter(incluantmapCPUetbookkeepingnonenfants)U0,12153/C0,15525ms/token ; MoEhost-selfU0,40452/C1,00533ms/token. CesclocksdiagnosticsnesontpasdesmesuresGPUidleexclusives et neconstituentpasuneprévision causalerigoureusedugainrelease.
+
+**Correction d’interprétation de formes** : APIpréfillARreçoit bienchunks8(HEADONLY), maisforward_tokensappelleforward_innerscalairepourchaquetoken ; les4176callsMoE87×48destracesU/Cconfirmentrows1. La capacitéC2544 ne modifie donc PAS lescohortes dupréfillARactuel ; sonintérêtmultilignesconcerneMTP/DF, numériquementqualifiésmaisnonchronométrés. Le lightprofil appelleserialforwardavecheadàchaquetoken contrairementAPIchunks8quiomettêtesinutiles ; comparaisonTPSlight/releaseinterdite. HistoriqueP01B-R2 relu : vrai layer-major/batchingdéjàqualifiénumériquement puisretiré àlademandeutilisateur pourdecodedégradé(−3,41..−4,56%) malgréTTFTmeilleur. Ne pas annoncer cettevoiecommeuneidéeneuveni larelancerinchangée.
+
+Audit adaptation : mêmes7banques,allocation3 174 942 528B,poids/dtypes/masques/kernels/sourcesfigés, aucunfallbackcaché ; routage/cohortesréellesidentifiés, ready/pending/IOdirect4workers/consommateurs/récupérationexercés. Aucunbugconcretdebranchement/copie/arrondi/synchronisationcoûteuseobservé. ARC àrechercheslinéairesajoute~0,55ms/tokenCPUdanslight ; uneversionindexéeO(1)resteNONMESURÉE, nepasgénéraliserlerejetàtoutARC/TensorFold. L’augmentation dechargements etfillcoïncideavecledéficitrelease ; causephysiqueexclusive nonprouvée.
+
+**Décision POOL04 : adaptation actuelle rejetée APRÈS audit**, Ubanquesseulesnonconcluant(+0,58/+0,75%decode,préfill+0,34/−0,94%), ARCaucungain(−3,48/−2,15%decode,préfill−1,58/−2,27%). PasdepromotionMTP/DFperformances(appeligibilitéARsansgagnant), pasd’appmodifiée/push. Archiverles sourcesV1/identités/bruts avant retrait des seuls branchements runtime du pool ; conserverreplaysCPU/ARC, tests/scripts devalidation etparsercompatibletracesarchivées2544. Restaurerles5sourcesnativesexactesavantpool(lib/flash_support/qwen4/ssd_moe/linear), remettreKey+ARCofflineetgarderharnaislongs horssuitecourte, retirerharnessCIuniformslotabsent. SIMDresteisolénonqualifié,pasréintroduit. Contrôlesfinaux prévus : fmt/ClippystrictCPU+mlxchat,buildCLIréel,suitesCPUetMLX,testsPythonaffectés/YAML, tentativeKanicibléedestinationsfinales512 ; comparer empreinteCLIa60 siidentique, sinoninspecterdiffavantqualifier. Sourcesprécédentesetmodificationslocalespréexistantespréservées. Clôtureensuite, puisissue59 selonlademandeutilisateur.
+
+Clôture04 avec sous-agents demandés : retraite ciblée des5sourcesruntime par un agent, audit numérique/conditions indépendant par un autre ; root conserve journal/CI/contrôles. Harnaisoffline LFU/CLOCK pooled_reservations_keep_batch_slots_distinct_and_bounded (deux anciens timeouts150s) etARCdeuxbatches(cfgkani) restent disponibles souscfg(all(kani,test)), horssuitecourteCI ; aucun domaine/assertion réduit. HarnaisuniformslotruntimeabsentretiréCI, replayCPU/ARCettestsdegardesconservés. Vérifications finales après restauration seulement, aucunGPUconcurrent.
+
+- 45-Q/R processus retired-kani-slot : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+Audit indépendant sous-agent : recalcul des12rapportsbruts/36+12générations et91sourcesarchivées conforme aux chiffres/décision ; aucun défaut concret de câblage observé. Précision terminologique : les0,663ms/token sont un chronomètre **hôte réserve/import**, incluant d’éventuels désordonnancements OS, pas une mesure exclusive deCPUactif. Même réserve pour«host-self»destraces. Agentretrait confirme les5sourcesruntimebyteidentiquesauxsauvegardes etseuls2gatesproofchangésdansoffline ; aucunpoolruntime restant, SIMDnonréintroduit. Workflowcandidat reconstituéavantretraitàpartirdulignageexact,empreinteégaleàidentitéfigée, conservé retired-runtime-v1-workflow.yml. VérificationsfinalesCPU/Kani/build/MLX/ClippyetPython encours, pasd’inférenceGPU.
+
+- 45-Q/R processus retired-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+- 45-Q/R processus retired-build-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+**POOL04 retrait : premiers contrôles finaux inspectés.** Kani ciblé réel slotsfinaux0..511 :0/228obligationséchouées(1inatteignable),2/2covers,6,20ssuperviseur ; paspreuveGPU/IOphysique/concurrence. SuiteCPU252passés/0échec/8ignorés,110,92scompilationcomprise ; buildCLI57,36s et empreinte **a60eb4ada3a948110fc057d9551032b6d03598ab404201145f5a5410f26f8e75**, byteidentiqueàbaselineavantPOOL04. 344Pythonpassés/0ignoré17,09s, Ruffformat/lint/py_compile/YAMLPR+mainpassent, rapports retirement-python-inspection.json etlogs ; CI distante nonexécutée pourarbrelocal. SuiteMLX/Clippy/fmt finaux encoreencours, aucunGPUmodèle/proveurconcurrent àcettephase. Ne pasannoncerclôturecomplèteavantcesrésultats.
+
+- 45-Q/R processus retired-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+- 45-Q/R processus retired-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+- 45-Q/R processus retired-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+- 45-Q/R processus retired-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue58-20261029/retirement-cpu-plan-result.json.
+
+**POOL04 CLOS — retrait final vérifié, aucun essai04encours.** Tous7contrôlesfinaux terminés/joints/0échec : Kani ciblé6,20s(228obligations/0échec/1inatteignable/2covers),CPU252passés8ignorés110,92s,CLI57,36s,MLX288passés170ignorés172,44s,ClippystrictCPU2,76s/MLX8,24s,fmtpassé.344Python/0ignoré+Ruff+YAMLpassent ; diffcheckpasse. **CLI final a60eb4ad… byteidentiqueàbaselinephysiquementmesurée**, doncaucunGPUdeconfirmationinutilepourcebinaireinchangé ; lesmodèlesGPUignorésdelasuitefinalerestentexplicitementnonrelancés. Sourcesexactes/binaire/compteursdansretirement-final-state.json, décisionruntime-retirement.json. Sourceprototype934164et91fichiersarchivés, brutsnégatifsconservés, aucunpush/appinstall/release. ReplaysCPU/ARC,scriptsetgardesdestraces2544conservés ; paspoolruntimegagnantintroduit. Kaniétatscachecomplets/FFIMLXnonvérifiés(timeout/ICE)etCrossHairabsentconservés ; paspreuvecomplètemoteur/Metal/concurrence. SIMD01resteisolé/nonqualifiéetnonlancéGPU, prochaineprioritéutilisateurissue59.
+
+### ISSUE59-READ — recherche seule préenregistrée, 29 octobre
+
+AprèsclôturePOOL04, ouvririssue59etcommentaires dans0xZKnw/mlxl3, enregistrercontenu/date/URL, comparerlesmécanismesproposésaucodeetantécédentsopti pertinents. LectureviaGitHubconnecté, sourcesexternestraitéescommeélémentsàévaluer. Aucunprototype/bench/poidspush/commentaireexterneautoriséparlaseulelecture ; la consigneglobaleimplémenter/testerlesidéess’appliqueensuiteavecpréenregistrementpropreetqualitéavantvitesse. Sous-agentspourcomparaisonsindépendantes ; aucunretouràuneexpérienceidentiquesansraisonnouvelleexplicite.
+
+**ISSUE59-READ tri source actuel, 29 octobre.** Issue59snapshot37349caractères,maj2026-10-29T17:57:09Z/0commentaire,MLXL3publiéf3f2…vsarbrelocal7978modifié/CLIa60. Turboépinglé345bee9e35920ee77292055d873fca891146529c, KERNELS/RESULTS/LICENSE/NOTICE archivés. Recherche3sous-agents : T01vrailaunchpréparé distinctfactory19 maiscacheconfigseuln’éliminepassourcegen/hash ; HostGpuupstreamrequiertgestionvariants/pipelinelifetime, neprometpasrécupérer12,142ms. T02K2commun8codewordsrépète54Qdéjàmesuré ; denseK4resteàvérifierISA/CSE, pasprioritaire. T03largementPOSTPROFILE05-Cnégatif déjàaudité ; T04SwiGLUdéjàmx::compile, fusiondown-inputpossiblemaisarrondisattention. T05nouveauconsommateurpondérépluspetitquefin7, distinct80HcopieF16préparéeetancienconsommateur /43 (#58/42concerneGDNdanssnapshot, nepasconfondre). T06sharedK4vsroutéK2ettableSigmoidamontnonprésuméeidentique. VraispréfillT14/15nécessitentnouvelleintégrationdistincteP01Brejeté ; pasdeportbackendE01numériqueapproximatifautorisé. Rapportssourcés sousissue59-20261029, aucunbenchnouveauàcetteétape.
+
+### ISSUE59-T05-WEIGHTED-01 — préenregistrement avant code, consommateur Hot/Cold pondéré exact
+
+Autorisationglobaleimplémenter/testerlesidéessansrégressiondecodeetdernier«continue»maintenues. Hypothèse : remplacerla concaténationHot/Cold,restaurationtake,castversx.dtype etpondérationparunseulkernelconsommateur, sansmodifierlecalculEXL3,nileHadamard,nilerouteur,nileslectures,nilaSwiGLU. **Petitpérimètremixeduniquement** : lorsqu’unHotoutputphysiqueetunColdoutputnonvideexistent ; cheminstoutHotetsansHotinchangéscommecontrôles. CasHotmasquélogique0maisbufferHotphysiqueexistant = mixed physique, mappingd’origineconservé. Pasd’ajoutdelancementHot,readback,fence,cacheexpertouallocrésident.
+
+BaselineA=CLIa60/libtestfinalretiré(pasSIMD/pool),cache3Gio53/4readers/overlapHotWideUnique1/lookahead0/allocator64/40ops40MB,MLX0.32.2/M5/24Gio/Qwen3.8EXL3checkpoint65c89531. PrototypeCflagMLXL3_SSD_WEIGHTED_EPILOGUE=0|1,défaut0,activéseulementSsdMoeFlashadmis. GuardsavantGPU : inputsFloat16stridesmatérialisésparcontratMLXstock,shapes2Dlargeurcommune,Hot/Coldphysiques1..80routes,order1..80tousindex<nh+nc,weightsmêmecompteetF16/F32,xdtypeF16/F32,arithmétiquecheckedindices/grilles. Conservernhphysique(earlyHotrows*10),paslenhitscompacte. Duplicatsexpertsrestentoccurrencesdistinctes ; sélectionnerunbufferavantlecture,pasadditionmasquezéro/signedezéro/NaN. Contrat :v=cast<Tx>(sourceF16),p=cast<Tp>(v)*cast<Tp>(weight),Tp=promotionMLX(Tx,Tw),F16×F16→F16/autres→F32. **sum(1,false)MLXetsharedaddstrictementinchangés**, ordrecanonique(token,rangTop10). Garderlast/earlyHot/erreursownership.
+
+Avantvitesse : géométrieCPUréelle/Kanisymboliquesusize/u32sansassumptionsartificielles,coversvalides/invalides ; tentativeMSLsourceCBMC(logunsupportedconservé),format/ClippystrictCPU+mlxchat/buildsvraivariant/suitesetCI. OracleGPUindépendantconcat/take/astype/mulstock +litérauxdistincts,1024partitionsHot/Cold10routes,FP16/FP32weights etTx,largeursfrontière/padding/strides,mapsinvalidesatomiques,duplication/réordonnancement/Hotpoisonmasqué,frontièresR1..80etformesproductionH2560/rows1..8. Mutationmapping/pondérationdétectée puisrestaurée. Compternonvides/finitude etbitsexactsavanttoutmicrochrono. Qualitémodèleindépendante5positions248320logits/GDN/composants,MoEHot/Cold/overlap/échec,paires/MTP/DFlash36préfixes etvraibridge17MAIN/HOLDgoldenexterne.
+
+Vérifierensuiteparcapturetestlesnœuds/dispatchsréellementretirés(cast/mulpeuventfusionner,aucuncompteGPUinventédepuisgraphelazy). Siqualitépasséeetconsommateuratteint,lancerreleaseAR128ACCA×MAIN/HOLD,8processus,1chauffe+3mesures=24mesures+8chauffes,envstrictementégalhorsflag,oraclesexternescomplets,processusjoints. Secteur/quiet/0nouveauSwapout/ancrecumulée/Swapin<=256Mio/RSS10Gio/footprint12Go,1modèleGPUetaucuncompiler/proveurconcurrent. SiARutile,qualifierMTP/DFperformanceavantpromotion. SiC déçoit,auditchemin/formes/dtypes/copies/fallback/plan/sourceetcoûtdispatchAVANTrejet,rechercherdéfautconcret,pasretirerautomatiquement. Aucuneappinstallée/push/merge/release. Sources/binairesidentitésfigéesaprèsimplémentationavantGPU ; journauxmêmeéchecsconservés.
+
+**T05 première revue avant build/GPU.** GéométrieCPUetkernel/integrationmixedécritsparsous-agent, oracles4096partitionsenpréparationettestcapturephysiqueMetalCapture séparé. AucunGPU/compile/proveurexécuté. Revueindépendante découvreunvraicasfrontière : MLXgénèreuneentréeparréférencepourweightsrank0, incompatibleavecweights[row]. Décisionminimalepourproto : refuserexplicitementrank0AVANTorderupload/requêtekernel, conserverweightsrank>=1mêmecompteR (productionrank2inchangée), couvrirR1rank1/rank2positifs+scalairenégatif. Pasdereshapesupplémentaireproduction. ContratCPUactualgeometryguardes1..80,grillei32,adressesu32 ; 2harnessesKani symboliquespréparés(scalaraddresset81indices/longueur0..81),noassumes,unwind3/82. SommeMLXgardée, flag0conservepositionconstructionconcatStock ; compteurtestmesuredesrequêtesdegraphe, jamaisdispatchGPU.
+
+Pourcompterlesdispatchsréels,T05réutiliseraMetalCaptureexistant : entréesdéjàévaluées/chauffe,séparémentungraphelegacyetl’unfusionnéen.gputrace,eval/finish,paritéhorscapture. LesanciennestracesTimeProfiler+GPUavaient0encodeur détaillé,etleursintervallesgrossiersnesuffisentpas. InspectionXcodecommandescompute/blitattendue ; aucuneconversionrequêtes→dispatchssanspreuvephysique. Cettecaptureestundiagnostichorschrono. PasdenouveausetupXcode/autorisationaujourdhui, seulementAPIetoutilsdéjàqualifiés.
+
+- 45-Q/R processus t05-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-check-plan-result.json.
+
+- 45-Q/R processus t05-check-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-check-plan-result.json.
+
+- 45-Q/R processus t05-check-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-check-plan-result.json.
+
+**T05 implémentation initiale prête, vérificationCPU démarrée.** Sourcesnouvellesweighted_epilogue.rs/MSL, câblageSsdMoe/lib ettestintegrationréel ; flagdéfaut0/mixedseul,Poidsrank0refusés,nouveaukernelnefaitaucunesomme. 4oraclesGPUignorésexplicitespréparés :4096partitions+1288formes/strides/frontières+16litéraux=5400caspositifs,39refus ; intégrationréellecounter1+physHot10/Cold5+oracle puisallHot/allColdstock,ettestcaptureMetal2graphes. **Nonexécutés** àcetteentrée. Revueindépendantecibléedesimplémentations/oracles enparallèleCPU seulement, pasmodèleGPU. TentativeCBMC6.11surle vrai fichierMSL échoueavanttouteobligation : Failedtofigureouttypeoffile(.metal),logt05-msl-cbmc.log ; NONVÉRIFIÉ,aucunetraductionC++substitutiveprétendue. Plan t05-check-plan.json format+checkCPU+checkmlxalltargetsavantKani/build/tests.
+
+- 45-Q/R processus t05-kani-address : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-20261029/t05-proof-plan-result.json.
+
+**T05 contrôles initiauxCPU passés, premièrepreuve interrompue.** fmt0,46s/checkCPU3,95s/checkMLXalltargets7,70s passent ; logsfuturavertissementdépendanceblock0.1.6préexistant, pasuneerreurduchangement. KaniadresseCaDiCaL expire90s(64930variables/301343clauses dansdernierétat),groupejoint/0contre-exemple/nonvérifié ; les2commandessuivantesduplan80lignes/FFIn’ontPASdémarré. Rapport/logt05-proof-plan-result.json conservé.
+
+RéparationduHARNAIS seuleavantnouvelletentative : mêmesentréesusize/u32/6covers/propriétés, aucunassume/stub ; arithmétiqueoracledansbranchevalidepasseu128→u64aprèsassertionsconversionssanspertehot/cold/row/height→u8,width/column→u32.Lesbornesprouvées≤160×(2^31−1)<2^39justifientl’équivalence,pasréductiondedomaine. Productiongeometry/API/MSLinchangées. NouvelleexécutionKissatbundlé(180s)pouradresse,puis80lignes(180s),FFIréel(90s/ICEprécédentàinspecter) ; modèles/proveurs/compileursneconcurrencerontpaslesGPU.
+
+Revueindépendanteavantphysique : aucunautredéfautconcretaprèsguardrank0 ; confirmerHotpendantI/O,cohortes6+2/4+4etévictionfuture/récupérationavecflag1. LacunenumériquecorrigéedansoraclesavantGPU :64casfrontièresfiniesF16subnorm/maxsubnorm/minnormal/maxfinite±0,voisinsdetiesetpetitspoidsF32,pour4Tx/Tw. **5464caspositifs+39refuspréparés**,pasencoreexécutés ; oracleGPUstockprimairesurlessubnormaux/FTZ,littérauxCPUindépendantsnormauxconservés. Aucunbenchmarkvitessecandidatencorelancé.
+
+- 45-Q/R processus t05-kani-address-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-proof-v2-plan-result.json.
+
+- 45-Q/R processus t05-kani-eighty-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-proof-v2-plan-result.json.
+
+**T05 Kaniadresse v2 réussit.** MêmeAPI/inputsdomainetassertions, oraclearithmétiqueconversionssansperte/u64 +solveurKissat :1harness/0échec sur169obligations(1inatteignable),6/6coversatteintes,124,80ssuperviseur. Ancien90stimeoutCaDiCaLconservé, pasdecontre-exemple. Prouvecontratgéométrie/adressesCPUdansdomaineannoncé,paslecodeMetal/concurrence. Harnais80lignesencours,FFIréelpasencoreexécuté ; aucunGPUmodèleactif. PlansGPUprêtsmaisnonlancésdansprepared-t05-gpu(19testsphysiquessélectionnés/4bridge17/8speed128), inventorieretfigersources/binairesd’abord.
+
+- 45-Q/R processus t05-kani-mlx-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-proof-v2-plan-result.json.
+
+**T05 preuvesCPU terminées avant builds/GPU.** Géométrieadresses169obligations0échec1inatteignable/6covers124,80s ; géométrie81indices,longueur0..81/unwind82 :172obligations0échec1inatteignable/4covers99,56s,Kissat. Entréessymboliquescomplètesannoncéesetassertionsd’unwindconservées,aucunassume ; propriéténeprouvepasMSL. VraiappelMLXKani testliteral tenté5,74s : ICEintrinsics.rs243/exit1avantobligations,NONVÉRIFIÉ ; diagnosticconservé(t05-kani-mlx-v2.log), pas«preuveGPU». Les2harnessesfixentdésormaisKissatparattribut(effectifidentiqueauCLIvalidé),CIpinned0.68exposebinbundléavantpreuvesPR/main, pasdesolveurmanquantoucheckdésactivé. Le timeoutv1resteconservé.
+
+ÉtapesCPU suivantespréenregistrées : construireunmutant de la véritable sourceMSL(supprimeruniquementlapondération,adressesinchangées),figerlibtest/source/SHA;restaurerexactshaderbonpuisbuilds/suites/lintsfinauxetfigerCLI/libtestbons. AucuneactivitéGPUpendantcesbuilds. EnsuitebonnepreuveGPUlittéraleavantmutantattendu101puisqualitéscomplètesbonbinaire. Le mutantdoitéchouerparoraclepondéré(casdistintnonunitweights),pasparcrashoucompilation ; ancienéchecn’effacepasbonneparité. CettepréparationévitecompilerpendantlacampagneGPUetnecréeaucunhookmutationpermanentdansruntime. Pasvitesseavantqualité/capturedispatch/bridgepréenregistrés.
+
+- 45-Q/R processus t05-build-mutant-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-mutant-cpu-plan-result.json.
+
+**T05 mutant figé AVANTGPU etshaderbonrestauré.** Libtestmutantddffe4a3… construit65,86s/joint,sourceMSLseulepondérationomise/adressagesinchangés,identitét05-mutant-identity.json/sourcet05-mutant-omitted-weight.metal. Shaderbonad4e5857… restauréexactementparfinallyetvérifiébytes. PasdeGPUrunnégatifencore. Plan t05-good-cpu-plan.json lancefmt/ClippyCPU+MLX/suitesCPU+MLX/buildCLI/inventairelibtestbons, séquentiels ; nepasutilisertarget/release/deps courantencoremutantpourGPUavantfigementbonbin.
+
+- 45-Q/R processus t05-good-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-build-good-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+- 45-Q/R processus t05-good-libtest-inventory : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-good-cpu-plan-result.json.
+
+**T05 prévol initial interrompu AVANTGPU.** Préparationmicro minavailable8,5Go échoueà8 327 462 912B(−172 537 088B) AVANTécritureancre ; lanceur suivant refuséparancreabsente,logt05-micro-v1-runner.logconservé. AucunPID/testGPU/mesure,liste/identitépréparéesseulement. Ne pasdégraderlesguardesswap/correction.
+
+**Correction prospective d’admission par périmètre, avanttoutGPU T05.** Le seuil8,5Go vientduchargementFlashcomplet(~7Gofootprint), maisles5oracles+mutant nechargentaucuncheckpoint : matricesHot/Cold≤80×2560F16,sorties≤80×2560F32,fixtures/scratchbornés etprocessusindépendants. Pour cesmicros etla capture2graphes SEULEMENT, seuilheadroom2Go (gardeRSS10Gio/footprint12Go/0nouveauSwapout/Swapin256Mio/secteur/quietinchangée). Ce changementneconcerneaucunchrono ni testdumodèlecomplet,qui garde8,5Go. Préparerplanmicrodistinctt05-micro-light-v1-plan.json etidentitéétendue ; anciennesadmissionsetlogsconservés. UserprévenuetinvitéeàlibérerRAMpourphasefullmodel ; progressersanscelapourlesmicrosnondépendants. PremièreancreT05-w1àcréermaintenant(aucuneanciennet05ancreexistante,nouvellecampagneparrapportPOOL04clos).
+
+**Première ancreT05-w1 créée** : disponible8897003520B,Swapouts140864897024B,Swapins53725347840B ; modèlecompletnonlancé.6microprocessusbons/mutantspréenregistrésviaidentity-v1-micro-light, sources/binairesbonsfigés etshaderad4e5857inchangé.
+
+**T05 lanceur refuse métadonnées AVANTtouttestGPU.** Les plans préparés contiennent le texte strict «1 passed;0 failed;0 ignored» mais le wrapper historique exige AUSSI le membre exact«1 passed;0 failed» dansrequired_text. Contrôleinitialéchoueavantcréationrapport/PID ; logt05-micro-light-v1-runner.logconservé, aucuneparité/performanceévaluée. CorrigerlesplansparcopiesnormaliséesenAJOUTANTlepréfixeexigé,toutengardantlesélections --exact/--ignored/1threadetassertioncomplète0ignoré. Aucunassouplissementdelavalidation,aucunefonctiondulanceurmodifiée. MêmeancreT05-w1déjàcrééeetswapcumulatif inchangé, sources/binairesgelésinchangés. Anciennesmatricesconservéesetidentitéétenduepourlescopiesnormalisées.
+
+- 45-Q/R processus t05-positive-literal-v1-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+- 45-Q/R processus t05-negative-omitted-weight-v1-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+- 45-Q/R processus t05-micro-invalid-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+- 45-Q/R processus t05-micro-partitions-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+- 45-Q/R processus t05-micro-shapes-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+- 45-Q/R processus t05-micro-finite-boundaries-light : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-micro-light-v1-plan-result.json.
+
+**T05 premièrequalitéGPU réussie.** 5testspositifs physiquesexactschacun1passé0échec0ignoré :16littéraux/4096partitions/1288formesR1..80etH2560/64frontièresFP16&FP32=**5464casbyteexacts**,39refusavantrequêtekernel(readbacks0/aliasesinchangés). Le6eprocessusmutantddffe… sort101avec«weightedresultdiffersfromCPUorstockMLXoracle»et1testéchouéattendu,pascrash/JIT ; contrôlenégatif crédible,bonneversiontestéeavantetaprèsdansmêmematrice. Tousprocessusjoints/0Swapout,preuves t05-micro-inspection-v1.json +t05-normalizedlogs/result. AucunepreuveGPUformelle ni gain dedébitdéduit. MêmeancreT05-w1, sources/libtestbons9ea659inchangés ; passeraux8testsMoEréelsquiqualifientmixed/allHot/allCold/pending/cohortes/erreuravantmodèlecomplet etcapture.
+
+- 45-Q/R processus t05-ssd-mixed-integration : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-pending-hot : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-early-hot-failure : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-wide-hot : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-unique-cohorts : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-pending-slot-ownership : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-hot-failure : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+- 45-Q/R processus t05-ssd-two-route-controls : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-ssd-quality-plan-result.json.
+
+**T05 qualitéMoE/SSD8sur8physiques réussie.** Sélectionsexactes1passé0échec0ignoré,tousjoints/0SwapoutT05-w1. Nouvelintegrationprouveflag1etrequêtefusionréelleavecHotphysique10/Cold5/order10,5hits5miss,oracleindépendantcomplet/fini ; toutHotetCold sansHotrestentstockcounterinchangé. TestsHotpendingpendantI/O,échecs/récupération,pendingownership,widehotetcohortes6+2/4+4/évictionfuturepassent,ainsiquecontrôles2routes(cachespetits/Hot/Cold/fail). Preuves t05-ssd-quality-inspection.json etlogs/planresult. Passeraux5qualitésmodèle indépendantes(logits/états/composants/paires/MTP/DF36préfixes)avecminavailable8,5Goinchangé etancreT05-w1 ; aucunchrono encore.
+
+- 45-Q/R processus t05-model-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-model-quality-plan-result.json.
+
+- 45-Q/R processus t05-model-components : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-model-quality-plan-result.json.
+
+- 45-Q/R processus t05-model-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-model-quality-plan-result.json.
+
+- 45-Q/R processus t05-model-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-model-quality-plan-result.json.
+
+- 45-Q/R processus t05-model-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-model-quality-plan-result.json.
+
+
+**T05 qualité modèle 5/5 inspectée ; priorité publication demandée.** Les sélections physiques oracle indépendant/logits/états, composants, paires, MTP et DFlash2 (36 préfixes) passent chacune avec 1 passé/0 échec/0 ignoré ; processus joints et zéro nouveau Swapout sur T05-w1. Preuves `docs/measurements/issue59-20261029/t05-model-quality-inspection.json` et plan-result normalisé. Aucun chrono T05 ni capture de dispatch encore lancé. À la demande explicite de l’utilisateur, pause des lancements GPU le temps de publier une issue de synthèse exhaustive du profilage antérieur ; deux sous-agents recoupent les rapports existants en lecture seule. Aucun nouvel essai de profilage, compilation ou modèle lancé pour cette publication. Sources/binaires/identité T05 restent figés, ancre cumulée conservée ; reprise prévue capture/bridge/vitesse après publication.
+
+
+**Publication du profilage demandée — terminée.** Issue https://github.com/0xZKnw/mlxl3/issues/60 créée puis relue via API : corps identique au brouillon, 30177 caractères, SHA256 f507ef9b40fc4b6a9249d5641073ee109b360304c69a768b813d965e8e83c077. Publication issue seule, aucune nouvelle mesure pour la rédaction, aucun push/artifact brut/app/release. Neuf datasets, CLI AR/MTP/DF, attribution CPU/GPU12ms vs22ms, calibration, lectures logiques vs physique non mesuré, plafonds et essais négatifs ultérieurs couverts. Relecture de trois sous-agents, corrections acceptation MTP stable et portée logits/états finaux incluses. Preuve docs/measurements/profile-publication-20261029/publication.json. T05 reste en cours, qualité passée, capture/bridge/vitesse encore non exécutées ; reprise des plans figés avec ancre T05-w1 conservée.
+
+- 45-Q/R processus t05-dispatch-capture : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-capture-plan-result.json.
+
+
+**T05 captures Metal acquises, comptage encore en cours.** Test physique exact1passé0échec0ignoré/25 600valeurs F32 soit102 400octets byteexacts, sorties finies, captures legacy/fused nonvides,0SwapoutT05-w1,tousjoints0,723s. Libtest9ea659inchangé. Preuve t05-capture-inspection.json, captures prepared-t05-gpu/t05-capture/*.gputrace. Xcode ouvert uniquement pour lire/rejouer ces petites captures synthétiques (aucun checkpoint, pas de compilation projet, admission légère2Go et mêmes gardes cumulatives). Le replay de ces commandes sert au diagnostic de dispatch, jamais au débit release. Les shaders peuvent être recompilés par le débogueur pendant ce diagnostic ; aucun test modèle/chrono concurrent. Ne pas compter les requêtes lazy comme dispatchs.
+
+
+**T05 capture v1 : capteur non qualifié, défaut concret audité.** Xcode inspecte legacy ET fused : chacun1commandbuffer/0computeencoder/0dispatch dans la capture, seules création/commit/wait et quelquesressources sont visibles. Ce n’est PAS zéro travail réel : Apple ne capture que les commandbuffers créés APRÈS start, alors que MLXv0.32.2 commit() crée immédiatement le buffer suivant et synchronize AVANT start le laisse préexistant. Sources primaires Apple + device.cpp blob2f25f894… / metal.cpp e95b6f0… recoupées par sous-agent. Inspection t05-capture-v1-xcode-inspection.json ; captures conservées, aucun résultat de dispatch ni vitesse validé. Replays stoppés, secteur et Swapouts8597711pages inchangé ; pas de modèle/chrono pendantXcode.
+
+**T05-CAPTURE-02 préenregistrement avant correction TEST seulement.** Ajouter synchronize immédiatement APRÈS chacun des deux MetalCapture::start pour commettre le buffer préexistant et créer pendantcapture celui du graphe, puis construire/eval/finish identiques. Mathématiques/kernel/runtime/CLI inchangés ; conserver parité complète25600valeurs et présence kernels REELLEMENT visibles dans Xcode, pas seulement fichier nonvide. Archiver capture_tests.rs v1, fmt/ClippyMLX/buildlibtest séquentiels sansGPU ; vérifier CLI et sourcesproduction byteidentiques. Nouvelles identité/plan/répertoire capturesv2 uniquement ; réexécuter seulement capture affectée sur mêmeancreT05-w1 gardesswap/RAM2Go/quiet/secteur. Les autres18qualitésGPU restent acquises surproductionidentique, nepaslesrépéter. Aucunbenchmark release avantcapteurqualifié ourévisionexplicite. TentativeKaniMLX précédente ICEavantobligations reste applicableàcetteAPI ; nouveaux appels de synchronisationMLX/Metal nonprouvésformellement.
+
+- 45-Q/R processus t05-capture-v2-good-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-cpu-plan-result.json.
+
+- 45-Q/R processus t05-capture-v2-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-cpu-plan-result.json.
+
+- 45-Q/R processus t05-capture-v2-build-good-cli : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-cpu-plan-result.json.
+
+- 45-Q/R processus t05-capture-v2-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-cpu-plan-result.json.
+
+- 45-Q/R processus t05-capture-v2-good-libtest-inventory : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-cpu-plan-result.json.
+
+
+**T05-CAPTURE-02 CPU passé et identité v2 figée.** fmt/Clippy strict MLX/buildCLI/suiteMLX290passés0échec177ignorés agrégés sur4cibles+doctests/inventaire passent,tousjoints. Extractioninitiale cherchaitàtort290suruneseuleligne,refusavantidentité ; lanceurGPUsuivantrefuséavantPIDparidentitéabsente, logconservé. AucunGPUv2lancéparcesrefus, compteursagrégésinspectés. Une seule source différente de113sourcesfigées : testcapture(+2syncaprèsstart/+commentaire), archivev1conservée. CLIreconstruit byteidentique2fb12d79… ; shaderetproductioninchangés. Nouveau libtestcapturev2 96a0cdfc5839075d5757b8dab78da2987b2b6d04d6a580512ecdb940113dd6bc sousbuild/issue59-20261029/t05-capture-v2/libtest, identitét05-identity-v2-capture.json. Capturesv1restentnonqualifiéespourdispatchs ; capturev2seuleàrelancer,pasles18qualitésdeproductioninchangées. Aucunecompilation/proveurencoreen coursavantGPU,mêmeancreT05-w1.
+
+- 45-Q/R processus t05-dispatch-capture-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-capture-v2-plan-result.json.
+
+
+**T05-CAPTURE-02 validé comme diagnostic de dispatch, pas vitesse.** Nouveau test exact1passé0échec0ignoré/sorties25600F32=102400octets completsfinisbyteexacts,0SwapoutT05-w1,tousjoints. Xcodev2montre legacy5dispatchsréels(2copiesF16/gather/castF16→F32/multiply) contre fused1(custom_kernel_mlxl3_flash_weighted_epilogue_v1…float_float), commandes9/15/23/29/37 vs13 ; chaquegraphe2commandbuffers/1computeencoder/0blit. Défectuositécapteurv1confirméeetcorrigée,testuniquement ; v1conservée. FormeR10/H2560/Hotphys10/Cold5/TxTwF32 ; pasd’extrapolationcomptageau modèlecomplet, pasdeTPS/GPUidlemesuréici. ConseilsXcodecréationtardivedefence/bufferconsignés,paschronoreplay. Preuve t05-capture-v2-xcode-inspection.json. Replaysarrêtés/Xcodequitté vérifiéavantvitesse, sourcesruntimeetCLI2fb12inchangés. AuditindépendantT05aucunnouveaudéfautconcret : conversions/promotion/mappingHotphysique,contiguïté,fallbacks,ownership/sync/formes/Turbofin7sommestockrelus ; coûtsfactory/générationsourceMLX/bindings/mallocencorepayés. Passerbridge17réel4processus puisreleaseACCA128préenregistré, mêmesidentitév2/ancrew1/gardes.
+
+- 45-Q/R processus t05-17-MAIN-1-A : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-plan-result.json.
+
+
+**T05 bridge17 admission interrompue avant PID.** PremierA MAINrefusépargardeheadroom : libre+fichiers=7702003712B,seuil8500000000B,manque797996288B. Aucuncheckpointchargé/aucunemesurebridgevitesse, processusabsentdoncjoint ; sourcesetCLIinchangés. Plan-result/log initialconservé,tousles3autresbridge et8chronosnonexécutés. L’ancreT05-w1restevalablezéroSwapout,noreset. DemanderlibérationRAMpourchargementcomplet ; capturelégèrev2qualifiée5→1dispatchresteacquise. StatutT05en cours,bloquépourmesuremodèleparadmissionRAM,paspourqualiténumérique.
+
+
+**T05 bridge17 reprise r2 préenregistrée après réponse RAM.** Disponibilité8865038336B>=8500000000B,Swapouts140864897024B inchangéT05-w1,secteur. Première admission échouéeavantPIDconservée ; mêmes4configurationsA/C MAIN/HOLD17(1chauffe+1mesure), mêmesCLI/fusion/ancre/options, seulesnomslogs/plan-r2changés. Identitéétenduet05-identity-v3-bridge-r2.json, plan t05-normalized/t05-bridge17-r2-plan.json ; vitesse128resteaprèspassagebridge.
+
+- 45-Q/R processus t05-17-MAIN-1-A-r2-headroom : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan-result.json.
+
+- 45-Q/R processus t05-17-MAIN-2-C-r2-headroom : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan-result.json.
+
+- 45-Q/R processus t05-17-HOLD-1-A-r2-headroom : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan-result.json.
+
+- 45-Q/R processus t05-17-HOLD-2-C-r2-headroom : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-bridge17-r2-plan-result.json.
+
+
+**T05 bridge réel17 r2 terminé4/4.** A/C MAIN/HOLD chacun1chauffe+1mesure17, reportsvalidated,reaped/reader_joinedtrue,SHA CLIa60/2fb12corrects, textes/hashpréfixegolden/comptes17/16 etfootprints<12Go. Superviseur4completed_expected_outcome/joints/0SwapoutcumulatifT05-w1. Durées24,27/25,89/22,11/21,52s ; pasdesgainsdédecode17. Admissionr1sansPIDresteconservée. Passeraucomparatifrelease128ACCA×2promptspréenregistré8processus/24mesures+8chauffes,goldenscomplets/3Gio,mêmesoptions/identitév3ancreT05-w1,aucuncompiler/proveur/Xcodeouautreinférence. Résultatsdemicros5→1nepréjugentpasdesTPS.
+
+- 45-Q/R processus t05-128-MAIN-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-MAIN-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-MAIN-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-MAIN-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-HOLD-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-HOLD-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-HOLD-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+- 45-Q/R processus t05-128-HOLD-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-20261029/t05-normalized/t05-speed128-plan-result.json.
+
+
+**ISSUE59-T05-WEIGHTED-01 — phase close, gain global NON CONCLUANT ; prototype local conservé OFF.** ComparatifAR128terminé8/8processusjoints,24mesures+8chauffes,ordreACCA×MAIN/HOLD,chaqueréponsegolden128complet/127transitions/modeAR/binairesA a60etC2fb12/optionsvérifiés,0nouveauSwapoutcumulatifT05-w1/Swapin48218112B/picnatif7155652608B. Inspection indépendante `t05-speed128-inspection.json` contrôle123sources/6binaires etbruts. Débitagrégé tokens/somme durées MAIN10,144611→10,351204tok/s(+2,03648%),préfill9,955162→10,109127tok/s(+1,54658%),TTFT8,739832→8,606639s(−1,52397%). HOLD10,064316→9,991023tok/s(−0,72825%),préfill10,050932→9,702572tok/s(−3,46595%),TTFT8,158987→8,451867s(+3,58967%). RéférencesMAIN−0,716%/HOLD+2,241% entreprocessus ; CMAIN10,51336puis10,19398,C HOLD10,00945puis9,97267. Variance acceptée par utilisateur consignée ; elle n’est pas à elle seule motif de retrait. Signal MAIN positif, préfill/HOLD hétérogènes : aucuneactivationpardéfautni promesse15tok/s.
+
+**Audit final de l’adaptation avant décision.** Chemin réellementexercé confirmépar18testsqualitéphysiques+bridge4/4/capture5→1dispatchs : Hotphysique/Cold F16,R1..80,H2560,Tx/TwF16F32,promotion/casts,mappingoccurrencesduplicats,early/pendingHot/échecs/cohortes/fallbacks,contiguïté etownershipconformes. Aucunecopie/sync/readbackajoutéeenproduction ; factories/sourceMLX/bindings/allocation/validationhôteencorepayés. Capturev1avaitunvraidéfautdecapteur, corrigé(+2syncTESTseulement),capteurv2prouve5dispatchsréels→1surlaformeannoncée,paritécomplète25600F32/102400B. Aucun autre défaut concret identifié après revue indépendante et relecture des résultats ; causalité exclusive CPU/GPU du delta release non mesurée. Contrôle chrono Cflag0 contre Cflag1 (mêmebinaire) reste NONMESURÉ : A/C compareanciennebaselineetnouveauCLI ; nepasprétendreavoirisolétoutlecoûtcodegen/structduflag.
+
+Décision : **qualification numérique et capture validées**, **gain global non concluant**, **code local expérimental conservé avec MLXL3_SSD_WEIGHTED_EPILOGUE=0 par défaut**, sansretraitautomatique,sanspromotiondansapp/PR/release. LesperformancesMTP/DFlash2 restentnonexécutées ; leursqualitésnumériques36préfixes/oraclespassentmaisneprouventpasundébit. Aucunessaiencoreactif/PIDGPUàclôture ; ancres/refusadmission/capturesvides/timeouts/ICE/mutantattendu101conservés. CPU254passés8ignorés,MLX290passés177ignorés(fmt/Clippy/buildpassés,dernièreversiontestcapturev2),18qualitésphysiques5464cas+39refus+mutantnégatif,capturev2etbridge4/4. KaniCPUadresses169obligations6covers/unwind3 et80rangs172obligations4covers/unwind82 passent ; vraiMLXICE/MSLCBMCunsupported,tests/preuvesbornéesneprouventpasGPU/concurrence. CI locale contrôlée, pas de run distant d’arbre local non poussé. Rapport `docs/measurements/issue59-20261029/T05-results.md`. Issue de profilage demandée https://github.com/0xZKnw/mlxl3/issues/60 publiée/relue, distincte de ce candidat.
+
+
+### ISSUE59-READ-02 — revue de la mise à jour demandée (préenregistrement, 29 octobre 2026)
+
+État en cours, lecture seule. Nouvelle condition explicite : utilisateur signale avoir modifié l’issue59 après notre revue initiale et le comparatifT05 clos. Baseline documentaire `docs/measurements/issue59-20261029/issue59.json` (miseàjour17:57:09Z), résultatsT05/rapport et sourceslocales conservés. Protocole : fetchcorps+commentaires viaAPI, archiveruneversiondistincteetdiff exact, distinguerajouts/correctionsréelsdespistesdéjàessayées ; comparercoût/API/contratdesnouvellesprioritésauprofilageissue60etcodeactuel. Sous-agents lecture seule surpistesindépendantes. Aucunprototype/compile/proveur/GPU/bench/push/commentaireGitHubautoriséparcetterevuedocumentaire. Résultatàconsigneravechorodatage/hashdusnapshotetlimites.
+
+
+**ISSUE59-READ-02 — terminé, revue documentaire seule.** Nouvelle issueupdated21:43:44Z (22:43Paris), 50807caractères, SHA2568cb16d55ad092ddc2c78c1ff8a60ca2349c786bbce9f7cc144e95521e776f1f8,0commentaire ; ancienneversion17:57préservée, snapshot/diff/revue sousdocs/measurements/issue59-20261029/update-v2/. TroisrevuesindépendantesrecoupentT17,T04/T01,T18aveclocalethistorique. Ordre retenu pourunfuturessai : T17minimal(norme/récurrence/H128stock)→T04frontièreSwiGLU-down→T01filtreborné, T18adistinctavantColdprogressifconditionnel. T17normedF32confirmé : castF32gratuit,4primitivesrestantespotentiellespascomptagedispatch ; sigmoidsymétriqueMLXexp(abs(z))àpréserver,amontTurbo7500027APIdécode<=16refusée,norme/tableactivationdtypeincompatibleFP32local. HENK09avaitdéjàtableVALEURSF32indexéeF16pourSiLU,différencesigmoidseul/normestockFlash,donnouveautépascelledudtypeLUT. T04SwiGLUdéjàcompilé, flagsSSDslot_major/masques/groupesàpréserver ; T01neporteaucunplafond12ms. T18astaticworkerloopréel,filedynamiquenonessayéepar14/14B ; T18bestnouvellepublication/leases,surchargeencodageàqualifier. ChiffresT18rapprochésdel’issuemaisNONrecalculésindépendammentici ; GPUactifinclutstalls,pasGPUutilearithmétiqueexclusif. Aucunprototype/GPU/CPUtest/build/proveur/mesure/postGitHub, 123sourcesT05figéesinchangées. GainsnouveauxNONMESURÉS ; recherche terminée,pasd’essaicachéen cours.
+
+
+### ISSUE59-T17-GATE-01 — épilogue GDN exact minimal B1 et vrai B2 (préenregistrement 29 octobre 2026)
+
+**En cours, avant toute modification/prototype/mesure.** Autorisation utilisateur explicite «fais déjà leT17». Périmètre : qwen4 Gdn::forward/forward_rows, conserver norm.forward parligne, zprojectioncastF16, récurrence/états/tape/conv/HC/PLE, projectionout/H128 et ses splits. NormedestdéjàF32, soncastF32no-opn’estpasun dispatchéconomisé. Remplacer uniquement zF16→F32/sigmoidF32/produitF32/castF16 parun kernelconsommateur, sortie[rows,6144]F16, normedF32parlignepassédirectementsansconcatF32ajoutée. ROWS1..8 (B1/B2/B4/B8 tests, B2naturelMTP/DF),48heads×128. Flag expérimentaldéfaut0 MLXL3_FLASH_GDN_EPILOGUE, T05explicitement0,pascombinaisond’optimisations. Branchestockconservéeexactement,mêmebinaireflag0/1pourcomparaisonprincipale afin d’éviterconfusioncodegenbaseline/candidatobservéeT05 ; ancienCLI2fb12d79…contrôlequalitéindépendant. État/sourcesavant sousdocs/measurements/issue59-t17-20261029/before.json etarchives.
+
+**Différence historique/source :** HENK0O-QWEN27-09 fusionnaitnorme+SiLU avectableF32indexéeF16,microgainfaibleetmodèlenonqualifié ; Flash25/Rapidvisaienpréparation/récurrence. Ici sigmoidSEUL,z*sigmoid(z)interdit, normef32nativeinchangée, Flash48heads etvraiblocB2. Turbo7500027gdnOutPrep refusepubliquement<=16rows etnorme/tableF16/BF16 : inspirationfrontière,pasportverbatim. PremièrearithmétiqueàessayercelleMLXv0.32.2 : y=1/(1+exp(abs(zF32))), sigmoid=z<0?y:1-y, puisproduitF32etcastF16. Ne pasprendreuneformulemathéquivalentecommecontratbits. Siécartconcret, consigner/auditeroptions/JIT/intermédiairesavantrejet ; varianteLUTsigmoidF32nepourraitêtreadmisequ’aprèspréenregistrementséparéetbudget/lifetimeexplicites.
+
+**Correctionavantvitesse :** guardsCPUshape/dtype/rank/rows/comptebornes,productionfn géométrieavecKani symbolique réel/cover/unwinds,pasassumeinjustifié ; tentativeMSLsourceCBMCdiagnosticunsupportedconservésioutilneparsepasMetal. OraclesGPUstockMLXindépendantsnonvides/finis/bitexacts surl’entréeout, gatesF16exhaustivesfinies63488patrons(signés±0/subnorm/min/max/ties/±infseloncontrat),normedF32variésdontfrontièresproduitsF16etpoison/strides/sourceimmutabilité, formesB1/B2/B4/B8 etrefusavantrequête. Literauxindépendants àz=0 etvaleursgatesexactes ; mutationMÉTALomettrelefacteurporte doitêtredétectée,puisrestaureretsélectionsaffectéesseulement. TestsintégrationGDNconfirmentflag/helpersatteints,états/logitsindépendants5positions248320,composants/paires/MTP/DFlash36préfixes/rollback/continuations. Bridge/CLIréel17MAIN/HOLDsurbranchesstock/fusionavecgoldenexternetexte/hash/counts,footprint/lecteursjoints.
+
+**Compteravantchronométrer :** capturessynthétiques B1/B2 stock/fusion viaMetalCaptureAPIdéjàqualifiée,start→synchronize(pournouveaubuffer)→graphe/eval→finish,paritéhorscapture. VérifierXcodecommandes/pipelinescomputeetblits, pasnombrelazy. <1Gio totalnouveauxgputrace,8.5Goheadroommodèle/2Go seulementoraclescourts,cumulSwapout0/Swapin<=256Mio/RSS10Gio/footprint12Go,secteur/quiet/1modèleGPU,aucunecompilation/preuveconcurrente. AncreT17nouvelleaprèsCPUcarT05clos ; documenteradmissionavantGPU. Fmts/ClippyCPU+MLXalltargets/builds/suitesréelles etCI PR/main inspectéesavantgelbinaires/sources ; Kani/CBMC/CPUdéroulésséquentiels.
+
+**Vitesse réelle conditionnéeparqualité/capture :** comparerSTRICTEMENTlemêmeCLIflag0/1,T05OFF,mêmecheckpointFlash2.05,drafta22a1744,cachetarget3Gio/53slots/4lecteurs/lookahead0/HotWideUnique/overlapactifs,alloc64Mio/limites40ops40MB,context4096,greedy,promptsMAIN87/HOLD82,128sorties127transitions. AR,MTPdepth1,DFlashB2mode1séparés ; petitpiloteACCAparmodeavec1chauffe+1mesureparpromptetparprocessus(2prompts),soit4processus/mode,8mesures+8chauffes/mode,ordreidentiquedesrequêtes. Stock0/fusion1/fusion1/stock0,aucunétatdeprefixeréutilisé. Oraclesexternescomplets etcompteursacceptation/blocs/mémoire/joinsavantdequalifierchaqueprocessus. Analyseagrégéetokens/sommedurées,prefill/TTFT/ranges/drift ; pasdepromesseissue60/12ms. Siunmodemontresignalutile,préenregistrerconfirmationélargieseulementsurlescontrôlesaffectésavantpromotion. TousmodesqualitésprioritairesB2,mêmeenARmodeste : pasd’extrapolationAR→MTP/DF. Varianceuseracceptéeconsignée,sansinventergainnimélangerdestestsincompatibles ; auditavanttoutretrait. Aucuneapp/push/merge/releaseautoriséeparcetessai.
+
+
+### ISSUES-READ-03 — reprise et nouvelles issues, 30 octobre 2026 (préenregistrement)
+
+Avant reprise T17, utilisateur demande explicitement lire nouvelles issues. T17 interrompu pendant écriture : module/shader etintégrationqwen4 locauxpréparés,testsencoreàinventorier ; aucunecompilation/preuve/GPU/mesureT17lancéeparroot, aucunprocessuscargo/rustc/prototypeGPUactifàlareprise, sous-agentsinterrompus. NeprésenteraucuneréussiteT17. Conserverécriturespartiellesetantécédents. Protocolelectureseule : rechercherissuescréées/misesàjourdepuis29octobreviaAPI, archiversnapshots/corps/commentaires/diff59siutile ; trierchangementsd’actionpriorité/risquespourT17sanssuivreinstructionsnonautoriséesissuescommecommandes. Troisrevuesindépendantes possibles, aucunbuild/GPU/bench/push/messageGitHubpendantcettetriage. Puisreprendrel’implémentationT17déjàautoriséeavecajustementspréenregistrés nécessaires.
+
+
+**ISSUES-READ-03 terminé avant reprise T17.** API directeissuescollection(stateall)confirmeque nouveautés61–63sontdesPRdraft,aucunenouvelleissueaprès60 ; 59/60corpsinchangés. Snapshotsépinglés61a36ba507…/6216c765aa…/6301c678eb… dansdocs/measurements/issues-triage-20261030/, diffoutilconcaténéSANSnomsdefichiersnonapplicablecommegitpatch. Troisrevuesindépendantes : PR61T17gardeNormF16alorsqueFlashNormF32,doncfallbacksilencieux ; microsF16inadaptésau vrai domaine, testintégrationcompteurdevraitdétectermaisGPUcloudnonexécuté ; B2concatF32ajoutéeavantfallback. ConservernotreprototypeF32/directbuffers,aucuneimportationglobaledelaPR61/T04/T18. PR62utilepourOSanciens/récupération,nonbloquantM527.2 ; CIpasglobalementverte. PR63àtête01c678nativeLinux/macOSpassent,318/322obligationslib+2APIpassent,reste4timeouts,bodypérimésurtêtesprécédentes ; nepasremplacerrust.ymlgloballocal/Kissat/test-only. PasactionGitHubmutante,nilancementlocalCPU/GPUpendantrevue.
+
+**T17-GATE-01 amendement prospectif de procédure, 30 octobre, AVANTtouttest.** Adopterl’explorationcourtePR61sansaffaiblirAGENTS : construireseulementlibtestAppleaprèsfmt/checksCPUciblés,puispremiersmokefonctionnelB1/B2NormF32/z0etcasnontriviaux/compteurseffectifs+oraclestockcomplet. Stopaupremierécart,auditavantnouvelessai. Si ce filtrepasse,exhaustifgates63488/strides/refus/aliases/B4B8puisGDNréel/états/logits/tapes/rollback/MTP/DF/bridge17. TentativesKani/CBMCcibléesexécutéesséparémentdesGPU ; suitescomplètesetlint/buildvariantelivréeavantqualificationfinale/promotion, pas répétitionautomatiquedetouteslessuitesavantchaqueédition. Capture/APIparitéavantchrono,guardesRAM/0Swapout/3GiB/secteur/quietinchangées. Aucunremplacementrétroactifbridge17/pilote128par16tokens ; protocolepiloteflag0/1mêmeCLIetmêmesbudgetsrestepréenregistré. T05/T04/T18OFF. Aucunbuild/GPUencoreT17. Un défaut du NOUVEAUtestlocal reluavantpremierlancement : forward_rowsretourneN snapshots,tandisqueassertionnouvelleattendaitN−1 ; corrigerl’attendedutest au contratproducteur, couvrirlesNpréfixesycomprisétatfinal. Productiontapeinchangée,pasuneerreurdukernel.
+
+
+**Rectification pré-GPU du diagnostic test snapshots (30 octobre).** Relecture contradictoire des lignes346–354 : forward_rowsalloueN−1histories etnenregistrequeleretainedprefix<rows ; le retourcomporteN−1tapes, étatcompletNreste dansself.state/history. Mon amendementprécédentavaitinféréNdepuislamapfinalesansrelirelafiltrationinitiale : constatERRONÉ, aucuneédition dutest/productionn’aétésuite. Attenteoriginalerows−1correcte, tousN−1préfixes+toutétatfinalN déjàcomparés. Conservercerejetdudiagnostic, nepaschangerleproducteurpourfairepasseruneattenteincorrecte. T17toujoursnonexécuté.
+
+- 45-Q/R processus t17-check-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/initial-cpu-plan-result.json.
+
+- 45-Q/R processus t17-geometry-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/initial-cpu-plan-result.json.
+
+
+**T17 premierscontrôlesCPUterminés.** checkCPUalltargets2,982s et2testsgeometrypassés20,413ssuperviseur(tousjoints),preuvesinitial-cpu-plan-result.json. Testsmicro/capturesmaintenantécritsmaisNONEXÉCUTÉS : smoke4cas/36864valeursB1B2NormF32 ; exhaustif63488gates×16normsF32×4rowcounts=4063232paires(352cas/5013504valeursavecpadding),64layouts/aliases,8inf/nonfinis séparés et42refusavantrequête. Les sortiesfiniesexigentbyteégalité,nonfinisclassesNaNselonstockhorscontratfini. TentativeCBMC6.11surVRAIfichierMSLexit1avantobligations,Failedtofigureouttypeoffile : NONVÉRIFIÉ, cbmc-metal-result.json/logconservés ; pastraductionsourcefactice. T17smokeAppleàconstruiremaintenant, pasdeGpuencore.
+
+- 45-Q/R processus t17-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/smoke-build-plan-result.json.
+
+- 45-Q/R processus t17-fmt-check : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/smoke-build-plan-result.json.
+
+- 45-Q/R processus t17-check-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/smoke-build-plan-result.json.
+
+- 45-Q/R processus t17-build-smoke-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/smoke-build-plan-result.json.
+
+
+**T17 buildsmokeApplepasséetgelinitial.** fmt0,429s/fmtcheck0,431s/checkMLXalltargets8,088s/buildlibtestrelease69,344spassent,joints. Sourcesavantdiffbornéàlib.rs/qwen4.rs/rust.yml+4nouveauxfichiersmodule/shader/tests/capture ; autresmodificationsantérieurespréservées. Libtestimmuable 081d1c847136947fd15c0c4df94e318752608d8fcf51d86f56733cd6dbebee75 ; 139sources/options/premierplan soussmoke-identity.json. Préparationd’ancreinitialerefuséeparKeyErrorparse_vm(absentdumoniteur),avantGPU/PID/ancre ; parseurretrouvédanssonmodulebenchmark_flash_memory.py,aucunvalidateurmodifié. AucunCLI T17construitencore, nepasutiliserancien2fbpourmesurerceflag. NouvelleancreT17-w1crééeaprèsCPU,disponible8928051200B,Swapouts140864897024B,Swapins53794603008B,secteur. Premier4casB1/B2NormF32/36864valeursnonvidesetseulesélectionexacte1test/0ignoré,aucuncheckpoint,pasdevitesse. Compilation/proofsinactifsavantGPU.
+
+- 45-Q/R processus t17-first-smoke : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/smoke-gpu-plan-result.json.
+
+
+**T17 premierSMOKEGPUréussi.** Sélectionexacte1passé0échec0ignoré,4casB1/B2NormF32nonreprésentableF16etgateF16,36864valeursF16complètesfinies byteexactes stocketoracleCPUindépendant z±0→0,5 ; compteurrequête1etlast_rowsvérifiés,inputsimmuables.0SwapoutcumulatifT17-w1,tousjoints. smoke-inspection.json/logsmoke-gpuplan ; aucunevitessemodèle/GPUidle/dispatchdéduite. Poursuivrepetitematrice exhaustive/rangs/strides/refusnonfinis AVANTfullmodel, production/binaire081d…figés.
+
+- 45-Q/R processus t17-micro-invalid : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/micro-gpu-plan-result.json.
+
+- 45-Q/R processus t17-micro-exhaustive : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t17-20261029/micro-gpu-plan-result.json.
+
+
+**T17 matrice micro interrompue sur divergence numérique.** Les42refusmétaPASSENT(1testexact0ignoré,0requête/0readback/immutabilité), puisexhaustifgatesfinitestockéchoueexit101avec«GDNepiloguediffersfromstockMLXoracle»,avantmessagefinal ; nombredecasavanceréussisnonmesuré,352nonrevendiqués. Tousprocessusjoints,0Swapoutobservé ; ni strides/aliasesni nonfinisni modèle/captures/vitesse lancés. smoke4cas restevalide maisneprouvepasexhaustif. Logs t17-micro-exhaustive.log et micro-gpu-plan-result.json conserventéchec. Auditobligatoireavantdécision : isolerpremierindex/normF32/gateF16/bitsproduitactuelvsréférence; vérifiertranscendantaleJIT/metallib et arrondisintermédiaires/FTZ,passourcegénéraliséejugéeinefficacesurcetteadaptation.
+
+**T17-DIAG-01 — préenregistrement du diagnostic, 30 octobre, avant édition.** Changement TEST seulement : conserver l'exhaustif et ses oracles, enrichir le premier écart avec rows/phase/batch/index, norm F32 bits, z F16 bits, sortie actuelle/stock F16 bits et sigmoid stock F32. Archiver le test original et le libtest 081d1c… ; production/shader/API inchangés. Construire un nouveau libtest puis relancer seulement l'exhaustif sous supervision (échec 101 attendu pour reproduire le défaut), mêmes ancre T17-w1/gardes légères 2 Go/aucun modèle, compilation et GPU séquentiels. Ne qualifier aucun gain ni parité après cet échec attendu. Audit source indépendant JIT/options/rounding en parallèle, sans build/GPU. Une variante corrective devra être préenregistrée après examen du contre-exemple ; la LUT n'est pas encore décidée.
+
+**T17 Kani géométrie première tentative : non vérifiée, unwind insuffisant.** Le harnais réel échoue sur l'assertion d'unwinding de memcmp (builtin), pas sur une propriété fonctionnelle : 1/149 échouée,148 indéterminées ;4/9 covers satisfaits,5indéterminés. Les slices de quatre i32 sont comparées sur16octets ; unwind7 confondait bornes d'éléments et boucle octets du builtin. Conserver log/plan geometry-kani-*, aucune assertion désactivée. Révision préenregistrée : augmenter uniquement le harnais à unwind17 pour ces16octets, domaine symbolique/préconditions/production inchangés, relancer seulement ce harnais sous180s avantGPU. Cette borne ne vaut pas preuve Metal/MLX.
+
+- 45-Q/R processus t17-geometry-kani : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t17-20261029/geometry-kani-plan-result.json.
+
+- 45-Q/R processus t17-geometry-kani-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/geometry-kani-r2-plan-result.json.
+
+**T17 Kani géométrie r2 PASSÉ, portée CPU bornée.** Harnais de la vraie fonction geometry, entrées symboliques rows usize/dimensions i32, rangs0..5, indexu32 ;148 obligations réussies,9/9 covers satisfaits,unwind17 avec assertions maintenues. Tousprocessusjoints ; production/domaine inchangés, premier unwind7 insuffisant conservé. Preuves geometry-kani-r2-plan-result.json et t17-geometry-kani-r2.log. Extraction initiale du résumé cherchait une clé processes inexistante ; aucun test ni résultat modifié. Ne prouve ni arithmétique GPU, ni MLX/Metal/concurrence.
+
+- 45-Q/R processus t17-diag-01-fmt-check : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-01-build-plan-result.json.
+
+- 45-Q/R processus t17-diag-01-build-smoke-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-01-build-plan-result.json.
+
+**T17-DIAG-01 build terminé.** fmtcheck et nouveau libtest passent/joints ; shader et production inchangés (module seule borne Kani17). Nouveau libtest b29522a1fcd6d11e540de8f162ca3b6edb66291b08dc3bf9510ed89ef9ca987a, identité diag-01-identity.json ; reproduction exhaustive seule, exit101 attendu avec premier contre-exemple obligatoire, pas un succès numérique.
+
+- 45-Q/R processus t17-diag-01-reproduce-exhaustive : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-01-gpu-plan-result.json.
+
+**T17-DIAG-01 terminé : défaut reproduit, pas candidat validé.** Exit101 attendu/joint/0Swapout ; première différence B1 phase2 batch8 index1244 : norme F32 bits3f801001 (1,0004884), zF16c8dc (−9,71875), sortieactuelle03f1 vsstock03f2 (sous-normales F16 voisines). SigmoidstockF32 387c4076 (6,0141516e−5). Les normes/gates ne sont ni vides ni horsdomaine. Auditformes/adresses/ownership sansdéfautconcret ; formule Sigmoid identique etstock/customtousdeuxsansfastmath selon sources, donc pasattribueraveuglémentàFastvsSafe. Contre-exemple/log/inspection diag-01-* conservés. Need isoler sigmoid JIT vsproduit/castavantcorrectif.
+
+**T17-DIAG-02 — préenregistrement avant code/mesure.** Diagnostic synthétique sans checkpoint, une sélection ignorée exacte. Rejouer les bits du contre-exemple sur6144valeurs, vérifier stock03f2 et applyoriginal03f1 ; kernel TEST dérivé du shader réel avec trois sorties (probabilitéF32, produitF32, résultatF16) pour distinguer les frontières. Comparer quatre variantes test-only : texte original, exp explicitement precise, suppression des volatile, puis precise sans volatile. Contrôle séparé produit/cast avec probabilitéF32 calculée par stock MLX passée en entrée ; dimensions/finitude/taille/bits inspectés, résultats de chaque variante consignés sans assimiler diagnostic réussi à parité du candidat. Production/shader/CLI inchangés, aucun choixLUT encore. Construire nouveau libtest séquentiellement puis uniqueGPUléger sousancreT17-w1/gardes2Go/0Swapout ; sources/binaires/plansdistincts, ancienséchecspréservés. Uncorrectif devra passer l'exhaustif original avant tout chrono.
+
+- 45-Q/R processus t17-actual-mlx-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/actual-mlx-kani-plan-result.json.
+
+**T17 tentative Kani vrai chemin MLX : NON VÉRIFIÉ.** cargo kani --lib --tests --features mlx,chat --harness actual_gdn_epilogue_smoke_entry échoue exit1 en5,411s sur ICE intrinsics.rs:243 avant obligations, comme T05. Échec attendu et processus joint/0Swapout conservés dans actual-mlx-kani-* ; le statut superviseur completed_expected_outcome signifie diagnostic retrouvé, PAS preuve réussie. Aucun stub ni hypothèse pour masquer la FFI ; validation GPU numérique reste indispensable.
+
+- 45-Q/R processus t17-diag-02-fmt-check : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-02-build-plan-result.json.
+
+- 45-Q/R processus t17-diag-02-build-smoke-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-02-build-plan-result.json.
+
+**T17-DIAG-02 build passé.** fmtcheck0,453s/buildlibtest68,758s/joints ; libtest 59cdf76957669fd529f9a02c8ba990fce1ff8044277ca72c207d567b3d5590c1, identité diag-02-identity.json. Shader etruntime inchangés ; diagnostic seul5variantes/6144valeurs, statut nonassimilableàparitécandidat.
+
+- 45-Q/R processus t17-diag-02-boundaries : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/diag-02-gpu-plan-result.json.
+
+**T17-DIAG-02 terminé, défaut concret attribué sur le contre-exemple.** Testexact1passé0échec0ignoré,5variantes×6144valeurs×3sorties,0Swapout/joint. Original pF32=387c4074 vsstock387c4076 (2ULP), produit387c5ffe vs387c6000, F16 03f1 vs03f2. `precise_exp` rejointstock surTOUSleséléments p/produit/sortie ; enlevervolatile seulnecorrigerien ; precise_sansvolatileetstock_probability_input rejoignentstockaussi. Produit/cast recevant pstock ne divergepasdanscecas. Capteur3sorties reproduit applyoriginal. Source de différence localisée au chemin exp pourcecas, paspreuveuniverselle ni vitesse. Logs t17-diag-02-boundaries.log/planresult/libtest59cdf… conservés.
+
+**T17-FIX-01 — préenregistrement avant correctif.** Correction minimale du shader réel : `metal::exp`→`metal::precise::exp`, conserver les deux frontières volatileF32 et toutes les formes/API/états/flags. Aucune LUT, allocation ou réservebudget supplémentaire. Adapter uniquement le testDIAG02 pour dériver la variantehistorique erronée depuisle nouveaushader, exiger applycourant=stock03f2 et comparer capteurprecise àapply ; conserver contrôle négatif original03f1 et cinqvariantes. Archiver shader/tests avantcorrection. fmt/checkMLX/buildlibtestciblés puis relancer smoke etexhaustif original63488×16×4,42refus,64layouts/aliases,8nonfinis ; mêmesancreT17-w1/gardes. Stopetauditer toutnouvelécart ; modèle/capture/chrono restentconditionnésàparité. Kani148obligations/9covers géométrie inchangée resteapplicable ; vraieMLX ICEetMSLunsupportedrestentnonvérifiés. Aucunargumentperformanceavantmesure.
+
+Archive shaderFIX01 écrite après substitution par inversion de cette unique ligne, SHA3576a996… vérifié contre identitéDIAG02 ; contenuoriginal byteidentique, binaires/logsanciens préservés.
+
+- 45-Q/R processus t17-fix-01-fmt-check : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-build-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-check-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-build-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-build-smoke-libtest : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-build-plan-result.json.
+
+**T17-FIX-01 build passé et gel.** fmtcheck0,452s/checkMLX4,774s/libtest70,059s tousjoints ; libtest 607271c11ffe224df17d89518ace9ace73c2f9b6dee392b86dc72938fe487012, identité fix-01-identity.json. Changement production contreDIAG02 limitéàexp→precise::exp ; testDIAG adapté conservecontrôlenégatifhistorique. Six sélections micro et six qualitésmodèle préparées ; seuls micros lancés maintenant, modèlesaprèsparitécomplète.
+
+- 45-Q/R processus t17-fix-01-smoke : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-exhaustive : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-invalid : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-strides-aliases : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-inf-nonfinite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+- 45-Q/R processus t17-fix-01-diagnostic : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-gpu-plan-result.json.
+
+**T17-FIX-01 microqualité PASSÉE 6/6 physiques.** Exhaustif352cas/63488gatesF16finies×16normesF32×4formes=4063232paires/5013504sorties(F16complètesfiniesbyteexactstock). Smoke4cas36864valeurs,42refusavantrequête,64layouts/aliasesavecpoison/immutabilité,4casfinisspéciaux+4nonfinis passent ; horscontratfini NaNclasse,seulsautresbits exacts. DIAG02adapté exigeapplycorrigé=stock etconserveoriginalerroné commecontrôlenégatif. Chaque sélection1passé0échec0ignoré,processusjoints/0SwapoutT17-w1. Preuve fix-01-micro-inspection.json ; ni modèlecompletni vitessevalidés. Étape suivante6qualitésmodèledéjàpréenregistrées sous8,5Go/aucunecompilationconcurrente.
+
+**T17 modèle première préparation refusée avant PID.** Le lanceur exige membretexteexact «1 passed; 0 failed», absent du plan6qualités qui contenait seulementrésumépluslong ; arrêtavantancre/chargement/GPU, aucunrésultatmodèle. Corrigerdonnéesseules dans planr2distinctenajoutantcemembre, conserverrésumélong0ignoré/nomexactetlesmarqueurs ; sourceruntime/libtestinchangés, identité-r2étendue. Ancienplan/logconservés. Reprise des mêmes6sélections,gardes/options/ancreinchangées.
+
+- 45-Q/R processus t17-fix-01-model-gdn-integration-r2 : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/fix-01-model-quality-r2-plan-result.json.
+
+**T17 modèle r2 admission RAM refusée avant PID.** Libre+fichiers=7985725440B <8500000000B ; aucuncheckpoint/aucunGPUmodèlelancé, tousjoints. Plan/logr2conservés, cinqautresqualitésnonexécutées. Micros6/6validentseulementcomposant, aucunevitesse. AncreT17-w1conservée ; demanderlibérationRAM, poursuivreuniquementCPU etpetitescaptures2Gopréenregistrées sansmodèle.
+
+- 45-Q/R processus t17-fix-01-capture : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t17-20261029/fix-01-capture-plan-result.json.
+
+**T17 captureFIX01 interrompue sur défaut du nouveau contrôleur de taille.** Testphysiqueexit101/joint : unexpected capture entry type, après créationdespackagesB1 ; lafonctioncapture_bytesrejettetouslessymlinks, alorsquepackageAppleencontient. Preuvefix-01-capture-links.json/planresult/logconservés, capturepasqualifiéepourdispatchs ni18432valeurs. Aucunéchecnumérique kernelobservéici ; auditcontrôleuravantcorrection, pasretraitduT17.
+
+**Rectification du stade capture échoué :** inventaire montre les QUATRE packages B1/B2, et les liens concernent B2 (buffer dupliqué vers un fichier ordinaire du même package, liens relatifs de14octets). L'exception se produit au comptage, après les comparaisons de sorties prévues, mais le test global reste échoué et aucun comptage de dispatch n'est validé.
+
+**T17-CAPTURE-02 — préenregistrement avant correction TEST.** Accepter seulement les liens symboliques résolus vers des fichiers réguliers à l'intérieur du package canonique, compter la taille lstat du lien sans retraverser sa cible. Continuer à refuser chemins externes/dangling/boucles/liens de répertoire/types inconnus ; compteur checked_add/cap1GiB inchangés. Ajouter tests CPU déterministes de fichiers/répertoires/liens relatifs, refus et sparsefile>=cap, avec tempfile du dépôt. Archiver capture_tests.rs antérieur, reproduire le refus initial par cas nontrivial puis correction. Fonctionfilesystem non prouvée par géométrie ; tentativeKani du vrai contrôle notée avec limitesFS/MLX. Après tests/build séquentiels, relancer uniquement capture physique affectée dans répertoire/plan/identité neufs sousmêmeancreT17-w1/2Go ; sixmicrosproductionFIX01restentvalidessurshaderbyteidentique. Aucun nouveau gain/tok/s revendiqué.
+
+- 45-Q/R processus t17-full-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/full-cpu-plan-result.json.
+
+- 45-Q/R processus t17-full-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/full-cpu-plan-result.json.
+
+**T17 contrôles CPU complets PASSÉS.** Clippy strict no-default-features alltargets2,940s et suite release CPU108,043s tousjoints/0Swapout ;256passés0échec8ignorés agrégés (170lib+35+16+35autrescibles,2cibles0tests explicites). Les8ignorésrestentnonexécutés, paspreuveGPU. Plan/logsfull-cpu-*conservés ; capturehelpercfgMLXpasinclusdanscettesuite, testCPUdédié àvenir. CIexistantepinMLX0.32.2/clippyalltargets/buildmacOS, ajoutselectionexacte18casFS etharnaisgéométrie ; pasrunGitHubd’arbrelocalnonpoussé.
+
+**T17-MUTATION-01 — préenregistrement avant mutation.** Contrôle négatif MSL demandé au protocoleinitial : remplacer temporairement le vrai produit normalized*probability par normalized, construire libtestmutant puis lancer uniquement smoke B1/B2 (exit101 attendu, oraclestocknonvide/contre-exemple/0passé1échec0ignoré obligatoires). Captureridentités/archivesdiff/binaires/plan/logs et restaurer le shaderFIX01dansunfinally même suréchec. Aucunmodèle/chrono sousmutation. Pendantcebuild exécuter aussi le nouveau testCPUFS18cas CAPTURE02 et tenter son vrai harnaisKani (ICE/FSnonvérifié attendu, paspreuveparstatutlanceur). Aprèsrestaurationbytehash1fa5b6… obligatoire avanttouteautrequalité, compiler versionnormale etrelancerlesseulscontrôlesaffectés ; microsFIX01demeurentvalides productionbyteidentique, smoke normalàrepasser. Touscompile/proof/GPU séquentiels, ancrew1/gardeslégères2Goinchangées.
+
+- 45-Q/R processus t17-cap02-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/mutation-01-cpu-plan-result.json.
+
+- 45-Q/R processus t17-cap02-filesystem-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/mutation-01-cpu-plan-result.json.
+
+- 45-Q/R processus t17-mutation01-inventory : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/mutation-01-cpu-plan-result.json.
+
+- 45-Q/R processus t17-cap02-kani-fs : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/mutation-01-cpu-plan-result.json.
+
+- 45-Q/R processus t17-mutation01-omit-gate-smoke : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/mutation-01-gpu-plan-result.json.
+
+**T17-MUTATION-01 lifecycle terminé : expected_negative_completed_not_candidate_parity.** ShaderFIX01 restauré byteidentique=True, SHA1fa5b6ae214104186021ff2aa43a5e7b083e838fb0a410cf886326aaf8f9ca44 ; archives/binaires/plans/logs conservés, examiner résultats détaillés avant tout statut de validation.
+
+**T17-MUTATION-01 contrôle négatif PASSÉ, pas paritécandidat.** VraiMSLprivédefacteurgate,libtest4ac5bd… : smokeéchoueexit101attenduàpremièrevaleur n=1,z=0,p=0,5 ; mutantF16=3c00(1) vsstock3800(0,5),0passé1échec0ignoré,0Swapout/joint. Oracle détectebienomission ; shadercorrectFIX01 restauréenfinallybytehash1fa5b6… confirméavantversionnormale. Logs/identité/lifecycleconservés.
+
+**T17-CAPTURE-02 CPU PASSÉ, preuveFS NON VÉRIFIÉE.** Testexact1passé0échec0ignoré/18cas4groupes(3internes+8refus+4packages+3bornes),0,01sexécution(horsbuild69,441s),tousjoints. Tentative vraifonctionKani actual_gdn_capture_size_filesystem_entry échoueexit1/ICEintrinsics243avantobligations6,132s ; diagnosticattendu conservé,paspreuveFS. Revueindépendantecounter/containment/CIpasdéfautbloquant ; tailleLOGIQUEfichiers+payloadliens,pasblocsdisque,package stableaprèsfinish. RubyYAMLparseworkflowpasse,actionlintabsent ; CIadéquatePR/mainmaisaucunrundistantdecesmodificationsnonpoussées. Passerformat/ClippyMLX/buildCLInormal/suiteMLXcomplète/inventairefinal,avantcaptureetmodèle.
+
+- 45-Q/R processus t17-final-good-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-plan-result.json.
+
+- 45-Q/R processus t17-final-clippy-mlx : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-plan-result.json.
+
+**T17 vérification finale r1 arrêtée Clippy, avant buildCLI/suite/GPU.** fmtpasse ; Clippy1.98refuse5chunks_exactàtailleconstante danslestests (pasunéchecnumérique). Tousjoints, logs/préparationsconservés. Correction TEST préenregistrée : utiliser as_chunks::<2/WIDTH>().0.iter() pourlesmêmeséléments, assertionsdecompte/multiplicité/oraclesinchangées, archiveravant ; reprendreClippy/build/suite/inventaireuniquementavecplanr2distinct. La traverséed’oracleétanttouchée,repassermicros6tests surbinairefinal(mêmematrice,sourcesproductioninchangées), pasnouveauchronopascomparable.
+
+- 45-Q/R processus t17-final-good-fmt-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-r2-plan-result.json.
+
+- 45-Q/R processus t17-final-clippy-mlx-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-r2-plan-result.json.
+
+- 45-Q/R processus t17-final-build-good-cli-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-r2-plan-result.json.
+
+- 45-Q/R processus t17-final-mlx-suite-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-r2-plan-result.json.
+
+- 45-Q/R processus t17-final-good-libtest-inventory-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/good-final-cpu-r2-plan-result.json.
+
+**T17 normal final CPU/MLX PASSÉ etgel.** fmt0,455s/ClippyMLXstrict5,749s/buildCLInormal55,756s/suiteMLX172,638s/inventaire0,112s,tousjoints/0Swapout. SuiteMLXagrégée293passés0échec185ignorés ; CPU256/8ignoreconservé. CLI 202f96dca5ceed6cd78f70c524ad48b324e2c35a347cd7dc0bcabb11baf141aa,libtest a751cf592d9e28622d1c062a9f93213f4c55d8a6dcce0fa8b1c035be16c6b862,sources183 sousfinal-identity.json ; dépendancesMLXbinaire/metallib+metadata checkpoints hachées (PASfichierspoidsentiers). ShaderFIX01hashrestauré1fa5… ; aucunmutantdansversionnormale. Requalifier6microsaprèsadaptationitérateurtests +capture02seulecorrigéeliens, puis6qualitésmodèle. Aucun15tok/s/gainglobalvalidéavantchronos.
+
+- 45-Q/R processus t17-final-smoke : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-exhaustive : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-invalid : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-strides-aliases : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-inf-nonfinite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-diagnostic : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+- 45-Q/R processus t17-final-capture-02 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/final-small-gpu-plan-result.json.
+
+**T17 finalpetitesqualités PASSÉES7/7 physiques.** Sixmicros requalifiés aprèsitérateurtest, mêmes352cas/5013504sortiesbyteexactes et42refus/64layouts/8spéciaux ; capture02réussie4packagesB1B2/18432valeursF16=36864octets completsfinisbyteexacts,immutabilité. Chaque sélection1passé0échec0ignoré,joints/0SwapoutT17-w1. Captures02taillelogique730655969B<1GiB parplan ; inventaireincluantpremieressaiéchoué=1461346528B : cumul des DEUX tentatives dépasse1GiB initialementannoncé, limiteparmatrice passée maiscumulnonrespecté. Donnéesnégativesettracesconservées,pasderéécriturerétroactive,pasdenouvellecaptureprévue ; ceci n’établitaucungaindevitesse. ComptageXcodeencoreàfaire. Sixqualitésmodèlesfinalesmaintenant sousgarde8,5Go,aucunbuild/proofconcurrent.
+
+- 45-Q/R processus t17-final-model-gdn-integration : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-components : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/final-model-quality-plan-result.json.
+
+**T17 modèle réel PASSÉ6/6 physiques.** IntégrationGDN B1/B2/B4/B8(1requêtecohorte,outputs/états/tapespréfixesbyteexacts,continuation/refusatomiques),oracleindépendant5positions×248320logits+états,composants,paires,MTPbudgets1/2/3/17 etDFlash36préfixeslargeurs1..8 passent chacun1passé0échec0ignoré. Tousjoints/0SwapoutcumulatifT17-w1 ; dernierfooterDFcapture64000byteégaux,picnatifvie7409178864B. Exécutions1,805/3,575/3,403/9,769/10,019/27,174s(HORSmesurevitesse). AdmissionaprèslibérationRAMpassée. Preuves final-model-inspection.json/6logs/planresult ; Xcodecomptagedispatchencoreàfaire,puisbridge17/pilote128mêmeCLI202f…flag0/1. Aucunmodèle/compile/proveurencoreactifavantXcode.
+
+**T17 captureXcode dispatchs confirmés, pas vitesse.** Xcode UI27.2 (révision depuis27.1dansanciensrapports), petitsreplaysuniquement etProfileoff ; stockB1 4→fusion1, stockB2 10→fusion1,chaquegraphe2CB/1compute/0render/0draw. Nomsfonctions/grilles/commandesdansxcode-dispatch-inspection.json ; B2stock2casts+2sigmoid+2produits+2castsF16+2copiesconcat, fusionB2grille12288/tg128/unevraiefonctioncustom ; pasSimplecompteurlazy. Aucunblitobservé, détailsecondbufferexpliciteseulementsurstockB1/fusedB2,nepasrevendiquercompteurblituniversel. Toolchainshaderdebugabsent, téléchargementoptionneldécliné,replaycommandesfonctionnel ; niGPUidle/tempsshadernitéléchargementparallèle. Replaysstoppés,XcodequittévérifiéisRunning=false.
+
+**T17-POST-XCODE-01 préenregistré avant requalification.** L’ouverture a initialisé des composants système Xcode27.2, avanttoutchrono. Nouvelleconditionexplicitejustifiant répétition : vérifierabsence d’impactnumérique de cette étapeoutillage/système surleJIT. Sources/CLI202f…/libtesta751…/libMLX/metallib figés,aucunrebuild ; mêmes6micros+sames6qualitésmodèles(ancrew1/guards) enprocessusneufs, SANSnouvellecapturepournepasaccroîtreledépassementcumulatiftraces. Puisbridge17etpilote128préenregistrésseulementaprèscescontrôles. Compter12répétitions, pas12nouveauxcontratsni nouveaugaindevitesse.
+
+- 45-Q/R processus t17-final-smoke-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-exhaustive-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-invalid-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-strides-aliases-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-inf-nonfinite-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-diagnostic-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-gdn-integration-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-oracle-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-components-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-pairs-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-mtp-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+- 45-Q/R processus t17-final-model-dflash-post-xcode : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/post-xcode-quality-plan-result.json.
+
+**T17-POST-XCODE-01 PASSÉ12/12 répétitions ciblées.** BinaireCLI202f…/libtesta751…/sources/dépendancesinchangésaprèsinitialisationXcode27.2 ; 6microscompletsdont5013504sorties et6qualitésréellesdontDF36préfixes revalidenttoutesexact1passé0échec0ignoré,joints/0SwapoutcumulatifT17-w1. Aucuncaptureàrépéter etaucunecompilation/proof/Xcodeactif. Qualité13sélectionsuniquesfinales(captureincluse),12répétitionsenvironnementidentifiéesdistinctement. Débutbridge17AC×AR/MTP/DFdéjàpréenregistré,mêmeCLIflag0/1,paschrono128avantqualitéexternedechaqueprocessus.
+
+- 45-Q/R processus t17-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-AR-1-A-plan-result.json.
+
+**T17 inspection t17-bridge17-AR-1-A : failed_external_inspection.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-AR-1-A/external-inspection.json ; aucune validation de gain issue de cette seule réponse.
+
+**T17 première inspectionbridge interrompue sur schéma du contrôleur, pas modèle.** NativeAR17Atermine/joint/validated ; inspectionv1 échoue avantpassageauprocessussuivantcarcontraignaitlescompteursINACTIFSàentiers0alorsquestructOptionserdeémetnull. Rapportnatifetexternal-inspection.jsonéchecpréservés. Révisionanalysev2avantreprise : inactifsautorisentuniquementnull/absent/entier0,countersbrutsconservés ; ACTIFSexigenttoujoursentiers/proposed=blocks>0/acceptedbornés. ContrôlenégatifduvalidateRÉELsurclonedumêmeévénementdemandéMTPaveccountersnullrejettebieninvalidMTPcounters. Inspectermêmes4réponsesdéjàproduites,sansrefairebenchmark,nouveaufichierexternal-inspection-v2.jsonpourtousprocessus ; goldens/mémoire/modes/optionsinchangés.
+
+**T17 inspection t17-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-bridge17-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-AR-2-C-plan-result.json.
+
+**T17 inspection t17-bridge17-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-MTP-1-A-plan-result.json.
+
+**T17 inspection t17-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-bridge17-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-MTP-2-C-plan-result.json.
+
+**T17 inspection t17-bridge17-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-bridge17-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-DF-1-A-plan-result.json.
+
+**T17 inspection t17-bridge17-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-bridge17-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-bridge17-DF-2-C-plan-result.json.
+
+**T17 inspection t17-bridge17-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-bridge17-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+**T17 bridge17 terminé6/6 et inspection externe v2 PASSÉE (31 octobre).** 12chauffes+12mesurescourtes/24réponses : tokens17/transitions16, MAIN87/HOLD82, textepréfixegolden/hashcomptes/nonvide, modesAR/MTPdepth1/DFmode1proposals1, MTP/DFproposed=accepted=blocks8, compteursidentiquesA/C, empreinte/picnatif<12000000000B (maxobservé7880825408B), lecteurs/processusjoints,0Swapout. Natifetinspectionv1schémainactifnullconservés ; v2strictACTIFuniquequalifie. TPS17neprouventPASgain. Commencerpilote128ACCA×3modesdéjàenregistré :12processus,24mesures+24chauffes,toujoursmêmeCLI202f…flag0/1 etancrew1 ; inspectionexternechaqueprocessusAVANTsuivant.
+
+- 45-Q/R processus t17-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-AR-1-A-plan-result.json.
+
+**T17 inspection t17-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-AR-2-C-plan-result.json.
+
+**T17 inspection t17-pilot128-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-AR-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-AR-3-C-plan-result.json.
+
+**T17 inspection t17-pilot128-AR-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-AR-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-AR-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-AR-4-A-plan-result.json.
+
+**T17 inspection t17-pilot128-AR-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-AR-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-MTP-1-A-plan-result.json.
+
+**T17 inspection t17-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-MTP-2-C-plan-result.json.
+
+**T17 inspection t17-pilot128-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-MTP-3-C-plan-result.json.
+
+**T17 inspection t17-pilot128-MTP-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-MTP-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-MTP-4-A-plan-result.json.
+
+**T17 inspection t17-pilot128-MTP-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-MTP-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-DF-1-A-plan-result.json.
+
+**T17 inspection t17-pilot128-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-DF-2-C-plan-result.json.
+
+**T17 inspection t17-pilot128-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-DF-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-DF-3-C-plan-result.json.
+
+**T17 inspection t17-pilot128-DF-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-DF-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-pilot128-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-DF-4-A-plan-result.json.
+
+**T17 inspection t17-pilot128-DF-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-DF-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+**T17 pilote128 terminé12/12, décision encore EN COURS avant audit.** 24mesures+24chauffes,chaque48réponsesgolden128texte/hashcomplet/comptes127/modes/countersA/Cidentiques/mémoirenative<12Go/joints/0Swapout, mêmeCLI202f…flags0/1. Débitsagrégéstokens/sommedurées parmodeetprompt danspilot128-inspection.json, PASmoyennedesTPS. ARglobalquasiégalité etfortedérivepremier/dernierOFF(≈−4,4%MAIN) : aucun gainétabli. MTPpetitsignalpositif,DFdecodefaiblemixte ; DFHOLDprefill candidatnettementpluslent(deuxON≈8,91/8,94tok/s vsOFF10,08/10,28). Ne pasretirercandidatnienabledéfautsurcesseulschiffres ; auditeradaptationavantdécision.
+
+**T17-AUDIT-PERF-01 — préenregistrement avant diagnostic, 31 octobre.** Nouvellepropriété aprèsFIX01/capturesréellesetpilote : expliquer coût runtime/prefillDFHOLD malgréqualiténumériquepassée et10→1dispatchs. Baseline/candidat gelés202f…flag0/1, rapports48réponsescomparablespréservés. Auditlectureseule d’abord : cheminsréels/géométrie/dtypes/fallbacks déjàqualifiésàrecouperauxmétriques ; comparerI/Ologique/cache/empreinte/compression/drafttempsparréponse, vérifiercachefactoryC++borné128 etformes/headersdynamiquesdrafter qui pourraientchurneraprèsMAIN ; copies/allocations/donation/volatile/soumissions40ops etfidélitéau mécanismestock. Aucun nouveauprototype niGPUmesureavantdéfautconcret/ouhypothèsecorrectiveprécisepréenregistrée. Varianceacceptéeutilisateurmaintenue ; pastransformerbruit/dériveencausalité, niidéeinefficacesuradaptauditincomplet.
+
+**T17-AUDIT-PERF-01 terminé, aucun défaut concret établi.** Trois revues indépendantes : cachefactory128lexréel maischurnnonmesuré,mapfactorydistinctcacheMetalPSO ; ringpositionsparamdonnée,Q4horsmap,T17ajoute2clésdanswidth1,ancien67Ssansgainqualifiéconservé. Pasreadback/eval/fence/concatF32ajouté,allocationfinaleF16déjàprésentestock(pasfausseperte_donation). DFHOLDON4e requête+1,132887spréfill,chauffesHOLDnormales,compteurs/DFlignes/demandedécodelogiquemêmebytes etphasesverifyplutôtrapides ; MLXactiveidentique7,144GB,footprint+7,26MB,compressedcountercorrélémaiscontre-exempleMAIN47kdecompavecprefillnormal,causeNONattribuée. Volatilecoûtpossible sansspillmesuré ; Safeautorisecontractintra-instruction,expPreciseindispensable ; DIAG02sansvolatilea3sortiesetnequalifiepaslemonosortie. Rapports audit-perf-source.md/audit-perf-data.md/json/audit-perf-numeric.md. Aucunprototypearrêté,nidécisionpardéfaut.
+
+**T17-DF-RECHECK-01 — préenregistrement avant répétition ciblée, 31 octobre.** ReprendrelepiloteDF128ACCA (2HOLDONlentsà4erequête) avecordreinverseC→A,2processusneufsseulement, mêmes4réponsesMAIN/HOLDchauffepuismesure,1repeat, mêmeCLI202f…/flag1puis0/cache3G/40ops40MB/ancrew1/guards. Propriétéàvérifier : reproductibilitéducoûtHOLD4erequêtesansmodifierkernel, distinguerordre/étatrésiduel/conditionsd’uneliaisona uflag ; pasuneconfirmationdegain. Conserverpilote/échecs/ancres,plans/répertoiresdistincts, mêmesgoldensexternes+mode/counters/mémoireàchaqueprocessus. Aucunnouveaucapture,compile,preuve,profilageconcurrent. Sourceexacteinchangée ; neuspasfusionnerleschiffresavecautresprotocolespourpromouvoiruncandidat.
+
+- 45-Q/R processus t17-df-recheck128-1-C : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck/t17-df-recheck128-1-C-plan-result.json.
+
+**T17-DF-RECHECK-01 interrompu surgardeSwapout, PASsurcontre-exemplenumérique.** PremierC chargé2,096s puisSIGTERM/reapé(-15) : nouveauSwapoutcumulatif=1048576B,Swapin=12500992Bparrapportal’ancreT17-w1,malgré11951964160BdisponiblesestimésavantPID. AucunecomparaisonC/Aterminée,OFFA nonlancé ; conserverrapportpartiel/logs/planresult. Ne pascomptercechargementcommemesurevalidée. Anciennecampagnew1nepeutêtrepoursuivieenréinitialisantsilencieusementlescompteurs ; aucuneautreGPUavantnouvelleconditionexplicite/préenregistrement. Piloteinitial12processusrestequalifié0Swapoutauxbornesrelevéesavantcetincident,gaintoujoursnonétabli.
+
+**T17-DF-RECHECK-02 préenregistrement CONDITIONNEL, avant tout nouveauGPU.** Le recheck01aéchouéà1MiBnouveauSwapoutavec11,952Godisponiblesestimés,aucuneréponse. Aucuneattributionexclusiveaumoteurounouvellegardewired(négatifhistorique05conservé). Pourréessayer,sansréinitialisationsilencieuse : observer60sminimum sansmodèle/compile/proof,Xcodearrêté,Swapoutstableetsecteur, avecseuiladmissionrenforcéà12,0Go libre+fichiers(pas8,5Go) avantCHAQUEprocessus. Seulementsi cesnouvellesconditionsexplicitespassent, cloreancienneancrew1brechéeetouvrirw2identifiée,chargementC→Aidentique128/4réponses/mêmeCLI202f/options3G40/40,0nouveauSwapout/Swapin256Mio/RSS10Gio/footprint12Goinchangés. PhasesetancresdifférentesdoncdonnéesNONfusionnéesavecpilotew1 ; échec1MiB/logs/rapportincompletconservés. Siinstableouheadroominsuffisant,aucunGPUetattendreconditionexterne ; pasde3eancreautomatique.
+
+**T17-DF-RECHECK-02 nouvellecondition réalisée etancrew2 explicite.** Observation4instantanéssur60.27s,secteur/quiet/aucunmoteur,Swapouts140865945600Bstable ; disponibilitémin=12543442944B>=12,0Go,contre11,952Goaulancementéchoué. Ancrew1n’estPASréécrite ; sonincident+1048576Betrapport0réponses restentinterrompus. W2garde0nouveauSwapoutrelativeà140865945600B,Swapinsbaseline53807169536B,admission12,0Go/CLI202f/3G40/40,mêmes2processusC→Apréenregistrés. Pasdecompilation/proof/captureautoriséeenparallèle ; aucunréancragew3automatiquesiéchec. Résultatsw2séparésdupilotew1.
+
+- 45-Q/R processus t17-df-recheck-w2-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck-w2/t17-df-recheck-w2-1-C-plan-result.json.
+
+**T17 inspection t17-df-recheck-w2-1-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck-w2/t17-df-recheck-w2-1-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t17-df-recheck-w2-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck-w2/t17-df-recheck-w2-2-A-plan-result.json.
+
+**T17 inspection t17-df-recheck-w2-2-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck-w2/t17-df-recheck-w2-2-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+**T17-DF-RECHECK-02 terminé2/2, diagnostic séparé NONconfirmationdegain.** C→A/mêmeCLI202f…/3G40/40/admission12Go,w2 4chauffes+4mesures128/127,chaqueréponsegoldentexte/hash/counters/modes/footprintvalides etjoints. Swapoutsdepuisw2=0B,Swapins=0B. HOLDpréfillC10,1433vsA10,1626tok/s(≈−0,19%) : l’ancien−12,33%N’ESTPASREPRODUITdanscesconditionsplustolérantesenheadroometordreinverse. DécodeHOLD C10,9507vsA11,1543,MAIN C11,7184vsA11,6803 ; agrégatDFw2-0.7859%. Causeinitiale(flag/ordre/étatrésiduel/compression)resteinconnue ; nepasdirequeRAMl’explique,nepasfusionnerceschiffresavecpilotew1. Preuve df-recheck-w2-inspection.json ; ancienéchec1MiBw1etanciens−12,33%préservés. 190hashssources/binaires/dépendancesinchangés,aucunmoteurrestantobservé.
+
+**ISSUE59-T17-GATE-01 phase close — NUMÉRIQUEVALIDÉdansledomaineexercé, PERFORMANCE NONCONCLUANTE, prototypeLOCALconservéOFF.** Matriceinitiale12processus/24mesures+24chauffesAR/MTP/DF128 et6processusbridge17qualifiésexternes ; réduction4→1B1/10→1B2capturéeréellemaisécartsdécodepilote+0,103%/+0,680%/+0,209%restentfaiblesfaceauxdérivescontrôles−4,375%à+2,295%. Le recheckDFséparémontrepointdécode-0.7859%etneconfirmeaucunboost ; aucunpassagepardéfaut1,aucunepromesse15tok/s. Auditavantdécisionfait : défautexpJIT2ULPconcretcorrigéprecise::exp,puis5m+sortiesetétatsqualifiés ; pasautredéfautconcretétablidtypes/layouts/fallbacks/copies/donation/ownership/sync/cachefactory,coûtsvolatile/encodagenonisolés. Ne pasconclureidéeuniversellementinefficace ; varianteréellemonosortiesansvolatileNONTESTÉE(etDIAG023sortiesnelelavalidepas).
+
+Étatfinal code : sourcekernel/modules/qwen4CI locauxqualifiés, MLXL3_FLASH_GDN_EPILOGUE défaut0 ; CLI202f…/libtesta751… figés etretained,appinstalléeinchangée,aucunpush/commit/PR/release. CPU256passés8ignorés,MLX293passés185ignorés ;13sélectionsGPUuniquesfinales+12répétitionspostXcode etmutationnégativecorrectementdistinctes. Kani148obligations9covers/unwind17réelgéométrieCPU,bornérangs0..5 ; MLX/FSkaniICEetMSLCBMCunsupportedrestentNONVÉRIFIÉS,CIremotearbrelocalnonpubliéNONEXÉCUTÉE. Capture02<1GiBmaisdeuxtentativescumulent1461346528Boctets(dépassementconservé). Tousessaisqualifiés/closouinterrompusexplicitement,aucunprocessusGPU/compile/proveurencours. Rapports pilot-results.md,verification.md,source-review.md,audit-perf-*.md etdf-recheck-w2-inspection.json.
+
+- 45-Q/R processus t04-geometry-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/geometry-kani-plan-result.json.
+
+- 45-Q/R processus t04-fmt-initial : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/initial-cpu-plan-result.json.
+
+- 45-Q/R processus t04-actual-mlx-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/initial-cpu-plan-result.json.
+
+- 45-Q/R processus t04-cpu-geometry-tests : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/initial-cpu-plan-result.json.
+
+- 45-Q/R processus t04-libtest-initial-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/initial-cpu-plan-result.json.
+
+- 45-Q/R processus t04-smoke-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/smoke-r1-plan-result.json.
+
+- 45-Q/R processus t04-boundary-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/boundary-down-r1-plan-result.json.
+
+- 45-Q/R processus t04-down-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/boundary-down-r1-plan-result.json.
+
+- 45-Q/R processus t04-capture-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/capture-r1-plan-result.json.
+
+- 45-Q/R processus t04-final-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/full-cpu-plan-result.json.
+
+- 45-Q/R processus t04-final-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/full-cpu-plan-result.json.
+
+- 45-Q/R processus t04-final-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/full-cpu-plan-result.json.
+
+- 45-Q/R processus t04-final-cli-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/full-cpu-plan-result.json.
+
+- 45-Q/R processus t04-final-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/full-cpu-plan-result.json.
+
+- 45-Q/R processus t04-moe-component-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/moe-component-plan-result.json.
+
+- 45-Q/R processus t04-final-model-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/model-quality-remaining-plan-result.json.
+
+- 45-Q/R processus t04-final-model-components : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/model-quality-remaining-plan-result.json.
+
+- 45-Q/R processus t04-final-model-pairs : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/model-quality-remaining-plan-result.json.
+
+- 45-Q/R processus t04-final-model-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/model-quality-remaining-plan-result.json.
+
+- 45-Q/R processus t04-final-model-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/model-quality-remaining-plan-result.json.
+
+- 45-Q/R processus t04-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-AR-1-A-plan-result.json.
+
+**T04 inspection t04-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-bridge17-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-AR-2-C-plan-result.json.
+
+**T04 inspection t04-bridge17-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-MTP-1-A-plan-result.json.
+
+**T04 inspection t04-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-bridge17-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-MTP-2-C-plan-result.json.
+
+**T04 inspection t04-bridge17-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-bridge17-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-DF-1-A-plan-result.json.
+
+**T04 inspection t04-bridge17-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-bridge17-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-bridge17-DF-2-C-plan-result.json.
+
+**T04 inspection t04-bridge17-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-bridge17-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-1-A-plan-result.json.
+
+**T04 inspection t04-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-2-C-plan-result.json.
+
+**T04 inspection t04-pilot128-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-AR-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-3-C-plan-result.json.
+
+**T04 inspection t04-pilot128-AR-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-AR-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-AR-4-A-plan-result.json.
+
+**T04 inspection t04-pilot128-AR-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-AR-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-1-A-plan-result.json.
+
+**T04 inspection t04-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-2-C-plan-result.json.
+
+**T04 inspection t04-pilot128-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-3-C-plan-result.json.
+
+**T04 inspection t04-pilot128-MTP-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-MTP-4-A-plan-result.json.
+
+**T04 inspection t04-pilot128-MTP-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-MTP-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-1-A-plan-result.json.
+
+**T04 inspection t04-pilot128-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-2-C-plan-result.json.
+
+**T04 inspection t04-pilot128-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-DF-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-3-C-plan-result.json.
+
+**T04 inspection t04-pilot128-DF-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-pilot128-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/t04-pilot128-DF-4-A-plan-result.json.
+
+**T04 inspection t04-pilot128-DF-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/prepared/runs/t04-pilot128-DF-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t04-retained-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t04-retained-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t04-retained-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t04-retained-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t04-retained-cli-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t04-retained-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t04-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-collector-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/collector-kani-plan-result.json.
+
+- 45-Q/R processus t01-cbmc-ffi : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/cbmc-ffi-plan-result.json.
+
+- 45-Q/R processus t01-actual-mlx-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/actual-mlx-kani-plan-result.json.
+
+- 45-Q/R processus t01-collector-kani-detail : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/collector-kani-detail-plan-result.json.
+
+- 45-Q/R processus t01-collector-tests : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/collector-tests-plan-result.json.
+
+- 45-Q/R processus t01-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/clippy-cpu-plan-result.json.
+
+- 45-Q/R processus t01-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/build-smoke-plan-result.json.
+
+- 45-Q/R processus t01-clippy-mlx : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t01-20261031/build-smoke-plan-result.json.
+
+- 45-Q/R processus t01-fmt-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/build-smoke-r2-plan-result.json.
+
+- 45-Q/R processus t01-clippy-mlx-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/build-smoke-r2-plan-result.json.
+
+- 45-Q/R processus t01-libtest-build-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/build-smoke-r2-plan-result.json.
+
+- 45-Q/R processus t01-ffi-collector : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/metadata-tests-plan-result.json.
+
+- 45-Q/R processus t01-report-validation : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/metadata-tests-plan-result.json.
+
+- 45-Q/R processus t01-host-r1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/host-r1-plan-result.json.
+
+- 45-Q/R processus t01-instrumented-lib-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/instrumented-lib-suite-plan-result.json.
+
+- 45-Q/R processus t01-retained-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-retained-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-retained-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-retained-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-retained-cli-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t01-retained-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t01-20261031/retained-checks-plan-result.json.
+
+- 45-Q/R processus t18a-reader-asan-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/reader-smoke-plan-result.json.
+
+- 45-Q/R processus t18a-reader-asan-run : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/reader-smoke-plan-result.json.
+
+- 45-Q/R processus t18a-reader-tsan-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/reader-smoke-plan-result.json.
+
+- 45-Q/R processus t18a-reader-tsan-run : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/reader-smoke-plan-result.json.
+
+- 45-Q/R processus t18a-queue-asan-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-queue-asan-run : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-queue-tsan-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-queue-tsan-run : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-proof-syntax : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-queue-cbmc : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-actual-mlx-kani : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-python-profile : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-python-ruff : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-python-format : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-python-compile : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-python-crosshair : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-clippy-cpu : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-clippy-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-cli-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-libtest-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/cpu-qualification-plan-result.json.
+
+- 45-Q/R processus t18a-fmt-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/stale-profile-correction-r2-plan-result.json.
+
+- 45-Q/R processus t18a-clippy-mlx-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/stale-profile-correction-r2-plan-result.json.
+
+- 45-Q/R processus t18a-libtest-build-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/stale-profile-correction-r2-plan-result.json.
+
+- 45-Q/R processus t18a-queue-mutation-build : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/queue-mutation-plan-result.json.
+
+- 45-Q/R processus t18a-queue-mutation-detected : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/queue-mutation-plan-result.json.
+
+- 45-Q/R processus t18a-inspection-ruff : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/inspection-checks-plan-result.json.
+
+- 45-Q/R processus t18a-inspection-format : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/inspection-checks-plan-result.json.
+
+- 45-Q/R processus t18a-inspection-compile : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/inspection-checks-plan-result.json.
+
+- 45-Q/R processus t18a-inspection-selftests : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/inspection-checks-plan-result.json.
+
+- 45-Q/R processus t18a-storage-0 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/storage-plan-result.json.
+
+- 45-Q/R processus t18a-storage-1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/storage-plan-result.json.
+
+- 45-Q/R processus t18a-storage-invalid : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/storage-plan-result.json.
+
+- 45-Q/R processus t18a-record-boundaries-0 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-batch-aliases-0 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-moe-oracle-0 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-record-boundaries-1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-batch-aliases-1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-moe-oracle-1 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-hot-overlap : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-wide-overlap : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-unique-pending : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/component-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-oracle : **failed_or_interrupted**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-plan-result.json.
+
+- 45-Q/R processus t18a-controller-tests : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/controller-correction-checks-plan-result.json.
+
+- 45-Q/R processus t18a-controller-ruff : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/controller-correction-checks-plan-result.json.
+
+- 45-Q/R processus t18a-controller-format : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/controller-correction-checks-plan-result.json.
+
+- 45-Q/R processus t18a-controller-compile : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/controller-correction-checks-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-oracle-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-r3-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-components-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-r3-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-pairs-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-r3-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-mtp-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-r3-plan-result.json.
+
+- 45-Q/R processus t18a-final-model-dflash-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/model-quality-r3-plan-result.json.
+
+- 45-Q/R processus t18a-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-AR-1-A-plan-result.json.
+
+**T18a inspection t18a-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-bridge17-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-AR-2-C-plan-result.json.
+
+**T18a inspection t18a-bridge17-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-MTP-1-A-plan-result.json.
+
+**T18a inspection t18a-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-bridge17-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-MTP-2-C-plan-result.json.
+
+**T18a inspection t18a-bridge17-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-bridge17-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-DF-1-A-plan-result.json.
+
+**T18a inspection t18a-bridge17-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-bridge17-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-bridge17-DF-2-C-plan-result.json.
+
+**T18a inspection t18a-bridge17-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-bridge17-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-AR-1-A-plan-result.json.
+
+**T18a inspection t18a-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-AR-2-C-plan-result.json.
+
+**T18a inspection t18a-pilot128-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-AR-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-AR-3-C-plan-result.json.
+
+**T18a inspection t18a-pilot128-AR-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-AR-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-AR-4-A-plan-result.json.
+
+**T18a inspection t18a-pilot128-AR-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-MTP-1-A-plan-result.json.
+
+**T18a inspection t18a-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-MTP-2-C-plan-result.json.
+
+**T18a inspection t18a-pilot128-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-MTP-3-C-plan-result.json.
+
+**T18a inspection t18a-pilot128-MTP-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-MTP-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-pilot128-MTP-4-A : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/prepared/t18a-pilot128-MTP-4-A-plan-result.json.
+
+- 45-Q/R processus t18a-final-cpu-fmt : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/final-cpu-plan-result.json.
+
+- 45-Q/R processus t18a-final-cpu-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/final-cpu-plan-result.json.
+
+- 45-Q/R processus t18a-final-mlx-suite : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/final-mlx-plan-result.json.
+
+- T18A-w2 : admission105 passée3instantanés20s, ancre postreboot explicite créée0Swapout/Swapin, aucun CPUcompilateur concurrent ; démarrage des3oracles modèle, pas encore de vitesse. Voir `postreboot-admission-r5.json` et `postreboot-w2/quality-sequence.json`.
+
+- 45-Q/R processus t18a-w2-model-oracle-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/postreboot-w2/quality-plan-result.json.
+
+- 45-Q/R processus t18a-w2-model-mtp-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/postreboot-w2/quality-plan-result.json.
+
+- 45-Q/R processus t18a-w2-model-dflash-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/issue59-t18a-20261031/postreboot-w2/quality-plan-result.json.
+
+- T18A-w2 qualité **3/3 validées et inspectées indépendamment**,541sources/3bins conformes,0Swapout/Swapin,logits/états/MTP/36préfixesDF conformes ; `postreboot-w2/quality-inspection.json`. Début pilote128MTP/DF8processusACCA prévu, mêmes gardes105/tousbras, même ancrew2,aucune compilation ; chaque processus inspecté avant suivant. Pas encore de gain w2.
+
+- 45-Q/R processus t18a-w2-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-1-A-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-2-C-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-3-C-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-MTP-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-MTP-4-A-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-MTP-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-MTP-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-1-A-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-2-C-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- T18A-w2 MTP128 **4/4 terminés et inspectés** : MAIN10,802165→11,380673tok/s(+5,3555%),HOLD10,383112→10,458170(+0,7229%),ensemble10,588494→10,899938(+2,9413%),préfillensemble+3,4376%. TémoinA MAIN−8,0478%/HOLD−2,6960%,C MAIN−2,2516%/HOLD+1,1515% conservés ; chiffres descriptifs suivant tolérance pratique utilisateur,pas effet causal isolé garanti. 541SHA/3bins conformes,16réponses golden128/modes/counters,0Swapout/Swapin,footprintmax7,771Go/picvie7,864Go. `postreboot-w2/pilot128-MTP-inspection.{json,md}`. Aucun mélange w1/AR/MTP/DF, DF encore en cours ; défautStatic inchangé.
+
+- 45-Q/R processus t18a-w2-pilot128-DF-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-3-C-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-DF-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus t18a-w2-pilot128-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-pilot128-DF-4-A-plan-result.json.
+
+**T18a inspection t18a-w2-pilot128-DF-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/postreboot-w2/runs/t18a-w2-pilot128-DF-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+### DECODE-PROFILE-08-GPU-WITNESS-01 — préenregistré avant GPU, 31 octobre 2026
+
+- TOOLS01 terminé : MetalToolchain27B47 installé(838,9Mo),metal32023.922.4cibleair64darwin27.2 disponible,logs/status/version conservés. Aucunmodèle/benchmarkGPU pendantinstallation,xcode-selectglobalinchangé. Nouvel outil+OS/Xcode justifie témoin de temps/labels manquants historiquement T04/T05,nond’une optimisationrejouée.
+- Exécuter la sélection existanteT05 capture surlibtestT18r2de3616e… (sourceidentitér3inchangée),sansmodèle,2captures fraîches legacy/fused,25600F32/102400octets finisbit-exact,1passé0ignoré. Variablescapture etplansdansdecode-profile-20261031/gpu-witness-01 ;2Goadmission,secteur/quiet,0nouveauSwapout/Swapin≤256Mio,RSS≤10Gio,timeout180s,unGPUetpasdecompilation/preuve/inférenceconcurrente. L’optionT05productionresteOFF,ceciqualifiel’outilpasunboost.
+- Ensuiteouvrir/rejouerETprofilerlescapturesdansXcodepourchercherdesintervallesGPUstrictementpositifsdesdispatchsactifs,noms/countersets/unitsnonvides ;ancienreplay0nsnequalifiaitpascespostes. Enregistrerabsence/erreur explicitement,aucunescalademodèlepouruncompteurrestévide. Les captures peuvent contenirunCBvidesynchronisation :pasd’exigencede>0pourlui. Aucune répétitionenboucle,nouvellevarianteéventuelleàpréenregistrerséparément. État : **préenregistré avant exécution physique**.
+
+### DECODE-PROFILE-08-CONTROLLER-01 — préparation CPU du contrôleur, avant code
+
+- Réutiliser harnaisstocknatural128/sixphases,warmup/control_before/trace1/trace2/trace3/control_after,parité complète/golden128et1nativepass0ignoré ;pasdechangementdesopérationsmoteur. NouveaucontrôleurPythonnécessairecaranciencontrôleuréphémèrenonretrouvédanscheckout ;nepasprétendreunesourcehistoriqueexécutablearchivée.
+- Déclenchementenligne surmarqueursFLASH_DETAILED_PHASEVALIDÉSetrésumésfermés ;xctraceattachsurlePIDnatif,sanssleephypothétiquevisantledécode. Démarrer àfincontrol_before,retenirunefenêtreterminalebornée(--window8s,time-limit45s),arrêtertraceparSIGINTàfintrace1,joinpropre;siCPU-onlydeuxièmepassejustifiée,lanceraprèsjoinpremieràfintrace1etarrêteràfintrace2. LesrangsréellementcouvertsserontconstatésaprèsTOC/time-info :objectif40transitionscomplètes,min16pourattribution,valeursexactesrapportées,aucuneextensionautomatiqueni40revendiquésiabsents. Traces2/3natifsinternesetcontrôleaprèsrestentexécutés.
+- Garderbaselines/params0,secteur/quiet,0Swapoutetgardesconstantesavantcapture ;superviseurexistantpourarrêt/jointure/gardesVM/temps. Contrôleurdoitbornerattentes,persistersétatincomplet,refuser0test/silence/exitinattendu/phaseabsenteoumalformée/goldenhashcountdiscordants/tracevide,nettoyer/rejoindretargetETtracersurtoouterreur. Tests jetables/fauxenfant/fauxtraceur couvrent erreurs,timeout/interruption,jointure/succès ;PythonRuff/format/compile/tests,tentativeCrossHairdisponibilité,pasdepreuvegénéraleinventée. Source/commandesfigéesavantphysique. CIexistanteàinspecter,ajoutercâblageciblésinécessaireaprès témoinrootpournepasmuterl’identitéGPUencours. AucunGPU/buildagentpendantpréparation. État : **préenregistré avant implémentation contrôleur, capturemodèle pasencorelancée**.
+
+- P08GPUwitnessprévolr1 **refusé avant superviseur/PIDGPU** : liste required_text avaitfooter1passed/0failed/0ignoredmaisomettaitlittéralexact1passed/0failed requisparlanceur. Aucunmodèle/GPUlancé,pasd’échecnumérique. `preflight-r1-failure.json`,planetidentitér1conservés ; nouveaur2ajouteseulementcetteassertiondecontrôle,nouveaunom/sourceidentity535avantvraiexécution. Gardes/ancre0inchangées,sourcebincodeinchangée.
+
+- 45-Q/R processus p08-gpu-witness-01-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/gpu-witness-01/plan-r2-result.json.
+
+- P08GPUwitnessr2 **1passé/0échec/0ignoré**,25600F32/102400octetsbit-exact,2capturesnonvides,joint0Swapout,0,610s ;preuve `decode-profile-20261031/gpu-witness-01/plan-r2-result.json`. TempsGPU/countersPASencorequalifiés. XcodeUI27.2demandaitcomposantssystèmepartagésobligatoires ;Installcliqué(dansautorisationinstallationXcode),attenteautrestâchesinstallationOS,aucunpromptlegal/authaffiché. Pasdeprofilagemodèleencore,contrôleurPythonseprépareCPU.
+
+- P08GPUwitness **qualifié outils** : replay AVECprofilingFull/Overlapping/Medium surM5/macOS27.2 fournittempsGPUpositifsfused18,38µs(1dispatch/1compute/2CB)etlegacy115,12µs(5dispatchs/1compute/2CB),nomsdepipelinesrésolus. CSVcompteursencodeurexportésnonvides ALU/F32/NeuralAccelerator/MMU/LLC ; limitesoccupancyTarget≠occupancymesurée,encodeur≠tousdispatchs,latencereplay≠débitmodèle,nipourcentages→msCPU. AucunevalidationdugainT05tiréedecetémoin. `decode-profile-20261031/gpu-witness-01/inspection.json`,captures/*-counters.csv. Le blocagehistorique0nsestrelevépourcetémoin,NANDphysiqueetlabelsdelatracesystèmemodèlerestentnonqualifiés.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX01 — arrêt externe SIGTERM, avant modèle et correction
+
+- Auditindépendantducontrôleurinitialtrouveun défautconcret : unSIGTERMdirectsurPythonne déclenchepasfinallyetlesenfantsnative/xctracecréésennouvellessessionspeuventresteractifs. Les31testsinitiauxincluentKeyboardInterruptmaisnequalifientpasSIGTERM. Aucuncontrôleur/modèlephysiqueencorelancé ; fichier/testétatavantcorrectionàconserver,aucunrésultatprofilagemodèleàinvalider.
+- Reproduiredanssousprocessusjetable(controller+2fauxenfants,aucunGPU),assertionsstatutdurableetgroupesrejoints,nettoyageforcédesfauxenfantssiéchecattendu. PuisinstallerhandlerSIGTERMqui lèveuneexceptiondanslechemincommunprotégé,restaurerhandlerfinalementetnettoyertargetETtraceurmêmesiterminationarrivependantjoin/attentes. Aucunstubderessourceprodniaffaiblissementgarde,aucunnouveauGPUoubenchmark. Relancercontrôlesaffectés,Ruff/format/compile/focusedtests puisrevuedececheminavantprofilagemodèle. TentativeCrossHairduvraifichierdéjàmoduleabsentconservée,paspreuvegénérale. État : **préenregistré avant fix et reproduction**.
+
+### DECODE-PROFILE-08-PROJECTION-01 — chaînes GPU isolées, avant code/capture
+
+- CapteurGPUpositivequalifiéparT05witness18,38/115,12µs+CSVencodeurs ;nouvellepropriétéGPUparchaîneT09out/qkvmanquantauxanciensfencedhosttime. Ajouterseulementtestignored `qwen4::tests::captures_isolated_flash_projection_chains` (cfgtest),aucunopérateur/math/runtime/defaultmodifié. ChargerseulementProjection::load/poids+input,soit≈28,9Modepoids3cas,pasFlashNextcomplet8Go. Sourcesavantéditionàarchiver,libtestnouvellementcompiléidentifiéavantGPU.
+- Trois cas,pasderequêtegénérique : GDN0outpréfixemodel.language_model.layers.0.linear_attn.out_proj6144→2560K4/MUL1,inputprojection-oracle-02/p8-input.f32F32→F16,oraclep8-output.f32F32 ;GDN0qkvpréfixein_proj_qkv2560→10240K4,inputp4-input.f32F32→F16,sortiecaptureF16[1,1,10240]etcomparaisonF32horscapture ;QSA**15**o_proj6144→2560K4(inputattention-06/a15-s0-gated.f32,[1,1,6144]aplatiF16,oraclea15-s0-out.f32F32). Changementdepérimètreexplicitevers15au lieude3caraucunoracleisolélayer3existant : mêmegéométrie/stockage,maisnepasprétendremesurerlesvaleurslayer3. Aucun oracle généré/assoupli.
+- ModèlecibleinchangéQwen3.8-Flash-Next-exl3-205-65c89531 ;rootsfixtures `/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02`(referenceSHA2ec20a82189f4b5cdb301cccbc39e5604912f4a2e0bcd9f3fb26bd18f216e078),`flash-attention-oracle-06`(referenceSHA40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec). Input/outputp4 SHA1d6ad498ffc5e714c3643f1b495992c42068de4a4bbf55e05b1151d75f14c4d9/b672ee10b49573a3a1e1a4212217ade7bc80a651822c88410c5164eee8ee9a62 ;p8 SHA8f32339eec5b05b3731995d80e16e9d836b246341729ccb8c8c4ec32ff7e4562/a7b0dfb9f525e7a54ccd2dca7c34ece0a363863888e07549e92c55dbfbf4b987 ;a15gated/out SHA8e1914d75c76a3846c38a41aee6a3435671843b491d91e59497ece99f9d5cbbf/e58b575bf3736f9942134c53d8cbdd90ee62192c3f2bb1817182b30d20732e9b. Finitude/nombre/nonzéro/F16représentabilitévérifiés,comparaisonbyteexactcommeoraclesexistants.
+- Test : parentneufMLXL3_FLASH_PROJECTION_CAPTURE_OUTPUT,refusoverwritegputrace/metadata ;poids/inputpréévalués+synchronisésavantstart,chaqueMetalCapturestartpuisrotationCBviasynchronize,constructiongraphefraîche productioncastsdtypesinchangés,eval,finish,validationtotalehorscapture ;3capturesgdn0-out/qsa15-out/gdn0-qkv+metadataexacts,borne2GiBtotaleaprèscapture,aucuneduréesynthétique. Exercerles3vraispointsavecfixturesindépendants,finitude/comptagetype,échecsfichier/shapeetmetadata.
+- VérificationavantGPU :fmt/ClippyMLXstrict/buildlibtestpertinents,pasdetestGPUdurantcompilation/preuve. KaniMLXréelresteincompatibleICEintrinsics243avantobligations,tentativephysiqueantérieureapplicableauxmêmesAPIArrayetprofilagemarquée nonvérifiée ;pasd’outil/stubinventépourvert,pasderépétitioninchangéeinutile. Reprendre293testsMLXordinaire/256CPUcompatibles,sourcesproductioninchangées ;suite libtestnonignoréeaffectéeaprèsbuild,testsphysiquesnouveauxsélectionnésparseulroot.
+- Physiqueaprèsidentitéetprévol :secteur/quiet/2Goadmissionlégère,ancreP08witness0inchangée/0Swapout/Swapin≤256Mio/RSS≤10Gio,timeout300s,1processusGPU ;ensuiteprofilageXcodeFullOverlappingMediumcohérenttémoinpourduréespositivesnoms/compteurs,nepascompterCBvidesoumultipliertempsreplayenboostmodèle. VérifiernombreCB/encodeurs/dispatchsréel,tousbuffersvisés ;comparerout/qkvàconditionsfixes,paslatenceproduction. RootseulGPU,agentseulcompileraprèsfeuvert(rootconfirmeXcodequitté,pasmodèleactif). État : **préenregistré avant implémentationetGPU**.
+
+- CONTROLLERFIX01 **corrigé et vérifié** :2échecsSIGTERMréelsavantfixarchivés,aprèsfix35cascontrôleur/300testsCPUélargispassent,handlersrestaurés,succès/échecavantPID/arrêtpendantcaptureoujoinnettoyés. Ruff/format/py_compile/diffcheckpassent ;CrossHairmoduleabsent(commandevraifichierconservée),paspreuveformelle. CInécessairecâblérootdansétapeprofilagePR/main(Ruff/format/compile/pytestnouveaux2fichiers),YAMLparseOK,runremoteduSHA-localnoncommitténonexécuté. Xcodequittéaprèsprofils/exportscounters,aucunmoteur/GPUapp/compilateurobservéavantpermissionbuildagentPROJECTION01. CapturesmodèleAR/MTP/DFpasencorelancées.
+
+- P08PROJECTION01prévolphysique :fmt/ClippyMLXstrict/buildlibtestpassent,libf7ad8a…(qwen4cfgtestseulajout),aucuncompilateuractif. Avantcaptures,exécutersuitelibnonignorée(198passés/178ignorésattendus),puis2échecsattendusréels :parentnonvideréfuséavec sentinelleconservée etfixturejetableshape[1,1,6144]aumêmecompteau lieude[1,6144]refuséavantcalcul ;puiscapturepositive3cas. Plans/identityfixturesfigésavantPID,0SwapoutancreP08inchangée,2Goadmission. Les2refusattendusdoiventêtre1testFAILEDexit101,pas0testsélectionné ;pasdeparitérevendiquéepourcesrefus.
+
+- 45-Q/R processus p08-projection-lib-suite : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/projection-01/physical-plan-result.json.
+
+- 45-Q/R processus p08-projection-reject-nonempty : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/projection-01/physical-plan-result.json.
+
+- 45-Q/R processus p08-projection-reject-shape : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/projection-01/physical-plan-result.json.
+
+- 45-Q/R processus p08-projection-captures : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/projection-01/physical-plan-result.json.
+
+- P08PROJECTION01 **qualité3cas validée** :suitelib198passés/178ignorés,two-negative-tests1FAILED/exit101attenduschacun(parentnonvidesentinelleintacte,shapefixturejetablemauvaiseavantGPUoutputsvides),capturepositive1passé0ignoré ;15360F32finis/exactsfaceauxoraclesindépendants,3captures<2GiB,mêmeancreP08/0Swapout,tousprocessusjoints. Plans/logsmetadata physical-plan-result.json etcaptures/metadata.json. Durées/countersdeces3chaînesnonmesurésencore ;ouvertureXcode/profilingprévusdansprotocole. Nouvellelibf7ad8a…testonlysource66a109…;aucunportkernel/CLI.
+
+- P08PROJECTION01premiersprofilsXcodeFullOverlappingMedium :GDN0out138,75µs/8dispatchs,QSA15out140,08µs/8,GDN0qkv703,42µs/6,2CB/1computechacun. Oraclesindépendantsexactspréalables ;aucuneprojectionentok/s. TablesShaderspointentQMV95,43%(QSAout)/98,10%(QKV)des**samples**avec66registres/0spillmesuré,non95–98%delalatencemurale. DéfinitionAppleprimary vérifiée,compteursdétaillésisolés≠timelineoverlap,KernelOccupancyCSVunitépasqualifiée/Target100plafondnonoccupation. Exportscountersparencodeuretsourceobservationsdansprojection-01/gpu-profiles.json. NouveauraccordmodèleCPU/GPUàmesureravantclassement.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX02 — seconde interruption pendant cleanup, préenregistré avant correction/tests
+
+- AprèsFIX01l’auditindépendantconfirmeun casconcret :secondSIGINTpendantSTOP.waitdu traceurignorantTERM lèveKeyboardInterrupt ;catchBaseExceptionjournalisel’erreurpuisnettoielemoteurmaissautel’escaladeSIGKILLdutraceur,quirisqueunerétentionorpheline. Aucunprofilagemodèleencore,état35testscapture+sourcesavantfix02archivédanscontroller-before-fix02 ;35vertesn’affirmaientpascetestedoubleINT.
+- Correctionminimaleprévue :ignorerSIGINT ET SIGTERMpendanttoutcleanupborné,puisrestaurerles2handlersprécédents ;premierINT/TERMcontinueàdéclencherchemincommun. Deuxrégressionssous-processusréellesINT→INTetTERM→INTavec2fauxenfantsettraceurlentignorantTERM,vérifierdurablefailed/nonparity,groupesrejoints/escaladeKILL,restaurationhandlers,succès/refusavantPIDinchangés. Rerunseulscontrôleurtests+Ruff/format/compile,pasdetestGPUnioutilsabsentsréinstallés. Lecontratdeprofilageresteidentique,aucunmoteur/kernels/mathchange. État : **préenregistré avant correction et régressions**.
+
+- P08PROJECTION01révisioninspectionGDNout :premierprofil138,75µs+CSVencodeurconservé,maislescoûtssamplés/registresparshadern’ontpasétéexportésavantfermetureduframe. Retourunefoissur lamêmecapturegdn0-outpourcettepropriétémanquante,mêmesFull/Overlapping/Medium,conserverlasecondevaleuravecsonpropresamplingetnepasmélanger95%avecl’ancienchrono. Ce n’estpasunerépétitionpourstabiliserdesdécimalesoumesurerungain. Aucunmodèlenoyauvariant/capturefichierécrasé ;éventuelnouveauCSVsuffixer2.
+
+- P08PROJECTION01inspectionclose :3CSVencodeurs+retourGDNr2conservés. **Limitecritiqueabsolusreplaynonstables** :mêmeGDNout138,75→694,25µs sousétiquettesFull/Overlapping/Medium;QSA140,08/QKV703,42restentobservationsisoléesnonbudgetnatif. Contrôleultérieursecteur100%,pasalertethermique,0Swapin/out,pasautremodèle/compilateur ;causeexactenonétablie. Neconvertirnilatenceisoléenims/token,nicoûtsShaderssample95–98%enµs. HotspotQMV/registres66/0spillrelevés,QSA15remplacementexplicitique,code/inputs/dtypes/fallback/sourcepréfixes/vraicheminprojectionrevusaucundéfautd’adaptationconcrettrouvé. Xcodequittéensuitepourprofilnaturel ;pasdeboucleréessaisreplaypourchasserlavariance.
+
+### DECODE-PROFILE-08-NATURAL-01 — préenregistrement physique avant modèle
+
+- Outilsqualifiésnoms/tempspositifs/countersparencodeurmaislatencesreplayabsoluesinstables ;butnouvelacquisition**naturelle**CPU/GPUcontrairementfenced/replay,aprèsinstallationnouvelOS/XcodeetoptionTimeProfilerhaute-fréquence/commutations/pileskernel. Ne pasrecopier12,142msancienniattribuer95%costsampleàlatence.
+- BaselineuniqueT18/T17/T05/T04=0,Hot/Wide/Unique1,cache3Gio53×48/4lecteurs,lookahead0,40ops/40MB,allocator64MiB,contexte4096,Qwen3.8FlashNextEXL3.205/draftDFlash2mêmescheckpoints,MAIN87tokens+128sorties/127transitions. Nouvellelibf7ad8a…(seulajoutcfgtestprojections,productioninchangée) ;sourcesdecontrôle/fixtures/golden/binfigéesdansnatural/identity.json. Qualification numériquemoteur antérieurecompatiblesourceet3projections15,360valeursindépendantesexactes,captures128futurescontrôlent6phasesgreedy/fullfinal-logits248320finis/étatstarget/head/draft.
+- ARd’abord :harnaisnaturalstock6phasesENTIÈRESwarmup/control_before/trace1/trace2/trace3/control_after,1testpass0ignoré. Àfincontrol_before ferméetvalidé,lancerxctraceTimeProfiler+GPU+ThreadActivity+SystemCallTraceoptionsJSON(contextswitch/highfreq/kernelstackstrue,waitingfalse),rolling--window8s,--time-limit45s,SIGINTtraceuràfintrace1+join ;deuxièmecaptureTimeProfilerseuleàfintrace1aprèsjoin,arrêtàfintrace2,natifcontinue3/contrôleaprès. MTP/DFpréparésunecapturecombinedchacun,sanslargeur/contextematrice,**àlancerseulementaprèsARcouverturequalifiée**. Sourcecontrôleur37testspassés,300suiteCPUcompatible,2contre-exemplesSIGTERM+2doubleINTreproduitsavantfixetconservés,Ruff/format/compile/CIcibléevérifiés ;CrossHairabsentnonpreuve.
+- Sélectiondéclarée :objectif40premierstransitionscomplètesdecapayantindex>=16,minimum16pourattribution,rapporterlacouvertureentièreetmarges ;nepasprolongersilencapture insuffisante,niretirerlents. Calage`time-info`+timebasecontraintindépendammentparpreadv/jobs/nombre/octets,CPUrunning/blocked/runnable/interruptionparTID,GPubusyuniontous/duprocessusséparés,samplingpériodique/commutations/weightsdistincts. Conserverdrainterminalhorsoutput_step,denominateursMTP/DFoutputs/target_rows/verified_rows,pasdesommationCPU+GPUouworkers. 2capturesARfontqualifierobservateurexterneencomparantmêmesrangscontrolsphases,aucuneprétentionàduréesexactesparfonctiondepuispiles.
+- Gardesavantpremiermodèle :secteur/quiet,Xcodequitté,aucunbuild/proof/autreinférence,1modelGPU,admission10,5Gotous3cas,3snap20savantpremier,P08anchor0inchangé,zéroSwapout/Swapin≤256Mio,RSS≤10GiB/parprocessetpicnativefooter<12Go. Timeout900s/cible,silence180s,tracejoin10s,arrêtcleanupbornéSIGINT+TERMrestaurés. Nouveauxdossiers/natifscomplets,fichiersd’échecincompletsgardés ;aucunélargissementautoaprèsgarde. NANDphysiqueinconnuetpasdéduitdepreadv,éventuelcapteuràqualifierséparément. **État :préparéavantpremierPIDmodèle**,Turboaprèsprofilage.
+
+- P08NATURAL01ARr1 **interrompu/écheccontrôleur**,pasnumérique :admission14,492/14,473/14,465Go passée20s,0nouveauSwapin/out,jusque3phaseswarmup/control_before/trace1(golden128+logitsétatsvalidés). ÀSIGINTxctraceafficheStopping recordingmaisnefinalisepasdans10s :gardejointripped,tousgroupes(target19300/trace19417)arrêtés/rejoints,pasdeprocessusrestant,rapportfailed/nonparityettracenonqualifiéeconservés. Trace1decode13,3536s,controlbefore11,6122s :diagnosticsobservateur,pasgain. Contrôleaprès/suite6phaseset2ecapturePASexécutés ;nepaslesdéclarerpassés. Preuvesnatural/AR-MAIN-plan-result.json/loget-capture-1.trace/log.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX03 — finalisation xctrace réelle, préenregistré avant correctif/relance
+
+- Défautd’adaptationconcretduprotocole :join10stropcourt pourfinalisationd’unevraie trace8shaute-fréquence/switch/kernel/syscalls surXcode27.2. Fauxtraceurssuccessnormauxn’avaientpasqualifiécelatencedevidange. Enplus,attendreunevidangelonguedupremiertraceuravantd’attacherleCPUàtrace2pourraitviserunephase déjàfinie. AucuneaffectationdebudgetGPU/CPUdepuisr1échoué.
+- Correctionminimale :jointraceur60s(borné,pasillimité,nicoupuredesgardesVM),unseulcaptureparprocessusnatif ;autoriserplan `captures:[combined]` OU `[cpu]` (compatibilitéancien2capturesconservéeseulementpourtests/explicite,nepasl’utiliserici). ARcombinednouveauprocessus,rangs≥16objectif40/min16,inspectioncoverageavantARCPU-onlysecondeexécutionindépendanteauxmêmesparams,chaqueharnaisstock6phasesetcontrolsfull. MTP/DFcombinedaprèsARqualifiécommeprécédemment ;pasdematriceantibruit. Conserverr1plans/identité/traces/rawscores,nomsetidentitér2nouveauxavantPID.
+- RégressionsCPUjetables :traceurarrêtSIGINTquifinaliseavecunpetitretardetfinit0 ;bornejoinéchueaveccleanupKILL ;CPU-onlygénèreTimeProfilersansGPU/syscalls,etcouvertures6phases/invalides37antérieures. Paramètregardeconst60sasserté,attentes réellesdetestsraccourciesparinjectionbornéepastests60s. ReruncontrollerRuff/format/compile/focused,seulsappelsaffectés,pasbuildmoteur/GPU/proveurconcurrent. **État :préenregistréavantfixetrelance ;aucunréancrage/garderamabaissée.**
+
+- P08FIX03qualifiéCPU40/40contrôleur,Ruff/format/compile/diffcheckpassés,anciennepreuve300testscompatiblesconservée. Nouvellematricer2figée4processusindépendants(ARcombined,puisARCPU-only, MTPcombined,DFcombined)avecune capturechacun,chaqueharnais6phases128etcontrôleavant/après. Entréesnatural-r2/identity.json551sources,numériques/codebaseline/ancre0/gardesinchangés ;sourcecaptureaprèsFIX03testée,tousanciensr1outputsconservés. ARcombinedseullancéàprésent,export/qualifcoverageavantautres. Pasderéancrage/relaxmemoryounouveauport.
+
+- P08NATURALr2AR **contrôleur interrompu àjoin60s**,0Swapout/Swapin,target20329/trace20450rejoints ;5résumésnatifsfermés(warmup/controlbefore/trace1/trace2/trace3),PASdecontrol_after/final-snapshot/completeJSON,doncpasfullnativepass. Le logtracefinitpendantcleanup parRecordingcompleted/Outputfilesaved ;TOCexport0réussi,lesdonnéesrestentmarquéesissuesd’unworkflowinterrompu,pasvalidationcomplète. FenêtreTOC16s(8srollinggranularitéàanalyser),tempsorigineàcalibrer,pasduseulTOC. LeTOCmontre2tablesCPUtime-sample(1000ususer et100ususer+kernel),causeplausibleduwarningbindingperiod1ms/0.1ms : choisir explicitementlatabledansanalyse,pas mélangercomptes.
+
+### DECODE-PROFILE-08-STOP-WITNESS-01 — arrêter le collecteur réel avant nouvelle relance modèle
+
+- Nouvelle hypothèseconcrèteàauditer :finish_captureenvoieSIGINTà**toutlePGID**xctrace ;l’inventaireR2montreDTServiceHubcommechild20466ducollecteur20450,probablementmêmePGID (àvérifierenlive). Couperlehelperpeutperturberlafinalisation ;augmenterencorelejoinaveuglémentn’estpaslaprochainemesure.
+- TémoinCPU SEUL,sansmodèle/AppleGPUcalcul,helperPythonjetableborné120s,2capturesxctraceréellesmêmetemplate/options/time-limitcourt/window2s :inspecterPID/PPID/PGIDdesenfants,puiscomparerSIGINTgroupeetSIGINTparentuniquementaprèsinitialisation(tempdecollectenonutilisécommebenchmark). Observerstoplog,duréejusqu’àexit,codeetétatTOC/trace ;joinmax20sgracieuxparcas,puiscleanupSTOPexistant(groupespossédésSIGTERM/KILL,joinstoujours)etnettoyertargethelper,échecsconservés. Pasdeclaimprofilagesampling/GPU/modeldepuiscehelper,aucuncompilateur/proveur. Si causeconfirmée,préenregistrercorrectifminim1ligneverssend_signalparentettestsaffectésavantnouveauARr3. Ancre0/gardes/ancienrésultatspréservés,nepasréancrerunincident. État : **préenregistréavanttémoinetcorrectionéventuelle**.
+
+- STOPWITNESS01premiertémoinCPU **hypothèsePGIDhelper réfutée** :xctrace23595PGID23595,DTServiceHub23612PPID23595maisPGID23612,leSIGINTgroupparentnetouchepascehelper. Latracegroupeaétésauvegardée/TOCrécupérationexport0 ;maistémointerrompuparuneCOURSEduprélèvementRSS :Popen.pollencoreactif,puispsRSS0pendantterminaison,guardinterprèteàtortbreach. CleanupPermissionError/zombietransitoireconsignés,tous23586/23594/23595/23612disparusensuitevérification. 0Swapin/out ;pasdechangementcapture.py,pascomparaisonparent-onlyencore,n'attribuerpasl'échecar1/r2àunhelperinterrompupuisquePGIDdifférent.
+### DECODE-PROFILE-08-STOP-WITNESS-01-r2 — courseRSSterminale, avant nouveau témoin
+
+- Corrigerseulementl’observationdutémoin :psPID/PPID/PGID/UID/STAT/RSSensemble,poll/waitaprèsinstantanéavanttoutsignal,étatterminal/zombiejournaliséetrejoint,nonsurcomptécommeRSSlive0. Plafond10GiB/secteur/quiet/ancre0/admissioninchangés ;RSS0d’unprocessusnonterminal/nonexiténepeutpasêtreacceptésilencieusement. Aucunaffaiblissementmémoire. RéutilisercleanupSTOPexistant,conserverpreuvepremièreetnouveauxfichiersr2. Comparaisonparent-onlyencoremanquante,2casr2groupe/parentborne20s,mêmesoptionsetfenêtre2s/timelimit10s,helper120s,pasGPUcalculniinférence. Pasd’éditioncapture.pyavantcausequalifiée. État : **préenregistréavantrelancedutémoin**.
+
+- STOPWITNESS01r2 **terminé** :groupeSIGINT4,391636s→exit0,parentsignal3,948628s→exit0,2TOC0,zéroSwapin/out,picsRSS1,365/1,304Go,tousgroupes/services/helpersjoints/disparus. PGIDhelperdifférentconfirmé ;hypothèse«killpgcassel’auxiliaire» réfutée,pasdechangementAPIstop. Lavraiecausefinalisationmodèle>60sresteinconnue. Preuvesstop-witness-01/README.md/r2/inspection.json ;premiercasraceRSS/PERMconservé. BLE001d’uneclausecleanupopérationnelr2documenté,pasvertRuffcompletrevendiqué.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX04 — gardeRSSprocessusterminal et configscapteurs, avant code/relance
+
+- Défautréelobservéparwitness :pollNonepuissentpsrenvoyerRSS0ouPIDdisparulorsquelacollecteseferme ;lecontrôleprécédentleclassaitàtortdépassementRSS. CorrigerprélèvementPIDspossédésparpsSTAT+RSSensemble ;zombie/disparuidentifié≠processusliveetdoitêtrefinalementjoint,livepositif≤10GiBinchangé,RSS0nonterminalencoreerreur,pasderetraitgarde. Testsrégressionsterminant/disparu/live0/live>plafondetrestedescas40.
+- ModifiercontrôleplanpourUNSEULcapturéparprocessus(supprimerchemin2capturesquiserviraitphasefinieaprèsflushlong). Deuxconfigsexactes,pasoptionsgénériques :combinedTimeProfiler+GPU+ThreadActivity+SystemCallTracecadence**standard1ms**,kernelStacks/contextSwitchSamplingfalsecommeproviderGPUimplicite,waitingfalse ;CPU-only100µs/highfreq/kernelStacks/contextSwitchtrue,waitingfalse. LeTOCr2montredeuxproviders1000us/100usetunwarningbinding ;cetavertissementN'ESTPASdémontrécausedes60s(petitwitnessmêmecombotermine4s). Séparerl’attributionCPUfinedutimelineGPUréduitlevolumeetrisqueperturbationdanschaquecapture,laisse8srolling/45smax/join60s.
+- Nouveaur3ARcombinedd’abord,mêmes128sorties6phasesfullavant/après,baselinelibf7ad/maths/params0/cache3G/4lecteurs/sectorquiet/ancre0/admission10,5/RSS10GiB/foot12G ;objectif40pascomplètessup16/min16,pasprolongationauto. ARCPU-onlyautreprocessusaprèsqualifAR,GPU/MTP/DFensuitesiutile. Diffdeclassementméthodeexplicitique,pasrépétitionantibruit,niconfirmationdel’anciennecapturefailed. Toutesr1/r2restentinterrompues,mêmesiTOCexportable;leursdonnéespeuventêtreinspectéesavecstatutrawpartialpasfullnativepass.
+- AvantcodeetPID :testsCPUcfgcombined/CPU/wrongoptions/réfuspairesetguardterminal,anciens37+slowstop40régresseurs,format/lint/compile ;CrossHairabsentinchangépaspreuve. Revuecourte,pasbuildmoteurniéditionsnumériques. **État :préenregistréavantfixetrelance,aucunnouveaumodèlePIDr3.**
+
+### DECODE-PROFILE-08-OBSERVER-AUDIT-01 — défaut de rétention cfg(test), avant nouveau modèle
+
+- Audit lecture des callers natifs découvre que les vecteurs GDN/QSA/PLE/Layer/MTP `stages` conservent des clones d'Array même lorsque profile::TRACE est absent. `try_clone` alloue un wrapper mx::array et garde une référence au graphe ; MLX refuse certaines donations lorsque array_desc_.use_count()!=1. Le test detailed_profile ne reproduit donc pas exactement les réutilisations du CLI release, même dans control_before/control_after. Impact réel non mesuré, ne pas attribuer les12,142ms historiques à l'app sans cette limite.
+- **ARr3 pas lancé**, plans/configs préparés seulement ; différer identité/binaire final. Les anciennes traces, oracles et chiffres ne sont pas effacés : ils décrivent l'ancien harnais diagnostique. Audit source demandé avant édition : déterminer usages effectifs des stages par detailed_profile/state_bytes et le plus petit moyen test-only de désactiver cette rétention tout en gardant états finals/logits/golden complets. Aucun changement mathématique/production ni nouvelle mesure autorisée par cette seule entrée.
+- Contrôleur FIX04 reste une correction indépendante de gardeRSS terminale/configs : ses tests CPU peuvent finir. Analyse des exports ARr2 permise, explicitement rawpartial/observateur ancien, sans nouveau gain/validation release. Préciser surcoûts résiduels (spans/JSON/compteurs) et quantité de données effectivement couverte avant nouvelle acquisition. **État : en cours, audit source avant choix de correctif et protocole.**
+
+- P08FIX04 **qualifié CPU** :69tests contrôleur passent (socle40+16optionscorrompues+13RSS),Ruff/format/py_compile/diffcheckpassés. Configscombined/CPUdistinctesexactes,paire refuséeavantPID,deuxièmeattachsupprimé ;STAT+RSSgarde ignoreseulementterminal/disparu,live0/>10GiBrefusés. MêmeAC/quiet/Swapout0/Swapin256MiB/admission105/join60. `decode-profile-20261031/controller-fix04-checks.log`. CrossHair absent,CIlocalecompatible(PR/main),remoteCI nonexécutée. Aucun modèle r3 lancé.
+
+### DECODE-PROFILE-08-STAGES-01 — corriger le biais des stages, avant code/build/qualité/profilage
+
+- Audit complet : detailed_profile/state_bytes/qsa_bytes NE LISENT PAS les .stages. Leslogits/états finals sont contrôlés hors chrono ; retenir stages n'est donc pas une précondition de ces oracles. Modifier uniquement instrumentation cfg(test) : gardeTLSRAII rétentiondefaulttrue (préserve testscomposants existants),false pendant profilage natural/context ; conditionner tous les pushes/extend/vec .stagesGDN/QSA/PLE/Layer/MTPhead. Garder les appels flash_profile::stage/fences et les opérations de production. NiCLI/app/mathscodechange,ni gain moteur attribué à cette correction de mesure.
+- RégresseursCPU : valeurdefault/restaurationimbriquée/panic/isolationthread,effetstagepushdisabled ; testphysiqueAR réel forward (pas forward_trace) rétentionon/off surpréfixes1..6tokensfixés,logits248320+étatspertinentsnonvidesfinisbitexact,stagesvidesoff/nonvideson. Réutiliser oracleindépendantfulltrajectory sousgardeoff pour éviter seulement oracledeuxbrasidentiques. MTP/DF restent nonprofilés tant que leurscontrôlesétats sousgardeoff nonqualifiés ; pas étendre scope maintenant.
+- BuildlibtestreleaseMLX/chat finalseulementaprèsCPUexportsfinis,pasGPUconcurrent. fmt/Clippystrictalltargets/testslib pertinents et suiteCPUaffectée ; lireformalproofRust/tenterKani survraihelperdanscontexte test sioutil compatible,conserverICEintrinsics243historique si mêmeblocage,aucun stub/preuveMetalinventée. CIexistanteexécutesuitestestsCPU etbuildMLX ; contrôlercas ajoutés. Archiverancienqwen4/flash_profile/profile et identitésavantédition,binairef7ad/tracesantérieuresimmuables.
+- Physiqueavanttiming : nouveauplan/identitébinairegrosmodèle/cache3G/4readers/T18off,mêmesoracles+envbaseline,secteur/quiet/admission105/Swapout0ancrewitnessinchangée/Swapin≤256MiB/RSS≤10GiB/nativefoot<12GB ;uneinférence,seuilsdélais900s,silence180,joinstoujours. Aprèsqualité AR,r3combinedstandard1ms complet6phases128 ;r3CPU100us séparéuniquementsiutileàattribution,pasautomatiqueMTP/DF. Les plansr3f7ad préparés restent nonexécutés etserontarchivés/remplacésavantPIDnouveaubinaire,identité explicite. Observerrestantspans/JSONdisque/chrono documentéetcomparaisoncontrol/capture/après ;pasd'équivalenceCLIcomplète revendiquée. **État :préenregistréavantédition/compilation/mesure.**
+
+- STAGES01 **amendement prospectif avant édition** : l'audit identifie un contrôle plus petit et plus fort sur le vrai parcours : conserver rétentiontrue pendant warmup (et sequential_oracle), puis false pour control_before/trace1–3/control_after. Le harnais compare déjà byte-à-byte tokens/logits complets/états finals target/head/draft de chaque phase à warmup ; control_before fournit donc parité cross-policy avant attache xctrace. Réutiliser ce chemin au lieu d'ajouter des wrappers GPU/oracles/réexécutions préfixes séparées. Conserver les régresseursCPU de gardeTLS(default/nested/panic/thread) et affirmer horschrono stagesnonvideswarmup/videsphasesfalse,avec policy/count danssummary pour contrôle du lanceur. Ne pas modifier les champs attendus existants/contrats d'analyse, seulement ajoutermétadonnées. Le nouveauprofil estsa proprequalificationnumérique avant capture ; pasdeclaimdébitrelease. MTP/DF futurs restentàqualifierparleurspropresphases complètes. Vider MTPhead.stages au débutmêmerétentionoff pournepasgarderd'anciennesrefs. Aucuneopération mathématique changée,aucunmodèlePIDnouveau.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX05 — contrat stages du nouveau harnais, avant code
+
+- Accompagner STAGES01 par validation fermée des nouveaux champs summary `test_stage_retention` (bool strict) / `test_stage_count` (entierstrict≥0). Natural128 :warmuptrue/count>0 ;control_before/traces/control_afterfalse/count0. Refuser champ absent,typemalformé,policyincorrecte ou stagesrésiduels avantattachement/qualification ;tokens/logitsétats et anciennesgardes restentintacts. Ne pas accepter ancienbinaryf7ad sanscecontratnouveau,lesanciensrapports restenthistoriquesetnerepassentpasdanscenouveauvalidateur.
+- TestsCPU existants adaptésauxfixturesnouveaucontrat,régressionsmanquant/boolenint/négatif/nonzerooff/zeroon/policymismatch,réutilisercontrôleurentrée etphasevalidator. Ruff/format/py_compile/pytestaffecté,CI existantecouvreles2fichiers ;CrossHairabsentrestedocumenté. Archivecapture/testFIX04 etSHAavantédition. Aucune nouvelleoption oumémoire/date/seuil modifié. **État :préenregistréavantédition**.
+
+- STAGES01 précision d'adaptation avant build : MTPhead vide les anciennes références au début seulement lorsque rétentionfalse ; défauttrue conserve le calendrier historique de remplacement. Cela limite les effets hors profilage. Métadonnées = sommes de len(),sansclone/évaluation, horschrono. Lesstagesanciennechauffe desautrescouches sont vidés par leurs appels existants dèspréfillsuivant ; pas de référence tensorielle supplémentaire créée par l'instrumentation nouvelle.
+
+- P08FIX05 **qualifiéCPU97/97**,Ruff/format/py_compile/diffcheckpassés ;2régressionspréfixmontrentqu'anciencontrôleuracceptaitchampsabsents,archives/reproduction.logconservés. 24corruptionsprécoces+4résidustardifsaux69casFIX04 ;contratwarmupon/>0et5phasesoff/0 vérifiéavantvalidate_summary/attach. `decode-profile-20261031/controller-fix05-checks.log`. CrossHairabsent,CIlocalecompatible/remoteCIpasexécutée,aucunmodèle/GPU. Nouveauharnaisnatifencoursdequalification STAGES01,aucunPIDr3.
+
+- STAGES01 qualificationCPU : testscopé1/1 puislibCPU171passés/8ignorés,fmt etClippyreleaseMLX/chatstrictalltargets passent. Kani0.68 **vraihelperTLSRAII** `cargo kani --lib --tests --no-default-features --harness flash_profile::stage_retention_restores_symbolic_nested_scopes --jobs 1` termine0en2,618s :95obligationsSUCCESS,4/4coversSATISFIED,0UNREACHABLE,2boolsymboliques sansassume,unwind33. Avertissement expliciteTLS→variable statique : vérificationbornée **séquentielle**,pasconcurrence/thread-isolation(cesdernièresvérifiéespartestCPUréel),pasMLX/Metal/génération. AncienICEFFIMLX inchangé nonrejoué. Sources/détails dansstages-01/{kani.log,kani-result.json,cpu-focused.log,cpu-lib-suite.log,clippy-mlx.log}.
+- CI réparée minimalement : ajouter ceharnais àl'étapeKaniexistantereadback (`--lib --tests --no-default-features`,2sélecteurs),pasnouvelleinfrastructure. YAML parsé/sélecteursinspectés,PR/pushmaininchangés ;snapshotavantstages-01/before/workflow-rust-before-stage-proof.yml. Actionlintabsent/remoteCIduSHAmodifié nonpublié nonexécutée,nepasdéclarerCIverte. Libtestreleasefinalencours,aucunGPU/modèlemesuréSTAGES01/r3àcestade.
+
+- 45-Q/R processus p08-stages01-lib-suite : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-20261031/stages-01/mlx-lib-suite-plan-result.json.
+
+- P08 ARr2, analyse partielle terminée : 60 transitions complètes disponibles, sélection des40 premières éligibles = pas68–107. Calage indépendant par5709 retours preadv /7124900508octets, incertitude±1,333µs. Soumissions22,612ms/sortie dont11,985ms Running∩GPUidle ; premierasync18,801/11,910ms, Hot3,811/0,0742ms. Routes35,965ms dont35,867msGPUactif, copie0,0044ms. Queue I/O exposée conditionnelle27,169ms, pas mesure NAND. Voir natural-r2/attribution-partial/partial-attribution.json et rapports async*.json.
+- Piles :4830points périodiques éligibles communs HF/LF (+5HF sans correspondance raw). maybeInsertBarrier736/get_command_encoder634/dispatch_threads590/gpu::eval557/eval_impl481/commit200/set_input191/end_encoding106 ; premièreframeuser kdebug1126. **Comptages statistiques, pas durées exclusives ni compteurs d'appels.** Les15645timestamps/TID périodiques des2providers sont identiques, avec poids1msvs100µs : pas observations indépendantes, ne pas sommer ni convertir les poids en budgets CPU. Callbacks autres threads séparés.
+- Vérification analyse : Ruff/format/py_compile,10tests et6750checks finis passent ; mutationbytecount1248013 rejetée, version restaurée repasse. Exports tous joints, context-switch-sample refuséexit10 conservé, donnéescontext-switch séparées ensuiteexportables ; CrossHair absent demeurelimite. **Workflow ARr2 interrompu et ancienbiaisstages : full_run_parityfalse, aucune attribution release ni gain nouveau.**
+- STAGES01 build final gelé : libtest SHA32cc1c366497b0385e4ea6594211a9bef5e8393e42fb42891edc0ef444de3483 ; identité103sources de compilation + identité557sources physique dans natural-r3/identity.json. Six fichiers source changés depuis r2(CI,3Rusttestonly,controller/test). Ancienf7ad intact, plansr3f7ad nonlancés archivés. SuiteMLX ordinaire isolée en cours, attendue199passés/178ignorés ; aucuntest modèle encore lancé avec nouveauharnais.
+
+- STAGES01 suite MLX ordinaire physique **199passés/0échec/178ignorés**,18,33s natifs,tousprocessusjoints,0Swapout/Swapin ; `stages-01/mlx-lib-suite-plan-result.json`. Les178testsphysiquesignorés ne sontpasdéclarésexécutés. Admission r3 passée3instantanés20s :13,760/13,723/13,759Go,AC/quiet/ancre0inchangés,identité557revérifiée. ARr3 combined standard1ms lancé maintenant avec lib32cc,uneinférence,seultraceurattachaprèscontrol_beforevalidé,mêmes128/6phases/caches. **État :en cours,pasencoreparitécomplètenicouverturetracequalifiée.**
+
+- ARr3 **interrompu par une nouvelle course de garde RSS**, pas de swap ni de divergence : quatre résumés natifs fermés (warmup/control_before/trace1/trace2), politique 789→0 et full logits/états byte-exact ; PAS de control_after/complete.json. xctrace a écrit Recording completed/Output file saved, mais ps donne PID27309 '?Es', RSS0 pendant sortie. FIX04 ignorait Z/disparu seulement ; le flag Darwin E=trying to exit restait mal classé vivant. Maximum RSS échantillonné 5,416Go, pas de dépassement réel du plafond, 0Swapin/out. Cleanup STOP a reçu PermissionError1 pendant cette transition ; target27154 joint, tracer reaped non confirmé, les deux PIDs/services absents après vérification. Garder rapports failed/parityfalse et cleanup_errors, aucune réhabilitation rétroactive.
+
+### DECODE-PROFILE-08-CONTROLLER-FIX06 — état Darwin E et EPERM de sortie, avant code/relance
+
+- Défaut concret d'adaptation observé avec '?Es'/RSS0 ; la documentation locale man ps indique E=trying to exit. Élargir uniquement l'identification terminale RSS à Z ou flag E (en plus de PID disparu). RSS0 S/R sans E reste une erreur, plafond10GiB inchangé, poll/wait et jointure obligatoires.
+- Lors du cleanup, si STOP soulève PermissionError, faire wait borné5s sur son Popen enfant direct ; succès seulement si réellement joint, timeout/erreur restent failed cleanup. Ne jamais ignorer EPERM ni désactiver les gardes ; droitsOS inchangés. Régresseurs '?Es'/RSS0/Eflag/RSSpositive et cas vivants, EPERM puis wait0 vs waittimeout, persistance des échecs/jointures ; réutiliser signaux réels et97tests. Archiver FIX05 avant édition et reproduire le faux refus RSS '?Es' sur l'ancien code.
+- Nouvelle ARr4 seulement après Ruff/format/compile/tests affectés et revue : lib32cc et Rust inchangés, config combined standard1ms/ancre0/gardes105/une inférence/sixphases128/stop60 identiques. R3 conservé failed, objectif couverture40/min16 inchangé ; aucune augmentation des délais/RAM. Si nouvel échec collecteur : pas de boucle automatique de relance ; exploiter le raw qualifié avec limites et passer à Turbo après bilan. **État : préenregistré avant fix et nouveau PID**.
+
+- FIX06 préparation en parallèle, sans nouvelle inférence : exporter/analyser la trace ARr3 déjà sauvegardée, même méthode sélection40/min16 et calage indépendant jobs/preadv ; nouvelles preuves dans natural-r3/attribution-partial. Statut reste workflow interrompu, full_run_parityfalse ; nouvelle propriété = harnais stage-free, provider standard1ms seulement. Ne pas réutiliser cadence/poids HF r2 comme s'ils venaient de r3. Tous exports CPU bornés/joints avant lancement modèle r4. Pas de hausse de mémoire ni modification des sources figées.
+
+- FIX06 terminé :106/106tests contrôleur passent, Ruff/format/py_compile/diffcheck passent ; reproduction du faux refus '?Es' avant fix conservée. Sixcas RSS Darwin/vivant et troisparcours EPERM via vraie entrée du contrôleur (wait réussi/timeout/erreur) ajoutés aux97 ; deuxenfants toujours traités, échecs persistés, fixtures finalement jointes. Source revue : uniquement branche terminalE et wait5s surEPERM. CIexistantecompatible, CrossHairabsent reste nonvérifié. Pas de changement natif/Metal/mémoire/délai60.
+- ARr3 analyse partielle :52transitions disponibles,40sélectionnées pas76–115 ; soumissions22,385ms dont11,854msRunning∩GPUidle,indices18,649/11,768ms,Hot3,737/0,0862ms. Routes36,756ms dont36,626msGPUactif,copie0,00431ms. Calage5985lectures/7469351820octets,−26,989µs±1,375µs ; uniqueprovider1ms confirmé,1543pointsmain/497éligibles(494indices/3Hot),leafkdebug123,closestMLXbarrier73/dispatch68/encoder62/gpu::eval56/eval_impl51/set_input26/commit17. Comptages statistiques seulement. Suppressionstages n'élimine pas le posteCPU dansceharnais ; paspreuvebudgetCLIrelease. Tous exports/analyse joints, nouvelr4peut démarrer aprèsadmission, aucune charge lourde restante. Preuves natural-r3/attribution-partial/.
+
+### TURBO-READ-01 — examen direct des sources après première attribution P08
+
+- Demande utilisateur : après NPU et profilage plus fin, lire personnellement TurboEXL3 pour chercher des mécanismes adaptés. NPU clos ; attribution P08r2/r3 disponible : CPU de soumission surtout encodage/ressources/graphe, routewait presque entièrement GPUactif, queue POSIX conditionnelle~27ms. Rétentionstages corrigée mais harnais reste diagnostique ; dernière validation workflow ARr4 séparée, aucun gain moteur nouveau.
+- Recherche puis lecture directe par le coordinateur de sources primaires épinglées(commit/chemins), pas délégation de toute la lecture. Comparer CPU graph/submission/encode, QMV/préfill, mémoire/cache/SSD aux mécanismes déjà présents et aux essais historiques T01/T04/T17/T18/pool/Sushi/Mia. Ne pas transposer des chiffres NVIDIA/autreMac/mémoire/mode ; extraire uniquement hypothèses avec différences concrètes et risques numériques/3GiB.
+- Aucun port moteur, compilation, preuve ni benchmark Turbo à cette étape. Lire docs et code utiles, vérifier si chaque piste existe localement et tracer les limites. Les éventuels nouveaux tests/ports auront leur propre préenregistrement après cette revue. État : préenregistré avant recherche amont.
+
+- ARr4 modèle lancé après admission3snapshots20s15,068/15,048/15,045Go ; même ancre0/lib32cc/params, identité558sources(uniquementcontroller/tests modifiés depuisr3),configstandard1ms. Tous exports r3 joints avant PID,aucunecompilation/preuve/autreinférence. **En cours ; paritéfull/tracecoveragepasencorevalidées.**
+
+- ARr4 **interrompu à la garde Swapouts :262144octets=256Kio**, contre ancre originale0 ; Swapins0. Quatre résumés fermés(warmup/control_before/trace1/trace2), pas contrôleaprès/complete.json/footer1passé. Traceur29767 et cible29630 arrêtés/rejoints, aucuncleanup_error, aucunPID/service restant observé. RSSderniers6,180Go/3,764Go : pasbreachRSS ; le nouveauFIX06 n'a pas levé de fauxRSS/EPERM mais son arrêt nominal complet n'estpasqualifiéparcetessai. Rapport natural-r4/AR-combined-MAIN-plan-result.json reste failed/parityfalse.
+- Conformément à la borne de FIX06 : **fin des lancements GPU P08, sans réancrer ni modifier la garde, pas de boucle de relance ni nouvelles demandes de fermeture d'apps pour cette campagne.** Lesr2/r3 gardent leurs0Swapout et leursanalyses40pas utilisablesavec limites ; ler4ne devientpasuncomplet. MTP/DF/CPUonly100µs ne sontpas lancés. Exploiter les preuves déjàqualifiées et finir la revueTurbo enlectureCPU ; aucun nouveau boost moteur ou appinstallée annoncé.
+
+### DECODE-PROFILE-08-CI-FINAL — câblage des analyses CPU, avant vérification de workflow
+
+Les adaptateurs d'analyse r2/r3 ont des tests et self-checks locaux, mais la CI
+ne les sélectionne pas encore. Ajouter au job Python existant une boucle sur
+ces deux dossiers : Ruff/format/py_compile, tests des contrats puis self-check
+fini, sans traces privées ni GPU. Exécuter les commandes ainsi câblées localement
+et parser le YAML. Répétition justifiée par cette nouvelle propriété de câblage,
+pas un nouveau benchmark. Préserver l'identité r4 ; cette édition CI postérieure
+ne change ni le binaire32cc ni les sources natives testées. Aucun push ou run CI
+distant n'est autorisé par ce contrôle. État : préenregistré avant édition.
+
+- CI-FINAL terminé : YAML parsé, commandes effectivement câblées passent pour
+les deux dossiers :20tests,13500checks d'intervalles finis, Ruff/format/compile.
+Preuve decode-profile-20261031/ci-analysis-checks.json. Aucun GPU lancé après
+l'incidentr4, aucune inférence/proveur/compilation restant observée.
+- TURBO-READ-01 terminé : sources primaires087c7572 lues directement, comparaison
+historique345bee9e et recherche locale effectuées ; source-identity.json et
+rapport turbo-read-01/README.md. T09/T12 classés, différences d'arrondis/splits/
+40cœurs/SSD explicites, aucun port ni gain mesuré. Pas d'implémentation préfill
+entreprise : audit NPU fini, potentiel par blocs à traiter dans un essai futur.
+
+### POSTP08-F02-01 — épilogue dense statique S2, préenregistré avant code
+
+**Demande et choix.** L'utilisateur demande d'implémenter et tester la meilleure
+piste, sans imposer T09, et de garder seulement un gain sans régression.
+Après P08 et audits indépendants, choix : reprendre la conception F02 du
+25octobre (jamais implémentée/mesurée), réduction S2 + castF16 + H128 + SVH en
+un kernel statique, préparation et QMV inchangés. Pas de compteurs atomiques
+intergroupes ni de port DEC-ONE brut. T01A/T04/T17/pool et T18 ne sont pas
+rejoués identiquement. Le plafond propre est inconnu ; les11,854ms P08 couvrent
+toutes les soumissions et ne sont pas un gain promis.
+
+**Sources/baseline.** HEAD7978fceac30d991a8c06d72114fc932b2443f555 avec
+modifications locales préexistantes préservées. CLI1fea100a… et lib32cc1c36…
+archivés ; photographie avant édition dans
+docs/measurements/post-p08-dense-epilogue-20261031/before/.
+P08 et son incident256Kio restent clos. Conception F02 review/inventory et
+headers MLX0.32.2 installés/archives lus avant choix. Turbo087c7572,
+dense/DEC-ONE et fragments déjà épinglés dans P08 ; ce candidat garde notre
+arithmétique, pas celle de Turbo.
+
+**Périmètre.** Exl3Linear de Flash qwen4_exp, accumulation de référence,
+K4/MUL1,6144→2560,SG4,splits2, B1/B2 seulement, entréeF16/F32, SVF16,
+sans biais. Deux sites de sortie mono-ligne/batch. Les projections de la tête
+MTP qui satisfont réellement ce contrat sont incluses et seront qualifiées ;
+QKVsplit1, autres largeurs/taux/rows/dtypes/modèles restent contrôles/fallbacks.
+Flag strict0/1 MLXL3_FLASH_DENSE_EPILOGUE, défaut0 pendant qualification,
+résolu au chargement dans le Linear. Contrat d'éligibilité CPU réellement
+appelé, refus d'entrées invalides avant kernel, requêtes effectives comptées
+seulement en test. Aucun readback/eval/synchronize ajouté au chemin.
+
+**Arithmétique.** Reproduire sumMLX32bit (p1+0)+(p0+0), castF16 ;
+H128 avec8threads/bloc128, radix16FP32→stockagehalf puis radix8FP32→half ;
+scaleFP32 existant→half ; produitSVhalf→half. Ne pas précombiner scales ou
+changer les points d'arrondi. Caller conserve dtype/reshape/biais stock.
+Le vieux FUSE_OUTPUT NT8/split1 n'est pas activé sur NT1/split2.
+Nombre réel de dispatchs à constater ; les estimations8→4/5 selon périmètre
+de capture ne sont pas des résultats.
+
+**Étape1 : correction et filtre composant.** Format/Clippy strict, builds
+CPU/MLXchat réels et tests déterministes. Kani sur le vrai contrat d'éligibilité,
+formes/budgets/launch et offsets calculés côté hôte, entrées symboliques/covers,
+sans prétendre prouver Metal/H128/concurrence. Réutiliser diagnostics FFI
+incompatibles inchangés ; pas de translation du MSL pour fabriquer une preuve.
+Comparer aux vrais opérateurs MLX stock sur partiels identiques, B1/B2, formes/
+cardinalités/dtypes/finitude, zéros signés/annulation/ULP/seuils/subnormaux,
+valeurs non finies intentionnelles distinctes, scales non unitaires/strides/
+erreurs/reprise. Comparer bytes des cas finis, documenter tout écart non fini.
+Mutations pertinentes (arrondi radix16 et/ou somme−0/offset) doivent être
+détectées puis restaurées. Projections complètes gdn0out etQSA15out fixtures
+indépendantes, QKV contrôle ; fastpath réellement exécuté, B3+fallback.
+Si exact, petit comparatif alterné de projection entière (construction+
+soumission+complétion, pas temps GPU exclusif),3chauffes/12rounds alternés,
+B1/B2, tous échantillons conservés. Débit modèle interdit avant ce filtre.
+Si décevant, auditer adaptation/copies/fallbacks/allocations avant décision,
+corriger seulement un défaut concret avec nouvel amendement préalable.
+
+**Étape2 si filtre utile.** Captures physiques stock/candidat de projections
+réelles, plafond total1,5Gio ; constater dispatchs, aucune déduction de gain
+depuis leur nombre. Étendre qualité aux48projections et formeB2, oracleAR
+indépendant, composants/paires/commits, MTPtarget/head/session, DFlash36préfixes
+et largeurs1..8, puis vrai bridge17A/C dans AR/MTP/DF. Mêmes logits/états et
+tolérances/égalités des oracles existants ; goldens128MAIN/HOLD.
+Préparation d'un inspecteur adapté au flag candidat, erreurs/silence/jointures/
+rapports incomplets couverts avant lancement. Une capture n'est pas la preuve
+d'une latence GPU native par kernel.
+
+**Étape3 si prometteur.** Même CLI release avec flag0/1, pilote128 AR ACCA,
+chaque processus chauffe MAIN/HOLD puis mesure MAIN/HOLD une fois (127transitions).
+Si AR utile après audit, MTP puis DF ACCA, sans mélanger modes ou campagnes.
+Mesurer préfill réel, décode, mémoire/IO/counters et dispersion. Conserver tous
+échantillons/dérives ; pas de répétition pour stabiliser des décimales. Activation
+ou conservation comme boost seulement dans la portée qualifiée sans régression
+identifiable ; aucun gain général si modes mixtes. Sinon OFF/rejet après audit.
+
+**Ressources et nouvelle campagne.** Avant GPU après fin compilation/preuves,
+créer UNE nouvelle ancre prospective explicite au compteur courant (le256Kio
+historique n'est ni effacé ni accepté comme nouveau dans une mesure) ;0nouveau
+Swapout, Swapin≤256Mio,secteur/quiet,RSS≤10Gio,picnatif<12e9B,un seulmodèle.
+Composant léger admission2Go ; modèle complet3instantanés20s≥10,5Go. Aucun
+abaissement automatique ni demandes répétées de fermeture d'apps. Timeout
+composant300s/modèle900s,silence180s,processus arrêtés/rejoints sur échec.
+Même checkpoint65c89531,drafta22a1744,cache3Gio/53slots×48,4lecteurs,
+allocator64Mio,MLX40ops/40MB,Hot/Wide/Unique/overlap1,lookahead0,
+T04/T05/T17/T180. Source/options/bins/fixtures figés avant chaque campagne.
+
+Aucun push/merge/release/app installée demandé. État : préenregistré avant
+implémentation, aucun GPU de cette expérience encore lancé.
+
+- F02-01 revue de l'adaptation avant tests : sumB2(axis1) a le même reducer
+S2 que B1(axis0) dans les sources MLX0.32.2 ; seul l'offset extérieur change.
+Les headers installés sont identiques aux archives, mais le dispatch hôte reste
+une déduction à confirmer par oracle physique. Core codé avec sortieF16 et
+caller dtype/reshape conservés ; aucune activation du vieux FUSE_OUTPUT.
+- Vérification CPU prévue en complément : mutation jetable du garde de layout
+B2, sur copie du vrai module, pour confirmer que le harness Kani refuse le
+mauvais domaine. Conserver la commande, le contre-exemple et les sources ;
+production inchangée, puis reprendre résultat du module original. Ce contrôle
+ne prétend pas vérifier le MSL ni le protocole GPU.
+
+- F02-01 qualification CPU terminée :3tests ciblés puis174passés/8ignorés
+dans la libCPU, format et ClippyreleaseMLX/chat strict tous targets passent.
+Kani sur le vrai geometryRust :201obligationsSUCCESS,9/9covers,0échec/
+inatteignable ; rowsi32,dimensionsi32 et flagsdtype symboliques, rangs
+partiels0..5/SV0..3,unwind17,kissat. Les adresses supplémentaires sont un modèle
+arithmétique du MSL, pas une preuve source du shader/H128/MLX/concurrence.
+Avertissements whole-crate caller_location/FFI non atteints consignés.
+- Mutation CPU sur copie du vrai module : largeurB2=2559 erronément admise,
+compilation correcte et contre-exemple sur l'assert d'équivalence du domaine,
+1/202obligations échoue/exit1 ; source originale inchangée/restaurée vérifiée.
+Les anciens diagnostics incompatibles MLX ne sont pas présentés comme preuve.
+Logs/détails dans post-p08-dense-epilogue-20261031/{kani*,cpu-*,proof-*}.
+- Cinq sélections physiques préparées mais NON lancées : partiels, refus/
+reprise, projections indépendantes+B1/2/3, micro alterné, captures. Métadonnées
+et requêtes de fastpath/flags/fallbacks contrôlées. CLI puislibtestrelease en
+construction séquentielle ; aucuneinférence/mesureGPU, ancrefuturepasencorecréée.
+
+### POSTP08-F02-CLI-TIMEOUT — correction du raccord de supervision avant GPU
+
+L'inspection réelle du CLI a trouvé que benchmark-flash-bridge.py dispose du
+paramètre API timeout=300, mais pas de l'argument argparse --timeout. Lesfixtures
+de préflight avaient accepté cet argv qui aurait échoué avant chargement.
+Aucun GPU ni benchmark modèle n'a été lancé avec cet argv ; échec d'adaptation
+consigné, pas de résultats de vitesse invalidés.
+
+Choix minimal avant édition : exposer l'API déjà existante par --timeout
+(float, défaut300 identique au CLI précédent), puis passer args.timeout à run.
+Les plans F02 utilisent180 comme préenregistré. Pas de nouveau driver.
+Ajouter régression vraie entréeCLI pour propagation du délai sur fauxbridge
+silencieux, erreur/jointure/rapportfailed, et valeurs0/nan/inf refusées avant
+enfant ; succèsCLI/default préservés par tests existants. Ruff/format/compile,
+suitebridge/POOL et52contrôlesinspecteur après correction, CrossHair absent
+repris explicitement. Photographie script/tests avant édition. Ce changement
+de contrôleur n'affecte pas le binaireRust en construction. État :préenregistré
+avant correction et toute campagneGPU.
+
+- F02-01 builds réels terminés : CLI6f35338c74d940c28bee9d37bd2284c5c505926fa918d5133325b38db5f6eee5,
+libteste5e464948a54007cf209991d4ddb112eda3d520b37dab1c07d4c18fb8b147a5e.
+Identité compilation106sources ; aucun compilateur/proveur restant.
+- Nouvelle ancre prospective F02-w1 créée après ces builds et avant tout GPU :
+Swapouts262144B (incidentP08historique conservé),Swapins0,secteur/quiet,
+disponibilité14,236Go. La garde reste0NOUVEAU Swapout ; aucune mesureP08
+réhabilitée. Source574figée pour composants dans light-v1/identity.json ;
+les2fichiers benchmarkCLI en correction sont explicitement exclus car non
+appelés par la libtest ; ils seront gelés avant bridge/modèle.
+- Début qualificationGPUlégère : suiteordinaireMLX puis partiels/refus/
+projections, quatre plans séparés avant PID. Pas de vitesse ni modèle complet
+à ce stade. Ancrew1 commune inchangée pour la suite de cette campagne.
+
+- 45-Q/R processus f02-v1-ordinary-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/light-v1/f02-v1-ordinary-mlx-plan-result.json.
+
+- 45-Q/R processus f02-v1-parts : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/light-v1/f02-v1-parts-plan-result.json.
+
+- 45-Q/R processus f02-v1-refusals : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/light-v1/f02-v1-refusals-plan-result.json.
+
+- 45-Q/R processus f02-v1-projections : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/light-v1/f02-v1-projections-plan-result.json.
+
+- F02-v1 première qualité physique passée : libMLX202passés/183ignorés,
+partiels12cas finis byte-exact +10cas non finis (classe/signe/valeurs finies ;
+payloadsNaN non contractuels),15refus avant kernel et2reprises,21projections
+complètes dont3fixtures indépendantes et18cas B1/B2/B3 F16/F32. Flag chargé
+réellement, ONrequêtes1 surB1/B2, OFF/QKV/B30 ; aucunreadbackajouté. Quatre
+processus joints,0nouveauSwapout/Swapin sous F02-w1. Pas encore de vitesse.
+
+### POSTP08-F02-NEG01 — oracle physique sensible à l'offset B2, avant mutation
+
+Avant la mesuremicro, construire une libtest négative depuis le vrai shader
+avec une seule mutation : partial_base lit toujours la ligne0, tandis que
+l'index de sortie conserve la bonne ligne. B1 reste valide, B2 écrit des valeurs
+finies mais incorrectes, sans accès horsbornes ni sortie non initialisée.
+Attendre échec101 du sélecteur partiels sur comparaison byte-à-byte B2,
+après les contrôles B1, et conserver stdout/artefacts/SHA. Un exit0 n'est pas
+une validation de l'oracle. Archiver le shadermutant/identité de compilation
+distincte, restaurer le shader original octetpour octet avant tout positif.
+Le CLI6f et la libnormalee5 restent immuables ; aucune mesure modèle sur mutant.
+Pas de GPU pendant compilation. AncreF02-w1 inchangée ; si nouvel incident
+swap, arrêter, pas de réancrage. Ensuite réutiliser le positif v1 uniquement si
+ses sources/binaires originaux sont bien restaurés/conformes. État :
+préenregistré avant mutation/build/contrôle négatif.
+
+- 45-Q/R processus f02-neg01-b2-offset : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/negative-offset/negative-plan-result.json.
+
+- F02-NEG01 exécuté : shader B2 volontairement faux détecté, exit101 attendu, F02_FIRST_MISMATCH rows=2 et comparaison bytewise échouée (0passé/1échoué). Processus joint,0nouveauSwapout/Swapin ; prod restaurée SHAac5dfbdc, CLI6f/libe5 intacts. Artefacts negative-offset/negative-plan-result.json + log + identités ; ce négatif valide la sensibilité de cet oracle, pas la correction complète.
+
+- 45-Q/R processus f02-v1-micro : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/light-v1/f02-v1-micro-plan-result.json.
+
+- F02-v1 micro projection complète terminé :96échantillons×32forwards,3chauffes/bras,12roundsAB/BA,bitexact/nonempty sur tous. GDN0B1 OFF312,60→ON283,46µs (+10,28% débit local), B2386,81→382,95µs (+1,01%) ; QSA15B1282,65→283,25µs (−0,21%), B2325,69→327,14µs (−0,44%). Mélange : pas de gain modèle établi ni retrait décidé. Processus joint,0nouveauSwapout/Swapin. Artefacts light-v1/{micro.json,micro-summary.json,f02-v1-micro-plan-result.json}. Audit adaptation et captures prévus pour vérifier le mécanisme réellement exécuté avant décision.
+
+- 45-Q/R processus f02-capture-v1-OFF : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/captures-v1/OFF-plan-result.json.
+
+- 45-Q/R processus f02-capture-v1-ON : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/captures-v1/ON-plan-result.json.
+
+- F02 capturesOFF/ON réalisées séparément :3projections par bras, sorties exactes fixtures, requêtesF02 attendues (GDN/QSA1ON, QKV0). Deux processus joints,0nouveauSwapout/Swapin. Limite1,5Gio commune respectée ; captures-v1/{OFF,ON}/metadata.json. Décompte dispatchs encore à inspecter physiquement, aucune latence native déduite du replay. CI complétée de4lignes pour les2scriptsinspecteur (format/lint/compile/selftest52) ; YAML PR/main passe, actionlint absent et aucunrunGitHub de cet état local. Identitécapture599sources conserve les positifs574sources antérieurs, deltaCI/contrôleurPython explicite.
+
+- F02 inspection Xcode27.2 sans profilage supplémentaire : GDN0out8→5dispatchs etQSA15out8→5,2commandbuffers/1computeencoder chacun. ContrôleQKVOFF6 ; QKVON nonencoreinspecté (dialogueGoTo incohérent, Xcode quitté via menu). AucuntempsGPU déduit. Voir captures-v1/dispatch-inspection.json. Audit deuxagents : voiefast réellement appelée, flagsloadseulement, aucun nouveau readback/eval/sync/SSD, pas de copie contiguë production démontrée, donation/volatile/registres restent limites et aucun défaut concret justifiant correction. Micro32forward+eval isolés ne mesure pas la soumission accumulée48couches : poursuitequalité puis piloteprévu justifiée par dispatchssupprimés, pas par le+10% local dépendant du premierOFF haut.
+
+### POSTP08-F02-48 — complément qualité déjà prévu, avant ajout du test
+
+Étendre le test léger à48out (36GDN+12QSA), B1/B2×F16/F32=192cas. Même checkpoint, entrées déterministes distinctes ligne/couche, candidat flag réellement chargé=true et batch=true, oracle scalaires indépendants du candidat (dense_epilogue=false explicite), bytes/formes/counts/finitude +1requête/lastrows, absence de readback dans forward et repriseOFF. Les fixtures externes du testcomponents48couches×au moins5positions restent preuve indépendanteB1 distincte de cet oracle stockB2. Ancien testflash_reference_batches4poids utilise F02 des deuxcôtés sousenv1 et ne suffit pas comme oracleF02 ; ne pas le qualifier autrement. Ajouter testcfgseulement, production/nativeCLI6f inchangés ; rebuildlibisolé,fmt/Clippy, rerun uniquement contrôlesaffectés et nouvellecouverture. Sources nouvellesfigées ensuite, ancrew1 inchangée ; pasGPU pendantbuild.
+
+- F02 capture complément : QKVON lu après redémarrage de Xcode,6dispatchs confirmé ; contrôle6→6 inchangé. Sixcaptures inspectées, workload arrêté et Xcode quitté. L’échecUI antérieur reste consigné ; aucun nouveau benchmark ni échantillon remplacé.
+
+- F02-48 testcfg192cas ajouté ;fmt--check etClippyreleaseMLX/chatalltargets strict passent, rebuildlibseul en cours. Aucun changementproduction/CLI6f niGPUpendantbuild. Logs quality48-v2/checks.json ; qualificationphysique nonencorelancée.
+
+- 45-Q/R processus f02-quality-v2-all48 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/quality48-v2/physical-plan-result.json.
+
+- F02-48 physique terminé :192comparaisonsON et192reprisesOFF sur48poids/B1B2/F16F32, oracle stock explicitementOFF,1requêteON par cas, bytes/formes/finitude corrects. Libv243c55cd1 ; processusjoint0newswap. quality48-v2/physical-plan-result.json, identité606sources conservée physical-identity-v2.json. SourcesproductionCLI6f/Kani inchangées, seuleadditioncfgtest. Admission3snapshots20s :12,82/12,81/12,84Go ≥10,5Go,secteur/quiet0newswap.
+- Préflightbridge réel refusait les2goldens absents de l’identité. Réparations de métadonnées interrompues : hypothèse fausse de cheminsmiroirs déjàgelés, puis miroirDocuments inexistant ; un appelrunner dépendant lancé trop tôt a lui-même refusé identitéabsente avantPID. AucunprocessusGPU/modèle/bridge surceséchecs. Correctiondonnéesseule : gel des2goldensréels, SHA MAINhistorique076a…,HOLDa02e… et FNV128historiques f6b5f974c6db2e7a/9d02c1a97e015196 vérifiés ; identitéfinale608sources distincte et18préflightspassent. Anciennepreuve606 conservée. Aucuncode/argv/modèle/protocole changé. Voir prepared/final-preflight.json.
+
+- 45-Q/R processus f02-quality-v2-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/oracle-plan-result.json.
+
+- 45-Q/R processus f02-quality-v2-components48 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/components48-plan-result.json.
+
+- 45-Q/R processus f02-quality-v2-pair : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/pair-plan-result.json.
+
+- 45-Q/R processus f02-quality-v2-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/mtp-plan-result.json.
+
+- F02 qualitéMTP : le plan initial couvrait target/paires/session mais omettait le sélecteur de tête indépendante pourtant prévu dans F02-01. Avant sonPID, ajout du test existant flash_mtp_head_matches_reference_and_cache_only avec oracleheld02 (stages/logits/caches byte-exact, entrées invalides/cache-only/reset) ; même libv2,envF02=1,3Gio,ancrew1,identitésource+fixtures dédiée head-identity.json,aucun nouveaucode/build/essaioptimisation. ModèlesAR/components48/paires déjàpassés,0newswap,processusjoints ; sessionMTP en cours.
+
+- 45-Q/R processus f02-quality-v2-mtp-head : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/head-plan-result.json.
+
+- 45-Q/R processus f02-quality-v2-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/model-quality-v2/dflash-plan-result.json.
+
+- F02 qualitémodèle complète réussie :6sélections séparées (ARoracle,components48,paires,sessionMTP,têteMTPheld02/10positions,DFlash36préfixes/largeurs1..8), chaque1passé0échoué0ignoré, joints,0nouveauSwapout/Swapin. Bitexact auxfixtures quandasserté (logits/récurrents/composantsattention/têteetcaches), formes/counts/finitude et contratsserial vérifiés ; layer_iAR seulementforme/finitude et testsserialcorrélés distingués de référencesindépendantes. Voir model-quality-v2/summary.json etlogs, lib43c55cd1. Début bridge17AC pourAR/MTP/DF avecCLI6f,sansperformance128encore. Identité608sources contient bienbenchscript/tests malgréancienchampdescriptifexcluded_unconsumed_editing_files conservé/stale.
+
+- 45-Q/R processus f02-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-AR-1-A-plan-result.json.
+
+**F02 inspection f02-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-bridge17-AR-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-AR-2-C-plan-result.json.
+
+**F02 inspection f02-bridge17-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-bridge17-MTP-1-A : **failed_or_interrupted**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-MTP-1-A-plan-result.json.
+
+**F02 inspection f02-bridge17-MTP-1-A : failed_external_inspection.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- F02-w1 INTERROMPU pendant chauffe bridge17MTP-A (flagF02=0), après2chauffes/0mesure : Swapouts262144→786432B, soit524288B nouveaux (512Kio),Swapins0. Garde0nouveau arrêt24,55s, exit−15,reapedTrue ; aucunmodèle/compilateur restant. Rapportbridgeincomplete rejeté parinspecteur, aucune parité complète/performance validée. AR17A/C précédents restent compatibilitévalidée avantincident, pasgain. Aucunpilote128 niDFbridge/MTP-C lancé. Ancrew1 ne sera ni abaissée ni réancrée automatiquement aprèsincident. Analyse ressources et étatprototypeOFF en cours ; preuves prepared/f02-bridge17-MTP-1-A-plan-result.json etruns/.../report.json.
+
+### POSTP08-F02-S32 — amendement explicitement autorisé avant correction/reprise
+
+Utilisateur : « Oui, plafond total de32Mio ». Conserver ancrew1 originale/262144B,512Kioincident déjàconsommés ; plafondcumulatif32Mio (33554432B) depuiscetteancre, pasparprocessus et aucunréancrage. Toutesautresgardes restent inchangées (Swapin≤256Mio,quiet/secteur,1modèle,RSS≤10Gio,foot/pic<12GB,admission10,5Go,timeout/silence). Qualités etAR17A/C complets antérieurs conservés, MTP17Ainterrompu échoué nonréutilisécommesuccès.
+
+Avant toutnouveauPID : contrôleur dédié minimal réutilisant superviseur, cap32fixe et observationsd’échec exactes ; inspecteur existant avecbudgetexpliciteaccordmanifest/identity/anchor, défaut0 préservé, refuscapabsent/invalide et dépassementcumulatif/counterinvalides ; tests déterministes auxbornes0/32Mio+1 etnégatifs, toolCPUonly, CrossHair absentdiagnostic conservé. Snapshotssources0avantédition dans swap32-amendment. Nouveau manifeste/identité S32, noms/sorties fraîches pour les essaisrestants, ordreAC17/ACCA128 inchangé ; ancienAR17 contrôlé puisréutilisésansGPU. MêmesCLI6f/lib43c55/flags/modèle/cache3Gio/readers4. Aucuneactivationcandidate ni gaininventé. Étatpréenregistré avantédition/reprise.
+
+- F02-S32 contrôleurs prêts/qualifiés :48tests garde CPU (vrai superviseur/fauxenfants joints,overshoot/timeout/admission/types/reset/ancre) +89casinspecteur (52existants+37S32,17positifs72refus) passent ; mutationsplafond supprimé/cap+1 détectées etrestaurées. Ruff/format/compile/YAML PR/main passent, KaniF02conservé ; CrossHair absentdiagnosticexit1, aucunepreuveformellePython/CIremote. R1garde42passés4échecsfixtureMONITOR/chdir conservés puis48/48 sansrelaxergarde. Capfixe32Mio cumulé/ancre052bdca4, maximaavantrejet. Sourcesauditées2eagent ; contrôlepériodique≈2s, pasquotaOSinstantané.
+- S32 identitéfigée 636sources, CLI6f/lib43c55inchangés ;18préflightspassent. DeuxAR17réutilisés parpreuve dérivée sansécraseranciennesinspections,16plansrestantsàsortiesfraîches (MTP17Ainterrompu nonréutilisé). Nouvelleadmission14,15/14,20/14,18Go ; cumulativeSwapout512Kio stable,aucunréancrage. Voir final-identity-s32.json/prepared-s32/* etswap32-amendment/{runner-verification.json,inspector-checks.json}. RepriseMTP17A prévueavantautresbridge/pilotes.
+
+- 45-Q/R processus f02-s32-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-bridge17-MTP-1-A-plan-result.json.
+
+**F02 inspection f02-s32-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-bridge17-MTP-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-bridge17-MTP-2-C-plan-result.json.
+
+**F02 inspection f02-s32-bridge17-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-bridge17-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-bridge17-DF-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-bridge17-DF-1-A-plan-result.json.
+
+**F02 inspection f02-s32-bridge17-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-bridge17-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-bridge17-DF-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-bridge17-DF-2-C-plan-result.json.
+
+**F02 inspection f02-s32-bridge17-DF-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-bridge17-DF-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- F02-S32 bridge17AC terminé AR/MTP/DF : tokensgolden/forme/modes/compteurs/reader+processusjoints/foot+pics<12GB passent (ARréutiliséavantincident0 ;MTP/DFfreshS32). ZéroSwapout additionnel dansces4processusS32, cumulglobaltoujours512Kio depuisw1. Vitesses17descriptives seulement, nonpiloteéquilibré ; MTPA/Ccompteurs8proposés8acceptés8blocs identiques. Débutpilote128ARACCA selonprotocole, pasencoregainvalidé.
+
+- 45-Q/R processus f02-s32-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-AR-1-A-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-pilot128-AR-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-AR-2-C-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-AR-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-AR-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-pilot128-AR-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-AR-3-C-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-AR-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-AR-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-pilot128-AR-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-AR-4-A-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-AR-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-AR-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- F02-S32 AR128ACCA terminé :4processus joints, sortiesgoldens128/mode/counters/mémoire conformes,0swapadditionnel(cumul512Kio). Débitagrégé mesuresseules A10,362654586→C10,680156742tok/s (+3,06%observé), préfillréel10,213598334→10,649524280tok/s (+4,27%observé). Mais A1→A4 :decode10,585675→10,148837(−4,13%),préfill10,546421→9,901140(−6,12%,MAIN−11,45%) ; C2→C3decode10,784553→10,577762(−1,92%). Touséchantillonsconservés,aucuneexclusion/retestpourstabiliser. Gaincausalnonétabli,aucuneactivation. Analyseindépendante/auditconditions avantdéciderMTP/DF128préenregistrés ; voir prepared-s32/AR128-root-summary.json etraw/inspections.
+
+- F02 décision aprèsAR128/contre-audit : ARresteNONCONCLUANT (agrégatpositif maisdérive), candidatOFF. PoursuivreUNEFOIS MTP/DF128 déjàpréenregistrés pourleurformeB2 distincte (DF17directionnel+3,50%, qualitéexacte), sansrejouerARni modifiercode/source/paramètres. Cecomplémentdemode netransformera pasARen gain établi ni autorisation d’activationgénérale. Avisindépendant prepared-s32/AR128-independent-analysis.json,636sources/4binsréhashésidentiques. Compressionlogiqueobservée0,750→1,510Go corrélée à l’ordre, pascauseprouvée.
+- F02 auditmémoirelectureseuleprévu : relirehistoriquesHENK0O05/résidencewiredrejetéeet52DFlashsource/sonde0, chercherpolitiquedéjàprésenteetportéedescompteurs avantd’attribuerdérive. Aucunnouveauprototype/mémoirewired/benchdiagnostique autorisé par cettesimplecorrélation ; seulsMTP/DF128 en cours restentmesures.
+
+- 45-Q/R processus f02-s32-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-MTP-1-A-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-pilot128-MTP-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-MTP-2-C-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-MTP-2-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-MTP-2-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus f02-s32-pilot128-MTP-3-C : **failed_or_interrupted**, joint=True ; docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-MTP-3-C-plan-result.json.
+
+**F02 inspection f02-s32-pilot128-MTP-3-C : failed_external_inspection.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-MTP-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- F02-S32 MTP128C3 INTERROMPU après4,11s : gardequiet a détecté cargo43101 install wasm-bindgen-cli0.2.105 --locked, concurrent autrechat/projetnomad (sourceuserétaitpriorityattendreautrechat). Processusbenchmarkjoint,aucunéchantillonC3validé ; rapport/inspectionfailedconservés. MTP128A1/C2 completsavantinterruption, paritégolden/countersidentiques ; nouveauxSwapoutsrespectifs1638400B/589824B consignés, cumulorig total2752512B. Pasderéinitialisation/réessaiactif pendantcompile ; attenteotherchat, futureseulevalidationinterrompueàprére-enregistrer soussortiefraîche avantreprise.
+
+### POSTP08-LOCAL-REVIEW-02 — reprise et priorité au profil/code local (1 novembre 2026)
+
+Demande utilisateur : finir la comparaison, puis chercher dans nos profils et notre
+code les coûts supprimables et les pièges, sans choisir d'abord des kernels amont.
+Avant nouvelle recherche : revue CPU/lecture seule P08r2/r3, F02 et historiques
+T01/T04/T17/T18/cache ; tracer les appels production et les recouvrements réels.
+Distinguer temps GPU utile, soumission CPU, attente dépendante et I/O conditionnelle ;
+aucune addition des postes recouvrants ni plafond par fonction déduit d'échantillons.
+Livrable : classement étayé, tests falsifiables, plafonds bornés ou non mesurés,
+risques numériques/mémoire/ordonnancement ; pas de nouveau prototype dans cette revue.
+
+F02 reste prototype OFF, AR non concluant, MTP128 incomplet après C3 interrompu
+par compilation externe, DF128 non lancé. Autre chat maintenant idle et aucun
+compilateur actif observé. Avant reprise : nouvelle admission 3 instantanés/20s,
+même ancre originale et plafond TOTAL32Mio autorisé, identités inchangées.
+Premier instantané disponible ≈6,96Go <10,5Go : aucun PID modèle lancé.
+Si confirmé, garder la campagne interrompue pour ressources et avancer seulement
+la revue indépendante, sans abaisser les gardes ni redemander plusieurs fermetures.
+Un C3 éventuel utilisera une sortie fraîche ; anciennes preuves conservées et
+longue interruption explicitement distinguée d'un ACCA continu.
+
+- POSTP08-LOCAL-REVIEW-02 admission terminée :6,714/6,547/6,160Go, seuil10,5Go
+non atteint, secteur/quiet, aucun PID modèle lancé.636sources/4binaires inchangés.
+Cumul original15 400 960B Swapout (14,6875Mio),5 570 560B Swapin ; plafond32Mio
+inchangé, consommation hors campagne pendant l'attente distinguée des essais.
+Preuve F02/resume-20261101/admission.json. F02 MTP/DF reste interrompu pour
+ressources, pas rejeté numériquement, pas de reprise C3 mélangeant silencieusement
+les conditions du31octobre et1novembre.
+- Filtre sur traces existantes prévu avant calcul : compter/coûter les fstat du
+vrai fill_many→TensorInfo::source et Array::read_records dans la fenêtre P08r3
+76–115 ; reprendre parser/calage/40sorties existants, vérifier identitéPID/TID,
+comptages preadv/octets et fenêtres. Distinguer somme temps syscall, overlap GPU
+et coût hôte inconnu. Pour T18b, calculer seulement la disponibilité précoce
+premier→dernier expert et l'intersection avec la queue conditionnelle des lots ;
+ce n'est pas une simulation de gain (coût Cold/soumissions et nouvelle contention
+inconnus). Aucun nouveau profil ni benchmark GPU/SSD exécuté.
+
+- POSTP08-LOCAL-REVIEW-02 terminé en lecture/analyse seule : rapport
+`docs/measurements/post-p08-local-review-20261101/README.md`, contre-audit
+independent-review.md et trace-filter-independent-audit.{md,json}.
+Le recalcul indépendant XML reproduit5985preadv/7469351820B/1696lots,40sorties,
+calage−26989±1375ns et affectation unique. Doublesfstat :0,126153525ms/sortie
+wall, dont0,005155450ms sansGPUActive ; faiblepriorité, pas le coût total des
+vecteurs/validations. Huitcputime>duration du provider conservés, pas de partition
+CPU+wait. L'auditindépendant r1 avait inclus40fstatembedding : erreur de filtre
+conservée puis corrigée, résultatroot inchangé.
+- Avance premier→dernierretourCold15,848011075ms/sortie, aprèsfrontièreGPUfixe
+15,532648225ms ;1381lotsmultijobs/1696. Disponibilité du premierjob seulement,
+pas cohorte utile publiée ni gain/plafondcausal ; coûtsCold/soumissions/merge/
+contention non soustraits. T18b mérite un crible borné, pas un port immédiat.
+- Premier petit essai recommandé : vérifier le travail réellement exécuté par
+le cast immuable conv GDN F16→F32 répété36couches, puis seulement si évitable le
+préparer àload sans changer l'arrondiF16 ni les kernels. Temps propre/plafond
+non mesurés ; payloadnet+2,8125Mio si ancienF16 libéré. Nouveau prototype ou
+mesure de cette piste NON lancé ; P01/P01B/P01L,73T,T01A etPOSTPROFILE03 déjà
+essayés ne sont pas proposés à nouveau sans changement de mécanisme.
+- Vérification documentaire/diffcheck/liens passée ;636sources/4binairesF02
+inchangés, aucun code exécutable/CI changé ni test GPU/build/proof relancé.
+`post-p08-local-review-20261101/final-checks.json`. F02 reste INTERROMPU pour
+marge mémoire, ARNONCONCLUANT, MTP128incomplet, DF128nonlancé, prototypeOFF ;
+README/checkpoint actualisés. Aucune activation/app/push/merge/publication.
+
+### POSTP08-GDN-CONST-01 — poids conv préparés une fois, avant implémentation/test
+
+1 novembre2026, utilisateur « vas y test » après LOCAL-REVIEW-02. Nouveau
+mécanisme : hoister seulement transpose/cast F16→F32 immuables de Gdn::convolve
+au chargement, conserver produit/somme/SiLU/normes/epsilon et tout kernel stock.
+Ce n'est ni T17 ni un nouveau kernel ; gains et dispatchs propres non mesurés.
+F02 reste OFF/nonconcluant et MTP/DFinterrompus. Archiver sources F02 courantes
+avant nouvelle édition ; cette nouvelle identité ne revendique pas ses mesures.
+
+Prototype minimal à flag strict MLXL3_FLASH_PREPARED_CONV=0|1,défaut0.
+Gdn::load part toujours du vrai half_weight F16, transpose vers[1,4,10240],
+convertit F32 et matérialise une fois siON. Garder un Option<Array> préparé
+pour A/B exact sur mêmebinaire ; ancienpoidsF16 conservé donc surcoût payload
+5,625Mio/36couches (ne pas annoncer le net2,8125Mio avant retraitancienbuffer).
+Appelants mono, forward_rows2..8, ARpréfill/décode, MTP/DFlash inchangés.
+
+Qualité avant vitesse : fixture externe GDN couche2 ≥5positions/stages, stock
+explicitementOFF facecandidat réellementchargéON, formes/counts/finitude et
+bytes outputs/histoires/états ; 1..8lignes/préfixes/répétitions/reset. Vérifier
+coefficient préparé contre transpose+conversionCPU f16 indépendante, sans
+bypasser l'arrondiF16 ; mutant décalant un coefficient/ligne doit être détecté.
+Kani vraie fonction de préparation appelée avec bitsF16 symboliques (échecFFI
+possible à consigner), fmt/Clippy/buildreleasemlxchat/suites applicables.
+
+Puis crible composant GDNcomplet,couche2,pasconvolutionseule : entrées/poids
+évalués,histoires/états identiques,3chauffes et12roundsAB/BA×16forwards+eval
+parbras, B1 puis B2/4/8 si qualité passe, durées construction+soumission+
+complétion host séparées de toutelatenceGPUnonmesurée. CapturesOFF/ON B1
+facultativesbornées512Mio pour vérifier cast réellement supprimé (aucun temps
+replay assimilé au gain). Micro seul n'autorise aucuneactivation.
+Si crible prometteur, oracles complets et bridgeAR/MTP/DF avantpilote128ACCA
+surmêmeCLI flag0/1,préfill/décode séparés,conditions et dérives conservées.
+
+Secteur/quiet/unmodèle, pasbuild/proveurpendantGPU ; légeradmission2Go/modèle
+10,5Go×3instantanés20s, timeoutléger300s/modèle900s/silence180s,foot<12GB/RSS≤10Gio.
+Conserver l'ancreoriginaleF02 et plafond TOTAL32Mio explicitementautorisé
+(14,6875Mio déjàobservés,aucunréancrage),Swapin≤256Mio. Réutiliser superviseur
+S32 éprouvé via nouvelleidentitésource/plan, pasdenouveaudriver. Aucunprototype
+exécutéencore. Échecs conservés,audit adaptation avantretrait,pasapp/push.
+
+- GDN-CONST-01 prototype localOFF prêt : seul coefficient conv immuable en
+Option<Array>, préparation réellement àload aprèsF16 ; 2helpersoracles rendus
+visibles au modulecfgtest. Aucune epsilon/kernelnouvelle. F02 sourcespré-édition
+archivées dansbefore, comparaisonsF02 interrompues nonvalidantes pourcetétat.
+TentativeKani réelle avecu16symbolique,40960F16,mêmehelperMLX,forme/dtype et
+extrémitésF32/unwind3/sansassume : écheccompilationICEintrinsics.rs243,4,85s,
+0obligation vérifiée ; harness utile conservé, logs kani-real-mlx*. AucunGPU.
+CI PR/main inspectée :buildMLX etClippytoustargets couvrent changements ; tests
+physiques modèle àexécuter explicitement localement, aucunrunremoteprétendu.
+
+- 45-Q/R processus gdnconst-quality : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/gdnconst-quality-plan-result.json.
+
+- 45-Q/R processus gdnconst-invalid : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/gdnconst-invalid-plan-result.json.
+
+- 45-Q/R processus gdnconst-ordinary-mlx : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/ordinary-mlx-plan-result.json.
+
+- GDN-CONST-01 qualitév1 passée :fmt/Clippyreleasemlxchatalltargets strict,
+CPU174passés/8ignorés ; libtestrelease0c9d8f000655bbce77d47fa9a932025fdaf2e002c2278dec9dfb2f046cfbbe2e,
+641sources figées.1testGPUqualité réel :36poids/1474560coefficients contre
+transposeCPUdesbitsF16,5positions/stagesexternes,cohortes1..8 etpréfixes/
+histoires/états/continuation byte-exacts,invalidesatomiques/resetetmutation
+coefficients détectée puisrestaurationpassent. Testflaginvalidé avantpoids1/1,
+suiteMLX202passés/187ignorés (ignorés nonexécutés).3processusjoints,0swapnouveau
+parprocessus,ancreoriginaleinchangée. Aucun gainvitesseencore ; microalterné
+préenregistréàlancer surlemêmebinaire/source sanscompilation concurrente.
+
+- 45-Q/R processus gdnconst-micro : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/gdnconst-micro-plan-result.json.
+
+- GDN-CONST-01 microv1 terminé1/1,1536forwards/96samples/24chauffes,bytes/states
+exacts,3,04s test,processusjoint0swapnouveau. B1OFF762,376→ON734,113µs(+3,85%
+agrégé), B2801,189→799,403(+0,223%), B41310,059→1307,509(+0,195%),
+B82323,042→2310,500(+0,543%). B1A612..1409µs/C608..1497µs etA1ère→2emoitié
+−30,67% : pas de gainB1 établi, toussamples conservés. Plafond/globalgain inconnu.
+Analyse2eagent concordante ; micro-summary.json. Modèlecomplet nonmesuré,
+disponibilitéobservée~9,5Go<10,5Go.
+
+### POSTP08-GDN-CONST-01-R2 — audit d'adaptation et contrôle affecté, avant édition
+
+Audit révèle un surcoût concret ajouté : Some(prepared).try_clone() alloue un
+wrapperC++newmx::array parconvolve. Remplacer uniquement ceclone par un emprunt
+aucoefficientpersistant ; temporairestock construit seulementdansNone. Pasde
+copieGPU attribuée auclone ni promesse quececoutexpliquelechrono. Anciennev1
+archivée avecsesrésultats ; pasderejetavantcettecorrectionlocale.
+Ajoutercapturecfgtest GDNcomplet B1OFF/ON, mêmesentrées/étatdéjàévalués,
+paritéoutput/histoire/état aprèscapture,limitecumulative512Mio. Lire nombreet
+naturedispatchs sansutiliser le replay commegain. Format/Clippy/buildlibv2,
+refairequalité1..8 etmicroidentique96samples parcequelecheminONachangé ;
+aucunautreparamètre/répétition/exclusionmodifié. Kanihelperinchangé : diagnostic
+ICEv1 resteapplicable(nonpreuve), aucune nouvellepropriétéCPUinventée.
+Ancre/budget32Mio etgardes inchangés ; GPUaprèsfinbuilduniquement. Modèlecomplet
+restera conditionné àadmission10,5Go etintérêt, aucunactivationautomatique.
+
+### POSTP08-POLICY-02 — conservation et composition, décision du 1 novembre 2026
+
+Demande utilisateur : remplacer les critères qui éliminent les petits candidats
+à cause du bruit. Procédure courante et AGENTS.md révisés : aucun seuil de gain
+individuel ; conservation expérimentale distincte d'un gain confirmé ; petits
+ensembles compatibles évalués globalement ; audit/ablation ciblée si besoin.
+Les résultats historiques restent inchangés. Aucun benchmark requis pour ce
+changement documentaire, aucun seuil mémoire ni contrat numérique modifié.
+
+Application à GDN-CONST-01 : **prometteur conservé pour composition**, qualité
+composant v1 validée, petits signaux positifs B2/4/8, B1 dispersé, gain modèle
+non mesuré. Ce candidat n'est ni rejeté ni supprimé ; défaut OFF pendant la
+qualification de la composition, coût supplémentaire borné à 5,625 Mio de
+payload pour les 36 couches. F02 reste lui aussi disponible, avec ses limites
+AR/MTP/DF déjà documentées ; aucun gain combiné encore mesuré.
+
+Amendement prospectif R2 avant édition/lancement : correction clone→emprunt
+inchangée, mêmes qualité 1..8 et micro 96 samples sur le nouveau binaire ; la
+capture Xcode devient **diagnostic différé, non requis pour conservation**,
+car elle n'adresse pas ici une correction non résolue. Aucun code de capture
+ajouté. Réutiliser CPU174 et tentative Kani v1 (ICE avant obligations, pas preuve)
+pour leurs parties inchangées ; Clippy/build réel et suite MLX finale à refaire.
+Pas de modèle complet ni de nouvel ensemble lancé dans cette sous-étape ; son
+protocole et les chemins modèle/bridge seront qualifiés séparément avant pilote.
+État : règles appliquées ; R2 en cours, résultats v1 intacts.
+
+- 45-Q/R processus gdnconst-quality-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/gdnconst-quality-v2-plan-result.json.
+
+- 45-Q/R processus gdnconst-micro-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/gdnconst-micro-v2-plan-result.json.
+
+- 45-Q/R processus gdnconst-ordinary-mlx-v2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-gdn-constants-20261101/ordinary-mlx-v2-plan-result.json.
+
+### POSTP08-GDN-CONST-01-R2 — résultats et conservation, 1 novembre 2026
+
+Qualité physique R2 passée 1/1 (36 poids, 1 474 560 coefficients, 5 positions
+externes, cohortes 1..8, sorties/états/histoires/préfixes byte-exacts, erreurs,
+reset et mutant détecté/restauré). Le seul delta source R2 est le clone du
+coefficient remplacé par un emprunt ; mêmes calculs, tests et fixtures.
+Binaire `605f18cd29014964ba4781d64a88fb1af29432ee09429d59b7e3667dcd1e6005`,
+644 empreintes, [identité](docs/measurements/post-p08-gdn-constants-20261101/identity-v2.json).
+Format et Clippy `--release --features mlx,chat --all-targets -- -D warnings`
+passent, build réel réussi. Test qualité joint, 0 nouveau Swapout.
+
+Micro R2 passé 1/1 : même protocole 96 samples / 1536 forwards / 24 chauffes,
+aucune exclusion, parité exacte. OFF→ON µs par forward GDN complet :
+B1 744,018→673,144 (+10,53 % agrégé mais médiane appariée +1,11 %, plage
+−2,37..+80,86 % et dérive OFF première/seconde moitié +33,89 %) ;
+B2 802,313→796,553 (+0,72 %), B4 1312,991→1305,971 (+0,54 %),
+B8 2334,288→2313,351 (+0,91 %). Petits signaux positifs conservés ; aucun gain
+B1 stable ou gain modèle déclaré. Les processus v1/v2 distincts ne permettent
+pas d'attribuer leur différence au seul retrait du clone. Processus joint,
+0 nouveau Swapout ; cumul ancre originale 14,6875 Mio sur les 32 Mio autorisés.
+[Brut](docs/measurements/post-p08-gdn-constants-20261101/micro-v2.json),
+[résumé](docs/measurements/post-p08-gdn-constants-20261101/micro-summary-v2.json).
+
+Décision : **prometteur conservé pour composition**, défaut OFF, aucune
+activation de l'app. La taille du signal ne motive pas son retrait ; pas de
+nouvelle série pour améliorer les chiffres. Capture différée et gain global
+non mesuré ; admission observée 8,75 Go sous les 10,5 Go du modèle complet,
+aucun chargement modèle tenté. Suite MLX finale en cours à cette entrée.
+
+Clôture R2 : suite MLX finale **202 passés, 0 échec, 187 ignorés** (19,25 s
+hors lancement), processus joint ; tous les trois reçus R2 inspectés, aucun
+processus restant. Recalcul indépendant des 96 samples concordant. Format et
+`git diff --check` finaux passent. Kani non vérifié (ICE v1 inchangé) ; pas de
+capture, de vrai bridge/modèle complet ou de composition R2 encore exécutés,
+aucune CI distante du code local non publié. Les tests légers R2 sont terminés,
+le candidat est **conservé**, la validation modèle/composition reste à faire.
+[Rapport et commandes](docs/measurements/post-p08-gdn-constants-20261101/README.md),
+[checkpoint](docs/measurements/post-p08-gdn-constants-20261101/checkpoint.json).
+POLICY-02 appliquée et relue indépendamment ; aucun changement de garde mémoire,
+d'app installée, aucun commit/push/publication.
+
+### POSTP08-COMPOSE-01 — tok/s GDN, F02 et composition, préenregistrement 1 novembre 2026
+
+Demande utilisateur : mesurer les tok/s du candidat GDN et reprendre le précédent
+F02 pour décider de leur conservation/activation. Nouvelle fenêtre, mêmes
+sources GDN R2 / F02 actuelles ; les mesures F02 historiques et leurs interruptions
+restent distinctes. Pas de correction moteur prévue avant qualification ; nouveau
+CLI release sur les sources courantes, libtest GDN R2 605f18cd déjà figée.
+
+Quatre configurations isolables, flags lus au chargement en processus propres :
+A=(PREPARED_CONV0,DENSE_EPILOGUE0), G=(1,0), F=(0,1), C=(1,1).
+Même M5/24Go, checkpoint65c89531 EXL3 2,05bpw, draft a22a1744 pour DF,
+cache experts3Gio/53slots×48,4lecteurs,64Mioalloc,MLX40/40,Hot/Wide/Unique/overlap1,
+lookahead0,T04/T05/T17/T18off,préfillheads1. Surcoût GDN5,625Mio de payload,
+F02 qualification historique conservée avec ses limites.
+
+Qualité avant pilote : réutiliser tests composant GDN R2 et F02/192projections,
+Kani F02/limitationKaniGDN, identités vérifiées. Refaire les oracles modèle
+logits/états et transactions/acceptation/rollback sur G seul et C composé,
+AR/paires/MTP/DFlash ; propriétés exactes et sélection non vide. Le parcours
+F seul reprend le coefficient stockNone inchangé et sa qualité F02 historique,
+complété par le vrai bridge sur nouveauCLI. Pour chaque mode AR/MTP/DF et chaque
+configuration A/G/F/C, bridge17 avant pilote de ce mode, goldens externes MAIN/HOLD,
+2chauffes +2réponses contrôlées ; un texte exact ne remplace pas les oracles.
+
+Pilote128 : AR puis MTP puis DF, ordre fixé **A G F C C F G A** par mode,
+8processus×3modes au maximum pour la matrice initiale. Chaque processus :
+chauffe MAIN/HOLD puis mesure MAIN/HOLD (87/82tokens entrée,128sorties,
+127transitions),1répétition aprèschauffe ; 48chauffes+48mesures au total.
+Comparer débits agrégés à travail égal, mesures appariées parprompt, dispersion,
+TTFT/préfill, propositions/acceptations et mémoire. Toutes données conservées.
+Pas d'addition des gains individuels, pas d'attribution de leur somme au paquet.
+
+Décision selon POLICY-02 : pas de seuil de gain individuel ni rejet sur dérive
+seule. Si gain cohérent d'une configuration sans régression pratique des modes,
+retenir cette portée ; si ambigu, code conservé expérimental et au plus une
+confirmation A/C/C/A ciblée du meilleur candidat après audit prospectivement
+consigné, jamais sélection de seuls runs favorables. Si coût reproduit,
+audit adaptation puis ablation ciblée ; aucune activation aveugle du paquet.
+Avant défaut ON : qualité des modes servis et configuration finale contrôlées.
+Pas de mise à jour de l'app/push/publication implicite.
+
+Protocole ressources inchangé : secteur/quiet, un modèleGPU, aucun build/proveur
+ou autre inférence concomitant. 3instantanés20s≥10,5Go avant premiermodèle,
+recontrôle avant chaqueprocessus ; timeout900s/silence180s,waitbridge180s,
+RSS≤10Gio,foot/picnatif<12GB. AncreoriginaleF02SHA052bdca4 inchangée,
+TOTALSwapout≤32Mio (14,6875Mio déjàconsommés),Swapin≤256Mio ; pasderéancrage.
+Observation avantpréparation : secteur,disponibilité~11,04Go,cumulstable.
+
+Réutiliser runnerS32 et validateurs bridge/golden/mémoire. Adaptateur minimal
+pour identité4bras et contrôle desdeuxflags, sanscopier l'inspecteur complet ;
+prévoir testsCPU positifs/négatifs, report incomplet/flag absent/erroné/mode/
+identité refusés et étatfailed nonmasqué. Pasdenouveaumoteur Python : il orchestre
+le CLI Rust. Plans/manifeste/identité figés avant GPU, sorties distinctes.
+État : **en préparation, aucun nouveau modèle lancé**.
+
+COMPOSE-01 préparation : CLI release `mlx,chat` construit en 55,94s,
+SHA2b0ab6951ef850baa2bc728bcd19060edfc8ac69bbf598cd230d5bb5452ff838,
+aucune édition native supplémentaire. Neuf sélections qualité retenues après
+revue indépendante : oracle/pair/MTP/DF sous G et C, components48 sous C.
+Tête MTP externe QSA et qualité F02 seule réutilisées avec limites explicites
+(`post-p08-compose-20261101/reused-evidence.md`). Admission initiale passée :
+10,723/10,722/10,706Go sur20s, secteur/quiet, mêmes compteurs ; ne préjuge pas
+la marge au lancement suivant. Aucun GPU COMPOSE lancé à cette entrée.
+
+- 45-Q/R processus compose-quality-G-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-oracle-plan-result.json.
+
+- COMPOSE-01 adaptateur d'inspection prêt : réutilisation du validateur F02
+  (goldens/modes/compteurs/mémoire/jointure), préflight quatre bras A/G/F/C,
+  deux flags strictement concordants plan/rapport, ordre aller-retour et sources
+  figées. Aucun changement moteur/runner. **72 cas CPU passent** (36 positifs,
+  36 refus), ainsi que les **89 cas historiques** inchangés (17/72).
+  Mutation de la vraie comparaison report GDN dans une copie jetable détectée ;
+  production intacte. Échec initial de la recherche textuelle du mutant après
+  format conservé dans inspection-selftest-r1.log, corrigé avant r2 réussi.
+  Ruff strict/format/py_compile/YAML/diffcheck passent. CrossHair tenté mais
+  module absent : propriété non vérifiée formellement, aucune preuve inventée.
+  CI PR/main complétée pour ces contrôles ; aucun run distant du code local.
+  Résultat : docs/measurements/post-p08-compose-20261101/inspection-verification.json.
+  Tests CPU terminés, aucun processus GPU/modèle lancé par cet adaptateur.
+
+- 45-Q/R processus compose-quality-G-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-pair-plan-result.json.
+
+- 45-Q/R processus compose-quality-G-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-mtp-plan-result.json.
+
+- 45-Q/R processus compose-quality-G-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-dflash-plan-result.json.
+
+- 45-Q/R processus compose-quality-C-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-oracle-plan-result.json.
+
+- 45-Q/R processus compose-quality-C-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-pair-plan-result.json.
+
+- 45-Q/R processus compose-quality-C-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-mtp-plan-result.json.
+
+- 45-Q/R processus compose-quality-C-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-dflash-plan-result.json.
+
+- 45-Q/R processus compose-quality-C-components48 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-components48-plan-result.json.
+
+COMPOSE-01 : neuf sélections qualité modèle passées, 9/9 tests explicites non vides, aucun ignoré/échec, sorties/logits/états exacts dans les domaines documentés ; tous processus joints, zéro nouveau Swapout. G et C couvrent AR/paires/MTP/DF, C les48composants ; quality-summary.json. Bridge AR puis pilote AR à lancer sur le CLI figé.
+
+- 45-Q/R processus compose-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-1-A-plan-result.json.
+
+**F02 inspection compose-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-AR-2-G : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-2-G-plan-result.json.
+
+**F02 inspection compose-bridge17-AR-2-G : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-2-G/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-AR-3-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-3-F-plan-result.json.
+
+**F02 inspection compose-bridge17-AR-3-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-3-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-AR-4-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-4-C-plan-result.json.
+
+**F02 inspection compose-bridge17-AR-4-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-4-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-1-A-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-2-G : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-2-G-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-2-G : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-2-G/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-3-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-3-F-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-3-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-3-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-4-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-4-C-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-4-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-4-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-5-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-5-C-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-5-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-5-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-6-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-6-F-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-6-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-6-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-7-G : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-7-G-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-7-G : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-7-G/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-AR-8-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-8-A-plan-result.json.
+
+**F02 inspection compose-pilot128-AR-8-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-8-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+COMPOSE-01 AR complet : 4 bridges17 +8 pilotes128 inspectés, 48 réponses chauffe comprise golden exactes, tous processus joints. Résultats agrégés AR-summary.json : [{'decode_tps': 10.48155, 'decode_gain_percent': 0.0, 'prefill_gain_percent': 0.0}, {'decode_tps': 10.41334, 'decode_gain_percent': -0.65075, 'prefill_gain_percent': 1.55049}, {'decode_tps': 10.45675, 'decode_gain_percent': -0.23655, 'prefill_gain_percent': -0.59461}, {'decode_tps': 10.57961, 'decode_gain_percent': 0.93561, 'prefill_gain_percent': 1.87795}] dans ordre A/G/F/C. Aucun échantillon exclu ; mix petit signal positif, pas un gain vers15tok/s ni interaction causale établie. Audit CLI sansflagperdu/fallbackglobal dans adaptation-audit.md. Continuer MTP/DF préenregistrés avant décision générale.
+
+- 45-Q/R processus compose-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-1-A-plan-result.json.
+
+**F02 inspection compose-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-MTP-2-G : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-2-G-plan-result.json.
+
+**F02 inspection compose-bridge17-MTP-2-G : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-2-G/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-MTP-3-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-3-F-plan-result.json.
+
+**F02 inspection compose-bridge17-MTP-3-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-3-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-bridge17-MTP-4-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-4-C-plan-result.json.
+
+**F02 inspection compose-bridge17-MTP-4-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-4-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-1-A-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-2-G : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-2-G-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-2-G : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-2-G/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-3-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-3-F-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-3-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-3-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-4-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-4-C-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-4-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-4-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-5-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-5-C-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-5-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-5-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-6-F : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-6-F-plan-result.json.
+
+**F02 inspection compose-pilot128-MTP-6-F : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-6-F/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus compose-pilot128-MTP-7-G : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-7-G-plan-result.json.
+
+### POSTP08-COMPOSE-01 — arrêt demandé par l'utilisateur, 1 novembre 2026
+
+Utilisateur : « oublie ça ... passe à la 2eme proposition ». Arrêt immédiat de
+la campagne, sans nouveau lancement : SIGINT au contrôleur propriétaire98599,
+finally du superviseur arrête/joint le groupe de test ; exit130 du contrôleur.
+MTP128 F6 venait de terminer et reste conservé ; G7 interrompu à8,94s, aucun
+succès attribué à cette réponse partielle. A8 et tous les bridges/pilotesDF non
+lancés. AR complet inchangé : A10,48155/G10,41334/F10,45675/C10,57961tok/s,
+petit signalC+0,94%/préfill+1,88%, pasdevalidationgénérale. MTP4bridges+6pilotes
+complets, matrice8 incomplète ; pasdegainglobalMTPdéduit. 9qualités,22processus
+benchmark complets et1interrompu conservés. CandidatsGDN/F02 OFF, pasactivation.
+
+Audit adaptation CLI fait avant toute décision : aucun flagperdu/fallbackglobal,
+supplémentGDN cohérentavec5,625Mio ; limites allocations/donation/overlapnonisolées
+consignées. L'arrêt est un changement de priorité utilisateur, pas une preuve
+que l'idée soit inefficace. Aucun résultat effacé ni benchmark relancé pour
+lisser le bruit. Reprise sur proposition2, expertsColdprêts avantjointureglobale.
+
+### POSTP08-COLD-READY-01 — deuxième proposition locale, avant crible et port
+
+1 novembre2026, utilisateur réoriente explicitement vers proposition2 après
+arrêtGDN/F02. Antécédent LOCAL-REVIEW-02 : 1381/1696lots multijobs,
+15,5326ms/sortie d'avance premierdernierretour aprèsfrontièreGPU, **pas gain
+récupérable**. T18a optimise attributionlecteurs et attend encore toutlelot ;
+T18b n'a pas été implémenté/mesuré. Les essaisfusion des2async/73T/P01 existants
+restent distincts et ne seront pas refaits sansraison.
+
+Hypothèse : exécuter une première cohorte complète d'expertsCold pendant lafin
+des lectures, conserver un nombre borné de vagues et l'ordre canonique de somme.
+Avant réécriture, crible sur la traceP08r3 existante, mêmes1696lots/5985preadv,
+calagehistorique, aucune nouvellemesureGPU : disponibilité des cohortes2/4/8
+et du préfixe canonique face àla jointureglobale. Distinguer expertentièrement
+prêt de premiersegment, tempsPOSIX deNAND et disponibilité de gaincausal.
+Relever coûts supplémentaires possibles d'encodage/lancement/partition/scatter.
+
+Audit en parallèle du vrai chemin Rust/C++ : ExpertFill, read_records/banks,
+wait_all, leases/last, erreurs/cancellation/écrituresGPU ; vérifier prêts après
+12segments, aucune lectureGPU d'un bufferincomplet ni réutilisation avanttous
+lesconsommateurs. PasdeMLXdansworkers. Baseline actuelle : GDN/F02/T18aOFF,
+cache3Gio/4readers etancreSwapoutoriginale/plafond32Mio inchangés. Derniercompteur
+observé1008pagesSwapout×16384 moins262144B =16252928B (15,5Mio), Swapins356pages.
+TousprocessusGPUprécédents arrêtés ; enfantzombie618 transitoire a disparu.
+
+Cette entrée autorise le cribleCPU/revue et la préparation du plus petit port
+justifié ; préciser le protocoleprototype,oracle,preuvesCPU/FFI et microGPU
+avant toute éditionruntime ou nouvellemesure. Pasdepromesse15tok/s ni somme
+avec les12msCPU : cheminsrecouvrants. Qualifier d'abord, puis comparer vrais
+préfill/décode surmêmebudget. Statut : **en cours — crible et conception**.
+
+COLD-READY-01 crible précisé avant calcul : utiliser les timings natifs parjob
+complet (bytes1248012,failed0) et leurs index, rattachés aux1696spans Rust déjà
+calés/auxfrontièresGPU historiques. L'epoch C++ nonexportée est bornée par
+[span_start, span_end−max(job_end)] ; conserver la tolérancecalage±1375ns.
+Calculer fenêtres de disponibilité pour k=1/2/4/8 (k1 contrôlehistorique),
+préfixedesjobs et kpremiersprêts, sanscoûtCPU/GPU soustrait. Résultat borné,
+pasgain. Tester la petitefonction de bornes contre oracle discret exhaustif et
+entréesinvalides ; hashes/compteurs/bijection deslots avant résultatcomplet.
+
+COLD-READY-01 — résultat du crible CPU : readiness.json conserve les hashes des
+3 sources, la bijection 1696 lots / 5985 jobs complets / 7 469 351 820 octets.
+Premiers 2 prêts : 9,0482–9,0527 ms/sortie disponibles dans 1071 lots ; préfixe
+2 jobs : 5,6734–5,6754 ms dans 812 lots. k4 : 4,1655 ms, k8 : 0,2176 ms.
+Ce sont des fenêtres avant jointure, pas des gains GPU ni tok/s. Script
+readiness.py : 6592 cas exhaustifs finis +6 entrées invalides, Ruff/format OK.
+CrossHair tenté : module absent, propriété non vérifiée symboliquement.
+Preuves : docs/measurements/post-p08-cold-ready-20261101/{readiness.py,readiness.json,crosshair.log}.
+
+COLD-READY-01 P1 — préenregistrement du prototype, avant édition runtime.
+Flag MLXL3_SSD_COLD_READY=0|1, défaut0. ON seulement pour B1/B2 avec Hot,
+lookahead0/prefetch absent, shared_exl3 et weighted_epilogue OFF ; autres chemins
+stock. Lecture GCD statique, 4 lecteurs, mêmes banques 3 Gio : aucune seconde
+banque ni copie des poids. Attendre au moins2 jobs entièrement terminés, prendre
+les slots prêts observés dans une première vague si le lot reste incomplet ;
+si tout est déjà prêt, calcul stock. Deux vagues maximum, occurrences distinctes
+préservées même pour experts dupliqués, un seul réordonnancement canonique avant
+le mul/sum stock. L'avance réelle peut différer du crible k2 si plusieurs jobs
+finissent avant le réveil. Conserver Hot et W1, joindre les lecteurs et drainer
+les sorties GPU sur toute erreur avant invalidation/réutilisation des banques.
+
+Périmètre : disk_reader/FFI batch asynchrone avec publication release/acquire,
+propriétaires MLX et fichiers retenus ; wrapper Array non Send/Sync ; appel
+SsdMoe/fill/assemblage ; helper partition CPU ; tests et CI concernés. Pas de
+MLX dans les workers, pas de threads créés par expert, pas de nouvelle fusion.
+Avant vitesse : tests CPU délais/lectures partielles/EINTR/troncature/erreur/
+libération/jointure et destinations qui se chevauchent, Kani sur partition réelle,
+tentative CBMC source C++, sanitizers si praticables ; compilation mlx,chat,
+format/lint strict et suites CPU pertinentes. Tests GPU explicites seuls :
+B1/B2, Cold/Hot/mixed, doublons et disponibilités non contiguës, parité exacte
+contributions/somme, échec après W1 puis reprise. Démontrer W1 évaluée avant
+le dernier job avec retard contrôlé, puis vérifier oracles modèle/bridge avant
+mesures réelles. Le retard synthétique vérifie le mécanisme, ne valide pas un gain.
+
+Micro borné : échauffement puis ordre ABBA sur composant complet incluant
+partition, soumission et assemblage, profil des cohortes réellement exécutées.
+Pilote modèle seulement après correction qualifiée : même checkpoint65c89531,
+3 Gio/4 lecteurs, GDN/F02/T18a OFF ; minimum10,5 Go disponibles modèle/2 Go léger,
+secteur, pas de compilation concurrente, plafond32 Mio Swapout depuis l'ancre
+F02 originale (15,5 Mio déjà consommés), autres gardes inchangées. Préciser les
+plans, binaires et oracles avant lancement modèle. Gain actuellement non mesuré,
+prototype local OFF, pas de publication ni remplacement d'app.
+
+COLD-READY-01 P1 — incident CPU avant GPU, 1 novembre12:06UTC : premier build
+libtest exit101, commande erronée --no-default-features --features mlx,chat
+(retire metal nécessaire ici) + erreur locale Vec::as_slice sur [tuple;12].
+Correction de la closure ; prochain build avec features par défaut conservées.
+Diagnostic initial préservé dans build-tests.log. Aucun test GPU lancé.
+Kani partition6×6 encore actif à5min (PID2584 cbmc enfant2435, RSS5 271 504Kio)
+avec pression mémoire extrême : vm_stat Swapouts3 919 616pages×16384, Swapins
+1 503 894pages ; disponible estimé2,54Go, compresseur803554pages. Arrêt demandé
+aux proveurs propriétaires et aucune nouvelle compilation/proof/GPU pendant
+récupération. Le plafond cumulatif32Mio de l'ancre F02 est dépassé ; aucune
+réancre automatique ni benchmark GPU autorisé dans cette campagne. Attribution
+fine des écritures non mesurée, vérificateur Kani seul gros processus observé.
+
+COLD-READY-01 P1 — suivi12:08UTC : Kani arrêté/joint, aucun PID restant ; RSS
+final observé5,12Gio, durée5min25, signal15, 0 harnais vérifié. Après libération,
+disponible estimé18,53Go, Swapouts4 584 918pages (75 119 296 512B absolus),
+Swapins1 876 864pages. PicRSS/attribution exacte non mesurés, ne pas confondre
+ces écritures avec une mesure du moteur (aucun GPU lancé). Preuves CPU :
+cpu-verification.md et kani-partition-interrupted.json ; C++41cas sousASan/UBSan
+puisTSan, syntaxe harnais OK dans cpp-verification.md. CBMC pas encore lancé.
+
+Audit adaptation avant GPU : sélection W1/W2 et remap canonique cohérents ;
+ColdConsumers se détruit après jointureCPU et avant invalidation ExpertFill.
+Deux corrections avant qualification : COLD_READY avec DYNAMIC_READERS=1
+retombe sur stock ; erreur de cloneHot attend ce consommateur avant retour.
+L'échec fatal d'eval ET synchronize n'est pas une preuve de quiescence GPU.
+Tentative build-r2 avec featurespar défaut+mlx,chat, seule compilation (1job),
+après retour mémoire ; pas de Kani supplémentaire. Le harnais6×6 inchangé est
+conservé séparément pour une reprise manuelle bornée en ressources, afin de ne
+pas introduire une nouvelle charge CI connue comme dangereuse sans limite.
+
+COLD-READY-01 P1 — tentative CBMC source prévue après récupération mémoire :
+conserver harnais réel C++/GCD/preadv sans stubs, limite10s et512Mio RSS ; arrêt
+et jointure du groupe sur limite, aucun solveur Kani relancé. Cette tentative
+courte doit seulement qualifier la prise en charge du contexte C++ réel ;
+une erreur de parse ou limite signifie non vérifié, jamais preuve réussie.
+
+COLD-READY-01-GPU1 — nouvelle campagne explicitement autorisée par l'utilisateur
+le1novembre : « Oui, nouvelle campagne avec plafond de 32 Mio ». L'ancienne
+campagne reste interrompue avec son incident, sans réécriture de ses compteurs.
+Nouvelle ancre immuable après fin des compilations et retour au calme ; plafond
+32Mio Swapout /256Mio Swapin depuis cette ancre, minimum10,5Go modèle/2Go léger,
+picnatif<12Go etRSS≤10Gio, secteur et absence d'autres builds/inférences.
+L'adaptateur gpu-runner.py réutilise les gardes F02 et remplace uniquement le
+chargeur de l'ancre : autorisation, chemin, hash, compteurs entiers et plafonds
+vérifiés contre politique/identité gelées. Tests de refus/altération et CI avant
+lancement ; pas de réancre implicite en cas d'échec.
+
+QualificationCPU miseàjour : buildmlx,chat release-r2 passe en72s ;205testsCPU
+passent/190ignorés ; test explicite du flaginvalide1/1sansGPU passe. Clippy1
+signale type_complexity du helper ; aliases de type sans changement de calcul,
+clippy-r2alltargets-Dwarnings passe. Format/diffcheck/Ruff/py_compile passent.
+CBMC6.11 source réel tenté avec borne10s/512Mio : exit6 en0,114s, picobservé
+12,4Mio, parse échoué dans libc++Apple, aucune obligation vérifiée. Les résultats
+et la limite restent conservés ; aucune relanceKani. Prochaine validation des
+aliases : suiteCPU complète sansMLX puis reconstructionlibtest/CLI finales.
+
+COLD-READY-01-GPU1 — contrôle non-vacuous avant construction finale : ajouter
+au test modèle/oracle existant un compteur de vagues Cold (déjà cfg(test)) et
+exiger >0 lorsque COLD_READY=1, lecteursstatiques, depth0. Cela vérifie que le
+nouveau chemin est réellement exercé sans retard artificiel avant qualification
+complète ; le compteur n'est pas une mesure tok/s et n'entre pas dans la CLI.
+Pas de relance des anciens tests GDN/F02 ni addition de leurs gains.
+
+COLD-READY-01-GPU1 — qualification et pilote préenregistrés avant plans : deux
+sélecteurs GPU composant (48cas + échec/reprise), puis oracles modèle existants
+états/logits, vérificationpaire, MTP, DFlash (COLD_READY=1, autrescandidatsOFF).
+Le contrôle oracle modèle exige une vague naturelle réellement exécutée. Les
+tests synthétiques de retard servent seulement à la correction et au recouvrement.
+On passe ensuite directement au pilote réel, sans attribuer de vitesse au retard
+artificiel : bridge17 A/B dans chacun AR/MTP/DF, puis pilote128 ABBA par mode,
+2promptsMAIN87/HOLD82, 1chauffe et1mesure chacun parprocessus, 127transitionsdécode.
+MêmeCLI finale/3Gio/4lecteurs, sorties golden128historiques tronquées au besoin ;
+ordre et tous échantillons conservés. Pas d'activation avant cette qualification.
+
+L'inspecteur de rapports réutilise le corps F02 (goldens, états du bridge, nombres,
+compteurs MTP/DF, mémoire, jointure) avec préflight A0/B1 Cold et nouvellepolitique
+GPU1 ; vérifier aussi le flag effectivement rapporté, les hashes sources/binaires,
+modèle/options/plans, ancrescohérentes. Tester les refus avant son utilisation ;
+aucune modification des anciens inspecteurs ni des preuves historiques. Créer
+les fichiersplans/manifeste/identité avant lancement, conserver les résultats
+même négatifs ; audit adaptation si décevant, pas de retrait immédiat.
+
+COLD-READY-01-GPU1 — vérifications finales avant GPU : clippy-finalalltargets
+-Dwarnings etfmtcheck OK ; testsCPU sansMLX177passés/8ignorés, binairetests35,
+contrats16+35passés ; 0testGPU dans cette variante. BibliothèqueMLX205passés/
+190ignorés avant aliases, puis 3testshelper+1flaginvalide sur le libtest final.
+Buildfinal libtest72s/CLI55,94s, release featurespar défaut+mlx,chat, jobs1.
+Empreintes dans binaries.json : libtest5c3cbe0a…11200656B, CLI42dd7456…10744992B.
+Sources locales modifiées conservées, pas de commit ni appmiseàjour. Adaptateur
+nouvelleancre45tests et48régressionssuperviseurF02 passent ; CrossHairabsent.
+Les trois snapshots d'admission espacés10s sont en cours ; ancrecréée seulement
+après absence de compilateurs/proveurs/inférences concurrents et≥10,5Go.
+
+- 45-Q/R processus cold-quality-component : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-component-plan-result.json.
+
+COLD-READY-01-GPU1 composant : **validé pour le périmètre testé**, 1test physique
+avec48cas (20mixed/20Hot/2cachevide/4petitslots/1doublonactivationdistincte/
+1fallbackB3), sorties byte-exactes et W1GPU terminée avant libération du job
+retenu. Processusjoint,3,186s murales,0nouveauSwapout ; ce temps n'est pas un gain.
+Preuves quality/cold-quality-component{.log,-plan-result.json} et identity-quality.json.
+Nouvelle ancre9fdf6028… : Swapouts75267129344B/Swapins31404785664B, snapshots
+16,61/14,98/16,59Go disponibles ; aucun compilateur/proveur/inférence externe.
+
+- 45-Q/R processus cold-quality-failure : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-failure-plan-result.json.
+
+COLD-READY-01-GPU1 erreur/reprise : 1testGPU passe, échec injecté après soumission
+W1, réservations invalidées, Hot terminé au retour, reprise/reset byte-exacts.
+1,214sprocessusjoint,0Swapout. Limite : ne prouve pas tous entrelacements ni un
+contexteGPUdéfaillant ; erreurOS/tardive couverte séparément C++/guardaudité.
+Preuve quality/cold-quality-failure{.log,-plan-result.json}. Prochain oracle
+modèle complet, seul processus GPU, même ancre et binaire gelé.
+
+- 45-Q/R processus cold-quality-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-oracle-plan-result.json.
+
+COLD-READY-01-GPU1 oraclemodèle : 1test états/logits externes passe, processus
+joint4,374s,0nouveauSwapout. Le log contient le nombre de vagues naturelles et
+les contrôles de trajectoire/reset/entréeinvalide ; tolérances historiques de
+l'oracle conservées, pas de confusion avec paritébitexacteducomposant.
+Préparation identitécomplète : premier assemblage a refusé les chemins MLX
+externes à la racine (relative_to), aucun lancement benchmark ; correction
+conserve ces chemins absolus comme l'identité historique. Identitéqualité
+initiale inchangée et déjà validée par le superviseur.
+
+- 45-Q/R processus cold-quality-pair : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-pair-plan-result.json.
+
+COLD-READY-01-GPU1 précisionoracle : 175vaguesCold naturelles exécutées ; toutes
+comparaisons imprimées satisfont les tolérances historiques (dernières lignes
+relative_rmse/max_abs affichées0). Vérificationpaire :1test passe, logits et tous
+états/commits série selon oracle interne existant,8,733smurales,processusjoint,
+0Swapout. Identitécomplète738sources et18préflightA/B passent ; aucun modèle
+benchmark lancé avant MTP/DF qualité. Preuve quality/cold-quality-pair-plan-result.json.
+
+- 45-Q/R processus cold-quality-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-mtp-plan-result.json.
+
+COLD-READY-01-GPU1 MTP :1test complet passe, séquencegreedy/cible/étatsdelatête
+selon oracle existant,9,092smurales,processusjoint. Au totalGPU1 :0Swapout,
+119111680B Swapin cumulatif maximum (plafond268435456), RSSmaxobservé6,52Go
+sur ce test. Preuve quality/cold-quality-mtp{.log,-plan-result.json}. DFlash suit.
+
+- 45-Q/R processus cold-quality-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-dflash-plan-result.json.
+
+COLD-READY-01-GPU1 DFlash :1test passe,36caspréfixes largeur1..8, captures64000
+valeurs byte_equaltrue/RMSE0, logits/étatscible byte_exact. Processusjoint26,490s,
+0Swapout, footprint7,34Go/pic7,37Go. Sixqualités complètes ; pasdegaintok/sencore.
+Démarrage des18plansbridge/pilote gelés, ordrephase puis AR/MTP/DF ; superviseur
+et inspection après chaqueprocessus, arrêt immédiat sur échec. État et PID dans
+checkpoint.json, aucunmodèlemultiple ni compilation/proveur durant la campagne.
+
+- 45-Q/R processus cold-bridge17-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-AR-1-A-plan-result.json.
+
+**F02 inspection cold-bridge17-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-bridge17-AR-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-AR-2-B-plan-result.json.
+
+**F02 inspection cold-bridge17-AR-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-bridge17-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-MTP-1-A-plan-result.json.
+
+**F02 inspection cold-bridge17-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-bridge17-MTP-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-MTP-2-B-plan-result.json.
+
+**F02 inspection cold-bridge17-MTP-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-bridge17-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-DF-1-A-plan-result.json.
+
+**F02 inspection cold-bridge17-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-bridge17-DF-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-DF-2-B-plan-result.json.
+
+**F02 inspection cold-bridge17-DF-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+COLD-READY-01-GPU1 — audit demandé explicitement par l'utilisateur pendant les
+chronos (« regarde si t'as pas mal fait des trucs »), sans modification des
+sources gelées ni compilation concurrente. AR17 provisoire : A11,609/11,764 vs
+B11,647/11,755tok/s MAIN/HOLD, signal quasi nul à ne pas conclure avant128.
+Audit ciblé : coût fixe construction/soumission de W1, préparation W2 aujourd'hui
+après jointure ; étudier lectureseffectives/évaluationsimplicites avant de dire
+que construireW2 pendantlectures est sûr et utile. Distinguer constructionde
+graphe de l'encodage MLX des12ms historiques, vérifier fallbacks/slots/dtypes/
+ordrecanonique et branche réellement exécutée ; aucune variante GPU lancée
+sans préenregistrement. Une idée valide peut être masquée par son adaptation.
+
+- 45-Q/R processus cold-pilot128-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-1-A-plan-result.json.
+
+**F02 inspection cold-pilot128-AR-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-AR-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-2-B-plan-result.json.
+
+**F02 inspection cold-pilot128-AR-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-AR-3-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-3-B-plan-result.json.
+
+**F02 inspection cold-pilot128-AR-3-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-3-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-AR-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-4-A-plan-result.json.
+
+**F02 inspection cold-pilot128-AR-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-1-A-plan-result.json.
+
+**F02 inspection cold-pilot128-MTP-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-MTP-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-2-B-plan-result.json.
+
+**F02 inspection cold-pilot128-MTP-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-MTP-3-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-3-B-plan-result.json.
+
+**F02 inspection cold-pilot128-MTP-3-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-3-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-4-A-plan-result.json.
+
+**F02 inspection cold-pilot128-MTP-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-1-A-plan-result.json.
+
+**F02 inspection cold-pilot128-DF-1-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-1-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-DF-2-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-2-B-plan-result.json.
+
+**F02 inspection cold-pilot128-DF-2-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-2-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+COLD-READY-01-GPU1 AR128ABBA complet : décode508transitions/bras,
+A11,209891→B11,663980tok/s (+4,051%brut) ; BvsAinitial+1,527%, Adernier/Ainitial
+−4,737%. Préfill+0,255%global (MAIN−0,538/HOLD+1,117%). Aucunéchantillonexclu,
+8mesurés+8chauffes. Compression/décompressions natives croissantes documentées ;
+cause thermiquenonmesurée. Donc signal encourageant, pasde+4,05%causalpromis.
+Preuves AR-independent-analysis.{json,md}. AR192KioSwapout ; GPU1à12:49UTC
+192KioSwapout/237,72MioSwapin depuisancre, seuils32/256Miorespectés.
+
+Audit adaptation (read-only pendantchronos) : flags/cheminsAR-B1/MTP-B2/DF-B2
+corrects, aucune copie supplémentaire de poids ; duplicationdesfds/refsMLX/
+notificationCV etchaîneMLXsupplémentaire ont un coût. Readiness photographiée
+une fois avant construction/async : des lectures peuvent finir entretemps,
+splitpeutalorscoûtersansmasquage.9,05ms historiques sont~0,338ms parlot éligible,
+non9ms parvague. W2 est actuellement construit aprèsjoin ; anticipation du
+seulgraphe estpossible en release, mais fencedprofile déclencheeval et exige
+l'ancienplacement. Rapports adaptation-cpu-overlap-review.md et audit-adaptation.md.
+Aucunchangementduprototype pendantmesures ; diagnosticnaturelciblé àpréparer
+pourqualifier fenêtres perdues/coûtsCPU, avecperturbationduprofileurexplicite.
+
+- 45-Q/R processus cold-pilot128-DF-3-B : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-3-B-plan-result.json.
+
+**F02 inspection cold-pilot128-DF-3-B : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-3-B/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-pilot128-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-4-A-plan-result.json.
+
+**F02 inspection cold-pilot128-DF-4-A : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-4-A/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+COLD-READY-01-GPU1 — campagneP1 terminée :18processusbenchmark inspectés,6qualités,
+contrôleur6685joint exit0, checkpointcompleted_all_planned_runs_not_gain. Rehash
+738sources+3binairesconforme avant toutchangement, reçuall-modes-source-recheck.json.
+Décodebrut AR11,20989→11,66398(+4,05%),MTP11,43837→11,86531(+3,73%),
+DF12,19762→12,31269(+0,94%). BvsAinitial+1,53/+4,70/+1,49% ; dériveAfin/Adébut
+−4,74/+1,88/+1,08%. Préfillbrut+0,255/+4,193/+1,258%. Pasd'additionentre modes,
+pasde+4%ARcausalpromis ni d'objectif15tok/satteint. Tous échantillons conservés,
+mêmesacceptances/tokens. Statut **prometteur conservé**, flagdefaultOFF enattente
+dudernierauditprofilé ; pasd'appinstallée/publication.
+
+COLD-READY-DIAG-01 — préenregistrement avant application du patchdiagnostic.
+Motif nouveau : demandeutilisateur d'auditadaptation, absencemesurenaturelle du
+moment oùla fenêtreI/Oexpire. P1qualifié/mesuré figé, archiver les sourcesavant
+édition. Ajouter uniquement des spans cfg(test) au fill_ready (begin/wait/build/
+submit/finish) et2snapshotsreadiness aprèsconstruction/aprèssoumission ; aucune
+modification de décision, aucun retardartificiel, erreursdiagnostic explicites
+sanschangerforward. L'erreuravantfinish laisse outerstatusincomplete, ne pas
+la compter commeéchantillonvalide. Duréessnapshotsmesurées ; leurcoût et le
+profileur peuventaugmenterlesfenêtresexpirées : pasde fréquence releaseexacte.
+Aprèsasync allready ne prouvepas absenceGPUoverlap (GPUpeutavoirtravaillépendant
+l'appel). Avantasync allready signifieI/Ofinieaupointobservé, danscetteinstrumentation.
+
+Réutiliser qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states,
+KINDnatural, ARMAIN128tokens,6phases (chauffe,contrôleavant,3traces,contrôleaprès),
+states/logits/Tokenscomparés parharnais existant. C'est le plus petit mode naturel
+existant sansrétentiondestages horschauffe ; pas denouveaumodeinventé. Pasdefenced,
+MTP/DF nonreprofilés pourcecribleB1. Même3Gio/4readers/flagsP1 etancreGPU1, pasde
+réancre ; constructionbinairetestdiagnosticdistinct, codeCLIchronométréconservé.
+Format/lint/build etcontrôlesCPUaffectés avantGPU ; analyserbijectionspans/durées/
+statuts/compteurs/cohortes sans transformerceprofil enbenchmarkgain. Vérification
+formelle despointsMLX/Metal/concurrence reste nonacquise, pasdenouveauKani lourd
+aprèsl'incident ; harnaisCPUpartitioninchangé etlimitesconservées.
+
+- 45-Q/R processus cold-diagnostic-ar-main : **failed_or_interrupted**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-diagnostic-ar-main-plan-result.json.
+
+COLD-READY-DIAG-01 admission : bloquée avantPIDmodèle par gardeSwapins, aucun
+GPU lancé ; preuve quality/cold-diagnostic-ar-main-plan-result.json. Les18mesures
+P1étaient terminées sousleursgardes (derniermaximumSwapin261734400B<256Mio).
+Aprèsla campagne, le compteurglobal dépasse256Mio ; écrituresnouvelles0,5Mio,
+disponible~16,7Go. Ce blocage ne rendpasrétroactivement invalides lesmesuresP1.
+
+Amendement explicitementautorisé : « Oui, lectures swap limitées à 1 Gio ».
+Mêméancre9fdf6028…/mêmescompteursinitiaux, plafondglobalSwapin1073741824B,
+Swapout33554432B inchangé ; autresgardes, notammentdelta parprocessus256Mio,
+secteur/RSS/footprint/concurrence/margemémoire conservées. Anciennepolitique et
+anciensrapports immuables. Créer un petit adaptateurdiagnostic +amendementJSON,
+les inclure dansidentitégelée ; valider autorisation/identités/caps/refusavant
+relanceadmission. Pasderéancre, aucun changementdefault/app/publication.
+Directiveutilisateur reçue : poursuivre **seul**, aucunnouveausubagent ; tous
+anciensagents terminés. Diagnostic build72s/clippystrict5,90s/fmtcheckpassent.
+
+COLD-READY-DIAG-01 amendement prêt : gpu-diagnostic-runner.py réutilise GPU1/F02,
+valide l'autorisation/mêméancre/hashanciennepolitique et ne relève que le plafond
+cumulatifSwapin.2caspositifs+27refusCPU passent, Ruff/py_compile/fmt/YAML/diffcheck
+OK ; CrossHairtentéabsent, aucune preuveformelle annoncée. Nouvelleidentité
+identity-diagnostic-amended.json, planamendeddistinctpréservantrefusinitial ;
+binaire9adf5831…11200656B. Aucune modificationdeCLIchronométrée, flagdefaultOFF.
+Lancementdudiagnosticnaturel128ARMAIN,6phases ; résultats attendus dans
+`diagnostic-ar-main/`, tokens/logits/étatscomparés. Décomptewindowexpirée ne sera
+pasassimiléàduGPUidle sans timestampsGPUcorrespondants.
+
+- 45-Q/R processus cold-diagnostic-ar-main-amended : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/quality/cold-diagnostic-ar-main-amended-plan-result.json.
+
+COLD-READY-DIAG-01 terminé : 1 test physique passé, six phases complètes,
+115,62 s natifs / 116,33 s superviseur, PID joint. Chaque phase rapporte
+128 tokens identiques et 248320 logits avec états cible bit à bit identiques ;
+validation externe du golden et analyse des traces encore en cours. Aucune
+nouvelle écriture swap pendant ce diagnostic ; depuis l'ancre GPU1, maximum
+524288 B écrits et 344129536 B lus, dans les plafonds autorisés. Aucun nouveau
+chronométrage de gain. L'analyse préenregistrée ajoute un parseur local minimal,
+avec refus des traces incomplètes, contrôle des parents/durées/comptages et
+auto-tests adversariaux ; ne pas confondre ses intervalles CPU avec le GPU idle.
+
+COLD-READY-DIAG-01 — **diagnostic terminé et validé dans sa portée**, aucun gain
+de débit attribué à ce profil. Six phases conformes au golden externe MAIN
+(128 IDs/hash/texte) ; logits et états finaux bit à bit identiques entre phases,
+248320 logits finis et >100 buffers d'état non vides. Le contrôle indépendant
+des états à chacun des 128 pas n'est pas revendiqué. Toutes les 1258570 entrées
+des six traces sont analysées, sans suppression de lot incomplet. Rehash des
+137 sources et trois binaires conforme ; l'ajout CI ultérieur ne change que
+les contrôles du nouvel analyseur, pas le binaire mesuré.
+
+Décode : 9782 lots éligibles, 9516 scindés. 705/9516 (7,41 %) déjà tous prêts
+avant soumission W1 ; 1843 (19,37 %) terminent pendant l'appel, groupe ambigu ;
+6968 (73,22 %) encore partiels après async_eval. Préfill : 7012 lots / 6911
+splits, respectivement 4,38 / 19,24 / 76,37 %. Le mécanisme est bien exécuté ;
+pas de fallback permanent trouvé. Ces proportions instrumentées ne sont pas
+des taux exacts release ni une preuve de recouvrement physique GPU.
+
+Temps hôte decode en ms/transition : begin0,357, attente2prêts8,542,
+constructionW1 0,717, soumissionW1 1,495, snapshots0,023, join5,724 ; total
+fill_ready inclusif16,961, non additionnable à ses enfants. La construction
+W2 instrumentée vaut0,533ms ; son chevauchement optimiste avec join, somme des
+minima par lot, vaut0,395ms (~0,47 % conditionnel). Éviter les soumissions déjà
+tardives représente0,105ms pour ce poste seul (~0,12 %), avec risque de perdre
+le gain en reconstruisant un graphe. Tout begin0,357ms est un plafond artificiel
+pour le lecteur, non un surcoût différentiel stock. W2 anticipé reste une piste
+non implémentée ; le mode fenced évalue implicitement les étapes et doit garder
+le placement après join. Aucun de ces nombres ne résout les12msP08 à lui seul.
+
+Perturbation : traces87,490ms/transition vs contrôles85,369 (+2,49 %), dérive
+contrôleavant/après+1,98 % en temps. Pas de captureGPU corrélée ; join n'est pas
+du NAND critique pur. Pas de nouveau test MTP/DF dans ce diagnostic AR.
+
+Analyseur : 5 cas positifs +18 refus, 2 contrôles intégration erreur/préservation,
+mutation de monotonie détectée ; Ruffformat/lint, py_compile, YAML/diffcheck OK.
+Premier lint6C408 corrigé. CrossHair tenté absent, aucune preuve formelle nouvelle ;
+limites Kani/CBMC P1 conservées, aucun proveur lourd relancé. Workflow PR/push main
+complété ; aucun run PR retourné par GitHub pour SHA base7978fce, code local non
+publié donc aucune CI distante correspondante. Résultats et commandes :
+`docs/measurements/post-p08-cold-ready-20261101/diagnostic-conclusion.md`,
+`diagnostic-analysis.json`, `diagnostic-analysis-verification.json`.
+
+Décision P1 après audit : **prometteur conservé, default OFF** ; qualité passée,
+débit brut +4,05 % AR / +3,73 % MTP / +0,94 % DF, sans transformer ces signaux
+en gain causal fixe ni gommer DF HOLD−0,66 %. Aucun nouveau candidat runtime
+introduit ici, aucun test en cours, aucune app remplacée/publication/push.
+
+## COLD-READY-P2 — corrections du diagnostic, 1 novembre 2026
+
+**Préenregistré, en cours.** Demande utilisateur : « fix tout ce que t'as trouvé
+et si ça marche bien tu met dans le moteur ». Nouveau motif : mesures DIAG-01
+(W2 construit après join ; 7,41 % des splits decode déjà complets avant async).
+Archiver les sources du diagnostic avant édition. Aucun nouveau kernel ni
+retrait de propriétaires/FD ; le coût begin de0,357ms n'est pas identifié comme
+un défaut corrigeable et ne justifie pas un changement de durée de vie.
+
+Correction combinée minimale : construire W2 lazy après W1 et avant finish,
+sans l'évaluer avant réussite des lectures ; garder W2 après finish en profil
+fenced. Revérifier readiness avant async W1 ; si tout est prêt, conserver W1
+déjà construit mais différer son évaluation au graphe final, sans reconstruire
+la cohorte. Même partition/ordre canonique/slots/budget3Gio, pas de nouvelle
+option publique. Compteurs et injections de test pour queue encore retenue,
+queue devenue complète, échec après préparation W2 et profil fenced.
+
+Qualification : parité composant B1/B2/doublons/fallbacks, vérification W2 lazy
+avec un job retenu, erreurs/reprise, oracle indépendant, paire, MTP et DFlash.
+Fmt/Clippy strict/build MLX-chat et tests CPU pertinents. Tentative Kani ciblée
+sur le chemin Rust réel, sans stub MLX ni nouveau harnais partition lourd ;
+processus borné en temps/mémoire, unsupported explicite. Pas de proveur/build
+pendant GPU. CI à adapter seulement aux contrôles touchés.
+
+Débit après qualité : crible AR128 sur MAIN/HOLD, mêmes deux chauffes/processus,
+ordre S/P/C/C/P/S : S=stock COLD_READY0 nouveau CLI, P=P1 gelé COLD_READY1,
+C=P2 COLD_READY1 nouveau CLI. Six processus pour isoler l'ajustement et le
+gain total sans répéter l'ancienne campagne entière. Si signal favorable,
+MTP et DF en S/C/C/S128 sur les mêmes prompts ; toutes sorties/counters gardés,
+inspection externe avant toute conclusion. Aucun seuil artificiel de +1 % ;
+petits gains admis selon règles assouplies existantes, avec contrastes par prompt,
+bras et dérive des contrôles. Si régression ou ambiguïté, auditer avant retrait,
+isoler uniquement le correctif concerné et préenregistrer ce complément.
+
+Même ancre GPU1, cumul32Mio Swapout/1Gio Swapin autorisés, garde256Mio par
+processus, secteur/marge/footprint/concurrence conservés. Aucun réancrage.
+Une intégration dans le moteur local est maintenant autorisée si les contrôles
+sont favorables ; app installée et publication hors périmètre.
+
+COLD-READY-P2 qualification : Clippy strict passe, build libtest71s/CLI55,47s,
+205 tests ordinaires passés/191 ignorés. Sept sélections physiques passées :
+nouveaux6cas (deferred2/fenced2/erreuraprèsW2+reprise), composant48cas,
+erreuraprèsW1/reprise, oracle indépendant, paire, MTP et DFlash. Aucun nouveau
+Swapout ; cumulGPU1 524288Bécrits/529776640Blus. Binairetest e3aafe19…,
+CLI6956744e… ; harnais cfg(kani) seul ajouté après build, absent du binaire
+normal. Tous processus joints. Rapports dans post-p08-cold-ready-20261101/p2/quality.
+
+Kani : première tentative bloquée avant spawn (RLIMIT_AS refusée par macOS),
+seconde bornée au groupe512MioRSS/30s arrêtée après3,70s, dernierRSS541671424B,
+avant verdict. Harnais réel actual_cold_ready_refinement_entry avec choix
+symbolique des chemins, aucun stub ; propriété non vérifiée, pas de relance
+lourde. Logs kani*. Analyseur campagne :14acceptations/8refus et3contrôles des
+bornes swap passent, garde globale1Gio vs256Mio parprocessus distinguée.
+
+P2-MUT — préenregistrement de vérification ciblée : désactiver temporairement
+la préparation W2 dans le seul libtest, construire un binaire jetable puis
+restaurer exactement la source P2. Le test composant doit refuser « W2 was not
+prepared before join » ; le résultat attendu est un échec, jamais une parité.
+Pas de benchmark du mutant, aucune modification du CLI P2 gelé. Vérifier le
+hash restauré avant de préparer les identités de la campagne de vitesse.
+
+P2-MUT terminé : le mutant échoue exactement sur « W2 was not prepared before
+join » (0passé/1échec attendu, exit101), processus joint,0nouveauSwapout.
+Source P2 restaurée hash a930629c… ; même test repassé sur le binaire P2 original
+e3aafe19… dans cold-p2-restored-component. CBMC sur le vrai pont C++ renommé
+tente mlxl3_disk_batch_ready et échoue en parsing libc++ (exit6,0,14s) ; aucune
+obligation prouvée. CrossHair absent. Ces limites restent séparées des tests.
+
+P2 vitesse prête : 760 sources figées et identités S/P/C,14plans précontrôlés,
+nouveau CLI6956744e… et P1gelé42dd7456… ; registre p2/manifest.json. Le binaire
+mutant est isolé et ne participe à aucun chrono. Démarrer le crible AR S/P/C/C/P/S
+seul ; MTP/DF restent conditionnels à son analyse. Une source test cfg(kani)
+n'affecte pas les binaires normaux ; l'archive et les identités la distinguent.
+
+- 45-Q/R processus cold-p2-quality-refinements : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-refinements-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-component-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-failure : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-failure-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-oracle-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-pair-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-mtp-plan-result.json.
+
+- 45-Q/R processus cold-p2-quality-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-quality-dflash-plan-result.json.
+
+- 45-Q/R processus cold-p2-placement-mutant : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-placement-mutant-plan-result.json.
+
+- 45-Q/R processus cold-p2-restored-component : **completed_expected_outcome**, joint=True ; docs/measurements/post-p08-cold-ready-20261101/p2/quality/cold-p2-restored-component-plan-result.json.
+
+- 45-Q/R processus cold-p2-AR-1-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-1-S-plan-result.json.
+
+**F02 inspection cold-p2-AR-1-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-1-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-p2-AR-2-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-2-P-plan-result.json.
+
+**F02 inspection cold-p2-AR-2-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-2-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-p2-AR-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-3-C-plan-result.json.
+
+**F02 inspection cold-p2-AR-3-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-3-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-p2-AR-4-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-4-C-plan-result.json.
+
+**F02 inspection cold-p2-AR-4-C : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-4-C/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-p2-AR-5-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-5-P-plan-result.json.
+
+**F02 inspection cold-p2-AR-5-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-5-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-p2-AR-6-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/plans/cold-p2-AR-6-S-plan-result.json.
+
+**F02 inspection cold-p2-AR-6-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/runs/cold-p2-AR-6-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+COLD-READY-P2 AR terminé : six processus inspectés/joints. Décode S11,361152,
+P1=11,617946, P2=11,513654tok/s ; P2/P1−0,8977%, P2/S+1,3423% brut.
+Préfill S11,064090/P1=11,329353/P2=11,087633tok/s ; P2/P1−2,1336%.
+Dérive des témoins et compression conservées ; AR-result.json. Pas de promotion
+P2 combiné ni lancement des huit chronos MTP/DF conditionnels. Correction
+numérique passée ; efficacité comparative non confirmée.
+
+COLD-READY-P2-ABL — préenregistrement avant modification : demande utilisateur
+« t'as pas flop un truc ? ». Audit : même après I/O terminée, async W1 peut
+recouvrir le CPU construisant W2/merge/shared ; appeler cette soumission inutile
+était trop fort. Préparation W2 peut aussi déplacer de petites allocations et
+modifier les contentions ; ce ne sont pas des économies garanties. Isoler les
+mécanismes avant tout retrait. Deux constantes privées de compilation, aucune
+nouvelle option publique : U=préparation W2 seule (sans snapshot additionnel en
+release), D=différer W1 seul (W2 reste après join). P=ancien P1 gelé. Archiver P2.
+
+Construire CLI/libtest distincts U et D ; mêmes tests composant/fenced/deferred
+selon mécanisme, oracle/paire/MTP/DF, erreurs et invariants lazy. Les tests lisent
+les constantes de politique pour choisir les attentes applicables ; oracle
+numérique externe inchangé. Ancien mutant prepare_rest=false contre politique
+préparationtrue reste détecté. La sûreté MLX/Metal demeure hors preuveKani/CBMC,
+ne pas répéter le solveur partition ni annoncer une preuve par compilation.
+CribleAR128 P/U/D/D/U/P, MAIN/HOLD et deux chauffes/processus identiques. Pas de
+stock répété ici : la question nouvelle est l'écart au prototype P1. Toute
+extension MTP/DF vitesse ou activation attend ce résultat et son audit.
+Même ancre/gardes32Mioécritures/1Giolectures ; nouvelles identités et sources
+archivées par variante, aucune modification pendant chrono. Aucun ancien
+résultat effacé ni remesuré silencieusement.
+
+P2-ABL incident mémoire avant tout test GPU : après les builds U/D, cumul
+GPU1 observé40,046875Mio Swapout /729,75Mio Swapin ; garde32Mio dépassée,
+aucun GPU actif au constat, attribution système non déterminée. Anciens chronos
+P2 terminés sous32Mio conservés. Incident swap-incident-40mib.json.
+
+P2-ABL amendement explicite utilisateur : « Oui, plafond total de64Mio ».
+Même ancre GPU1 et incident inclus, plafond total64Mioécrits/1Giolus ;
+parprocessus32Mioécrits/256Miolus, autres gardes inchangées. Préenregistrer
+l'adaptation du contrôleur et inspecteur avec tests frontières/refus, archiver
+les plans32Mio non exécutés, puis qualifier U/D avant cribleAR P/U/D/D/U/P.
+Aucun réancrage, aucune modification des politiques ou résultats historiques.
+
+P2-ABL prêt64Mio : contrôleur2caspositifs/33refus, inspecteur6positifs/4refus,
+bornesswap1positif/2refus. Défauts des premiers selftests corrigés (chemin
+dépendance de copie, résolution symlink tempfile) ; aucun lancement GPU avant
+leur réussite. Fmt/lint/py_compile/YAML passent, CrossHair absent. U et D
+ordinaires205passés/191ignorés chacun, limites Kani/CBMC conservées. Précontrôle
+initial via Python système3.9 incompatible, corrigé par venv3.12 preregistré ;
+six précontrôles réussis. Identités/archives séparées et aucun GPU actif.
+
+- 45-Q/R processus cold-abl-quality-U-refinements : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-refinements-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-component-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-failure : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-failure-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-oracle-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-pair-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-mtp-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-U-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-dflash-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-refinements : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-refinements-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-component-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-failure : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-failure-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-oracle-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-pair-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-mtp-plan-result.json.
+
+- 45-Q/R processus cold-abl-quality-D-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-dflash-plan-result.json.
+
+P2-ABL qualité : 14/14 sélections GPU passées U/D, composant et erreurs/reprise, oracle, paire, MTP, DFlash36préfixes ; parité logits/états/captures byteexact. Tous processus joints,0nouveauSwapout, cumul40,046875Mio. Début cribleAR préenregistré P/U/D/D/U/P ; seules les vitesses restent à valider.
+
+- 45-Q/R processus cold-abl-AR-1-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-1-P-plan-result.json.
+
+**F02 inspection cold-abl-AR-1-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-1-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-abl-AR-2-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-2-U-plan-result.json.
+
+**F02 inspection cold-abl-AR-2-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-2-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-abl-AR-3-D : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-3-D-plan-result.json.
+
+**F02 inspection cold-abl-AR-3-D : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-3-D/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-abl-AR-4-D : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-4-D-plan-result.json.
+
+**F02 inspection cold-abl-AR-4-D : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-4-D/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-abl-AR-5-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-5-U-plan-result.json.
+
+**F02 inspection cold-abl-AR-5-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-5-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-abl-AR-6-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-6-P-plan-result.json.
+
+**F02 inspection cold-abl-AR-6-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-6-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+P2-ABL AR terminé : P11,381849/U11,619700/D11,641437tok/s ; U/P+2,0897%,
+D/P+2,2807% bruts. Préfill U/P−0,1414%,D/P−0,6136%. TémoinMAIN−0,416%decode,
+HOLD−7,627% ; ne pas présenter ces écarts comme gains causaux établis.
+14qualités et6chronos passés/joints,0nouveauSwapout. Sources/bins/rapports
+conservés. U abandonné comme candidat selon demande utilisateur ; non effacé
+des archives. D retenu pour extension, seulement0,187%decode devant U et
+préfill0,473% inférieur ; choix orientédecode, pas supériorité universelle.
+
+P2-D-FINAL — préenregistrement MTP/DF demandé par utilisateur avant tests :
+D seul (source actuelle/binaire59637139…), P=P1gelé, S=stockflag0 mêmebinaireD.
+Ordre S/P/D/D/P/S pour chaque mode, mêmes MAIN/HOLD87/82 et128sorties, deux
+chauffes/processus. D qualité14sélections déjà passée, pas de répétition inutile.
+Objectif distinguer amélioration globale S/D et effet incrémental P/D ;
+acceptance/texte/logits/counters selon contrôles existants. Aucune promesse de
+boost ni activation avant analyse ; mêmes ancre64Mio/1Gio et autres gardes.
+Contrôleur/inspecteur adapté aux seules formes de plan MTP/DF, régressions
+d’admission avant gel. Ne pas lancer les anciens plans P2combiné.
+
+P2-FINAL révision avant tout chrono : utilisateur précise de tenir compte
+du decode ET prefill. Choix corrigé U, D abandonné comme candidat. U11,6197
+vsD11,6414tok/s decode (−0,187%), mais prefill11,2539vs11,2007 (+0,475%) ;
+comparer aussi durée complète prefill+127transitions. U/D sont très proches :
+sélection pratique, pas preuve de supériorité. Aucun chrono D-final lancé,
+préparation du plan interrompue sur nom d’argument (CLI positionnelle).
+Protocole final devient S/P/U/U/P/S pour MTP et DF. S=Uflag0, P=P1gelé,
+U=binaireb0e58c31…/sourcesarchiveU. Restaurer exactement sourceU (deuxconstantes
+seules), mêmes14qualités déjà passées. Ancienne décisionD reste historique.
+
+P2-U-FINAL contrôles prêts :12admissions/8refus etbornesSwap passent, Ruff/fmt/py_compile/YAML passent. Temps complet AR agrégé quatre requêtes U73,752824s vsD73,813878s (écart0,083%, non significatif garanti), P74,623959s dérivant. SourcesU restaurées exactement, identitésS/P/U gelées ; 12plans MTP/DF précontrôlés.
+
+- 45-Q/R processus cold-final-MTP-1-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-1-S-plan-result.json.
+
+**F02 inspection cold-final-MTP-1-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-1-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-MTP-2-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-2-P-plan-result.json.
+
+**F02 inspection cold-final-MTP-2-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-2-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-MTP-3-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-3-U-plan-result.json.
+
+**F02 inspection cold-final-MTP-3-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-3-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-MTP-4-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-4-U-plan-result.json.
+
+**F02 inspection cold-final-MTP-4-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-4-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-MTP-5-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-5-P-plan-result.json.
+
+**F02 inspection cold-final-MTP-5-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-5-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-MTP-6-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-MTP-6-S-plan-result.json.
+
+**F02 inspection cold-final-MTP-6-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-MTP-6-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+P2-U-FINAL MTP terminé6/6 inspectés/joints. Stock11,502368/P1=11,555652/U11,663897tok/s ; U/S+1,4043%decode, préfill10,546671→10,571387(+0,2343%), somme quatre durées76,212843→75,526297s(−0,9008%). U/P1+0,9367%decode,+0,9376%préfill. Signal brut avec dispersion parprompt ; aucune divergence texte/acceptance. MTP-result.json. DFlash6plans en cours, pas encore de décision intégration.
+
+- 45-Q/R processus cold-final-DF-1-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-1-S-plan-result.json.
+
+**F02 inspection cold-final-DF-1-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-1-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-DF-2-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-2-P-plan-result.json.
+
+**F02 inspection cold-final-DF-2-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-2-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-DF-3-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-3-U-plan-result.json.
+
+**F02 inspection cold-final-DF-3-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-3-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-DF-4-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-4-U-plan-result.json.
+
+**F02 inspection cold-final-DF-4-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-4-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-DF-5-P : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-5-P-plan-result.json.
+
+**F02 inspection cold-final-DF-5-P : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-5-P/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-final-DF-6-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/plans/cold-final-DF-6-S-plan-result.json.
+
+**F02 inspection cold-final-DF-6-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/finalist/runs/cold-final-DF-6-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+P2-U-FINAL terminé12/12. DFlash S12,161812/P1=12,322499/U12,488118tok/s ;
+U/S+2,6830%decode,+3,1265%préfill ; tempscomplet73,532850→71,478476s
+(−2,7938%). U/P1+1,3440%decode,+0,7419%préfill. MAIN/HOLD tous deux
+améliorés vsstockDF. MTPHOLD préfill−1,37%, tempscomplet quasiégal(+0,004%) ;
+MTPgain global porté parMAIN, ne pas annoncer chaque métrique gagnante partout.
+DériveDF stockdecode+2,06/+1,52% ; résultats bruts, pas garantie d’un gain fixe.
+Tous textes/counters identiques. p2/finalist/results.json.
+
+P2-U-INTEGRATION — avant édition/contrôle : conserver U, retirer le code
+de sélection D abandonné et les deux constantes d’ablation ; garder W1async,
+W2lazyavantjoin sauf fenced et tous drains/propriétaires. Activer COLD_READY
+par défaut local (optout0 conservé). Pas de nouveau kernel/cache ;3Gio.
+Valider le chargement réel sans variable COLD_READY avec le test composant
+existant (ancien binaireUdefault0 doit échouer sur précondition, nouveau doit
+passer), puis sept sélections qualité affectées sur nouveau libtest. Tests
+CPU/fmt/Clippy/buildMLX-chat. Contrôle ARstock/ON/ON/stock128 sur MAIN/HOLD,
+source finalegelée, pour ne pas inférer le gainAR depuis la dérive P1.
+MTP/DFdébit précédents qualifient U ; parité finale vérifiera nettoyage/default,
+aucune addition des gains. Même ancre64Mio/1Gioplusgardes. Build/proveurs hors
+GPU. Kani réel encore borné30s/512Mio sans solverpartition ; verdictmanquant
+reste explicite. App installée/publication hors périmètre.
+
+P2-U-INTEGRATION CPU : Clippy strict passe ; Kani réel arrêté3,57s à538214400B RSSgroupe avantverdict, nonpreuve ; aucunGPUconcurrent. Buildrelease libtest73s f686d64a…/CLI57,42s 09db0413… . Fmt/lint/py_compile/YAML/diffcheck et inspecteur4positifs/4refus+bornes passent. Initialement cargo fmt pointait native/Cargo.toml absent ; relance racine correcte passée. Sourcesfinales archivées et identités figées ; quatre plansAR précontrôlés.
+
+- 45-Q/R processus cold-integrated-previous-default-rejected : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/previous-default-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-refinements : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-refinements-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-component-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-failure : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-failure-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-oracle-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-pair : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-pair-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-mtp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-mtp-plan-result.json.
+
+- 45-Q/R processus cold-integrated-quality-dflash : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/quality/cold-integrated-quality-dflash-plan-result.json.
+
+P2-U-INTEGRATION qualitéGPU7/7 passe. Ancien binaireUdefault0 refuse le test composant sansflag avecexit101attendu ; même entrée sur nouveau binairedefault1 passe, puis composant/fenced/completion/erreurs/reprise/oracle/paire/MTP/DFlash qualifiés. Début AR S/U/U/S, aucune divergence connue.
+
+- 45-Q/R processus cold-integrated-AR-1-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/plans/cold-integrated-AR-1-S-plan-result.json.
+
+**F02 inspection cold-integrated-AR-1-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/runs/cold-integrated-AR-1-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-integrated-AR-2-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/plans/cold-integrated-AR-2-U-plan-result.json.
+
+**F02 inspection cold-integrated-AR-2-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/runs/cold-integrated-AR-2-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+P2-U-INTEGRATION AR interrompu pour contamination identifiée : git fetch
+demandé pour préparer publication/PR a déclenché maintenance détachée22178,
+repack22179/pack-objects22182 (99,5%CPU,~2GoRSS). Incident attribuable ànotre
+préparation Git, aucun proveur/build/modèle concurrent. S1HOLD6,2103tok/s et
+U2MAIN/HOLD10,7089/10,3681 conservés, pas de gain déduit. Contrôleur21711
+interrompu proprement, maintenancepropre terminéeSIGTERM ; preuvesJSON/logs.
+MTP/DF terminés avantfetch restent distincts, qualitéGPU7/7 déjàterminée.
+R2 préenregistrée avant relance : mêmes sources/binaires/options/ancre64Mio/1Gio,
+quatre nouveauxprocessus S/U/U/S MAIN/HOLD128, deuxchauffes identiques ;
+aucuneopération Git/archivage/autretravail durantGPU, contrôle explicite absence
+maintenance. Aucun résultat ancien effacé/exclu silencieusement, aucunequalité
+répétée nonaffectée. gitfetch futur avec maintenance.auto=false et gc.auto=0.
+
+- 45-Q/R processus cold-integrated-AR-3-U : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/plans/cold-integrated-AR-3-U-plan-result.json.
+
+- 45-Q/R processus cold-integrated-r2-AR-1-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/plans/cold-integrated-r2-AR-1-S-plan-result.json.
+
+**F02 inspection cold-integrated-r2-AR-1-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/runs/cold-integrated-r2-AR-1-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-integrated-r2-AR-2-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/plans/cold-integrated-r2-AR-2-U-plan-result.json.
+
+**F02 inspection cold-integrated-r2-AR-2-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/runs/cold-integrated-r2-AR-2-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-integrated-r2-AR-3-U : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/plans/cold-integrated-r2-AR-3-U-plan-result.json.
+
+**F02 inspection cold-integrated-r2-AR-3-U : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/runs/cold-integrated-r2-AR-3-U/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+- 45-Q/R processus cold-integrated-r2-AR-4-S : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/plans/cold-integrated-r2-AR-4-S-plan-result.json.
+
+**F02 inspection cold-integrated-r2-AR-4-S : passed_external_oracle_mode_and_memory_not_gain.** Preuve /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/r2/runs/cold-integrated-r2-AR-4-S/external-inspection-v2.json ; aucune validation de gain issue de cette seule réponse.
+
+P2-U-INTEGRATION R2 terminée4/4, tousprocessusjoints. Binairefinal09db0413…
+Stock11.719551→U11.883890tok/s (+1.4023%),
+préfill11.282039→11.478059tok/s (+1.7375%),
+tempscomplet73.305496→72.194434s (-1.5157%).
+TémoinsdecodeMAIN−3,59%/HOLD−1,93% : gain brut modeste, non garantie fixe.
+Aucuneélimination d’un échantillonR2 ; R1contaminéeGit séparée conservée.
+Qualitéfinale7/7 etactivationpardéfaut vérifiée, CPU205/191ignorés ; défautON
+retenu local, optoutMLXL3_SSD_COLD_READY=0. D abandonné/retiré, Uconservé.
+MTP/DFvitesses mesurées surUavantnettoyage(defaultOFF avecflag1), étatsparité
+revalidés surcodefinal ; ne pas appeler ces chronos mesures du binaire09db0413.
+Publication/push/merge désormais explicitementautorisés parutilisateur ; aucun
+encore réalisé au moment de cette clôture de campagne.
+
+Publication autorisée : préparer commit du moteur/profilage et expériences locales déjà présentes (autres flags expérimentaux conservésOFF), scripts/tests et preuves utiles. Captures massives/telemetrie brute restent locales, inventaire explicite ; aucune suppression. Validationensemble269CPU passés/10ignorés,1266Python passés, moteurfinal205passés/191ignorés+7GPU physiques passés. Rapport docs/cold-ready-m5-20261101.md. PR61/62/63 ouvertesdraft, SHA etCI inspectés ; pas encore fusionnées, CIglobale nonverte (preuves incomplètes et Desktop61/63).
+
+## PUBLICATION-2026-11-01 — intégration des PR61/62/63 et Cold U — en cours
+
+Autorisation explicite de push puis fusion des PR. Source Cold U9880fa4f publiée
+sur codex/slotstream-flash, PR64 ; checkout propre1266Python passés94,69s.
+Intégration isolée avec mainf3f2c1d5, PR61a36ba507, PR6216c765aa,
+PR6301c678eb ; préserver Desktop récent et corrections locales T17/T04/T18a.
+Conflit initial limité au journal : conserver les deux historiques.
+Contrôles prévus : revue des vrais diffs/appelants, CPU/Python/Swift affectés,
+Clippy et build MLX/chat, Kani borné et inspection CI SHA exact. Qualité GPU
+affectée à sélectionner après gel ; aucun nouveau gain ni chrono promis.
+CI PR63 inspectée : quatre timeouts600s (routesx2, sidecars, two_routes),
+aucun succès global ; ne pas désactiver les obligations pour fusionner.
+Autres échecs Desktop61/63 couverts par correction de fixture PR62.
+Aucune release ni remplacement de l'app installée.
+
+PR61 résolution explicite : versions de production locales conservées. T17 a
+déjà son port Metal corrigé et ses oracles dans gdn_epilogue.rs/qwen4.rs ;
+T04 a été testé puis retiré, preuves issue59-t04-20261031 conservées ; ne pas
+réintroduire sa branche abandonnée ni les helpers homonymes C++ de PR61.
+T18a et tests lecteurs/profile locaux couvrent déjà la queue avec davantage
+de frontières et la correction effective_disk_schedule. flash_boundary_tests.rs
+de PR61 reste consultable dans son commit ; son intégration initiale est
+supplantée par les tests adaptés aux implémentations effectivement retenues.
+Moteur/tests/scripts/workflow identiques au HEAD intégré avant PR61 ; ses
+rapports et son historique sont conservés. Aucun ancien candidat réactivé.
+
+PR62/63 fusion locale : compatibilité macOS, validation des dimensions,
+libération des drafts et framing Desktop retenus ; parseur et partitions
+Kani PR63 conservés. CI combine inventaire dynamique PR63, tests locaux
+Cold/lecteurs/profilage et tests-only Kani absents de l'inventaire lib simple.
+Contrôles combinés à exécuter ; preuve globale encore non acquise.
+
+PUBLICATION validation combinée b00e51d3 :276RustCPU passés/10ignorés ;
+2205Python passés/137sautés (GPU/modèles et runner Kani Linux)/10warnings,
+207,10s ; fmt et Clippy strict mlx,chat passent. Premier check-e2e passe
+Python puis échoue Desktop : CLT actif ne trouve pas SwiftUIMacros.StateMacro.
+Relance Desktop seule avec DEVELOPER_DIR=Xcode complet ; aucun correctif de
+production et aucun nouveau benchmark. Logs initiaux conservés.
+
+PUBLICATION qualité physique préenregistrée : après compilations/proveurs,
+code combiné b00e51d3, bins copiés et empreintes dans merge-validation-20261101/
+identity.json. Même ancre GPU1, plafond64Mio écritures/1Gio lectures. Trois
+sélections seules : composant Cold/default, oracle modèle indépendant, puis
+nouveau test PR62 DFlash→MTP invalide/vide et logits AR identiques. Ce sont
+des contrôles de correction affectés, aucune répétition de chronos/gain.
+Relance Desktop Xcode27.2 : build réussi puis strict refuse dépréciation
+préexistante VoiceController.installTap (SDK27) ; suite relancée avec SDK26.5
+installé, cible supportée par l'app et CI, sans modifier cette API hors scope.
+
+PUBLICATION contrôle SDK : Swift Build27 réutilise le module SwiftMath27.2
+malgré --sdk26.5, puis swiftc26.5 refuse le module. Corriger uniquement le
+chemin d'override existant de check-desktop.sh : sélectionner explicitement
+le backend SwiftPM natif lorsque MLXL3_MACOS_SDK est fourni. Cette voie
+existe dans swift build --help ; voie CI sans override inchangée. Relancer
+la suite Desktop réelle sur SDK26.5 ; aucun changement API audio/app.
+PUBLICATION vérification source : Kani0.68 sur metal_capabilities.rs réel,
+flagsu32/is_m5 symboliques :2assertions et4/4covers passent. Deux harnais
+Qwen widths i32 complets arrêtés à45s chacun (groupe RSS≤512Mio), tous
+processus joints, aucun verdict et aucun domaine réduit. ASan/UBSan parseur
+OS1190cas passent ; CBMC6.11 limité àC++11 ne qualifie pas libc++/optionalC++17.
+Vérification CPU ne prouve ni MLX ni Metal. Artefacts et limites enregistrés.
+
+PUBLICATION CI : les trois contrats test-only doivent être tentés même si
+le shard core atteint une limite ; condition always() ajoutée sans masquer
+son échec, stubbing explicite comme l'inventaire PR63. Pas de suppression
+ni réduction de domaine. État final des jobs à relever avant clôture.
+
+PUBLICATION Desktop complet SDK26.5 : suite réelle réussie, notamment
+1179modes/Lab,965sampling,114idle,229workspace,bridge8Mo/kill/recovery,
+63tests MCP+Sandbox et39contrôles Python finaux. Tous helpers terminés.
+Build MLX/chatrelease réussi214s ; source/binaires figés. Lancement des
+contrôles ordinaires MLX puis trois qualités physiques préenregistrées.
+
+Correction de clôture : le message « Desktop E2E checks passed » précédait
+encore check-studios.sh, donc la ligne précédente annonçait à tort tous les
+helpers terminés. La partie Desktop principale a passé, puis Studios a
+retrouvé le même mismatch SDK car il reconstruisait avec ses propres args.
+Même override natif à appliquer à cet appelant ; déplacer le message global
+après Studios. Rejouer uniquement Studios affecté et zsh -n, conserver les
+échecs précédents. Aucun GPU physique lancé pendant cette compilation.
+Contrôles ordinaires MLX :216lib passés/191ignorés,44CLI passés/9ignorés.
+
+- 45-Q/R processus merged-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-component-plan-result.json.
+
+- 45-Q/R processus merged-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-oracle-plan-result.json.
+
+- 45-Q/R processus merged-dflash-mtp-release : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-mode-switch-plan-result.json.
+
+PUBLICATION clôture locale : trois sélections GPU passées sur b00e51d3,
+composant48cas/2,789s, oracle5tokens×48couches/248320logits exacts/4,641s,
+DFlash→MTP invalide/vide libérant le draft avant erreur/2,404s. Tous processus
+joints, zéro nouveau swap lu/écrit par contrôle. Cumul ancre inchangée :
+42450944octets écrits et1054834688lus, sous64Mio/1Gio autorisés.
+Studios corrigé :39Python+41projet/artifact+25sandbox+29MCP passent ;
+Desktop principal passé séparément, échec imbriqué et relance conservés.
+Aucun chrono tok/s supplémentaire sur le binaire fusionné.
+
+PUBLICATION CI b00e51d3 : natif Linux, runtime/loader Apple, Kani allocator,
+conversion et preuve packing passent. Natif macOS atteint20minutes pendant
+les tests de compatibilité, sans assertion échouée avant annulation (job
+124889952959). Délai natif relevé seul à35minutes ; aucune obligation retirée,
+aucun délai de preuve changé. Revalidation YAML et syntaxe scripts passent ;
+nouveau run distant à inspecter après push. Guard-proofs dépasse15minutes,
+autres shards et Desktop encore en cours lors de ce relevé : preuve globale
+incomplète. Rapport docs/measurements/merge-validation-20261101/README.md.
+Décision : qualification fonctionnelle locale terminée, Cold U conservé,
+D retiré ; push puis fusion PR64 avec historique61/62/63 autorisés. Limites
+formelles et CI visibles, aucune release ni app installée remplacée.
