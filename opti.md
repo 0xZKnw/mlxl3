@@ -22196,3 +22196,14 @@ incomplète. Rapport docs/measurements/merge-validation-20261101/README.md.
 Décision : qualification fonctionnelle locale terminée, Cold U conservé,
 D retiré ; push puis fusion PR64 avec historique61/62/63 autorisés. Limites
 formelles et CI visibles, aucune release ni app installée remplacée.
+
+PUBLICATION-2026-11-01 clôturée : commit e4a8e867 poussé, PR64 fusionnée
+sur main en e7c15b18dfdf77b306d6e3311a65636ac3ac6247 à15:46UTC.
+GitHub confirme61/62/63 également merged ; les trois SHA sont ancêtres
+de main, arbre fusionné identique au dernier arbre qualifié. Dossier de
+preuves publié dans docs/measurements/merge-validation-20261101/.
+CI du commit main inspectée : Desktop41322940775 en cours ;
+Native41322940759,Apple41322940757,conversion41322940850 en attente.
+Aucun succès distant final annoncé ; limites de preuves inchangées.
+Ce reçu final est documentaire ; aucun nouveau benchmark ni changement
+exécutable. Captures brutes locales préservées, aucune app installée changée.

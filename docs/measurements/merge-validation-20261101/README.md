@@ -1,7 +1,7 @@
 # Integration qualification — 1 November 2026
 
 Status: local functional qualification complete; remote proof coverage incomplete.
-Publication is authorized through PR64; this is not a release or an installed-app replacement.
+Published on main through PR64; this is not a release or an installed-app replacement.
 
 PR64 integrates main `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`, Cold U
 `9880fa4f923c69a13a1cfe09ccb1d61068bd76de`, PR61
@@ -111,3 +111,17 @@ other proof shards and Desktop were still running at this snapshot. These
 outcomes are not an all-green CI claim; exact job receipts are included.
 The prior PR63 head retains four 600-second proof timeouts; no check was
 disabled or reclassified as successful to merge it.
+
+## Publication receipt
+
+Final qualification commit `e4a8e86702ab2b448b253a1042daea946a20f5b4` was
+pushed and PR64 merged as `e7c15b18dfdf77b306d6e3311a65636ac3ac6247`
+on 1 November 2026 at 15:46 UTC. GitHub reports PR61, PR62 and PR63 merged
+through the preserved ancestry; their exact heads are ancestors of main.
+The merge tree is identical to the final qualified branch tree.
+
+Main push workflows were inspected: Desktop `41322940775` was in progress;
+Native Rust `41322940759`, Apple compatibility `41322940757` and conversion
+`41322940850` were queued. The qualification commit's PR workflows had also
+started. These are pending checks, not successful results. This final receipt
+changes documentation only; no additional model run or speed claim is made.
