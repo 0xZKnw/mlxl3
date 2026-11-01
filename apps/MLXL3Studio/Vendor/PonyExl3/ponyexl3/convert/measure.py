@@ -1,0 +1,887 @@
+"""Bounded candidate measurement for LDLQ conversion quality knobs."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+import json
+import os
+from pathlib import Path
+import math
+import re
+import threading
+import time
+from typing import Any
+
+import numpy as np
+
+from ponyexl3.convert import cancel
+from ponyexl3.convert.calibration import activation_for_module
+from ponyexl3.convert.direct import ScaleMode
+from ponyexl3.convert.driver import _sibling_group_signature
+from ponyexl3.convert.fixtures import SearchBackend
+from ponyexl3.convert.hessian import ldlq_layer_summary, ldlq_quantize_layer
+from ponyexl3.ref.loader import layer_meta_from_config
+
+ProgressCallback = Callable[[str, dict[str, object]], None]
+
+_DEFAULT_SCORE_METRIC = "output_rel_rms"
+
+
+@dataclass(frozen=True)
+class _MeasuredCandidate:
+    module: str
+    k: int
+    hessian_shrinkage: float
+    score: float
+    weight: int
+    record: Mapping[str, Any]
+
+
+def _as_score(value: object) -> float:
+    if isinstance(value, int | float):
+        score = float(value)
+        return score if math.isfinite(score) else float("inf")
+    return float("inf")
+
+
+def candidate_score(stats: Mapping[str, object], metric: str = _DEFAULT_SCORE_METRIC) -> float:
+    """Return a finite-sortable score for one measured candidate."""
+
+    return _as_score(stats.get(metric))
+
+
+def _as_mapping(value: object, *, name: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"measurement {name} must be an object")
+    return value
+
+
+def _required_int(value: object, *, name: str) -> int:
+    if not isinstance(value, int | float | str):
+        raise ValueError(f"measurement {name} must be an integer")
+    return int(value)
+
+
+def _required_float(value: object, *, name: str) -> float:
+    if not isinstance(value, int | float | str):
+        raise ValueError(f"measurement {name} must be a number")
+    return float(value)
+
+
+def _record_shape_weight(record: Mapping[str, Any]) -> int:
+    summary = _as_mapping(record.get("summary"), name="record.summary")
+    shape = summary.get("shape")
+    if not isinstance(shape, Sequence) or isinstance(shape, str) or len(shape) != 2:
+        raise ValueError(f"measurement record for {record.get('module')!r} is missing shape")
+    return max(1, int(shape[0]) * int(shape[1]))
+
+
+def _record_stats(record: Mapping[str, Any]) -> Mapping[str, object]:
+    summary = _as_mapping(record.get("summary"), name="record.summary")
+    return _as_mapping(summary.get("stats"), name="record.summary.stats")
+
+
+def _candidate_from_record(record: Mapping[str, Any], *, score_metric: str) -> _MeasuredCandidate:
+    summary = _as_mapping(record.get("summary"), name="record.summary")
+    stats = _record_stats(record)
+    module = str(record.get("module") or summary.get("module") or "")
+    if not module:
+        raise ValueError("measurement record is missing module")
+    k = _required_int(record.get("k") or summary.get("k"), name=f"{module}.k")
+    if k < 1 or k > 8:
+        raise ValueError(f"measurement record for {module} has invalid K={k}")
+    shrinkage = _required_float(
+        record.get("hessian_shrinkage", stats.get("hessian_shrinkage", 0.0)),
+        name=f"{module}.hessian_shrinkage",
+    )
+    score = candidate_score(stats, score_metric)
+    if math.isinf(score):
+        if (
+            (score_metric in stats and stats[score_metric] is None)
+            or record.get("score_metric", score_metric) != score_metric
+        ):
+            raise ValueError(f"{module}: metric {score_metric!r} was not computed; measure it before optimizing")
+        score = _as_score(record.get("score"))
+    return _MeasuredCandidate(
+        module=module,
+        k=k,
+        hessian_shrinkage=shrinkage,
+        score=score,
+        weight=_record_shape_weight(record),
+        record=record,
+    )
+
+
+def _measurement_candidates(
+    measurement: Mapping[str, Any],
+    *,
+    score_metric: str,
+) -> list[_MeasuredCandidate]:
+    records_obj = measurement.get("records")
+    if not isinstance(records_obj, Sequence) or isinstance(records_obj, str):
+        raise ValueError("measurement records must be a list")
+    candidates = [
+        _candidate_from_record(_as_mapping(record, name="record"), score_metric=score_metric)
+        for record in records_obj
+    ]
+    if not candidates:
+        raise ValueError("measurement records are empty")
+    return candidates
+
+
+def _objective(candidates: Sequence[_MeasuredCandidate]) -> float:
+    total_weight = sum(candidate.weight for candidate in candidates)
+    if total_weight <= 0:
+        return float("inf")
+    return float(
+        sum(candidate.score * candidate.weight for candidate in candidates)
+        / total_weight
+    )
+
+
+def _layer_bits_specs(bit_plan: Mapping[str, int]) -> list[str]:
+    return [f"^{re.escape(module)}$:{bits}" for module, bits in bit_plan.items()]
+
+
+def _plan_from_candidates(
+    candidates: Sequence[_MeasuredCandidate],
+    *,
+    target_bpw: float,
+    score_metric: str,
+    hessian_shrinkage: float | None,
+    fixed_bits: Mapping[str, int] | None = None,
+    uniform_sibling_k: bool = True,
+) -> dict[str, Any]:
+    if target_bpw <= 0.0:
+        raise ValueError(f"target_bpw must be positive, got {target_bpw}")
+    by_module: dict[str, dict[int, _MeasuredCandidate]] = {}
+    module_order: list[str] = []
+    for candidate in candidates:
+        if candidate.module not in by_module:
+            by_module[candidate.module] = {}
+            module_order.append(candidate.module)
+        by_k = by_module[candidate.module]
+        current = by_k.get(candidate.k)
+        if current is None or (
+            candidate.score,
+            candidate.hessian_shrinkage,
+        ) < (
+            current.score,
+            current.hessian_shrinkage,
+        ):
+            by_k[candidate.k] = candidate
+
+    selected: dict[str, _MeasuredCandidate] = {}
+    fixed = {module: int(bits) for module, bits in (fixed_bits or {}).items()}
+    for module in module_order:
+        by_k = by_module[module]
+        if not by_k:
+            raise ValueError(f"measurement has no candidates for {module}")
+        if module in fixed:
+            fixed_k = fixed[module]
+            if fixed_k not in by_k:
+                raise ValueError(f"measurement has no fixed K={fixed_k} candidate for {module}")
+            selected[module] = by_k[fixed_k]
+        else:
+            min_k = min(by_k)
+            selected[module] = by_k[min_k]
+
+    baseline = dict(selected)
+    total_weight = sum(candidate.weight for candidate in selected.values())
+    target_weighted_bits = int(round(target_bpw * total_weight))
+    spent_weighted_bits = sum(candidate.k * candidate.weight for candidate in selected.values())
+    feasible = spent_weighted_bits <= target_weighted_bits
+    upgrades: list[dict[str, Any]] = []
+
+    # Group fusion siblings (q/k/v, gate/up, linear_attn in_proj_qkv/z) so they
+    # upgrade to the same K together — keeping them fusable at inference (as the
+    # official allocation does) instead of letting a per-module greedy split a
+    # group across K4/K5 and lose the fused kernel. Singletons are their own group,
+    # so the un-grouped case (uniform_sibling_k=False) reproduces the per-module greedy.
+    group_members: dict[str, list[str]] = {}
+    group_order: list[str] = []
+    for module in module_order:
+        if module in fixed:
+            continue
+        sig = (_sibling_group_signature(module) or module) if uniform_sibling_k else module
+        if sig not in group_members:
+            group_members[sig] = []
+            group_order.append(sig)
+        group_members[sig].append(module)
+
+    while spent_weighted_bits < target_weighted_bits:
+        best_upgrade: tuple[tuple[float, float, int, int, str], str, int] | None = None
+        for sig in group_order:
+            members = group_members[sig]
+            current_k = selected[members[0]].k  # members share K by construction
+            common_ks: set[int] = set(by_module[members[0]])
+            for member in members[1:]:
+                common_ks &= set(by_module[member])
+            for k in common_ks:
+                if k <= current_k:
+                    continue
+                cost = sum((k - selected[m].k) * by_module[m][k].weight for m in members)
+                if cost <= 0 or spent_weighted_bits + cost > target_weighted_bits:
+                    continue
+                improvement = sum(
+                    (selected[m].score - by_module[m][k].score) * by_module[m][k].weight
+                    for m in members
+                )
+                if improvement <= 0.0:
+                    continue
+                ratio = improvement / cost
+                key = (ratio, improvement, -cost, -k, sig)
+                if best_upgrade is None or key > best_upgrade[0]:
+                    best_upgrade = (key, sig, k)
+        if best_upgrade is None:
+            break
+        _key, sig, k = best_upgrade
+        is_group = len(group_members[sig]) > 1
+        for module in group_members[sig]:
+            previous = selected[module]
+            candidate = by_module[module][k]
+            cost = (k - previous.k) * candidate.weight
+            selected[module] = candidate
+            spent_weighted_bits += cost
+            upgrades.append(
+                {
+                    "module": module,
+                    "from_k": previous.k,
+                    "to_k": candidate.k,
+                    "from_score": previous.score,
+                    "to_score": candidate.score,
+                    "score_improvement": previous.score - candidate.score,
+                    "weighted_score_improvement": (previous.score - candidate.score) * candidate.weight,
+                    "weighted_bit_cost": cost,
+                    "hessian_shrinkage": candidate.hessian_shrinkage,
+                    "sibling_group": sig if is_group else None,
+                }
+            )
+
+    selected_list = [selected[module] for module in module_order]
+    baseline_list = [baseline[module] for module in module_order]
+    bit_plan = {module: int(selected[module].k) for module in module_order}
+    hessian_plan = {
+        module: float(selected[module].hessian_shrinkage)
+        for module in module_order
+    }
+    layer_bits_specs = _layer_bits_specs(bit_plan)
+    average_bits = spent_weighted_bits / total_weight if total_weight else 0.0
+    baseline_weighted_bits = sum(candidate.k * candidate.weight for candidate in baseline_list)
+    return {
+        "target_bpw": float(target_bpw),
+        "score_metric": score_metric,
+        "hessian_shrinkage": hessian_shrinkage,
+        "fixed_bits": {module: bits for module, bits in fixed.items() if module in by_module},
+        "module_count": len(module_order),
+        "candidate_count": len(candidates),
+        "total_weight": int(total_weight),
+        "target_weighted_bits": int(target_weighted_bits),
+        "spent_weighted_bits": int(spent_weighted_bits),
+        "baseline_weighted_bits": int(baseline_weighted_bits),
+        "average_bits": float(average_bits),
+        "average_bits_delta": float(average_bits - target_bpw),
+        "feasible": bool(feasible),
+        "objective": _objective(selected_list),
+        "baseline_objective": _objective(baseline_list),
+        "bit_plan": bit_plan,
+        "hessian_shrinkage_plan": hessian_plan,
+        "layer_bits": layer_bits_specs,
+        "layer_bits_args": [
+            item
+            for spec in layer_bits_specs
+            for item in ("--layer-bits", spec)
+        ],
+        "selected": [
+            {
+                "module": candidate.module,
+                "k": int(candidate.k),
+                "hessian_shrinkage": float(candidate.hessian_shrinkage),
+                "score": float(candidate.score),
+                "weight": int(candidate.weight),
+            }
+            for candidate in selected_list
+        ],
+        "upgrades": upgrades,
+    }
+
+
+def optimize_measurement_plan(
+    measurement: Mapping[str, Any],
+    *,
+    target_bpw: float,
+    score_metric: str | None = None,
+    hessian_shrinkage: float | None = None,
+    per_module_shrinkage: bool = False,
+    fixed_bits: Mapping[str, int] | None = None,
+    uniform_sibling_k: bool = True,
+) -> dict[str, Any]:
+    """Build a budgeted K plan from candidate measurement records."""
+
+    metric = str(score_metric or measurement.get("score_metric") or _DEFAULT_SCORE_METRIC)
+    candidates = _measurement_candidates(measurement, score_metric=metric)
+    if per_module_shrinkage:
+        plan = _plan_from_candidates(
+            candidates,
+            target_bpw=target_bpw,
+            score_metric=metric,
+            hessian_shrinkage=None,
+            fixed_bits=fixed_bits,
+            uniform_sibling_k=uniform_sibling_k,
+        )
+        plan["mode"] = "per_module_shrinkage"
+        return plan
+
+    shrinkages = sorted({candidate.hessian_shrinkage for candidate in candidates})
+    selected_shrinkages = [float(hessian_shrinkage)] if hessian_shrinkage is not None else shrinkages
+    global_plans: list[dict[str, Any]] = []
+    module_count = len({candidate.module for candidate in candidates})
+    for shrinkage in selected_shrinkages:
+        filtered = [
+            candidate
+            for candidate in candidates
+            if math.isclose(candidate.hessian_shrinkage, shrinkage, rel_tol=0.0, abs_tol=1e-9)
+        ]
+        if len({candidate.module for candidate in filtered}) != module_count:
+            continue
+        global_plans.append(
+            _plan_from_candidates(
+                filtered,
+                target_bpw=target_bpw,
+                score_metric=metric,
+                hessian_shrinkage=shrinkage,
+                fixed_bits=fixed_bits,
+                uniform_sibling_k=uniform_sibling_k,
+            )
+        )
+    if not global_plans:
+        raise ValueError("no complete global hessian-shrinkage candidate plan found")
+    best = min(
+        global_plans,
+        key=lambda plan: (
+            float(plan["objective"]),
+            abs(float(plan["average_bits_delta"])),
+            float(plan["hessian_shrinkage"]),
+        ),
+    )
+    out = dict(best)
+    out["mode"] = "global_hessian_shrinkage"
+    out["global_plans"] = global_plans
+    return out
+
+
+def _candidate_bits_for_module(
+    module_key: str,
+    *,
+    candidate_bits: Sequence[int] | None,
+    candidate_bits_by_module: Mapping[str, Sequence[int]] | None = None,
+    bit_plan: Mapping[str, int] | None,
+) -> list[int | None]:
+    if candidate_bits_by_module is not None and module_key in candidate_bits_by_module:
+        bits: list[int | None] = [int(item) for item in candidate_bits_by_module[module_key]]
+        if not bits:
+            raise ValueError(f"candidate bits for {module_key} must contain at least one value")
+        return bits
+    if candidate_bits:
+        return [int(bits) for bits in candidate_bits]
+    if bit_plan is not None and module_key in bit_plan:
+        return [int(bit_plan[module_key])]
+    return [None]
+
+
+def _candidate_identity(module_key: str, bits: int | None, shrinkage: float) -> tuple[str, int | None, str]:
+    return (module_key, None if bits is None else int(bits), f"{float(shrinkage):.12g}")
+
+
+def _measurement_summary(
+    *,
+    modules: Sequence[str],
+    candidate_bits: Sequence[int] | None,
+    shrinkages: Sequence[float],
+    score_metric: str,
+    records: Sequence[dict[str, Any]],
+    elapsed_s: float,
+    candidate_bits_by_module: Mapping[str, Sequence[int]] | None = None,
+) -> dict[str, Any]:
+    best_by_module: list[dict[str, Any]] = []
+    for key in modules:
+        candidates = [record for record in records if record["module"] == key]
+        if not candidates:
+            continue
+        best = min(
+            candidates,
+            key=lambda record: (
+                float(record["score"]),
+                int(record["k"]),
+                float(record["hessian_shrinkage"]),
+            ),
+        )
+        best_by_module.append(
+            {
+                "module": key,
+                "candidate_bits": best["candidate_bits"],
+                "k": best["k"],
+                "hessian_shrinkage": best["hessian_shrinkage"],
+                "score_metric": score_metric,
+                "score": best["score"],
+            }
+        )
+
+    return {
+        "measure": "ldlq_candidates",
+        "module_count": len(modules),
+        "candidate_count": len(records),
+        "candidate_bits": None if candidate_bits is None else [int(bits) for bits in candidate_bits],
+        "candidate_bits_by_module": None
+        if candidate_bits_by_module is None
+        else {
+            str(module): [int(bits) for bits in bits_list]
+            for module, bits_list in candidate_bits_by_module.items()
+        },
+        "hessian_shrinkages": [float(item) for item in shrinkages],
+        "score_metric": score_metric,
+        "records": list(records),
+        "best_by_module": best_by_module,
+        "elapsed_s": elapsed_s,
+    }
+
+
+def _write_json_atomic(path: Path, data: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(path)
+
+
+def _load_measurement_checkpoint(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    data_obj = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data_obj, Mapping):
+        raise ValueError(f"measurement checkpoint root must be an object: {path}")
+    records_obj = data_obj.get("records", [])
+    if not isinstance(records_obj, Sequence) or isinstance(records_obj, str):
+        raise ValueError(f"measurement checkpoint records must be a list: {path}")
+    out: list[dict[str, Any]] = []
+    for record_obj in records_obj:
+        if not isinstance(record_obj, Mapping):
+            raise ValueError(f"measurement checkpoint record must be an object: {path}")
+        out.append(dict(record_obj))
+    return out
+
+
+def _available_memory_bytes() -> int:
+    """Best-effort free system memory (bytes). Conservative if unknown."""
+    try:
+        import psutil
+
+        return int(psutil.virtual_memory().available)
+    except Exception:
+        pass
+    try:
+        import subprocess
+
+        total = int(
+            subprocess.run(
+                ["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+        )
+        return total // 2  # unknown free fraction -> assume half
+    except Exception:
+        return 4 << 30  # 4 GiB conservative floor
+
+
+def _estimate_candidate_bytes(in_features: int, out_features: int) -> int:
+    """Conservatively estimate one module's peak transient working set.
+
+    Dominant terms: the Hessian + its damped copy + the float64 Cholesky + the
+    L factor (all ``in_features**2``), the public/inner/weight/reconstructed/
+    prod_cache matrices (``in_features*out_features``), plus the Metal search
+    scratch and metric outputs. Over-estimates so we under-parallelize rather
+    than OOM.
+    """
+    in_sq = in_features * in_features
+    in_out = in_features * out_features
+    return in_sq * 16 + in_out * 20 + (384 << 20)
+
+
+def _resolve_measure_workers(max_workers: int, n_items: int) -> int:
+    """Clamp the user-requested worker count to the available work."""
+    if n_items <= 1:
+        return 1
+    return max(1, min(int(max_workers), n_items, 32))
+
+
+def _release_gpu_cache() -> None:
+    """Return MLX's reclaimable Metal buffer pool to the OS.
+
+    MLX keeps freed buffers in a pool sized to the largest working set seen and
+    never shrinks it on its own, so per-layer scratch (Hessian/search/recon)
+    accumulates as wired memory and OOMs long conversions on big models. Calling
+    this after each candidate bounds steady-state memory to the live working set;
+    only active buffers stay, so it is safe to call while other workers run.
+    """
+    try:
+        import mlx.core as mx
+
+        mx.clear_cache()
+    except Exception:
+        pass
+
+
+class _MemoryGate:
+    """Byte-weighted semaphore bounding concurrent transient working sets.
+
+    A task acquires its estimated footprint before running and releases it
+    after. Concurrency self-adjusts to layer width (many narrow modules at once,
+    few wide ones), and an oversized task runs alone rather than deadlocking, so
+    the effect is automatic fall-back toward sequential under tight budgets.
+    """
+
+    def __init__(self, budget_bytes: int) -> None:
+        self.budget = max(1, int(budget_bytes))
+        self.used = 0
+        self._cv = threading.Condition()
+
+    def acquire(self, nbytes: int) -> None:
+        need = max(0, int(nbytes))
+        with self._cv:
+            while self.used > 0 and self.used + need > self.budget:
+                self._cv.wait()
+            self.used += need
+
+    def release(self, nbytes: int) -> None:
+        need = max(0, int(nbytes))
+        with self._cv:
+            self.used = max(0, self.used - need)
+            self._cv.notify_all()
+
+
+def measure_ldlq_candidates(
+    source_dir: str | Path,
+    oracle_dir: str | Path,
+    module_keys: Sequence[str],
+    *,
+    candidate_bits: Sequence[int] | None = None,
+    candidate_bits_by_module: Mapping[str, Sequence[int]] | None = None,
+    hessian_shrinkages: Sequence[float] = (0.0,),
+    bit_plan: Mapping[str, int] | None = None,
+    search_backend: SearchBackend = "metal",
+    scale_mode: ScaleMode = "oracle_safe",
+    sigma_reg: float = 0.025,
+    buf_size_rows: int = 128,
+    feedback_rows: int = 16,
+    calibration_activations: np.ndarray | None = None,
+    calibration_activations_by_module: Mapping[str, np.ndarray] | None = None,
+    skip_g_scale: bool = False,
+    regularization_seed: int = 0,
+    compare_oracle: bool = False,
+    score_metric: str = _DEFAULT_SCORE_METRIC,
+    full_metrics: bool = False,
+    checkpoint_path: str | Path | None = None,
+    resume: bool = False,
+    max_workers: int = 2,
+    progress: ProgressCallback | None = None,
+) -> dict[str, Any]:
+    """Quantize selected modules over candidate K/shrinkage grids and rank them.
+
+    Output-only scoring omits the unused Hessian proxy; ``full_metrics=True``
+    retains it for diagnostics. Quantization and output metrics are unchanged.
+
+    ``max_workers`` (default 2) sets how many per-candidate quantizations run at
+    once on a thread pool, so each module's CPU-bound basis/Hessian work overlaps
+    another module's GPU search and fills GPU idle time. Threads share the model
+    (no duplication); a byte-weighted memory gate bounds the concurrent transient
+    working sets to a fraction of free RAM and throttles toward sequential when
+    memory is tight. ``max_workers=1`` is the plain sequential path. Results are
+    identical regardless of worker count (records sorted deterministically).
+    """
+
+    cancel.clear()
+    compute_proxy = full_metrics or compare_oracle or score_metric != "output_rel_rms"
+    modules = list(module_keys)
+    shrinkages = [float(item) for item in hessian_shrinkages]
+    if not modules:
+        raise ValueError("no modules selected for measurement")
+    if not shrinkages:
+        raise ValueError("at least one hessian shrinkage candidate is required")
+    for shrinkage in shrinkages:
+        if not 0.0 <= shrinkage <= 1.0:
+            raise ValueError(f"hessian shrinkage candidates must be in [0, 1], got {shrinkage}")
+
+    total = sum(
+        len(
+            _candidate_bits_for_module(
+                key,
+                candidate_bits=candidate_bits,
+                candidate_bits_by_module=candidate_bits_by_module,
+                bit_plan=bit_plan,
+            )
+        )
+        * len(shrinkages)
+        for key in modules
+    )
+    planned: set[tuple[str, int | None, str]] = set()
+    for key in modules:
+        for bits in _candidate_bits_for_module(
+            key,
+            candidate_bits=candidate_bits,
+            candidate_bits_by_module=candidate_bits_by_module,
+            bit_plan=bit_plan,
+        ):
+            for shrinkage in shrinkages:
+                planned.add(_candidate_identity(key, bits, shrinkage))
+
+    checkpoint = None if checkpoint_path is None else Path(checkpoint_path)
+    checkpoint_records = _load_measurement_checkpoint(checkpoint) if checkpoint is not None and resume else []
+    records: list[dict[str, Any]] = []
+    seen: set[tuple[str, int | None, str]] = set()
+    for record in checkpoint_records:
+        ident = _candidate_identity(
+            str(record.get("module")),
+            None if record.get("candidate_bits") is None else int(record["candidate_bits"]),
+            float(record.get("hessian_shrinkage", 0.0)),
+        )
+        if ident not in planned or ident in seen:
+            continue
+        record_stats = _record_stats(record)
+        if compute_proxy and record_stats.get("hessian_proxy_rel_rms") is None:
+            continue
+        if compare_oracle and record_stats.get("oracle_hessian_proxy_rel_rms") is None:
+            continue
+        if record.get("score_metric", score_metric) != score_metric:
+            record = dict(record, score_metric=score_metric, score=candidate_score(record_stats, score_metric))
+        records.append(record)
+        seen.add(ident)
+    start = time.perf_counter()
+
+    def _checkpoint() -> None:
+        if checkpoint is not None:
+            _write_json_atomic(
+                checkpoint,
+                _measurement_summary(
+                    modules=modules,
+                    candidate_bits=candidate_bits,
+                    shrinkages=shrinkages,
+                    score_metric=score_metric,
+                    records=records,
+                    elapsed_s=time.perf_counter() - start,
+                    candidate_bits_by_module=candidate_bits_by_module,
+                ),
+            )
+
+    # Collect the pending (module, bits, shrinkage) candidates, skipping resumed.
+    pending: list[dict[str, Any]] = []
+    index = 0
+    for key in modules:
+        module_acts = activation_for_module(
+            calibration_activations,
+            calibration_activations_by_module,
+            key,
+        )
+        try:
+            meta = layer_meta_from_config(str(oracle_dir), key)
+            in_f, out_f = int(meta["in_features"]), int(meta["out_features"])
+        except Exception:
+            # Rough fallback (stub oracle in tests, or a missing config): the
+            # memory gate only needs an order-of-magnitude bound, and the
+            # activation width gives in_features directly.
+            in_f = int(module_acts.shape[1]) if module_acts is not None else 4096
+            out_f = in_f
+        est_bytes = _estimate_candidate_bytes(in_f, out_f)
+        for bits in _candidate_bits_for_module(
+            key,
+            candidate_bits=candidate_bits,
+            candidate_bits_by_module=candidate_bits_by_module,
+            bit_plan=bit_plan,
+        ):
+            if bits is not None and not 1 <= int(bits) <= 8:
+                raise ValueError(f"candidate bits for {key} must be in [1, 8], got {bits}")
+            for shrinkage in shrinkages:
+                index += 1
+                ident = _candidate_identity(key, bits, shrinkage)
+                if ident in seen:
+                    if progress is not None:
+                        progress(
+                            "measure_resumed",
+                            {
+                                "index": index,
+                                "total": total,
+                                "module": key,
+                                "candidate_bits": bits,
+                                "hessian_shrinkage": shrinkage,
+                                "elapsed_s": time.perf_counter() - start,
+                            },
+                        )
+                    continue
+                pending.append(
+                    {
+                        "index": index,
+                        "key": key,
+                        "bits": bits,
+                        "shrinkage": shrinkage,
+                        "acts": module_acts,
+                        "est_bytes": est_bytes,
+                    }
+                )
+
+    def _measure_candidate(item: dict[str, Any]) -> dict[str, Any]:
+        candidate_start = time.perf_counter()
+        result = ldlq_quantize_layer(
+            source_dir,
+            oracle_dir,
+            item["key"],
+            search_backend=search_backend,
+            scale_mode=scale_mode,
+            sigma_reg=sigma_reg,
+            hessian_shrinkage=item["shrinkage"],
+            buf_size_rows=buf_size_rows,
+            feedback_rows=feedback_rows,
+            calibration_activations=item["acts"],
+            skip_g_scale=skip_g_scale,
+            regularization_seed=regularization_seed,
+            quant_bits=item["bits"],
+            compare_oracle=compare_oracle,
+            fast_metrics=False,
+            compute_proxy=compute_proxy,
+        )
+        item_summary = ldlq_layer_summary(result)
+        if not compute_proxy:
+            # Report absent diagnostics as null, never as zero quantization error.
+            item_summary["stats"] = {
+                **dict.fromkeys(("hessian_proxy_sse", "hessian_proxy_mse", "hessian_proxy_rel_rms")),
+                **item_summary["stats"],
+            }
+        score = candidate_score(item_summary["stats"], score_metric)
+        return {
+            "index": item["index"],
+            "module": item["key"],
+            "candidate_bits": item["bits"],
+            "k": item_summary["k"],
+            "hessian_shrinkage": item["shrinkage"],
+            "score_metric": score_metric,
+            "score": score,
+            "elapsed_s": time.perf_counter() - candidate_start,
+            "summary": item_summary,
+        }
+
+    def _store(record: dict[str, Any]) -> None:
+        # Persist a finished candidate (called in completion order); the
+        # transient "index" is for ordered emission only, not the saved record.
+        records.append({k: v for k, v in record.items() if k != "index"})
+        seen.add(
+            _candidate_identity(
+                record["module"], record["candidate_bits"], record["hessian_shrinkage"]
+            )
+        )
+        _checkpoint()
+
+    def _emit(record: dict[str, Any]) -> None:
+        # Progress, emitted strictly in submission order so the live log reads
+        # monotonically even though workers finish out of order.
+        if progress is not None:
+            progress(
+                "measure_done",
+                {
+                    "index": record["index"],
+                    "total": total,
+                    "module": record["module"],
+                    "candidate_bits": record["candidate_bits"],
+                    "k": record["k"],
+                    "hessian_shrinkage": record["hessian_shrinkage"],
+                    "score_metric": score_metric,
+                    "score": record["score"],
+                    "elapsed_s": time.perf_counter() - start,
+                    "candidate_s": record["elapsed_s"],
+                },
+            )
+
+    workers = _resolve_measure_workers(max_workers, len(pending))
+    if workers <= 1:
+        for item in pending:
+            record = _measure_candidate(item)
+            _store(record)
+            _emit(record)
+            _release_gpu_cache()
+    else:
+        # Threads share the model; the gate caps concurrent transient working
+        # sets (Hessian/scratch/etc.) to a fraction of free RAM, so a wide layer
+        # or a tight machine throttles toward sequential instead of OOMing.
+        gate = _MemoryGate(int(_available_memory_bytes() * 0.4))
+
+        stop = threading.Event()
+
+        def _gated(item: dict[str, Any]) -> dict[str, Any] | None:
+            if stop.is_set():
+                return None
+            gate.acquire(item["est_bytes"])
+            try:
+                if stop.is_set():
+                    return None
+                return _measure_candidate(item)
+            finally:
+                gate.release(item["est_bytes"])
+
+        # Manual lifecycle (not ``with``): on Ctrl-C / error, signal workers and
+        # cancel queued candidates so the GPU drains only the in-flight ones
+        # (<= workers) instead of grinding through the whole remaining batch. The
+        # default ``with``-exit calls shutdown(wait=True) and would block until
+        # every already-submitted future finished — i.e. Ctrl-C wouldn't stop it.
+        executor = ThreadPoolExecutor(
+            max_workers=workers, thread_name_prefix="ponyexl3-measure"
+        )
+        # Map each future to its submission position. Records are stored as they
+        # finish (any order), but progress is held in a small reorder buffer and
+        # emitted in submission order so the live log stays monotonic.
+        futures = {executor.submit(_gated, item): pos for pos, item in enumerate(pending)}
+        emit_buffer: dict[int, dict[str, Any] | None] = {}
+        next_pos = 0
+        try:
+            for future in as_completed(futures):
+                pos = futures[future]
+                record = future.result()
+                if record is not None:
+                    _store(record)
+                emit_buffer[pos] = record
+                while next_pos in emit_buffer:
+                    ready = emit_buffer.pop(next_pos)
+                    if ready is not None:
+                        _emit(ready)
+                    next_pos += 1
+                _release_gpu_cache()
+        except BaseException:
+            # Stop new candidates (stop flag), cancel the queue, and ask in-flight
+            # GPU work to abort at its next launch so Ctrl-C is near-instant rather
+            # than draining the running candidates to completion.
+            stop.set()
+            cancel.request()
+            for future in futures:
+                future.cancel()
+            raise
+        finally:
+            executor.shutdown(wait=True, cancel_futures=True)
+            cancel.clear()
+
+    # Deterministic order regardless of worker count / completion order.
+    records.sort(
+        key=lambda r: (
+            str(r.get("module")),
+            -1 if r.get("candidate_bits") is None else int(r["candidate_bits"]),
+            float(r.get("hessian_shrinkage", 0.0)),
+        )
+    )
+
+    summary = _measurement_summary(
+        modules=modules,
+        candidate_bits=candidate_bits,
+        shrinkages=shrinkages,
+        score_metric=score_metric,
+        records=records,
+        elapsed_s=time.perf_counter() - start,
+        candidate_bits_by_module=candidate_bits_by_module,
+    )
+    if checkpoint is not None:
+        _write_json_atomic(checkpoint, summary)
+    return summary

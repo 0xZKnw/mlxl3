@@ -1,0 +1,91 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+....sssssss.ssss........................................ssssssssssssssss [ 66%]
+ssssssssssssssssss..............................................ssssssss [ 70%]
+sss.................ssss................................................ [ 74%]
+.........................................................ssssssss.s.ss.. [ 77%]
+........................................................................ [ 81%]
+........................................................................ [ 85%]
+..................................................................ssssss [ 89%]
+sssssssssssssssssssssssssssss..............ss........................... [ 92%]
+........................................................................ [ 96%]
+.....................................................................    [100%]
+=============================== warnings summary ===============================
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[timeout]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[incomplete]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[truncated]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[invalidlist]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[badshape]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[missing]
+tests/test_lfm25_reference.py::test_modal_worker_runs_bounded_child_and_marks_launch_failures[complete]
+  /Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/modal/_functions.py:1965: UserWarning: The diagnose function is executing locally and will not have access to the mounted Volume or NetworkFileSystem data
+    warnings.warn(
+
+tests/test_lfm25_tuning.py::test_real_archived_source_imports_through_sdk_without_importing_cuda
+tests/test_lfm25_tuning_modal.py::test_cpu_image_preflight_checks_all_runtime_distributions_and_actual_legacy_sdk[None]
+  /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/scripts/diagnose_lfm25_tuning.py:87: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    original = inspect.unwrap(namespace["diagnose"].get_raw_f())
+
+tests/test_lfm25_tuning_modal.py::test_image_pins_sdk_and_runs_cpu_preflight_before_lazy_mount
+  /Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/tests/test_lfm25_tuning_modal.py:468: DeprecationError: 2026-08-26: `Function.get_raw_f` is deprecated and will be removed in `modal` version 1.6.0
+    functions.append(inspect.unwrap(function.get_raw_f()))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_capture_lfm25_router.py:15: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_exl3_moe_calibration.py:16: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_compact_operation.py:7: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_routes.py:28: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_settings.py:22: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_quantize_measure_metrics.py:11: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_recalibrate_lfm25_router.py:17: could not import 'torch': No module named 'torch'
+SKIPPED [7] tests/test_lfm25_group_profile.py:150: could not import 'ponyexl3.ref.layer': No module named 'ponyexl3'
+SKIPPED [4] tests/test_lfm25_group_profile.py:208: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [7] tests/test_lfm25_moe_conversion.py:124: could not import 'ponyexl3.cli.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:137: could not import 'ponyexl3.convert.driver': No module named 'ponyexl3'
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:207: requires a physical Apple GPU
+SKIPPED [4] tests/test_lfm25_moe_conversion.py:261: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:371: requires a physical Apple GPU
+SKIPPED [8] tests/test_lfm25_moe_conversion.py:398: requires a physical Apple GPU
+SKIPPED [3] tests/test_lfm25_moe_conversion.py:457: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_moe_conversion.py:510: requires a physical Apple GPU
+SKIPPED [5] tests/test_lfm25_moe_conversion.py:539: requires a physical Apple GPU
+SKIPPED [2] tests/test_lfm25_moe_conversion.py:555: requires a physical Apple GPU
+SKIPPED [1] tests/test_lfm25_reference.py:121: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_reference.py:144: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:153: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:168: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_reference.py:196: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_reference.py:236: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:51: could not import 'torch': No module named 'torch'
+SKIPPED [2] tests/test_lfm25_trace.py:67: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm25_trace.py:76: could not import 'torch': No module named 'torch'
+SKIPPED [3] tests/test_lfm25_v3_calibration.py:181: could not import 'torch': No module named 'torch'
+SKIPPED [5] tests/test_lfm25_v3_calibration.py:244: could not import 'torch': No module named 'torch'
+SKIPPED [1] tests/test_lfm_conversion_adapter.py:36: could not import 'ponyexl3.convert': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_conversion_adapter.py:40: could not import 'ponyexl3.convert.measure': No module named 'ponyexl3'
+SKIPPED [1] tests/test_ling_integration.py:13: local Ling model not installed
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:12: physical Apple GPU required
+SKIPPED [6] tests/test_quantize_k4_boundaries.py:34: physical Apple GPU required
+SKIPPED [8] tests/test_quantize_packing.py:12: requires a physical Apple GPU
+SKIPPED [6] tests/test_quantize_packing.py:32: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:46: requires a physical Apple GPU
+SKIPPED [4] tests/test_quantize_packing.py:54: requires a physical Apple GPU
+SKIPPED [1] tests/test_quantize_packing.py:62: requires a physical Apple GPU
+SKIPPED [2] tests/test_quantize_packing_benchmark.py:69: physical Apple GPU
+1833 passed, 115 skipped, 10 warnings in 143.04s (0:02:23)

@@ -239,10 +239,12 @@ struct GenerationInspector: View {
                         }
 
                         Button(L("Projets et profils enregistrés", "Projects and saved profiles")) { studio.showWorkspace = true }
-                    SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
+                    if studio.selectedMode != .agent {
+                      SettingCard(title: L("JSON validé", "Validated JSON"), icon: "curlybraces") {
                         TextEditor(text: $studio.responseSchema).font(.system(.caption, design: .monospaced)).frame(minHeight: 80)
                         Text(L("Schéma JSON optionnel. Une réponse non conforme échoue explicitement ; le texte est livré après validation. MCP est désactivé pour cette requête. Vide = texte libre.", "Optional JSON schema. Invalid output fails explicitly; text is delivered after validation. MCP is disabled for this request. Empty = free text.")).font(.caption).foregroundStyle(.secondary)
                         Button(L("Revenir au texte libre", "Use free text")) { studio.responseSchema = "" }
+                      }
                     }
                     SettingCard(title: L("Instruction système", "System instruction"), icon: "command") {
                             TextEditor(text: $studio.systemPrompt)
@@ -267,7 +269,15 @@ struct GenerationInspector: View {
                                 }
                         }
 
-                        SettingCard(title: "MCP", icon: "shippingbox") {
+                        if studio.selectedMode == .agent {
+                            SettingCard(title: L("Sandbox native", "Native sandbox"), icon: "lock.shield") {
+                                Text(L("Dossier privé par tâche · réseau bloqué · aucun serveur MCP externe.", "Private task folder · network blocked · no external MCP servers."))
+                                Text(L("5 s par commande · 32 Kio de sortie · outils système macOS.", "5 s per command · 32 KiB captured output · macOS system tools."))
+                                Text(L("\(studio.mcpToolCount) outil connecté", "\(studio.mcpToolCount) connected tool"))
+                                ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in Text(studio.mcpErrors[key] ?? "").foregroundStyle(.red) }
+                            }.font(.caption)
+                        } else {
+                          SettingCard(title: "MCP", icon: "shippingbox") {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(L("\(studio.mcpServerCount) serveur\(studio.mcpServerCount == 1 ? "" : "s") connecté\(studio.mcpServerCount == 1 ? "" : "s")", "\(studio.mcpServerCount) connected server\(studio.mcpServerCount == 1 ? "" : "s")"))
@@ -310,6 +320,7 @@ struct GenerationInspector: View {
                                 .font(.system(size: 8.5, weight: .medium))
                                 .foregroundStyle(StudioTheme.quiet)
                                 .fixedSize(horizontal: false, vertical: true)
+                          }
                         }
 
                         if let model = studio.selectedModel {

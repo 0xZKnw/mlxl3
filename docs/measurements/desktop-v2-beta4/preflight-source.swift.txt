@@ -1,0 +1,52 @@
+import Foundation
+
+extension UpdateManager {
+    nonisolated static func qualifyDMG(_ image: URL, source: String) throws -> Data {
+        _ = try runProcess("/usr/bin/hdiutil", arguments: ["verify", image.path])
+        let mount = try mountDiskImage(image)
+        var result: [String: Any]
+        do {
+            let app = mount.appendingPathComponent("MLXL3 Desktop.app")
+            let release = AppUpdateRelease(version: "2.0.0", tag: "v2.0.0-beta.4", title: "Beta 4", notes: "", pageURL: image,
+                asset: AppUpdateAsset(name: image.lastPathComponent, downloadURL: image, size: Int64(try image.resourceValues(forKeys: [.fileSizeKey]).fileSize!), digest: nil))
+            try validateApplication(app, newerThan: "2.0.0", currentBuild: 34, release: release)
+            let resources = app.appendingPathComponent("Contents/Resources")
+            let build = try JSONSerialization.jsonObject(with: Data(contentsOf: resources.appendingPathComponent("build-info.json"))) as! [String: Any]
+            precondition(build["commit"] as? String == source && build["tracked_changes"] as? Bool == false)
+            precondition(build["version"] as? String == "2.0.0" && build["build"] as? String == "35")
+            let engine = resources.appendingPathComponent("runtime/mlxl3")
+            let runtime = try JSONSerialization.jsonObject(with: runProcess(engine.path, arguments: ["runtime-info"])) as! [String: Any]
+            precondition(runtime["version"] as? String == "2.0.1" && runtime["commit"] as? String == String(source.prefix(12)))
+            precondition(runtime["mlx_enabled"] as? Bool == true && runtime["chat_enabled"] as? Bool == true)
+            let models = try JSONSerialization.jsonObject(with: runProcess(engine.path, arguments: ["list", "--json"])) as! [Any]
+            result = ["status": "passed", "source": source, "app_build": build, "runtime": runtime,
+                      "same_version_upgrade_from_build": 34, "image": image.lastPathComponent,
+                      "size": release.asset.size, "sha256": try sha256(at: image), "listed_models": models.count,
+                      "signature_architecture_compatibility_runtime_hashes": "passed"]
+        } catch {
+            try? detachDiskImage(mount)
+            throw error
+        }
+        try detachDiskImage(mount)
+        result["detached"] = true
+        return try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
+    }
+}
+
+@main struct ReleasePreflight {
+    static func main() throws {
+        let args = CommandLine.arguments
+        if args[1] == "dmg" {
+            FileHandle.standardOutput.write(try UpdateManager.qualifyDMG(URL(fileURLWithPath: args[2]), source: args[3]))
+        } else {
+            precondition(args[1] == "feed")
+            let data = try Data(contentsOf: URL(fileURLWithPath: args[2]))
+            let beta = try UpdateManager.selectRelease(data, channel: .app, updateChannel: .beta)!
+            let stable = try UpdateManager.selectRelease(data, channel: .app, updateChannel: .stable)!
+            precondition(beta.tag == "v2.0.0-beta.4" && beta.build == 35 && beta.version == "2.0.0")
+            precondition(beta.asset.digest == "sha256:" + args[3] && beta.asset.size == Int64(args[4]))
+            precondition(stable.tag == "v1.5.1")
+            print("Production updater selects beta 4/build 35 with matching SHA-256/size; stable remains v1.5.1")
+        }
+    }
+}

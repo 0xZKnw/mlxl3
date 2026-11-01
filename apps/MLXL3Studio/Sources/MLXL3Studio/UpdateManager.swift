@@ -2,6 +2,82 @@ import AppKit
 import CryptoKit
 import Darwin
 import Foundation
+import Synchronization
+
+struct UpdateDownloadProgress: Sendable {
+    var transfer: ModelDownloadProgress
+    var isVerifying = false
+    var observedAt = ProcessInfo.processInfo.systemUptime
+}
+
+private final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+    private let samples: Mutex<(ModelDownloadProgress, Double)>
+    private let report: @Sendable (UpdateDownloadProgress) -> Void
+    private let expectedSize: Int64
+    private let location: URL
+    private let completion = Mutex<CheckedContinuation<Void, any Error>?>(nil)
+
+    init(size: Int64, location: URL, report: @escaping @Sendable (UpdateDownloadProgress) -> Void) {
+        expectedSize = size
+        self.location = location
+        var tracker = ModelDownloadProgress(total: Double(size))
+        tracker.update(completed: 0, total: Double(size), at: ProcessInfo.processInfo.systemUptime)
+        samples = Mutex((tracker, -.infinity))
+        self.report = report
+    }
+
+    var snapshot: UpdateDownloadProgress { samples.withLock { UpdateDownloadProgress(transfer: $0.0) } }
+
+    func download(_ request: URLRequest, configuration: URLSessionConfiguration) async throws {
+        let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        let task = session.downloadTask(with: request)
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { continuation in
+                completion.withLock { $0 = continuation }
+                task.resume()
+            }
+        } onCancel: { task.cancel() }
+        try Task.checkCancellation()
+    }
+
+    private func finish(_ result: Result<Void, any Error>) {
+        let continuation = completion.withLock { value in
+            let pending = value; value = nil; return pending
+        }
+        continuation?.resume(with: result)
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard totalBytesWritten <= expectedSize else { downloadTask.cancel(); return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let progress = samples.withLock { state -> UpdateDownloadProgress? in
+            state.0.update(completed: Double(totalBytesWritten), total: Double(expectedSize), at: now)
+            guard now - state.1 >= 0.2 || totalBytesWritten == expectedSize else { return nil }
+            state.1 = now
+            return UpdateDownloadProgress(transfer: state.0)
+        }
+        if let progress { report(progress) }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo temporaryURL: URL) {
+        do {
+            guard let response = downloadTask.response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode) else { throw URLError(.badServerResponse) }
+            // URLSession removes its temporary file as soon as this callback returns.
+            try FileManager.default.moveItem(at: temporaryURL, to: location)
+            finish(.success(()))
+        } catch { finish(.failure(error)) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+        finish(.failure(error ?? URLError(.badServerResponse)))
+    }
+}
 
 enum UpdateChannel: String, CaseIterable, Sendable { case stable, beta }
 
@@ -89,6 +165,8 @@ final class UpdateManager: ObservableObject {
     @Published private(set) var latestRelease: AppUpdateRelease?
     @Published private(set) var engineState: AppUpdateState = .idle
     @Published private(set) var engineRelease: AppUpdateRelease?
+    @Published private(set) var downloadProgress: UpdateDownloadProgress?
+    @Published private(set) var engineDownloadProgress: UpdateDownloadProgress?
     @Published private(set) var currentEngineVersion: String
     @Published private(set) var updateChannel: UpdateChannel
 
@@ -176,6 +254,8 @@ final class UpdateManager: ObservableObject {
         engineRelease = nil
         state = .idle
         engineState = .idle
+        downloadProgress = nil
+        engineDownloadProgress = nil
     }
 
     func checkForUpdates() {
@@ -186,6 +266,8 @@ final class UpdateManager: ObservableObject {
         let selectedChannel = updateChannel
         latestRelease = nil
         engineRelease = nil
+        downloadProgress = nil
+        engineDownloadProgress = nil
         state = .checking
         engineState = .checking
         updateTask = Task { [weak self] in
@@ -201,7 +283,12 @@ final class UpdateManager: ObservableObject {
                    latest > current || (latest == current && release.build > currentBuild) {
                     state = .downloading(release)
                     do {
-                        let diskImage = try await Self.downloadAndVerify(release: release, session: session, cacheDirectory: cacheDirectory)
+                        let diskImage = try await Self.downloadAndVerify(release: release, session: session, cacheDirectory: cacheDirectory) { [weak self] progress in
+                            guard let self, operation == self.updateOperationID,
+                                  self.state == .downloading(release) else { return }
+                            if self.downloadProgress?.isVerifying == true && !progress.isVerifying && progress.transfer.completed > 0 { return }
+                            self.downloadProgress = progress
+                        }
                         try Task.checkCancellation()
                         guard operation == updateOperationID else { return }
                         state = .ready(release: release, diskImage: diskImage)
@@ -218,7 +305,12 @@ final class UpdateManager: ObservableObject {
                    let latest = SemanticVersion(engine.version), latest > current {
                     engineState = .downloading(engine)
                     do {
-                        let archive = try await Self.downloadAndVerify(release: engine, session: session, cacheDirectory: cacheDirectory)
+                        let archive = try await Self.downloadAndVerify(release: engine, session: session, cacheDirectory: cacheDirectory) { [weak self] progress in
+                            guard let self, operation == self.updateOperationID,
+                                  self.engineState == .downloading(engine) else { return }
+                            if self.engineDownloadProgress?.isVerifying == true && !progress.isVerifying && progress.transfer.completed > 0 { return }
+                            self.engineDownloadProgress = progress
+                        }
                         try Task.checkCancellation()
                         guard operation == updateOperationID else { return }
                         engineState = .ready(release: engine, diskImage: archive)
@@ -379,29 +471,36 @@ final class UpdateManager: ObservableObject {
         }
     }
 
-    private static func downloadAndVerify(release: AppUpdateRelease, session: URLSession, cacheDirectory: URL?) async throws -> URL {
+    private static func downloadAndVerify(release: AppUpdateRelease, session: URLSession, cacheDirectory: URL?,
+                                         progress: @escaping @MainActor @Sendable (UpdateDownloadProgress) -> Void = { _ in }) async throws -> URL {
         try Task.checkCancellation()
         let cacheRoot = cacheDirectory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appending(path: "io.mlxl3.desktop/Updates", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: cacheRoot, withIntermediateDirectories: true)
         let destination = cacheRoot.appending(path: release.asset.name)
 
-        if FileManager.default.fileExists(atPath: destination.path),
-           try await verifyAsset(at: destination, asset: release.asset) {
-            try Task.checkCancellation()
-            return destination
+        var initial = UpdateDownloadProgress(transfer: ModelDownloadProgress(total: Double(release.asset.size)))
+        if FileManager.default.fileExists(atPath: destination.path) {
+            initial.isVerifying = true
+            progress(initial)
+            if try await verifyAsset(at: destination, asset: release.asset) {
+                try Task.checkCancellation()
+                return destination
+            }
         }
-
-        let (temporaryURL, response) = try await session.download(
-            from: release.asset.downloadURL
-        )
-        guard let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode)
-        else { throw UpdateError.downloadFailed }
-
+        initial.isVerifying = false
+        progress(initial)
         let staged = cacheRoot.appending(path: UUID().uuidString + ".download")
-        try FileManager.default.moveItem(at: temporaryURL, to: staged)
+        let delegate = UpdateDownloadDelegate(size: release.asset.size, location: staged) { value in
+            Task { @MainActor in progress(value) }
+        }
+        var request = URLRequest(url: release.asset.downloadURL)
+        request.timeoutInterval = 30
         do {
+            try await delegate.download(request, configuration: session.configuration)
+            var final = delegate.snapshot
+            final.isVerifying = true
+            progress(final)
             guard try await verifyAsset(at: staged, asset: release.asset) else {
                 throw UpdateError.integrityCheckFailed
             }

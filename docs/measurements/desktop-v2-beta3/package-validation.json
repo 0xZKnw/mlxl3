@@ -1,0 +1,144 @@
+{
+  "status": "passed",
+  "source": "45697feb06cac08983683c9ad5c1b8afdb8e9d32",
+  "version": "2.0.0",
+  "build": "34",
+  "runtime": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "45697feb06ca",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "2.0.0"
+  },
+  "dmg": {
+    "name": "MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg",
+    "bytes": 74120917,
+    "sha256": "5a8110b9fb02f358938e588d68ea0cd0badabc372939f4daf151414b937bdb30"
+  },
+  "checks": [
+    {
+      "command": [
+        "codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lipo",
+        "-verify_arch",
+        "arm64",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lipo",
+        "-verify_arch",
+        "arm64",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lipo",
+        "-verify_arch",
+        "arm64",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/libmlx.dylib"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "lipo",
+        "-verify_arch",
+        "arm64",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/libjaccl.dylib"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "hdiutil",
+        "verify",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg"
+      ],
+      "code": 0,
+      "stdout": "Checksumming Protective Master Boot Record (MBR : 0)\u2026\nProtective Master Boot Record (MBR :: verified CRC32 $A6D2D8E1\nChecksumming GPT Header (Primary GPT Header : 1)\u2026\n GPT Header (Primary GPT Header : 1): verified CRC32 $9EA10D70\nChecksumming GPT Partition Data (Primary GPT Table : 2)\u2026\nGPT Partition Data (Primary GPT Tabl: verified CRC32 $7F6B2933\nChecksumming  (Apple_Free : 3)\u2026\n                    (Apple_Free : 3): verified CRC32 $00000000\nChecksumming disk image (Apple_APFS : 4)\u2026\n         disk image (Apple_APFS : 4): verified CRC32 $D03C8B3C\nChecksumming  (Apple_Free : 5)\u2026\n                    (Apple_Free : 5): verified CRC32 $00000000\nChecksumming GPT Partition Data (Backup GPT Table : 6)\u2026\nGPT Partition Data (Backup GPT Table: verified CRC32 $7F6B2933\nChecksumming GPT Header (Backup GPT Header : 7)\u2026\n  GPT Header (Backup GPT Header : 7): verified CRC32 $81335057\nverified CRC32 $9D3CC1C7\n",
+      "stderr": "hdiutil: verify: checksum of \"/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg\" is VALID\n"
+    },
+    {
+      "command": [
+        "hdiutil",
+        "attach",
+        "-readonly",
+        "-nobrowse",
+        "-noautoopen",
+        "-mountpoint",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub",
+        "/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/dist/MLXL3-Desktop-v2.0.0-beta.3-b34-Apple-Silicon.dmg"
+      ],
+      "code": 0,
+      "stdout": "expected CRC32 $9D3CC1C7\n/dev/disk10         \tGUID_partition_scheme          \t\n/dev/disk10s1       \tApple_APFS                     \t\n/dev/disk11         \tEF57347C-0000-11AA-AA11-0030654\t\n/dev/disk11s1       \t41504653-0000-11AA-AA11-0030654\t/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub\n",
+      "stderr": "hdiutil: WARNING: 'hdiutil attach -readonly -nobrowse -mountpoint ...' is deprecated. Please use 'diskutil image attach --readOnly --mountOptions nobrowse --mountPoint ...' instead.\n"
+    },
+    {
+      "command": [
+        "codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub/MLXL3 Desktop.app"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "runtime-info"
+      ],
+      "code": 0,
+      "stdout": "{\"architecture\":\"aarch64\",\"bridge_protocol\":1,\"chat_enabled\":true,\"commit\":\"45697feb06ca\",\"mlx_enabled\":true,\"profile\":\"release\",\"version\":\"2.0.0\"}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "otool",
+        "-L",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio"
+      ],
+      "code": 0,
+      "stdout": "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio:\n\t/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation (compatibility version 300.0.0, current version 5026.5.4)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/System/Library/Frameworks/AVFAudio.framework/Versions/A/AVFAudio (compatibility version 1.0.0, current version 1.0.0)\n\t/System/Library/Frameworks/AVFoundation.framework/Versions/A/AVFoundation (compatibility version 1.0.0, current version 2.0.0)\n\t/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit (compatibility version 45.0.0, current version 2685.60.104)\n\t/System/Library/Frameworks/Combine.framework/Versions/A/Combine (compatibility version 1.0.0, current version 3023.0.0)\n\t/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 5026.5.4)\n\t/System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics (compatibility version 64.0.0, current version 1965.5.1)\n\t/System/Library/Frameworks/CoreText.framework/Versions/A/CoreText (compatibility version 1.0.0, current version 877.4.0)\n\t/System/Library/Frameworks/CoreTransferable.framework/Versions/A/CoreTransferable (compatibility version 1.0.0, current version 1.0.0)\n\t/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit (compatibility version 1.0.0, current version 1.0.0)\n\t/System/Library/Frameworks/Metal.framework/Versions/A/Metal (compatibility version 1.0.0, current version 373.2.0)\n\t/System/Library/Frameworks/PDFKit.framework/Versions/A/PDFKit (compatibility version 1.0.0, current version 1451.5.3)\n\t/System/Library/Frameworks/Speech.framework/Versions/A/Speech (compatibility version 1.0.0, current version 1.0.0)\n\t/System/Library/Frameworks/SwiftUI.framework/Versions/A/SwiftUI (compatibility version 1.0.0, current version 7.5.3)\n\t/usr/lib/swift/libswiftAVFoundation.dylib (compatibility version 1.0.0, current version 2420.7.1, weak)\n\t/usr/lib/swift/libswiftCore.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/swift/libswiftCoreAudio.dylib (compatibility version 1.0.0, current version 411.255.0, weak)\n\t/usr/lib/swift/libswiftCoreFoundation.dylib (compatibility version 1.0.0, current version 120.100.0)\n\t/usr/lib/swift/libswiftCoreImage.dylib (compatibility version 1.0.0, current version 2.2.0, weak)\n\t/usr/lib/swift/libswiftCoreMIDI.dylib (compatibility version 1.0.0, current version 6.0.0, weak)\n\t/usr/lib/swift/libswiftCoreMedia.dylib (compatibility version 1.0.0, current version 3320.8.5, weak)\n\t/usr/lib/swift/libswiftDarwin.dylib (compatibility version 1.0.0, current version 377.120.8)\n\t/usr/lib/swift/libswiftDispatch.dylib (compatibility version 1.0.0, current version 1542.100.32)\n\t/usr/lib/swift/libswiftIOKit.dylib (compatibility version 1.0.0, current version 1.0.0, weak)\n\t/usr/lib/swift/libswiftMetal.dylib (compatibility version 1.0.0, current version 373.2.0)\n\t/usr/lib/swift/libswiftOSLog.dylib (compatibility version 1.0.0, current version 10.0.0, weak)\n\t/usr/lib/swift/libswiftObjectiveC.dylib (compatibility version 1.0.0, current version 951.7.0, weak)\n\t/usr/lib/swift/libswiftQuartzCore.dylib (compatibility version 1.0.0, current version 5.0.0, weak)\n\t/usr/lib/swift/libswiftSpatial.dylib (compatibility version 1.0.0, current version 1.0.0, weak)\n\t/usr/lib/swift/libswiftSynchronization.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/swift/libswiftUniformTypeIdentifiers.dylib (compatibility version 1.0.0, current version 877.5.1)\n\t/usr/lib/swift/libswiftXPC.dylib (compatibility version 1.0.0, current version 128.120.2, weak)\n\t/usr/lib/swift/libswift_Builtin_float.dylib (compatibility version 0.0.0, current version 0.0.0, weak)\n\t/usr/lib/swift/libswift_Concurrency.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/swift/libswift_DarwinFoundation1.dylib (compatibility version 1.0.0, current version 377.120.8)\n\t/usr/lib/swift/libswiftos.dylib (compatibility version 1.0.0, current version 1082.0.0)\n\t/usr/lib/swift/libswiftsimd.dylib (compatibility version 1.0.0, current version 23.0.0, weak)\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "hdiutil",
+        "detach",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/mlxl3-beta3-mount-zu3uo1ub"
+      ],
+      "code": 0,
+      "stdout": "\"disk10\" ejected.\n",
+      "stderr": "hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.\n"
+    }
+  ]
+}

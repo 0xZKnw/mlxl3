@@ -8,6 +8,30 @@ fi
 test_dir="$(mktemp -d -t mlxl3-check)"
 trap 'rm -rf "${test_dir}"' EXIT
 
+# The new I/O fixtures must also be reaped if a Swift assertion aborts the check.
+run_fixture_check() {
+    "${test_python}" - "$@" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+process = subprocess.Popen(sys.argv[1:], start_new_session=True)
+try:
+    code = process.wait(timeout=90)
+except subprocess.TimeoutExpired:
+    print("Desktop fixture exceeded its 90-second limit", file=sys.stderr)
+    code = 1
+finally:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=3)
+sys.exit(code)
+PY
+}
+
 # CI normally selects the active Xcode toolchain. A local Command Line Tools
 # install can opt into an installed SDK explicitly (for example 26.5).
 swift_args=(--package-path apps/MLXL3Studio)
@@ -46,6 +70,20 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
     tests/model-idle-unload-check.swift > "${test_dir}/ModelIdleUnloadCombined.swift"
 idle_sources=("${sources[@]}")
 idle_sources=("${(@)idle_sources:#*/StudioModel.swift}")
+
+swiftc "${swiftc_args[@]}" -O \
+    apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift \
+    tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
+"${test_dir}/agent-sandbox-check"
+"${test_python}" tests/check-agent-protocol.py "${test_dir}/agent-sandbox-check"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/studio-modes-check.swift > "${test_dir}/StudioModesCombined.swift"
+swiftc "${swiftc_args[@]}" \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioModesCombined.swift" -o "${test_dir}/studio-modes-check"
+"${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py"
+
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
@@ -71,8 +109,22 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
     apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
     "${test_dir}/UpdaterApplicationCombined.swift" -o "${test_dir}/updater-application-check"
 "${test_dir}/updater-application-check" "${test_dir}/archives" ${MLXL3_TEST_APP_DMG:+"${MLXL3_TEST_APP_DMG}"} ${MLXL3_TEST_APP_VERSION:+"${MLXL3_TEST_APP_VERSION}"}
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/updater-progress-check.swift > "${test_dir}/UpdaterProgressCombined.swift"
+swiftc "${swiftc_args[@]}" \
+    apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+    "${test_dir}/UpdaterProgressCombined.swift" -o "${test_dir}/updater-progress-check"
+run_fixture_check "${test_dir}/updater-progress-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
+
+swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
+    tests/html-preview-check.swift -o "${test_dir}/html-preview-check"
+run_fixture_check "${test_dir}/html-preview-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
 
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
@@ -134,3 +186,6 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfigurat
 "${test_dir}/mcp-configuration-check"
 
 print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
+
+# Beta 5 project/artifact integration shares the already-built app sources.
+MLXL3_STUDIOS_TMP="${test_dir}" zsh scripts/check-studios.sh

@@ -25,12 +25,12 @@ struct StudioView: View {
                     .padding(.leading, sidebarVisible ? 0 : 8)
                     .padding(.trailing, 8)
 
-                if studio.showInspector && geometry.size.width >= 1220 {
+                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width >= 1220 {
                     GenerationInspector().frame(width: 286)
                 }
             }
             .overlay(alignment: .trailing) {
-                if studio.showInspector && geometry.size.width < 1220 {
+                if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width < 1220 {
                   ZStack(alignment: .trailing) {
                     Color.black.opacity(0.28)
                         .contentShape(Rectangle())
@@ -48,6 +48,7 @@ struct StudioView: View {
         }
         .id(studio.language)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
+        .environment(\.artifactRevision, { request in studio.requestArtifactRevision(request) })
         .background(StudioTheme.sidebar)
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
@@ -79,7 +80,7 @@ private struct SidebarView: View {
     private var filteredConversations: [Conversation] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
         return studio.conversations.filter {
-            $0.projectID == studio.selectedProjectID && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
+            $0.agent == (studio.selectedMode == .agent) && $0.projectID == studio.selectedProjectID && (query.isEmpty || $0.title.localizedCaseInsensitiveContains(query)
                 || $0.messages.contains { $0.content.localizedCaseInsensitiveContains(query) })
         }
     }
@@ -98,12 +99,26 @@ private struct SidebarView: View {
             }
             .padding(.horizontal, 22)
             .padding(.top, 51)
-            .padding(.bottom, 32)
+            .padding(.bottom, 22)
+
+            HStack(spacing: 2) {
+                ForEach(StudioMode.allCases) { mode in
+                    Button { studio.selectMode(mode) } label: {
+                        Text(mode.title).font(.system(size: 11, weight: .medium))
+                            .frame(maxWidth: .infinity).frame(height: 30)
+                    }
+                    .buttonStyle(StudioControlStyle(emphasized: studio.selectedMode == mode))
+                    .accessibilityLabel(mode.title)
+                    .accessibilityAddTraits(studio.selectedMode == mode ? .isSelected : [])
+                }
+            }
+            .padding(3).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 12).padding(.bottom, 16).disabled(studio.isGenerating)
 
             Button(action: studio.newConversation) {
                 HStack(spacing: 10) {
                     Image(systemName: "square.and.pencil").font(.system(size: 14))
-                    Text(L("Nouvelle conversation", "New conversation")).font(.system(size: 12, weight: .medium))
+                    Text(studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation")).font(.system(size: 12, weight: .medium))
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 11)
@@ -240,12 +255,19 @@ private struct ChatWorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             WorkspaceHeader(sidebarVisible: $sidebarVisible)
-            if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
+            if studio.selectedMode == .server {
+                ServerWorkspaceView(server: studio.localServer)
+            } else if studio.selectedMode == .lab {
+                LabWorkspaceView()
+            } else if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
+                if studio.selectedMode == .agent { AgentWorkspaceBar() }
                 MessagesView(messages: conversation.messages)
                 ComposerView()
                     .padding(.horizontal, 32)
                     .padding(.top, 10)
                     .padding(.bottom, 22)
+            } else if studio.selectedMode == .agent {
+                AgentWelcomeView()
             } else {
                 WelcomeView()
             }
@@ -267,8 +289,8 @@ private struct WorkspaceHeader: View {
             .accessibilityLabel(L("Afficher ou masquer l’historique", "Toggle history"))
             .keyboardShortcut("s", modifiers: [.command, .control])
 
-            Text(studio.currentConversation?.messages.isEmpty == false
-                 ? (studio.currentConversation?.title ?? "Conversation") : "Conversation")
+            Text(studio.selectedMode == .server || studio.selectedMode == .lab ? studio.selectedMode.title
+                 : studio.currentConversation?.messages.isEmpty == false ? (studio.currentConversation?.title ?? "Conversation") : studio.selectedMode.title)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(StudioTheme.secondary)
                 .lineLimit(1)
@@ -308,7 +330,7 @@ private struct WorkspaceHeader: View {
             .menuIndicator(.hidden)
             .fixedSize(horizontal: false, vertical: true)
             .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 6))
-            .disabled(studio.isGenerating)
+            .disabled(studio.isGenerating || studio.localServer.active)
             .help(studio.engineState.label)
             .accessibilityLabel(L("Modèle : \(studio.selectedModelName ?? "aucun")", "Model: \(studio.selectedModelName ?? "none")"))
 
@@ -339,6 +361,88 @@ private struct WorkspaceHeader: View {
         .overlay(alignment: .bottom) {
             Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
         }
+    }
+}
+
+private struct AgentWorkspaceBar: View {
+    @EnvironmentObject private var studio: StudioModel
+    @State private var htmlFiles: [URL] = []
+    @State private var showStudio = false
+    @State private var preview: HTMLPreviewDocument?
+    @State private var previewError: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 18) {
+            Button { showStudio = true } label: { Label("Agent Studio", systemImage: "sidebar.right") }.buttonStyle(.bordered)
+                .disabled(studio.isGenerating || studio.agentStudioBusy)
+            Button(action: studio.openAgentWorkspace) { Label(L("Dossier de travail", "Workspace folder"), systemImage: "folder") }
+                .buttonStyle(.plain).help(L("Ouvrir le dossier isolé de cette tâche dans le Finder", "Open this task’s isolated folder in Finder"))
+            Label(L("Ce Mac", "This Mac"), systemImage: "desktopcomputer")
+            Spacer()
+            Label(L("Sandbox · hors ligne", "Sandbox · offline"), systemImage: "lock.shield")
+        }
+        if !studio.isGenerating && !htmlFiles.isEmpty {
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(htmlFiles, id: \.self) { file in
+                        Button {
+                            guard let workspace = studio.agentWorkspaceURL else { return }
+                            do { preview = HTMLPreviewDocument(source: try HTMLPreview.source(at: file, in: workspace), workspace: workspace, file: file) }
+                            catch { previewError = error.localizedDescription }
+                        } label: { Label(file.lastPathComponent, systemImage: "play.rectangle") }
+                        .buttonStyle(.bordered)
+                        .help(L("Exécuter ce fichier HTML dans l’app", "Run this HTML file in the app"))
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+        }
+        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+        .padding(.horizontal, 22).padding(.vertical, 13)
+        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+        .task(id: "\(studio.selectedConversationID?.uuidString ?? "")/\(studio.isGenerating)") {
+            htmlFiles = []
+            guard !studio.isGenerating, let workspace = studio.agentWorkspaceURL else { return }
+            let files = await Task.detached { HTMLPreview.artifactURLs(in: workspace) }.value
+            guard !Task.isCancelled else { return }
+            htmlFiles = files
+        }
+        .sheet(isPresented: $showStudio) { if let workspace = studio.agentWorkspaceURL { ArtifactStudioView(workspace: workspace, projectMode: true).environmentObject(studio) } }
+        .sheet(item: $preview) { HTMLPreviewSheet(source: $0.source, workspace: $0.workspace, file: $0.file) }
+        .alert(L("Aperçu HTML impossible", "HTML preview unavailable"), isPresented: Binding(
+            get: { previewError != nil }, set: { if !$0 { previewError = nil } }
+        )) { Button("OK") { previewError = nil } } message: { Text(previewError ?? "") }
+    }
+}
+
+private struct AgentWelcomeView: View {
+    @EnvironmentObject private var studio: StudioModel
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 35)
+            MonogramMark(size: 80).frame(height: 48).clipped()
+            Text(L("Que voulez-vous construire ?", "What would you like to build?"))
+                .font(.system(size: 32, weight: .regular, design: .serif)).tracking(-0.7)
+                .multilineTextAlignment(.center).padding(.top, 20)
+            Text(L("Votre modèle local, un espace de travail isolé.", "Your local model, an isolated workspace."))
+                .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet).padding(.top, 12)
+            Spacer(minLength: 45)
+            VStack(spacing: 0) {
+                AgentWorkspaceBar().padding(.horizontal, 12).padding(.bottom, -7)
+                ComposerView()
+            }
+            if !studio.mcpErrors.isEmpty {
+                Text(studio.mcpErrors.values.sorted().joined(separator: "\n")).font(.caption).foregroundStyle(.red).textSelection(.enabled).padding(.top, 12)
+            }
+            if case let .failed(message) = studio.engineState {
+                Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled).lineLimit(5).padding(.top, 12)
+            }
+            Text(L("Seuls les fichiers de cette tâche sont accessibles. Réseau bloqué ; commandes limitées à 5 s. Ouvrez le dossier pour y déposer les fichiers à modifier.", "Only this task’s files are accessible. Network blocked; commands limited to 5 s. Open the folder to add files to edit."))
+                .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).padding(.top, 13)
+            Spacer().frame(height: 28)
+        }
+        .frame(maxWidth: 760).padding(.horizontal, 40).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

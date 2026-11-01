@@ -15,6 +15,7 @@ struct WorkspaceSnapshot: Codable, Sendable {
     var profiles: [GenerationProfile]? = nil
     var documents: [LibraryDocument]? = nil
     var responseSchema: String? = nil
+    var labSamples: [LabSample]? = nil
 
     init(
         selectedConversationID: UUID?,
@@ -52,6 +53,7 @@ struct ConversationSnapshot: Codable, Sendable {
     var contextUsage: ContextUsage? = nil
     var projectID: UUID? = nil
     var parentConversationID: UUID? = nil
+    var agent: Bool? = nil
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {

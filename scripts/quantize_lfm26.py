@@ -30,6 +30,8 @@ def is_lfm_projection(key: str) -> bool:
 def patch_converter():
     from ponyexl3.convert import capture, direct, discovery, driver, measure, reuse
 
+    from mlxl3_quantizer.options import excluded_projection
+
     original_filter = discovery._is_exl3_linear_key
     original_group = driver._sibling_group_signature
     original_tensors = direct._layer_tensors
@@ -39,7 +41,9 @@ def patch_converter():
     reuse.enable = lambda max_bytes=None: original_enable(
         4 << 30 if max_bytes is None else max_bytes
     )
-    discovery._is_exl3_linear_key = lambda key: is_lfm_projection(key) or original_filter(key)
+    discovery._is_exl3_linear_key = lambda key: (
+        (is_lfm_projection(key) or original_filter(key)) and not excluded_projection(key)
+    )
 
     def sibling(key):
         if re.fullmatch(r"model\.layers\.\d+\.feed_forward(?:\.experts\.\d+)?\.w[13]", key):
@@ -82,7 +86,9 @@ def main():
     )
     args, _ = parser.parse_known_args()
     config = json.loads((args.in_dir / "config.json").read_text())
-    if config.get("model_type") != "lfm2" or not config.get("tie_word_embeddings", config.get("tie_embedding")):
+    if config.get("model_type") != "lfm2" or not config.get(
+        "tie_word_embeddings", config.get("tie_embedding")
+    ):
         raise ValueError("This adapter expects a native LFM2 checkpoint with tied embeddings")
     patch_converter()
     if args.reference_metal_search:
@@ -97,6 +103,17 @@ def main():
 
     keys = discover_exl3_module_keys(args.in_dir)
     expected = sum(7 if kind == "full_attention" else 5 for kind in config["layer_types"])
+    from ponyexl3.convert.fixtures import SafetensorIndex
+
+    from mlxl3_quantizer.options import excluded_projection
+
+    raw_keys = SafetensorIndex(args.in_dir).weight_map
+    expected -= sum(
+        excluded_projection(key.removesuffix(".weight"))
+        for key in raw_keys
+        if key.endswith(".weight")
+        and (is_lfm_projection(key.removesuffix(".weight")) or ".self_attn." in key)
+    )
     if len(keys) != expected:
         raise ValueError(
             f"Incomplete LFM conversion plan: {len(keys)} linears, expected {expected}"
@@ -108,7 +125,8 @@ def main():
 
     result = convert()
     if result == 0:
-        shutil.copy2(args.in_dir / "LICENSE", args.out_dir / "LICENSE")
+        if (args.in_dir / "LICENSE").is_file():
+            shutil.copy2(args.in_dir / "LICENSE", args.out_dir / "LICENSE")
         metadata = json.loads((args.out_dir / "quantization_config.json").read_text())
         converted = [
             k for k, v in metadata["tensor_storage"].items() if v.get("quant_format") == "exl3"
@@ -124,9 +142,7 @@ def main():
                 if info.get(mode + "_multiplier") and f"{key}.{mode}" not in output_index:
                     raise ValueError(f"Missing runtime codebook marker: {key}.{mode}")
         if not args.module_limit:
-            source_index = json.loads((args.in_dir / "model.safetensors.index.json").read_text())[
-                "weight_map"
-            ]
+            source_index = SafetensorIndex(args.in_dir).weight_map
             missing = [
                 k
                 for k in source_index

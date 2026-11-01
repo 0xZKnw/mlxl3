@@ -123,6 +123,7 @@ struct BridgeEvent: Decodable {
     var contextLimit: Int? = nil
     var modelContextLimit: Int? = nil
     var contextFull: Bool? = nil
+    var stopReason: String? = nil
     var contextMemory: ContextMemoryProfile? = nil
     var turnContext: String? = nil
     var runtimeCommit: String? = nil
@@ -177,6 +178,7 @@ struct BridgeEvent: Decodable {
         case contextLimit = "context_limit"
         case modelContextLimit = "model_context_limit"
         case contextFull = "context_full"
+        case stopReason = "stop_reason"
         case contextMemory = "context_memory"
         case turnContext = "turn_context"
         case runtimeCommit = "runtime_commit"
@@ -506,6 +508,7 @@ struct Conversation: Identifiable {
     var contextUsage: ContextUsage?
     var projectID: UUID?
     var parentConversationID: UUID?
+    var agent = false
 
     init(
         id: UUID = UUID(),
@@ -529,7 +532,8 @@ struct Conversation: Identifiable {
             createdAt: createdAt,
             contextUsage: contextUsage,
             projectID: projectID,
-            parentConversationID: parentConversationID
+            parentConversationID: parentConversationID,
+            agent: agent ? true : nil
         )
     }
 
@@ -543,6 +547,7 @@ struct Conversation: Identifiable {
         )
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID
+        agent = snapshot.agent ?? false
     }
 }
 

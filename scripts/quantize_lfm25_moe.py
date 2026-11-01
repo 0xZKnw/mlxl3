@@ -61,6 +61,8 @@ def calibration_source_identity(source_dir, index, text_path):
         "config": hashlib.sha256((source_dir / "config.json").read_bytes()).hexdigest(),
         "index": hashlib.sha256(
             (source_dir / "model.safetensors.index.json").read_bytes()
+            if (source_dir / "model.safetensors.index.json").is_file()
+            else json.dumps(index.weight_map, sort_keys=True).encode()
         ).hexdigest(),
         "shards": {
             name: [(source_dir / name).stat().st_size, (source_dir / name).stat().st_mtime_ns]
@@ -455,7 +457,9 @@ def main():
     parser.add_argument("--routed-calibration", action="store_true")
     args, _ = parser.parse_known_args()
     config = json.loads((args.in_dir / "config.json").read_text())
-    expected = expected_projections(config)
+    from mlxl3_quantizer.options import excluded_projection
+
+    expected = {key for key in expected_projections(config) if not excluded_projection(key)}
     from ponyexl3.cli import convert
     from ponyexl3.convert import capture, direct, driver, metal_search, mlx_trellis
     from ponyexl3.convert.discovery import discover_exl3_module_keys

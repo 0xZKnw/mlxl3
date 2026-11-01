@@ -78,6 +78,7 @@ final class MLXL3Bridge: @unchecked Sendable {
     private var deltaFlushWorkItem: DispatchWorkItem?
     private let displayFlushInterval = 0.05
     private let generationID = Mutex(UUID())
+    private let retiringProcesses = Mutex<[Process]>([])
 
     var isRunning: Bool { process?.isRunning == true }
 
@@ -126,13 +127,10 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func start(model: String, contextLength: Int = 0) async throws {
-        let previous = process
+    func start(model: String, contextLength: Int = 0, registry: URL? = nil) async throws {
         stop()
         let ticket = generationID.withLock { $0 }
-        if let previous, previous.isRunning {
-            await Task.detached { previous.waitUntilExit() }.value
-        }
+        await waitForRetiringProcesses()
         guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
         guard let executable = CLIResolver.executable() else {
             throw MLXL3BridgeError.executableNotFound
@@ -151,7 +149,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             deltaFlushWorkItem = nil
         }
         process.executableURL = executable
-        process.arguments = ["bridge", model, "--context-length", String(contextLength)]
+        process.arguments = (registry.map { ["--registry", $0.path] } ?? []) + ["bridge", model, "--context-length", String(contextLength)]
         process.environment = ProcessInfo.processInfo.environment
         process.currentDirectoryURL = CLIResolver.workingDirectory(for: executable)
         process.standardInput = input
@@ -183,6 +181,7 @@ final class MLXL3Bridge: @unchecked Sendable {
                 guard let currentProcess = self.process,
                       currentProcess === terminatedProcess
                 else { return }
+                guard self.generationID.withLock({ $0 == ticket }) else { return }
                 output.fileHandleForReading.readabilityHandler = nil
                 error.fileHandleForReading.readabilityHandler = nil
                 self.flushPendingDelta()
@@ -212,7 +211,7 @@ final class MLXL3Bridge: @unchecked Sendable {
             inputPipe = nil
             output.fileHandleForReading.readabilityHandler = nil
             error.fileHandleForReading.readabilityHandler = nil
-            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength) }
+            if EngineRuntimeStore.reject(executable) { return try await start(model: model, contextLength: contextLength, registry: registry) }
             throw failure
         }
     }
@@ -271,6 +270,19 @@ final class MLXL3Bridge: @unchecked Sendable {
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
     }
 
+    func stopAndWait() async {
+        stop()
+        await waitForRetiringProcesses()
+    }
+
+    private func waitForRetiringProcesses() async {
+        let pending = retiringProcesses.withLock { $0 }
+        await Task.detached {
+            for process in pending where process.isRunning { process.waitUntilExit() }
+        }.value
+        retiringProcesses.withLock { $0.removeAll { !$0.isRunning } }
+    }
+
     func stop() {
         // Invalidate before waiting for IO; decoded events keep their process's original ticket.
         let replacement = UUID()
@@ -282,6 +294,10 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
         inputPipe?.fileHandleForWriting.closeFile()
         if let process, process.isRunning {
+            retiringProcesses.withLock {
+                $0.removeAll { !$0.isRunning }
+                $0.append(process)
+            }
             process.terminate()
             DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
                 if process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }

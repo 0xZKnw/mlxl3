@@ -5,6 +5,7 @@ struct ModelManagerView: View {
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.dismiss) private var dismiss
     @State private var discover = false
+    @State private var quantize = false
     @State private var removal: LocalModel?
 
     var body: some View {
@@ -23,8 +24,9 @@ struct ModelManagerView: View {
             Divider().overlay(StudioTheme.edge)
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
-                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover) { discover = false }
-                    navigation(L("Découvrir", "Discover"), icon: "magnifyingglass", active: discover) { discover = true }
+                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize) { discover = false; quantize = false }
+                    navigation(L("Découvrir", "Discover"), icon: "magnifyingglass", active: discover && !quantize) { discover = true; quantize = false }
+                    navigation("Quantization Studio", icon: "slider.horizontal.3", active: quantize) { quantize = true; discover = false }
                     Spacer()
                     Text(L("SUR CE MAC", "ON THIS MAC")).font(.system(size: 9, weight: .medium)).tracking(1.5).foregroundStyle(StudioTheme.quiet)
                     Text(ByteCountFormatter.string(fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file))
@@ -33,11 +35,13 @@ struct ModelManagerView: View {
                         .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }.padding(18).frame(width: 180).background(StudioTheme.sidebar)
                 Divider().overlay(StudioTheme.edge)
-                if discover { HubBrowserView(library: studio.modelLibrary) } else { installed }
+                if quantize { QuantizationStudioView(quantizer: studio.quantizer) }
+                else if discover { HubBrowserView(library: studio.modelLibrary) } else { installed }
             }
             LibraryDownloadView(library: studio.modelLibrary)
         }
         .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .onAppear { if studio.quantizer.converting { quantize = true } }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(width: min(1040, (NSScreen.main?.visibleFrame.width ?? 1200) - 60),
                height: min(740, (NSScreen.main?.visibleFrame.height ?? 900) - 90))

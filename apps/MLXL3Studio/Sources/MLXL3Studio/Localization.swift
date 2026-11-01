@@ -28,6 +28,9 @@ func L(_ french: String, _ english: String) -> String {
 
 // Only engine-authored progress labels go through this function, never model text.
 func localizedProgress(_ label: String) -> String {
+    if label.hasPrefix("Preparing tool call") {
+        return label.replacingOccurrences(of: "Preparing tool call", with: L("Préparation de la commande", "Preparing tool call"))
+    }
     let translations = [
         ("Préparation du contexte", "Preparing context"),
         ("Lecture des résultats MCP", "Reading MCP results"),

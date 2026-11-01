@@ -231,6 +231,9 @@ private struct UpdateSettingsCard: View {
                         .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(StudioTheme.quiet)
                         .lineLimit(3)
+                    if case .downloading = updater.state, let progress = updater.downloadProgress {
+                        UpdateTransferView(progress: progress)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -249,6 +252,9 @@ private struct UpdateSettingsCard: View {
                     Text(engineDetail)
                         .font(.system(size: 11))
                         .foregroundStyle(StudioTheme.quiet)
+                    if case .downloading = updater.engineState, let progress = updater.engineDownloadProgress {
+                        UpdateTransferView(progress: progress)
+                    }
                 }
                 Spacer()
             }
@@ -376,6 +382,41 @@ private struct UpdateSettingsCard: View {
         case let .failed(message):
             message
         }
+    }
+}
+
+struct UpdateTransferView: View {
+    let progress: UpdateDownloadProgress
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: progress.transfer.fraction ?? 0)
+                .tint(StudioTheme.accent)
+                .accessibilityLabel(L("Téléchargement", "Download"))
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack {
+                    if progress.isVerifying {
+                        Text(L("Vérification SHA-256…", "Verifying SHA-256…"))
+                    } else {
+                        Text("\(Int((progress.transfer.fraction ?? 0) * 100)) %")
+                        Text("\(bytes(progress.transfer.completed)) / \(bytes(progress.transfer.total))")
+                        Spacer(minLength: 5)
+                        let rate = ProcessInfo.processInfo.systemUptime - progress.observedAt > 2
+                            ? 0 : progress.transfer.bytesPerSecond
+                        Text(rate.map { bytes($0) + "/s" } ?? L("Calcul du débit…", "Measuring speed…"))
+                    }
+                }
+                .font(.system(size: 10, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.secondary)
+            }
+        }
+        .padding(.top, 5)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func bytes(_ value: Double) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(max(0, min(Double(Int64.max / 2), value))), countStyle: .file)
     }
 }
 

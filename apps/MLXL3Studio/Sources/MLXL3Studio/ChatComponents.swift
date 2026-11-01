@@ -23,8 +23,17 @@ struct MessagesView: View {
   var body: some View {
     ScrollViewReader { proxy in
       ScrollView {
-        LazyVStack(spacing: 38) {
-          ForEach(messages) { message in
+        VStack(spacing: 38) {
+          if messages.count > 1 {
+            LazyVStack(spacing: 38) {
+              ForEach(messages.dropLast()) { message in
+                MessageView(message: message)
+                  .id(message.id)
+              }
+            }
+          }
+          // Keep the growing response measured while older messages remain lazy.
+          if let message = messages.last {
             MessageView(message: message)
               .id(message.id)
           }
@@ -155,7 +164,8 @@ private struct AssistantMessageView: View {
                         ThinkingBlock(text: part.text, streaming: live)
                             .equatable()
                     case .answer:
-                        MarkdownResponseView(part.text, streaming: live)
+                        MarkdownResponseView(part.text, streaming: live,
+                                             htmlPreviewEnabled: !message.isStreaming && message.error == nil)
                             .equatable()
                             .environment(\.openURL, OpenURLAction { url in
                                 if url.scheme == "mlxl3-source" {
@@ -566,7 +576,7 @@ struct ComposerView: View {
             }
             ComposerVoiceControl(studio: studio, voice: studio.voice)
             HStack(alignment: .bottom, spacing: 12) {
-                TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
+                TextField(studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…") : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...6)
@@ -661,7 +671,11 @@ private struct ComposerFooterView: View {
                 .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
                 .help(L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
-                Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
+                if studio.selectedMode == .agent {
+                    Label(L("Sandbox native", "Native sandbox"), systemImage: "lock.shield")
+                    if studio.mcpUpdating { ProgressView().controlSize(.mini) }
+                } else {
+                  Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
                     HStack(spacing: 5) {
                         Image(systemName: "network")
                         Text("MCP")
@@ -680,6 +694,7 @@ private struct ComposerFooterView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
+                }
                 }
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 HStack(spacing: 6) {
