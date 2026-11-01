@@ -1,0 +1,202 @@
+"""T18a parameters for the existing T04 external inspector; no results copied.
+
+Derived from issue59-t04-20261031/benchmark-inspection.txt, SHA256
+e5b65a2a7c6dba841b491a70f7b06b950c0dfb220e13cde21812713594d2b2b7.
+Manifest and final_cli identity belong to T18a.
+The inherited validation, independent goldens and durable failure handling remain.
+"""
+
+import hashlib
+import json
+import runpy
+from pathlib import Path
+
+b = Path("docs/measurements/issue59-t18a-20261031")
+manifest = json.loads((b / "prepared/manifest.json").read_text())
+identity = json.loads((b / "final-identity.json").read_text())
+expected_binary = identity["binaries"]["final_cli"]
+golden_check = runpy.run_path("docs/measurements/issue58-20261029/pool-speed-driver.py")[
+    "check_golden"
+]
+validate = runpy.run_path("scripts/benchmark-flash-bridge.py")["validate"]
+
+
+def inspect(entry):
+    report_path = Path(entry["expected_report"])
+    output = Path(entry["output"]) / "external-inspection-v2.json"
+    assert not output.exists(), "preserve previous inspection"
+    result = {
+        "status": "incomplete_external_inspection",
+        "name": entry["name"],
+        "phase": entry["phase"],
+        "mode": entry["mode"],
+        "arm": entry["arm"],
+        "report": str(report_path),
+        "rows": [],
+    }
+    try:
+        raw = report_path.read_bytes()
+        report = json.loads(raw)
+        result["report_sha256"] = hashlib.sha256(raw).hexdigest()
+        assert (
+            report["status"] == "validated"
+            and report["reaped"] is True
+            and report["reader_joined"] is True
+        )
+        assert not report.get("error")
+        assert (
+            report["engine"] == expected_binary["path"]
+            and report["binary_sha256"] == expected_binary["sha256"]
+        )
+        assert (
+            hashlib.sha256(Path(expected_binary["path"]).read_bytes()).hexdigest()
+            == expected_binary["sha256"]
+        )
+        assert (
+            report["model"] == manifest["model"]
+            and report["tokens"] == entry["tokens_per_generation"]
+        )
+        assert report["expert_cache_gib"] == 3 and report["repeats"] == 1
+        assert list(report["prompts"]) == ["MAIN", "HOLD"]
+        mode = {"AR": "baseline", "MTP": "mtp", "DF": "dflash2"}[entry["mode"]]
+        assert report["mode"] == mode
+        assert report["environment"]["MLXL3_SSD_DYNAMIC_READERS"] == entry["t18a_flag"]
+        assert report["environment"]["MLXL3_FLASH_SWIGLU_DOWN"] == "0"
+        assert report["environment"]["MLXL3_FLASH_GDN_EPILOGUE"] == "0"
+        assert report["environment"]["MLXL3_SSD_WEIGHTED_EPILOGUE"] == "0"
+        for name, value in [
+            ("MLXL3_SSD_READERS", "4"),
+            ("MLXL3_SSD_CACHE_GIB", "3"),
+            ("MLXL3_SSD_LOOKAHEAD_DEPTH", "0"),
+            ("MLXL3_FLASH_DRAFT_WIDTH", "1"),
+            ("MLXL3_FLASH_DRAFT_ADAPTIVE", "0"),
+            ("MLXL3_FLASH_MULTI_TOKEN", "1"),
+        ]:
+            assert report["environment"][name] == value, name
+        plan = json.loads(Path(entry["plan"]).read_text())
+        assert (
+            len(plan) == 1
+            and plan[0]["env"]["MLX_MAX_OPS_PER_BUFFER"] == "40"
+            and plan[0]["env"]["MLX_MAX_MB_PER_BUFFER"] == "40"
+        )
+        for group, repeat in [("warmup", 0), ("runs", 1)]:
+            rows = report[group]
+            assert len(rows) == 2 and [r["prompt"] for r in rows] == ["MAIN", "HOLD"]
+            for row in rows:
+                assert row["repeat"] == repeat and row["mode"] == mode
+                stats = row["stats"]
+                gm = row["generation_mode"]
+                event = {
+                    "stats": stats,
+                    "token_hash": row["token_hash"],
+                    "cache_context": row["text"],
+                }
+                validate(event, gm, entry["mode"] == "MTP", report["tokens"], entry["mode"] == "DF")
+                golden = json.loads(
+                    Path(
+                        manifest["external_golden_files_for_root_validation"][row["prompt"]]
+                    ).read_text()
+                )
+                golden_check(event, golden, report["tokens"])
+                assert stats["prompt_tokens"] == {"MAIN": 87, "HOLD": 82}[row["prompt"]]
+                assert gm["mtp_requested"] is (entry["mode"] == "MTP") and gm[
+                    "dflash_requested"
+                ] is (entry["mode"] == "DF")
+                assert gm["mtp_depth"] == (1 if entry["mode"] == "MTP" else 0)
+                assert gm["dflash_mode"] == (1 if entry["mode"] == "DF" else 0)
+                assert gm["dflash_proposals"] == (1 if entry["mode"] == "DF" else 0)
+                if entry["mode"] == "DF":
+                    assert (
+                        gm["dflash_draft_path"] == manifest["dflash_draft"]
+                        and report["dflash_draft"] == manifest["dflash_draft"]
+                    )
+                counters = {}
+                for prefix, active in [
+                    ("mtp", entry["mode"] == "MTP"),
+                    ("dflash", entry["mode"] == "DF"),
+                ]:
+                    values = [
+                        stats.get(prefix + "_" + key, 0)
+                        for key in ["proposed_tokens", "accepted_tokens", "blocks"]
+                    ]
+                    proposed, accepted, blocks = values
+                    if active:
+                        assert all(type(v) is int and v >= 0 for v in values)
+                        assert (
+                            proposed == blocks > 0
+                            and accepted <= proposed
+                            and proposed + accepted <= report["tokens"] - 1
+                        )
+                    else:
+                        assert all(v is None or (type(v) is int and v == 0) for v in values)
+                    counters[prefix] = {
+                        "proposed": proposed,
+                        "accepted": accepted,
+                        "blocks": blocks,
+                    }
+                memory = stats["memory"]
+                result["rows"].append(
+                    {
+                        "group": group,
+                        "repeat": repeat,
+                        "prompt": row["prompt"],
+                        "token_hash": row["token_hash"],
+                        "generated_tokens": stats["generated_tokens"],
+                        "decode_tokens": stats["decode_tokens"],
+                        "prompt_tokens": stats["prompt_tokens"],
+                        "decode_seconds": stats["decode_seconds"],
+                        "decode_tps": stats["decode_tps"],
+                        "prefill_tps": stats["prefill_tps"],
+                        "ttft_seconds": stats["ttft_seconds"],
+                        "counters": counters,
+                        "footprint_bytes": memory["process_footprint_bytes"],
+                        "lifetime_peak_bytes": memory["process_lifetime_peak_bytes"],
+                    }
+                )
+        supervisor_path = Path(entry["plan"]).with_name(Path(entry["plan"]).stem + "-result.json")
+        supervisor = json.loads(supervisor_path.read_text())
+        assert (
+            supervisor["status"] == "completed_expected_outcomes_not_speed"
+            and len(supervisor["commands"]) == 1
+        )
+        process = supervisor["commands"][0]
+        assert (
+            process["status"] == "completed_expected_outcome"
+            and process["exit_code"] == 0
+            and process["reaped"]
+            and process["swapouts_bytes"] == 0
+        )
+        result.update(
+            status="passed_external_oracle_mode_and_memory_not_gain",
+            supervisor=str(supervisor_path),
+            swapouts_bytes=0,
+            reaped=True,
+            reader_joined=True,
+        )
+    except BaseException as error:
+        result.update(status="failed_external_inspection", error=repr(error))
+        raise
+    finally:
+        output.write_text(json.dumps(result, indent=2) + "\n")
+        with Path("opti.md").open("a") as stream:
+            stream.write(
+                f"\n**T18a inspection {entry['name']} : {result['status']}.** Preuve {output} ; aucune validation de gain issue de cette seule réponse.\n"
+            )
+    print(
+        json.dumps(
+            {
+                "name": entry["name"],
+                "status": result["status"],
+                "measured": [
+                    {
+                        k: r[k]
+                        for k in ["prompt", "decode_tps", "prefill_tps", "ttft_seconds", "counters"]
+                    }
+                    for r in result["rows"]
+                    if r["group"] == "runs"
+                ],
+            }
+        ),
+        flush=True,
+    )
+    return result

@@ -1,0 +1,9 @@
+# Flash prefill: GPU, ANE and M5 Neural Accelerators
+
+Read-only source audit,31October2026. No benchmark or numerical change.
+
+The Flash target uses MLX's Metal GPU backend (`native/ffi/mlx_bridge.cpp:180`). There is no ANE/CoreML backend on this path. Apple's Neural Engine is a separate unit from the Neural Accelerators built into M5 GPU cores. [Apple's explanation](https://developer.apple.com/videos/play/tech-talks/111432/) describes Metal TensorOps/MPP access to the GPU units; [MLX](https://mlx-framework.org/) exposes CPU/GPU devices.
+
+`FlashNext::forward_tokens` (`native/src/qwen4.rs:1663`) loops over input tokens and calls `forward_inner`. `PREFILL_CHUNK=8` batches scheduling/evaluation at the caller; it does not make this loop a layer-major matrix prefill. The SSD experts use the existing QMV Metal path (`linear.rs:1338,1502`). Generic EXL3 TensorOps kernels exist, selected for M5 with at least24matrix rows (`contracts.rs:501`), but the Flash reference-accumulation branch precedes that dispatch (`linear.rs:277,387–402`). Internal MLX operations may choose their own kernels; actual Neural Accelerator usage of the whole target has not been measured here. The weighted-epilogue witness counter is not evidence for whole-model accelerator utilization.
+
+Future hypothesis only: a true block/layer-major prefill could amortize host submission and EXL3 decoding, reuse weights, and expose larger dense matmuls to GPU accelerators. It must preserve GDN recurrence, numerical contracts and the3GiBexpert budget; per-expert token batches may remain small even if the full prompt is large. SSD read volume and cache churn can offset arithmetic gains. No gain multiplier, baseline, new implementation or timing is claimed. This prefill work is deferred as requested; current work profiles decode, then inspects TurboEXL3.

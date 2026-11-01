@@ -1,0 +1,911 @@
+{
+  "status": "AR128_4_of_4_quality_passed_performance_inconclusive_drift_candidate_remains_OFF",
+  "formulas": {
+    "decode": "sum127 decode transitions / sum raw decode_seconds (not128 and not mean of tps)",
+    "prefill": "sum prompt_tokens (87MAIN,82HOLD) / sum raw prefill_seconds",
+    "difference_pct": "(C/A -1)*100; raw floats used, no rounding before arithmetic",
+    "drift": "(last/first -1)*100 within the same arm; A1\u2192A4 and C2\u2192C3"
+  },
+  "identity": {
+    "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/final-identity-s32.json",
+    "sha256": "24f95252dfa4305fdb8308d3ecee8442ef46fd4374102050e1b1f5b1d676fbaf",
+    "sources_checked": 636,
+    "source_mismatches": [],
+    "binaries_checked": {
+      "final_cli": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-dense-epilogue-20261031/engine/prototype-engine",
+        "sha256": "6f35338c74d940c28bee9d37bd2284c5c505926fa918d5133325b38db5f6eee5",
+        "bytes": 10723456
+      },
+      "final_libtest": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-dense-epilogue-20261031/libtest-v2/prototype-engine",
+        "sha256": "43c55cd1a2d2895121a064a16013f7d226941b39ff33d2156e1e9497ec62e240",
+        "bytes": 11086960
+      },
+      "python_runner": {
+        "path": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e"
+      },
+      "earlier_positive_libtest": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-dense-epilogue-20261031/libtest/prototype-engine",
+        "sha256": "e5e464948a54007cf209991d4ddb112eda3d520b37dab1c07d4c18fb8b147a5e",
+        "bytes": 11086720
+      }
+    },
+    "binary_mismatches": []
+  },
+  "counts": {
+    "processes": 4,
+    "warmup_responses": 8,
+    "measured_responses": 8,
+    "all_footer_observations": 16,
+    "measured_decode_transitions": 1016,
+    "all128_hashes_and_text": true,
+    "numerical_logits_state_oracles": "Previously passed native qualification; bridge checks full golden hash/text, not logits"
+  },
+  "comparison": {
+    "all_prompts": {
+      "A": {
+        "decode_transitions": 508,
+        "decode_seconds": 49.022187874,
+        "decode_tps": 10.36265458623949,
+        "prompt_tokens": 338,
+        "prefill_seconds": 33.093136125,
+        "prefill_tps": 10.213598334207438
+      },
+      "C": {
+        "decode_transitions": 508,
+        "decode_seconds": 47.564845000000005,
+        "decode_tps": 10.68015674181215,
+        "prompt_tokens": 338,
+        "prefill_seconds": 31.738506916,
+        "prefill_tps": 10.649524279593871
+      },
+      "decode_difference_pct": 3.0639075434808927,
+      "prefill_difference_pct": 4.268093683755203
+    },
+    "MAIN": {
+      "A": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.77872325,
+        "decode_tps": 10.681818251112368,
+        "prompt_tokens": 174,
+        "prefill_seconds": 17.295240915999997,
+        "prefill_tps": 10.060571046398717
+      },
+      "C": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.411102083000003,
+        "decode_tps": 10.849553305926694,
+        "prompt_tokens": 174,
+        "prefill_seconds": 16.326446624,
+        "prefill_tps": 10.657554825446137
+      },
+      "decode_difference_pct": 1.5702856093517514,
+      "prefill_difference_pct": 5.933895564120251
+    },
+    "HOLD": {
+      "A": {
+        "decode_transitions": 254,
+        "decode_seconds": 25.243464623999998,
+        "decode_tps": 10.062010258231819,
+        "prompt_tokens": 164,
+        "prefill_seconds": 15.797895209,
+        "prefill_tps": 10.381129753700977
+      },
+      "C": {
+        "decode_transitions": 254,
+        "decode_seconds": 24.153742917000002,
+        "decode_tps": 10.515968513568492,
+        "prompt_tokens": 164,
+        "prefill_seconds": 15.412060292,
+        "prefill_tps": 10.641017287294687
+      },
+      "decode_difference_pct": 4.511605968253574,
+      "prefill_difference_pct": 2.503460988926154
+    }
+  },
+  "processes": [
+    {
+      "name": "f02-s32-pilot128-AR-1-A",
+      "position": 1,
+      "arm": "A",
+      "report_sha256": "82ba8350371f1e2706838dfefa004cd582e670eedbae2498593653a47ef54cd1",
+      "inspection_sha256": "8567460519ea17a50e4cff5c8f7d1c4dc6b6e1d248d74a318abea9894f33bd79",
+      "supervisor_sha256": "77124ce5d227f620d88495c7cbf2526a33932529c7a108f69a13fe06cd791ba3",
+      "measured": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.994690458,
+        "decode_tps": 10.585675211964011,
+        "prompt_tokens": 169,
+        "prefill_seconds": 16.024393916999998,
+        "prefill_tps": 10.546420718022345
+      },
+      "samples": [
+        {
+          "name": "f02-s32-pilot128-AR-1-A",
+          "position": 1,
+          "arm": "A",
+          "group": "warmup",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.697739875,
+          "decode_tps": 10.856798095794552,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.560275458,
+          "prefill_tps": 10.163224352633911,
+          "ttft_seconds": 8.56107525,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579498624,
+            "mlx_cache_bytes": 48865650,
+            "mlx_peak_bytes": 6592442784,
+            "process_compressed_lifetime_logical_bytes": 549240832,
+            "process_compressed_logical_bytes": 546717696,
+            "process_compressed_peak_logical_bytes": 546750464,
+            "process_decompressions": 20037,
+            "process_footprint_bytes": 7116806024,
+            "process_id": 40437,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7116806024,
+            "process_start_abstime": 391759166404
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-1-A",
+          "position": 1,
+          "arm": "A",
+          "group": "warmup",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.920539999999999,
+          "decode_tps": 9.829310539652369,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.88947525,
+          "prefill_tps": 10.393593667715733,
+          "ttft_seconds": 7.890440376,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579356288,
+            "mlx_cache_bytes": 48401266,
+            "mlx_peak_bytes": 6592255904,
+            "process_compressed_lifetime_logical_bytes": 760578048,
+            "process_compressed_logical_bytes": 750321664,
+            "process_compressed_peak_logical_bytes": 752730112,
+            "process_decompressions": 21603,
+            "process_footprint_bytes": 7132895112,
+            "process_id": 40437,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132895112,
+            "process_start_abstime": 391759166404
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-1-A",
+          "position": 1,
+          "arm": "A",
+          "group": "runs",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.744223625,
+          "decode_tps": 10.813826784569592,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.122446083,
+          "prefill_tps": 10.71105909611244,
+          "ttft_seconds": 8.122934167,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579516032,
+            "mlx_cache_bytes": 48491378,
+            "mlx_peak_bytes": 6592676768,
+            "process_compressed_lifetime_logical_bytes": 763953152,
+            "process_compressed_logical_bytes": 749649920,
+            "process_compressed_peak_logical_bytes": 752730112,
+            "process_decompressions": 22947,
+            "process_footprint_bytes": 7133304712,
+            "process_id": 40437,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7133304712,
+            "process_start_abstime": 391759166404
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-1-A",
+          "position": 1,
+          "arm": "A",
+          "group": "runs",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.250466833,
+          "decode_tps": 10.366951866510963,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.901947834,
+          "prefill_tps": 10.377188222779148,
+          "ttft_seconds": 7.9024399999999995,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579386496,
+            "mlx_cache_bytes": 53471170,
+            "mlx_peak_bytes": 6592294816,
+            "process_compressed_lifetime_logical_bytes": 766296064,
+            "process_compressed_logical_bytes": 749584384,
+            "process_compressed_peak_logical_bytes": 752730112,
+            "process_decompressions": 24213,
+            "process_footprint_bytes": 7138072480,
+            "process_id": 40437,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7138072480,
+            "process_start_abstime": 391759166404
+          }
+        }
+      ],
+      "rss_maximum_bytes": 6784221184,
+      "new_swapout_this_process_bytes": 0,
+      "cumulative_new_swapout_bytes": 524288,
+      "new_swapin_this_process_bytes": 0
+    },
+    {
+      "name": "f02-s32-pilot128-AR-2-C",
+      "position": 2,
+      "arm": "C",
+      "report_sha256": "0f01dc61aac3a606f62a4a30ec6b69f13a68cb949544f8a26a8e125abaf620e7",
+      "inspection_sha256": "af95845ae80e7598c0785bdc8206ce40a833d960082768a36ed43598bc71b71d",
+      "supervisor_sha256": "bc982d7ca7ccb98edf2f2044214a5ab43e69901e9f99c0fdf225015f1e197da8",
+      "measured": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.552203709000004,
+        "decode_tps": 10.784553459977886,
+        "prompt_tokens": 169,
+        "prefill_seconds": 15.892488457999999,
+        "prefill_tps": 10.633954553223436
+      },
+      "samples": [
+        {
+          "name": "f02-s32-pilot128-AR-2-C",
+          "position": 2,
+          "arm": "C",
+          "group": "warmup",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.925533875,
+          "decode_tps": 10.64941841020933,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.671365292,
+          "prefill_tps": 10.033022144767003,
+          "ttft_seconds": 8.672428042000002,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579498624,
+            "mlx_cache_bytes": 54010226,
+            "mlx_peak_bytes": 6592435248,
+            "process_compressed_lifetime_logical_bytes": 1166147584,
+            "process_compressed_logical_bytes": 1155383296,
+            "process_compressed_peak_logical_bytes": 1155629056,
+            "process_decompressions": 49433,
+            "process_footprint_bytes": 7138482032,
+            "process_id": 40706,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7138482032,
+            "process_start_abstime": 393980131112
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-2-C",
+          "position": 2,
+          "arm": "C",
+          "group": "warmup",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.039064125,
+          "decode_tps": 10.548992735762175,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.7700025,
+          "prefill_tps": 10.553407157848405,
+          "ttft_seconds": 7.770633334,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579359360,
+            "mlx_cache_bytes": 53528434,
+            "mlx_peak_bytes": 6592247712,
+            "process_compressed_lifetime_logical_bytes": 1169571840,
+            "process_compressed_logical_bytes": 1155366912,
+            "process_compressed_peak_logical_bytes": 1156562944,
+            "process_decompressions": 50814,
+            "process_footprint_bytes": 7138482056,
+            "process_id": 40706,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7138498416,
+            "process_start_abstime": 393980131112
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-2-C",
+          "position": 2,
+          "arm": "C",
+          "group": "runs",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.667561042,
+          "decode_tps": 10.884879842739629,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.193110916,
+          "prefill_tps": 10.618677190138017,
+          "ttft_seconds": 8.193686916,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579520640,
+            "mlx_cache_bytes": 53607794,
+            "mlx_peak_bytes": 6592672160,
+            "process_compressed_lifetime_logical_bytes": 1169604608,
+            "process_compressed_logical_bytes": 1154383872,
+            "process_compressed_peak_logical_bytes": 1156562944,
+            "process_decompressions": 50883,
+            "process_footprint_bytes": 7138924424,
+            "process_id": 40706,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7138924424,
+            "process_start_abstime": 393980131112
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-2-C",
+          "position": 2,
+          "arm": "C",
+          "group": "runs",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 11.884642667000001,
+          "decode_tps": 10.686059611421044,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.699377542,
+          "prefill_tps": 10.65021159862484,
+          "ttft_seconds": 7.69977125,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579387520,
+            "mlx_cache_bytes": 53405122,
+            "mlx_peak_bytes": 6592280992,
+            "process_compressed_lifetime_logical_bytes": 1170030592,
+            "process_compressed_logical_bytes": 1154400256,
+            "process_compressed_peak_logical_bytes": 1156562944,
+            "process_decompressions": 51038,
+            "process_footprint_bytes": 7138432904,
+            "process_id": 40706,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7138924424,
+            "process_start_abstime": 393980131112
+          }
+        }
+      ],
+      "rss_maximum_bytes": 5930254336,
+      "new_swapout_this_process_bytes": 0,
+      "cumulative_new_swapout_bytes": 524288,
+      "new_swapin_this_process_bytes": 0
+    },
+    {
+      "name": "f02-s32-pilot128-AR-3-C",
+      "position": 3,
+      "arm": "C",
+      "report_sha256": "c22a762e2ed27708d949f2664c8753a177f0f7bee987ade71dd98b355cd7fa85",
+      "inspection_sha256": "277eef18253ce8314ccd71cfc43d7e101bed9a3d38e4f8b1c67bbf034f4dd754",
+      "supervisor_sha256": "c3c54cde565bc9595654e58e5e875ea01a5d076f68a812192ccfdcde57d7567d",
+      "measured": {
+        "decode_transitions": 254,
+        "decode_seconds": 24.012641291,
+        "decode_tps": 10.577761809784741,
+        "prompt_tokens": 169,
+        "prefill_seconds": 15.846018458,
+        "prefill_tps": 10.665139665710718
+      },
+      "samples": [
+        {
+          "name": "f02-s32-pilot128-AR-3-C",
+          "position": 3,
+          "arm": "C",
+          "group": "warmup",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.684817334000002,
+          "decode_tps": 10.868804908953143,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.6650885,
+          "prefill_tps": 10.04028983662429,
+          "ttft_seconds": 8.665989041,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579498624,
+            "mlx_cache_bytes": 48773490,
+            "mlx_peak_bytes": 6592432544,
+            "process_compressed_lifetime_logical_bytes": 1271824384,
+            "process_compressed_logical_bytes": 1260847104,
+            "process_compressed_peak_logical_bytes": 1262796800,
+            "process_decompressions": 53075,
+            "process_footprint_bytes": 7132518280,
+            "process_id": 40884,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132518280,
+            "process_start_abstime": 396495253485
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-3-C",
+          "position": 3,
+          "arm": "C",
+          "group": "warmup",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 11.990895125000002,
+          "decode_tps": 10.59136942455745,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.712118417,
+          "prefill_tps": 10.632616820204097,
+          "ttft_seconds": 7.713039416,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579359360,
+            "mlx_cache_bytes": 53528476,
+            "mlx_peak_bytes": 6595412064,
+            "process_compressed_lifetime_logical_bytes": 1276887040,
+            "process_compressed_logical_bytes": 1260847104,
+            "process_compressed_peak_logical_bytes": 1262796800,
+            "process_decompressions": 54376,
+            "process_footprint_bytes": 7137826696,
+            "process_id": 40884,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7137826696,
+            "process_start_abstime": 396495253485
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-3-C",
+          "position": 3,
+          "arm": "C",
+          "group": "runs",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.743541041,
+          "decode_tps": 10.814455329666522,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.133335708,
+          "prefill_tps": 10.696718188384411,
+          "ttft_seconds": 8.133842001,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579520640,
+            "mlx_cache_bytes": 56753644,
+            "mlx_peak_bytes": 6600103300,
+            "process_compressed_lifetime_logical_bytes": 1278443520,
+            "process_compressed_logical_bytes": 1260879872,
+            "process_compressed_peak_logical_bytes": 1262796800,
+            "process_decompressions": 55046,
+            "process_footprint_bytes": 7141726088,
+            "process_id": 40884,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7141726088,
+            "process_start_abstime": 396495253485
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-3-C",
+          "position": 3,
+          "arm": "C",
+          "group": "runs",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.269100250000001,
+          "decode_tps": 10.351207294112703,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.71268275,
+          "prefill_tps": 10.63183883714133,
+          "ttft_seconds": 7.713141708,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579391616,
+            "mlx_cache_bytes": 53100524,
+            "mlx_peak_bytes": 6595403360,
+            "process_compressed_lifetime_logical_bytes": 1280016384,
+            "process_compressed_logical_bytes": 1260650496,
+            "process_compressed_peak_logical_bytes": 1262796800,
+            "process_decompressions": 56144,
+            "process_footprint_bytes": 7137810312,
+            "process_id": 40884,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7141726088,
+            "process_start_abstime": 396495253485
+          }
+        }
+      ],
+      "rss_maximum_bytes": 5774999552,
+      "new_swapout_this_process_bytes": 0,
+      "cumulative_new_swapout_bytes": 524288,
+      "new_swapin_this_process_bytes": 0
+    },
+    {
+      "name": "f02-s32-pilot128-AR-4-A",
+      "position": 4,
+      "arm": "A",
+      "report_sha256": "33e742f66ecadd80c7e6ecf0f1b6ed82990e3bee0491648550b2d1fda166328c",
+      "inspection_sha256": "fdf6a8346d8d56fcd839cd7879cfe3e733a836a6356d001b7c674b7e71a7806a",
+      "supervisor_sha256": "67054527dddb31abce52349cee39895b906aaf11b2a8486ec2345056ba8e69ce",
+      "measured": {
+        "decode_transitions": 254,
+        "decode_seconds": 25.027497415999996,
+        "decode_tps": 10.148837327923113,
+        "prompt_tokens": 169,
+        "prefill_seconds": 17.068742208,
+        "prefill_tps": 9.90113963527968
+      },
+      "samples": [
+        {
+          "name": "f02-s32-pilot128-AR-4-A",
+          "position": 4,
+          "arm": "A",
+          "group": "warmup",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 11.820764000000002,
+          "decode_tps": 10.743806407098559,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.654521083,
+          "prefill_tps": 10.052549316783495,
+          "ttft_seconds": 8.655629709,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579498624,
+            "mlx_cache_bytes": 48767426,
+            "mlx_peak_bytes": 6592442784,
+            "process_compressed_lifetime_logical_bytes": 1497579520,
+            "process_compressed_logical_bytes": 1486389248,
+            "process_compressed_peak_logical_bytes": 1488338944,
+            "process_decompressions": 65935,
+            "process_footprint_bytes": 7132272520,
+            "process_id": 41140,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132272520,
+            "process_start_abstime": 398885616551
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-4-A",
+          "position": 4,
+          "arm": "A",
+          "group": "warmup",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.369849791,
+          "decode_tps": 10.266899125355758,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.876917292,
+          "prefill_tps": 10.410163895370758,
+          "ttft_seconds": 7.878628375,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579356288,
+            "mlx_cache_bytes": 48303042,
+            "mlx_peak_bytes": 6592253344,
+            "process_compressed_lifetime_logical_bytes": 1506131968,
+            "process_compressed_logical_bytes": 1488191488,
+            "process_compressed_peak_logical_bytes": 1489977344,
+            "process_decompressions": 67450,
+            "process_footprint_bytes": 7132403616,
+            "process_id": 41140,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132403616,
+            "process_start_abstime": 398885616551
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-4-A",
+          "position": 4,
+          "arm": "A",
+          "group": "runs",
+          "prompt": "MAIN",
+          "decode_tokens": 127,
+          "decode_seconds": 12.034499624999999,
+          "decode_tps": 10.552993805922364,
+          "prompt_tokens": 87,
+          "prefill_seconds": 9.172794833,
+          "prefill_tps": 9.484568398609467,
+          "ttft_seconds": 9.173417917,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579516032,
+            "mlx_cache_bytes": 48393154,
+            "mlx_peak_bytes": 6592676768,
+            "process_compressed_lifetime_logical_bytes": 1509621760,
+            "process_compressed_logical_bytes": 1486848000,
+            "process_compressed_peak_logical_bytes": 1489977344,
+            "process_decompressions": 68944,
+            "process_footprint_bytes": 7132829600,
+            "process_id": 41140,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132829600,
+            "process_start_abstime": 398885616551
+          }
+        },
+        {
+          "name": "f02-s32-pilot128-AR-4-A",
+          "position": 4,
+          "arm": "A",
+          "group": "runs",
+          "prompt": "HOLD",
+          "decode_tokens": 127,
+          "decode_seconds": 12.992997790999999,
+          "decode_tps": 9.774495620092422,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.895947375,
+          "prefill_tps": 10.385074279956177,
+          "ttft_seconds": 7.8964733339999995,
+          "counters": {
+            "mtp_proposed_tokens": null,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "dflash_proposed_tokens": null,
+            "dflash_accepted_tokens": null,
+            "dflash_blocks": null
+          },
+          "memory": {
+            "mlx_active_bytes": 6579386496,
+            "mlx_cache_bytes": 48112578,
+            "mlx_peak_bytes": 6592292256,
+            "process_compressed_lifetime_logical_bytes": 1535770624,
+            "process_compressed_logical_bytes": 1510014976,
+            "process_compressed_peak_logical_bytes": 1511079936,
+            "process_decompressions": 70253,
+            "process_footprint_bytes": 7132600224,
+            "process_id": 41140,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7132829600,
+            "process_start_abstime": 398885616551
+          }
+        }
+      ],
+      "rss_maximum_bytes": 5524684800,
+      "new_swapout_this_process_bytes": 0,
+      "cumulative_new_swapout_bytes": 524288,
+      "new_swapin_this_process_bytes": 0
+    }
+  ],
+  "process_aggregate_ranges": {
+    "A": {
+      "decode_tps": {
+        "min": 10.148837327923113,
+        "max": 10.585675211964011
+      },
+      "prefill_tps": {
+        "min": 9.90113963527968,
+        "max": 10.546420718022345
+      }
+    },
+    "C": {
+      "decode_tps": {
+        "min": 10.577761809784741,
+        "max": 10.784553459977886
+      },
+      "prefill_tps": {
+        "min": 10.633954553223436,
+        "max": 10.665139665710718
+      }
+    }
+  },
+  "drift": {
+    "A": {
+      "first_position": 1,
+      "last_position": 4,
+      "first": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.994690458,
+        "decode_tps": 10.585675211964011,
+        "prompt_tokens": 169,
+        "prefill_seconds": 16.024393916999998,
+        "prefill_tps": 10.546420718022345
+      },
+      "last": {
+        "decode_transitions": 254,
+        "decode_seconds": 25.027497415999996,
+        "decode_tps": 10.148837327923113,
+        "prompt_tokens": 169,
+        "prefill_seconds": 17.068742208,
+        "prefill_tps": 9.90113963527968
+      },
+      "decode_difference_pct": -4.126688900743714,
+      "prefill_difference_pct": -6.118484175773209,
+      "per_prompt": {
+        "MAIN": {
+          "decode_first": 10.813826784569592,
+          "decode_last": 10.552993805922364,
+          "decode_difference_pct": -2.4120321496125197,
+          "prefill_first": 10.71105909611244,
+          "prefill_last": 9.484568398609467,
+          "prefill_difference_pct": -11.450694898585013
+        },
+        "HOLD": {
+          "decode_first": 10.366951866510963,
+          "decode_last": 9.774495620092422,
+          "decode_difference_pct": -5.714854800593705,
+          "prefill_first": 10.377188222779148,
+          "prefill_last": 10.385074279956177,
+          "prefill_difference_pct": 0.07599416149857152
+        }
+      }
+    },
+    "C": {
+      "first_position": 2,
+      "last_position": 3,
+      "first": {
+        "decode_transitions": 254,
+        "decode_seconds": 23.552203709000004,
+        "decode_tps": 10.784553459977886,
+        "prompt_tokens": 169,
+        "prefill_seconds": 15.892488457999999,
+        "prefill_tps": 10.633954553223436
+      },
+      "last": {
+        "decode_transitions": 254,
+        "decode_seconds": 24.012641291,
+        "decode_tps": 10.577761809784741,
+        "prompt_tokens": 169,
+        "prefill_seconds": 15.846018458,
+        "prefill_tps": 10.665139665710718
+      },
+      "decode_difference_pct": -1.917479949082368,
+      "prefill_difference_pct": 0.2932597871393883,
+      "per_prompt": {
+        "MAIN": {
+          "decode_first": 10.884879842739629,
+          "decode_last": 10.814455329666522,
+          "decode_difference_pct": -0.646993941050078,
+          "prefill_first": 10.618677190138017,
+          "prefill_last": 10.696718188384411,
+          "prefill_difference_pct": 0.7349408673885893
+        },
+        "HOLD": {
+          "decode_first": 10.686059611421044,
+          "decode_last": 10.351207294112703,
+          "decode_difference_pct": -3.1335434152964803,
+          "prefill_first": 10.65021159862484,
+          "prefill_last": 10.63183883714133,
+          "prefill_difference_pct": -0.1725107648178681
+        }
+      }
+    }
+  },
+  "memory": {
+    "native_footprint_max_all16_bytes": 7141726088,
+    "native_lifetime_peak_max_all16_bytes": 7141726088,
+    "rss_max_all4_bytes": 6784221184,
+    "process_compressed_logical_bytes_measured_range": [
+      749584384,
+      1510014976
+    ],
+    "note": "Compression/decompression footers rise across this sequence; correlation with timing drift is observable, causal attribution is not measured"
+  },
+  "swap": {
+    "original_absolute_anchor_bytes": 262144,
+    "final_absolute_swapout_bytes": 786432,
+    "cumulative_new_swapout_bytes": 524288,
+    "additional_during_AR_pilots_bytes": 0,
+    "cumulative_swapin_bytes": 0,
+    "allowed_new_swapout_bytes": 33554432,
+    "no_reanchor": true
+  },
+  "root_summary_agreement": true,
+  "recommendation": {
+    "AR_gain_established": false,
+    "enable_candidate": false,
+    "proceed_preplanned_MTP_DF128": true,
+    "reason": "AR is directionally positive without a detected runtime/quality/identity fault, but its3.06% difference is smaller than A endpoint drift4.13%. Complete the already registered MTP/DF pilots once because their B2 verification path is distinct and DF17 was directionally+3.50%; do not claim B2 gain from AR or micro. No replay/replacement/retest or additional variants to stabilize the result."
+  },
+  "limits": [
+    "Only2processes per arm; warmups excluded from speed aggregates",
+    "ACCA balances endpoints but cannot remove nonlinear system drift; no confidence interval or causal gain claim",
+    "A1\u2192A4 decode\u22124.13% and prefill\u22126.12%; MAIN prefill\u221211.45% retained, no dropped samples",
+    "B2 component micro was mixed (+1.01%GDN/\u22120.44%QSA), not proof of MTP/DF improvement",
+    "No native execution, build, proof, tests, or GPU launched by this independent analysis"
+  ]
+}

@@ -230,11 +230,23 @@ pub struct Exl3Linear {
     reference_accumulation: bool,
     mtp_hidden_batch: bool,
     flash_batch: bool,
+    dense_epilogue: bool,
     lane_indices: Option<Array>,
 }
 
 impl Exl3Linear {
     pub fn from_checkpoint(checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
+        let dense_epilogue = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_DENSE_EPILOGUE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_DENSE_EPILOGUE must be 0 or 1")?
+        } else {
+            false
+        };
         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
         let scale = |primary, legacy| {
             let key = format!("{prefix}.{primary}");
@@ -274,6 +286,7 @@ impl Exl3Linear {
             cb,
         )?;
         if checkpoint.model_type == "qwen4_exp" {
+            linear.dense_epilogue = dense_epilogue;
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
             // Flash keeps its reference layout; lane order was qualified on other models.
@@ -346,6 +359,7 @@ impl Exl3Linear {
             reference_accumulation: false,
             mtp_hidden_batch: false,
             flash_batch: false,
+            dense_epilogue: false,
             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
         })
     }
@@ -363,6 +377,37 @@ impl Exl3Linear {
         } else {
             split_count(input_tiles, output_tiles)
         }
+    }
+
+    fn try_dense_epilogue(
+        &self,
+        x: &Array,
+        partials: &Array,
+        rows: i32,
+        splits: i32,
+    ) -> Result<Option<Array>> {
+        if !self.dense_epilogue
+            || !self.reference_accumulation
+            || self.k != 4
+            || self.cb != Codebook::Mul1
+            || self.rows != 6144
+            || self.cols != 2560
+            || self.simdgroups != 4
+            || splits != 2
+            || !(1..=2).contains(&rows)
+            || !matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
+            || self.bias.is_some()
+        {
+            return Ok(None);
+        }
+        let Some(value) = crate::dense_epilogue::apply(partials, &self.svh, rows)? else {
+            return Ok(None);
+        };
+        let mut shape = x.shape().to_vec();
+        *shape
+            .last_mut()
+            .context("empty dense epilogue input shape")? = self.cols;
+        Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
@@ -526,6 +571,9 @@ impl Exl3Linear {
                 [self.simdgroups * 32, 1, 1],
             )?
             .remove(0);
+            if let Some(output) = self.try_dense_epilogue(x, &partials, 1, splits)? {
+                return Ok(output);
+            }
             if splits == 1 {
                 partials.reshape(&[self.cols])?
             } else {
@@ -650,6 +698,9 @@ impl Exl3Linear {
             [self.simdgroups * 32, 1, 1],
         )?
         .remove(0);
+        if let Some(output) = self.try_dense_epilogue(x, &partials, matrix_rows, splits)? {
+            return Ok(output);
+        }
         let output = if splits == 1 {
             partials.reshape(&[matrix_rows, self.cols])?
         } else {
@@ -1549,14 +1600,12 @@ fn expert_mapped_layout(
             format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {stride}\n")
         });
         #[cfg(test)]
-        if let Some(profile) = crate::flash_profile::span("expert_kernel_signature") {
-            profile.data(serde_json::json!({
-                "stable": stable_shapes,
-                "key": [group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
-                    grouped_header.as_deref().unwrap_or(&header).to_owned(),
-                    stable_source.as_deref().unwrap_or(kernel_source).to_owned()],
-            }));
-        }
+        crate::flash_profile::kernel_signature(
+            stable_shapes,
+            &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+            grouped_header.as_deref().unwrap_or(&header),
+            stable_source.as_deref().unwrap_or(kernel_source),
+        );
         Ok(array::metal_kernel(
             &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
             &["xhat", "trellis", "tile_map", "tile_sub"],
@@ -1656,6 +1705,10 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
     };
     format!("inline float mlxl3_decode_codeword(uint x,int unused_cb) {{ x &= 0xffffu; {body} }}\n")
 }
+
+#[cfg(test)]
+#[path = "linear/dense_epilogue_tests.rs"]
+mod dense_epilogue_tests;
 
 #[cfg(test)]
 mod tests {

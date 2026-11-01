@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "native/tests/disk_reader_async_proof.cpp",
+    "-I",
+    "native/ffi",
+    "--function",
+    "async_prepare_proof",
+    "--unwind",
+    "4",
+    "--unwinding-assertions",
+    "--bounds-check",
+    "--pointer-check",
+    "--signed-overflow-check",
+    "--unsigned-overflow-check"
+  ],
+  "timeout_seconds": 10,
+  "maximum_rss_kib": 524288,
+  "status": "completed",
+  "observed_peak_rss_kib": 12720,
+  "exit": 6,
+  "joined": true,
+  "elapsed_seconds": 0.11423812499560881
+}

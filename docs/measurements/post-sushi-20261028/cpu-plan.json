@@ -1,0 +1,167 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "cpu-geometry",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "--no-default-features",
+      "flash_support::flash_banked_scale_geometry_checks_shapes_and_boundaries",
+      "--",
+      "--exact"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "require_quiet": false,
+    "required_text": [
+      "1 passed; 0 failed"
+    ]
+  },
+  {
+    "name": "kani-geometry",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "banked_scale_geometry_bounds_every_shader_access"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 150,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  },
+  {
+    "name": "kani-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_banked_scale_api_matches_canonical_mlx"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 1,
+    "timeout_seconds": 120,
+    "require_quiet": false,
+    "required_text": [
+      "intrinsics.rs:243",
+      "internal compiler error"
+    ]
+  },
+  {
+    "name": "build-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "build-tests",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "mlx-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": [
+      "test result: ok."
+    ]
+  },
+  {
+    "name": "cpu-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

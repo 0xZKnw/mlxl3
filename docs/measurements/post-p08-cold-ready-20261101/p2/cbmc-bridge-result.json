@@ -1,0 +1,18 @@
+{
+  "exit_code": 6,
+  "status": "attempted_no_proof_claimed",
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "native/ffi/mlx_bridge.cpp",
+    "--function",
+    "mlxl3_disk_batch_ready",
+    "--unwinding-assertions",
+    "--bounds-check",
+    "--pointer-check",
+    "-I",
+    "native/ffi",
+    "-I",
+    "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include"
+  ],
+  "seconds": 0.144535209001333
+}

@@ -2,6 +2,8 @@
 
 #[path = "flash_cache_profile/profile53.rs"]
 mod profile53;
+#[cfg(test)]
+mod shared;
 
 fn allocate_levels(costs: &[Vec<u32>], budget: usize) -> Option<Vec<usize>> {
     let layers = costs.len();

@@ -1,0 +1,32 @@
+{
+  "copied_from": "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial",
+  "sources": {
+    "analyze-partial.py": {
+      "origin_sha256": "8d41fb27e3959d05e52b0bcf63190786b2245dc6d1c05f3c79e0dcf1ecb84456",
+      "new_sha256": "e67ae3a2f34e3f8616f27f671e648232afb82fa2274bd9f12045193afbe456af"
+    },
+    "async-analysis.py": {
+      "origin_sha256": "3cb783f2617b0b05fd897864c0d098c463cc626c67156494c84e60b60ea3713c",
+      "new_sha256": "6dcc1b830f34a14ecd007798d88966e7e452241ebaf7b7b4ea49dcf5378a7c6a"
+    },
+    "test_analysis_contracts.py": {
+      "origin_sha256": "8adac49dcf0c23516ad89837e392c71c0b4f30a8b5457d1f72166db9674ab54b",
+      "new_sha256": "8adac49dcf0c23516ad89837e392c71c0b4f30a8b5457d1f72166db9674ab54b"
+    }
+  },
+  "changes": {
+    "analyze-partial.py": {
+      "interrupted_workflow_partial_observer_biased_diagnostic_not_release": "interrupted_workflow_stagefree_partial_diagnostic_not_release",
+      "Current r2 workflow aborted at tracer join60; 0Swapout/Swapin; no control_after/final-snapshot/complete.json, full run parity false.": "Current r3 workflow interrupted by terminal-E RSS guard; 0Swapout/Swapin; no control_after/final-snapshot/complete.json; full run parity false.",
+      "OBSERVER-AUDIT01: cfg(test) stage retention can inhibit donation even in controls; results are diagnostic harness costs, not release app attribution.": "STAGES01: warmup retention true then profiled/control phases false, verified metadata; remaining observer costs prevent release equivalence."
+    },
+    "async-analysis.py": {
+      "Read-only attribution of interrupted r2; sample weights are not durations.": "Read-only attribution of interrupted stage-free r3; weights are not durations.",
+      "    (\"high\", \"time-profile.xml\", \"time-sample-100us-user-kernel.xml\"),\n    (\"standard\", \"time-profile-standard-user.xml\", \"time-sample-1000us-user.xml\"),": "    (\"standard\", \"time-profile.xml\", \"time-sample-standard.xml\"),",
+      "sampled_partial_observer_biased_diagnostic_not_release": "sampled_stagefree_partial_diagnostic_not_release",
+      "HF/LF are separate providers; never add their samples or XML references.": "Only the standard 1ms provider exists in this capture; no HF data or cross-series claim.",
+      "Interrupted workflow and cfg(test) stage retention prevent release-app performance attribution.": "Interrupted workflow and remaining profiling observer effects prevent release-app equivalence; native stage retention off metadata checked."
+    },
+    "test_analysis_contracts.py": {}
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "status": "passed_cpu_contract_checks_formal_unverified",
+  "production_engine_changed": false,
+  "model_or_gpu_executed": false,
+  "sources": {
+    "docs/measurements/post-p08-compose-20261101/benchmark-inspection.py": "e16f9814f12cb6d55360381dd5471471ede16b6d658ac6a1c42bf9d28238f136",
+    "docs/measurements/post-p08-compose-20261101/inspection_selftest.py": "2f0f9a65d41586c40f1305b3db4e9f35d4594eac690fcdbbbc3d10fc83ae6dd6",
+    ".github/workflows/rust.yml": "9097138eaed198e161a612bcb8b3d4d666922d2cffdc1e9a07275541e1ee054e"
+  },
+  "checks": {
+    "composition": {
+      "positive": 36,
+      "negative": 36,
+      "ignored": 0,
+      "receipt": "inspection-selftest-r2.json",
+      "scope": "frozen preflight without report, four arms, all positions, AR/MTP/DF, 17/128; failed inspection remains failed for flag/mode/incomplete/golden/counter/memory/identity failures"
+    },
+    "upstream": {
+      "positive": 17,
+      "negative": 72,
+      "receipt": "upstream-inspection-selftest.json"
+    },
+    "mutation": "Disposable source copy removes actual report GDN equality; wrong flag passes mutant while normal rejects. Copy auto-deleted; production unchanged.",
+    "ruff_format": "passed",
+    "ruff_strict": "passed",
+    "py_compile": "passed",
+    "yaml_parse": "passed",
+    "git_diff_check": "passed"
+  },
+  "formal": {
+    "command": "python -m crosshair check docs/measurements/post-p08-compose-20261101/benchmark-inspection.py --analysis_kind=asserts --per_condition_timeout=2",
+    "exit": 1,
+    "status": "unavailable",
+    "diagnostic": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python: No module named crosshair\n",
+    "proof": "none; no deductive or symbolic result"
+  },
+  "preserved_failure": "inspection-selftest-r1.log: exact mutation clause did not match formatted multiline assert; changed mutation to the expression and reran. Initial lint unused names/exec corrected before selftest.",
+  "ci": "Existing PR/push-main Python job now compiles/lints/runs new fixture test; YAML parsed; unpublished local code no remote run",
+  "limitations": [
+    "Synthetic tests do not validate native inference or numerical parity.",
+    "Child process/silence handling remains upstream supervisor scope; this adapter launches no process."
+  ]
+}

@@ -1,0 +1,723 @@
+{
+  "status": "passed_synthetic_selftests_not_benchmark",
+  "engine_executed": false,
+  "synthetic_fixtures": true,
+  "controller_sha256": "8d6c5ab36c58bf9a14e5ff97323d93a3ab4d87ef187e6f082955a7be08ee97bb",
+  "positive_cases": 17,
+  "negative_cases": 72,
+  "cases": [
+    {
+      "case": "positive_AR",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positive_MTP",
+      "mode": "MTP",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positive_DF",
+      "mode": "DF",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "incomplete",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "empty_text",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "wrong_hash",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "mtp_null",
+      "mode": "MTP",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "df_null",
+      "mode": "DF",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "zero_footprint",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "peak_limit",
+      "mode": "DF",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "nan_duration",
+      "mode": "MTP",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "missing_prompt",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "mtp_inactive",
+      "mode": "MTP",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "df_inactive",
+      "mode": "DF",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "supervisor_unreaped",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "f02_flag_mismatch",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "t04_not_disabled",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "positive128_AR",
+      "mode": "AR",
+      "budget": 128,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positive128_MTP",
+      "mode": "MTP",
+      "budget": 128,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positive128_DF",
+      "mode": "DF",
+      "budget": 128,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA_AR",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA_MTP",
+      "mode": "MTP",
+      "budget": 17,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA_DF",
+      "mode": "DF",
+      "budget": 17,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA128_AR",
+      "mode": "AR",
+      "budget": 128,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA128_MTP",
+      "mode": "MTP",
+      "budget": 128,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "positiveA128_DF",
+      "mode": "DF",
+      "budget": 128,
+      "arm": "A",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "t18_not_disabled",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "report_binary_hash",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "wrong_mode",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "missing_raw",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "malformed_raw",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "partial_tokens",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "partial_rows",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "late_divergence",
+      "mode": "AR",
+      "budget": 128,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "nan_prefill",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "reader_unjoined",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "report_error",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "supervisor_nonzero",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "swapout",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "swapin_limit",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "rss_limit",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "source_hash",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "binary_changed",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "old_manifest",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "old_identity",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "old_cli",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "plan_flag",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "plan_args",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "arm_flag",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "plan_order",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "unfrozen_golden",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "invalid_golden",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_incident_already_consumed",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "s32_exact_total",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "s32_exact_per_process",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "s32_swapin_exact_total",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "explicit_zero",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": false,
+      "status": "passed_external_oracle_mode_and_memory_not_gain"
+    },
+    {
+      "case": "s32_total_plus_one",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_maximum_plus_one",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_process_plus_one",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_process_delta_mismatch",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_counter_reset",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_before_origin",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_sample_reset",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_negative_delta",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_boolean_delta",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_boolean_maximum",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_boolean_before",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_float_after",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_swapin_total_plus_one",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_swapin_maximum_plus_one",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_swapin_negative",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_missing_before",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_missing_after",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_invalid_budget_-1",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_invalid_budget_1",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_invalid_budget_33554433",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_invalid_budget_True",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_invalid_budget_33554432.0",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_disagreement",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_missing_identity_budget",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_missing_anchor_sha",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_anchor_disagreement",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_unfrozen_anchor",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_anchor_wrong_sha",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_reanchored_baseline",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_unfrozen_amendment",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_amendment_wrong_origin",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    },
+    {
+      "case": "s32_amendment_reanchor",
+      "mode": "AR",
+      "budget": 17,
+      "arm": "C",
+      "expected_rejection": true,
+      "status": "failed_external_inspection"
+    }
+  ],
+  "journaling": "temporary cwd only; fixtures removed"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "name": "restored-final-build-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 300,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "restored-final-mlx-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 300,
+    "require_quiet": false,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

@@ -1,0 +1,113 @@
+[
+  {
+    "name": "router-kani-domain",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_top10_simd_domain_bounds_all_shader_indices"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  },
+  {
+    "name": "router-kani-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_top10_matches_legacy"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 1,
+    "timeout_seconds": 120,
+    "require_quiet": false,
+    "required_text": [
+      "intrinsics.rs:243",
+      "internal compiler error"
+    ]
+  },
+  {
+    "name": "router-build-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "router-build-tests",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 240,
+    "require_quiet": false,
+    "required_text": []
+  },
+  {
+    "name": "router-mlx-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 300,
+    "require_quiet": false,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

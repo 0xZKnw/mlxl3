@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "cold-pilot128-MTP-1-A",
+  "phase": "pilot128",
+  "mode": "MTP",
+  "arm": "A",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-1-A/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 10.934760083,
+      "decode_tps": 11.614338040890695,
+      "prefill_tps": 9.636445969070499,
+      "prefill_seconds": 9.02822475,
+      "ttft_seconds": 9.978516,
+      "counters": {
+        "mtp": {
+          "proposed": 72,
+          "accepted": 54,
+          "blocks": 72
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7771494880,
+      "lifetime_peak_bytes": 7862000096
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 11.523489042000001,
+      "decode_tps": 11.020967654598303,
+      "prefill_tps": 10.584453801493718,
+      "prefill_seconds": 7.747211291,
+      "ttft_seconds": 7.7480681250000005,
+      "counters": {
+        "mtp": {
+          "proposed": 78,
+          "accepted": 48,
+          "blocks": 78
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7774919136,
+      "lifetime_peak_bytes": 7862147552
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.117863042,
+      "decode_tps": 11.423058506857977,
+      "prefill_tps": 10.09517682466483,
+      "prefill_seconds": 8.617976833,
+      "ttft_seconds": 8.618515209,
+      "counters": {
+        "mtp": {
+          "proposed": 72,
+          "accepted": 54,
+          "blocks": 72
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7774853600,
+      "lifetime_peak_bytes": 7865342432
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 11.295060291,
+      "decode_tps": 11.243853217958888,
+      "prefill_tps": 9.920353024230963,
+      "prefill_seconds": 8.265834875,
+      "ttft_seconds": 8.266391625999999,
+      "counters": {
+        "mtp": {
+          "proposed": 78,
+          "accepted": 48,
+          "blocks": 78
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7774804424,
+      "lifetime_peak_bytes": 7865342432
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/anchor-gpu1.json",
+  "swap_anchor_sha256": "9fdf6028af0a9f59b2af1e06198bc3f18ce01aed0d3932b21a6992c333272294",
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 75267129344,
+    "Swapins": 31404785664
+  },
+  "report_sha256": "03154e5b7dc7795bd405babd292b0554b9251638036cf2e4374474d9c41d10ca",
+  "cumulative_swapouts_before_bytes": 196608,
+  "cumulative_swapouts_after_bytes": 196608,
+  "maximum_cumulative_swapouts_bytes": 196608,
+  "cumulative_swapins_before_bytes": 240271360,
+  "cumulative_swapins_after_bytes": 241123328,
+  "maximum_cumulative_swapins_bytes": 241123328,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-1-A-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

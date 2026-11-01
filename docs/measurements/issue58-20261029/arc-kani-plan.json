@@ -1,0 +1,23 @@
+[
+  {
+    "name": "arc-kani",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "arc_two_symbolic_batches_preserve_capacity_and_protected_membership"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]

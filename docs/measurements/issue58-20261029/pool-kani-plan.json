@@ -1,0 +1,23 @@
+[
+  {
+    "name": "pool-kani",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "pooled_reservations_keep_batch_slots_distinct_and_bounded"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 150,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]

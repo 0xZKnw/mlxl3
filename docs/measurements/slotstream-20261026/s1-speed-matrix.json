@@ -1,0 +1,110 @@
+[
+  {
+    "name": "s1-speed-0-H",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import runpy,sys; from pathlib import Path; runpy.run_path('scripts/benchmark-flash-bridge.py')['run'](Path(sys.argv[1]),Path(sys.argv[2]),Path(sys.argv[3]),tokens=128,repeats=3,cache_gib=3,dflash_draft=Path(sys.argv[4]),timeout=180)",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-engine",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "docs/measurements/slotstream-20261026/s1-speed-0-H",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_PLE_DECODED": "0"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "s1-speed-1-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import runpy,sys; from pathlib import Path; runpy.run_path('scripts/benchmark-flash-bridge.py')['run'](Path(sys.argv[1]),Path(sys.argv[2]),Path(sys.argv[3]),tokens=128,repeats=3,cache_gib=3,dflash_draft=Path(sys.argv[4]),timeout=180)",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-engine",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "docs/measurements/slotstream-20261026/s1-speed-1-C",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_PLE_DECODED": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "s1-speed-2-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import runpy,sys; from pathlib import Path; runpy.run_path('scripts/benchmark-flash-bridge.py')['run'](Path(sys.argv[1]),Path(sys.argv[2]),Path(sys.argv[3]),tokens=128,repeats=3,cache_gib=3,dflash_draft=Path(sys.argv[4]),timeout=180)",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-engine",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "docs/measurements/slotstream-20261026/s1-speed-2-C",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_PLE_DECODED": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "s1-speed-3-H",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import runpy,sys; from pathlib import Path; runpy.run_path('scripts/benchmark-flash-bridge.py')['run'](Path(sys.argv[1]),Path(sys.argv[2]),Path(sys.argv[3]),tokens=128,repeats=3,cache_gib=3,dflash_draft=Path(sys.argv[4]),timeout=180)",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-engine",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "docs/measurements/slotstream-20261026/s1-speed-3-H",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_PLE_DECODED": "0"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  }
+]

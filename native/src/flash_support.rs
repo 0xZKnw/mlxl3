@@ -1,6 +1,8 @@
 //! CPU contracts for Flash Next's disk rows and exact expert cache.
 use anyhow::Result;
 
+pub const PREFILL_CHUNK: usize = 8;
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(14)]

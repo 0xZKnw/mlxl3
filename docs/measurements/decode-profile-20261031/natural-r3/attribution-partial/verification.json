@@ -1,0 +1,84 @@
+{
+  "status": "passed_sampled_and_finite_checks_not_formal_proof",
+  "commands": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "3 files left unchanged\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "All checks passed!\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "3 files already formatted\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py"
+      ],
+      "exit": 0,
+      "output": "..........                                                               [100%]\n10 passed in 0.12s\n"
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py",
+        "--self-check"
+      ],
+      "exit": 0,
+      "output": "3375 union +3375 intersection finite lattice checks; 3 invalid interval cases; valid XML references and5 corrupt/empty XML cases passed\n"
+    }
+  ],
+  "crosshair": "Prior same-venv absence explicitly reused unchanged; no install and no formal proof claim.",
+  "negative_bytecount_control": "R2 same numerical parser/calibration guards rejected1248013bytes; no new arithmetic changed, only status/provider/file adaptation.",
+  "source_sha256": {
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/analyze-partial.py": "e67ae3a2f34e3f8616f27f671e648232afb82fa2274bd9f12045193afbe456af",
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/async-analysis.py": "6dcc1b830f34a14ecd007798d88966e7e452241ebaf7b7b4ea49dcf5378a7c6a",
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/test_analysis_contracts.py": "8adac49dcf0c23516ad89837e392c71c0b4f30a8b5457d1f72166db9674ab54b"
+  }
+}

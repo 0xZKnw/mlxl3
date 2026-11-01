@@ -1489,7 +1489,7 @@ impl NativeChatModel {
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
             Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
             Self::Qwen(_) => 256,
-            Self::Flash(_) => 8,
+            Self::Flash(_) => mlxl3_native::flash_support::PREFILL_CHUNK,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,
         }

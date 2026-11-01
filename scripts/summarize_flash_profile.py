@@ -6,6 +6,8 @@ import json
 import math
 import runpy
 import sys
+from collections import Counter
+from itertools import pairwise
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,12 +16,16 @@ API = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
 
 def clocks(events, summary, part, stats):
     roots = [e for e in events if e["parent"] is None]
-    assert len(roots) == 1 and roots[0]["name"] == part
-    duration = roots[0]["end_ns"] - roots[0]["start_ns"]
+    assert roots and roots[0]["name"] == part
+    assert all(part == "prefill" and r["name"] == "host_readback" for r in roots[1:])
+    assert all(a["end_ns"] <= b["start_ns"] for a, b in pairwise(roots))
+    duration = roots[-1]["end_ns"] - roots[0]["start_ns"]
     wall = summary[part + "_seconds"]
     assert type(wall) in (float, int) and math.isfinite(wall) and wall > 0
     assert abs(duration / 1e9 - wall) <= max(0.02, wall * 0.01), "trace/wall clock mismatch"
-    assert sum(c["host_self_ns"]["total"] for c in stats["components"]) == duration
+    assert sum(c["host_self_ns"]["total"] for c in stats["components"]) == sum(
+        r["end_ns"] - r["start_ns"] for r in roots
+    )
     return duration
 
 
@@ -54,6 +60,12 @@ def output_steps(events, summary):
                 "proposal_spans": 0,
                 "verify_spans": 0,
                 "commit_spans": 0,
+                "draft_ns": 0,
+                "draft_verify_ns": 0,
+                "draft_commit_ns": 0,
+                "draft_proposal_spans": 0,
+                "draft_verify_spans": 0,
+                "draft_commit_spans": 0,
             }
         steps.append(step)
         layers.append(layer)
@@ -66,6 +78,9 @@ def output_steps(events, summary):
             "verify_pair": ("verify_pair_ns", "verify_spans"),
             "commit_pair": ("commit_pair_ns", "commit_spans"),
             "mtp_head_cache_extend": ("head_cache_extend_ns", None),
+            "dflash_proposal_inclusive": ("draft_ns", "draft_proposal_spans"),
+            "dflash_verification_inclusive": ("draft_verify_ns", "draft_verify_spans"),
+            "dflash_commit_cache_build": ("draft_commit_ns", "draft_commit_spans"),
         }
         if name in names:
             field, count = names[name]
@@ -96,8 +111,41 @@ def output_steps(events, summary):
         assert type(proposed) is int and type(accepted) is int
         assert accepted in (0, 1) and accepted <= proposed
         delta = row["offset"] - offset
-        assert delta in (0, 1, 2)
-        if proposed:
+        assert 0 <= delta <= 8
+        dflash = summary.get("dflash", False)
+        draft = row.pop("dflash", None)
+        if dflash:
+            assert not summary["mtp"] and not proposed and not accepted
+            assert isinstance(draft, dict)
+            for key in (
+                "proposed",
+                "accepted",
+                "blocks",
+                "verified_rows",
+                "drafted_rows",
+                "expert_demand_bytes",
+            ):
+                API["integer"](draft[key])
+            assert 0 <= draft["accepted"] <= draft["proposed"] <= 7
+            assert draft["blocks"] == int(draft["proposed"] > 0)
+            if draft["blocks"]:
+                assert delta == draft["accepted"] + 1
+                target_rows = draft["verified_rows"]
+                assert target_rows == draft["proposed"] + 1 <= draft["drafted_rows"] <= 8
+                label = (
+                    "draft_accepted" if draft["accepted"] == draft["proposed"] else "draft_rejected"
+                )
+            else:
+                assert delta in (0, 1) and draft["verified_rows"] == draft["drafted_rows"] == 0
+                label, target_rows = ("queued" if delta == 0 else "fallback"), delta
+            assert (
+                row["draft_proposal_spans"]
+                == row["draft_verify_spans"]
+                == row["draft_commit_spans"]
+                == draft["blocks"]
+            )
+            assert draft["expert_demand_bytes"] == row["returned_bytes"]
+        elif proposed:
             assert summary["mtp"] and delta == 1 + accepted
             label, target_rows = ("accepted" if accepted else "rejected"), 2
         elif delta == 0:
@@ -112,13 +160,39 @@ def output_steps(events, summary):
         assert row["target_moe_calls"] == (48 if target_rows else 0)
         assert row["hits"] + row["misses"] == 480 * target_rows
         assert row["returned_bytes"] == row["ssd_jobs"] * API["EXPERT_BYTES"]
-        row.update(classification=label, offset_before=offset, target_rows=target_rows)
+        if "target_rows" in row:
+            assert row["target_rows"] == delta, "native target_rows denotes committed rows"
+        row.update(
+            classification=label,
+            offset_before=offset,
+            committed_rows=delta,
+            target_rows=target_rows,
+        )
+        row.update(
+            {
+                "draft_" + key: (draft[key] if draft else 0)
+                for key in (
+                    "proposed",
+                    "accepted",
+                    "blocks",
+                    "verified_rows",
+                    "drafted_rows",
+                    "expert_demand_bytes",
+                )
+            }
+        )
         offset = row["offset"]
     assert offset == len(summary["prompt_ids"]) + len(result)
     assert (
         sum(r["mtp_proposed"] for r in result) == summary["mtp_proposed"] == summary["mtp_blocks"]
     )
     assert sum(r["mtp_accepted"] for r in result) == summary["mtp_accepted"]
+    if summary.get("dflash"):
+        assert [
+            sum(r["draft_" + key] for r in result) for key in ("proposed", "accepted", "blocks")
+        ] == summary["dflash_stats"][:3]
+        for key in ("verified_rows", "drafted_rows", "expert_demand_bytes"):
+            assert sum(r["draft_" + key] for r in result) == summary["dflash_profile"][key]
     return result, stats
 
 
@@ -137,38 +211,50 @@ def load_json(path):
         return json.load(stream)
 
 
-def summarize(base, output):
+def summarize(base, output, matrix=None):
     import numpy as np
 
     assert base.is_dir() and not output.exists(), "refusing missing input or overwritten export"
     output.mkdir()
     status = {"status": "incomplete", "parity": False, "cases": [], "events": 0, "disk_jobs": 0}
     phase_rows, components, layer_rows, worker_rows, step_rows, system_rows = [], [], [], [], [], []
+    readback_rows, signature_rows, request_rows = [], [], []
     (output / "result.json").write_text(json.dumps(status, indent=2) + "\n")
     try:
-        for directory in sorted(base.glob("*/profile")):
+        directories = (
+            sorted(base.glob("*/profile"))
+            if matrix is None
+            else [Path(c["output"]) for c in matrix["cases"]]
+        )
+        assert len(directories) == len(set(directories)), "duplicate profile directory"
+        for directory in directories:
             result_path = directory.parent / "dataset-result.json"
             if not result_path.exists() or not json.loads(result_path.read_text()).get("parity"):
+                assert matrix is None, f"missing/unvalidated case: {directory}"
                 continue
             complete = load_json(directory / "complete.json")
             kind, prompt = complete["kind"], complete["prompt"]
-            mode = "MTP" if complete["mtp"] else "OFF"
+            mode = "DFLASH2" if complete.get("dflash") else ("MTP" if complete["mtp"] else "OFF")
             cache = json.loads((directory.parent / "run.json").read_text())[0]["env"][
                 "MLXL3_SSD_CACHE_GIB"
             ]
             meta = {
-                "case": directory.parent.name,
+                "case": str(directory.parent.relative_to(base)),
                 "kind": kind,
                 "mode": mode,
                 "prompt": prompt,
                 "cache_gib": int(cache),
             }
-            golden = load_json(
-                ROOT
-                / f"docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/confirmation/reference128-{prompt}.json"
+            golden = (
+                load_json(directory.parent / "golden.json")
+                if matrix is not None
+                else load_json(
+                    ROOT
+                    / f"docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/confirmation/reference128-{prompt}.json"
+                )
             )
             for summary in complete["summaries"]:
-                vm = API["validate_summary"](summary, kind, golden)
+                vm = API["validate_summary"](summary, kind, golden, golden.get("tokens"))
                 phase = summary["phase"]
                 times = summary["mtp_head_verify_repair_total_seconds"]
                 assert len(times) == 4 and all(
@@ -203,6 +289,17 @@ def summarize(base, output):
                         "head_seconds": summary["mtp_head_verify_repair_total_seconds"][0],
                         "verify_seconds": summary["mtp_head_verify_repair_total_seconds"][1],
                         "repair_seconds": summary["mtp_head_verify_repair_total_seconds"][2],
+                        **{
+                            "draft_" + k: (summary.get("dflash_profile") or {}).get(k, 0)
+                            for k in (
+                                "draft_seconds",
+                                "verification_seconds",
+                                "commit_cache_seconds",
+                                "verified_rows",
+                                "drafted_rows",
+                                "expert_demand_bytes",
+                            )
+                        },
                         "footprint_after_bytes": summary["after"]["memory"][
                             "process_footprint_bytes"
                         ],
@@ -233,6 +330,33 @@ def summarize(base, output):
                     del events
                     status["events"] += stats["event_count"]
                     status["disk_jobs"] += len(stats["disk_jobs"])
+                    readback_rows.extend(
+                        {
+                            **meta,
+                            "phase": phase,
+                            "part": part,
+                            **sample,
+                            "shape": json.dumps(sample["shape"]),
+                        }
+                        for sample in stats["readbacks"]
+                    )
+                    signature_rows.extend(
+                        {**meta, "phase": phase, "part": part, **signature}
+                        for signature in stats["kernel_signatures"]
+                    )
+                    request_rows.extend(
+                        {
+                            **meta,
+                            "phase": phase,
+                            "part": part,
+                            "layer": layer,
+                            "signature": signature,
+                            "requests": count,
+                        }
+                        for (layer, signature), count in Counter(
+                            (r["layer"], r["signature"]) for r in stats["kernel_requests"]
+                        ).items()
+                    )
                     for component in stats["components"]:
                         components.append(
                             {
@@ -312,15 +436,18 @@ def summarize(base, output):
                     )
             status["cases"].append(meta)
             (output / "result.json").write_text(json.dumps(status, indent=2) + "\n")
-        assert len([c for c in status["cases"] if c["kind"] == "natural"]) == 4
-        assert len([c for c in status["cases"] if c["kind"] == "fenced"]) == 4
-        expected = {(mode, prompt, 3) for mode in ("OFF", "MTP") for prompt in ("MAIN", "HOLD")}
-        for kind in ("natural", "fenced"):
-            assert {
-                (c["mode"], c["prompt"], c["cache_gib"])
-                for c in status["cases"]
-                if c["kind"] == kind
-            } == expected
+        if matrix is None:
+            assert len([c for c in status["cases"] if c["kind"] == "natural"]) == 4
+            assert len([c for c in status["cases"] if c["kind"] == "fenced"]) == 4
+            expected = {(mode, prompt, 3) for mode in ("OFF", "MTP") for prompt in ("MAIN", "HOLD")}
+            for kind in ("natural", "fenced"):
+                assert {
+                    (c["mode"], c["prompt"], c["cache_gib"])
+                    for c in status["cases"]
+                    if c["kind"] == kind
+                } == expected
+        else:
+            assert directories and len(status["cases"]) == len(directories)
         for path in sorted(base.glob("*/system-samples.json")):
             samples = load_json(path)
             for sample in samples["samples"]:
@@ -345,11 +472,17 @@ def summarize(base, output):
             ("workers", worker_rows),
             ("output-steps", step_rows),
             ("system-timeline", system_rows),
+            ("readbacks", readback_rows),
+            ("kernel-signatures", signature_rows),
+            ("kernel-requests", request_rows),
         ]:
-            write_csv(output / (name + ".csv"), rows)
+            if rows or (
+                matrix is None and name not in ("readbacks", "kernel-signatures", "kernel-requests")
+            ):
+                write_csv(output / (name + ".csv"), rows)
         acceptance = []
         for meta in status["cases"]:
-            if meta["kind"] != "natural" or meta["mode"] != "MTP":
+            if meta["kind"] != "natural" or meta["mode"] not in ("MTP", "DFLASH2"):
                 continue
             for phase in ["trace_1", "trace_2", "trace_3"]:
                 selected = [
@@ -363,14 +496,20 @@ def summarize(base, output):
                             "phase": phase,
                             "decode_step_start": start,
                             "decode_step_end": end,
-                            "proposed": sum(r["mtp_proposed"] for r in segment),
-                            "accepted": sum(r["mtp_accepted"] for r in segment),
+                            "proposed": sum(
+                                r["mtp_proposed"] + r["draft_proposed"] for r in segment
+                            ),
+                            "accepted": sum(
+                                r["mtp_accepted"] + r["draft_accepted"] for r in segment
+                            ),
                             "queued_outputs": sum(r["classification"] == "queued" for r in segment),
                             "step_wall_seconds": sum(r["seconds"] for r in segment),
                             "verify_pair_ns": sum(r["verify_pair_ns"] for r in segment),
+                            "draft_verify_ns": sum(r["draft_verify_ns"] for r in segment),
                         }
                     )
-        write_csv(output / "acceptance-by-position.csv", acceptance)
+        if acceptance or matrix is None:
+            write_csv(output / "acceptance-by-position.csv", acceptance)
         status.update(
             status="validated_exports_observational",
             parity=True,
@@ -380,7 +519,11 @@ def summarize(base, output):
             worker_rows=len(worker_rows),
             output_step_rows=len(step_rows),
             system_rows=len(system_rows),
-            limits="host wall/completion intervals, not exclusive GPU; global system counters; fenced33 and natural128 separated; six-GiB lot incomplete",
+            readback_rows=len(readback_rows),
+            kernel_request_count=sum(r["requests"] for r in request_rows),
+            limits="host wall/completion intervals, not exclusive GPU; kernel requests construct lazy graphs, not dispatch counts; global system counters; lengths and fenced/natural families separated; only manifest cases validated"
+            if matrix is not None
+            else "host wall/completion intervals, not exclusive GPU; global system counters; fenced33 and natural128 separated; six-GiB lot incomplete",
         )
     except BaseException as error:
         status.update(status="failed_or_interrupted", parity=False, error=repr(error))
@@ -391,4 +534,13 @@ def summarize(base, output):
 
 
 if __name__ == "__main__":
-    print(json.dumps(summarize(Path(sys.argv[1]), Path(sys.argv[2])), indent=2))
+    print(
+        json.dumps(
+            summarize(
+                Path(sys.argv[1]),
+                Path(sys.argv[2]),
+                json.loads(Path(sys.argv[3]).read_text()) if len(sys.argv) > 3 else None,
+            ),
+            indent=2,
+        )
+    )

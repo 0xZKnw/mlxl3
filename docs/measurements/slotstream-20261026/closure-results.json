@@ -1,0 +1,58 @@
+{
+  "status": "closed_on_user_request",
+  "experiments": {
+    "S1_PLE": {
+      "decision": "rejected_no_qualified_gain",
+      "speed_MAIN_percent": 0.729294214563514,
+      "speed_HOLD_percent": -0.5214428000242299,
+      "runtime": "removed"
+    },
+    "S2_prefill": {
+      "decision": "closed_unqualified",
+      "quality": "passed_on_prototype",
+      "speed": "not_measured",
+      "runtime": "removed"
+    },
+    "S3_prompt_checkpoint": {
+      "decision": "closed_unqualified",
+      "quality": "old_E_numeric_and_real_bridge_reuse_passed",
+      "budgeted_revision": "clippy_only_not_runtime_verified",
+      "speed": "not_measured",
+      "runtime": "removed"
+    },
+    "S4_HC": {
+      "decision": "closed_non_conclusive_after_corrected_port",
+      "old_late_pipeline_vs_nofetch_percent": [
+        -13.613744996547394,
+        -14.005087762949165
+      ],
+      "attribution": "not_HC_alone",
+      "corrected_port_quality": "passed_full_logits_states_36_commits_64000captures_bridge",
+      "corrected_port_speed": "invalid_15_to_20_percent_baseline_range_and_concurrent_build",
+      "learned_corrector": "not_implemented_or_trained",
+      "runtime": "removed"
+    },
+    "S5_OFF": {
+      "decision": "closed_unqualified",
+      "quality": "passed_forced_OFF_and_bridge",
+      "speed": "not_measured",
+      "runtime": "removed"
+    },
+    "supervisor": {
+      "decision": "retain_tested_cleanup_race_fix_and_opt_in_contention_guard",
+      "tests": 16,
+      "full_python_suite_before_withdrawal": 982,
+      "crosshair": "not_available_not_verified"
+    }
+  },
+  "open_gpu_processes": "none_in_postflight",
+  "new_task": "inspect_latest_github_issue_0xZKnw/mlxl3",
+  "final_checks": {
+    "python_flash_suite": "974 passed in 41.26s",
+    "dedicated_supervisor_tests": 16,
+    "ruff": "passed",
+    "rustfmt": "passed_no_final_rust_diff",
+    "git_diff_check": "passed",
+    "new_github_ci_run": "not_run_no_push"
+  }
+}

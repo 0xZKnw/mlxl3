@@ -1,0 +1,35 @@
+[
+  {
+    "name": "s4e-engine",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "exit_code": 0,
+    "seconds": 34.55439383300836
+  },
+  {
+    "name": "s4e-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--bin",
+      "mlxl3-rs",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "exit_code": 0,
+    "seconds": 52.32945079199271
+  }
+]

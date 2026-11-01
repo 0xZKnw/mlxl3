@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--no-default-features",
+    "--harness",
+    "flash_profile::stage_retention_restores_symbolic_nested_scopes",
+    "--jobs",
+    "1"
+  ],
+  "timeout_seconds": 180,
+  "status": "completed",
+  "proof_scope": "two symbolic booleans, actual TLS RAII constructor/drop, unwind33; no thread-interleaving or MLX claim",
+  "exit_code": 0,
+  "seconds": 2.618232125,
+  "reaped": true
+}

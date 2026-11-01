@@ -1,0 +1,14 @@
+[
+  {
+    "name": "t18a-final-mlx-suite",
+    "command": ["/Users/justin/.cargo/bin/cargo", "test", "--locked", "--release", "--features", "mlx,chat", "--", "--test-threads=1"],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 900,
+    "required_text": ["test result: ok."]
+  }
+]

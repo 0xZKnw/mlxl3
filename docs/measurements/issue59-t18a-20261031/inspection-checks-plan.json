@@ -1,0 +1,62 @@
+[
+  {
+    "name": "t18a-inspection-ruff",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/benchmark-inspection.py",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/inspection_selftest.py"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  },
+  {
+    "name": "t18a-inspection-format",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/benchmark-inspection.py",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/inspection_selftest.py"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  },
+  {
+    "name": "t18a-inspection-compile",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "py_compile",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/benchmark-inspection.py",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/inspection_selftest.py"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  },
+  {
+    "name": "t18a-inspection-selftests",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t18a-20261031/inspection_selftest.py"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 120,
+    "required_text": []
+  }
+]

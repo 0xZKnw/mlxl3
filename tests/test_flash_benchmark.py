@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -327,3 +328,91 @@ def test_dflash_rejects_invalid_modes_before_starting_a_child(tmp_path, options)
     with pytest.raises(ValueError):
         bench.run(tmp_path, tmp_path, tmp_path, dflash_draft=tmp_path, **options)
     assert not (tmp_path / "report.json").exists()
+
+
+def silent_cli_engine(tmp_path):
+    pid_path = tmp_path / "synthetic-child.pid"
+    engine = tmp_path / "silent-fixture-bridge"
+    engine.write_text(
+        f"#!{sys.executable}\nimport os, sys, time\n"
+        f"open({str(pid_path)!r}, 'w').write(str(os.getpid()))\n"
+        'print(\'{"type":"ready"}\', flush=True)\n'
+        "for line in sys.stdin:\n    time.sleep(30)\n"
+    )
+    engine.chmod(0o700)
+    return engine, pid_path
+
+
+def test_cli_timeout_reaches_real_runner_and_joins_silent_bridge(tmp_path):
+    engine, pid_path = silent_cli_engine(tmp_path)
+    output = tmp_path / "timed-out"
+    with subprocess.Popen(
+        [
+            sys.executable,
+            spec.origin,
+            str(engine),
+            str(tmp_path),
+            str(output),
+            "--cache-gib",
+            "3",
+            "--tokens",
+            "17",
+            "--repeats",
+            "1",
+            "--timeout",
+            "0.2",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    ) as child:
+        try:
+            _, stderr = child.communicate(timeout=5)
+            assert child.returncode == 1 and "bridge deadline:" in stderr
+            report = json.loads((output / "report.json").read_text())
+            assert report["status"] == "failed" and "TimeoutError" in report["error"]
+            assert report["reaped"] is True and report["reader_joined"] is True
+            assert not report["warmup"] and not report["runs"] and "median_decode_tps" not in report
+            if pid_path.exists():
+                with pytest.raises(ProcessLookupError):
+                    os.kill(int(pid_path.read_text()), 0)
+            with pytest.raises(ProcessLookupError):
+                os.killpg(child.pid, 0)
+        finally:
+            try:
+                os.killpg(child.pid, 9)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=5)
+
+
+@pytest.mark.parametrize("timeout", ["0", "nan", "inf"])
+def test_cli_invalid_timeout_is_rejected_before_spawn(tmp_path, timeout):
+    engine, pid_path = silent_cli_engine(tmp_path)
+    output = tmp_path / "invalid-timeout"
+    with subprocess.Popen(
+        [
+            sys.executable,
+            spec.origin,
+            str(engine),
+            str(tmp_path),
+            str(output),
+            "--timeout",
+            timeout,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    ) as child:
+        try:
+            _, stderr = child.communicate(timeout=5)
+            assert child.returncode == 1 and "finite timeout > 0 required" in stderr
+            assert not pid_path.exists() and not output.exists()
+        finally:
+            try:
+                os.killpg(child.pid, 9)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=5)

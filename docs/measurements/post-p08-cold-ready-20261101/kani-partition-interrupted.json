@@ -1,0 +1,33 @@
+{
+  "status": "interrupted_for_memory_pressure_not_verified",
+  "command": "PATH=/Users/justin/.kani/kani-0.68.0/bin:/Users/justin/.cargo/bin:$PATH CARGO_BUILD_JOBS=1 cargo kani --lib --no-default-features --harness cold_partition_preserves_symbolic_occurrences_and_stable_order --jobs 1",
+  "input_bound": {
+    "cold_occurrences": 6,
+    "ready_slots": 6,
+    "usize_u32_values": "unrestricted",
+    "unwind": 8
+  },
+  "solver_pid": 2584,
+  "parent_pids": [
+    2434,
+    2435
+  ],
+  "last_solver_elapsed_seconds": 325,
+  "last_cargo_elapsed_seconds": 327,
+  "intended_wall_limit_seconds": 300,
+  "last_solver_rss_kib": 5370896,
+  "last_solver_cpu_percent": 63.7,
+  "signal": 15,
+  "session_exit_code": 1,
+  "joined": true,
+  "owned_pids_absent_after_join": true,
+  "assertion_verdicts_available": false,
+  "cover_verdicts_available": false,
+  "verified_harnesses": 0,
+  "vccs_before_simplification": 17813,
+  "vccs_after_simplification": 5927,
+  "peak_rss_measured": false,
+  "per_process_swap_measured": false,
+  "exact_swap_attribution": "not_measured",
+  "retry": false
+}

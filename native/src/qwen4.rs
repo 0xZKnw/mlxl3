@@ -32,6 +32,10 @@ const EOS: u32 = 248044;
 #[path = "flash_draft.rs"]
 mod draft;
 
+#[cfg(test)]
+#[path = "qwen4/prepared_conv_tests.rs"]
+mod prepared_conv_tests;
+
 /// Inclusive host timings; verification includes its existing GPU completion waits.
 #[cfg(feature = "chat")]
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
@@ -182,16 +186,35 @@ struct Gdn {
     b: Projection,
     out: Projection,
     conv: Array,
+    prepared_conv: Option<Array>,
     a_log: Array,
     dt_bias: Array,
     norm: Norm,
+    gdn_epilogue: bool,
     state: Option<Array>,
     history: Option<Array>,
 }
 impl Gdn {
     fn load(c: &Checkpoint, p: &str, eps: f32) -> Result<Self> {
+        let prepared_conv_enabled = match std::env::var("MLXL3_FLASH_PREPARED_CONV") {
+            Ok(value) if value == "0" => false,
+            Ok(value) if value == "1" => true,
+            Err(std::env::VarError::NotPresent) => false,
+            _ => anyhow::bail!("MLXL3_FLASH_PREPARED_CONV must be 0 or 1"),
+        };
+        let gdn_epilogue = match std::env::var("MLXL3_FLASH_GDN_EPILOGUE") {
+            Ok(value) if value == "0" => false,
+            Ok(value) if value == "1" => true,
+            Err(std::env::VarError::NotPresent) => false,
+            _ => anyhow::bail!("MLXL3_FLASH_GDN_EPILOGUE must be 0 or 1"),
+        };
         let proj =
             |name: &str, output| Projection::load(c, &format!("{p}.{name}"), H, output, false);
+        let conv = half_weight(c, &format!("{p}.conv1d.weight"), Some(&[10240, 1, 4]))?
+            .transpose(&[0, 2, 1])?;
+        let prepared_conv = prepared_conv_enabled
+            .then(|| Self::prepare_conv(&conv))
+            .transpose()?;
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
@@ -200,14 +223,21 @@ impl Gdn {
             a: proj("in_proj_a", 48)?,
             b: proj("in_proj_b", 48)?,
             out: Projection::load(c, &format!("{p}.out_proj"), 6144, H, false)?,
-            conv: half_weight(c, &format!("{p}.conv1d.weight"), Some(&[10240, 1, 4]))?
-                .transpose(&[0, 2, 1])?,
+            conv,
+            prepared_conv,
             a_log: checkpoint_array(c, &format!("{p}.A_log"))?.astype(Dtype::Float32)?,
             dt_bias: half_weight(c, &format!("{p}.dt_bias"), Some(&[48]))?,
             norm: Norm::load(c, &format!("{p}.norm.weight"), 128, 1, eps, false)?,
+            gdn_epilogue,
             state: None,
             history: None,
         })
+    }
+    fn prepare_conv(conv: &Array) -> Result<Array> {
+        // Preserve half_weight's F16 rounding before preparing the immutable coefficient.
+        let prepared = conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?;
+        prepared.eval()?;
+        Ok(prepared)
     }
     fn forward(&mut self, x: &Array) -> Result<Array> {
         #[cfg(test)]
@@ -219,7 +249,9 @@ impl Gdn {
                 #[cfg(test)]
                 {
                     crate::flash_profile::stage($name, &$value)?;
-                    self.stages.push(($name.into(), $value.try_clone()?));
+                    if crate::flash_profile::retain_test_stages() {
+                        self.stages.push(($name.into(), $value.try_clone()?));
+                    }
                 }
             };
         }
@@ -264,14 +296,23 @@ impl Gdn {
         stage!("z", z);
         let normed = self.norm.forward(&value)?;
         stage!("normed", normed);
-        let gated = normed
-            .astype(Dtype::Float32)?
-            .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
-            .astype(Dtype::Float16)?;
-        stage!("gated", gated);
-        self.out
-            .forward(&gated.reshape(&[1, 6144])?)?
-            .astype(Dtype::Float32)
+        let gated = if self.gdn_epilogue {
+            let gated = crate::gdn_epilogue::apply(&[normed], &z)?;
+            #[cfg(test)]
+            {
+                let observed = gated.reshape(&[1, 1, 48, 128])?;
+                stage!("gated", observed);
+            }
+            gated
+        } else {
+            let gated = normed
+                .astype(Dtype::Float32)?
+                .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
+                .astype(Dtype::Float16)?;
+            stage!("gated", gated);
+            gated.reshape(&[1, 6144])?
+        };
+        self.out.forward(&gated)?.astype(Dtype::Float32)
     }
     fn convolve(&mut self, qkv: &Array) -> Result<(Array, Array, Array, Array)> {
         #[cfg(test)]
@@ -282,9 +323,17 @@ impl Gdn {
         };
         let input = Array::concatenate(&[&history, qkv], 1)?;
         self.history = Some(input.slice(1, 1, 4)?);
+        let stock_coefficient;
+        let coefficient = match &self.prepared_conv {
+            Some(prepared) => prepared,
+            None => {
+                stock_coefficient = self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?;
+                &stock_coefficient
+            }
+        };
         let conv = input
             .astype(Dtype::Float32)?
-            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
+            .mul(coefficient)?
             .sum(1, true)?
             .astype(Dtype::Float16)?
             .silu()?;
@@ -392,24 +441,34 @@ impl Gdn {
         crate::flash_profile::stage("gdn_rows_z_completion", &z)?;
         #[cfg(test)]
         let post_profile = crate::flash_profile::span("gdn_norm_gate_build");
-        let mut gated = Vec::with_capacity(inputs.len());
-        for row in 0..rows {
-            let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
-            gated.push(
-                normed
-                    .astype(Dtype::Float32)?
-                    .mul(
-                        &z.slice(1, row, row + 1)?
-                            .astype(Dtype::Float32)?
-                            .sigmoid()?,
-                    )?
-                    .astype(Dtype::Float16)?
-                    .reshape(&[1, 6144])?,
-            );
-        }
-        #[cfg(test)]
-        drop(post_profile);
-        let gated = Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?;
+        let gated = if self.gdn_epilogue {
+            let normed = (0..rows)
+                .map(|row| self.norm.forward(&value.slice(1, row, row + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let gated = crate::gdn_epilogue::apply(&normed, &z)?;
+            #[cfg(test)]
+            drop(post_profile);
+            gated
+        } else {
+            let mut gated = Vec::with_capacity(inputs.len());
+            for row in 0..rows {
+                let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
+                gated.push(
+                    normed
+                        .astype(Dtype::Float32)?
+                        .mul(
+                            &z.slice(1, row, row + 1)?
+                                .astype(Dtype::Float32)?
+                                .sigmoid()?,
+                        )?
+                        .astype(Dtype::Float16)?
+                        .reshape(&[1, 6144])?,
+                );
+            }
+            #[cfg(test)]
+            drop(post_profile);
+            Array::concatenate(&gated.iter().collect::<Vec<_>>(), 0)?
+        };
         #[cfg(test)]
         crate::flash_profile::stage("gdn_rows_norm_gate_completion", &gated)?;
         let output = verification_projection(&self.out, &gated)?.astype(Dtype::Float32)?;
@@ -426,6 +485,25 @@ impl Gdn {
         self.state = None;
         self.history = None;
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(3)]
+fn prepared_conv_preserves_symbolic_half_endpoints_through_real_mlx() {
+    let bits: u16 = kani::any();
+    let conv = Array::from_f16_bits(&[bits; 40960], &[10240, 4, 1]).unwrap();
+    let prepared = Gdn::prepare_conv(&conv).unwrap();
+    assert_eq!(prepared.shape(), [1, 4, 10240]);
+    assert_eq!(prepared.dtype(), Dtype::Float32);
+    let values = prepared.to_f32().unwrap();
+    assert_eq!(values.len(), 40960);
+    let expected = f16::from_bits(bits).to_f32();
+    for actual in [values[0], values[40959]] {
+        assert!(actual.to_bits() == expected.to_bits() || (actual.is_nan() && expected.is_nan()));
+    }
+    kani::cover!(bits == 0x3c00);
+    kani::cover!(bits == 0x8000);
 }
 
 struct Qsa {
@@ -584,7 +662,9 @@ impl Qsa {
                 #[cfg(test)]
                 {
                     crate::flash_profile::stage($name, &$value)?;
-                    self.stages.push(($name.into(), $value.try_clone()?));
+                    if crate::flash_profile::retain_test_stages() {
+                        self.stages.push(($name.into(), $value.try_clone()?));
+                    }
                 }
             };
         }
@@ -652,7 +732,9 @@ impl Qsa {
                 #[cfg(test)]
                 {
                     crate::flash_profile::stage($name, &$value)?;
-                    self.stages.push(($name.into(), $value.try_clone()?));
+                    if crate::flash_profile::retain_test_stages() {
+                        self.stages.push(($name.into(), $value.try_clone()?));
+                    }
                 }
             };
         }
@@ -891,7 +973,9 @@ impl Ple {
                 #[cfg(test)]
                 {
                     crate::flash_profile::stage($name, &$value)?;
-                    self.stages.push(($name.into(), $value.try_clone()?));
+                    if crate::flash_profile::retain_test_stages() {
+                        self.stages.push(($name.into(), $value.try_clone()?));
+                    }
                 }
             };
         }
@@ -1020,7 +1104,9 @@ impl Layer {
         let (streams, mixed, gate) = self.prepare(streams, token)?;
         let output = self.moe.forward_lookahead(&mixed, next, depth)?;
         #[cfg(test)]
-        self.stages.push(("moe".into(), output.try_clone()?));
+        if crate::flash_profile::retain_test_stages() {
+            self.stages.push(("moe".into(), output.try_clone()?));
+        }
         let written = Hc::write(&streams, &output, &gate)?;
         #[cfg(test)]
         crate::flash_profile::stage("mlp_hc_write", &written)?;
@@ -1044,7 +1130,7 @@ impl Layer {
             crate::flash_profile::stage("attn_hc_gate", gate.as_ref().context("missing gate")?)?;
         }
         #[cfg(test)]
-        {
+        if crate::flash_profile::retain_test_stages() {
             self.stages.push(("attn_mixed".into(), mixed.try_clone()?));
             self.stages.push((
                 "attn_gate".into(),
@@ -1063,7 +1149,9 @@ impl Layer {
             &gate.context("missing attention injection")?,
         )?;
         #[cfg(test)]
-        self.stages.push(("attention".into(), branch.try_clone()?));
+        if crate::flash_profile::retain_test_stages() {
+            self.stages.push(("attention".into(), branch.try_clone()?));
+        }
         #[cfg(test)]
         crate::flash_profile::stage("attn_hc_write", &streams)?;
         let (mixed, gate) = self.mlp_hc.read(&streams)?;
@@ -1073,7 +1161,7 @@ impl Layer {
             crate::flash_profile::stage("mlp_hc_gate", gate.as_ref().context("missing gate")?)?;
         }
         #[cfg(test)]
-        {
+        if crate::flash_profile::retain_test_stages() {
             self.stages.push(("mlp_mixed".into(), mixed.try_clone()?));
             self.stages.push((
                 "mlp_gate".into(),
@@ -1240,6 +1328,7 @@ pub struct FlashNext {
     pub last_hidden: Option<Array>,
     verification: Option<PairState>,
     multi_token: bool,
+    prefill_heads: bool,
     lookahead_depth: usize,
     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
     #[cfg(feature = "chat")]
@@ -1254,6 +1343,12 @@ impl FlashNext {
     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
         let multi_token = flash_support::multi_token_verifier()?;
+        let prefill_heads = match std::env::var("MLXL3_FLASH_PREFILL_HEADS") {
+            Ok(v) if v == "0" => false,
+            Ok(v) if v == "1" => true,
+            Err(std::env::VarError::NotPresent) => true,
+            _ => anyhow::bail!("MLXL3_FLASH_PREFILL_HEADS must be 0 or 1"),
+        };
         let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
             Ok(value) => value
                 .parse::<usize>()
@@ -1436,6 +1531,7 @@ impl FlashNext {
             last_hidden: None,
             verification: None,
             multi_token,
+            prefill_heads,
             lookahead_depth,
             lookahead_pool,
             #[cfg(feature = "chat")]
@@ -1450,22 +1546,25 @@ impl FlashNext {
         Array::from_file(file, offset, &[1, H], Dtype::BFloat16)?.astype(Dtype::Float16)
     }
     pub fn forward(&mut self, token: u32) -> Result<Array> {
-        Ok(self.forward_inner(token, false)?.0)
+        self.forward_inner(token, None, true)?
+            .context("missing Flash logits")
     }
     pub fn forward_trace(&mut self, token: u32) -> Result<(Array, Vec<(String, Array)>)> {
-        self.forward_inner(token, true)
+        let mut trace = Vec::new();
+        let logits = self.forward_inner(token, Some(&mut trace), true)?;
+        Ok((logits.context("missing Flash trace logits")?, trace))
     }
     fn forward_inner(
         &mut self,
         token: u32,
-        capture: bool,
-    ) -> Result<(Array, Vec<(String, Array)>)> {
+        mut trace: Option<&mut Vec<(String, Array)>>,
+        head: bool,
+    ) -> Result<Option<Array>> {
         ensure!(
             self.verification.is_none(),
             "uncommitted Flash verification"
         );
         ensure!(self.offset < self.context, "Flash context exhausted");
-        let mut trace = Vec::new();
         let mut streams = self.streams(token)?;
         #[cfg(test)]
         crate::flash_profile::stage("embedding_streams", &streams)?;
@@ -1478,7 +1577,7 @@ impl FlashNext {
                 .then(|| rest.first_mut().map(|l| &mut l.moe))
                 .flatten();
             streams = layer.forward_lookahead(&streams, token, next, self.lookahead_depth)?;
-            if capture {
+            if let Some(trace) = &mut trace {
                 trace.push((format!("layer_{i}"), streams.try_clone()?));
                 if let Attention::Gdn(gdn) = &layer.attention
                     && let Some(state) = &gdn.state
@@ -1487,11 +1586,16 @@ impl FlashNext {
                 }
             }
         }
-        let logits = self.logits(&streams)?;
+        let logits = if head {
+            Some(self.logits(&streams)?)
+        } else {
+            streams.eval()?;
+            None
+        };
         self.drain()?;
         self.last_hidden = Some(streams);
         self.offset += 1;
-        Ok((logits, trace))
+        Ok(logits)
     }
     fn streams(&self, token: u32) -> Result<Array> {
         self.embedding(token)?
@@ -1625,8 +1729,12 @@ impl FlashNext {
             "invalid Flash token batch"
         );
         let mut last = None;
-        for &token in tokens {
-            last = Some(self.forward(token)?);
+        for (index, &token) in tokens.iter().enumerate() {
+            last = self.forward_inner(
+                token,
+                None,
+                !self.prefill_heads || index + 1 == tokens.len(),
+            )?;
         }
         last.context("empty Flash token batch")
     }
@@ -1739,11 +1847,15 @@ impl FlashMtpHead {
             .reshape(&[1, WIDTH])
     }
     pub fn forward(&mut self, target: &FlashNext, hidden: &Array, token: u32) -> Result<Array> {
+        #[cfg(test)]
+        if !crate::flash_profile::retain_test_stages() {
+            self.stages.clear();
+        }
         let streams = self.mixed(target, hidden, token)?;
         let output = self.layer.forward(&streams, token)?;
         let (mixed, _) = self.mixer.read(&output)?;
         #[cfg(test)]
-        {
+        if crate::flash_profile::retain_test_stages() {
             self.stages = vec![("mixed".into(), streams.try_clone()?)];
             self.stages.extend(
                 self.layer
@@ -1920,27 +2032,30 @@ impl FlashMtpSession {
 mod tests {
     use super::*;
     use std::path::Path;
+    pub(super) fn tensor_state_bytes(value: &Array) -> Result<Vec<u8>> {
+        let data = value.to_bytes()?;
+        ensure!(!data.is_empty(), "empty semantic state");
+        ensure!(
+            value
+                .astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .all(|v| v.is_finite()),
+            "nonfinite semantic state"
+        );
+        let mut bytes = vec![1];
+        for dim in value.shape() {
+            bytes.extend(dim.to_le_bytes());
+        }
+        bytes.extend(data);
+        Ok(bytes)
+    }
     pub(super) fn state_bytes(model: &FlashNext) -> Result<Vec<Vec<u8>>> {
         fn tensor(value: &Option<Array>) -> Result<Vec<u8>> {
             let Some(value) = value else {
                 return Ok(vec![0]);
             };
-            let data = value.to_bytes()?;
-            ensure!(!data.is_empty(), "empty semantic state");
-            ensure!(
-                value
-                    .astype(Dtype::Float32)?
-                    .to_f32()?
-                    .iter()
-                    .all(|v| v.is_finite()),
-                "nonfinite semantic state"
-            );
-            let mut bytes = vec![1];
-            for dim in value.shape() {
-                bytes.extend(dim.to_le_bytes());
-            }
-            bytes.extend(data);
-            Ok(bytes)
+            tensor_state_bytes(value)
         }
         let mut result = vec![
             model.offset.to_le_bytes().to_vec(),
@@ -3323,7 +3438,7 @@ mod tests {
         ensure!(head.offset() == 0, "MTP reset offset wrong");
         Ok(())
     }
-    fn input(root: &Path, entry: &Value, width: i32) -> Result<Array> {
+    pub(super) fn input(root: &Path, entry: &Value, width: i32) -> Result<Array> {
         let bytes =
             std::fs::read(root.join(entry["file"].as_str().context("missing reference input")?))?;
         ensure!(
@@ -3331,6 +3446,217 @@ mod tests {
             "invalid reference input length"
         );
         Array::from_bytes(&bytes, &[1, width], Dtype::Float32)
+    }
+    #[test]
+    #[ignore = "physical Apple GPU; isolated projection captures with independent fixtures; run alone"]
+    fn captures_isolated_flash_projection_chains() -> Result<()> {
+        use crate::array::{MetalCapture, synchronize};
+
+        ensure!(
+            std::env::var("MTL_CAPTURE_ENABLED").is_ok_and(|value| value == "1"),
+            "MTL_CAPTURE_ENABLED=1 is required before startup"
+        );
+        let directory = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_CAPTURE_OUTPUT")?);
+        ensure!(
+            directory.is_dir() && std::fs::read_dir(&directory)?.next().is_none(),
+            "projection capture output must be an existing empty directory"
+        );
+        let projection_root = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?);
+        let attention_root = PathBuf::from(std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?);
+        let projections: Value =
+            serde_json::from_reader(File::open(projection_root.join("reference.json"))?)?;
+        let attention: Value =
+            serde_json::from_reader(File::open(attention_root.join("reference.json"))?)?;
+        ensure!(
+            projections["status"] == "complete"
+                && projections["projections"]
+                    .as_array()
+                    .is_some_and(|v| v.len() == 20)
+                && attention["status"] == "complete"
+                && attention["mode"] == "eval",
+            "incomplete independent projection or attention fixture"
+        );
+        let gdn_out = &projections["projections"][8];
+        let gdn_qkv = &projections["projections"][4];
+        let qsa = &attention["attention"]["15"][0]["stages"];
+        for (case, prefix, width, output) in [
+            (
+                gdn_out,
+                "model.language_model.layers.0.linear_attn.out_proj",
+                6144,
+                2560,
+            ),
+            (
+                gdn_qkv,
+                "model.language_model.layers.0.linear_attn.in_proj_qkv",
+                2560,
+                10240,
+            ),
+        ] {
+            ensure!(
+                case["prefix"] == prefix
+                    && case["dtype"] == "mlx.core.float16"
+                    && case["input_width"] == width
+                    && case["output_width"] == output,
+                "wrong production projection fixture"
+            );
+        }
+        let model_path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let checkpoint = crate::checkpoint::inspect(&model_path)?;
+        ensure!(
+            checkpoint.model_type == "qwen4_exp",
+            "wrong Flash checkpoint"
+        );
+        let mut records = Vec::new();
+        let mut capture_bytes = 0u64;
+        for (name, prefix, root, source, expected, width, output, qkv) in [
+            (
+                "gdn0-out",
+                "model.language_model.layers.0.linear_attn.out_proj",
+                &projection_root,
+                &gdn_out["input"],
+                &gdn_out["output"],
+                6144,
+                2560,
+                false,
+            ),
+            (
+                "qsa15-out",
+                "model.language_model.layers.15.self_attn.o_proj",
+                &attention_root,
+                &qsa["gated"],
+                &qsa["out"],
+                6144,
+                2560,
+                false,
+            ),
+            (
+                "gdn0-qkv",
+                "model.language_model.layers.0.linear_attn.in_proj_qkv",
+                &projection_root,
+                &gdn_qkv["input"],
+                &gdn_qkv["output"],
+                2560,
+                10240,
+                true,
+            ),
+        ] {
+            for (entry, count) in [(source, width), (expected, output)] {
+                let fixture_shape = if name == "qsa15-out" {
+                    vec![1, 1, count]
+                } else {
+                    vec![1, count]
+                };
+                ensure!(
+                    entry["count"] == count && entry["shape"] == serde_json::json!(fixture_shape),
+                    "{name}: invalid independent fixture metadata"
+                );
+            }
+            let x_f32 = input(root, source, width)?;
+            let oracle = input(root, expected, output)?;
+            for (value, count) in [(&x_f32, width), (&oracle, output)] {
+                let values = value.to_f32()?;
+                ensure!(
+                    values.len() == count as usize
+                        && values.iter().all(|v| v.is_finite())
+                        && values.iter().any(|v| *v != 0.),
+                    "{name}: empty, nonfinite or vacuous fixture"
+                );
+            }
+            let x = x_f32.astype(Dtype::Float16)?;
+            x.eval()?;
+            ensure!(
+                x.astype(Dtype::Float32)?.to_bytes()? == x_f32.to_bytes()?,
+                "{name}: fixture input is not exactly F16 representable"
+            );
+            let projection = Projection::load(&checkpoint, prefix, width, output, false)?;
+            let forward = || -> Result<Array> {
+                let value = projection.forward(&x)?;
+                if qkv {
+                    value.astype(Dtype::Float16)?.reshape(&[1, 1, output])
+                } else {
+                    value.astype(Dtype::Float32)
+                }
+            };
+            // Evaluate file-backed weights and all inputs before the fresh captured graph.
+            forward()?.eval()?;
+            synchronize()?;
+            let path = directory.join(format!("{name}.gputrace"));
+            let capture = MetalCapture::start(&path)?;
+            // Captures include only new command buffers; rotate MLX's preexisting buffer.
+            synchronize()?;
+            let actual = forward()?;
+            actual.eval()?;
+            capture.finish()?;
+            let shape = if qkv {
+                vec![1, 1, output]
+            } else {
+                vec![1, output]
+            };
+            let dtype = if qkv { Dtype::Float16 } else { Dtype::Float32 };
+            ensure!(
+                actual.shape() == shape && actual.dtype() == dtype,
+                "{name}: output metadata differs"
+            );
+            let values = actual.astype(Dtype::Float32)?.to_f32()?;
+            let actual_bytes = actual.astype(Dtype::Float32)?.to_bytes()?;
+            let oracle_bytes = oracle.to_bytes()?;
+            ensure!(
+                values.len() == output as usize
+                    && values.iter().all(|v| v.is_finite())
+                    && actual_bytes.len() == output as usize * 4
+                    && actual_bytes == oracle_bytes,
+                "{name}: captured output differs bitwise from independent upstream oracle"
+            );
+            let bytes = capture_directory_bytes(&path)?;
+            ensure!(bytes > 0, "{name}: empty capture");
+            capture_bytes = capture_bytes
+                .checked_add(bytes)
+                .context("capture size overflow")?;
+            ensure!(
+                capture_bytes < 2 * 1024 * 1024 * 1024,
+                "captures exceed the 2 GiB bound"
+            );
+            records.push(serde_json::json!({
+                "name":name, "prefix":prefix, "capture":path, "capture_bytes":bytes,
+                "fixture_root":root, "input_fixture":source, "output_fixture":expected,
+                "input_shape":[1,width], "input_dtype":"Float16",
+                "output_shape":shape, "output_dtype":format!("{dtype:?}"),
+                "compared_f32_values":output, "compared_f32_bytes":actual_bytes.len(),
+                "parity":"bit_exact_independent_upstream_f32", "finite":true,
+                "gpu_duration":"not_measured_by_test", "dispatches":"inspection_pending"
+            }));
+        }
+        let metadata = serde_json::json!({
+            "status":"validated_captures_gpu_inspection_pending", "model":model_path,
+            "scope":"three isolated B1 production projection chains; QSA15 substitutes geometry of QSA3, not its values",
+            "captures":records, "capture_bytes":capture_bytes,
+            "limits":"no model throughput, exclusive GPU time or hardware counter result inferred by this test"
+        });
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(directory.join("metadata.json"))?;
+        serde_json::to_writer_pretty(file, &metadata)?;
+        println!(
+            "FLASH_PROJECTION_CAPTURE captures=3 compared_f32_values=15360 status=validated_independent_exact_outputs_gpu_inspection_pending"
+        );
+        Ok(())
+    }
+    fn capture_directory_bytes(root: &Path) -> Result<u64> {
+        ensure!(root.is_dir(), "missing projection capture directory");
+        let mut bytes = 0u64;
+        for entry in std::fs::read_dir(root)? {
+            let entry = entry?;
+            let added = if entry.file_type()?.is_dir() {
+                capture_directory_bytes(&entry.path())?
+            } else {
+                ensure!(entry.file_type()?.is_file(), "unexpected capture entry");
+                entry.metadata()?.len()
+            };
+            bytes = bytes.checked_add(added).context("capture size overflow")?;
+        }
+        Ok(bytes)
     }
     #[test]
     #[ignore = "physical Apple GPU and independent Pony projection fixture"]
@@ -3561,7 +3887,7 @@ mod tests {
     }
     #[test]
     #[ignore = "physical Apple GPU and independent attention-stage fixture"]
-    fn flash_attention_stages_match_upstream() -> Result<()> {
+    pub(super) fn flash_attention_stages_match_upstream() -> Result<()> {
         let root = std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?;
         let root = Path::new(&root);
         let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
@@ -3601,6 +3927,155 @@ mod tests {
             }
         }
         Ok(())
+    }
+    #[test]
+    #[ignore = "physical Apple GPU, Flash oracle and GDN_EPILOGUE=1; run alone"]
+    fn flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes() -> Result<()> {
+        ensure!(std::env::var("MLXL3_FLASH_GDN_EPILOGUE").as_deref() == Ok("1"));
+        let root = std::env::var("MLXL3_FLASH_REFERENCE")?;
+        let root = Path::new(&root);
+        let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;
+        ensure!(data["status"] == "complete" && data["mode"] == "eval");
+        let steps = data["steps"]
+            .as_array()
+            .context("missing GDN component steps")?;
+        ensure!(steps.len() >= 5, "insufficient independent GDN coverage");
+        let checkpoint =
+            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let state = |gdn: &Gdn| -> Result<(Vec<u8>, Vec<u8>)> {
+            Ok((
+                tensor_state_bytes(gdn.history.as_ref().context("missing GDN history")?)?,
+                tensor_state_bytes(gdn.state.as_ref().context("missing GDN state")?)?,
+            ))
+        };
+        for rows in [1usize, 2, 4, 8] {
+            let mut stock = Gdn::load(
+                &checkpoint,
+                "model.language_model.layers.2.linear_attn",
+                1e-6,
+            )?;
+            let mut fused = Gdn::load(
+                &checkpoint,
+                "model.language_model.layers.2.linear_attn",
+                1e-6,
+            )?;
+            ensure!(
+                stock.gdn_epilogue && fused.gdn_epilogue,
+                "loader lost epilogue flag"
+            );
+            stock.gdn_epilogue = false;
+            for step in &steps[..2] {
+                let reference = &step["components"][2]["linear_attn"];
+                let x = input(root, &reference["input"], H)?;
+                let expected = input(root, &reference["output"], H)?;
+                let a = stock.forward(&x)?;
+                let b = fused.forward(&x)?;
+                ensure!(a.shape() == [1, H] && b.shape() == [1, H]);
+                check(
+                    root,
+                    &reference["output"],
+                    &a,
+                    "GDN epilogue stock prefix",
+                    0.005,
+                )?;
+                ensure!(a.to_bytes()? == expected.to_bytes()? && b.to_bytes()? == a.to_bytes()?);
+                ensure!(state(&stock)? == state(&fused)?);
+            }
+            let inputs = (0..rows)
+                .map(|row| {
+                    input(
+                        root,
+                        &steps[(row + 2) % steps.len()]["components"][2]["linear_attn"]["input"],
+                        H,
+                    )
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let input_bytes = inputs
+                .iter()
+                .map(tensor_state_bytes)
+                .collect::<Result<Vec<_>>>()?;
+            ensure!(
+                rows == 1 || input_bytes.windows(2).any(|pair| pair[0] != pair[1]),
+                "GDN verification inputs must differ"
+            );
+            let mut expected_outputs = Vec::with_capacity(rows);
+            let mut expected_states = Vec::with_capacity(rows);
+            crate::gdn_epilogue::reset_kernel_requests_for_test();
+            for x in &inputs {
+                let output = stock.forward(x)?;
+                ensure!(output.shape() == [1, H] && output.dtype() == Dtype::Float32);
+                expected_outputs.push(tensor_state_bytes(&output)?);
+                expected_states.push(state(&stock)?);
+            }
+            ensure!(
+                crate::gdn_epilogue::kernel_requests_for_test() == 0,
+                "stock requested fused kernel"
+            );
+            let (outputs, snapshots) = if rows == 1 {
+                (vec![fused.forward(&inputs[0])?], Vec::new())
+            } else {
+                fused.forward_rows(&inputs)?
+            };
+            ensure!(outputs.len() == rows && snapshots.len() == rows - 1);
+            ensure!(
+                crate::gdn_epilogue::kernel_requests_for_test() == 1
+                    && crate::gdn_epilogue::last_rows_for_test() == rows,
+                "GDN epilogue did not consume the complete row cohort once"
+            );
+            for (row, output) in outputs.iter().enumerate() {
+                ensure!(output.shape() == [1, H] && output.dtype() == Dtype::Float32);
+                ensure!(
+                    tensor_state_bytes(output)? == expected_outputs[row],
+                    "GDN output differs at B{rows}/row{row}"
+                );
+            }
+            ensure!(state(&fused)? == *expected_states.last().context("empty serial GDN states")?);
+            for (row, snapshot) in snapshots.into_iter().enumerate() {
+                let AttentionState::GdnTape {
+                    history,
+                    tape,
+                    retained,
+                } = snapshot
+                else {
+                    anyhow::bail!("GDN prefix snapshot lost its recurrent tape")
+                };
+                ensure!(retained == row as i32 + 1);
+                ensure!(
+                    tensor_state_bytes(history.as_ref().context("missing prefix history")?)?
+                        == expected_states[row].0
+                        && tensor_state_bytes(&tape.replay(retained)?)? == expected_states[row].1,
+                    "GDN prefix state differs at B{rows}/prefix{retained}"
+                );
+            }
+            let a = stock.forward(&inputs[0])?;
+            let b = fused.forward(&inputs[0])?;
+            ensure!(
+                tensor_state_bytes(&a)? == tensor_state_bytes(&b)?
+                    && state(&stock)? == state(&fused)?
+            );
+            ensure!(crate::gdn_epilogue::kernel_requests_for_test() == 2);
+            let before = state(&fused)?;
+            ensure!(fused.forward_rows(&[]).is_err() && fused.forward_rows(&inputs[..1]).is_err());
+            ensure!(
+                state(&fused)? == before && crate::gdn_epilogue::kernel_requests_for_test() == 2
+            );
+            ensure!(
+                inputs
+                    .iter()
+                    .map(tensor_state_bytes)
+                    .collect::<Result<Vec<_>>>()?
+                    == input_bytes
+            );
+        }
+        println!(
+            "GDN_EPILOGUE_INTEGRATION cohorts=1,2,4,8 kernel_graph_requests_per_cohort=1 outputs_states_prefixes=byte_exact continuation=true invalid_atomic=true"
+        );
+        Ok(())
+    }
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_gdn_epilogue_preserves_serial_outputs_states_and_prefix_tapes() {
+        flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes().unwrap();
     }
     #[test]
     #[ignore = "physical M5 and independent per-component Flash fixture"]
@@ -3850,6 +4325,17 @@ mod tests {
             model.forward(248320).is_err(),
             "invalid vocabulary accepted"
         );
+        if std::env::var("MLXL3_SSD_COLD_READY").as_deref() == Ok("1")
+            && std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("1")
+        {
+            let waves: usize = model
+                .layers
+                .iter()
+                .map(|l| l.moe.cold_ready_waves.len())
+                .sum();
+            ensure!(waves > 0, "Cold readiness candidate was not exercised");
+            println!("COLD_READY_MODEL natural_waves={waves} external_states_and_logits=checked");
+        }
         Ok(())
     }
 }

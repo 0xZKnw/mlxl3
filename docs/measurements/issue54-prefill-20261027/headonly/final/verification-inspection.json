@@ -1,0 +1,91 @@
+{
+  "status": "inspected",
+  "plans": [
+    {
+      "plan": "bridge-default-AR-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "bridge-default-DF-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "contracts-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "model-short-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "native-lib-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "native-main-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "openai_transport-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    },
+    {
+      "plan": "runtime_gpu-plan-result.json",
+      "status": "completed_expected_outcomes_not_speed",
+      "processes": 1
+    }
+  ],
+  "native_suites": {
+    "native-lib": {
+      "passed": 181,
+      "ignored": 156
+    },
+    "native-main": {
+      "passed": 44,
+      "ignored": 8
+    },
+    "contracts": {
+      "passed": 16,
+      "ignored": 0
+    },
+    "openai_transport": {
+      "passed": 35,
+      "ignored": 0
+    },
+    "runtime_gpu": {
+      "passed": 0,
+      "ignored": 2
+    }
+  },
+  "physical_cases": 12,
+  "bridge": {
+    "AR": {
+      "status": "validated_against_original_headonly_explicit_1",
+      "responses": 6,
+      "full_text_hash_counts_and_non_timing_dflash_profile_equal": true,
+      "default_heads_environment_absent": true,
+      "binary_sha256": "4e3fb4122b4a26b1dcc58ebdc75ef605b6263e5060d52b10f95b23d705f28125"
+    },
+    "DF": {
+      "status": "validated_against_original_headonly_explicit_1",
+      "responses": 6,
+      "full_text_hash_counts_and_non_timing_dflash_profile_equal": true,
+      "default_heads_environment_absent": true,
+      "binary_sha256": "4e3fb4122b4a26b1dcc58ebdc75ef605b6263e5060d52b10f95b23d705f28125"
+    }
+  },
+  "source_comparison_to_measured_v1": {
+    "qwen4": "only_default_false_to_true",
+    "flash_draft": "byte_equal",
+    "flash_draft_runtime": "only_cfg_kani_harness_changed"
+  },
+  "kani": "compiler_ice_before_obligations_unverified",
+  "no_new_speed_claim": true
+}

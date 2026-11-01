@@ -1,0 +1,46 @@
+[
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-kani-geometry",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "slot_reads_initialize_exact_disjoint_bank_regions",
+      "--harness",
+      "shared_uniform_slot_addresses_are_exact_and_bounded_for_all_usize"
+    ],
+    "timeout_seconds": 60,
+    "expected_exit": 0,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  },
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-kani-first-fill",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "actual_global_first_fill_publishes_only_after_explicit_completion"
+    ],
+    "timeout_seconds": 90,
+    "expected_exit": 0,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]
