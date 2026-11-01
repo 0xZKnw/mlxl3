@@ -181,8 +181,32 @@ extension StudioModel {
       Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false,
       "No user or remote MCP in Agent")
     check(
-      (servers["sandbox"]?["args"] as? [String]) == ["--agent-tools", workspace.path],
-      "Production helper receives the task folder")
+      (servers["sandbox"]?["args"] as? [String]) == [
+        "--agent-tools", workspace.path,
+        workspace.deletingLastPathComponent().appendingPathComponent("studio/project.json").path,
+      ],
+      "Production helper receives the task folder and its permission envelope")
+    let permissionsFile = workspace.deletingLastPathComponent().appendingPathComponent(
+      "studio/project.json")
+    let project = AgentProjectStore(workspace: workspace)
+    check(
+      FileManager.default.fileExists(atPath: permissionsFile.path)
+        && !permissionsFile.path.hasPrefix(workspace.path + "/"),
+      "Helper permissions exist outside the model-writable task folder")
+    let initialState = try JSONDecoder().decode(
+      AgentProjectState.self, from: Data(contentsOf: permissionsFile))
+    check(initialState.permissions == AgentPermissions(), "New task permissions use the defaults")
+    var restricted = AgentPermissions()
+    restricted.write = false
+    restricted.run = false
+    restricted.commandSeconds = 1
+    try project.setPermissions(restricted)
+    _ = try studio.modesRegistryForCheck()
+    let restrictedState = try JSONDecoder().decode(
+      AgentProjectState.self, from: Data(contentsOf: permissionsFile))
+    check(
+      restrictedState.permissions == restricted,
+      "Refreshing the registry preserves denied tools and the bounded command deadline")
     check(
       !workspace.path.hasPrefix(registry.deletingLastPathComponent().path),
       "Commands cannot write their configuration")
@@ -204,6 +228,24 @@ extension StudioModel {
     check(
       second != agent && currentLaunches == initialLaunches,
       "New agent tasks reuse the resident model")
+    let secondWorkspace = studio.agentWorkspaceURL!
+    _ = try studio.modesRegistryForCheck()
+    let secondConfig = try JSONSerialization.jsonObject(
+      with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json")))
+      as! [String: Any]
+    let secondServers = secondConfig["mcpServers"] as! [String: [String: Any]]
+    check(
+      secondWorkspace != workspace
+        && (secondServers["sandbox"]?["args"] as? [String]) == [
+          "--agent-tools", secondWorkspace.path,
+          secondWorkspace.deletingLastPathComponent().appendingPathComponent("studio/project.json").path,
+        ],
+      "Switching tasks replaces both helper paths without reusing another task's permissions")
+    let secondState = try AgentProjectStore(workspace: secondWorkspace).state()
+    check(
+      secondState.permissions == AgentPermissions(),
+      "A new task does not inherit denied tools from the previous task")
+    try project.setPermissions(AgentPermissions())
     studio.selectConversation(agent)
     try await wait { !studio.mcpUpdating }
     check(studio.agentWorkspaceURL == workspace, "Returning to a task restores its folder")

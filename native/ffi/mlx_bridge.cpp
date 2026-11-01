@@ -19,8 +19,10 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include "kernel_cache_key.h"
+#include "metal_os_capabilities.h"
 #include "disk_reader.h"
 #include "disk_read_batch.h"
 #include "process_memory.h"
@@ -139,6 +141,21 @@ struct PreparedDiskBatch {
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_metal_os_capabilities(uint32_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null Metal capability output");
+    // Query the running OS without initializing MLX, submitting GPU work or
+    // introducing a compiler-rt availability symbol into Rust's native link.
+    std::array<char, mlxl3::metal_os_version_capacity> version{};
+    size_t bytes = version.size();
+    if (sysctlbyname("kern.osproductversion", version.data(), &bytes, nullptr, 0) != 0)
+      throw std::runtime_error(std::string("reading macOS product version failed: ") +
+                               std::strerror(errno));
+    const auto flags = mlxl3::metal_os_capabilities(version.data(), bytes);
+    if (!flags) throw std::runtime_error("invalid macOS product version from sysctl");
+    *out = *flags;
+  });
+}
 int mlxl3_synchronize() noexcept {
   return protect([] { mx::synchronize(); });
 }
