@@ -37,7 +37,8 @@ PY
 swift_args=(--package-path apps/MLXL3Studio)
 swiftc_args=(-warnings-as-errors -swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
-    swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
+    # shortcut: native honors this SDK override; revisit when Swift Build handles cached modules correctly.
+    swift_args+=(--build-system native --sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
 fi
 swift build "${swift_args[@]}"
@@ -185,7 +186,7 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfigurat
     -o "${test_dir}/mcp-configuration-check"
 "${test_dir}/mcp-configuration-check"
 
-print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
-
 # Beta 5 project/artifact integration shares the already-built app sources.
 MLXL3_STUDIOS_TMP="${test_dir}" zsh scripts/check-studios.sh
+
+print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering, CLI transport and Studios"

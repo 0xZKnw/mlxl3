@@ -22119,3 +22119,80 @@ libération des drafts et framing Desktop retenus ; parseur et partitions
 Kani PR63 conservés. CI combine inventaire dynamique PR63, tests locaux
 Cold/lecteurs/profilage et tests-only Kani absents de l'inventaire lib simple.
 Contrôles combinés à exécuter ; preuve globale encore non acquise.
+
+PUBLICATION validation combinée b00e51d3 :276RustCPU passés/10ignorés ;
+2205Python passés/137sautés (GPU/modèles et runner Kani Linux)/10warnings,
+207,10s ; fmt et Clippy strict mlx,chat passent. Premier check-e2e passe
+Python puis échoue Desktop : CLT actif ne trouve pas SwiftUIMacros.StateMacro.
+Relance Desktop seule avec DEVELOPER_DIR=Xcode complet ; aucun correctif de
+production et aucun nouveau benchmark. Logs initiaux conservés.
+
+PUBLICATION qualité physique préenregistrée : après compilations/proveurs,
+code combiné b00e51d3, bins copiés et empreintes dans merge-validation-20261101/
+identity.json. Même ancre GPU1, plafond64Mio écritures/1Gio lectures. Trois
+sélections seules : composant Cold/default, oracle modèle indépendant, puis
+nouveau test PR62 DFlash→MTP invalide/vide et logits AR identiques. Ce sont
+des contrôles de correction affectés, aucune répétition de chronos/gain.
+Relance Desktop Xcode27.2 : build réussi puis strict refuse dépréciation
+préexistante VoiceController.installTap (SDK27) ; suite relancée avec SDK26.5
+installé, cible supportée par l'app et CI, sans modifier cette API hors scope.
+
+PUBLICATION contrôle SDK : Swift Build27 réutilise le module SwiftMath27.2
+malgré --sdk26.5, puis swiftc26.5 refuse le module. Corriger uniquement le
+chemin d'override existant de check-desktop.sh : sélectionner explicitement
+le backend SwiftPM natif lorsque MLXL3_MACOS_SDK est fourni. Cette voie
+existe dans swift build --help ; voie CI sans override inchangée. Relancer
+la suite Desktop réelle sur SDK26.5 ; aucun changement API audio/app.
+PUBLICATION vérification source : Kani0.68 sur metal_capabilities.rs réel,
+flagsu32/is_m5 symboliques :2assertions et4/4covers passent. Deux harnais
+Qwen widths i32 complets arrêtés à45s chacun (groupe RSS≤512Mio), tous
+processus joints, aucun verdict et aucun domaine réduit. ASan/UBSan parseur
+OS1190cas passent ; CBMC6.11 limité àC++11 ne qualifie pas libc++/optionalC++17.
+Vérification CPU ne prouve ni MLX ni Metal. Artefacts et limites enregistrés.
+
+PUBLICATION CI : les trois contrats test-only doivent être tentés même si
+le shard core atteint une limite ; condition always() ajoutée sans masquer
+son échec, stubbing explicite comme l'inventaire PR63. Pas de suppression
+ni réduction de domaine. État final des jobs à relever avant clôture.
+
+PUBLICATION Desktop complet SDK26.5 : suite réelle réussie, notamment
+1179modes/Lab,965sampling,114idle,229workspace,bridge8Mo/kill/recovery,
+63tests MCP+Sandbox et39contrôles Python finaux. Tous helpers terminés.
+Build MLX/chatrelease réussi214s ; source/binaires figés. Lancement des
+contrôles ordinaires MLX puis trois qualités physiques préenregistrées.
+
+Correction de clôture : le message « Desktop E2E checks passed » précédait
+encore check-studios.sh, donc la ligne précédente annonçait à tort tous les
+helpers terminés. La partie Desktop principale a passé, puis Studios a
+retrouvé le même mismatch SDK car il reconstruisait avec ses propres args.
+Même override natif à appliquer à cet appelant ; déplacer le message global
+après Studios. Rejouer uniquement Studios affecté et zsh -n, conserver les
+échecs précédents. Aucun GPU physique lancé pendant cette compilation.
+Contrôles ordinaires MLX :216lib passés/191ignorés,44CLI passés/9ignorés.
+
+- 45-Q/R processus merged-component : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-component-plan-result.json.
+
+- 45-Q/R processus merged-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-oracle-plan-result.json.
+
+- 45-Q/R processus merged-dflash-mtp-release : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/docs/measurements/merge-validation-20261101/quality-mode-switch-plan-result.json.
+
+PUBLICATION clôture locale : trois sélections GPU passées sur b00e51d3,
+composant48cas/2,789s, oracle5tokens×48couches/248320logits exacts/4,641s,
+DFlash→MTP invalide/vide libérant le draft avant erreur/2,404s. Tous processus
+joints, zéro nouveau swap lu/écrit par contrôle. Cumul ancre inchangée :
+42450944octets écrits et1054834688lus, sous64Mio/1Gio autorisés.
+Studios corrigé :39Python+41projet/artifact+25sandbox+29MCP passent ;
+Desktop principal passé séparément, échec imbriqué et relance conservés.
+Aucun chrono tok/s supplémentaire sur le binaire fusionné.
+
+PUBLICATION CI b00e51d3 : natif Linux, runtime/loader Apple, Kani allocator,
+conversion et preuve packing passent. Natif macOS atteint20minutes pendant
+les tests de compatibilité, sans assertion échouée avant annulation (job
+124889952959). Délai natif relevé seul à35minutes ; aucune obligation retirée,
+aucun délai de preuve changé. Revalidation YAML et syntaxe scripts passent ;
+nouveau run distant à inspecter après push. Guard-proofs dépasse15minutes,
+autres shards et Desktop encore en cours lors de ce relevé : preuve globale
+incomplète. Rapport docs/measurements/merge-validation-20261101/README.md.
+Décision : qualification fonctionnelle locale terminée, Cold U conservé,
+D retiré ; push puis fusion PR64 avec historique61/62/63 autorisés. Limites
+formelles et CI visibles, aucune release ni app installée remplacée.

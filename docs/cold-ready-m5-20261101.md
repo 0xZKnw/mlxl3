@@ -49,3 +49,9 @@ The authorized fixed anchor includes the earlier swap incident. The final cumula
 - [Publication Python tests](measurements/post-p08-cold-ready-20261101/publication/python-tests.log)
 
 The commit also preserves this worktree's previously implemented profiling and independently gated experiments, with their historical decisions in the journal. Their presence does not mean they are enabled or deliver additional gains. Raw multi-gigabyte Xcode traces and large local telemetry are not published in Git; they remain on disk, listed in the [local-only inventory](measurements/post-p08-cold-ready-20261101/publication/local-only-artifacts.json). Absolute source/binary identities describe the measurement workspace; they are not portable replay paths. Remote CI and later PR integration are separate from the local results above.
+
+PR64 integrates the retained PR61/62/63 changes. The combined runtime was
+requalified with CPU/Python/Desktop checks and three affected physical GPU
+selections; see the [integration report](measurements/merge-validation-20261101/README.md)
+for exact sources, binary hashes and incomplete formal/remote checks. No new
+throughput measurement is claimed for that merged binary.

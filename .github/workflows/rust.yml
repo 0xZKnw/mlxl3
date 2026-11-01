@@ -49,13 +49,13 @@ jobs:
           command: python3 scripts/kani_ci.py
           args: --shard ${{ matrix.shard }} --report-dir build/kani-${{ matrix.shard }}
       - name: Verify test-only profiling and cache aging contracts
-        if: matrix.shard == 'core'
+        if: always() && matrix.shard == 'core'
         uses: model-checking/kani-github-action@69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237 # v1
         with:
           kani-version: '0.68.0'
           command: cargo kani
           args: >-
-            --lib --tests --no-default-features --jobs 1 --output-format terse
+            --lib --tests --no-default-features -Z stubbing --jobs 1 --output-format terse
             --harness global_frequency_aging_matches_wide_arithmetic_for_all_counters
             --harness flash_profile::readback_profile_accepts_exactly_valid_bounded_durations
             --harness flash_profile::stage_retention_restores_symbolic_nested_scopes
@@ -86,7 +86,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-26]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust tooling
