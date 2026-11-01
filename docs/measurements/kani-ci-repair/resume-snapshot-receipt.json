@@ -1,0 +1,23 @@
+{
+  "parent_head": "4ea54c7bab6dda58946d1e45e8c891c70963f4d2",
+  "source_sha256": "ca963e6281cdc7cb451597b4ced67572ed7957f45a87f55ff4efd2be976e0935",
+  "required_library_cases": 319,
+  "positive_proof": "flash_support::verification::resident_slot_snapshot_excludes_pending_and_preserves_lfu",
+  "local_seconds": 187.889,
+  "checks": 735,
+  "failed_checks": 0,
+  "unreachable_checks": 7,
+  "covers": [
+    3,
+    3
+  ],
+  "mutation": "removing pending guard fails existing production regression; restored test passes",
+  "production_source_changed": false,
+  "limits": {
+    "selector_seconds": 600,
+    "address_space_gib_per_process": 6
+  },
+  "archive_sha256": "c9bbcbbaf69f41b0d6321654210916bde62cb3d02ee9097fd9c7df2bfe8e64de",
+  "archive_bytes": 469104,
+  "ci": "pending on next pushed head; prior exact4ea run failed"
+}
