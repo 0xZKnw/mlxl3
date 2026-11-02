@@ -4360,9 +4360,7 @@ mod tests {
             model.forward(248320).is_err(),
             "invalid vocabulary accepted"
         );
-        if std::env::var("MLXL3_SSD_COLD_READY").as_deref() == Ok("1")
-            && std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("1")
-        {
+        if std::env::var("MLXL3_SSD_COLD_READY").as_deref() != Ok("0") {
             let waves: usize = model
                 .layers
                 .iter()

@@ -160,6 +160,13 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                 crate::array::hold_read_batch_job_for_test(Some(0));
                 let output = moe.forward_many(&x)?;
                 check(&output, &oracle, pair.len())?;
+                let dynamic = std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("0")
+                    && missing > moe.readers;
+                ensure!(
+                    crate::array::disk_profile_schedule()
+                        == if dynamic { "dynamic" } else { "static" },
+                    "Cold batch did not use the requested effective schedule"
+                );
                 ensure!(
                     moe.cold_ready_waves.len() == before.0 + 1
                         && moe.cold_ready_verified_overlap == overlaps + 1,

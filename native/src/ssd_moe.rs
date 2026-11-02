@@ -175,11 +175,7 @@ impl SsdMoe {
         let cold_ready =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
                 .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
-        let cold_ready = cold_ready
-            && !crate::flash_support::parse_gpu_hot_wide(&control(
-                "MLXL3_SSD_DYNAMIC_READERS",
-                "0",
-            )?)
+        crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let prefetch_pipeline =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
@@ -565,6 +561,9 @@ impl SsdMoe {
                 "ready_initial":ready.iter().filter(|&&done|done).count(),
                 "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
                 "split":first.is_some(),"io_ok":finished.is_ok(),
+                "jobs_mapping":jobs,"workers":self.readers,
+                "schedule":crate::array::disk_profile_schedule(),
+                "timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,
             }));
         }
         finished?;

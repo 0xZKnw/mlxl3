@@ -145,9 +145,13 @@ def validate_events(events):
                     "capacity": cap,
                 }
             )
-        if name == "disk_read_batch":
-            assert data["ok"] is True
-            timings, mapping = data["timings_job_worker_start_end_bytes_failed"], data["jobs"]
+        if name in ("disk_read_batch", "cold_ready_batch"):
+            cold = name == "cold_ready_batch"
+            assert data["io_ok" if cold else "ok"] is True
+            timings = data["timings_job_worker_start_end_bytes_failed"]
+            mapping = data["jobs_mapping" if cold else "jobs"]
+            if cold:
+                assert data["status"] == "finished" and integer(data["jobs"]) == len(mapping)
             workers = integer(data["workers"])
             schedule = data.get("schedule", "static")
             assert schedule in ("static", "dynamic"), "unknown disk job schedule"
@@ -176,6 +180,7 @@ def validate_events(events):
             batches.append(
                 {
                     "layer": layer,
+                    "operation": name,
                     "jobs": len(mapping),
                     "schedule": schedule,
                     "last_completion_ns": max(t[3] for t in timings),

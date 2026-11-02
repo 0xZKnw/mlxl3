@@ -1710,6 +1710,14 @@ mod tests {
                 .to_string()
                 .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
         );
+        let error = unsafe { Array::begin_read_records(&[(&file, 0); 5], &mut banks, &views, 4) }
+            .err()
+            .context("invalid option accepted by async FFI")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
+        );
         for bank in banks {
             ensure!(bank.to_bytes()? == [0xa5; 8]);
         }
@@ -1722,8 +1730,8 @@ mod tests {
     fn disk_schedule_profile_matches_real_batch_assignment() -> Result<()> {
         use std::io::Write;
         let dynamic_requested = match std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() {
-            Ok("1") => true,
-            Ok("0") | Err(std::env::VarError::NotPresent) => false,
+            Ok("1") | Err(std::env::VarError::NotPresent) => true,
+            Ok("0") => false,
             _ => anyhow::bail!("test requires the production 0/1 option"),
         };
         struct Reset;
@@ -1741,64 +1749,75 @@ mod tests {
         let (mut cases, mut dynamic_batches, mut records, mut bytes) = (0, 0, 0, 0);
         for workers in [1, 2, 4] {
             for count in [1usize, 4, 5, 9, 17, 512] {
-                let mut banks = (0..count)
-                    .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
-                    .collect::<Result<Vec<_>>>()?;
-                let sources = (0..count)
-                    .map(|i| (&file, (i * 32) as u64))
-                    .collect::<Vec<_>>();
-                let ranges = (0..count)
-                    .map(|i| vec![(i, 4, 16), (i, 40, 16)])
-                    .collect::<Vec<_>>();
-                let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
-                disk_profile_enable(true);
-                ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
-                Array::read_records(&sources, &mut banks, &views, workers)?;
-                let dynamic = dynamic_requested && workers > 1 && count > workers;
-                ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
-                let timings = disk_profile()?;
-                ensure!(timings.len() == count);
-                let mut worker_end = [0u64; 4];
-                let mut per_worker = [0usize; 4];
-                for (job, &[index, worker, begin, end, read_bytes, failed]) in
-                    timings.iter().enumerate()
-                {
-                    ensure!(
-                        index == job as u64
-                            && worker < count.min(workers) as u64
-                            && end >= begin
-                            && read_bytes == 32
-                            && failed == 0
-                    );
-                    if !dynamic {
-                        ensure!(worker as usize == job % count.min(workers));
+                for asynchronous in [false, true] {
+                    let mut banks = (0..count)
+                        .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
+                        .collect::<Result<Vec<_>>>()?;
+                    let sources = (0..count)
+                        .map(|i| (&file, (i * 32) as u64))
+                        .collect::<Vec<_>>();
+                    let ranges = (0..count)
+                        .map(|i| vec![(i, 4, 16), (i, 40, 16)])
+                        .collect::<Vec<_>>();
+                    let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
+                    disk_profile_enable(true);
+                    ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
+                    if asynchronous {
+                        let mut batch = unsafe {
+                            Array::begin_read_records(&sources, &mut banks, &views, workers)?
+                        };
+                        let ready = batch.wait_ready(2)?;
+                        ensure!(ready.iter().filter(|&&done| done).count() >= count.min(2));
+                        batch.finish()?;
+                    } else {
+                        Array::read_records(&sources, &mut banks, &views, workers)?;
                     }
-                    ensure!(begin >= worker_end[worker as usize]);
-                    worker_end[worker as usize] = end;
-                    per_worker[worker as usize] += 1;
+                    let dynamic = dynamic_requested && workers > 1 && count > workers;
+                    ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
+                    let timings = disk_profile()?;
+                    ensure!(timings.len() == count);
+                    let mut worker_end = [0u64; 4];
+                    let mut per_worker = [0usize; 4];
+                    for (job, &[index, worker, begin, end, read_bytes, failed]) in
+                        timings.iter().enumerate()
+                    {
+                        ensure!(
+                            index == job as u64
+                                && worker < count.min(workers) as u64
+                                && end >= begin
+                                && read_bytes == 32
+                                && failed == 0
+                        );
+                        if !dynamic {
+                            ensure!(worker as usize == job % count.min(workers));
+                        }
+                        ensure!(begin >= worker_end[worker as usize]);
+                        worker_end[worker as usize] = end;
+                        per_worker[worker as usize] += 1;
+                    }
+                    ensure!(per_worker.iter().sum::<usize>() == count);
+                    for (i, bank) in banks.iter().enumerate() {
+                        let mut expected = [0xa5; 64];
+                        expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
+                        expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
+                        ensure!(
+                            bank.shape() == [64]
+                                && bank.dtype() == Dtype::UInt8
+                                && bank.to_bytes()? == expected
+                        );
+                    }
+                    cases += 1;
+                    dynamic_batches += usize::from(dynamic);
+                    records += count;
+                    bytes += count * 32;
                 }
-                ensure!(per_worker.iter().sum::<usize>() == count);
-                for (i, bank) in banks.iter().enumerate() {
-                    let mut expected = [0xa5; 64];
-                    expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
-                    expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
-                    ensure!(
-                        bank.shape() == [64]
-                            && bank.dtype() == Dtype::UInt8
-                            && bank.to_bytes()? == expected
-                    );
-                }
-                cases += 1;
-                dynamic_batches += usize::from(dynamic);
-                records += count;
-                bytes += count * 32;
             }
         }
         ensure!(
-            cases == 18
-                && records == 1644
-                && bytes == 52608
-                && dynamic_batches == if dynamic_requested { 9 } else { 0 }
+            cases == 36
+                && records == 3288
+                && bytes == 105216
+                && dynamic_batches == if dynamic_requested { 18 } else { 0 }
         );
         println!(
             "T18A_STORAGE cases={cases} records={records} payload_bytes={bytes} dynamic_batches={dynamic_batches} static_batches={}",

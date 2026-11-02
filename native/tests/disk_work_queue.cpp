@@ -8,7 +8,7 @@
 
 int main() {
   using namespace mlxl3;
-  assert(disk_schedule(nullptr) == DiskSchedule::Static);
+  assert(disk_schedule(nullptr) == DiskSchedule::Dynamic);
   assert(disk_schedule("0") == DiskSchedule::Static);
   assert(disk_schedule("1") == DiskSchedule::Dynamic);
   for (const char* literal : {"", "true", "false", "01", "00", "2", "-1", "+1", " 1", "1 ", "1\n"}) {

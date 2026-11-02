@@ -61,9 +61,42 @@ def test_worker_overlap_and_nested_times_are_not_added_as_exclusive_gpu():
     assert "not exclusive GPU" in out["limits"]
 
 
-def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation():
+@pytest.mark.parametrize("fault", [None, "missing", "count", "failed", "incomplete", "bytes"])
+def test_cold_wave_reads_are_counted_once_and_incomplete_traces_fail(fault):
+    rows = trace()
+    rows[3]["name"] = "cold_ready_batch"
+    data = rows[3]["data"]
+    data["jobs_mapping"] = data.pop("jobs")
+    data.update(jobs=10, status="finished", io_ok=data.pop("ok"))
+    if fault == "missing":
+        del data["jobs_mapping"]
+    elif fault == "count":
+        data["jobs"] = 9
+    elif fault == "failed":
+        data["io_ok"] = False
+    elif fault == "incomplete":
+        data["timings_job_worker_start_end_bytes_failed"].pop()
+    elif fault == "bytes":
+        data["timings_job_worker_start_end_bytes_failed"][0][4] -= 1
+    if fault:
+        with pytest.raises((AssertionError, KeyError)):
+            API["validate_events"](rows)
+    else:
+        result = API["validate_events"](rows)
+        assert len(result["disk_jobs"]) == 10
+        assert sum(job["bytes"] for job in result["disk_jobs"]) == 12_480_120
+        assert len(result["disk_batches"]) == 1
+        assert result["disk_batches"][0]["operation"] == "cold_ready_batch"
+
+
+@pytest.mark.parametrize("cold", [False, True])
+def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation(cold):
     rows = trace()
     data = rows[3]["data"]
+    if cold:
+        rows[3]["name"] = "cold_ready_batch"
+        data["jobs_mapping"] = data.pop("jobs")
+        data.update(jobs=10, status="finished", io_ok=data.pop("ok"))
     data["schedule"] = "dynamic"
     # One worker may drain the batch while the others have not started.
     data["timings_job_worker_start_end_bytes_failed"] = [

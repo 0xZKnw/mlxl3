@@ -392,8 +392,10 @@ int mlxl3_disk_batch_begin(const int* fds, const uint64_t* offsets, size_t recor
     }
     disk_profile.clear();
     disk_profile_dynamic = false;
+    thread_local const auto requested = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
     prepared->batch = std::make_unique<mlxl3::DiskReadBatch>(
-        std::move(reads), workers, disk_profile_enabled, held_job);
+        std::move(reads), workers, disk_profile_enabled, held_job, requested);
+    disk_profile_dynamic = prepared->batch->schedule() == mlxl3::DiskSchedule::Dynamic;
     *out = prepared.release();
   });
 }
@@ -422,7 +424,7 @@ int mlxl3_disk_batch_finish(void* opaque) noexcept {
     auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
     batch.join();
     disk_profile = batch.timings();
-    disk_profile_dynamic = false;
+    disk_profile_dynamic = batch.schedule() == mlxl3::DiskSchedule::Dynamic;
     batch.finish();
   });
 }
