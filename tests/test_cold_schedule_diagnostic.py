@@ -1,5 +1,8 @@
 """Cold scheduling counters cannot imply GPU idle or validate partial traces."""
 
+import copy
+import csv
+import json
 import runpy
 from pathlib import Path
 
@@ -94,12 +97,276 @@ def test_cold_schedule_all_ready_and_late_resident_occurrences_are_distinct_from
 
 
 def test_legacy_cold_schedule_diagnostic_is_explicitly_unavailable():
+    # Intermediate traces did include I/O details, unlike the d5a776e5 producer below.
     records = cold_schedule_trace()
     fields = ("route_rows", "priority", "cold_occurrences", "multiplicities")
     for field in fields:
         del records[3]["data"][field]
     result = API["validate_events"](records)["disk_batches"][0]["cold_schedule"]
     assert result == {"status": "unavailable_legacy", "missing_fields": list(fields)}
+
+
+@pytest.fixture
+def historical_cold_trace():
+    """Exact event payload from d5a776e5:native/src/ssd_moe.rs:558-571."""
+    return json.loads((ROOT / "tests/fixtures/cold-ready-d5a776e5.json").read_text())
+
+
+def test_historical_cold_trace_preserves_counters_without_inventing_io(historical_cold_trace):
+    data = historical_cold_trace[3]["data"]
+    assert set(data) == {
+        "status",
+        "jobs",
+        "cold_rows",
+        "ready_initial",
+        "w1_rows",
+        "w2_rows",
+        "split",
+        "io_ok",
+    }
+    result = API["validate_events"](historical_cold_trace)
+    assert result["event_count"] == 4
+    assert result["disk_detail_coverage"] == "unavailable_legacy"
+    assert result["disk_jobs"] == result["disk_batches"] == []
+    batch = result["legacy_cold_batches"][0]
+    assert {key: batch[key] for key in data} == data
+    assert batch["layer"] == 0 and batch["wall_ns"] == 897
+    assert batch["io_details"] == batch["cold_schedule"]["status"] == "unavailable_legacy"
+    assert (
+        not {"workers", "schedule", "last_completion_ns", "worker_finish_spread_ns"} & batch.keys()
+    )
+    assert result["routes"][0]["cold"] == 4
+    root = next(c for c in result["components"] if c["component"] == "decode")
+    assert root["wall_ns"]["total"] == 1000 and root["host_self_ns"]["total"] == 2
+    accounting = API["validate_read_bytes"](result, 4 * 1_248_012)
+    assert accounting == {
+        "status": "legacy_completed_job_counts",
+        "observed_job_bytes": 0,
+        "legacy_completed_jobs": 4,
+        "expected_bytes": 4 * 1_248_012,
+    }
+    with pytest.raises(AssertionError, match="read byte mismatch"):
+        API["validate_read_bytes"](result, 3 * 1_248_012)
+
+
+def test_historical_cold_trace_loads_from_raw_and_compressed_files(historical_cold_trace, tmp_path):
+    path = tmp_path / "decode.json"
+    path.write_text(json.dumps(historical_cold_trace))
+    raw = API["validate_events"](API["load_events"](path))
+    API["compress"](path)
+    assert not path.exists()
+    assert API["validate_events"](API["load_events"](path)) == raw
+
+
+@pytest.mark.parametrize("missing", range(1, 8))
+def test_modern_cold_trace_missing_any_io_fields_is_never_legacy(missing):
+    records = cold_schedule_trace()
+    fields = ("timings_job_worker_start_end_bytes_failed", "jobs_mapping", "workers")
+    for index, field in enumerate(fields):
+        if missing & (1 << index):
+            del records[3]["data"][field]
+    with pytest.raises((AssertionError, KeyError)):
+        API["validate_events"](records)
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "schedule",
+        "route_rows",
+        "priority",
+        "cold_occurrences",
+        "multiplicities",
+        "ready_job_indices",
+    ],
+)
+def test_any_modern_marker_prevents_historical_fallback(historical_cold_trace, marker):
+    historical_cold_trace[3]["data"][marker] = None
+    with pytest.raises((AssertionError, KeyError)):
+        API["validate_events"](historical_cold_trace)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["status", "jobs", "cold_rows", "ready_initial", "w1_rows", "w2_rows", "split", "io_ok"],
+)
+def test_incomplete_historical_payload_is_rejected(historical_cold_trace, field):
+    del historical_cold_trace[3]["data"][field]
+    with pytest.raises((AssertionError, KeyError)):
+        API["validate_events"](historical_cold_trace)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"status": "incomplete"},
+        {"status": "failed_finish"},
+        {"io_ok": False},
+        {"jobs": True},
+        {"jobs": 3},
+        {"jobs": 21},
+        {"cold_rows": 3},
+        {"cold_rows": 21},
+        {"ready_initial": 1},
+        {"ready_initial": 5},
+        {"w1_rows": True},
+        {"w1_rows": 3},
+        {"w2_rows": 0},
+        {"split": 1},
+        {"split": False},
+    ],
+)
+def test_corrupted_historical_counters_are_rejected(historical_cold_trace, change):
+    historical_cold_trace[3]["data"].update(change)
+    with pytest.raises(AssertionError):
+        API["validate_events"](historical_cold_trace)
+
+
+def test_historical_all_ready_batch_retains_its_full_second_wave(historical_cold_trace):
+    historical_cold_trace[3]["data"].update(ready_initial=4, split=False, w1_rows=0, w2_rows=4)
+    batch = API["validate_events"](historical_cold_trace)["legacy_cold_batches"][0]
+    assert batch["split"] is False and batch["w1_rows"] == 0 and batch["w2_rows"] == 4
+
+
+def test_mixed_historical_and_modern_traces_keep_measured_jobs_once(historical_cold_trace):
+    modern = copy.deepcopy(cold_schedule_trace())
+    for event in modern:
+        if event["parent"] is not None:
+            event["parent"] += 4
+    result = API["validate_events"](historical_cold_trace + modern)
+    assert len(result["legacy_cold_batches"]) == len(result["disk_batches"]) == 1
+    assert len(result["disk_jobs"]) == 4
+    accounting = API["validate_read_bytes"](result, 8 * 1_248_012)
+    assert accounting["observed_job_bytes"] == 4 * 1_248_012
+    assert accounting["legacy_completed_jobs"] == 4
+
+
+def historical_profile_dataset(base, historical_cold_trace):
+    """A complete disposable 48-layer capture, including 16 actual output steps."""
+    directory = base / "case/profile"
+    directory.mkdir(parents=True)
+    summary = runpy.run_path(str(ROOT / "tests/test_flash_profile.py"))["summary_fixture"]()
+    summary.update(
+        prompt_ids=[1, 2],
+        mtp=False,
+        mtp_proposed=0,
+        mtp_accepted=0,
+        mtp_blocks=0,
+        traced=True,
+        fenced=False,
+        mtp_head_verify_repair_total_seconds=[0.0, 0.0, 0.0, 0.1],
+        prefill_counts=[[6, 4, 4 * 1_248_012]] * 48,
+        after_counts=[[102, 68, 68 * 1_248_012]] * 48,
+        steps=[
+            {
+                "step": i,
+                "token": 0,
+                "offset": 2 + i,
+                "seconds": 0.1,
+                "elapsed_seconds": i * 0.1,
+                "mtp_proposed": 0,
+                "mtp_accepted": 0,
+                "mtp_blocks": 0,
+            }
+            for i in range(1, 17)
+        ],
+    )
+    for part, span in [("prefill", 1_000_000_000), ("decode", 2_000_000_000)]:
+        events = [{"name": part, "parent": None, "start_ns": 0, "end_ns": span, "data": None}]
+        for cohort in range(16 if part == "decode" else 1):
+            parent, start = 0, cohort * 100_000_000 + 1
+            if part == "decode":
+                parent = len(events)
+                events.append(
+                    {
+                        "name": "output_step",
+                        "parent": 0,
+                        "start_ns": start,
+                        "end_ns": start + 99_999_999,
+                        "data": summary["steps"][cohort],
+                    }
+                )
+            for layer in range(48):
+                block = copy.deepcopy(historical_cold_trace[1:])
+                offset = len(events)
+                for index, event in enumerate(block):
+                    event["parent"] = parent if index == 0 else offset + index - 1
+                    event["start_ns"] += start + layer * 1000
+                    event["end_ns"] += start + layer * 1000
+                block[0]["name"] = f"layer_{layer}"
+                block[1]["data"].update(
+                    rows=1,
+                    ids=list(range(10)),
+                    slots_hit=[[i, i not in (1, 3, 7, 8)] for i in range(10)],
+                    hot_rows=6,
+                    cold_rows=4,
+                    resident_gpu_rows=6,
+                )
+                events.extend(block)
+        summary[part + "_event_count"] = len(events)
+        (directory / f"trace-{part}.json").write_text(json.dumps(events))
+    complete = {
+        "status": "complete_diagnostic_internal_full_parity_external_golden_pending",
+        "load_seconds": 0.1,
+        "kind": "quality",
+        "prompt": "MAIN",
+        "mtp": False,
+        "summaries": [
+            {**summary, "phase": phase, "traced": phase == "trace", "fenced": phase == "fenced"}
+            for phase in ("warmup", "oracle", "trace", "fenced")
+        ],
+    }
+    (directory / "complete.json").write_text(json.dumps(complete))
+    (directory.parent / "run.json").write_text(json.dumps([{"env": {"MLXL3_SSD_CACHE_GIB": "3"}}]))
+    golden = {"cache_context": "known prefix continued", "tokens": [0] * 128}
+    (directory.parent / "golden.json").write_text(json.dumps(golden))
+    return directory, golden
+
+
+def test_historical_profile_analysis_and_csv_export_keep_ssd_gaps_explicit(
+    historical_cold_trace, tmp_path
+):
+    base = tmp_path / "base"
+    directory, golden = historical_profile_dataset(base, historical_cold_trace)
+    report = API["analyze"](directory, "quality", golden, golden["tokens"])
+    parts = report["phases"][2]["parts"]
+    for part in parts.values():
+        assert part["disk_detail_coverage"] == "unavailable_legacy"
+        assert part["disk_jobs"] == part["disk_batches"] == []
+        assert part["read_byte_accounting"]["observed_job_bytes"] == 0
+        assert part["read_byte_accounting"]["status"] == "legacy_completed_job_counts"
+    assert parts["prefill"]["read_byte_accounting"]["legacy_completed_jobs"] == 192
+    assert parts["decode"]["read_byte_accounting"]["legacy_completed_jobs"] == 3072
+    (directory.parent / "dataset-result.json").write_text(json.dumps({"parity": True}))
+    exporter = runpy.run_path(str(ROOT / "scripts/summarize_flash_profile.py"))
+    output = tmp_path / "export"
+    result = exporter["summarize"](base, output, {"cases": [{"output": str(directory)}]})
+    assert result["parity"] is True and result["disk_detail_coverage"] == "unavailable_legacy"
+    assert result["disk_jobs"] == result["worker_rows"] == 0
+    assert result["legacy_cold_batches"] == 816
+    assert not (output / "workers.csv").exists()
+    with (output / "layers.csv").open() as stream:
+        layers = list(csv.DictReader(stream))
+    assert len(layers) == 96
+    assert all(row["batch_worker_finish_spread_p95_ns"] == "" for row in layers)
+    assert sum(int(row["legacy_cold_jobs"]) for row in layers) == 3264
+    with (output / "output-steps.csv").open() as stream:
+        steps = list(csv.DictReader(stream))
+    assert len(steps) == 16 and all(int(row["legacy_cold_jobs"]) == 192 for row in steps)
+    assert all(int(row["ssd_jobs"]) == int(row["returned_bytes"]) == 0 for row in steps)
+
+
+def test_historical_profile_analysis_still_rejects_mismatched_byte_counters(
+    historical_cold_trace, tmp_path
+):
+    directory, golden = historical_profile_dataset(tmp_path / "base", historical_cold_trace)
+    path = directory / "complete.json"
+    complete = json.loads(path.read_text())
+    complete["summaries"][2]["prefill_counts"][0][2] -= 1
+    path.write_text(json.dumps(complete))
+    with pytest.raises(AssertionError, match="read byte mismatch"):
+        API["analyze"](directory, "quality", golden)
+    assert not (directory / "analysis.json").exists()
 
 
 def test_cold_schedule_without_a_routed_parent_cannot_be_qualified():

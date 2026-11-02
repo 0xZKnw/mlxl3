@@ -15,6 +15,16 @@ from pathlib import Path
 from types import SimpleNamespace
 
 EXPERT_BYTES = 1_248_012
+LEGACY_COLD_FIELDS = (
+    "status",
+    "jobs",
+    "cold_rows",
+    "ready_initial",
+    "w1_rows",
+    "w2_rows",
+    "split",
+    "io_ok",
+)
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "docs/measurements/flash-next-ssd-impl/opt-53-detailed-profile"
 
@@ -186,6 +196,7 @@ def validate_events(events):
     paths, layers, ends = [], [], {}
     groups = defaultdict(lambda: {"wall": [], "self": []})
     routes, batches, jobs = [], [], []
+    legacy_cold_batches = []
     signatures, signature_keys, requests, readbacks = {}, set(), [], []
     for i, event in enumerate(events):
         name = event["name"]
@@ -257,6 +268,46 @@ def validate_events(events):
             )
         if name in ("disk_read_batch", "cold_ready_batch"):
             cold = name == "cold_ready_batch"
+            ancestor = parent
+            if cold:
+                while ancestor is not None and events[ancestor]["name"] != "moe_forward_rows":
+                    ancestor = events[ancestor]["parent"]
+                route = None if ancestor is None else events[ancestor]["data"]
+                # d5a776e5 emitted exactly these counters, without any per-job I/O fields.
+                # An incomplete modern record must not take this compatibility path.
+                if set(data) == set(LEGACY_COLD_FIELDS):
+                    assert data["status"] == "finished" and data["io_ok"] is True
+                    assert isinstance(route, dict), "legacy Cold batch has no routed parent"
+                    count, cold_rows = integer(data["jobs"]), integer(data["cold_rows"])
+                    ready = integer(data["ready_initial"])
+                    w1, w2 = integer(data["w1_rows"]), integer(data["w2_rows"])
+                    assert 1 <= route["rows"] <= 2
+                    assert 2 < count <= cold_rows <= 10 * route["rows"]
+                    assert count == len({slot for slot, hit in route["slots_hit"] if not hit})
+                    assert route["cold_rows"] <= cold_rows and 2 <= ready <= count
+                    if "resident_gpu_rows" in route:
+                        assert integer(route["resident_gpu_rows"]) + cold_rows == 10 * route["rows"]
+                    assert type(data["split"]) is bool and w1 + w2 == cold_rows
+                    if data["split"]:
+                        assert ready < count and ready <= w1 <= cold_rows - (count - ready)
+                    else:
+                        assert ready == count and w1 == 0
+                    legacy_cold_batches.append(
+                        {
+                            "layer": layer,
+                            "operation": name,
+                            "wall_ns": end - begin,
+                            **data,
+                            "io_details": "unavailable_legacy",
+                            "missing_io_fields": [
+                                "timings_job_worker_start_end_bytes_failed",
+                                "jobs_mapping",
+                                "workers",
+                            ],
+                            "cold_schedule": cold_schedule_diagnostic(data),
+                        }
+                    )
+                    continue
             assert data["io_ok" if cold else "ok"] is True
             timings = data["timings_job_worker_start_end_bytes_failed"]
             mapping = data["jobs_mapping" if cold else "jobs"]
@@ -299,12 +350,7 @@ def validate_events(events):
                 }
             )
             if cold:
-                ancestor = parent
-                while ancestor is not None and events[ancestor]["name"] != "moe_forward_rows":
-                    ancestor = events[ancestor]["parent"]
-                batches[-1]["cold_schedule"] = cold_schedule_diagnostic(
-                    data, None if ancestor is None else events[ancestor]["data"], end - begin
-                )
+                batches[-1]["cold_schedule"] = cold_schedule_diagnostic(data, route, end - begin)
     for i, event in enumerate(events):
         duration = event["end_ns"] - event["start_ns"]
         assert children[i] <= duration
@@ -328,10 +374,27 @@ def validate_events(events):
         "routes": routes,
         "disk_batches": batches,
         "disk_jobs": jobs,
+        "legacy_cold_batches": legacy_cold_batches,
+        "disk_detail_coverage": "unavailable_legacy" if legacy_cold_batches else "complete",
         "kernel_signatures": list(signatures.values()),
         "kernel_requests": requests,
         "readbacks": readbacks,
         "limits": "nested host wall/self intervals; not exclusive GPU; per-job read intervals overlap across workers",
+    }
+
+
+def validate_read_bytes(stats, expected_bytes):
+    """Reconcile counters without presenting legacy job counts as observed I/O bytes."""
+    observed = sum(job["bytes"] for job in stats["disk_jobs"] if job["layer"] is not None)
+    legacy_jobs = sum(
+        batch["jobs"] for batch in stats["legacy_cold_batches"] if batch["layer"] is not None
+    )
+    assert observed + legacy_jobs * EXPERT_BYTES == integer(expected_bytes), "read byte mismatch"
+    return {
+        "status": "legacy_completed_job_counts" if legacy_jobs else "observed_job_bytes",
+        "observed_job_bytes": observed,
+        "legacy_completed_jobs": legacy_jobs,
+        "expected_bytes": expected_bytes,
     }
 
 
@@ -538,10 +601,7 @@ def analyze(directory, kind, golden, expected_tokens=None):
                 expected_bytes = sum(
                     b[2] - a[2] for a, b in zip(summary[before], summary[after], strict=True)
                 )
-                assert (
-                    sum(j["bytes"] for j in stats["disk_jobs"] if j["layer"] is not None)
-                    == expected_bytes
-                )
+                stats["read_byte_accounting"] = validate_read_bytes(stats, expected_bytes)
                 for layer in range(48):
                     routes = [r for r in layer_routes if r["layer"] == layer]
                     assert (
