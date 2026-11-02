@@ -33,3 +33,25 @@ ne constitue pas une garantie exhaustive.
 Les expérimentations sont publiées sur une branche de travail. Pas de merge,
 release, remplacement de l'application ou activation des candidats non
 qualifiés. Aucun statut CI vert déduit de la présence des workflows.
+
+## Livraison vérifiée
+
+Neuf commits thématiques poussés sur
+[`codex/decode-profile-p09-20261101`](https://github.com/0xZKnw/mlxl3/tree/codex/decode-profile-p09-20261101),
+du40d02c14ee5e au30c5144fcb6113271a0f67726fea15e6da983621. Le SHA distant a
+été relu avec `git ls-remote` et concorde. `commits.json` décrit les neuf
+commits de travail ; cette note de livraison constitue un commit documentaire
+supplémentaire. Aucun fichier sous `apps/` ajouté, aucun nouveau blob>10Mio,
+et3794empreintes de l'inventaire revérifiées identiques.
+
+La compilation `cargo check --locked --features mlx,chat --all-targets --jobs 1`
+du commit source30c5144f a réussi en2m31s. Les commits avaient déclenché
+plusieurs maintenances Git automatiques concurrentes ; ces processus ont été
+identifiés par leur commande et leur cwd dans ce worktree, puis arrêtés pour
+libérer les ressources. Les commandes Git suivantes désactivent l'auto
+maintenance pour cette invocation seulement. Ni test ni proveur ni GPU lancé.
+
+API GitHubActions consultée après push : zéro run pour cette branche.
+Les workflows se déclenchent sur PR et pushmain ; aucune PR ou merge créé.
+Le statut CI est donc **non exécuté**, et non un succès. Les nouveaux candidats
+restent désactivés et non qualifiés numériquement ; aucun gain revendiqué.
