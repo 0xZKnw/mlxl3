@@ -166,6 +166,8 @@ swiftc "${swiftc_args[@]}" -O \
     "${response_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/ResponseUICombined.swift" -o "${test_dir}/response-check"
 "${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py"
+# Use a fresh AppKit process so previous WebKit windows cannot hide the stress fixture.
+run_fixture_check "${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
 
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).

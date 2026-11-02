@@ -551,6 +551,7 @@ extension CodeBlockView {
       )
       NSApp.activate()
       window.makeKeyAndOrderFront(nil)
+      window.orderFrontRegardless()
       for _ in 0..<25 {
         if window.isVisible && window.occlusionState.contains(.visible) {
           report("PRESENTATION READY \(label)")
@@ -885,7 +886,6 @@ extension CodeBlockView {
     try await checkScroll()
     try await checkHTMLControls()
     try await checkInlinePreviewLifetime()
-    try await checkLongVisibility()
     // These exact reply formulas used to fall back to raw $$ text.
     let formulas = [
       #"\mathbb{E}[T_n] = \sum_{i=0}^{n-1}\mathbb{E}[T_{i+1}-T_i] = e\,n\sum_{i=0}^{n-1}\frac{1}{n-i} = e\,n\left(1+\frac12+\frac13+\dots+\frac1n\right)."#,
