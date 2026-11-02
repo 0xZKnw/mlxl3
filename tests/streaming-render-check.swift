@@ -27,6 +27,95 @@ private struct EquatableStateProbe: View, Equatable {
 }
 
 @main struct StreamingRenderCheck {
+  @MainActor private static func checkPlainThinkingChunks() {
+    var cases = 0
+    func require(_ condition: Bool, _ message: String) {
+      if !condition {
+        FileHandle.standardError.write(Data(("Plain thinking chunks: " + message + "\n").utf8))
+        preconditionFailure(message)
+      }
+    }
+    @discardableResult func check(_ source: String, cache: StreamingTextChunker.Cache)
+      -> [StreamingTextChunk]
+    {
+      let chunks = cache.chunks(source)
+      require(!chunks.isEmpty, "No chunks returned, including for empty source")
+      require(
+        chunks.map(\.source).joined().utf8.elementsEqual(source.utf8),
+        "Raw UTF-8 was dropped, reordered or repeated")
+      var offset = 0
+      for chunk in chunks {
+        require(
+          chunk.id == offset && chunk.sourceOffset == offset,
+          "Chunk metadata is not a raw byte position")
+        require(
+          chunk.source.count <= CodeTextChunker.targetCharacters,
+          "Thinking chunk exceeds the bounded layout size")
+        require(
+          source.isEmpty || !chunk.source.isEmpty, "Nonempty source has an empty layout chunk")
+        require(
+          chunk.tableLines.isEmpty, "Plain thinking acquired Markdown table continuation metadata")
+        let expected = source.utf8.dropFirst(offset).prefix(chunk.source.utf8.count)
+        require(
+          chunk.source.utf8.elementsEqual(expected),
+          "Chunk bytes do not match their declared source offset")
+        offset += chunk.source.utf8.count
+      }
+      require(offset == source.utf8.count, "Chunk coverage is incomplete")
+      cases += 1
+      return chunks
+    }
+    for grapheme in ["a", "é", "e\u{301}", "👩‍💻", "🇫🇷", "\r\n"] {
+      let cache = StreamingTextChunker.Cache(markdown: false)
+      for length in [0, 1, 2_047, 2_048, 2_049, 6_000, 16_000, 65_536] {
+        let source = String(repeating: grapheme, count: length)
+        check(source, cache: cache)
+        check(source, cache: cache)
+      }
+    }
+    let header = "| UNIQUE_HEADER | B |\n| --- | --- |\n"
+    let table = header + String(repeating: "| literal | thinking |\n", count: 2_000)
+    let documents = [
+      "```swift\n" + String(repeating: "Raw thinking without closing its fence. ", count: 2_000),
+      "~~~html\n" + String(repeating: "<div>literal e\u{301} 👩‍💻</div>", count: 2_000),
+      table,
+    ]
+    let cache = StreamingTextChunker.Cache(markdown: false)
+    for document in documents {
+      for length in [1, 2_047, 2_048, 2_049, 6_000, 16_000, document.count] {
+        let source = String(document.prefix(length))
+        let chunks = check(source, cache: cache)
+        if source == table {
+          let occurrences = chunks.map(\.source).joined().components(separatedBy: header).count - 1
+          require(occurrences == 1, "A raw table header was replayed across chunks")
+        }
+      }
+      for replacement in [
+        String(document.prefix(2_047)), "Replacement " + document,
+        document.precomposedStringWithCanonicalMapping,
+        document.decomposedStringWithCanonicalMapping, "",
+      ] {
+        check(replacement, cache: cache)
+      }
+    }
+    var source = String(repeating: "x", count: 16_000)
+    var prior = check(source, cache: cache)
+    for fragment in ["e", "\u{301}", "👩", "\u{200D}", "💻", "\r", "\n", table] {
+      source += fragment
+      let chunks = check(source, cache: cache)
+      require(chunks.count >= max(0, prior.count - 2), "Appending erased a stable raw prefix")
+      for (before, after) in zip(prior.dropLast(2), chunks) {
+        require(
+          before.id == after.id && before.source.utf8.elementsEqual(after.source.utf8),
+          "Appending to the tail rewrote a stable raw prefix")
+      }
+      prior = chunks
+    }
+    print(
+      "Plain thinking chunks passed: \(cases) finite boundary/Unicode/fence/table/append/replacement/truncation cases; exact raw bytes and bounded 2048-grapheme layouts"
+    )
+  }
+
     @MainActor static func main() {
         let probe = StateProbe()
         let host = NSHostingView(rootView: EquatableStateProbe(probe: probe).equatable().id(AppLanguage.fr))
@@ -42,6 +131,7 @@ private struct EquatableStateProbe: View, Equatable {
         precondition(probe.value == "false/false/true/en", "Language identity did not refresh the view")
         AppLocalization.set(.fr)
         MarkdownRegressionCheck.run()
+        checkPlainThinkingChunks()
         for grapheme in ["a", "é", "e\u{301}", "👩‍💻", "🇫🇷", "\r\n"] {
             let target = CodeTextChunker.targetCharacters
             for count in [target - 1, target, target + 1] {

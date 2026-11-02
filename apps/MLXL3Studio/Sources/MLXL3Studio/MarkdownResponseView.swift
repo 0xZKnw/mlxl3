@@ -340,19 +340,33 @@ enum StreamingTextChunker {
     static let hardLimitCharacters = 16_000
 
     final class Cache {
+        private let markdown: Bool
         private var previousSource = ""
         private var previousChunks: [StreamingTextChunk] = []
 
+        init(markdown: Bool = true) { self.markdown = markdown }
+
+        private func split(_ source: String, continuingTable: [String] = []) -> [StreamingTextChunk]
+        {
+            if markdown {
+                return StreamingTextChunker.chunks(source, continuingTable: continuingTable)
+            }
+            return CodeTextChunker.chunks(source).map {
+                StreamingTextChunk(id: $0.id, source: $0.source, sourceOffset: $0.id)
+            }
+        }
+
         func chunks(_ source: String) -> [StreamingTextChunk] {
             if source.utf8.count == previousSource.utf8.count,
-               source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty {
+                source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty
+            {
                 return previousChunks
             }
             defer { previousSource = source }
             // ponytail: exact append check still scans bytes; an explicit append
             // API is only needed if that check, rather than parsing, dominates.
             guard previousChunks.count > 2, source.utf8.starts(with: previousSource.utf8) else {
-                previousChunks = StreamingTextChunker.chunks(source)
+                previousChunks = split(source)
                 return previousChunks
             }
             // A full chunk of lookbehind keeps partial fences, headers and
@@ -360,7 +374,7 @@ enum StreamingTextChunker {
             let stableCount = previousChunks.count - 2
             let restart = previousChunks[stableCount]
             let boundary = source.utf8.index(source.utf8.startIndex, offsetBy: restart.sourceOffset)
-            let changed = StreamingTextChunker.chunks(String(source[boundary...]), continuingTable: restart.tableLines)
+            let changed = split(String(source[boundary...]), continuingTable: restart.tableLines)
             previousChunks.removeLast(2)
             previousChunks += changed.map { chunk in
                 StreamingTextChunk(
@@ -1008,7 +1022,7 @@ struct CodeBlockView: View, Equatable {
     @EnvironmentObject private var studio: StudioModel
     @State private var showingPreview = false
     @State private var copied = false
-    @State private var followsBottom = true
+    @State private var codeScroll = StreamingScrollState()
     @State private var chunkCache = CodeTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
@@ -1092,31 +1106,34 @@ struct CodeBlockView: View, Equatable {
     @ViewBuilder private var streamingCode: some View {
         let chunks = chunkCache.highlightedChunks(source)
         if chunks.count > 8 {
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(chunks) { chunk in
-                            CodeTextChunkView(source: chunk.source, language: language,
-                                              prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                                              streaming: chunk.id == chunks.last?.id).equatable()
-                        }
-                        Color.clear.frame(height: 1).id("code-bottom")
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(chunks) { chunk in
+                        CodeTextChunkView(
+                            source: chunk.source, language: language,
+                            prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                            streaming: chunk.id == chunks.last?.id
+                        ).equatable()
                     }
                 }
-                .frame(height: 408)
-                .onScrollGeometryChange(for: Bool.self) { g in
-                    g.contentSize.height - g.visibleRect.maxY < 60
-                } action: { _, bottom in followsBottom = bottom }
-                .onChange(of: source.count) {
-                    if followsBottom { proxy.scrollTo("code-bottom", anchor: .bottom) }
-                }
+            }
+            .frame(height: 408)
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .defaultScrollAnchor(codeScroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+            .onScrollPhaseChange { _, phase in codeScroll.phaseChanged(phase) }
+            .onScrollGeometryChange(for: Bool.self) { g in
+                g.contentSize.height - g.visibleRect.maxY < 60
+            } action: { _, bottom in
+                codeScroll.proximityChanged(bottom)
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(chunks) { chunk in
-                    CodeTextChunkView(source: chunk.source, language: language,
-                                      prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                                      streaming: chunk.id == chunks.last?.id).equatable()
+                    CodeTextChunkView(
+                        source: chunk.source, language: language,
+                        prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                        streaming: chunk.id == chunks.last?.id
+                    ).equatable()
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -1536,27 +1553,34 @@ struct SmoothTokenText: View {
   @State private var fade = TokenFadeState()
   @State private var time: Double = 0
 
+  private var animates: Bool { streaming && !reduceMotion && source.utf8.count <= 16_000 }
+
   var body: some View {
-    content
-      .textRenderer(
-        TokenFadeRenderer(batches: streaming && !reduceMotion ? fade.batches : [], time: time)
-      )
-      .task(id: source) {
-        let now = ProcessInfo.processInfo.systemUptime
-        var transaction = Transaction(animation: nil)
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-          fade.update(source, at: now, animated: streaming && !reduceMotion)
-          time = now
-        }
-        guard !fade.batches.isEmpty else { return }
-        await Task.yield()
-        guard !Task.isCancelled else { return }
-        // Advancing one clock preserves the age of earlier fragments.
-        withAnimation(.linear(duration: TokenFadeState.duration)) {
-          time = now + TokenFadeState.duration
-        }
+    Group {
+      if animates {
+        content.textRenderer(TokenFadeRenderer(batches: fade.batches, time: time))
+      } else {
+        content
       }
+    }
+    .fixedSize(horizontal: false, vertical: true)
+    .task(id: source) {
+      guard animates else { fade = TokenFadeState(); return }
+      let now = ProcessInfo.processInfo.systemUptime
+      var transaction = Transaction(animation: nil)
+      transaction.disablesAnimations = true
+      withTransaction(transaction) {
+        fade.update(source, at: now, animated: true)
+        time = now
+      }
+      guard !fade.batches.isEmpty else { return }
+      await Task.yield()
+      guard !Task.isCancelled else { return }
+      // Advancing one clock preserves the age of earlier fragments.
+      withAnimation(.linear(duration: TokenFadeState.duration)) {
+        time = now + TokenFadeState.duration
+      }
+    }
   }
 }
 

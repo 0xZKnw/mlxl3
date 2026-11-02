@@ -361,7 +361,8 @@ private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
     @State private var expanded = true
-    @State private var chunkCache = StreamingTextChunker.Cache()
+    @State private var chunkCache = StreamingTextChunker.Cache(markdown: false)
+    @State private var scroll = StreamingScrollState()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.text == rhs.text && lhs.streaming == rhs.streaming
@@ -371,7 +372,7 @@ private struct ThinkingBlock: View, Equatable {
         DisclosureGroup(isExpanded: $expanded) {
             ScrollView {
                 let chunks = chunkCache.chunks(text)
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(chunks) { chunk in
                         ThinkingTextChunk(
                             source: chunk.source,
@@ -384,7 +385,13 @@ private struct ThinkingBlock: View, Equatable {
                 .padding(.top, 10)
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+            .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.height - geometry.visibleRect.maxY < 60
+            } action: { _, nearBottom in
+                scroll.proximityChanged(nearBottom)
+            }
             .frame(maxHeight: 180)
         } label: {
             HStack(spacing: 8) {

@@ -1,7 +1,9 @@
 // Compiled in the same file as MarkdownResponseView.swift to exercise its
 // production parser/worker without exporting implementation details.
 import AppKit
+import CoreML
 import SwiftUI
+import Vision
 import WebKit
 
 private struct ReferenceFadeRenderer: TextRenderer {
@@ -444,6 +446,11 @@ extension CodeBlockView {
 
     var follow = StreamingScrollState()
     require(follow.shouldFollow, "Initial follow state")
+    follow.proximityChanged(false)
+    require(follow.shouldFollow, "Automatic content growth must not suspend following")
+    follow.phaseChanged(.animating)
+    follow.proximityChanged(false)
+    require(follow.shouldFollow, "Programmatic scrolling must keep following new content")
     follow.phaseChanged(.tracking)
     require(!follow.shouldFollow, "Tracking must suspend follow before a drag")
     follow.phaseChanged(.interacting)
@@ -458,6 +465,237 @@ extension CodeBlockView {
     require(follow.shouldFollow, "Returning to bottom must resume follow")
     print(
       "Scroll checks passed: native initial/final anchor and interpolation; production state transitions for tracking/drag/deceleration/reading/resume"
+    )
+  }
+
+  private static func recognizedCPU(_ image: CGImage) throws -> String {
+    let request = VNRecognizeTextRequest()
+    request.recognitionLevel = .accurate
+    request.recognitionLanguages = ["en-US"]
+    request.usesLanguageCorrection = false
+    let stages = try request.supportedComputeStageDevices
+    guard !stages.isEmpty else {
+      throw NSError(
+        domain: "MLXL3LongVisibility", code: 2,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Vision supplied no compute stages; CPU-only OCR not established"
+        ])
+    }
+    for (stage, devices) in stages {
+      guard
+        let cpu = devices.first(where: {
+          if case .cpu = $0 { return true }
+          return false
+        })
+      else {
+        throw NSError(
+          domain: "MLXL3LongVisibility", code: 2,
+          userInfo: [NSLocalizedDescriptionKey: "OCR stage has no CPU device: \(stage)"])
+      }
+      request.setComputeDevice(cpu, for: stage)
+    }
+    try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
+    return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(
+      separator: " ")
+  }
+
+  @MainActor private static func checkLongVisibility() async throws {
+    func report(_ text: String) {
+      FileHandle.standardError.write(Data(("Long visibility: " + text + "\n").utf8))
+    }
+    func require(_ condition: Bool, _ message: String) throws {
+      guard condition else {
+        report("FAIL " + message)
+        throw NSError(
+          domain: "MLXL3LongVisibility", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
+      }
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-long-visibility-\(UUID())")
+    let suite = "io.mlxl3.long-visibility.\(UUID())"
+    let prefs = UserDefaults(suiteName: suite)!
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"),
+      isPreview: true, preferences: prefs)
+    let previous = ChatMessage(role: .assistant, content: "Previous answer remains in history.")
+    let message = ChatMessage(role: .assistant, content: "", isStreaming: true)
+    let host = NSHostingView(
+      rootView: MessagesView(messages: [previous, message])
+        .environmentObject(studio).background(StudioTheme.canvas).preferredColorScheme(.dark))
+    let window = NSWindow(
+      contentRect: NSRect(x: 50, y: 50, width: 900, height: 700),
+      styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+    window.level = .floating
+    window.hidesOnDeactivate = false
+    window.contentView = host
+    NSApp.activate()
+    window.makeKeyAndOrderFront(nil)
+    defer {
+      window.contentView = nil
+      window.orderOut(nil)
+    }
+    func nativeScroll(_ view: NSView) -> NSScrollView? {
+      if let scroll = view as? NSScrollView { return scroll }
+      return view.subviews.lazy.compactMap { nativeScroll($0) }.first
+    }
+    func normalized(_ text: String) -> String { String(text.lowercased().filter(\.isLetter)) }
+    func ensurePresented(_ label: String) async throws {
+      guard !window.isVisible || !window.occlusionState.contains(.visible) else { return }
+      report(
+        "PRESENTATION RECOVERY \(label): visible=\(window.isVisible), occluded=\(!window.occlusionState.contains(.visible))"
+      )
+      NSApp.activate()
+      window.makeKeyAndOrderFront(nil)
+      for _ in 0..<25 {
+        if window.isVisible && window.occlusionState.contains(.visible) {
+          report("PRESENTATION READY \(label)")
+          return
+        }
+        try await Task.sleep(for: .milliseconds(100))
+      }
+      try require(
+        window.isVisible && window.occlusionState.contains(.visible),
+        "Native stress window failed bounded presentation setup at \(label)")
+    }
+    try await ensurePresented("setup")
+    var frames = 0
+    var firstMisses = 0
+    func checkFrame(_ label: String, marker: String, save: Bool = false) async throws {
+      func capture() throws -> (
+        bitmap: NSBitmapImageRep, image: CGImage, ink: Int, height: CGFloat, offset: CGFloat
+      ) {
+        host.layoutSubtreeIfNeeded()
+        try require(
+          window.isVisible && window.occlusionState.contains(.visible),
+          "Native stress window is hidden/occluded at \(label)")
+        guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+          throw NSError(
+            domain: "MLXL3LongVisibility", code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "No viewport bitmap at \(label)"])
+        }
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        let outer = nativeScroll(host)
+        let height = outer?.documentView?.bounds.height ?? 0
+        let offset = outer?.contentView.bounds.minY ?? 0
+        var ink = 0
+        for y in stride(from: bitmap.pixelsHigh / 5, to: bitmap.pixelsHigh * 9 / 10, by: 3) {
+          for x in stride(from: bitmap.pixelsWide / 12, to: bitmap.pixelsWide * 11 / 12, by: 3) {
+            if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
+              color.redComponent + color.greenComponent + color.blueComponent > 1.15
+            {
+              ink += 1
+            }
+          }
+        }
+        return (bitmap, bitmap.cgImage!, ink, height, offset)
+      }
+      func saveBitmap(_ bitmap: NSBitmapImageRep, suffix: String) throws {
+        guard let folder = ProcessInfo.processInfo.environment["MLXL3_STREAM_UI_SNAPSHOTS"] else {
+          return
+        }
+        let directory = URL(fileURLWithPath: folder)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try bitmap.representation(using: .png, properties: [:])!.write(
+          to: directory.appendingPathComponent("long-\(label)-\(suffix).png"))
+      }
+      try await ensurePresented(label)
+      try await Task.sleep(for: .milliseconds(350))
+      var snapshot = try capture()
+      let firstImage = snapshot.image
+      var text = try await Task.detached(priority: .utility) { try Self.recognizedCPU(firstImage) }
+        .value
+      var found = normalized(text).contains(normalized(marker))
+      report(
+        "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+      )
+      if !found || snapshot.ink < 40 {
+        firstMisses += 1
+        report("FIRST MISS \(label): expected=\(marker); OCR=\(text)")
+        try saveBitmap(snapshot.bitmap, suffix: "first-miss")
+        // Let native layout and scroll animations run without the OCR observer blocking the main actor.
+        try await Task.sleep(for: .seconds(2))
+        snapshot = try capture()
+        let settledImage = snapshot.image
+        text = try await Task.detached(priority: .utility) { try Self.recognizedCPU(settledImage) }
+          .value
+        found = normalized(text).contains(normalized(marker))
+        report(
+          "\(label) settled ink=\(snapshot.ink) marker=\(found) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+        )
+        try saveBitmap(
+          snapshot.bitmap,
+          suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
+      } else if save {
+        try saveBitmap(snapshot.bitmap, suffix: "first")
+      }
+      try require(
+        window.occlusionState.contains(.visible), "Native stress window became occluded at \(label)"
+      )
+      try require(
+        snapshot.ink >= 40 && found,
+        "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(text); ink=\(snapshot.ink), height=\(snapshot.height), offset=\(snapshot.offset)"
+      )
+      frames += 1
+    }
+    let checkpoints = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"]
+    func repeated(_ line: String) -> String {
+      String(repeating: line, count: max(1, 16_384 / line.utf8.count))
+    }
+    // Flat paragraphs deliberately cross the previous 16 KiB line/chunk boundary.
+    for checkpoint in checkpoints {
+      let marker = "VISIBLE THINKING \(checkpoint)"
+      message.append(
+        repeated("Reasoning through a long project, preserving every visible word. ") + marker
+          + " ", phase: "thinking")
+      try await checkFrame(
+        "thinking-\(checkpoint.lowercased())", marker: marker, save: checkpoint == "HOTEL")
+    }
+    try require(
+      message.thinking.utf8.count >= 120_000, "Thinking stress never reached the declared size")
+    message.append("Beginning the answer. ", phase: "answer")
+    for checkpoint in checkpoints {
+      let marker = "VISIBLE ANSWER \(checkpoint)"
+      message.append(
+        repeated(
+          "The normal answer keeps its complete explanation readable as the document becomes very long. "
+        ) + marker + " ", phase: "answer")
+      try await checkFrame(
+        "answer-\(checkpoint.lowercased())", marker: marker, save: checkpoint == "HOTEL")
+    }
+    message.append("\n\n```javascript\n// ", phase: "answer")
+    for checkpoint in checkpoints {
+      let marker = "VISIBLE CODE \(checkpoint)"
+      message.append(
+        repeated("Long generated source remains painted with exact content and stable scrolling. ")
+          + marker + " ", phase: "answer")
+      try await checkFrame(
+        "code-\(checkpoint.lowercased())", marker: marker, save: checkpoint == "HOTEL")
+    }
+    message.append("\n```\n\nVISIBLE BEFORE TOOL CHECKPOINT\n\n", phase: "answer")
+    try await checkFrame("before-tool", marker: "VISIBLE BEFORE TOOL CHECKPOINT")
+    message.startTool(
+      id: "visibility-tool", serverName: "Disposable fixture", toolName: "VISIBLE TOOL CHECKPOINT")
+    try await checkFrame("tool-running", marker: "VISIBLE TOOL CHECKPOINT")
+    message.finishTool(id: "visibility-tool", result: "Fixture action complete", isError: false)
+    message.processing("VISIBLE PROCESSING CHECKPOINT")
+    try await checkFrame("processing", marker: "VISIBLE PROCESSING CHECKPOINT")
+    message.append("VISIBLE FINAL CHECKPOINT\n\n", phase: "answer")
+    message.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+    try await checkFrame("complete", marker: "VISIBLE FINAL CHECKPOINT", save: true)
+    try require(
+      message.content.utf8.count >= 250_000 && message.toolActivities.first?.state == .complete,
+      "Long answer/tool fixture did not reach the declared boundary")
+    window.setContentSize(NSSize(width: 640, height: 520))
+    try await checkFrame("narrow", marker: "VISIBLE FINAL CHECKPOINT")
+    window.setContentSize(NSSize(width: 900, height: 700))
+    try await checkFrame("wide", marker: "VISIBLE FINAL CHECKPOINT")
+    report(
+      "PASS \(frames) actual viewport/OCR checks, initial misses=\(firstMisses) preserved, >120KiB thinking + >250KiB answer, tool/completion/resize, detached OCR CPU only"
     )
   }
 
@@ -635,6 +873,10 @@ extension CodeBlockView {
   }
 
   @MainActor private static func runChecks() async throws {
+    if CommandLine.arguments.contains("--check-long-visibility") {
+      try await checkLongVisibility()
+      return
+    }
     if CommandLine.arguments.contains("--check-inline-preview") {
       try await checkInlinePreviewLifetime()
       return
@@ -643,6 +885,7 @@ extension CodeBlockView {
     try await checkScroll()
     try await checkHTMLControls()
     try await checkInlinePreviewLifetime()
+    try await checkLongVisibility()
     // These exact reply formulas used to fall back to raw $$ text.
     let formulas = [
       #"\mathbb{E}[T_n] = \sum_{i=0}^{n-1}\mathbb{E}[T_{i+1}-T_i] = e\,n\sum_{i=0}^{n-1}\frac{1}{n-i} = e\,n\left(1+\frac12+\frac13+\dots+\frac1n\right)."#,
