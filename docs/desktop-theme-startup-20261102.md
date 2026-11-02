@@ -69,3 +69,22 @@ fixe pour éviter de ne capturer qu’un fragment d’une LazyVStack sans Scroll
 Les appels natifs de clic ne sont pas automatisés ; les vrais setters, vues et
 sous-processus sont exercés. Le contrôle Metal est explicitement sauté pour ces
 tests d’interface. Aucun gain de vitesse/mémoire ou preuve universelle revendiqué.
+
+
+## Ajout Bleu nuit — 2 novembre 2026
+
+Quatrième choix « Bleu nuit » (Midnight blue), palette bleu sombre inspirée des
+éditeurs de code : canvas#1A2534, sidebar#111824, saisie#213045, accent bleu.
+Le thème impose le mode sombre pour garder les textes, le code et les formules
+lisibles. La sélection voyage dans une petite valeur d’environnement SwiftUI,
+sans état global de palette et sans recréer le modèle de conversation. Les trois
+choix précédents gardent leur palette et le sombre reste le défaut.
+
+Les62assertions ciblées passent : persistance des quatre choix, rendu du même
+panneau clair→sombre→bleu→clair, composante bleue vérifiée indépendamment sur le
+bitmap, mode Système et parcours de démarrage. Fenêtre principale et réglages
+inspectés visuellement. Build release et reconstruction/signature du bundle de
+test réussis. Suite Desktop/Python complète du commit précédent non répétée pour
+ce changement de palette ; tous les sources UI sont recompilés et la sélection
+/rendu sont exercés par le harnais ciblé. Aucune vérification formelle Swift.
+Preuves : [résumé et captures](measurements/desktop-blue-theme-20261102/verification-summary.json).

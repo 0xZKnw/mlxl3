@@ -89,8 +89,8 @@ struct MenuBarPanel: View {
         .frame(width: 360)
         .fixedSize(horizontal: false, vertical: true)
         .foregroundStyle(StudioTheme.ink)
-        .background(StudioTheme.canvas)
-        .preferredColorScheme(studio.theme.colorScheme)
+        .background(StudioTheme.canvas(for: studio.theme))
+        .studioAppearance(studio.theme)
     }
 
     private func caption(_ text: String) -> some View {

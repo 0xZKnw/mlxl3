@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ModelManagerView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.dismiss) private var dismiss
     @State private var discover = false
@@ -31,13 +32,13 @@ struct ModelManagerView: View {
                         .font(.system(size: 27, weight: .regular, design: .serif))
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
                         .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
-                }.padding(18).frame(width: 180).background(StudioTheme.sidebar)
+                }.padding(18).frame(width: 180).background(StudioTheme.sidebar(for: appTheme))
                 Divider().overlay(StudioTheme.edge)
                 if discover { HubBrowserView(library: studio.modelLibrary) } else { installed }
             }
             LibraryDownloadView(library: studio.modelLibrary)
         }
-        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: appTheme))
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(width: min(1040, (NSScreen.main?.visibleFrame.width ?? 1200) - 60),
                height: min(740, (NSScreen.main?.visibleFrame.height ?? 900) - 90))
@@ -126,6 +127,7 @@ struct ModelManagerView: View {
 }
 
 private struct HubBrowserView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var library: ModelLibrary
 
@@ -176,7 +178,7 @@ private struct HubBrowserView: View {
             }
             if let error = library.error { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
         }.padding(26).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .overlay { if library.loadingDetail { ProgressView().padding(20).background(StudioTheme.canvas, in: RoundedRectangle(cornerRadius: 12)) } }
+            .overlay { if library.loadingDetail { ProgressView().padding(20).background(StudioTheme.canvas(for: appTheme), in: RoundedRectangle(cornerRadius: 12)) } }
             .onChange(of: library.query) { library.search() }
             .onAppear { if library.results.isEmpty { library.search() } }
     }

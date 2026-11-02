@@ -2,8 +2,8 @@ import Foundation
 import CoreFoundation
 import SwiftUI
 
-enum AppTheme: String, CaseIterable {
-    case system, light, dark
+enum AppTheme: String, CaseIterable, Sendable {
+    case system, light, dark, midnightBlue
 
     static let preferenceKey = "studio.theme"
     static func load(from preferences: UserDefaults) -> Self {
@@ -14,13 +14,14 @@ enum AppTheme: String, CaseIterable {
         case .system: L("Système", "System")
         case .light: L("Clair", "Light")
         case .dark: L("Sombre", "Dark")
+        case .midnightBlue: L("Bleu nuit", "Midnight blue")
         }
     }
     var colorScheme: ColorScheme? {
         switch self {
         case .system: nil
         case .light: .light
-        case .dark: .dark
+        case .dark, .midnightBlue: .dark
         }
     }
 }

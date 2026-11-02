@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GenerationInspector: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
@@ -258,7 +259,7 @@ struct GenerationInspector: View {
                 }
             }
         }
-        .background(StudioTheme.sidebar)
+        .background(StudioTheme.sidebar(for: appTheme))
         .onChange(of: studio.temperature) { studio.settingsDidChange() }
         .onChange(of: studio.topK) { studio.settingsDidChange() }
         .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }

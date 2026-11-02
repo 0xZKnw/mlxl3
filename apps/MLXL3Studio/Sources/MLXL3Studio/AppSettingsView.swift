@@ -198,8 +198,8 @@ struct AppSettingsView: View {
         }
         .id(studio.language)
         .frame(width: 650, height: 560)
-        .background(StudioTheme.canvas)
-        .preferredColorScheme(studio.theme.colorScheme)
+        .background(StudioTheme.canvas(for: studio.theme))
+        .studioAppearance(studio.theme)
     }
 
     private func dataFlowRow(_ title: String, _ detail: String, _ icon: String) -> some View {
@@ -422,6 +422,7 @@ private struct UpdateSettingsCard: View {
 }
 
 struct UpdateStatusButton: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @ObservedObject var updater: UpdateManager
     let action: () -> Void
 
@@ -435,7 +436,7 @@ struct UpdateStatusButton: View {
                     Circle()
                         .fill(StudioTheme.accent)
                         .frame(width: 7, height: 7)
-                        .overlay(Circle().stroke(StudioTheme.sidebar, lineWidth: 1.5))
+                        .overlay(Circle().stroke(StudioTheme.sidebar(for: appTheme), lineWidth: 1.5))
                         .offset(x: 1, y: -1)
                 }
             }

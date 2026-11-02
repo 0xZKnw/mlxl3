@@ -22,6 +22,37 @@ enum StudioTheme {
     static let secondary = contrast.opacity(0.72)
     static let accent = adaptive(light: 0.18, dark: 0.86)
     static let thinking = secondary
+
+    static let blueAccent = Color(red: 0.31, green: 0.66, blue: 1)
+    static func canvas(for theme: AppTheme) -> Color {
+        theme == .midnightBlue ? Color(red: 0.10, green: 0.145, blue: 0.205) : canvas
+    }
+    static func sidebar(for theme: AppTheme) -> Color {
+        theme == .midnightBlue ? Color(red: 0.065, green: 0.095, blue: 0.14) : sidebar
+    }
+    static func composer(for theme: AppTheme) -> Color {
+        theme == .midnightBlue ? Color(red: 0.13, green: 0.19, blue: 0.27) : composer
+    }
+
+}
+
+private struct StudioAppThemeKey: EnvironmentKey {
+    static let defaultValue: AppTheme = .dark
+}
+
+extension EnvironmentValues {
+    var studioAppTheme: AppTheme {
+        get { self[StudioAppThemeKey.self] }
+        set { self[StudioAppThemeKey.self] = newValue }
+    }
+}
+
+extension View {
+    func studioAppearance(_ theme: AppTheme) -> some View {
+        environment(\.studioAppTheme, theme)
+            .preferredColorScheme(theme.colorScheme)
+            .tint(theme == .midnightBlue ? StudioTheme.blueAccent : nil)
+    }
 }
 
 /// A single, restrained interaction surface for navigation and toolbars.

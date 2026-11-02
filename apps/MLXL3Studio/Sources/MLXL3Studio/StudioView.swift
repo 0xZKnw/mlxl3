@@ -3,6 +3,7 @@ import SwiftUI
 /// Window composition. The transcript owns its scroll state; chrome never
 /// observes token-by-token text updates.
 struct StudioView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
@@ -13,7 +14,7 @@ struct StudioView: View {
                     SidebarView().frame(width: 232)
                 }
                 ChatWorkspaceView(sidebarVisible: $sidebarVisible)
-                    .background(StudioTheme.canvas)
+                    .background(StudioTheme.canvas(for: appTheme))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12)
@@ -48,7 +49,7 @@ struct StudioView: View {
         }
         .id(studio.language)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
-        .background(StudioTheme.sidebar)
+        .background(StudioTheme.sidebar(for: appTheme))
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .sheet(isPresented: $studio.showModelManager) {

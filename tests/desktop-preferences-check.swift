@@ -53,7 +53,7 @@ extension StudioModel {
             check(!theme.title.isEmpty, "Missing theme title")
         }
         check(AppTheme.system.colorScheme == nil && AppTheme.light.colorScheme == .light
-              && AppTheme.dark.colorScheme == .dark, "Incorrect scheme mapping")
+              && AppTheme.dark.colorScheme == .dark && AppTheme.midnightBlue.colorScheme == .dark, "Incorrect scheme mapping")
         for invalid in ["", "sepia", true, 4] as [Any] {
             preferences.set(invalid, forKey: AppTheme.preferenceKey)
             check(AppTheme.load(from: preferences) == .dark, "Invalid theme must fall back")
@@ -88,7 +88,7 @@ extension StudioModel {
         window.contentView = host
         host.frame = NSRect(x: 0, y: 0, width: 650, height: 560)
         defer { window.close() }
-        for theme in [AppTheme.light, .dark, .light] {
+        for theme in [AppTheme.light, .dark, .midnightBlue, .light] {
             studio.setTheme(theme)
             try await Task.sleep(for: .milliseconds(150))
             host.layoutSubtreeIfNeeded()
@@ -100,10 +100,31 @@ extension StudioModel {
             let corner = bitmap.colorAt(x: 10, y: 10)!.usingColorSpace(.sRGB)!
             check(theme == .light ? corner.redComponent > 0.7 : corner.redComponent < 0.3,
                   "Rendered settings did not follow selected theme")
+            if theme == .midnightBlue {
+                check(corner.blueComponent > corner.redComponent + 0.07,
+                      "Midnight blue must render a blue canvas, not the neutral dark palette")
+            }
             if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
                let data = bitmap.representation(using: .png, properties: [:]) {
                 try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-" + theme.rawValue + ".png"))
             }
+        }
+        let blueHost = NSHostingView(rootView: StudioView().environmentObject(studio)
+            .studioAppearance(.midnightBlue).frame(width: 1280, height: 800))
+        let blueWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
+                                  styleMask: .borderless, backing: .buffered, defer: false)
+        blueWindow.isReleasedWhenClosed = false
+        blueWindow.contentView = blueHost
+        blueHost.frame = NSRect(x: 0, y: 0, width: 1280, height: 800)
+        defer { blueWindow.close() }
+        try await Task.sleep(for: .milliseconds(150))
+        blueHost.layoutSubtreeIfNeeded()
+        let blueBitmap = blueHost.bitmapImageRepForCachingDisplay(in: blueHost.bounds)!
+        blueHost.cacheDisplay(in: blueHost.bounds, to: blueBitmap)
+        check(blueBitmap.pixelsWide >= 1280, "Main blue theme window did not render")
+        if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
+           let data = blueBitmap.representation(using: .png, properties: [:]) {
+            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("studio-midnightBlue.png"))
         }
         // System follows application appearance without a forced scheme.
         studio.setTheme(.system)

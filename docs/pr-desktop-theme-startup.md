@@ -1,6 +1,6 @@
 # Desktop preferences, notifications and model startup recovery
 
-Adds persisted System/Light/Dark themes, optional automatic loading and an explicit
+Adds persisted System/Light/Dark/Midnight blue themes, optional automatic loading and an explicit
 startup-model picker. A missing chosen model stays unloaded rather than silently
 loading another one. Appearance changes keep the draft, conversation and engine.
 

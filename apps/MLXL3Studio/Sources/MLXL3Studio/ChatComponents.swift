@@ -509,6 +509,7 @@ struct ChatAttachmentView: View {
 }
 
 struct ComposerView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
     @State private var dropTargeted = false
@@ -611,7 +612,7 @@ struct ComposerView: View {
             guard !studio.isGenerating else { return }
             focused = true
         }
-        .background(StudioTheme.composer, in: RoundedRectangle(cornerRadius: 12))
+        .background(StudioTheme.composer(for: appTheme), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(dropTargeted ? StudioTheme.accent : StudioTheme.contrast.opacity(focused ? 0.22 : 0.10), lineWidth: dropTargeted ? 1.5 : 0.7)
