@@ -630,6 +630,7 @@ impl SsdMoe {
                 "status":if finished.is_ok(){"finished"}else{"failed_finish"},
                 "jobs":jobs.len(),"cold_rows":cold.len(),
                 "ready_initial":ready.iter().filter(|&&done|done).count(),
+                "ready_job_indices":ready.iter().enumerate().filter_map(|(i,&done)|done.then_some(i)).collect::<Vec<_>>(),
                 "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
                 "split":first.is_some(),"io_ok":finished.is_ok(),
                 "jobs_mapping":jobs,"workers":self.readers,
