@@ -1,0 +1,150 @@
+[
+  {
+    "name": "decode",
+    "parent": null,
+    "start_ns": 0,
+    "end_ns": 1000,
+    "data": null
+  },
+  {
+    "name": "layer_0",
+    "parent": 0,
+    "start_ns": 1,
+    "end_ns": 999,
+    "data": null
+  },
+  {
+    "name": "moe_forward_rows",
+    "parent": 1,
+    "start_ns": 2,
+    "end_ns": 998,
+    "data": {
+      "rows": 2,
+      "capacity": 53,
+      "ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "slots_hit": [
+        [
+          0,
+          true
+        ],
+        [
+          1,
+          false
+        ],
+        [
+          2,
+          true
+        ],
+        [
+          3,
+          false
+        ],
+        [
+          4,
+          true
+        ],
+        [
+          5,
+          true
+        ],
+        [
+          6,
+          true
+        ],
+        [
+          7,
+          false
+        ],
+        [
+          8,
+          true
+        ],
+        [
+          9,
+          true
+        ],
+        [
+          10,
+          true
+        ],
+        [
+          11,
+          true
+        ],
+        [
+          12,
+          false
+        ],
+        [
+          13,
+          true
+        ],
+        [
+          14,
+          true
+        ],
+        [
+          15,
+          true
+        ],
+        [
+          16,
+          true
+        ],
+        [
+          17,
+          true
+        ],
+        [
+          18,
+          true
+        ],
+        [
+          19,
+          true
+        ]
+      ],
+      "hot_rows": 16,
+      "cold_rows": 4,
+      "resident_gpu_rows": 16,
+      "completed_hot": false
+    }
+  },
+  {
+    "name": "cold_ready_batch",
+    "parent": 2,
+    "start_ns": 3,
+    "end_ns": 900,
+    "data": {
+      "status": "finished",
+      "jobs": 4,
+      "cold_rows": 4,
+      "ready_initial": 2,
+      "w1_rows": 2,
+      "w2_rows": 2,
+      "split": true,
+      "io_ok": true
+    }
+  }
+]

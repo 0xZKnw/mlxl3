@@ -51,6 +51,8 @@ def output_steps(events, summary):
                 "ssd_batch_wall_ns": 0,
                 "ssd_jobs": 0,
                 "returned_bytes": 0,
+                "legacy_cold_jobs": 0,
+                "legacy_cold_batch_wall_ns": 0,
                 "hits": 0,
                 "misses": 0,
                 "head_proposal_ns": 0,
@@ -102,6 +104,9 @@ def output_steps(events, summary):
             row["returned_bytes"] += sum(
                 r[4] for r in event["data"]["timings_job_worker_start_end_bytes_failed"]
             )
+        elif name == "cold_ready_batch" and set(event["data"]) == set(API["LEGACY_COLD_FIELDS"]):
+            row["legacy_cold_jobs"] += event["data"]["jobs"]
+            row["legacy_cold_batch_wall_ns"] += duration
     result = list(rows.values())
     assert len(result) == len(summary["tokens"]) - 1 == len(summary["steps"])
     offset = len(summary["prompt_ids"])
@@ -216,7 +221,15 @@ def summarize(base, output, matrix=None):
 
     assert base.is_dir() and not output.exists(), "refusing missing input or overwritten export"
     output.mkdir()
-    status = {"status": "incomplete", "parity": False, "cases": [], "events": 0, "disk_jobs": 0}
+    status = {
+        "status": "incomplete",
+        "parity": False,
+        "cases": [],
+        "events": 0,
+        "disk_jobs": 0,
+        "legacy_cold_batches": 0,
+        "disk_detail_coverage": "complete",
+    }
     phase_rows, components, layer_rows, worker_rows, step_rows, system_rows = [], [], [], [], [], []
     readback_rows, signature_rows, request_rows = [], [], []
     (output / "result.json").write_text(json.dumps(status, indent=2) + "\n")
@@ -330,6 +343,9 @@ def summarize(base, output, matrix=None):
                     del events
                     status["events"] += stats["event_count"]
                     status["disk_jobs"] += len(stats["disk_jobs"])
+                    status["legacy_cold_batches"] += len(stats["legacy_cold_batches"])
+                    if stats["legacy_cold_batches"]:
+                        status["disk_detail_coverage"] = "unavailable_legacy"
                     readback_rows.extend(
                         {
                             **meta,
@@ -375,6 +391,7 @@ def summarize(base, output, matrix=None):
                         routes = [r for r in stats["routes"] if r["layer"] == layer]
                         batches = [r for r in stats["disk_batches"] if r["layer"] == layer]
                         jobs = [r for r in stats["disk_jobs"] if r["layer"] == layer]
+                        legacy = [r for r in stats["legacy_cold_batches"] if r["layer"] == layer]
                         pairs = [r["pairs"] for r in routes if r["rows"] == 2]
                         layer_rows.append(
                             {
@@ -393,6 +410,8 @@ def summarize(base, output, matrix=None):
                                 "shared_pair_experts_sum": sum(pairs),
                                 "disk_jobs": len(jobs),
                                 "returned_bytes": sum(r["bytes"] for r in jobs),
+                                "legacy_cold_jobs": sum(r["jobs"] for r in legacy),
+                                "legacy_cold_batch_wall_ns": sum(r["wall_ns"] for r in legacy),
                                 "ssd_batch_wall_ns": sum(r["wall_ns"] for r in batches),
                                 "batch_worker_finish_spread_p95_ns": API["distribution"](
                                     [r["worker_finish_spread_ns"] for r in batches]
@@ -420,19 +439,20 @@ def summarize(base, output, matrix=None):
                                     **dist,
                                 }
                             )
-                    assert sum(
-                        r["bytes"] for r in stats["disk_jobs"] if r["layer"] is not None
-                    ) == sum(
-                        b[2] - a[2]
-                        for a, b in zip(
-                            summary["before_counts"]
-                            if part == "prefill"
-                            else summary["prefill_counts"],
-                            summary["prefill_counts"]
-                            if part == "prefill"
-                            else summary["after_counts"],
-                            strict=True,
-                        )
+                    API["validate_read_bytes"](
+                        stats,
+                        sum(
+                            b[2] - a[2]
+                            for a, b in zip(
+                                summary["before_counts"]
+                                if part == "prefill"
+                                else summary["prefill_counts"],
+                                summary["prefill_counts"]
+                                if part == "prefill"
+                                else summary["after_counts"],
+                                strict=True,
+                            )
+                        ),
                     )
             status["cases"].append(meta)
             (output / "result.json").write_text(json.dumps(status, indent=2) + "\n")
