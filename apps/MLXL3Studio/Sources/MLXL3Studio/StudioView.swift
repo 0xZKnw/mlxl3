@@ -227,6 +227,19 @@ private struct ChatWorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             WorkspaceHeader(sidebarVisible: $sidebarVisible)
+            if case let .failed(message) = studio.engineState {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                    Text(message).font(.caption).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(L("Réessayer", "Retry"), action: studio.retrySelectedModel)
+                        .disabled(studio.selectedModel == nil)
+                }
+                .foregroundStyle(StudioTheme.ink)
+                .padding(12)
+                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 24)
+            }
             if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
                 MessagesView(messages: conversation.messages)
                 ComposerView()

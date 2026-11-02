@@ -112,6 +112,14 @@ tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
 if model.startswith('auto-'):
     capabilities['mtp_configure_supported'] = True
+if model == 'first-load-fails':
+    marker = os.path.join(os.environ['MLXL3_HOME'], 'first-load-attempt')
+    if not os.path.exists(marker):
+        with open(marker, 'w', encoding='utf-8') as handle:
+            handle.write('attempted')
+        emit('error', message='fixture first load failed')
+        sys.stdin.read()
+        sys.exit(0)
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
      dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
      **capabilities, memory_saver_supported=model == 'mtp-memory-saver',

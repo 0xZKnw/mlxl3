@@ -50,10 +50,38 @@ struct AppSettingsView: View {
                             get: { studio.loadModelOnStartup },
                             set: { studio.setLoadModelOnStartup($0) }
                         ))
-                        Text(L("À l’ouverture de MLXL3, charge le dernier modèle sélectionné, ou le premier disponible. Sinon, sélectionne un modèle pour le charger. Le changement s’applique au prochain démarrage.", "When MLXL3 opens, loads the last selected model, or the first available one. Otherwise, select a model to load it. Changes apply on the next launch."))
+                        Picker(L("Modèle de démarrage", "Startup model"), selection: Binding(
+                            get: { studio.startupModelPath }, set: { studio.setStartupModelPath($0) }
+                        )) {
+                            Text(L("Dernier modèle sélectionné", "Last selected model")).tag("")
+                            ForEach(studio.models) { model in
+                                Text(model.name).tag(model.path)
+                            }
+                            if !studio.startupModelPath.isEmpty && !studio.models.contains(where: { $0.path == studio.startupModelPath }) {
+                                Text(L("Modèle indisponible", "Model unavailable")).tag(studio.startupModelPath)
+                            }
+                        }
+                        .disabled(!studio.loadModelOnStartup)
+                        if !studio.startupModelPath.isEmpty && !studio.models.contains(where: { $0.path == studio.startupModelPath }) {
+                            Text(L("Le modèle choisi n’est plus disponible. Choisis un autre modèle pour le prochain démarrage.", "The selected model is no longer available. Choose another model for the next launch."))
+                                .font(.caption).foregroundStyle(StudioTheme.secondary)
+                        }
+                        Text(L("À l’ouverture de MLXL3, charge le modèle choisi ci-dessus. Sinon, sélectionne un modèle pour le charger. Le changement s’applique au prochain démarrage.", "When MLXL3 opens, loads the model chosen above. Otherwise, select a model to load it. Changes apply on the next launch."))
                             .font(.system(size: 11))
                             .foregroundStyle(StudioTheme.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Notification de fin de génération", "Generation completion notification"), isOn: Binding(
+                            get: { studio.completionNotificationsEnabled },
+                            set: { studio.setCompletionNotificationsEnabled($0) }
+                        ))
+                        Text(L("Préviens-moi lorsque la réponse est terminée et que MLXL3 est en arrière-plan. Le contenu de la conversation n’apparaît pas dans la notification.", "Notify me when the response is complete and MLXL3 is in the background. Conversation content is not included in the notification."))
+                            .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                        if let status = studio.notificationStatus {
+                            Text(status).font(.caption).foregroundStyle(StudioTheme.secondary)
+                        }
                     }
                     Divider()
                     Label(L("Langue de l’app", "App language"), systemImage: "globe")
