@@ -18,6 +18,7 @@ fn grouped_mb3_enabled() -> bool {
 #[cfg(test)]
 thread_local! {
     static GROUPED_MB3_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+    static REFERENCE_MB34_REQUESTS_TEST: std::cell::Cell<[usize; 2]> = const { std::cell::Cell::new([0; 2]) };
 }
 
 #[cfg(test)]
@@ -230,6 +231,7 @@ pub struct Exl3Linear {
     reference_accumulation: bool,
     mtp_hidden_batch: bool,
     flash_batch: bool,
+    reference_mb34: bool,
     dense_epilogue: bool,
     dec_one: bool,
     lane_indices: Option<Array>,
@@ -245,6 +247,17 @@ impl Exl3Linear {
             };
             crate::dense_epilogue::enabled_setting(setting.as_deref())
                 .context("MLXL3_FLASH_DENSE_EPILOGUE must be 0 or 1")?
+        } else {
+            false
+        };
+        let reference_mb34 = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_REFERENCE_MB34 must be 0 or 1")?
         } else {
             false
         };
@@ -306,6 +319,8 @@ impl Exl3Linear {
             // Flash keeps its reference layout; lane order was qualified on other models.
             linear.lane_indices = None;
             linear.flash_batch = crate::flash_support::multi_token_verifier()?;
+            linear.reference_mb34 = reference_mb34
+                && crate::contracts::flash_reference_mb34_scope(prefix, linear.rows, linear.cols);
             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
             if linear.mtp_hidden_batch {
                 ensure!(
@@ -373,6 +388,7 @@ impl Exl3Linear {
             reference_accumulation: false,
             mtp_hidden_batch: false,
             flash_batch: false,
+            reference_mb34: false,
             dense_epilogue: false,
             dec_one: false,
             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
@@ -686,8 +702,14 @@ impl Exl3Linear {
             (4, 1)
         } else if self.reference_accumulation {
             nt = 1;
-            crate::contracts::flash_reference_batch_layout(matrix_rows)
-                .context("unsupported Flash reference batch")?
+            crate::contracts::flash_reference_mb34_layout(
+                matrix_rows,
+                self.reference_mb34
+                    && self.simdgroups == 4
+                    && self.rows == 2560
+                    && self.cols == 10240,
+            )
+            .context("unsupported Flash reference batch")?
         } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
                 .context("invalid batch QMV rows")?
@@ -697,6 +719,14 @@ impl Exl3Linear {
         }
         if mb == 3 {
             nt = 1;
+        }
+        #[cfg(test)]
+        if self.reference_accumulation && !self.mtp_hidden_batch && matches!(mb, 3 | 4) {
+            REFERENCE_MB34_REQUESTS_TEST.with(|counts| {
+                let mut next = counts.get();
+                next[(mb - 3) as usize] += 1;
+                counts.set(next);
+            });
         }
         let header = codebook_header(self.cb)
             + reference_reduction_header(self.reference_accumulation)
@@ -1767,6 +1797,10 @@ mod dense_epilogue_tests;
 #[cfg(test)]
 #[path = "linear/prepared_tests.rs"]
 mod prepared_tests;
+
+#[cfg(test)]
+#[path = "linear/reference_mb34_tests.rs"]
+mod reference_mb34_tests;
 
 #[cfg(test)]
 mod tests {
