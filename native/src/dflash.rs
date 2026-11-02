@@ -666,6 +666,7 @@ fn load_bf16(file: &File, section: &PackedSection, shape: &[i32]) -> Result<crat
 #[cfg(feature = "mlx")]
 impl DFlashWeights {
     pub fn load(package: &DFlashPackage) -> Result<Self> {
+        crate::array::require_native_q4()?;
         let family = package.family;
         let mut layers = Vec::with_capacity(family.layers());
         for packed in &package.layers {
@@ -1153,6 +1154,7 @@ impl Q4Projection {
     ) -> Result<Self> {
         use crate::array::{Array, Dtype};
 
+        crate::array::require_native_q4()?;
         ensure!(input > 0 && output > 0, "invalid Q4 projection shape");
         let elements = i64::from(input)
             .checked_mul(i64::from(output))
@@ -1291,6 +1293,48 @@ fn dflash_layouts_have_bounded_published_geometry() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "mlx")]
+    #[test]
+    fn packed_q4_rejects_older_macos_before_loading_weights() -> Result<()> {
+        let file = tempfile::tempfile()?;
+        let section = PackedSection {
+            name: "weights",
+            offset: 0,
+            bytes: 256 * 256 / 2 + (256 * 256 / 64) * 4,
+        };
+        crate::array::with_metal_os_for_test(0, || {
+            let error = Q4Projection::from_section(&file, &section, 256, 256)
+                .err()
+                .expect("macOS 26.2 must reject native Q4 before reading the empty file");
+            assert!(error.to_string().contains("macOS 26.4"));
+        });
+        crate::array::with_metal_os_for_test(1, || {
+            let error = Q4Projection::from_section(&file, &section, 256, 256)
+                .err()
+                .expect("macOS 26.3 must reject native Q4 before reading the empty file");
+            assert!(error.to_string().contains("native Metal int4"));
+        });
+        let package = DFlashPackage {
+            family: Family::Qwen36Moe,
+            directory: PathBuf::from("not-opened"),
+            layers: Vec::new(),
+            model: PackedFile {
+                path: PathBuf::from("not-opened/model.bin"),
+                layer: 6,
+                kind: 1,
+                bytes: 0,
+                sections: Vec::new(),
+            },
+        };
+        crate::array::with_metal_os_for_test(0, || {
+            let error = DFlashWeights::load(&package)
+                .err()
+                .expect("macOS 26.2 must reject native Q4 before opening model.bin");
+            assert!(error.to_string().contains("macOS 26.4"));
+        });
+        Ok(())
+    }
 
     #[test]
     fn draft_capture_window_keeps_the_checkpoint_and_prompt_suffix() {

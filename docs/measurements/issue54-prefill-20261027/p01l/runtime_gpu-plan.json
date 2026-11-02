@@ -1,0 +1,20 @@
+[
+  {
+    "name": "runtime_gpu",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue54-prefill-local/runtime_gpu/prototype-engine",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_FLASH_PREFILL_HEADS": "1",
+      "MLXL3_FLASH_PREFILL_LAYERS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900,
+    "require_quiet": true,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

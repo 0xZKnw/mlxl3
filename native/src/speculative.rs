@@ -489,11 +489,12 @@ mod tests {
 mod verification {
     use super::*;
 
-    fn dflash_copy_transition<const LEN: usize>() {
+    fn dflash_copy_transition<const LEN: usize, const ACCEPTED: usize>()
+    -> (bool, bool, bool, usize, usize) {
         let prompt: [u32; 20] = kani::any();
         let prefix: [u32; 7] = kani::any();
         let len = LEN;
-        let accepted = usize::from(kani::any::<u8>()) % 8;
+        let accepted = ACCEPTED;
         let anchor: u32 = kani::any();
         let copied: bool = kani::any();
         let enabled: bool = kani::any();
@@ -513,27 +514,69 @@ mod verification {
             }
         }
         assert_eq!(copy.enabled, enabled && (!copied || accepted > 0));
-        kani::cover!(enabled && copied && accepted == 0 && !copy.enabled);
-        kani::cover!(copied && accepted == 3 && copy.enabled);
-        kani::cover!(!copied && accepted == 0 && copy.enabled);
-        if LEN == 0 {
-            kani::cover!(accepted == 7);
-        }
-        kani::cover!(!enabled && accepted == 7 && !copy.enabled);
-        if LEN > 0 {
-            kani::cover!(index < len);
-        }
-        kani::cover!(index == len);
-        kani::cover!(index > len && index < copy.len);
-        kani::cover!(index == 31 && index >= copy.len);
+        (enabled, copied, copy.enabled, index, copy.len)
     }
 
-    macro_rules! copy_history_proofs {
-        ($($name:ident: $len:expr),* $(,)?) => {$ (
+    // Emit only the goals that apply to each constant case. A runtime if on a
+    // const generic leaves an unreachable cover in Kani's reported inventory.
+    macro_rules! copy_prompt_goal {
+        (0, $index:expr, 7, $total:expr) => {
+            kani::cover!($total == 8);
+        };
+        (0, $index:expr, $accepted:tt, $total:expr) => {};
+        ($len:tt, $index:expr, $accepted:tt, $total:expr) => {
+            kani::cover!($index < $len);
+        };
+    }
+    macro_rules! copy_accepted_goals {
+        (0, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($enabled && $copied && !$live);
+            kani::cover!(!$copied && $live);
+        };
+        (3, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($copied && $live);
+            kani::cover!($index > $len && $index < $total);
+        };
+        (7, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!(!$enabled && !$live);
+            kani::cover!($index > $len && $index < $total);
+        };
+        ($accepted:tt, $enabled:expr, $copied:expr, $live:expr, $index:expr, $len:tt, $total:expr) => {
+            kani::cover!($index > $len && $index < $total);
+        };
+    }
+    macro_rules! copy_case_proof {
+        ($name:ident, $len:tt, $accepted:tt) => {
             #[kani::proof]
             #[kani::unwind(33)]
             #[kani::solver(kissat)]
-            fn $name() { dflash_copy_transition::<$len>(); }
+            fn $name() {
+                let (enabled, copied, live, index, total) =
+                    dflash_copy_transition::<$len, $accepted>();
+                let _ = (enabled, copied, live);
+                copy_prompt_goal!($len, index, $accepted, total);
+                copy_accepted_goals!($accepted, enabled, copied, live, index, $len, total);
+                kani::cover!(index == $len);
+                kani::cover!(index == 31 && index >= total);
+            }
+        };
+    }
+    // The complete 21 x 8 domain is split into small proofs, within the same CI
+    // shard. All u32 data and flags stay symbolic; the real 1024-entry buffer is
+    // retained. No symbolic accepted count is dropped by this partition.
+    macro_rules! copy_history_proofs {
+        ($($name:ident: $len:tt),* $(,)?) => {$ (
+            mod $name {
+                use super::*;
+                copy_case_proof!(accepted_0, $len, 0);
+                copy_case_proof!(accepted_1, $len, 1);
+                copy_case_proof!(accepted_2, $len, 2);
+                copy_case_proof!(accepted_3, $len, 3);
+                copy_case_proof!(accepted_4, $len, 4);
+                copy_case_proof!(accepted_5, $len, 5);
+                copy_case_proof!(accepted_6, $len, 6);
+                copy_case_proof!(accepted_7, $len, 7);
+            }
         )*};
     }
 
@@ -563,11 +606,9 @@ mod verification {
         kani::cover!(len == 20 && width == usize::MAX);
     }
 
-    #[kani::proof]
-    #[kani::unwind(33)]
-    fn lookup_proposes_only_latest_in_bounds_history() {
+    fn lookup_transition<const LEN: usize>() -> (usize, bool, Option<usize>) {
         let data: [u32; 20] = kani::any();
-        let len = kani::any::<usize>() % 21;
+        let len = LEN;
         let width: usize = kani::any();
         let anchor: u32 = kani::any();
         let allowed: bool = kani::any();
@@ -594,12 +635,59 @@ mod verification {
         assert_eq!(actual, expected);
         if let Some(proposed) = actual {
             assert!(!proposed.is_empty() && proposed.len() <= width && proposed.len() <= 3);
-            kani::cover!(proposed.len() == 3);
-            kani::cover!(width == 3 && proposed.len() == 1);
         }
-        kani::cover!(len >= 9 && width == 3 && actual.is_none());
-        kani::cover!(len < 9 && actual.is_none());
-        kani::cover!(!allowed && len >= 9 && width == 3 && actual.is_none());
+        (width, allowed, actual.map(<[u32]>::len))
+    }
+
+    macro_rules! lookup_goals {
+        (short, $width:expr, $allowed:expr, $size:expr) => {
+            kani::cover!($size.is_none());
+        };
+        (long, $width:expr, $allowed:expr, $size:expr) => {
+            kani::cover!($width == 3 && $size == Some(1));
+            kani::cover!($width == 3 && $size.is_none());
+            kani::cover!(!$allowed && $width == 3 && $size.is_none());
+        };
+        (full, $width:expr, $allowed:expr, $size:expr) => {
+            lookup_goals!(long, $width, $allowed, $size);
+            kani::cover!($size == Some(3));
+        };
+    }
+    // Complete partition of the former symbolic length modulo 21. Width,
+    // history values, anchor and closure decision retain their full domains.
+    macro_rules! lookup_proofs {
+        ($($name:ident: $len:literal, $kind:ident);* $(;)?) => {$(
+            #[kani::proof]
+            #[kani::unwind(33)]
+            fn $name() {
+                let (width, allowed, size) = lookup_transition::<$len>();
+                let _ = (width, allowed);
+                lookup_goals!($kind, width, allowed, size);
+            }
+        )*};
+    }
+    lookup_proofs! {
+        lookup_len_0: 0, short;
+        lookup_len_1: 1, short;
+        lookup_len_2: 2, short;
+        lookup_len_3: 3, short;
+        lookup_len_4: 4, short;
+        lookup_len_5: 5, short;
+        lookup_len_6: 6, short;
+        lookup_len_7: 7, short;
+        lookup_len_8: 8, short;
+        lookup_len_9: 9, long;
+        lookup_len_10: 10, long;
+        lookup_len_11: 11, long;
+        lookup_len_12: 12, long;
+        lookup_len_13: 13, long;
+        lookup_len_14: 14, long;
+        lookup_len_15: 15, long;
+        lookup_len_16: 16, long;
+        lookup_len_17: 17, long;
+        lookup_len_18: 18, long;
+        lookup_len_19: 19, long;
+        lookup_len_20: 20, full;
     }
 
     #[kani::proof]

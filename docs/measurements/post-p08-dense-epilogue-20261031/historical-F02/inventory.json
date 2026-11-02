@@ -1,0 +1,1080 @@
+{
+  "status": "read_only_header_inventory_no_model_loaded",
+  "installed_source_matches": [
+    {
+      "installed": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/hadamard.h",
+      "upstream_copy": "build/flash-opt-82/F02/upstream/hadamard.h",
+      "sha256": "9c4b749b4d2985203416c2da42dbdf7d59070c6c49c81f6112907b6ce407edc5",
+      "byte_identical": true
+    },
+    {
+      "installed": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/reduction/reduce_col.h",
+      "upstream_copy": "build/flash-opt-82/F02/upstream/reduce_col.h",
+      "sha256": "800868c1eafbf2b85980731a6303942d2d1061023f6d465f2b996642126cdc62",
+      "byte_identical": true
+    },
+    {
+      "installed": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/reduction/ops.h",
+      "upstream_copy": "build/flash-opt-82/F02/upstream/ops.h",
+      "sha256": "78d06730fc9564a73944e7f1fe3897d25c8789b28a939bf418e1968db311da41",
+      "byte_identical": true
+    },
+    {
+      "installed": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/common/metal_kernel.h",
+      "upstream_copy": "build/flash-opt-82/F02/upstream/metal_kernel.h",
+      "sha256": "b64ca4cebcba530d8ec1e0a0f23b57313507a37d05e3615ded3796b563cc83fc",
+      "byte_identical": true
+    }
+  ],
+  "model": "models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "shards": [
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "header_bytes": 8189220,
+      "header_sha256": "79a7403d252004da28c992bc8b2170fc3071ce6f071ce9ec226ab97932582236"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "header_bytes": 9880388,
+      "header_sha256": "01ca0cc1235605824856787459a20c34029f1413df3e80d6b29195900a6e2cb2"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "header_bytes": 9880388,
+      "header_sha256": "db33fabb797da49bd829d2a604bc488c3b3862cfc32eb00a00ea816757765521"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "header_bytes": 9880388,
+      "header_sha256": "5c798b1ccc7c6bb9ace19967467fe501bf61cd1600fc7e89ea4f974d2dffce4d"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00005-of-00005.safetensors",
+      "header_bytes": 2456550,
+      "header_sha256": "d997e20ee419792d9a62ec3f0d15915131a0d6ec43bf03c01c996c57d21cc069"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/mtp_hyper_connection_mixer_patch.safetensors",
+      "header_bytes": 360,
+      "header_sha256": "a808947c1d0bf1687b5ad7e902e62c67b1b6ae985cc62c464d951cf42484459a"
+    },
+    {
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/ngram_embedding.safetensors",
+      "header_bytes": 21312,
+      "header_sha256": "18744e8452523866da7ff4363b4025db2b673e420524fa6e8a4b3f0001d697c7"
+    }
+  ],
+  "attention_projections": [
+    {
+      "prefix": "model.language_model.layers.0.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          1950211860,
+          1950216980
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.1.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2715866092,
+          2715871212
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.2.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          3415840964,
+          3415846084
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.3.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4111147168,
+          4111152288
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.4.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4811701180,
+          4811706300
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.5.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          5511676052,
+          5511681172
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.6.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6211650924,
+          6211656044
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.7.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6906957128,
+          6906962248
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.8.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          7607511140,
+          7607516260
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.9.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          8307486012,
+          8307491132
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.10.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          678813460,
+          678818580
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.11.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          1374119664,
+          1374124784
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.12.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2074673676,
+          2074678796
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.13.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2774648548,
+          2774653668
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.14.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          3474623420,
+          3474628540
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.15.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4169929624,
+          4169934744
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.16.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4870483636,
+          4870488756
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.17.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          5570458508,
+          5570463628
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.18.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6270433380,
+          6270438500
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.19.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6965739584,
+          6965744704
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.20.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          7666293596,
+          7666298716
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.21.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00002-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          8366268468,
+          8366273588
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.22.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          678813460,
+          678818580
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.23.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          1374119664,
+          1374124784
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.24.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2074673676,
+          2074678796
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.25.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2774648548,
+          2774653668
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.26.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          3474623420,
+          3474628540
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.27.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4169929624,
+          4169934744
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.28.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4870483636,
+          4870488756
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.29.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          5570458508,
+          5570463628
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.30.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6270433380,
+          6270438500
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.31.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6965739584,
+          6965744704
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.32.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          7666293596,
+          7666298716
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.33.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00003-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          8366268468,
+          8366273588
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.34.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          678813460,
+          678818580
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.35.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          1374119664,
+          1374124784
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.36.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2074673676,
+          2074678796
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.37.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          2774648548,
+          2774653668
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.38.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          3474623420,
+          3474628540
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.39.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4169929624,
+          4169934744
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.40.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          4870483636,
+          4870488756
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.41.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          5570458508,
+          5570463628
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.42.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6270433380,
+          6270438500
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.43.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          6965739584,
+          6965744704
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.44.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          7666293596,
+          7666298716
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.45.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00004-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          8366268468,
+          8366273588
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.46.linear_attn.out_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00005-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          678813460,
+          678818580
+        ]
+      },
+      "bias": null
+    },
+    {
+      "prefix": "model.language_model.layers.47.self_attn.o_proj",
+      "shape": [
+        384,
+        160,
+        64
+      ],
+      "dtype": "I16",
+      "file": "models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00005-of-00005.safetensors",
+      "svh": {
+        "dtype": "F16",
+        "shape": [
+          2560
+        ],
+        "data_offsets": [
+          1374119664,
+          1374124784
+        ]
+      },
+      "bias": null
+    }
+  ],
+  "projection_count": 48,
+  "GDN": 36,
+  "QSA": 12
+}

@@ -1,0 +1,129 @@
+--- docs/measurements/post-p08-gdn-constants-20261101/before/native_src_qwen4.rs	2026-11-01 11:44:05
++++ native/src/qwen4.rs	2026-11-01 11:46:26
+@@ -32,6 +32,10 @@
+ #[path = "flash_draft.rs"]
+ mod draft;
+ 
++#[cfg(test)]
++#[path = "qwen4/prepared_conv_tests.rs"]
++mod prepared_conv_tests;
++
+ /// Inclusive host timings; verification includes its existing GPU completion waits.
+ #[cfg(feature = "chat")]
+ #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
+@@ -182,6 +186,7 @@
+     b: Projection,
+     out: Projection,
+     conv: Array,
++    prepared_conv: Option<Array>,
+     a_log: Array,
+     dt_bias: Array,
+     norm: Norm,
+@@ -191,6 +196,12 @@
+ }
+ impl Gdn {
+     fn load(c: &Checkpoint, p: &str, eps: f32) -> Result<Self> {
++        let prepared_conv_enabled = match std::env::var("MLXL3_FLASH_PREPARED_CONV") {
++            Ok(value) if value == "0" => false,
++            Ok(value) if value == "1" => true,
++            Err(std::env::VarError::NotPresent) => false,
++            _ => anyhow::bail!("MLXL3_FLASH_PREPARED_CONV must be 0 or 1"),
++        };
+         let gdn_epilogue = match std::env::var("MLXL3_FLASH_GDN_EPILOGUE") {
+             Ok(value) if value == "0" => false,
+             Ok(value) if value == "1" => true,
+@@ -199,6 +210,11 @@
+         };
+         let proj =
+             |name: &str, output| Projection::load(c, &format!("{p}.{name}"), H, output, false);
++        let conv = half_weight(c, &format!("{p}.conv1d.weight"), Some(&[10240, 1, 4]))?
++            .transpose(&[0, 2, 1])?;
++        let prepared_conv = prepared_conv_enabled
++            .then(|| Self::prepare_conv(&conv))
++            .transpose()?;
+         Ok(Self {
+             #[cfg(test)]
+             stages: Vec::new(),
+@@ -207,8 +223,8 @@
+             a: proj("in_proj_a", 48)?,
+             b: proj("in_proj_b", 48)?,
+             out: Projection::load(c, &format!("{p}.out_proj"), 6144, H, false)?,
+-            conv: half_weight(c, &format!("{p}.conv1d.weight"), Some(&[10240, 1, 4]))?
+-                .transpose(&[0, 2, 1])?,
++            conv,
++            prepared_conv,
+             a_log: checkpoint_array(c, &format!("{p}.A_log"))?.astype(Dtype::Float32)?,
+             dt_bias: half_weight(c, &format!("{p}.dt_bias"), Some(&[48]))?,
+             norm: Norm::load(c, &format!("{p}.norm.weight"), 128, 1, eps, false)?,
+@@ -217,6 +233,12 @@
+             history: None,
+         })
+     }
++    fn prepare_conv(conv: &Array) -> Result<Array> {
++        // Preserve half_weight's F16 rounding before preparing the immutable coefficient.
++        let prepared = conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?;
++        prepared.eval()?;
++        Ok(prepared)
++    }
+     fn forward(&mut self, x: &Array) -> Result<Array> {
+         #[cfg(test)]
+         let _profile = crate::flash_profile::span("gdn_single_build");
+@@ -301,9 +323,13 @@
+         };
+         let input = Array::concatenate(&[&history, qkv], 1)?;
+         self.history = Some(input.slice(1, 1, 4)?);
++        let coefficient = match &self.prepared_conv {
++            Some(prepared) => prepared.try_clone()?,
++            None => self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?,
++        };
+         let conv = input
+             .astype(Dtype::Float32)?
+-            .mul(&self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?)?
++            .mul(&coefficient)?
+             .sum(1, true)?
+             .astype(Dtype::Float16)?
+             .silu()?;
+@@ -457,6 +483,25 @@
+     }
+ }
+ 
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(3)]
++fn prepared_conv_preserves_symbolic_half_endpoints_through_real_mlx() {
++    let bits: u16 = kani::any();
++    let conv = Array::from_f16_bits(&[bits; 40960], &[10240, 4, 1]).unwrap();
++    let prepared = Gdn::prepare_conv(&conv).unwrap();
++    assert_eq!(prepared.shape(), [1, 4, 10240]);
++    assert_eq!(prepared.dtype(), Dtype::Float32);
++    let values = prepared.to_f32().unwrap();
++    assert_eq!(values.len(), 40960);
++    let expected = f16::from_bits(bits).to_f32();
++    for actual in [values[0], values[40959]] {
++        assert!(actual.to_bits() == expected.to_bits() || (actual.is_nan() && expected.is_nan()));
++    }
++    kani::cover!(bits == 0x3c00);
++    kani::cover!(bits == 0x8000);
++}
++
+ struct Qsa {
+     #[cfg(test)]
+     stages: Vec<(String, Array)>,
+@@ -3389,7 +3434,7 @@
+         ensure!(head.offset() == 0, "MTP reset offset wrong");
+         Ok(())
+     }
+-    fn input(root: &Path, entry: &Value, width: i32) -> Result<Array> {
++    pub(super) fn input(root: &Path, entry: &Value, width: i32) -> Result<Array> {
+         let bytes =
+             std::fs::read(root.join(entry["file"].as_str().context("missing reference input")?))?;
+         ensure!(
+@@ -3838,7 +3883,7 @@
+     }
+     #[test]
+     #[ignore = "physical Apple GPU and independent attention-stage fixture"]
+-    fn flash_attention_stages_match_upstream() -> Result<()> {
++    pub(super) fn flash_attention_stages_match_upstream() -> Result<()> {
+         let root = std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?;
+         let root = Path::new(&root);
+         let data: Value = serde_json::from_reader(File::open(root.join("reference.json"))?)?;

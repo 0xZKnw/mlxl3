@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "compose-pilot128-AR-2-G",
+  "phase": "pilot128",
+  "mode": "AR",
+  "arm": "G",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-2-G/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 12.058167625,
+      "decode_tps": 10.532280189627901,
+      "prefill_tps": 9.9725086878676,
+      "prefill_seconds": 8.723983375,
+      "ttft_seconds": 8.725467875000001,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7123294064,
+      "lifetime_peak_bytes": 7123294064
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 12.209848375000002,
+      "decode_tps": 10.401439567426241,
+      "prefill_tps": 10.478924383139187,
+      "prefill_seconds": 7.825230625,
+      "ttft_seconds": 7.826197583,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7123294088,
+      "lifetime_peak_bytes": 7123294088
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.817633832999999,
+      "decode_tps": 10.746652146672584,
+      "prefill_tps": 10.415298037644119,
+      "prefill_seconds": 8.3530975,
+      "ttft_seconds": 8.35348525,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7123720072,
+      "lifetime_peak_bytes": 7123720072
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 12.145124999999998,
+      "decode_tps": 10.456870555058101,
+      "prefill_tps": 10.538533239577024,
+      "prefill_seconds": 7.780968958,
+      "ttft_seconds": 7.7813338750000005,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7123212168,
+      "lifetime_peak_bytes": 7123720072
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 262144,
+    "Swapins": 0
+  },
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "swap_anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8",
+  "report_sha256": "c6ad1aa323819526318aa4c216af40d32f0a8cd4d426d9b7fd65d1a9a68f7cce",
+  "cumulative_swapouts_before_bytes": 15400960,
+  "cumulative_swapouts_after_bytes": 15400960,
+  "maximum_cumulative_swapouts_bytes": 15400960,
+  "cumulative_swapins_before_bytes": 5767168,
+  "cumulative_swapins_after_bytes": 5767168,
+  "maximum_cumulative_swapins_bytes": 5767168,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-2-G-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

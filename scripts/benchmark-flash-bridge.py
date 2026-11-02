@@ -76,6 +76,7 @@ def run(
     dflash_draft=None,
     dflash_mode=1,
     environment=None,
+    prompts=None,
 ):
     dflash = dflash_draft is not None
     if dflash and (mtp or compare or not Path(dflash_draft).is_dir()):
@@ -86,9 +87,17 @@ def run(
         raise ValueError("tokens >= 2, repeats >= 1 and finite timeout > 0 required")
     if not math.isfinite(cache_gib) or not 0.6 <= cache_gib <= 12:
         raise ValueError("finite expert cache between 0.6 and 12 GiB required")
-    if prompt is not None and prompt not in PROMPTS:
+    prompts = PROMPTS if prompts is None else prompts
+    if (
+        not isinstance(prompts, dict)
+        or not prompts
+        or any(not isinstance(k, str) or not k.strip() for k in prompts)
+        or any(not isinstance(v, str) or not v.strip() for v in prompts.values())
+    ):
+        raise ValueError("nonempty named text prompts required")
+    if prompt is not None and prompt not in prompts:
         raise ValueError("unknown benchmark prompt")
-    prompts = PROMPTS if prompt is None else {prompt: PROMPTS[prompt]}
+    prompts = prompts if prompt is None else {prompt: prompts[prompt]}
     output.mkdir(parents=True, exist_ok=True)
     report = {
         "status": "incomplete",
@@ -123,6 +132,7 @@ def run(
             env.pop("MLXL3_SSD_CACHE_GIB")
         report["environment"] = {k: v for k, v in sorted(env.items()) if k.startswith("MLXL3_")}
         save()
+        spawn_started = time.monotonic()
         process = subprocess.Popen(
             [
                 str(engine.resolve()),
@@ -183,6 +193,7 @@ def run(
 
         try:
             report["runtime"], _ = until("ready")
+            report["spawn_to_ready_seconds"] = time.monotonic() - spawn_started
             for repeat in range(repeats + 1):
                 modes = (False, True) if compare else (mtp,)
                 if compare and repeat % 2:
@@ -337,8 +348,12 @@ if __name__ == "__main__":
         "--cache-gib", type=float, default=8.0, help="fixed expert RAM budget in GiB"
     )
     parser.add_argument("--prompt", choices=tuple(PROMPTS), help="measure only this fixed prompt")
+    parser.add_argument(
+        "--prompts-json", type=Path, help="explicit named prompts, including contexts"
+    )
     parser.add_argument("--repeats", type=int, default=3, help="measured repetitions after warmup")
     parser.add_argument("--tokens", type=int, default=64)
+    parser.add_argument("--timeout", type=float, default=300.0)
     args = parser.parse_args()
     run(
         args.engine,
@@ -351,6 +366,8 @@ if __name__ == "__main__":
         prompt=args.prompt,
         repeats=args.repeats,
         tokens=args.tokens,
+        timeout=args.timeout,
         dflash_draft=args.dflash_draft,
         dflash_mode=args.dflash_mode,
+        prompts=json.loads(args.prompts_json.read_text()) if args.prompts_json else None,
     )

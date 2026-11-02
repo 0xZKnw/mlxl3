@@ -1,0 +1,57 @@
+
+running 52 tests
+test bridge_memory_saver_is_opt_in_and_requires_boolean ... ok
+test mtp_tune::runtime_key_distinguishes_smallm_options ... ok
+test mtp_tune::runtime_key_separates_allocator_policies_and_rejects_invalid_limits ... ok
+test mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy ... ignored, requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU
+test mtp_tune::tests::dflash_tune_measures_code_and_french_while_mtp_keeps_its_prompts ... ok
+test openai::tests::finish_reason_honors_explicit_budget ... ok
+test openai::tests::http_routes_enforce_session_key_and_validate_before_inference ... ok
+test openai::tests::malformed_and_silently_ignored_options_are_rejected ... ok
+test openai::tests::structured_http_never_publishes_invalid_bridge_output ... ok
+test openai::tests::structured_requests_validate_schema_before_inference ... ok
+test openai::tests::text_request_maps_to_bridge_and_unsupported_inputs_fail ... ok
+test openai::transport::tests::a_completed_flush_allows_a_later_write_phase ... ok
+test openai::transport::tests::a_stalled_writer_wakes_without_a_socket_event ... ok
+test openai::transport::tests::partial_progress_does_not_extend_the_write_phase ... ok
+test openai::transport_tests::a_partial_bridge_write_is_bounded_and_poisons_the_session ... ok
+test openai::transport_tests::a_real_nonreading_tcp_client_is_closed_before_it_resumes_reading ... ok
+test openai::transport_tests::admission_rejects_before_reading_slow_body_and_recovers_after_timeout ... ok
+test openai::transport_tests::backpressure_and_output_limit_are_bounded_and_do_not_signal_next_request ... ok
+test openai::transport_tests::bridge_errors_have_a_bounded_valid_utf8_http_body ... ok
+test openai::transport_tests::bridge_metadata_whitelist_rejects_bad_types_and_private_strings ... ok
+test openai::transport_tests::capabilities_describe_validator_and_hide_private_ready_fields ... ok
+test openai::transport_tests::continuous_stale_events_cannot_extend_generation_deadline ... ok
+test openai::transport_tests::disconnect_or_timeout_without_terminal_marks_bridge_unhealthy ... ok
+test openai::transport_tests::explicit_terminal_reason_controls_streaming_and_nonstreaming ... ok
+test openai::transport_tests::health_checks_reap_an_idle_dead_child ... ok
+test openai::transport_tests::host_validation_is_required_only_for_keyless_sessions ... ok
+test openai::transport_tests::listen_addresses_accept_loopback_ipv4_and_ipv6_without_dns ... ok
+test openai::transport_tests::loopback_origin_parser_rejects_authority_confusion ... ok
+test openai::transport_tests::malformed_usage_is_a_protocol_error_without_false_completion ... ok
+test openai::transport_tests::missing_unknown_eof_invalid_or_oversize_bridge_is_not_reused ... ok
+test openai::transport_tests::nonstreaming_backpressure_keeps_admission_bounded_until_abort ... ok
+test openai::transport_tests::origins_and_authentication_agree_for_preflight_errors_and_real_http ... ok
+test openai::transport_tests::oversized_and_failed_http_bodies_never_reach_bridge ... ok
+test openai::transport_tests::penalties_representable_only_in_f64_are_rejected_before_prefill ... ok
+test openai::transport_tests::shutdown_after_ready_reaps_child_and_joins_stderr ... ok
+test openai::transport_tests::sigterm_during_startup_kills_and_reaps_bridge ... ok
+test openai::transport_tests::silent_bridge_timeout_cancels_and_drains_a_terminal ... ok
+test openai::transport_tests::slow_headers_close_without_claiming_generation_admission ... ok
+test openai::transport_tests::startup_timeout_invalid_ready_and_missing_pipes_reap_the_child ... ok
+test openai::transport_tests::tcp_disconnect_before_first_delta_drains_then_next_request_is_clean ... ok
+test tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix ... ignored, requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU
+test tests::bridge_draft_suffix_keeps_full_prefill_and_replay ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_lookup_seeds_prompt_and_preserves_budget_and_prefix ... ignored, requires local Qwen/MTP checkpoints, MLXL3_MTP_LOOKUP=1 and Apple GPU
+test tests::bridge_prefix_cache_replays_cold_logits_exactly ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::bridge_stats_aggregate_work_not_rates_and_keep_latest_context ... ok
+test tests::bridge_token_hash_uses_ordered_token_ids ... ok
+test tests::dflash_copy_accepts_rejects_and_preserves_draft_cache ... ignored, requires local Qwen/DFlash checkpoints and Apple GPU
+test tests::dflash_output_budget_matches_target_and_skips_unused_work ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::dflash_runtime_key_distinguishes_copy_policy ... ok
+test tests::dflash_width_tracks_recent_acceptance ... ok
+test tests::long_prompt_dflash_blocks_match_target ... ignored, requires local Qwen and DFlash checkpoints and Apple GPU
+test tests::native_sampler_respects_greedy_argmax ... ok
+
+test result: ok. 44 passed; 0 failed; 8 ignored; 0 measured; 0 filtered out; finished in 2.79s
+

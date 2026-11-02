@@ -1,0 +1,411 @@
+{
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth": 1,
+    "dflash_mode": 1,
+    "dflash_width": 1,
+    "reuse_prompt_cache": false,
+    "uses_compare_option": false,
+    "timeout_seconds_per_bridge_wait": 180
+  },
+  "experiment": "POSTP08-COLD-READY-01-GPU1",
+  "status": "prepared_no_gpu_launched",
+  "arms": {
+    "A": {
+      "MLXL3_SSD_COLD_READY": "0"
+    },
+    "B": {
+      "MLXL3_SSD_COLD_READY": "1"
+    }
+  },
+  "plans": [
+    {
+      "name": "cold-bridge17-AR-1-A",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-AR-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-bridge17-AR-2-B",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-AR-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-AR-2-B/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-AR-1-A",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-AR-2-B",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-2-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-AR-3-B",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-3-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-3-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-3-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-AR-4-A",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-AR-4-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-AR-4-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-bridge17-MTP-1-A",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-MTP-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-bridge17-MTP-2-B",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-MTP-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-MTP-2-B/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-MTP-1-A",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-MTP-2-B",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-2-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-MTP-3-B",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-3-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-3-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-3-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-MTP-4-A",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-MTP-4-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-MTP-4-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-bridge17-DF-1-A",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-DF-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-bridge17-DF-2-B",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-bridge17-DF-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-bridge17-DF-2-B/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-DF-1-A",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-DF-2-B",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-2-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-2-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-2-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-DF-3-B",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "B",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-3-B-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-3-B",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-3-B/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-pilot128-DF-4-A",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "A",
+      "cold_ready_flag": "0",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/plans/cold-pilot128-DF-4-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/runs/cold-pilot128-DF-4-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    }
+  ],
+  "quality_plans": [
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-component-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-failure-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-oracle-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-pair-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-mtp-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/quality/cold-quality-dflash-plan.json"
+  ],
+  "planned_cli": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-cold-ready-20261101/engine/prototype-engine",
+  "orders": {
+    "bridge17": [
+      "A",
+      "B"
+    ],
+    "pilot128": [
+      "A",
+      "B",
+      "B",
+      "A"
+    ]
+  },
+  "planned_modes": [
+    "AR",
+    "MTP",
+    "DF"
+  ],
+  "same_cli_all_arms": true,
+  "no_reanchor": true,
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/anchor-gpu1.json",
+  "swap_anchor_sha256": "9fdf6028af0a9f59b2af1e06198bc3f18ce01aed0d3932b21a6992c333272294",
+  "policy_amendment": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/policy-gpu1.json"
+}

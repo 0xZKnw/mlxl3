@@ -282,6 +282,31 @@ impl FlashNext {
     pub fn dflash2_profile(&self) -> Option<FlashDraftProfile> {
         self.dflash.as_ref().map(|s| s.profile)
     }
+    #[cfg(test)]
+    pub(in crate::qwen4) fn dflash2_state_for_profile(&self) -> Result<Vec<Vec<u8>>> {
+        let session = self.dflash.as_ref().context("missing profiled draft")?;
+        ensure!(
+            session.draft.cache.len() == 5 && session.pending.is_empty(),
+            "incomplete final draft state"
+        );
+        let mut state = vec![serde_json::to_vec(&(
+            session.draft.offset,
+            session.draft.circular,
+            &session.pending,
+            session.options.q4,
+            session.options.ring,
+            session.options.adaptive,
+            session.options.precap,
+            session.options.width,
+        ))?];
+        for pair in &session.draft.cache {
+            let (key, value) = pair.as_ref().context("missing draft KV")?;
+            for tensor in [key, value] {
+                state.push(crate::qwen4::tests::tensor_state_bytes(tensor)?);
+            }
+        }
+        Ok(state)
+    }
     pub fn prefill_dflash2(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
         self.reset();
         let mut session = self
@@ -294,11 +319,16 @@ impl FlashNext {
                 "invalid DFlash prompt"
             );
             let mut last = None;
-            for &token in tokens {
+            for (index, &token) in tokens.iter().enumerate() {
                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-                let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
+                let (logits, captured) = if self.prefill_heads && index + 1 < tokens.len() {
+                    self.forward_captured_optional(token, Kind::Dflash2, false)?
+                } else {
+                    let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
+                    (Some(logits), captured)
+                };
                 session.draft.append(&captured, self.offset - 1)?;
-                last = Some(logits);
+                last = logits;
             }
             last.context("empty DFlash prompt")
         })();
@@ -327,6 +357,188 @@ impl FlashNext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; isolated serial prefill qualification"]
+    fn final_prefill_head_preserves_states_draft_and_continuation() -> Result<()> {
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut target = FlashNext::from_checkpoint(&c)?;
+        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
+        let lengths = std::env::var("MLXL3_PREFILL_TEST_LENGTHS")
+            .unwrap_or_else(|_| "1,2,7,8,9,17".into())
+            .split(',')
+            .map(str::parse::<usize>)
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        ensure!(!lengths.is_empty() && lengths.iter().all(|&n| (1..=512).contains(&n)));
+        let cancel = AtomicBool::new(false);
+        let saved = tempfile::tempdir()?;
+        let mut cases = 0;
+        for &length in &lengths {
+            let tokens = std::iter::once(EOS)
+                .chain((1..length).map(|i| i as u32))
+                .collect::<Vec<_>>();
+            for dflash in [false, true] {
+                let mut expected_logits = Vec::new();
+                let mut expected_ids = Vec::new();
+                for optimized in [false, true] {
+                    target.reset();
+                    target.prefill_heads = optimized;
+                    if length <= 17 {
+                        crate::flash_profile::start(false)?;
+                    }
+                    let result = if dflash {
+                        target.prefill_dflash2(&tokens, &cancel)
+                    } else {
+                        target.forward_tokens(&tokens)
+                    };
+                    if length <= 17 {
+                        let trace = serde_json::to_value(crate::flash_profile::finish()?)?;
+                        let heads = trace
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .filter(|e| e["name"] == "logits")
+                            .count();
+                        ensure!(
+                            heads == if optimized { 1 } else { length },
+                            "unused heads executed"
+                        );
+                    }
+                    let logits = result?;
+                    let values = logits.to_f32()?;
+                    ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+                    if optimized {
+                        ensure!(logits.to_bytes()? == expected_logits, "final logits differ");
+                    } else {
+                        expected_logits = logits.to_bytes()?;
+                    }
+                    ensure!(disk_state(&target, saved.path(), "prefill", !optimized)? > 0);
+                    if dflash {
+                        let draft = &target.dflash.as_ref().unwrap().draft;
+                        ensure!(draft.offset == length as i32 && draft.cache.len() == 5);
+                        for (index, pair) in draft.cache.iter().enumerate() {
+                            let (k, v) = pair.as_ref().context("missing draft KV")?;
+                            for (part, value) in [k, v].into_iter().enumerate() {
+                                ensure!(
+                                    value.shape().len() == 4
+                                        && value.shape().iter().all(|&n| n > 0)
+                                );
+                                let values = value.to_f32()?;
+                                ensure!(!values.is_empty() && values.iter().all(|v| v.is_finite()));
+                                let metadata = serde_json::to_vec(&(
+                                    value.shape(),
+                                    format!("{:?}", value.dtype()),
+                                ))?;
+                                for (suffix, bytes) in
+                                    [("meta", metadata), ("data", value.to_bytes()?)]
+                                {
+                                    let file =
+                                        saved.path().join(format!("kv-{index}-{part}-{suffix}"));
+                                    if optimized {
+                                        ensure!(std::fs::read(file)? == bytes, "draft KV differs");
+                                    } else {
+                                        std::fs::write(file, bytes)?;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let mut id = logits.chat_greedy_ids()?[0];
+                    for (index, remaining) in (1..=3).rev().enumerate() {
+                        id = if dflash {
+                            target.advance_dflash2(id, remaining)?
+                        } else {
+                            target.forward(id)?.chat_greedy_ids()?[0]
+                        };
+                        if optimized {
+                            ensure!(id == expected_ids[index], "continuation differs");
+                        } else {
+                            expected_ids.push(id);
+                        }
+                    }
+                    disk_state(&target, saved.path(), "continued", !optimized)?;
+                }
+                cases += 1;
+            }
+            println!("FINAL_HEAD_LENGTH length={length} cases={cases} parity=true");
+        }
+        // Check the captured values themselves, independently of draft cache equality.
+        let mut captures = Vec::new();
+        for head in [true, false] {
+            target.reset();
+            for index in 0..17 {
+                let (logits, captured) =
+                    target.forward_captured_optional(index, Kind::Dflash2, head)?;
+                ensure!(logits.is_some() == head && captured.shape() == [1, 12800]);
+                let values = captured.astype(Dtype::Float32)?.to_f32()?;
+                ensure!(values.len() == 12800 && values.iter().all(|v| v.is_finite()));
+                if head {
+                    captures.push(captured.to_bytes()?);
+                } else {
+                    ensure!(
+                        captured.to_bytes()? == captures[index as usize],
+                        "captures differ"
+                    );
+                }
+            }
+            disk_state(&target, saved.path(), "captures", head)?;
+        }
+        target.reset();
+        for invalid in [vec![], vec![EOS, 248320]] {
+            ensure!(target.forward_tokens(&invalid).is_err() && target.offset == 0);
+            ensure!(target.prefill_dflash2(&invalid, &cancel).is_err() && target.offset == 0);
+            ensure!(
+                target
+                    .dflash
+                    .as_ref()
+                    .unwrap()
+                    .draft
+                    .cache
+                    .iter()
+                    .all(Option::is_none)
+            );
+        }
+        ensure!(
+            target
+                .prefill_dflash2(&[EOS, 7], &AtomicBool::new(true))
+                .is_err()
+        );
+        ensure!(target.offset == 0);
+        ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
+        target.reset();
+        target.context = 4;
+        ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
+        ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
+        ensure!(target.forward_tokens(&[7]).is_err());
+        ensure!(cases == lengths.len() * 2);
+        println!(
+            "FINAL_HEAD_PARITY lengths={lengths:?} cases={cases} full_logits_states_captures_draft_continuation=true head_count=true errors=true"
+        );
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_final_prefill_head_contract() {
+        let token: u32 = kani::any();
+        let heads: bool = kani::any();
+        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
+            .unwrap();
+        let mut target = FlashNext::from_checkpoint(&c).unwrap();
+        target.prefill_heads = heads;
+        let result = target.forward_tokens(&[EOS, token]);
+        if token < 248320 {
+            assert_eq!(result.unwrap().shape(), [1, 248320]);
+            assert_eq!(target.offset, 2);
+        } else {
+            assert!(result.is_err());
+            assert_eq!(target.offset, 0);
+        }
+        kani::cover!(token == 7 && heads);
+        kani::cover!(token == EOS && !heads);
+        kani::cover!(token >= 248320);
+    }
+
     #[test]
     #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; real terminal fallback; run alone"]
     fn runtime_profile_counts_terminal_target_reads() -> Result<()> {
@@ -416,6 +628,31 @@ mod tests {
     #[ignore = "physical Apple GPU; 512 tokens, pre-draft adaptation and independent serial states"]
     fn pre_draft_long_generation_preserves_serial_tokens_and_states() -> Result<()> {
         check_runtime_parity(&[512], &[(true, true, true, 3, true)])
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU, target/draft checkpoints, COLD_READY_ROWS=4 and tuned Hot; run alone"]
+    fn wide_cold_runtime_preserves_serial_tokens_and_states() -> Result<()> {
+        for (name, expected) in [
+            ("MLXL3_SSD_COLD_READY_ROWS", "4"),
+            ("MLXL3_SSD_GPU_HOT", "1"),
+            ("MLXL3_SSD_GPU_HOT_WIDE", "1"),
+            ("MLXL3_FLASH_MULTI_TOKEN", "1"),
+        ] {
+            ensure!(
+                std::env::var(name).as_deref() == Ok(expected),
+                "test requires {name}={expected}"
+            );
+        }
+        // B2 is the unchanged control; budgets exercise partial and complete B3/B4.
+        check_runtime_parity(
+            &[1, 2, 3, 4, 8, 17],
+            &[
+                (true, true, false, 1, false),
+                (true, true, false, 2, false),
+                (true, true, false, 3, false),
+            ],
+        )
     }
 
     #[cfg(kani)]

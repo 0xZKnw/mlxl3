@@ -1,0 +1,31 @@
+{
+  "sushi": {
+    "sha": "543c25fdd0e1907bf28ad22ed60830b8a536e994",
+    "url": "https://github.com/beamivalice/sushi/blob/543c25fdd0e1907bf28ad22ed60830b8a536e994/docs/engine-expert-streaming.md",
+    "excerpt": "- At decode widths each layer's experts are queued from a GPU copy of the cache map (`Engine.specRoute`: expert →\n  slot, -1 where not ready) before the host reads the router ids. The host keeps that result only when every routed\n  id resolved to the slot the GPU gathered (`specMatches`), else rebuilds it; a union workspace always rebuilds. The\n  host map and its GPU copy change together (`LayerState.refreshSpec`), or a stale GPU map could pass the check.\n- Qwen4 single-token decode keeps at most one unresolved layer while submitting the next GDN MoE layer's router\n  and cache-map expert compute. A cache miss discards that successor, restores its recurrent handles, and rebuilds\n  from the preceding MLP's exact output; PLE and full-attention successors verify first. Cache resolution and its\n  accounting occur only after the predecessor passes, so discarded routes never fill or touch LRU state.\n- Deferred HC writes belong to the speculative stream: rollback restores the preceding MLP's stream and injection\n  gate, then replaces the pending write with its exact result. Rollback transfers the saved HC handle, so a later\n  MLX error leaves one valid cleanup owner. Profiling, dtype tracing, layer captures, stand-ins,\n  imatrix collection and batched/wide forwards keep synchronous verification; a lossy pick defers only when the\n  GPU made it (below).\n- `SUSHI_EXPERT_DEFER_SYNC=1` selects synchronous verification for an exact schedule comparison: deferred\n  verification overlaps host work on hits but spends an extra GDN build and speculative compute on misses.\n"
+  },
+  "mlx_config": {
+    "url": "https://github.com/ml-explore/mlx/pull/4647",
+    "title": "Add \"config\" module",
+    "merged": true,
+    "merged_at": "2026-10-27T01:10:13Z",
+    "merge_commit": "a5f79fdde61a08bfe091c0c39cb0d9d7f8ccf078",
+    "body": "Inspired by [`jax.config`](https://docs.jax.dev/en/latest/config_options.html), add a new `config` module that allows overriding configuration options at run time, as a more relaxable alternative to environment variables.\r\n\r\nAn example is to disable TF32 for certain ops instead of the whole program:\r\n\r\n```python\r\nmx.config.update(\"MLX_ENABLE_TF32\", 0)\r\nhigh_precise_c = a @ b\r\nmx.config.update(\"MLX_ENABLE_TF32\", 1)\r\n```\r\n\r\nThere is also a syntax sugar:\r\n\r\n```python\r\nwith mx.config.scoped_update(MLX_ENABLE_TF32=0):\r\n  high_precise_c = a @ b\r\n```\r\n\r\nAnother example is https://github.com/ml-explore/mlx/pull/4562, in which users want to tune `MLX_MAX_MB_PER_BUFFER` only for a partial graph instead of the whole program.\r\n\r\nCloses #4521.\r\nCloses #4595.\r\n\r\nThis PR also removes `env::get_var` and replaces all calls with `config::get`, which is aware of the configs set at run time.\r\n\r\nAI usage disclosure: C++ tests"
+  },
+  "mlx_limits_comments": [
+    {
+      "url": "https://github.com/ml-explore/mlx/issues/4521#issuecomment-5949792521",
+      "body": "They are documented in https://ml-explore.github.io/mlx/build/html/usage/environment_variables.html and #4562 would make it easier to tune different parts of graph.\n\nI wonder if we should require a minimum number of ops when respecting `MLX_MAX_MB_PER_BUFFER` though, i.e. using something like`(buffer_ops_ > 10 && buffer_sizes_ > max_mb)` instead of mere `(buffer_sizes_ > max_mb)`. The `MLX_MAX_MB_PER_BUFFER` does not seem to be good way to tune for large models, and it is not even counting against actual bytes (#3192) ."
+    },
+    {
+      "url": "https://github.com/ml-explore/mlx/issues/4521#issuecomment-6250758219",
+      "body": "Another data point from an M5 Max (40-core GPU, 128 GB, MLX 0.32.4, mlx-lm 0.32.2; defaults are also 50 ops / 50 MB here). Single-stream greedy decode, 512-token prompts, one process per setting. Generated tokens and sampled logits matched across settings in every case.\n\nChanging only `MLX_MAX_MB_PER_BUFFER` to 2048 (ops left at 50), code / prose prompts:\n\n| Model (8-bit) | Default tok/s | 2048 MB tok/s | Change |\n|---|---|---|---|\n| Qwen3.6-35B-A3B (MoE) | 100.5 / 99.6 | 112.5 / 113.3 | +11.9% / +13.7% |\n| Qwen3.6-27B (dense) | 14.9 / 15.2 | 15.4 / 15.6 | +2.2% / +2.6% |\n| Gemma-4-31B (dense) | 14.6 / 14.6 | 14.9 / 14.7 | +2.0% / +0.4% |\n\n(The dense changes are relative to default runs before and after the 2048 run. Dense rows replay a saved 512-token prefix, so prefill ran at default settings for those.)\n\nThis matches the pattern in the original report: dense models barely move, while the launch-heavy MoE gains the most. On the MoE, custom fused expert kernels gave about +13% at default limits but only about 1–2% on top of the 2048 MB setting. So the two seem to remove the same overhead.\n\nThe cost is in prefill. For the MoE, the 512-token prefill peak rose about 0.57 GB at 2048 MB. For the dense 27–31B models, even 512 MB raised the 512-token prefill peak by 1.3–2.1 GB. That supports @zcbenz's idea of requiring a minimum op count before the byte rule triggers, or a decode-only setting, over simply raising the byte default.\n"
+    }
+  ],
+  "mlx_device_0322": "2f25f894e494a4328886148bb6e3332d9f9b298a",
+  "mlx_device_config": "11fd67498c24ce0a2d6b333aebfe890567151ab0",
+  "turbo_arrive": {
+    "sha": "998726513a520f1278b4635c51b652ac24cecfe7",
+    "url": "https://github.com/davidtai/turboexl3/blob/087c75724863e71710d4615453d3d131d8f7accb/src/kernels/dense/dec_gemv_arrive.metal"
+  }
+}

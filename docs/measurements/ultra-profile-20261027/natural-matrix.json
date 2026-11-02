@@ -1,0 +1,55 @@
+{
+  "status": "preregistered",
+  "cases": [
+    {
+      "name": "natural-AR-MAIN",
+      "plan": "docs/measurements/ultra-profile-20261027/natural-AR-MAIN-r2-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/AR-MAIN/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+      "setup_retry": "initial plan exited before model load: absent output directory; old plan/log retained"
+    },
+    {
+      "name": "natural-MTP-MAIN",
+      "plan": "docs/measurements/ultra-profile-20261027/natural-MTP-MAIN-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/MTP-MAIN/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-MAIN.json"
+    },
+    {
+      "name": "natural-DF-MAIN",
+      "plan": "docs/measurements/ultra-profile-20261027/natural-DF-MAIN-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/DF-MAIN/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-MAIN.json"
+    },
+    {
+      "name": "natural-AR-HOLD",
+      "plan": "docs/measurements/ultra-profile-20261027/windows/w2/natural-AR-HOLD-r2-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/AR-HOLD/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+    },
+    {
+      "name": "natural-MTP-HOLD",
+      "plan": "docs/measurements/ultra-profile-20261027/windows/w2/natural-MTP-HOLD-r2-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/MTP-HOLD/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+    },
+    {
+      "name": "natural-DF-HOLD",
+      "plan": "docs/measurements/ultra-profile-20261027/windows/w2/natural-DF-HOLD-r2-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/natural/DF-HOLD/profile",
+      "gold": "docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+    }
+  ],
+  "outputs": 128,
+  "phases": [
+    "warmup",
+    "control_before",
+    "trace_1",
+    "trace_2",
+    "trace_3",
+    "control_after"
+  ],
+  "binary_sha256": "d4bb73099490a6908db442fac5337c44feefeab2910746af69aed5ec844c87b2",
+  "anchor": "anchor.json",
+  "guards": "AC; quiet; zero new Swapouts; native footprint <12 decimal GB; joined children",
+  "purpose": "profiling only; production prefill per mode; quantify observer overhead; no optimisation A/B"
+}

@@ -1,0 +1,177 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+__ test_real_sigterm_joins_both_process_groups_and_restores_handler[int_int] ___
+
+setup = (<function setup.<locals>.execute at 0x1073a5440>, {'command': ['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000g...phase diagnostic capture; trace coverage requires later inspection.', '__package__': '', '__loader__': None, ...}, ...)
+scenario = 'int_int'
+
+    @pytest.mark.parametrize("scenario", ["term", "term_join", "int_int", "term_int"])
+    def test_real_sigterm_joins_both_process_groups_and_restores_handler(setup, scenario):
+        _, plan, data, path, _, _, _ = setup
+        during_join = scenario == "term_join"
+        twice = scenario in ("int_int", "term_int")
+        plan["env"]["FAULT"] = "" if during_join else "hanging_target"
+        path.write_text(json.dumps(plan))
+        Path(plan["env"]["FIXTURE"]).write_text(json.dumps(data))
+        wrapper = path.parent / "controller-fixture.py"
+        restored = path.parent / "handler-restored.json"
+        wrapper.write_text(
+            "import json, pathlib, runpy, signal, sys\n"
+            "source, plan, anchor, identity, tracer, fault, restored = sys.argv[1:]\n"
+            "api = runpy.run_path(source)\n"
+            "ns = api['run'].__globals__\n"
+            "ns['guard'] = lambda *args, **kwargs: None\n"
+            "ns['tracer_command'] = lambda kind, pid, out, opts: [sys.executable, tracer, str(out), fault]\n"
+            "previous = tuple(signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM))\n"
+            "try:\n"
+            "    api['run'](pathlib.Path(plan), pathlib.Path(anchor), pathlib.Path(identity))\n"
+            "finally:\n"
+            "    pathlib.Path(restored).write_text(json.dumps(tuple(signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)) == previous))\n"
+        )
+        owned = []
+        with (path.parent / "controller-fixture.log").open("wb") as log:
+            controller = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(wrapper),
+                    str(SOURCE),
+                    str(path),
+                    str(path.parent / "anchor.json"),
+                    str(path.parent / "identity.json"),
+                    str(path.parent / "fixture-tracer.py"),
+                    "hang" if during_join else ("ignore_term" if twice else ""),
+                    str(restored),
+                ],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            try:
+                deadline = time.monotonic() + 5
+                result_path = path.with_name("plan-result.json")
+                stopping = path.parent / "plan-capture-1.stopping"
+                while time.monotonic() < deadline:
+                    if result_path.exists():
+                        try:
+                            receipt = json.loads(result_path.read_text())
+                        except json.JSONDecodeError:
+                            receipt = {}
+                        if receipt.get("captures"):
+                            owned = [receipt["target_pid"], receipt["captures"][0]["pid"]]
+                            if not during_join or stopping.exists():
+                                break
+                    assert controller.poll() is None, "controller exited before signal"
+                    time.sleep(0.01)
+                assert len(owned) == 2 and (not during_join or stopping.exists()), "children not ready"
+                for pid in owned:
+                    os.killpg(pid, 0)
+                controller.send_signal(signal.SIGINT if scenario == "int_int" else signal.SIGTERM)
+                if twice:
+                    terminating = path.parent / "plan-capture-1.terminating"
+                    deadline = time.monotonic() + 3
+                    while not terminating.exists() and time.monotonic() < deadline:
+>                       assert controller.poll() is None, "controller exited before second signal"
+E                       AssertionError: controller exited before second signal
+E                       assert -2 is None
+E                        +  where -2 = poll()
+E                        +    where poll = <Popen: returncode: -2 args: ['/Users/justin/Documents/mix-stq1_0/.venv/bin/...>.poll
+
+tests/test_decode_capture.py:420: AssertionError
+__ test_real_sigterm_joins_both_process_groups_and_restores_handler[term_int] __
+
+setup = (<function setup.<locals>.execute at 0x1073a53a0>, {'command': ['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000g...phase diagnostic capture; trace coverage requires later inspection.', '__package__': '', '__loader__': None, ...}, ...)
+scenario = 'term_int'
+
+    @pytest.mark.parametrize("scenario", ["term", "term_join", "int_int", "term_int"])
+    def test_real_sigterm_joins_both_process_groups_and_restores_handler(setup, scenario):
+        _, plan, data, path, _, _, _ = setup
+        during_join = scenario == "term_join"
+        twice = scenario in ("int_int", "term_int")
+        plan["env"]["FAULT"] = "" if during_join else "hanging_target"
+        path.write_text(json.dumps(plan))
+        Path(plan["env"]["FIXTURE"]).write_text(json.dumps(data))
+        wrapper = path.parent / "controller-fixture.py"
+        restored = path.parent / "handler-restored.json"
+        wrapper.write_text(
+            "import json, pathlib, runpy, signal, sys\n"
+            "source, plan, anchor, identity, tracer, fault, restored = sys.argv[1:]\n"
+            "api = runpy.run_path(source)\n"
+            "ns = api['run'].__globals__\n"
+            "ns['guard'] = lambda *args, **kwargs: None\n"
+            "ns['tracer_command'] = lambda kind, pid, out, opts: [sys.executable, tracer, str(out), fault]\n"
+            "previous = tuple(signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM))\n"
+            "try:\n"
+            "    api['run'](pathlib.Path(plan), pathlib.Path(anchor), pathlib.Path(identity))\n"
+            "finally:\n"
+            "    pathlib.Path(restored).write_text(json.dumps(tuple(signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)) == previous))\n"
+        )
+        owned = []
+        with (path.parent / "controller-fixture.log").open("wb") as log:
+            controller = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(wrapper),
+                    str(SOURCE),
+                    str(path),
+                    str(path.parent / "anchor.json"),
+                    str(path.parent / "identity.json"),
+                    str(path.parent / "fixture-tracer.py"),
+                    "hang" if during_join else ("ignore_term" if twice else ""),
+                    str(restored),
+                ],
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            try:
+                deadline = time.monotonic() + 5
+                result_path = path.with_name("plan-result.json")
+                stopping = path.parent / "plan-capture-1.stopping"
+                while time.monotonic() < deadline:
+                    if result_path.exists():
+                        try:
+                            receipt = json.loads(result_path.read_text())
+                        except json.JSONDecodeError:
+                            receipt = {}
+                        if receipt.get("captures"):
+                            owned = [receipt["target_pid"], receipt["captures"][0]["pid"]]
+                            if not during_join or stopping.exists():
+                                break
+                    assert controller.poll() is None, "controller exited before signal"
+                    time.sleep(0.01)
+                assert len(owned) == 2 and (not during_join or stopping.exists()), "children not ready"
+                for pid in owned:
+                    os.killpg(pid, 0)
+                controller.send_signal(signal.SIGINT if scenario == "int_int" else signal.SIGTERM)
+                if twice:
+                    terminating = path.parent / "plan-capture-1.terminating"
+                    deadline = time.monotonic() + 3
+                    while not terminating.exists() and time.monotonic() < deadline:
+                        assert controller.poll() is None, "controller exited before second signal"
+                        time.sleep(0.01)
+                    assert terminating.exists(), "tracer did not enter bounded cleanup wait"
+                    controller.send_signal(signal.SIGINT)
+                assert controller.wait(timeout=8) != 0
+>               assert_failed_and_joined(path)
+
+tests/test_decode_capture.py:425: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-6/test_real_sigterm_joins_both_p1/plan.json')
+
+    def assert_failed_and_joined(path):
+        result = json.loads(path.with_name("plan-result.json").read_text())
+        assert result["status"] == "failed_or_interrupted" and result["parity"] is False
+        if "target_pid" in result:
+            assert result["target_reaped"] is True
+            with pytest.raises(ProcessLookupError):
+                os.kill(result["target_pid"], 0)
+        for capture in result["captures"]:
+>           assert capture["reaped"] is True
+E           assert False is True
+
+tests/test_decode_capture.py:253: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_decode_capture.py::test_real_sigterm_joins_both_process_groups_and_restores_handler[int_int]
+FAILED tests/test_decode_capture.py::test_real_sigterm_joins_both_process_groups_and_restores_handler[term_int]
+2 failed, 35 deselected in 3.62s

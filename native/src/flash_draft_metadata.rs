@@ -6,6 +6,20 @@ use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 
 const H: i32 = 2560;
 
+#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+#[derive(Debug)]
+pub(crate) struct InvalidDraftProposalCount;
+
+#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+impl std::fmt::Display for InvalidDraftProposalCount {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("invalid draft proposal count")
+    }
+}
+
+#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+impl std::error::Error for InvalidDraftProposalCount {}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Kind {
     Dflash2,
@@ -48,9 +62,14 @@ impl Kind {
         if self == Self::Dflash2 { 7680 } else { 9728 }
     }
     #[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
-    pub(crate) fn rows(self, proposals: usize) -> Result<i32> {
-        ensure!((1..=7).contains(&proposals), "invalid draft proposal count");
-        Ok(i32::try_from(proposals)? + i32::from(self == Self::Dflash2))
+    pub(crate) fn rows(self, proposals: usize) -> Result<i32, InvalidDraftProposalCount> {
+        if !(1..=7).contains(&proposals) {
+            return Err(InvalidDraftProposalCount);
+        }
+        Ok(
+            i32::try_from(proposals).map_err(|_| InvalidDraftProposalCount)?
+                + i32::from(self == Self::Dflash2),
+        )
     }
 }
 
@@ -187,17 +206,21 @@ pub(crate) fn inspect(path: &Path, kind: Kind) -> Result<RawDraft> {
 #[kani::proof]
 fn raw_flash_draft_rows_reject_outside_one_to_seven() {
     let proposals: usize = kani::any();
-    let result = Kind::Dflash2.rows(proposals);
-    if proposals > 0 && proposals < 8 {
-        let rows = result.as_ref().expect("valid proposal count");
-        assert_eq!(usize::try_from(*rows).unwrap(), proposals + 1);
-    } else {
-        assert!(result.is_err());
+    // Matching avoids formatting anyhow::Error (including backtraces) in an
+    // unreachable expect panic. Both result variants are still checked.
+    match Kind::Dflash2.rows(proposals) {
+        Ok(rows) => {
+            assert!(proposals > 0 && proposals < 8);
+            assert_eq!(usize::try_from(rows).unwrap(), proposals + 1);
+            kani::cover!(proposals == 1);
+            kani::cover!(proposals == 7);
+        }
+        Err(_) => {
+            assert!(proposals == 0 || proposals >= 8);
+            kani::cover!(proposals == 0);
+            kani::cover!(proposals == usize::MAX);
+        }
     }
-    kani::cover!(proposals == 1 && result.is_ok());
-    kani::cover!(proposals == 7 && result.is_ok());
-    kani::cover!(proposals == 0 && result.is_err());
-    kani::cover!(proposals == usize::MAX && result.is_err());
 }
 
 #[cfg(test)]
@@ -612,8 +635,13 @@ mod tests {
             assert_eq!(Kind::Dspark.rows(proposals).unwrap(), proposals as i32);
         }
         for invalid in [0, 8, usize::MAX] {
-            assert!(Kind::Dflash2.rows(invalid).is_err());
-            assert!(Kind::Dspark.rows(invalid).is_err());
+            for kind in [Kind::Dflash2, Kind::Dspark] {
+                let error = kind.rows(invalid).unwrap_err();
+                assert_eq!(error.to_string(), "invalid draft proposal count");
+                // The MLX callers propagate this concrete error through anyhow.
+                let propagated: anyhow::Error = error.into();
+                assert_eq!(propagated.to_string(), "invalid draft proposal count");
+            }
         }
         let fixture = Fixture::new();
         assert!(inspect(fixture.dir.path(), Kind::Dspark).is_err());

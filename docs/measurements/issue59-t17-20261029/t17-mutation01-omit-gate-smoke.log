@@ -1,0 +1,13 @@
+
+running 1 test
+test gdn_epilogue::tests::smoke_b1_b2_fp32_norms_match_stock_and_independent_zero_gate_literals ... GDN_EPILOGUE_FIRST_MISMATCH rows=1 index=0 row=0 column=0 norm_f32_bits=0x3f800000 norm_f32=1.0 gate_f16_bits=0x0000 gate_f32=0.0 actual_f16_bits=0x3c00 actual_f32=1.0 stock_f16_bits=0x3800 stock_f32=0.5 stock_sigmoid_f32_bits=0x3f000000 stock_sigmoid_f32=0.5
+Error: GDN epilogue differs from stock MLX oracle
+FAILED
+
+failures:
+
+failures:
+    gdn_epilogue::tests::smoke_b1_b2_fp32_norms_match_stock_and_independent_zero_gate_literals
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.13s
+

@@ -1,0 +1,64 @@
+{
+  "status": "passed_build_not_GPU_qualified",
+  "environment": {
+    "CARGO_BUILD_JOBS": "1",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "commands": [
+    {
+      "name": "fmt",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--check"
+      ],
+      "timeout_seconds": 60,
+      "status": "passed",
+      "pid": 37302,
+      "exit": 0,
+      "joined": true,
+      "elapsed_seconds": 0.3932462909997412
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "timeout_seconds": 300,
+      "status": "passed",
+      "pid": 37305,
+      "exit": 0,
+      "joined": true,
+      "elapsed_seconds": 8.262439416999769
+    },
+    {
+      "name": "build-libtest",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 300,
+      "status": "passed",
+      "pid": 37403,
+      "exit": 0,
+      "joined": true,
+      "elapsed_seconds": 70.92015629200068
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "status": "analysis_and_direct_Turbo_review_done_GPU_campaign_interrupted",
+  "timestamp": "2026-10-31T14:33:19.437839+00:00",
+  "NPU_question_closed": true,
+  "next": "futureT09exactdenseadaptationortrueblockprefillneedsnewpreregisteredtrial; no automatic GPU retry",
+  "turbo_not_started": true,
+  "metal_toolchain_installed": true,
+  "witness_native_passed": true,
+  "model_profile_launched": true,
+  "witness": {
+    "status": "both_gpu_times_positive_encoder_counters_csv",
+    "fused_gpu_us": 18.38,
+    "legacy_gpu_us": 115.12
+  },
+  "xcode_quit_verified": true,
+  "controller": {
+    "passed": 106,
+    "crosshair": "module absent"
+  },
+  "AR_r1": {
+    "full_native_passed": false,
+    "phases_completed": 3,
+    "swapout": 0,
+    "tracer_reaped": true,
+    "target_reaped": true
+  },
+  "AR_r2": {
+    "full_native_passed": false,
+    "phases_completed": 5,
+    "swapout": 0,
+    "tracer_reaped": true,
+    "target_reaped": true,
+    "partial_TOC_export": true
+  },
+  "stop_witness": {
+    "hypothesis_helper_PGID_killed": "refuted",
+    "group_stop_seconds": 4.391636,
+    "parent_stop_seconds": 3.948628,
+    "RSS_exit_race": "to_fix_before_r3"
+  },
+  "AR_r2_partial_attribution": {
+    "covered_complete_steps": 60,
+    "selected_first_40": "68\u2013107",
+    "CPU_running_GPUidle_submit_ms_per_output": 11.985,
+    "routing_wall_ms_per_output": 35.965,
+    "routing_GPU_active_ms_per_output": 35.867,
+    "source": "audit_agent_partial_pending_stack_report",
+    "release_budget": false
+  },
+  "r3_prepared_f7ad_plans": "archived prepared-f7ad-never-launched; zero launches",
+  "source_identity": "natural-r3/identity.json;557sources;lib32cc",
+  "mlx_ordinary": {
+    "passed": 199,
+    "ignored": 178,
+    "failed": 0,
+    "new_swapout_bytes": 0
+  },
+  "Kani": {
+    "status": "95SUCCESS_4covers",
+    "scope": "two symbolic booleans; sequential TLS abstraction; unwind33; no concurrency/MLX claim"
+  },
+  "AR_r3": {
+    "full_native_passed": false,
+    "phases_closed": 4,
+    "model_parity_before_capture": true,
+    "warmup_stage_count": 789,
+    "following_stage_count": 0,
+    "error": "ps ?Es/RSS0 misclassified live; cleanup EPERM",
+    "target_reaped": true,
+    "tracer_reaped_confirmed": false,
+    "all_PIDs_absent_after": true,
+    "Swapout": 0,
+    "Swapin": 0
+  },
+  "last_native_lib": "32cc1c366497b0385e4ea6594211a9bef5e8393e42fb42891edc0ef444de3483",
+  "AR_r4": {
+    "full_native_passed": false,
+    "closed_native_phases": 4,
+    "Swapout_bytes": 262144,
+    "Swapin_bytes": 0,
+    "target_reaped": true,
+    "tracer_reaped": true,
+    "cleanup_errors": false,
+    "no_processes_remaining": true
+  },
+  "modes_not_run": [
+    "MTP",
+    "DF",
+    "CPU-only100us"
+  ],
+  "profiling_results": "r2/r3 forty transitions each; r3 stage-free diagnostic only; no exact per-function-ms or physical NAND timings",
+  "new_engine_speedup": false,
+  "app_replaced": false,
+  "Turbo_review_completed": true,
+  "Turbo_commit": "087c75724863e71710d4615453d3d131d8f7accb",
+  "artifact": "README.md",
+  "final_source_identity": "final-inspection.json",
+  "full6phase_profile_passed": false
+}

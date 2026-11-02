@@ -1,0 +1,134 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_stage_contract_is_strict_before_golden_and_attach[missing_retention-0] __
+
+setup = (<function setup.<locals>.execute at 0x1072a18a0>, {'command': ['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000g...phase diagnostic capture; trace coverage requires later inspection.', '__package__': '', '__loader__': None, ...}, ...)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107136720>, index = 0
+fault = 'missing_retention'
+
+    @pytest.mark.parametrize("index", [0, 1])
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "missing_retention",
+            "missing_count",
+            "integer_retention",
+            "null_retention",
+            "string_retention",
+            "boolean_count",
+            "float_count",
+            "string_count",
+            "null_count",
+            "negative_count",
+            "wrong_policy",
+            "wrong_count",
+        ],
+    )
+    def test_stage_contract_is_strict_before_golden_and_attach(setup, monkeypatch, index, fault):
+        execute, _, data, path, _, _, namespace = setup
+        summary = data["summaries"][index]
+        if fault == "missing_retention":
+            del summary["test_stage_retention"]
+        elif fault == "missing_count":
+            del summary["test_stage_count"]
+        elif fault == "integer_retention":
+            summary["test_stage_retention"] = int(summary["test_stage_retention"])
+        elif fault == "null_retention":
+            summary["test_stage_retention"] = None
+        elif fault == "string_retention":
+            summary["test_stage_retention"] = str(summary["test_stage_retention"])
+        elif fault == "boolean_count":
+            summary["test_stage_count"] = bool(summary["test_stage_count"])
+        elif fault == "float_count":
+            summary["test_stage_count"] = float(summary["test_stage_count"])
+        elif fault == "string_count":
+            summary["test_stage_count"] = str(summary["test_stage_count"])
+        elif fault == "null_count":
+            summary["test_stage_count"] = None
+        elif fault == "negative_count":
+            summary["test_stage_count"] = -1
+        elif fault == "wrong_policy":
+            summary["test_stage_retention"] = index != 0
+        else:
+            summary["test_stage_count"] = 0 if index == 0 else 1
+        visited = []
+        original = namespace["PROFILE"]["validate_summary"]
+    
+        def checked(*args):
+            visited.append(args[0]["phase"])
+            return original(*args)
+    
+        monkeypatch.setitem(namespace["PROFILE"], "validate_summary", checked)
+>       with pytest.raises((AssertionError, KeyError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, KeyError)
+
+tests/test_decode_capture.py:418: Failed
+_ test_stage_contract_is_strict_before_golden_and_attach[missing_retention-1] __
+
+setup = (<function setup.<locals>.execute at 0x10716e020>, {'command': ['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000g...phase diagnostic capture; trace coverage requires later inspection.', '__package__': '', '__loader__': None, ...}, ...)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10715fb60>, index = 1
+fault = 'missing_retention'
+
+    @pytest.mark.parametrize("index", [0, 1])
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "missing_retention",
+            "missing_count",
+            "integer_retention",
+            "null_retention",
+            "string_retention",
+            "boolean_count",
+            "float_count",
+            "string_count",
+            "null_count",
+            "negative_count",
+            "wrong_policy",
+            "wrong_count",
+        ],
+    )
+    def test_stage_contract_is_strict_before_golden_and_attach(setup, monkeypatch, index, fault):
+        execute, _, data, path, _, _, namespace = setup
+        summary = data["summaries"][index]
+        if fault == "missing_retention":
+            del summary["test_stage_retention"]
+        elif fault == "missing_count":
+            del summary["test_stage_count"]
+        elif fault == "integer_retention":
+            summary["test_stage_retention"] = int(summary["test_stage_retention"])
+        elif fault == "null_retention":
+            summary["test_stage_retention"] = None
+        elif fault == "string_retention":
+            summary["test_stage_retention"] = str(summary["test_stage_retention"])
+        elif fault == "boolean_count":
+            summary["test_stage_count"] = bool(summary["test_stage_count"])
+        elif fault == "float_count":
+            summary["test_stage_count"] = float(summary["test_stage_count"])
+        elif fault == "string_count":
+            summary["test_stage_count"] = str(summary["test_stage_count"])
+        elif fault == "null_count":
+            summary["test_stage_count"] = None
+        elif fault == "negative_count":
+            summary["test_stage_count"] = -1
+        elif fault == "wrong_policy":
+            summary["test_stage_retention"] = index != 0
+        else:
+            summary["test_stage_count"] = 0 if index == 0 else 1
+        visited = []
+        original = namespace["PROFILE"]["validate_summary"]
+    
+        def checked(*args):
+            visited.append(args[0]["phase"])
+            return original(*args)
+    
+        monkeypatch.setitem(namespace["PROFILE"], "validate_summary", checked)
+>       with pytest.raises((AssertionError, KeyError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, KeyError)
+
+tests/test_decode_capture.py:418: Failed
+=========================== short test summary info ============================
+FAILED tests/test_decode_capture.py::test_stage_contract_is_strict_before_golden_and_attach[missing_retention-0]
+FAILED tests/test_decode_capture.py::test_stage_contract_is_strict_before_golden_and_attach[missing_retention-1]
+2 failed, 95 deselected in 2.11s

@@ -1,0 +1,12 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error: casting to the same type is unnecessary (`i32` -> `i32`)
+   --> native/src/flash_draft_runtime.rs:661:49
+    |
+661 |                 ensure!(session.draft.offset == length as i32 && session.draft.cache.len() == 5);
+    |                                                 ^^^^^^^^^^^^^ help: try: `length`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unnecessary_cast
+    = note: `-D clippy::unnecessary-cast` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::unnecessary_cast)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

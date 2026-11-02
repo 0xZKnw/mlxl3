@@ -1,0 +1,90 @@
+{
+  "status": "complete_availability_bounds_not_speed",
+  "source_sha256": {
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/partial-attribution.json": "d953ff5a3bbaa481fbde00219f379bf1f1a2bf0773c49e5da55e570e5ea5493b",
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/io-tail-batches.json": "1c7b23b98098248d89e21ffe869516cd0d1b3e1a5391f2da4fd6a309b5cfa5c3",
+    "docs/measurements/decode-profile-20261031/natural-r3/attribution-partial/profile/trace_1-decode.json": "747d23f2ad24aba14ec926783d69a309287e09bd3613faf5585ac8ca6190cfed"
+  },
+  "outputs": 40,
+  "batches": 1696,
+  "jobs": 5985,
+  "bytes": 7469351820,
+  "job_count_histogram": {
+    "1": 315,
+    "2": 310,
+    "3": 305,
+    "4": 278,
+    "5": 178,
+    "6": 149,
+    "7": 87,
+    "8": 45,
+    "9": 20,
+    "10": 9
+  },
+  "cohorts": [
+    {
+      "k": 1,
+      "selection": "first_ready",
+      "lower_ms_per_output": 15.4964449,
+      "upper_ms_per_output": 15.5691143,
+      "eligible_batches_with_window": 1381
+    },
+    {
+      "k": 1,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 9.382470025,
+      "upper_ms_per_output": 9.413425125,
+      "eligible_batches_with_window": 1209
+    },
+    {
+      "k": 2,
+      "selection": "first_ready",
+      "lower_ms_per_output": 9.0482244,
+      "upper_ms_per_output": 9.052704575,
+      "eligible_batches_with_window": 1071
+    },
+    {
+      "k": 2,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 5.6734159,
+      "upper_ms_per_output": 5.675432575,
+      "eligible_batches_with_window": 812
+    },
+    {
+      "k": 4,
+      "selection": "first_ready",
+      "lower_ms_per_output": 4.16546875,
+      "upper_ms_per_output": 4.16576875,
+      "eligible_batches_with_window": 488
+    },
+    {
+      "k": 4,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 3.73813635,
+      "upper_ms_per_output": 3.73843635,
+      "eligible_batches_with_window": 441
+    },
+    {
+      "k": 8,
+      "selection": "first_ready",
+      "lower_ms_per_output": 0.2176375,
+      "upper_ms_per_output": 0.2176375,
+      "eligible_batches_with_window": 29
+    },
+    {
+      "k": 8,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 0.19891455,
+      "upper_ms_per_output": 0.19891455,
+      "eligible_batches_with_window": 26
+    }
+  ],
+  "limits": [
+    "Instrumented partial AR trace, not release; unchanged historical schedule.",
+    "Job ends cover complete read functions, not kernel-only NAND time.",
+    "Reader epoch bounded by enclosing Rust span; clock uncertainty +/-1375ns.",
+    "No CPU publication/encoding, GPU work, contention, or reconstruction cost deducted.",
+    "Job prefix is not asserted to be an occurrence prefix with cache hits or duplicate routes."
+  ],
+  "finite_discrete_cases": 6592
+}

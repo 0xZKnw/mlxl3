@@ -1,0 +1,27 @@
+usage: benchmark-flash-bridge.py [-h] [--mtp] [--dflash-draft DFLASH_DRAFT]
+                                 [--dflash-mode {1,2,3}] [--compare]
+                                 [--auto-cache | --cache-gib CACHE_GIB]
+                                 [--prompt {MAIN,HOLD}] [--repeats REPEATS]
+                                 [--tokens TOKENS] [--timeout TIMEOUT]
+                                 engine model output
+
+Bounded Flash Next baseline/MTP campaign on two fixed prompts in one bridge.
+
+positional arguments:
+  engine
+  model
+  output
+
+options:
+  -h, --help            show this help message and exit
+  --mtp
+  --dflash-draft DFLASH_DRAFT
+  --dflash-mode {1,2,3}
+  --compare             alternate baseline/MTP on the same binary
+  --auto-cache          use the engine's automatic RAM budget
+  --cache-gib CACHE_GIB
+                        fixed expert RAM budget in GiB
+  --prompt {MAIN,HOLD}  measure only this fixed prompt
+  --repeats REPEATS     measured repetitions after warmup
+  --tokens TOKENS
+  --timeout TIMEOUT

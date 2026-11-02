@@ -1,0 +1,26 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error[E0308]: mismatched types
+    --> native/src/flash_draft_runtime.rs:304:58
+     |
+ 304 |                         self.forward_prefill_block(part, Kind::Dflash2.captures(), cancelled)?;
+     |                              ---------------------       ^^^^^^^^^^^^^^^^^^^^^^^^ expected `&[usize]`, found `[usize; 5]`
+     |                              |
+     |                              arguments to this method are incorrect
+     |
+note: method defined here
+    --> native/src/qwen4.rs:1682:8
+     |
+1682 |     fn forward_prefill_block(
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+1685 |         capture_layers: &[usize],
+     |         ------------------------
+help: consider borrowing here
+     |
+ 304 |                         self.forward_prefill_block(part, &Kind::Dflash2.captures(), cancelled)?;
+     |                                                          +
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

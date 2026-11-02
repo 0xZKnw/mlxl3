@@ -1,0 +1,85 @@
+{
+  "status": "completed_measurements_final_audit_pending",
+  "generations": 24,
+  "warmup": 8,
+  "results": {
+    "MAIN": {
+      "arms": {
+        "A": {
+          "decode_tps": 10.559280515984884,
+          "ttft_seconds": 8.419534840166666,
+          "prefill_tps": 10.333911984038362,
+          "aggregate_decode_tps": 10.558676367656117,
+          "decode_range": [
+            10.487310606769611,
+            10.671454648670505
+          ],
+          "process_means": [
+            10.56849856787406,
+            10.55006246409571
+          ],
+          "max_footprint_bytes": 7152637928
+        },
+        "C": {
+          "decode_tps": 10.16017011732156,
+          "ttft_seconds": 8.673504985833333,
+          "prefill_tps": 10.035711331138465,
+          "aggregate_decode_tps": 10.156810259425843,
+          "decode_range": [
+            9.844592799174675,
+            10.401563022137735
+          ],
+          "process_means": [
+            10.123065173505353,
+            10.197275061137764
+          ],
+          "max_footprint_bytes": 7157356496
+        }
+      },
+      "decode_delta_percent": -3.7797120557517383,
+      "aggregate_decode_delta_percent": -3.8060273299150627,
+      "ttft_delta_percent": 3.016439155938455,
+      "prefill_delta_percent": -2.8856511779904337
+    },
+    "HOLD": {
+      "arms": {
+        "A": {
+          "decode_tps": 10.444207152178768,
+          "ttft_seconds": 7.882195430833333,
+          "prefill_tps": 10.40623024920735,
+          "aggregate_decode_tps": 10.441737517107,
+          "decode_range": [
+            10.172865521296126,
+            10.60152496089814
+          ],
+          "process_means": [
+            10.31359083488411,
+            10.574823469473426
+          ],
+          "max_footprint_bytes": 7150360552
+        },
+        "C": {
+          "decode_tps": 10.389051746402702,
+          "ttft_seconds": 7.9079046250000005,
+          "prefill_tps": 10.371903869362448,
+          "aggregate_decode_tps": 10.385241380829735,
+          "decode_range": [
+            10.069628008813027,
+            10.580405389535473
+          ],
+          "process_means": [
+            10.203870828219747,
+            10.574232664585658
+          ],
+          "max_footprint_bytes": 7151310848
+        }
+      },
+      "decode_delta_percent": -0.5280956703789585,
+      "aggregate_decode_delta_percent": -0.5410606825224873,
+      "ttft_delta_percent": 0.32616793623385654,
+      "prefill_delta_percent": -0.329863735693503
+    }
+  },
+  "swapouts_bytes": 0,
+  "decision": "final component audit before rejection/retention"
+}

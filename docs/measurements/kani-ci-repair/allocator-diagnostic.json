@@ -1,0 +1,25 @@
+{
+  "command": [
+    "prlimit",
+    "--as=6442450944",
+    "--",
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--exact",
+    "--harness",
+    "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+    "--jobs",
+    "1",
+    "--output-format",
+    "regular",
+    "--output-into-files",
+    "--verbose"
+  ],
+  "status": "completed",
+  "returncode": 2,
+  "seconds": 0.5007404220000353,
+  "maxrss_kib": 12656,
+  "cbmc_samples": []
+}

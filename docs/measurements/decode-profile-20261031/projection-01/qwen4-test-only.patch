@@ -1,0 +1,220 @@
+--- before/native_src_qwen4.rs.txt
++++ native/src/qwen4.rs
+@@ -3383,6 +3383,217 @@
+         Array::from_bytes(&bytes, &[1, width], Dtype::Float32)
+     }
+     #[test]
++    #[ignore = "physical Apple GPU; isolated projection captures with independent fixtures; run alone"]
++    fn captures_isolated_flash_projection_chains() -> Result<()> {
++        use crate::array::{MetalCapture, synchronize};
++
++        ensure!(
++            std::env::var("MTL_CAPTURE_ENABLED").is_ok_and(|value| value == "1"),
++            "MTL_CAPTURE_ENABLED=1 is required before startup"
++        );
++        let directory = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_CAPTURE_OUTPUT")?);
++        ensure!(
++            directory.is_dir() && std::fs::read_dir(&directory)?.next().is_none(),
++            "projection capture output must be an existing empty directory"
++        );
++        let projection_root = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?);
++        let attention_root = PathBuf::from(std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?);
++        let projections: Value =
++            serde_json::from_reader(File::open(projection_root.join("reference.json"))?)?;
++        let attention: Value =
++            serde_json::from_reader(File::open(attention_root.join("reference.json"))?)?;
++        ensure!(
++            projections["status"] == "complete"
++                && projections["projections"]
++                    .as_array()
++                    .is_some_and(|v| v.len() == 20)
++                && attention["status"] == "complete"
++                && attention["mode"] == "eval",
++            "incomplete independent projection or attention fixture"
++        );
++        let gdn_out = &projections["projections"][8];
++        let gdn_qkv = &projections["projections"][4];
++        let qsa = &attention["attention"]["15"][0]["stages"];
++        for (case, prefix, width, output) in [
++            (
++                gdn_out,
++                "model.language_model.layers.0.linear_attn.out_proj",
++                6144,
++                2560,
++            ),
++            (
++                gdn_qkv,
++                "model.language_model.layers.0.linear_attn.in_proj_qkv",
++                2560,
++                10240,
++            ),
++        ] {
++            ensure!(
++                case["prefix"] == prefix
++                    && case["dtype"] == "mlx.core.float16"
++                    && case["input_width"] == width
++                    && case["output_width"] == output,
++                "wrong production projection fixture"
++            );
++        }
++        let model_path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
++        let checkpoint = crate::checkpoint::inspect(&model_path)?;
++        ensure!(
++            checkpoint.model_type == "qwen4_exp",
++            "wrong Flash checkpoint"
++        );
++        let mut records = Vec::new();
++        let mut capture_bytes = 0u64;
++        for (name, prefix, root, source, expected, width, output, qkv) in [
++            (
++                "gdn0-out",
++                "model.language_model.layers.0.linear_attn.out_proj",
++                &projection_root,
++                &gdn_out["input"],
++                &gdn_out["output"],
++                6144,
++                2560,
++                false,
++            ),
++            (
++                "qsa15-out",
++                "model.language_model.layers.15.self_attn.o_proj",
++                &attention_root,
++                &qsa["gated"],
++                &qsa["out"],
++                6144,
++                2560,
++                false,
++            ),
++            (
++                "gdn0-qkv",
++                "model.language_model.layers.0.linear_attn.in_proj_qkv",
++                &projection_root,
++                &gdn_qkv["input"],
++                &gdn_qkv["output"],
++                2560,
++                10240,
++                true,
++            ),
++        ] {
++            for (entry, count) in [(source, width), (expected, output)] {
++                let fixture_shape = if name == "qsa15-out" {
++                    vec![1, 1, count]
++                } else {
++                    vec![1, count]
++                };
++                ensure!(
++                    entry["count"] == count && entry["shape"] == serde_json::json!(fixture_shape),
++                    "{name}: invalid independent fixture metadata"
++                );
++            }
++            let x_f32 = input(root, source, width)?;
++            let oracle = input(root, expected, output)?;
++            for (value, count) in [(&x_f32, width), (&oracle, output)] {
++                let values = value.to_f32()?;
++                ensure!(
++                    values.len() == count as usize
++                        && values.iter().all(|v| v.is_finite())
++                        && values.iter().any(|v| *v != 0.),
++                    "{name}: empty, nonfinite or vacuous fixture"
++                );
++            }
++            let x = x_f32.astype(Dtype::Float16)?;
++            x.eval()?;
++            ensure!(
++                x.astype(Dtype::Float32)?.to_bytes()? == x_f32.to_bytes()?,
++                "{name}: fixture input is not exactly F16 representable"
++            );
++            let projection = Projection::load(&checkpoint, prefix, width, output, false)?;
++            let forward = || -> Result<Array> {
++                let value = projection.forward(&x)?;
++                if qkv {
++                    value.astype(Dtype::Float16)?.reshape(&[1, 1, output])
++                } else {
++                    value.astype(Dtype::Float32)
++                }
++            };
++            // Evaluate file-backed weights and all inputs before the fresh captured graph.
++            forward()?.eval()?;
++            synchronize()?;
++            let path = directory.join(format!("{name}.gputrace"));
++            let capture = MetalCapture::start(&path)?;
++            // Captures include only new command buffers; rotate MLX's preexisting buffer.
++            synchronize()?;
++            let actual = forward()?;
++            actual.eval()?;
++            capture.finish()?;
++            let shape = if qkv {
++                vec![1, 1, output]
++            } else {
++                vec![1, output]
++            };
++            let dtype = if qkv { Dtype::Float16 } else { Dtype::Float32 };
++            ensure!(
++                actual.shape() == shape && actual.dtype() == dtype,
++                "{name}: output metadata differs"
++            );
++            let values = actual.astype(Dtype::Float32)?.to_f32()?;
++            let actual_bytes = actual.astype(Dtype::Float32)?.to_bytes()?;
++            let oracle_bytes = oracle.to_bytes()?;
++            ensure!(
++                values.len() == output as usize
++                    && values.iter().all(|v| v.is_finite())
++                    && actual_bytes.len() == output as usize * 4
++                    && actual_bytes == oracle_bytes,
++                "{name}: captured output differs bitwise from independent upstream oracle"
++            );
++            let bytes = capture_directory_bytes(&path)?;
++            ensure!(bytes > 0, "{name}: empty capture");
++            capture_bytes = capture_bytes
++                .checked_add(bytes)
++                .context("capture size overflow")?;
++            ensure!(
++                capture_bytes < 2 * 1024 * 1024 * 1024,
++                "captures exceed the 2 GiB bound"
++            );
++            records.push(serde_json::json!({
++                "name":name, "prefix":prefix, "capture":path, "capture_bytes":bytes,
++                "fixture_root":root, "input_fixture":source, "output_fixture":expected,
++                "input_shape":[1,width], "input_dtype":"Float16",
++                "output_shape":shape, "output_dtype":format!("{dtype:?}"),
++                "compared_f32_values":output, "compared_f32_bytes":actual_bytes.len(),
++                "parity":"bit_exact_independent_upstream_f32", "finite":true,
++                "gpu_duration":"not_measured_by_test", "dispatches":"inspection_pending"
++            }));
++        }
++        let metadata = serde_json::json!({
++            "status":"validated_captures_gpu_inspection_pending", "model":model_path,
++            "scope":"three isolated B1 production projection chains; QSA15 substitutes geometry of QSA3, not its values",
++            "captures":records, "capture_bytes":capture_bytes,
++            "limits":"no model throughput, exclusive GPU time or hardware counter result inferred by this test"
++        });
++        let file = std::fs::OpenOptions::new()
++            .write(true)
++            .create_new(true)
++            .open(directory.join("metadata.json"))?;
++        serde_json::to_writer_pretty(file, &metadata)?;
++        println!(
++            "FLASH_PROJECTION_CAPTURE captures=3 compared_f32_values=15360 status=validated_independent_exact_outputs_gpu_inspection_pending"
++        );
++        Ok(())
++    }
++    fn capture_directory_bytes(root: &Path) -> Result<u64> {
++        ensure!(root.is_dir(), "missing projection capture directory");
++        let mut bytes = 0u64;
++        for entry in std::fs::read_dir(root)? {
++            let entry = entry?;
++            let added = if entry.file_type()?.is_dir() {
++                capture_directory_bytes(&entry.path())?
++            } else {
++                ensure!(entry.file_type()?.is_file(), "unexpected capture entry");
++                entry.metadata()?.len()
++            };
++            bytes = bytes.checked_add(added).context("capture size overflow")?;
++        }
++        Ok(bytes)
++    }
++    #[test]
+     #[ignore = "physical Apple GPU and independent Pony projection fixture"]
+     fn flash_projections_match_upstream_rounding() -> Result<()> {
+         let root = std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?;

@@ -1,0 +1,49 @@
+Read-only existing GitHub CI log: main 4f22ae7563bac2df726de7b00f1944b9d6431cc0
+Job https://github.com/0xZKnw/mlxl3/actions/runs/41421208073/job/125196915289
+No local test or rerun was executed to obtain this log.
+
+2026-11-02T09:37:05.7150457Z =================================== FAILURES ===================================
+2026-11-02T09:37:05.7151151Z _____ test_required_obligations_preserve_baseline_and_complete_partitions ______
+2026-11-02T09:37:05.7151687Z 
+2026-11-02T09:37:05.7152294Z     def test_required_obligations_preserve_baseline_and_complete_partitions():
+2026-11-02T09:37:05.7153031Z         baseline = ci.inventory_names(
+2026-11-02T09:37:05.7153516Z             json.loads(
+2026-11-02T09:37:05.7154216Z                 (ROOT / "docs/measurements/kani-ci-repair/baseline-library-inventory.json").read_text()
+2026-11-02T09:37:05.7155008Z             )
+2026-11-02T09:37:05.7155371Z         )
+2026-11-02T09:37:05.7155699Z         replaced = {
+2026-11-02T09:37:05.7156543Z             "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+2026-11-02T09:37:05.7157727Z             "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+2026-11-02T09:37:05.7158770Z             "flash_support::draft_contract_proofs::unique_expert_prefix_is_bounded_for_eighty_routes",
+2026-11-02T09:37:05.7159534Z             "ssd_prefetch::verification::prediction_order_preserves_all_values_within_two_rows",
+2026-11-02T09:37:05.7160216Z             *(f"speculative::verification::dflash_copy_len_{n}" for n in range(21)),
+2026-11-02T09:37:05.7160667Z         }
+2026-11-02T09:37:05.7160901Z         required = set(ci.required_names())
+2026-11-02T09:37:05.7161297Z         assert set(baseline) - required == replaced
+2026-11-02T09:37:05.7161664Z >       assert len(required) == 322
+2026-11-02T09:37:05.7161986Z E       AssertionError: assert 327 == 322
+2026-11-02T09:37:05.7163634Z E        +  where 327 = len({'codec::verification::bitrate_validation_accepts_exactly_one_through_eight', 'codec::verification::exl3_permutation_a...ic_unpack_indices_stay_inside_one_packed_tile', 'cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values', ...})
+2026-11-02T09:37:05.7164579Z 
+2026-11-02T09:37:05.7164699Z tests/test_kani_ci.py:75: AssertionError
+2026-11-02T09:37:05.7165036Z =========================== short test summary info ============================
+2026-11-02T09:37:05.7165683Z FAILED tests/test_kani_ci.py::test_required_obligations_preserve_baseline_and_complete_partitions - AssertionError: assert 327 == 322
+2026-11-02T09:37:05.7166989Z  +  where 327 = len({'codec::verification::bitrate_validation_accepts_exactly_one_through_eight', 'codec::verification::exl3_permutation_a...ic_unpack_indices_stay_inside_one_packed_tile', 'cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values', ...})
+2026-11-02T09:37:05.7167987Z 1 failed, 43 passed in 20.19s
+2026-11-02T09:37:05.7407758Z ##[error]Process completed with exit code 1.
+2026-11-02T09:37:05.7588347Z Post job cleanup.
+2026-11-02T09:37:05.8485042Z [command]/usr/bin/git version
+2026-11-02T09:37:05.8535777Z git version 2.56.0
+2026-11-02T09:37:05.8587580Z Temporarily overriding HOME='/home/runner/work/_temp/a101b3c6-c012-43e5-bc2a-2fab99ba6bcf' before making global git config changes
+2026-11-02T09:37:05.8588717Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-02T09:37:05.8594176Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mlxl3/mlxl3
+2026-11-02T09:37:05.8645653Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-02T09:37:05.8687791Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-02T09:37:05.9015945Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-02T09:37:05.9051472Z http.https://github.com/.extraheader
+2026-11-02T09:37:05.9065422Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-02T09:37:05.9106175Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-02T09:37:05.9452967Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-02T09:37:05.9506248Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-02T09:37:06.0074519Z Cleaning up orphan processes
+2026-11-02T09:37:06.0551217Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

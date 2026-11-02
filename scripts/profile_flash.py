@@ -39,12 +39,154 @@ def distribution(values):
     }
 
 
+def readback_sample(event):
+    data = event["data"]
+    sample = data["sample"]
+    fields = ("wait_ns", "copy_ns", "contiguous_build_ns", "bytes", "total_ns")
+    assert all(integer(sample[k]) < 1 << 64 for k in fields)
+    assert type(sample["ready_before"]) is bool and type(sample["direct"]) is bool
+    assert sum(sample[k] for k in fields[:3]) <= sample["total_ns"]
+    assert not sample["direct"] or sample["contiguous_build_ns"] == 0
+    sizes = {
+        "Bool": 1,
+        "UInt8": 1,
+        "Int8": 1,
+        "UInt16": 2,
+        "Int16": 2,
+        "UInt32": 4,
+        "Int32": 4,
+        "UInt64": 8,
+        "Int64": 8,
+        "Float16": 2,
+        "BFloat16": 2,
+        "Float32": 4,
+        "Float64": 8,
+        "Complex64": 8,
+    }
+    assert data["dtype"] in sizes and isinstance(data["shape"], list)
+    count = math.prod(integer(n) for n in data["shape"])
+    assert count * sizes[data["dtype"]] == sample["bytes"]
+    assert sample["total_ns"] <= event["end_ns"] - event["start_ns"]
+    return {**sample, "dtype": data["dtype"], "shape": data["shape"]}
+
+
+def cold_schedule_diagnostic(data, route=None, batch_wall_ns=None):
+    fields = ("route_rows", "priority", "cold_occurrences", "multiplicities")
+    present = [key in data for key in fields]
+    has_ready_indices = "ready_job_indices" in data
+    if not any(present) and not has_ready_indices:
+        return {"status": "unavailable_legacy", "missing_fields": list(fields)}
+    assert all(present), "incomplete Cold schedule diagnostic"
+    assert data["status"] == "finished" and data["io_ok"] is True
+    assert isinstance(route, dict), "Cold schedule has no routed parent"
+    rows = integer(data["route_rows"])
+    assert 1 <= rows <= 4 and rows == route["rows"]
+    assert type(data["priority"]) is bool and (not data["priority"] or rows == 2)
+    ids, slots = route["ids"], route["slots_hit"]
+    assert len(ids) == len(slots) == rows * 10
+    occurrences = data["cold_occurrences"]
+    mapping, multiplicities = data["jobs_mapping"], data["multiplicities"]
+    assert all(isinstance(v, list) for v in (occurrences, mapping, multiplicities))
+    assert len(mapping) == len(multiplicities) == integer(data["jobs"]) > 2
+    assert len(occurrences) == integer(data["cold_rows"]) <= rows * 10
+    has_resident_count = "resident_gpu_rows" in route
+    if has_resident_count:
+        residents = integer(route["resident_gpu_rows"])
+        assert residents <= rows * 10
+        assert len(occurrences) == rows * 10 - residents, "Cold/Hot parent count mismatch"
+    seen, counts, first = set(), defaultdict(int), {}
+    for item in occurrences:
+        assert isinstance(item, list) and len(item) == 2
+        occurrence, slot = map(integer, item)
+        assert occurrence < rows * 10 and slot < route["capacity"]
+        assert occurrence not in seen, "duplicate Cold occurrence"
+        assert slot == slots[occurrence][0], "Cold occurrence uses a different routed slot"
+        assert not seen or occurrence > max(seen), "Cold occurrences are not in route order"
+        seen.add(occurrence)
+        counts[slot] += 1
+        first.setdefault(slot, occurrence)
+    assert all(hit or i in seen for i, (_, hit) in enumerate(slots)), "missing Cold miss"
+    assert len({expert for expert, _ in mapping}) == len(mapping)
+    assert len({slot for _, slot in mapping}) == len(mapping)
+    assert {slot for _, slot in mapping} == {slot for slot, hit in slots if not hit}
+    for (expert, slot), multiplicity in zip(mapping, multiplicities, strict=True):
+        assert integer(expert) < 512 and integer(slot) < route["capacity"]
+        assert 1 <= integer(multiplicity) == counts[slot] <= rows
+        assert all(ids[i] == expert for i, s in occurrences if s == slot)
+    expected = sorted(
+        mapping,
+        key=lambda job: (
+            (-counts[job[1]], first[job[1]]) if data["priority"] else (0, first[job[1]])
+        ),
+    )
+    assert mapping == expected, "Cold job launch order does not match policy"
+    timings = data["timings_job_worker_start_end_bytes_failed"]
+    assert len(timings) == len(mapping), "incomplete Cold job timings"
+    if batch_wall_ns is not None:
+        integer(batch_wall_ns)
+    for index, timing in enumerate(timings):
+        assert len(timing) == 6
+        job, _, begin, end, count, failed = map(integer, timing)
+        assert job == index and begin <= end and count == EXPERT_BYTES and failed == 0
+        if batch_wall_ns is not None:
+            assert end <= batch_wall_ns, "Cold read timing exceeds batch span"
+    completed = sorted(range(len(mapping)), key=lambda job: (timings[job][3], job))
+    first_two = completed[:2]
+    duplicated = sum(n > 1 for n in multiplicities)
+    split = data["split"]
+    assert type(split) is bool
+    w1, w2 = integer(data["w1_rows"]), integer(data["w2_rows"])
+    assert w1 + w2 == len(occurrences)
+    ready = integer(data["ready_initial"])
+    assert 2 <= ready <= len(mapping)
+    if has_ready_indices:
+        ready_indices = data["ready_job_indices"]
+        assert isinstance(ready_indices, list) and len(ready_indices) == ready
+        assert all(integer(job) < len(mapping) for job in ready_indices)
+        assert len(set(ready_indices)) == ready, "duplicate ready job index"
+    if split:
+        assert 0 < w1 < len(occurrences) and ready < len(mapping)
+        if has_ready_indices:
+            assert w1 == sum(multiplicities[job] for job in ready_indices)
+        else:
+            ordered = sorted(multiplicities)
+            assert sum(ordered[:ready]) <= w1 <= sum(ordered[-ready:])
+    else:
+        assert w1 == 0 and ready == len(mapping)
+    return {
+        "status": "validated_schedule_only",
+        "route_rows": rows,
+        "priority": data["priority"],
+        "parent_partition_validation": "resident_count"
+        if has_resident_count
+        else "unavailable_legacy_parent",
+        "readiness_validation": "exact_indices" if has_ready_indices else "bounded_multiplicities",
+        "timing_bounds_validation": "batch_wall"
+        if batch_wall_ns is not None
+        else "unavailable_no_batch_span",
+        "split": split,
+        "ready_initial": ready,
+        "w1_rows": w1,
+        "w2_rows": w2,
+        "jobs": len(mapping),
+        "duplicated_jobs": duplicated,
+        "duplicated_job_fraction": duplicated / len(mapping),
+        "first_two_completed_jobs": first_two,
+        "first_two_completed_slots": [mapping[job][1] for job in first_two],
+        "first_two_completed_occurrences": sum(multiplicities[job] for job in first_two),
+        "read_tail_after_second_completion_ns": timings[completed[-1]][3]
+        - timings[completed[1]][3],
+        "limits": "read completions (ties by job index) and logical occurrences; not readiness publication, GPU idle or speedup",
+    }
+
+
 def validate_events(events):
     assert isinstance(events, list) and events, "empty trace"
     children = [0] * len(events)
     paths, layers, ends = [], [], {}
     groups = defaultdict(lambda: {"wall": [], "self": []})
     routes, batches, jobs = [], [], []
+    signatures, signature_keys, requests, readbacks = {}, set(), [], []
     for i, event in enumerate(events):
         name = event["name"]
         assert isinstance(name, str) and name
@@ -67,11 +209,34 @@ def validate_events(events):
         paths.append(path)
         layers.append(layer)
         data = event["data"]
+        if name == "expert_kernel_signature" and "id" in data:
+            identity = integer(data["id"])
+            key = data["key"]
+            assert identity == len(signatures) and type(data["stable"]) is bool
+            assert isinstance(key, list) and len(key) == 3 and all(type(k) is str for k in key)
+            assert key[0] and key[2]
+            full = (data["stable"], *key)
+            assert full not in signature_keys, "duplicate kernel identity"
+            signature_keys.add(full)
+            signatures[identity] = {
+                "id": identity,
+                "name": key[0],
+                "stable": data["stable"],
+                "key_sha256": hashlib.sha256(json.dumps(full).encode()).hexdigest(),
+                "header_bytes": len(key[1].encode()),
+                "source_bytes": len(key[2].encode()),
+            }
+        if name == "expert_kernel_request":
+            identity = integer(data["signature"])
+            assert identity in signatures, "unknown kernel signature"
+            requests.append({"layer": layer, "signature": identity})
+        if name == "host_readback":
+            readbacks.append({"layer": layer, **readback_sample(event)})
         if name == "moe_forward_rows":
             assert isinstance(data, dict)
             rows, cap = integer(data["rows"]), integer(data["capacity"])
             ids, slots = data["ids"], data["slots_hit"]
-            assert 1 <= rows <= 8 and 10 <= cap <= 512
+            assert 1 <= rows <= 8 and 10 <= cap <= 2544
             assert len(ids) == len(slots) == 10 * rows
             assert all(type(n) is int and 0 <= n < 512 for n in ids)
             assert all(type(n) is int and 0 <= n < cap and type(hit) is bool for n, hit in slots)
@@ -90,17 +255,25 @@ def validate_events(events):
                     "capacity": cap,
                 }
             )
-        if name == "disk_read_batch":
-            assert data["ok"] is True
-            timings, mapping = data["timings_job_worker_start_end_bytes_failed"], data["jobs"]
+        if name in ("disk_read_batch", "cold_ready_batch"):
+            cold = name == "cold_ready_batch"
+            assert data["io_ok" if cold else "ok"] is True
+            timings = data["timings_job_worker_start_end_bytes_failed"]
+            mapping = data["jobs_mapping" if cold else "jobs"]
+            if cold:
+                assert data["status"] == "finished" and integer(data["jobs"]) == len(mapping)
             workers = integer(data["workers"])
+            schedule = data.get("schedule", "static")
+            assert schedule in ("static", "dynamic"), "unknown disk job schedule"
             assert 1 <= workers <= 4 and 1 <= len(mapping) == len(timings) <= 512
             assert len({slot for _, slot in mapping}) == len(mapping)
             worker_end = {}
             for index, row in enumerate(timings):
                 assert len(row) == 6
                 job, worker, start, stop, count, failed = map(integer, row)
-                assert job == index and worker == index % min(workers, len(mapping))
+                assert job == index and 0 <= worker < min(workers, len(mapping))
+                if schedule == "static":
+                    assert worker == index % min(workers, len(mapping))
                 assert start <= stop and start >= worker_end.get(worker, 0)
                 assert count == EXPERT_BYTES and failed == 0
                 worker_end[worker] = stop
@@ -117,12 +290,21 @@ def validate_events(events):
             batches.append(
                 {
                     "layer": layer,
+                    "operation": name,
                     "jobs": len(mapping),
+                    "schedule": schedule,
                     "last_completion_ns": max(t[3] for t in timings),
                     "worker_finish_spread_ns": max(worker_end.values()) - min(worker_end.values()),
                     "wall_ns": end - begin,
                 }
             )
+            if cold:
+                ancestor = parent
+                while ancestor is not None and events[ancestor]["name"] != "moe_forward_rows":
+                    ancestor = events[ancestor]["parent"]
+                batches[-1]["cold_schedule"] = cold_schedule_diagnostic(
+                    data, None if ancestor is None else events[ancestor]["data"], end - begin
+                )
     for i, event in enumerate(events):
         duration = event["end_ns"] - event["start_ns"]
         assert children[i] <= duration
@@ -130,6 +312,7 @@ def validate_events(events):
         groups[key]["wall"].append(duration)
         groups[key]["self"].append(duration - children[i])
     assert routes, "trace has no actual routed experts"
+    assert not signatures or requests, "kernel dictionary without requests"
     components = [
         {
             "layer": layer,
@@ -145,6 +328,9 @@ def validate_events(events):
         "routes": routes,
         "disk_batches": batches,
         "disk_jobs": jobs,
+        "kernel_signatures": list(signatures.values()),
+        "kernel_requests": requests,
+        "readbacks": readbacks,
         "limits": "nested host wall/self intervals; not exclusive GPU; per-job read intervals overlap across workers",
     }
 
@@ -161,7 +347,7 @@ def vm_counts(raw):
 
 
 def validate_summary(summary, kind, golden, expected_tokens=None):
-    budget = {"quality": 17, "fenced": 33, "natural": 128, "verifier": 64}[kind]
+    budget = {"quality": 17, "fenced": 33, "natural": 128, "context": 128, "verifier": 64}[kind]
     assert summary["full_logits_target_head_states_byte_exact"] is True
     assert summary["logit_count"] == 248320
     tokens = summary["tokens"]
@@ -172,7 +358,7 @@ def validate_summary(summary, kind, golden, expected_tokens=None):
             hash_value = ((hash_value ^ byte) * 0x100000001B3) & ((1 << 64) - 1)
     assert summary["token_hash"] == f"{hash_value:016x}"
     assert summary["text"] and golden["cache_context"].startswith(summary["text"])
-    if kind == "natural":
+    if kind in ("natural", "context"):
         assert (
             summary["token_hash"] == golden["token_hash"]
             and summary["text"] == golden["cache_context"]
@@ -181,8 +367,68 @@ def validate_summary(summary, kind, golden, expected_tokens=None):
         assert tokens == expected_tokens[:budget]
     assert len(summary["steps"]) == budget - 1
     for i, row in enumerate(summary["steps"], 1):
-        assert row["step"] == i and row["token"] == tokens[i]
-        assert math.isfinite(row["seconds"]) and row["seconds"] >= 0
+        assert integer(row["step"]) == i and integer(row["token"]) == tokens[i]
+        assert (
+            type(row["seconds"]) in (int, float)
+            and math.isfinite(row["seconds"])
+            and row["seconds"] >= 0
+        )
+    if "dflash" in summary:
+        assert type(summary["dflash"]) is bool
+        if summary["dflash"]:
+            assert summary["mtp"] is False and summary["full_draft_states_byte_exact"] is True
+            counters = summary["dflash_stats"]
+            profile = summary["dflash_profile"]
+            assert len(counters) == 4 and all(type(n) is int and n >= 0 for n in counters[:3])
+            assert type(counters[3]) in (int, float) and math.isfinite(counters[3])
+            assert 0 <= counters[3] <= summary["decode_seconds"] + 1e-6
+            fields = (
+                "proposed",
+                "accepted",
+                "blocks",
+                "verified_rows",
+                "drafted_rows",
+                "expert_demand_bytes",
+            )
+            totals = dict.fromkeys(fields, 0)
+            for row in summary["steps"]:
+                d = row["dflash"]
+                assert all(type(d[k]) is int and d[k] >= 0 for k in fields)
+                assert 0 <= d["accepted"] <= d["proposed"] <= 7 and d["blocks"] in (0, 1)
+                assert d["blocks"] == int(d["proposed"] > 0)
+                assert (
+                    d["verified_rows"] == d["proposed"] + 1
+                    if d["blocks"]
+                    else d["verified_rows"] == 0
+                )
+                assert d["verified_rows"] <= d["drafted_rows"] <= 8
+                assert all(
+                    type(row[k]) is int and row[k] == 0
+                    for k in ("mtp_proposed", "mtp_accepted", "mtp_blocks")
+                )
+                for key in fields:
+                    totals[key] += d[key]
+            assert [totals[k] for k in fields[:3]] == counters[:3]
+            for key in fields[3:]:
+                assert totals[key] == profile[key]
+            for key, total in (
+                ("verified_widths", "verified_rows"),
+                ("drafted_widths", "drafted_rows"),
+            ):
+                widths = profile[key]
+                assert len(widths) == 8 and widths[0] == 0
+                assert all(type(n) is int and n >= 0 for n in widths)
+                assert sum(widths) == totals["blocks"]
+                assert sum((i + 1) * n for i, n in enumerate(widths)) == totals[total]
+            times = [
+                profile[k]
+                for k in ("draft_seconds", "verification_seconds", "commit_cache_seconds")
+            ]
+            assert all(type(t) in (int, float) and math.isfinite(t) and t >= 0 for t in times)
+            assert sum(times) <= counters[3] + 1e-6
+        else:
+            assert summary["full_draft_states_byte_exact"] is None
+            assert summary["dflash_stats"] is None and summary["dflash_profile"] is None
     for key in ("prefill_seconds", "decode_seconds", "diagnostic_tps"):
         assert math.isfinite(summary[key]) and summary[key] > 0
     assert math.isclose(
@@ -239,10 +485,23 @@ def analyze(directory, kind, golden, expected_tokens=None):
             "control_after",
         ],
         "natural": ["warmup", "control_before", "trace_1", "trace_2", "trace_3", "control_after"],
+        "context": ["warmup", "control_before", "trace_1", "trace_2", "trace_3", "control_after"],
         "fenced": ["warmup", "oracle", "fenced_1", "fenced_2"],
         "quality": ["warmup", "oracle", "trace", "fenced"],
     }[kind]
     assert [s["phase"] for s in complete["summaries"]] == expected_phases
+    version = complete.get("profile_schema_version", 1)
+    assert type(version) is int and version in (1, 2)
+    if version == 2:
+        assert type(complete["dflash"]) is bool
+        for summary in complete["summaries"]:
+            assert summary["dflash"] == (
+                complete["dflash"] and summary["phase"] != "sequential_oracle"
+            )
+            assert all(
+                "target_rows" in row and (not summary["dflash"] or "dflash" in row)
+                for row in summary["steps"]
+            )
     report = {
         "status": "incomplete",
         "kind": kind,
@@ -263,6 +522,12 @@ def analyze(directory, kind, golden, expected_tokens=None):
                 events = load_events(directory / f"{summary['phase']}-{part}.json")
                 assert len(events) == summary[f"{part}_event_count"]
                 stats = validate_events(events)
+                if version == 2:
+                    assert (
+                        stats["readbacks"]
+                        and stats["kernel_signatures"]
+                        and stats["kernel_requests"]
+                    )
                 layer_routes = [r for r in stats["routes"] if r["layer"] is not None]
                 assert {r["layer"] for r in layer_routes} == set(range(48))
                 before, after = (

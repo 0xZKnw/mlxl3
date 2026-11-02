@@ -5,11 +5,17 @@ pub mod affine;
 pub mod array;
 pub mod checkpoint;
 pub mod codec;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod cold_ready;
 mod contracts;
 pub use contracts::{
     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
     smallm_kernel_key,
 };
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod dec_one;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod dense_epilogue;
 pub mod dflash;
 #[cfg(feature = "mlx")]
 pub(crate) mod embedding;
@@ -23,6 +29,8 @@ pub(crate) mod flash_profile;
 pub mod flash_support;
 #[cfg(feature = "mlx")]
 pub mod gated_delta;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod gdn_epilogue;
 #[cfg(feature = "mlx")]
 pub mod gemma4;
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -36,11 +44,15 @@ pub mod linear;
 pub mod ling;
 pub mod mcp;
 pub mod memory_policy;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod metal_capabilities;
 #[cfg(feature = "mlx")]
 pub mod moe;
 pub mod mtp;
 #[cfg(feature = "mlx")]
 pub mod qwen35;
+#[cfg(any(feature = "mlx", test, kani))]
+mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
 pub mod registry;
@@ -56,3 +68,5 @@ pub mod structured;
 #[cfg(feature = "chat")]
 pub mod tokenizer;
 pub mod tool_call;
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod weighted_epilogue;

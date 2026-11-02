@@ -1,0 +1,66 @@
+Building for debugging...
+[Planning deferred tasks]
+[4 / 19]
+[5 / 20] SwiftMath
+[16 / 97]
+[22 / 97]
+[28 / 97]
+[29 / 97]
+[35 / 97]
+[38 / 97]
+[46 / 97]
+[48 / 97]
+[51 / 97]
+[52 / 97]
+[64 / 97]
+[68 / 97]
+[70 / 97]
+[82 / 97] SwiftMath
+[83 / 97] SwiftMath
+[88 / 95] SwiftMath
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/flash-publish-20261101/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[100 / 187] SwiftMath
+[103 / 187]
+[112 / 187]
+[114 / 187]
+[120 / 187]
+[123 / 187]
+[132 / 187]
+[134 / 187]
+[137 / 187]
+[138 / 187]
+[152 / 187]
+[155 / 187]
+[160 / 187]
+[166 / 187]
+[170 / 187]
+[182 / 187] MLXL3Studio-product
+[183 / 187] MLXL3Studio-product
+[185 / 187] MLXL3Studio-product
+Build complete! (12,13 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+apps/MLXL3Studio/Sources/MLXL3Studio/VoiceController.swift:42:15: error: 'installTap(onBus:bufferSize:format:block:)' was deprecated in macOS 27.0 [#DeprecatedDeclaration]
+40 |         let format = input.outputFormat(forBus: 0)
+41 |         guard format.sampleRate > 0, format.channelCount > 0 else { stop(); error = L("Microphone indisponible.", "Microphone unavailable."); return }
+42 |         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }
+   |               `- error: 'installTap(onBus:bufferSize:format:block:)' was deprecated in macOS 27.0 [#DeprecatedDeclaration]
+43 |         hasTap = true
+44 |         recognition = recognizer.recognitionTask(with: request) { [weak self] result, failure in
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>

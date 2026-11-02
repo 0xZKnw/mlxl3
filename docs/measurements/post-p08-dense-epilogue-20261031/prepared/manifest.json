@@ -1,0 +1,479 @@
+{
+  "experiment": "POSTP08-F02-01",
+  "status": "prepared_not_executed_conditional_no_final_identity",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "planned_cli": {
+    "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-dense-epilogue-20261031/engine/prototype-engine",
+    "expected_sha256_from_root": "6f35338c74d940c28bee9d37bd2284c5c505926fa918d5133325b38db5f6eee5",
+    "status": "pending_full_identity_after_mutant_shader_restored"
+  },
+  "same_future_engine_for_both_arms": true,
+  "arms": {
+    "A": {
+      "MLXL3_FLASH_DENSE_EPILOGUE": "0"
+    },
+    "C": {
+      "MLXL3_FLASH_DENSE_EPILOGUE": "1"
+    }
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth": 1,
+    "dflash_mode": 1,
+    "dflash_width": 1,
+    "reuse_prompt_cache": false,
+    "uses_compare_option": false,
+    "timeout_seconds_per_bridge_wait": 180
+  },
+  "stages": {
+    "bridge17": {
+      "order_per_mode": "AC",
+      "modes": [
+        "AR",
+        "MTP",
+        "DF"
+      ],
+      "processes": 6,
+      "total_warmups": 12,
+      "total_measured_generations": 12,
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "purpose": "real bridge quality, not speed qualification",
+      "launch": "conditional_on_component_filter_and_native_oracles"
+    },
+    "pilot128": {
+      "order_per_mode": "ACCA",
+      "modes": [
+        "AR",
+        "MTP",
+        "DF"
+      ],
+      "processes": 12,
+      "total_warmups": 24,
+      "total_measured_generations": 24,
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "first_mode": "AR",
+      "launch": "not_automatic; AR only after useful component filter and bridge; MTP/DF only if AR useful after audit"
+    }
+  },
+  "launch_conditions": [
+    "root restores original shader and verifies normal CLI/lib before final identity",
+    "no launch performed by preparation; full preflight(entry) after root freezes new identity",
+    "keep the current F02 campaign anchor unchanged; no reanchor after an incident; P08 stays closed",
+    "zero new Swapout; Swapin<=256MiB; AC quiet one model; no compiler/prover/other inference",
+    "model admission3snapshots20s>=10.5GB; RSS<=10GiB; native peak<12GB; no automatic lowering",
+    "cache3GiB/readers4; T18/T04/T05/T17OFF; same CLI and controls A/C; inspect/join before next process"
+  ],
+  "plans": [
+    {
+      "phase": "bridge17",
+      "mode": "AR",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-AR-1-A-plan.json",
+      "name": "f02-bridge17-AR-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "AR",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-AR-2-C-plan.json",
+      "name": "f02-bridge17-AR-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-AR-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "MTP",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-MTP-1-A-plan.json",
+      "name": "f02-bridge17-MTP-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-MTP-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "MTP",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-MTP-2-C-plan.json",
+      "name": "f02-bridge17-MTP-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-MTP-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-MTP-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "DF",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-DF-1-A-plan.json",
+      "name": "f02-bridge17-DF-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-DF-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "bridge17",
+      "mode": "DF",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-bridge17-DF-2-C-plan.json",
+      "name": "f02-bridge17-DF-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-DF-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-bridge17-DF-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 17,
+      "decode_transitions_per_generation": 16,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "component_filter_useful_and_affected_native_oracles_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-AR-1-A-plan.json",
+      "name": "f02-pilot128-AR-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "bridge17_quality_passed_and_component_filter_useful"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-AR-2-C-plan.json",
+      "name": "f02-pilot128-AR-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "bridge17_quality_passed_and_component_filter_useful"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-AR-3-C-plan.json",
+      "name": "f02-pilot128-AR-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "bridge17_quality_passed_and_component_filter_useful"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "AR",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-AR-4-A-plan.json",
+      "name": "f02-pilot128-AR-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-AR-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "bridge17_quality_passed_and_component_filter_useful"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-MTP-1-A-plan.json",
+      "name": "f02-pilot128-MTP-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-MTP-2-C-plan.json",
+      "name": "f02-pilot128-MTP-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-MTP-3-C-plan.json",
+      "name": "f02-pilot128-MTP-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "MTP",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-MTP-4-A-plan.json",
+      "name": "f02-pilot128-MTP-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-MTP-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 1,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-DF-1-A-plan.json",
+      "name": "f02-pilot128-DF-1-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-1-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 2,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-DF-2-C-plan.json",
+      "name": "f02-pilot128-DF-2-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-2-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-2-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 3,
+      "arm": "C",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-DF-3-C-plan.json",
+      "name": "f02-pilot128-DF-3-C",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-3-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-3-C/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "1",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    },
+    {
+      "phase": "pilot128",
+      "mode": "DF",
+      "position_within_mode": 4,
+      "arm": "A",
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/f02-pilot128-DF-4-A-plan.json",
+      "name": "f02-pilot128-DF-4-A",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-4-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared/runs/f02-pilot128-DF-4-A/report.json",
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ],
+      "tokens_per_generation": 128,
+      "decode_transitions_per_generation": 127,
+      "warmup_generations": 2,
+      "measured_generations": 2,
+      "f02_flag": "0",
+      "status": "prepared_not_executed_conditional",
+      "launch_gate": "AR_pilot_useful_after_adaptation_audit_and_mode_quality_passed"
+    }
+  ]
+}

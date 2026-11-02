@@ -1,0 +1,10 @@
+import json,runpy,sys
+from pathlib import Path
+c=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()
+n=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())
+def checked(event,mode,mtp,budget,*args):
+ old(event,mode,mtp,budget,*args)
+ assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'
+ m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'
+n['run'].__globals__['validate']=checked
+n['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])

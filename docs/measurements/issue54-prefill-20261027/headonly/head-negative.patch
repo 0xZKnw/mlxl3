@@ -1,0 +1,107 @@
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..6ed6bc66 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -1240,6 +1240,7 @@ pub struct FlashNext {
+     pub last_hidden: Option<Array>,
+     verification: Option<PairState>,
+     multi_token: bool,
++    prefill_heads: bool,
+     lookahead_depth: usize,
+     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
+     #[cfg(feature = "chat")]
+@@ -1254,6 +1255,12 @@ impl FlashNext {
+     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
+         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+         let multi_token = flash_support::multi_token_verifier()?;
++        let prefill_heads = match std::env::var("MLXL3_FLASH_PREFILL_HEADS") {
++            Ok(v) if v == "0" => false,
++            Ok(v) if v == "1" => true,
++            Err(std::env::VarError::NotPresent) => false,
++            _ => anyhow::bail!("MLXL3_FLASH_PREFILL_HEADS must be 0 or 1"),
++        };
+         let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+             Ok(value) => value
+                 .parse::<usize>()
+@@ -1436,6 +1443,7 @@ impl FlashNext {
+             last_hidden: None,
+             verification: None,
+             multi_token,
++            prefill_heads,
+             lookahead_depth,
+             lookahead_pool,
+             #[cfg(feature = "chat")]
+@@ -1450,22 +1458,25 @@ impl FlashNext {
+         Array::from_file(file, offset, &[1, H], Dtype::BFloat16)?.astype(Dtype::Float16)
+     }
+     pub fn forward(&mut self, token: u32) -> Result<Array> {
+-        Ok(self.forward_inner(token, false)?.0)
++        self.forward_inner(token, None, true)?
++            .context("missing Flash logits")
+     }
+     pub fn forward_trace(&mut self, token: u32) -> Result<(Array, Vec<(String, Array)>)> {
+-        self.forward_inner(token, true)
++        let mut trace = Vec::new();
++        let logits = self.forward_inner(token, Some(&mut trace), true)?;
++        Ok((logits.context("missing Flash trace logits")?, trace))
+     }
+     fn forward_inner(
+         &mut self,
+         token: u32,
+-        capture: bool,
+-    ) -> Result<(Array, Vec<(String, Array)>)> {
++        mut trace: Option<&mut Vec<(String, Array)>>,
++        head: bool,
++    ) -> Result<Option<Array>> {
+         ensure!(
+             self.verification.is_none(),
+             "uncommitted Flash verification"
+         );
+         ensure!(self.offset < self.context, "Flash context exhausted");
+-        let mut trace = Vec::new();
+         let mut streams = self.streams(token)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("embedding_streams", &streams)?;
+@@ -1478,7 +1489,7 @@ impl FlashNext {
+                 .then(|| rest.first_mut().map(|l| &mut l.moe))
+                 .flatten();
+             streams = layer.forward_lookahead(&streams, token, next, self.lookahead_depth)?;
+-            if capture {
++            if let Some(trace) = &mut trace {
+                 trace.push((format!("layer_{i}"), streams.try_clone()?));
+                 if let Attention::Gdn(gdn) = &layer.attention
+                     && let Some(state) = &gdn.state
+@@ -1487,11 +1498,16 @@ impl FlashNext {
+                 }
+             }
+         }
+-        let logits = self.logits(&streams)?;
++        let logits = if true {
++            Some(self.logits(&streams)?)
++        } else {
++            streams.eval()?;
++            None
++        };
+         self.drain()?;
+         self.last_hidden = Some(streams);
+         self.offset += 1;
+-        Ok((logits, trace))
++        Ok(logits)
+     }
+     fn streams(&self, token: u32) -> Result<Array> {
+         self.embedding(token)?
+@@ -1625,8 +1641,12 @@ impl FlashNext {
+             "invalid Flash token batch"
+         );
+         let mut last = None;
+-        for &token in tokens {
+-            last = Some(self.forward(token)?);
++        for (index, &token) in tokens.iter().enumerate() {
++            last = self.forward_inner(
++                token,
++                None,
++                !self.prefill_heads || index + 1 == tokens.len(),
++            )?;
+         }
+         last.context("empty Flash token batch")
+     }

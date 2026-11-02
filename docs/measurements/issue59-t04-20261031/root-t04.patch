@@ -1,0 +1,96 @@
+--- a/native/src/array.rs
++++ b/native/src/array.rs
+@@ -14,6 +14,12 @@
+ #[cfg(test)]
+ thread_local! {
+     static HOST_READBACKS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
++    static SWIGLU_SCALED_REQUESTS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
++}
++
++#[cfg(test)]
++pub(crate) fn swiglu_scaled_requests_for_test() -> u64 {
++    SWIGLU_SCALED_REQUESTS.get()
+ }
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+@@ -65,6 +71,12 @@
+ }
+ 
+ unsafe extern "C" {
++    fn mlxl3_array_swiglu_scaled(
++        gate: *mut c_void,
++        up: *mut c_void,
++        scale: *mut c_void,
++        out: *mut *mut c_void,
++    ) -> i32;
+     #[cfg(test)]
+     fn mlxl3_readback_profile_enable(enabled: bool);
+     #[cfg(test)]
+@@ -1328,6 +1340,27 @@
+     pub fn swiglu(&self, up: &Self) -> Result<Self> {
+         self.binary(up, 6, 0, 0.)
+     }
++    pub(crate) fn swiglu_scaled(&self, up: &Self, scale: &Self) -> Result<Self> {
++        ensure!(
++            crate::flash_support::swiglu_down_elements(self.shape()).is_some()
++                && self.shape() == up.shape()
++                && self.shape() == scale.shape()
++                && matches!(self.dtype(), Dtype::Float16 | Dtype::Float32)
++                && up.dtype() == self.dtype()
++                && scale.dtype() == Dtype::Float16,
++            "invalid Flash SwiGLU/down boundary inputs"
++        );
++        #[cfg(test)]
++        SWIGLU_SCALED_REQUESTS.set(SWIGLU_SCALED_REQUESTS.get() + 1);
++        Self::output(|out| unsafe {
++            mlxl3_array_swiglu_scaled(
++                self.handle.as_ptr(),
++                up.handle.as_ptr(),
++                scale.handle.as_ptr(),
++                out,
++            )
++        })
++    }
+     pub fn logaddexp(&self, other: &Self) -> Result<Self> {
+         self.binary(other, 7, 0, 0.)
+     }
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -622,6 +622,16 @@
+ int mlxl3_array_concatenate(void* const* inputs, size_t count, int axis, void** out) noexcept {
+   return protect([&] { *out = new mx::array(mx::concatenate(arrays(inputs, count), axis)); });
+ }
++int mlxl3_array_swiglu_scaled(void* gate, void* up, void* scale, void** out) noexcept {
++  return protect([&] {
++    thread_local auto prepare = mx::compile([](const std::vector<mx::array>& x) {
++      // Preserve SwiGLU's dtype, then its F16 boundary and the F16 scale product.
++      auto activated = mx::astype(mx::multiply(mx::multiply(x[0], mx::sigmoid(x[0])), x[1]), mx::float16);
++      return std::vector<mx::array>{mx::astype(mx::multiply(activated, x[2]), mx::float16)};
++    }, true);
++    *out = new mx::array(prepare({arr(gate), arr(up), arr(scale)})[0]);
++  });
++}
+ int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
+                         void* indices, void** out) noexcept {
+   return protect([&] {
+--- a/native/src/gdn_epilogue.rs
++++ b/native/src/gdn_epilogue.rs
+@@ -188,6 +188,6 @@
+ }
+ 
+ #[cfg(all(test, feature = "mlx"))]
+-mod capture_tests;
++pub(crate) mod capture_tests;
+ #[cfg(all(test, feature = "mlx"))]
+ mod tests;
+--- a/native/src/gdn_epilogue/capture_tests.rs
++++ b/native/src/gdn_epilogue/capture_tests.rs
+@@ -4,7 +4,7 @@
+ use half::f16;
+ use std::path::{Path, PathBuf};
+ 
+-fn capture_bytes(path: &Path) -> Result<u64> {
++pub(crate) fn capture_bytes(path: &Path) -> Result<u64> {
+     let root = path.canonicalize().context("missing capture package")?;
+     ensure!(root.is_dir(), "capture package is not a directory");
+     let mut total = 0u64;

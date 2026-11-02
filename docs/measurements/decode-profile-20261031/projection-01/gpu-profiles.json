@@ -1,0 +1,172 @@
+{
+  "status": "positive_replay_times_but_absolute_timing_unstable_not_a_native_budget",
+  "settings": {
+    "profiler_mode": "Full",
+    "execution": "Overlapping",
+    "performance_state": "Medium",
+    "device": "Apple M5",
+    "OS": "macOS27.2"
+  },
+  "cases": [
+    {
+      "name": "gdn0-out",
+      "gpu_microseconds": null,
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "dispatches": 8,
+      "counter_csv": "docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-out-counters.csv",
+      "encoder_counters": {
+        "ALU Utilization": "38.10",
+        "F32 Utilization": "11.10",
+        "Neural Accelerator Utilization": "0.00",
+        "Kernel Occupancy": "6.86",
+        "Occupancy Manager Target": "100.00",
+        "Last Level Cache Limiter": "11.16",
+        "Last Level Cache Utilization": "11.16",
+        "MMU Utilization": "10.33"
+      },
+      "observations": [
+        {
+          "gpu_microseconds": 138.75,
+          "shader_sampling": "not_collected",
+          "counter_csv": "docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-out-counters.csv"
+        },
+        {
+          "gpu_microseconds": 694.25,
+          "reason": "preregistered return to collect missing shader sampling/register table",
+          "counter_csv": "docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-out-counters-r2.csv",
+          "qmv_shader_sample_cost_percent": 93.96,
+          "qmv_registers": 66,
+          "qmv_spilled_bytes": 0,
+          "hadamard_cost_percent": 1.75,
+          "reduce_cost_percent": 1.74,
+          "multiply_cost_percent": 1.17,
+          "copy_f16_f32_cost_percent": 0.8,
+          "copy_f32_f16_cost_percent": 0.58
+        }
+      ],
+      "gpu_microseconds_range": [
+        138.75,
+        694.25
+      ]
+    },
+    {
+      "name": "qsa15-out",
+      "gpu_microseconds": 140.08,
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "dispatches": 8,
+      "counter_csv": "docs/measurements/decode-profile-20261031/projection-01/captures/qsa15-out-counters.csv",
+      "shader_sampling_costs": [
+        {
+          "name": "custom_kernel_mlxl3_rs_tile_6144_2560_4_2_1_4_2_float16_t_uint32_t_float16_t_float",
+          "cost_percent": 95.43,
+          "allocated_registers": 66,
+          "high_register": 66,
+          "spilled_bytes": 0,
+          "simd_groups": 1290
+        },
+        {
+          "name": "n2hadamard_128_float16",
+          "cost_percent": 1.36,
+          "allocated_registers": 94,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "col_reduce_small_1_reduce_sumfloat32",
+          "cost_percent": 1.18,
+          "allocated_registers": 45,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "vv_Multiplyfloat16",
+          "cost_percent": 1.1,
+          "allocated_registers": 4,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "v_copyfloat16float32",
+          "cost_percent": 0.48,
+          "allocated_registers": 4,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "v_copyfloat32float16",
+          "cost_percent": 0.44,
+          "allocated_registers": 4,
+          "spilled_bytes": 0
+        }
+      ],
+      "sampling_cost_definition": "share of shader samples in overlapping workload, not fraction of wall GPU latency",
+      "encoder_counters": {
+        "ALU Utilization": "47.26",
+        "F32 Utilization": "10.25",
+        "Neural Accelerator Utilization": "0.00",
+        "Kernel Occupancy": "36.83",
+        "Occupancy Manager Target": "57.76",
+        "Last Level Cache Limiter": "11.77",
+        "Last Level Cache Utilization": "10.99",
+        "MMU Utilization": "10.38"
+      }
+    },
+    {
+      "name": "gdn0-qkv",
+      "gpu_microseconds": 703.42,
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "dispatches": 6,
+      "shader_sampling_costs": [
+        {
+          "name": "custom_kernel_mlxl3_rs_tile_2560_10240_4_2_1_4_1_float16_t_uint32_t_float16_t_float",
+          "cost_percent": 98.1,
+          "allocated_registers": 66,
+          "high_register": 66,
+          "spilled_bytes": 0,
+          "simd_groups": 2570
+        },
+        {
+          "name": "n2hadamard_128_float16",
+          "cost_percent": 1.27,
+          "allocated_registers": 94,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "vv_Multiplyfloat16",
+          "cost_percent": 0.48,
+          "allocated_registers": 4,
+          "spilled_bytes": 0
+        },
+        {
+          "name": "v_copyfloat32float16",
+          "cost_percent": 0.16,
+          "allocated_registers": 4,
+          "spilled_bytes": 0
+        }
+      ],
+      "sampling_cost_definition": "share of shader samples, not wall-time cost fraction",
+      "counter_csv": "docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-qkv-counters.csv",
+      "encoder_counters": {
+        "ALU Utilization": "55.62",
+        "F32 Utilization": "8.33",
+        "Neural Accelerator Utilization": "0.00",
+        "Kernel Occupancy": "49.76",
+        "Occupancy Manager Target": "57.32",
+        "Last Level Cache Limiter": "11.83",
+        "Last Level Cache Utilization": "11.83",
+        "MMU Utilization": "11.18"
+      }
+    }
+  ],
+  "limits": [
+    "isolated replay GPU envelope not production token latency",
+    "encoder aggregate hardware counters, not universal per-dispatch counters",
+    "no arithmetic sum with CPU or conditional ceilings without natural schedule",
+    "Shaders Cost is sample share, never multiplied by total GPU microseconds",
+    "Raw Kernel Occupancy CSV units not confirmed by UI tooltip; Occupancy Manager Target is a ceiling, not actual occupancy",
+    "GDNqkv703.42us replay is not compared directly to old fenced host time; clock/cache/profiling contexts differ",
+    "Same GDN capture varied138.75\u2192694.25us under nominally same Full/Overlapping/Medium labels; AC/no thermal warning/no swap/no competing model observed at later check; exact cause not established",
+    "No production ms/token or optimization speedup derived from replay latency",
+    "Old fenced host times and these replay times are different experiments; never subtract them",
+    "OccupancyManagerTarget is an upper limit; shader sample percentages are not wall-latency fractions"
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "status": "partial_quality_s3_integration_failed",
+  "checks": [
+    {
+      "name": "s2a-bridge-C",
+      "parity": true,
+      "responses": 4,
+      "cache_coverage": null
+    },
+    {
+      "name": "s2b-bridge-C",
+      "parity": true,
+      "responses": 4,
+      "cache_coverage": null
+    },
+    {
+      "name": "s3-bridge-C",
+      "parity": true,
+      "responses": 2,
+      "cache_coverage": "failed_no_reused_tokens",
+      "stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "evaluated_prompt_tokens": 87,
+          "prompt_tokens": 87
+        },
+        {
+          "cached_prompt_tokens": 0,
+          "evaluated_prompt_tokens": 87,
+          "prompt_tokens": 87
+        }
+      ]
+    },
+    {
+      "name": "s5-bridge-C",
+      "parity": true,
+      "responses": 4,
+      "cache_coverage": null
+    }
+  ]
+}

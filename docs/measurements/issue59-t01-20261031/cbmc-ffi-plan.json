@@ -1,0 +1,28 @@
+[
+  {
+    "name": "t01-cbmc-ffi",
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/ffi/mlx_bridge.cpp",
+      "--function",
+      "mlxl3_kernel_build_profile_copy",
+      "--cpp11",
+      "-I",
+      "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include",
+      "--unwind",
+      "129",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 6,
+    "timeout_seconds": 60,
+    "required_text": [
+      "PARSING ERROR"
+    ]
+  }
+]

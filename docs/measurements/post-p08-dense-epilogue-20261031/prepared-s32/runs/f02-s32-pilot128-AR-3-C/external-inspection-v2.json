@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "f02-s32-pilot128-AR-3-C",
+  "phase": "pilot128",
+  "mode": "AR",
+  "arm": "C",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/runs/f02-s32-pilot128-AR-3-C/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.684817334000002,
+      "decode_tps": 10.868804908953143,
+      "prefill_tps": 10.04028983662429,
+      "prefill_seconds": 8.6650885,
+      "ttft_seconds": 8.665989041,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7132518280,
+      "lifetime_peak_bytes": 7132518280
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 11.990895125000002,
+      "decode_tps": 10.59136942455745,
+      "prefill_tps": 10.632616820204097,
+      "prefill_seconds": 7.712118417,
+      "ttft_seconds": 7.713039416,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7137826696,
+      "lifetime_peak_bytes": 7137826696
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.743541041,
+      "decode_tps": 10.814455329666522,
+      "prefill_tps": 10.696718188384411,
+      "prefill_seconds": 8.133335708,
+      "ttft_seconds": 8.133842001,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7141726088,
+      "lifetime_peak_bytes": 7141726088
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 12.269100250000001,
+      "decode_tps": 10.351207294112703,
+      "prefill_tps": 10.63183883714133,
+      "prefill_seconds": 7.71268275,
+      "ttft_seconds": 7.713141708,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7137810312,
+      "lifetime_peak_bytes": 7141726088
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 262144,
+    "Swapins": 0
+  },
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "swap_anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8",
+  "report_sha256": "c22a762e2ed27708d949f2664c8753a177f0f7bee987ade71dd98b355cd7fa85",
+  "cumulative_swapouts_before_bytes": 524288,
+  "cumulative_swapouts_after_bytes": 524288,
+  "maximum_cumulative_swapouts_bytes": 524288,
+  "cumulative_swapins_before_bytes": 0,
+  "cumulative_swapins_after_bytes": 0,
+  "maximum_cumulative_swapins_bytes": 0,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/prepared-s32/f02-s32-pilot128-AR-3-C-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

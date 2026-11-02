@@ -1,0 +1,42 @@
+[
+  {
+    "name": "speed-v2",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/mia-prefill-v2/normal/prototype-engine",
+      "ssd_moe::mia_tile::mia_prefill_tile_quality_and_speed",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLXL3_PREFILL_TEST_LENGTHS": "1,2,7,8,9,17",
+      "MLXL3_MIA_TILE_PHASE": "speed",
+      "MLXL3_MIA_TILE_REPORT": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/mia-prefill-20261027/speed-v2.json"
+    },
+    "native_test": "ssd_moe::mia_tile::mia_prefill_tile_quality_and_speed",
+    "expected_exit": 0,
+    "timeout_seconds": 900,
+    "require_quiet": true,
+    "required_text": [
+      "MIA_TILE_QUALIFIED cases=108 errors=true rows=1,2,4,8,16,32 phase=speed"
+    ]
+  }
+]

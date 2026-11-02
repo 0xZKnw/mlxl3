@@ -1,0 +1,114 @@
+{
+  "prompts": {
+    "MAIN": {
+      "metrics": {
+        "ttft_seconds": {
+          "median": 8.881704458,
+          "min": 8.867678418,
+          "max": 8.941005041,
+          "range_pct": 0.8255917920569005
+        },
+        "prefill_seconds": {
+          "median": 8.881013709,
+          "min": 8.866946666,
+          "max": 8.940296167,
+          "range_pct": 0.8259136108039888
+        },
+        "elapsed_seconds": {
+          "median": 19.981337666,
+          "min": 19.818673792,
+          "max": 20.039620083,
+          "range_pct": 1.1057632611652428
+        },
+        "decode_tps": {
+          "median": 11.442887523466084,
+          "min": 11.441834345786507,
+          "max": 11.597134187170473,
+          "range_pct": 1.357173537409075
+        }
+      },
+      "signature": [
+        "f6b5f974c6db2e7a",
+        "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+        69,
+        58,
+        69
+      ],
+      "compression_median_bytes": 2238889984
+    },
+    "HOLD": {
+      "metrics": {
+        "ttft_seconds": {
+          "median": 8.439757375,
+          "min": 8.438695625000001,
+          "max": 8.455567084,
+          "range_pct": 0.19990454998120108
+        },
+        "prefill_seconds": {
+          "median": 8.439269708,
+          "min": 8.438255041,
+          "max": 8.455124292,
+          "range_pct": 0.1998899381543623
+        },
+        "elapsed_seconds": {
+          "median": 20.040976584,
+          "min": 20.040693667,
+          "max": 20.111838625,
+          "range_pct": 0.35499746083631983
+        },
+        "decode_tps": {
+          "median": 10.946158071121575,
+          "min": 10.89545357601655,
+          "max": 10.947424447838635,
+          "range_pct": 0.4747864180693345
+        }
+      },
+      "signature": [
+        "9d02c1a97e015196",
+        "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+        70,
+        56,
+        70
+      ],
+      "compression_median_bytes": 2238873600
+    },
+    "LONG": {
+      "metrics": {
+        "ttft_seconds": {
+          "median": 24.964493208,
+          "min": 24.710221001,
+          "max": 25.852656917,
+          "range_pct": 4.576243172578808
+        },
+        "prefill_seconds": {
+          "median": 24.963863584,
+          "min": 24.709613334,
+          "max": 25.85206975,
+          "range_pct": 4.576440710612714
+        },
+        "elapsed_seconds": {
+          "median": 37.175850584,
+          "min": 36.824066583,
+          "max": 38.016048417,
+          "range_pct": 3.206333722766297
+        },
+        "decode_tps": {
+          "median": 10.441217451012614,
+          "min": 10.400186446943113,
+          "max": 10.483937776948311,
+          "range_pct": 0.8021222658960651
+        }
+      },
+      "signature": [
+        "95235e7ea1fefb7a",
+        "We need answer in French. User asks: Context repeated: MoE uses expert cache in RAM and reads missing experts on SSD. Usage frequency can choose experts to keep. Question: Explain in French, with concrete example, how a LFU cache avoids useless SSD reads during inference of a MoE model.\n\nNeed produce final answer. Need likely explain LFU (Least Frequently Used) cache: keeps experts with highest usage counts, evicts least frequently used. During inference, router selects experts per token/layer. If cached in RAM, no SSD read. LFU counts accesses over time, maybe decayed. Avoids useless SSD reads",
+        73,
+        53,
+        73
+      ],
+      "compression_median_bytes": 2239119360
+    }
+  },
+  "binary_sha256": "5b52ca3adb1eeaf9ff020e5e0aecc23c24a167e997f59c685ef06dbfe4e1ae9a",
+  "stable": false
+}

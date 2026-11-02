@@ -1,0 +1,24 @@
+{
+  "status": "finished_inspection_required",
+  "scope": "own CPU-only disposable process, attach5seconds, optional ProcessorTrace omitted",
+  "timeout_seconds": 60,
+  "maximum_trace_bytes": 1073741824,
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "Game Performance",
+    "--time-limit",
+    "5s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/locked-attach-smoke/probe.trace",
+    "--attach",
+    "94017"
+  ],
+  "target_pid": 94017,
+  "exit_code": 0,
+  "target_survived_attach": true,
+  "tracer_reaped": true,
+  "target_reaped": true,
+  "seconds": 10.359664749994408
+}

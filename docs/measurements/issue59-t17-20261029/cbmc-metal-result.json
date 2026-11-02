@@ -1,0 +1,17 @@
+{
+  "source": "native/shaders/flash_gdn_epilogue.metal",
+  "source_sha256": "3576a9962102f860aa7f642712abc34caf1e85151ca152b5e786abb1ed402636",
+  "command": [
+    "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+    "native/shaders/flash_gdn_epilogue.metal",
+    "--function",
+    "main",
+    "--bounds-check",
+    "--pointer-check",
+    "--unwinding-assertions"
+  ],
+  "exit_code": 1,
+  "reaped": true,
+  "status": "unverified_metal_source_unsupported_before_obligations",
+  "log": "cbmc-metal.log"
+}

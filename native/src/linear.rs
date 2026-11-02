@@ -18,6 +18,7 @@ fn grouped_mb3_enabled() -> bool {
 #[cfg(test)]
 thread_local! {
     static GROUPED_MB3_TEST_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+    static REFERENCE_MB34_REQUESTS_TEST: std::cell::Cell<[usize; 2]> = const { std::cell::Cell::new([0; 2]) };
 }
 
 #[cfg(test)]
@@ -230,12 +231,60 @@ pub struct Exl3Linear {
     reference_accumulation: bool,
     mtp_hidden_batch: bool,
     flash_batch: bool,
+    reference_mb34: bool,
+    dense_epilogue: bool,
+    dec_one: bool,
     lane_indices: Option<Array>,
 }
 
 impl Exl3Linear {
     pub fn from_checkpoint(checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
+        let dense_epilogue = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_DENSE_EPILOGUE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_DENSE_EPILOGUE must be 0 or 1")?
+        } else {
+            false
+        };
+        let reference_mb34 = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_REFERENCE_MB34 must be 0 or 1")?
+        } else {
+            false
+        };
+        let reference_mb34_roles = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34_ROLES") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::contracts::flash_reference_mb34_roles(setting.as_deref())
+                .context("MLXL3_FLASH_REFERENCE_MB34_ROLES must be qkv, z, out or all")?
+        } else {
+            crate::contracts::FlashReferenceMb34Roles::Qkv
+        };
         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
+        let dec_one = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_DEC_ONE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_DEC_ONE must be 0 or 1")?
+                && crate::dec_one::target_scope(prefix)
+        } else {
+            false
+        };
         let scale = |primary, legacy| {
             let key = format!("{prefix}.{primary}");
             checkpoint_array(
@@ -274,11 +323,24 @@ impl Exl3Linear {
             cb,
         )?;
         if checkpoint.model_type == "qwen4_exp" {
+            linear.dense_epilogue = dense_epilogue;
+            linear.dec_one = dec_one;
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
             // Flash keeps its reference layout; lane order was qualified on other models.
             linear.lane_indices = None;
             linear.flash_batch = crate::flash_support::multi_token_verifier()?;
+            linear.reference_mb34 = reference_mb34
+                && if reference_mb34_roles == crate::contracts::FlashReferenceMb34Roles::Qkv {
+                    crate::contracts::flash_reference_mb34_scope(prefix, linear.rows, linear.cols)
+                } else {
+                    crate::contracts::flash_reference_mb34_role_scope(
+                        prefix,
+                        linear.rows,
+                        linear.cols,
+                        reference_mb34_roles,
+                    )
+                };
             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
             if linear.mtp_hidden_batch {
                 ensure!(
@@ -346,6 +408,9 @@ impl Exl3Linear {
             reference_accumulation: false,
             mtp_hidden_batch: false,
             flash_batch: false,
+            reference_mb34: false,
+            dense_epilogue: false,
+            dec_one: false,
             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
         })
     }
@@ -363,6 +428,67 @@ impl Exl3Linear {
         } else {
             split_count(input_tiles, output_tiles)
         }
+    }
+
+    fn try_dense_epilogue(
+        &self,
+        x: &Array,
+        partials: &Array,
+        rows: i32,
+        splits: i32,
+    ) -> Result<Option<Array>> {
+        if !self.dense_epilogue
+            || !self.reference_accumulation
+            || self.k != 4
+            || self.cb != Codebook::Mul1
+            || self.rows != 6144
+            || self.cols != 2560
+            || self.simdgroups != 4
+            || splits != 2
+            || !(1..=2).contains(&rows)
+            || !matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
+            || self.bias.is_some()
+        {
+            return Ok(None);
+        }
+        let Some(value) = crate::dense_epilogue::apply(partials, &self.svh, rows)? else {
+            return Ok(None);
+        };
+        let mut shape = x.shape().to_vec();
+        *shape
+            .last_mut()
+            .context("empty dense epilogue input shape")? = self.cols;
+        Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
+    }
+
+    fn try_dec_one(
+        &self,
+        x: &Array,
+        xhat: &Array,
+        words: &Array,
+        rows: i32,
+        header: &str,
+    ) -> Result<Option<Array>> {
+        if !self.dec_one
+            || !self.reference_accumulation
+            || self.mtp_hidden_batch
+            || self.k != 4
+            || self.cb != Codebook::Mul1
+            || self.rows != 6144
+            || self.cols != 2560
+            || self.simdgroups != 4
+            || self.splits(384, 160) != 2
+            || !(1..=2).contains(&rows)
+            || !matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
+            || self.svh.dtype() != Dtype::Float16
+            || self.bias.is_some()
+        {
+            return Ok(None);
+        }
+        let value = crate::dec_one::apply(xhat, words, &self.svh, rows, header)?;
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().context("empty DEC-ONE input shape")? = self.cols;
+        Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
     }
 
     pub fn forward(&self, x: &Array) -> Result<Array> {
@@ -399,7 +525,7 @@ impl Exl3Linear {
             *shape.last_mut().context("empty EXL3 input shape")? = self.cols;
             return Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?.reshape(&shape);
         }
-        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
             return self.forward_qmm_tensor(x);
         }
         if matrix_rows >= 24 {
@@ -504,6 +630,9 @@ impl Exl3Linear {
                 self.cols
             );
             let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+            if let Some(output) = self.try_dec_one(x, &xhat, &words, 1, &header)? {
+                return Ok(output);
+            }
             let partials = array::metal_kernel(
                 &format!(
                     "mlxl3_rs_tile_{}_{}_{}_{}_{}_{}_{}",
@@ -526,6 +655,9 @@ impl Exl3Linear {
                 [self.simdgroups * 32, 1, 1],
             )?
             .remove(0);
+            if let Some(output) = self.try_dense_epilogue(x, &partials, 1, splits)? {
+                return Ok(output);
+            }
             if splits == 1 {
                 partials.reshape(&[self.cols])?
             } else {
@@ -590,8 +722,13 @@ impl Exl3Linear {
             (4, 1)
         } else if self.reference_accumulation {
             nt = 1;
-            crate::contracts::flash_reference_batch_layout(matrix_rows)
-                .context("unsupported Flash reference batch")?
+            crate::contracts::flash_reference_mb34_layout(
+                matrix_rows,
+                self.reference_mb34
+                    && self.simdgroups == 4
+                    && crate::contracts::flash_reference_mb34_shape(self.rows, self.cols),
+            )
+            .context("unsupported Flash reference batch")?
         } else {
             crate::contracts::qmv_batch_layout(matrix_rows, false, output_tiles >= 1024)
                 .context("invalid batch QMV rows")?
@@ -601,6 +738,14 @@ impl Exl3Linear {
         }
         if mb == 3 {
             nt = 1;
+        }
+        #[cfg(test)]
+        if self.reference_accumulation && !self.mtp_hidden_batch && matches!(mb, 3 | 4) {
+            REFERENCE_MB34_REQUESTS_TEST.with(|counts| {
+                let mut next = counts.get();
+                next[(mb - 3) as usize] += 1;
+                counts.set(next);
+            });
         }
         let header = codebook_header(self.cb)
             + reference_reduction_header(self.reference_accumulation)
@@ -620,6 +765,9 @@ impl Exl3Linear {
                 output = self.cols,
             );
         let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+        if let Some(output) = self.try_dec_one(x, &xhat, &words, matrix_rows, &header)? {
+            return Ok(output);
+        }
         let partials = array::metal_kernel(
             &format!(
                 "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}",
@@ -650,6 +798,9 @@ impl Exl3Linear {
             [self.simdgroups * 32, 1, 1],
         )?
         .remove(0);
+        if let Some(output) = self.try_dense_epilogue(x, &partials, matrix_rows, splits)? {
+            return Ok(output);
+        }
         let output = if splits == 1 {
             partials.reshape(&[matrix_rows, self.cols])?
         } else {
@@ -703,7 +854,10 @@ fn qmm_tensor(
     weight_tiles_n: i32,
     weight_tile_offset: i32,
 ) -> Result<Array> {
-    ensure!(array::is_m5_gpu()?, "TensorOps QMM requires Apple M5");
+    ensure!(
+        array::supports_exl3_tensor_ops()?,
+        "TensorOps QMM requires Apple M5 and macOS 26.3 or newer"
+    );
     let block_columns = 32;
     let block_depth = 16;
     ensure!(
@@ -899,7 +1053,7 @@ impl Exl3Group {
         );
         let matrix_rows = i32::try_from(elements / i64::from(self.rows))?;
         ensure!(matrix_rows > 0, "grouped EXL3 input cannot be empty");
-        if crate::contracts::use_tensor_ops(matrix_rows, array::is_m5_gpu()?) {
+        if crate::contracts::use_tensor_ops(matrix_rows, array::supports_exl3_tensor_ops()?) {
             let mut tile_cursor = 0;
             let mut scale_cursor = 0;
             let mut outputs = Vec::with_capacity(self.widths.len());
@@ -1549,14 +1703,12 @@ fn expert_mapped_layout(
             format!("{header}\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_QMV_MB {width}u\n#define MLXL3_GROUP_OUTPUT_DIMS {stride}\n")
         });
         #[cfg(test)]
-        if let Some(profile) = crate::flash_profile::span("expert_kernel_signature") {
-            profile.data(serde_json::json!({
-                "stable": stable_shapes,
-                "key": [group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
-                    grouped_header.as_deref().unwrap_or(&header).to_owned(),
-                    stable_source.as_deref().unwrap_or(kernel_source).to_owned()],
-            }));
-        }
+        crate::flash_profile::kernel_signature(
+            stable_shapes,
+            &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
+            grouped_header.as_deref().unwrap_or(&header),
+            stable_source.as_deref().unwrap_or(kernel_source),
+        );
         Ok(array::metal_kernel(
             &group.map_or_else(|| name.clone(), |(width, _)| format!("{name}_group{width}")),
             &["xhat", "trellis", "tile_map", "tile_sub"],
@@ -1656,6 +1808,18 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
     };
     format!("inline float mlxl3_decode_codeword(uint x,int unused_cb) {{ x &= 0xffffu; {body} }}\n")
 }
+
+#[cfg(test)]
+#[path = "linear/dense_epilogue_tests.rs"]
+mod dense_epilogue_tests;
+
+#[cfg(test)]
+#[path = "linear/prepared_tests.rs"]
+mod prepared_tests;
+
+#[cfg(test)]
+#[path = "linear/reference_mb34_tests.rs"]
+mod reference_mb34_tests;
 
 #[cfg(test)]
 mod tests {

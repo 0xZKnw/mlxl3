@@ -1,0 +1,30 @@
+[
+  {
+    "name": "pool-replay-calibration",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--no-default-features",
+      "flash_cache_profile::shared::replay_exact_calibration_with_shared_slots",
+      "--",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_POOL_TRACE": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-trace.json",
+      "MLXL3_POOL_REPORT": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue58-20261029/pool-report.json"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "require_quiet": false,
+    "required_text": [
+      "1 passed; 0 failed"
+    ]
+  }
+]

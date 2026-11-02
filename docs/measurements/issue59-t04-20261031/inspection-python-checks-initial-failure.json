@@ -1,0 +1,14 @@
+{
+  "stage": "style only: initial I001 after F401 removed unused math/subprocess; no inspector invocation yet",
+  "diagnostic": {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "--stdin-filename",
+      "inspection.py"
+    ],
+    "exit_code": 1,
+    "stdout": "I001 [*] Import block is un-sorted or un-formatted\n --> inspection.py:1:1\n  |\n1 | / from pathlib import Path\n2 | | import hashlib, json, runpy\n  | |___________________________^\n3 |\n4 |   b = Path(\"docs/measurements/issue59-t04-20261031\")\n  |\nhelp: Organize imports\n  |\n1 + import hashlib\n2 + import json\n3 + import runpy\n4 | from pathlib import Path\n  - import hashlib, json, runpy\n5 |\n  |\n\nFound 1 error.\n[*] 1 fixable with the `--fix` option.\n",
+    "stderr": ""
+  }
+}

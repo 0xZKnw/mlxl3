@@ -1,0 +1,111 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_rss_guard_ignores_only_terminal_or_missing_processes[darwin-exiting-zero] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a7f6930>
+raw = '?Es 0\n', code = 0, error = '', accepted = True
+
+    @pytest.mark.parametrize(
+        "raw,code,error,accepted",
+        [
+            ("Z 0\n", 0, "", True),
+            ("Z+ 0\n", 0, "", True),
+            pytest.param("?Es 0\n", 0, "", True, id="darwin-exiting-zero"),
+            ("E 0\n", 0, "", True),
+            ("?Es 1\n", 0, "", True),
+            ("?Es -1\n", 0, "", False),
+            ("", 1, "", True),
+            ("", 0, "", True),
+            ("S 1\n", 0, "", True),
+            ("R 10485760\n", 0, "", True),
+            ("R 0\n", 0, "", False),
+            ("S 0\n", 0, "", False),
+            ("?s 0\n", 0, "", False),
+            ("S 10485761\n", 0, "", False),
+            ("S -1\n", 0, "", False),
+            ("S 1\nR 2\n", 0, "", False),
+            ("", 1, "denied", False),
+            ("", 2, "", False),
+            ("S 1\n", 1, "", False),
+        ],
+    )
+    def test_rss_guard_ignores_only_terminal_or_missing_processes(
+        monkeypatch, raw, code, error, accepted
+    ):
+        api = runpy.run_path(str(SOURCE))
+        namespace = api["guard"].__globals__
+        vm = {"Swapins": 0, "Swapouts": 0, "Pages free": 11_000_000_000, "File-backed pages": 0}
+        monkeypatch.setitem(namespace, "PARSE_VM", lambda raw: vm)
+        monkeypatch.setitem(namespace, "QUIET", lambda *args: None)
+        monkeypatch.setattr(
+            namespace["subprocess"],
+            "check_output",
+            lambda command, **kwargs: (
+                "Now drawing from 'AC Power'\n" if command[0] == "pmset" else "vm"
+            ),
+        )
+    
+        def sample(command, **kwargs):
+            assert command == ["ps", "-o", "stat=,rss=", "-p", "123"]
+            assert kwargs == {"text": True, "capture_output": True, "timeout": 5, "check": False}
+            return subprocess.CompletedProcess(command, code, raw, error)
+    
+        monkeypatch.setattr(namespace["subprocess"], "run", sample)
+        record = {}
+        if accepted:
+>           api["guard"](record, {"Swapins": 0, "Swapouts": 0}, 10_500_000_000, [123], True)
+
+tests/test_decode_capture.py:746: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+record = {'last_vm_bytes': {'Swapins': 0, 'Swapouts': 0, 'Pages free': 11000000000, 'File-backed pages': 0}, 'maximum_live_swapouts_bytes': 0, 'maximum_live_swapins_bytes': 0, 'available_estimate_bytes': 11000000000, ...}
+baseline = {'Swapins': 0, 'Swapouts': 0}, minimum_available = 10500000000
+pids = [123], admission = True
+
+    def guard(record, baseline, minimum_available, pids, admission=False):
+        """Reuse strict byte VM parsing and quiet/process-group policy; never reanchor."""
+        vm = PARSE_VM(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+        record["last_vm_bytes"] = vm
+        for key, limit in (("Swapouts", 0), ("Swapins", 256 << 20)):
+            delta = vm[key] - baseline[key]
+            field = f"maximum_live_{key.lower()}_bytes"
+            record[field] = max(record.get(field, 0), delta)
+            assert type(vm[key]) is int and 0 <= delta <= limit, key
+        power = subprocess.check_output(["pmset", "-g", "batt"], text=True, timeout=5)
+        assert power.splitlines()[0] == "Now drawing from 'AC Power'", "AC power required"
+        QUIET(record, os.getpid())
+        if admission:
+            available = vm["Pages free"] + vm["File-backed pages"]
+            record["available_estimate_bytes"] = available
+            assert available >= minimum_available, "load headroom estimate"
+        samples = record["last_owned_process_rss_samples"] = []
+        for pid in pids:
+            sample = subprocess.run(
+                ["ps", "-o", "stat=,rss=", "-p", str(pid)],
+                text=True,
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            assert sample.returncode in (0, 1) and not sample.stderr.strip(), "ps RSS failure"
+            if not sample.stdout.strip():
+                samples.append({"pid": pid, "state": "disappeared"})
+                continue
+            assert sample.returncode == 0 and len(sample.stdout.splitlines()) == 1, "ps RSS rows"
+            state, raw_rss = sample.stdout.split()
+            rss = int(raw_rss) * 1024
+            assert rss >= 0, "negative RSS"
+            samples.append({"pid": pid, "state": state, "rss_bytes": rss})
+            if state.startswith("Z"):
+                continue  # The owning Popen is still joined by finish_capture/cleanup.
+            record["maximum_sampled_process_rss_bytes"] = max(
+                record.get("maximum_sampled_process_rss_bytes", 0), rss
+            )
+>           assert 0 < rss <= 10 << 30, "RSS guard"
+                   ^^^^^^^^^^^^^^^^^^^
+E           AssertionError: RSS guard
+
+docs/measurements/decode-profile-20261031/capture.py:121: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_decode_capture.py::test_rss_guard_ignores_only_terminal_or_missing_processes[darwin-exiting-zero]
+1 failed, 102 deselected in 0.05s

@@ -1,0 +1,85 @@
+{
+  "status": "validated_physical_dispatch_reduction_component_only_not_speed",
+  "capture_tests": 1,
+  "outputs": {
+    "values": 25600,
+    "bytes": 102400,
+    "parity": "byte_exact_complete_finite"
+  },
+  "legacy": {
+    "command_buffers": 2,
+    "compute_encoders": 1,
+    "compute_dispatches": 5,
+    "blit_encoders": 0,
+    "commands": [
+      {
+        "number": 9,
+        "kernel": "gg1_copyfloat16float16",
+        "grid": [
+          25600,
+          1,
+          1
+        ]
+      },
+      {
+        "number": 15,
+        "kernel": "gg1_copyfloat16float16",
+        "grid": [
+          12800,
+          1,
+          1
+        ]
+      },
+      {
+        "number": 23,
+        "kernel": "gather_frontfloat16_uint32_int_2",
+        "grid": [
+          1280,
+          10,
+          1
+        ]
+      },
+      {
+        "number": 29,
+        "kernel": "v_copyfloat16float32",
+        "grid": [
+          25600,
+          1,
+          1
+        ]
+      },
+      {
+        "number": 37,
+        "kernel": "g2_Multiplyfloat32",
+        "grid": [
+          2560,
+          10,
+          1
+        ]
+      }
+    ]
+  },
+  "fused": {
+    "command_buffers": 2,
+    "compute_encoders": 1,
+    "compute_dispatches": 1,
+    "blit_encoders": 0,
+    "commands": [
+      {
+        "number": 13,
+        "kernel": "custom_kernel_mlxl3_flash_weighted_epilogue_v1_float16_t_float16_t_uint32_t_float_float",
+        "grid": [
+          25600,
+          1,
+          1
+        ]
+      }
+    ]
+  },
+  "inspection": "Xcode27.1 GPU Frame Debugger through CUA; expanded API commandbuffer/encoder and selected every dispatch pipeline; outputs validated outside capture",
+  "ui_insights": "late object creation fence in legacy; fence and buffer in fused; performance advisory only; replay timings not used",
+  "limitations": "H2560,R10,physicalHot10,Cold5,TxTwF32 only; not complete model counts, ALU or speed; no generic claim4dispatches saved on every route",
+  "new_swapouts_bytes": 0,
+  "libtest_sha256": "96a0cdfc5839075d5757b8dab78da2987b2b6d04d6a580512ecdb940113dd6bc",
+  "xcode_closed_before_speed": true
+}

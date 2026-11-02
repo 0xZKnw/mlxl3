@@ -1,0 +1,18 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "actual_early_prefetch_order_and_exact_outputs",
+    "--harness",
+    "actual_slotstream_prefill_preserves_context_and_output_shape"
+  ],
+  "status": "failed_or_unsupported",
+  "exit_code": 1,
+  "seconds": 5.471599167009117,
+  "reaped": true
+}

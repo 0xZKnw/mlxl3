@@ -1,0 +1,94 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_cleanup_accepts_exit_between_poll_and_signal[ProcessLookupError] _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a6ecf20>
+error = <class 'ProcessLookupError'>
+
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    def test_cleanup_accepts_exit_between_poll_and_signal(monkeypatch, error):
+        module = runpy.run_path(str(SCRIPT))
+        process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+        process.wait(timeout=5)
+    
+        class StalePoll:
+            pid = process.pid
+            calls = 0
+            joined = False
+    
+            def poll(self):
+                self.calls += 1
+                return None if self.calls == 1 else process.poll()
+    
+            def wait(self, timeout):
+                self.joined = True
+                return process.wait(timeout=timeout)
+    
+        def exited(*_):
+            raise error("process exited concurrently")
+    
+        monkeypatch.setattr(os, "killpg", exited)
+        wrapped = StalePoll()
+>       module["stop"](wrapped)
+
+tests/test_flash_slotstream_supervisor.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/measurements/slotstream-20261026/supervisor.py:16: in stop
+    os.killpg(child.pid, signal.SIGTERM)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = (40473, <Signals.SIGTERM: 15>)
+
+    def exited(*_):
+>       raise error("process exited concurrently")
+E       ProcessLookupError: process exited concurrently
+
+tests/test_flash_slotstream_supervisor.py:43: ProcessLookupError
+______ test_cleanup_accepts_exit_between_poll_and_signal[PermissionError] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a6ee4e0>
+error = <class 'PermissionError'>
+
+    @pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+    def test_cleanup_accepts_exit_between_poll_and_signal(monkeypatch, error):
+        module = runpy.run_path(str(SCRIPT))
+        process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+        process.wait(timeout=5)
+    
+        class StalePoll:
+            pid = process.pid
+            calls = 0
+            joined = False
+    
+            def poll(self):
+                self.calls += 1
+                return None if self.calls == 1 else process.poll()
+    
+            def wait(self, timeout):
+                self.joined = True
+                return process.wait(timeout=timeout)
+    
+        def exited(*_):
+            raise error("process exited concurrently")
+    
+        monkeypatch.setattr(os, "killpg", exited)
+        wrapped = StalePoll()
+>       module["stop"](wrapped)
+
+tests/test_flash_slotstream_supervisor.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+docs/measurements/slotstream-20261026/supervisor.py:16: in stop
+    os.killpg(child.pid, signal.SIGTERM)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+_ = (40474, <Signals.SIGTERM: 15>)
+
+    def exited(*_):
+>       raise error("process exited concurrently")
+E       PermissionError: process exited concurrently
+
+tests/test_flash_slotstream_supervisor.py:43: PermissionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_slotstream_supervisor.py::test_cleanup_accepts_exit_between_poll_and_signal[ProcessLookupError]
+FAILED tests/test_flash_slotstream_supervisor.py::test_cleanup_accepts_exit_between_poll_and_signal[PermissionError]
+2 failed in 0.07s

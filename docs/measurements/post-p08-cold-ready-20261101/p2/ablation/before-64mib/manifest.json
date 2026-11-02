@@ -1,0 +1,205 @@
+{
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth": 1,
+    "dflash_mode": 1,
+    "dflash_width": 1,
+    "reuse_prompt_cache": false,
+    "uses_compare_option": false,
+    "timeout_seconds_per_bridge_wait": 180
+  },
+  "experiment": "POSTP08-COLD-READY-01-GPU1",
+  "status": "preregistered_ablation",
+  "arms": {
+    "P": {
+      "cold_ready": "1",
+      "source": "frozen P1"
+    },
+    "U": {
+      "cold_ready": "1",
+      "source": "ablation U"
+    },
+    "D": {
+      "cold_ready": "1",
+      "source": "ablation D"
+    }
+  },
+  "plans": [
+    {
+      "name": "cold-abl-AR-1-P",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "P",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-1-P-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-1-P",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-1-P/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-abl-AR-2-U",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "U",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-2-U-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-2-U",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-2-U/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-abl-AR-3-D",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "D",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-3-D-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-3-D",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-3-D/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-abl-AR-4-D",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "D",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-4-D-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-4-D",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-4-D/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-abl-AR-5-U",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "U",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 5,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-5-U-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-5-U",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-5-U/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "cold-abl-AR-6-P",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "P",
+      "cold_ready_flag": "1",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 6,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/plans/cold-abl-AR-6-P-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-6-P",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/runs/cold-abl-AR-6-P/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    }
+  ],
+  "quality_plans": [
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-refinements-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-component-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-failure-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-oracle-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-pair-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-mtp-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-U-dflash-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-refinements-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-component-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-failure-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-oracle-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-pair-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-mtp-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/quality/cold-abl-quality-D-dflash-plan.json"
+  ],
+  "planned_cli": {
+    "P": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-cold-ready-20261101/engine/prototype-engine",
+    "U": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-cold-ready-20261101/p2/ablation/U/engine/prototype-engine",
+    "D": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-cold-ready-20261101/p2/ablation/D/engine/prototype-engine"
+  },
+  "orders": {
+    "AR": "PUDDUP"
+  },
+  "planned_modes": [
+    "AR"
+  ],
+  "same_cli_all_arms": false,
+  "no_reanchor": true,
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/anchor-gpu1.json",
+  "swap_anchor_sha256": "9fdf6028af0a9f59b2af1e06198bc3f18ce01aed0d3932b21a6992c333272294",
+  "policy_amendment": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/policy-gpu1.json",
+  "stage": "P2 ablation",
+  "maximum_new_swapin_bytes": 1073741824,
+  "swapin_amendment": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/diagnostic-swapin-amendment.json"
+}

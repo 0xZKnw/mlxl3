@@ -1,0 +1,16 @@
+{
+  "tool": "CrossHair",
+  "status": "not_verified_module_absent",
+  "available": false,
+  "probe": {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import importlib.util,json; print(json.dumps({\"crosshair_available\":importlib.util.find_spec(\"crosshair\") is not None}))"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"crosshair_available\": false}\n",
+    "stderr": ""
+  },
+  "limitations": "No symbolic proof of the filesystem/journaling inspect function; no substitute implementation or package installation."
+}

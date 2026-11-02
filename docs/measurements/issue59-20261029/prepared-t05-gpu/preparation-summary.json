@@ -1,0 +1,106 @@
+{
+  "experiment": "ISSUE59-T05-WEIGHTED-01",
+  "status": "prepared_not_executed",
+  "identity_status": "pending_root_build_inventory_and_source_binary_identity; no identity file created",
+  "native_candidate_libtest": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-20261029/t05/libtest/prototype-engine",
+  "candidate_engine": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-20261029/t05/engine/prototype-engine",
+  "baseline_engine": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/ultra-profile/v1/engine/prototype-engine",
+  "reuse_driver_without_modification": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue58-20261029/pool-speed-driver.py",
+  "driver_success_marker": "POOL_BRIDGE_VALIDATED (legacy label only; no shared pool mode)",
+  "plans": {
+    "micro": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-micro-quality-plan.json",
+      "processes": 5,
+      "positive_cases": 5464,
+      "invalid_cases": 39,
+      "case_breakdown": {
+        "partitions": 4096,
+        "shapes": 1288,
+        "literals": 16,
+        "finite_boundaries": 64
+      }
+    },
+    "ssd": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-ssd-quality-plan.json",
+      "processes": 8,
+      "new_integration_tests": 1,
+      "existing_affected_controls": 7
+    },
+    "model": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-model-quality-plan.json",
+      "processes": 5,
+      "oracle_positions": 5,
+      "logits_per_position": 248320,
+      "dflash_commit_prefixes": 36
+    },
+    "capture": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-capture-plan.json",
+      "processes": 1,
+      "capture_directory": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-capture",
+      "expected_artifacts": [
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-capture/legacy.gputrace",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-capture/fused.gputrace"
+      ],
+      "dispatch_counts": "unmeasured; Xcode compute/blit inspection required"
+    },
+    "bridge17": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-bridge17-plan.json",
+      "processes": 4,
+      "order_per_prompt": "AC",
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "warmups_total": 4,
+      "measured_runs_total": 4,
+      "tokens_per_run": 17
+    },
+    "speed128": {
+      "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-20261029/prepared-t05-gpu/t05-speed128-plan.json",
+      "processes": 8,
+      "order_per_prompt": "ACCA",
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "warmups_total": 8,
+      "measured_runs_total": 24,
+      "tokens_per_run": 128
+    }
+  },
+  "config_files": [
+    "t05-17-MAIN-1-A-config.json",
+    "t05-17-MAIN-2-C-config.json",
+    "t05-17-HOLD-1-A-config.json",
+    "t05-17-HOLD-2-C-config.json",
+    "t05-128-MAIN-1-A-config.json",
+    "t05-128-MAIN-2-C-config.json",
+    "t05-128-MAIN-3-C-config.json",
+    "t05-128-MAIN-4-A-config.json",
+    "t05-128-HOLD-1-A-config.json",
+    "t05-128-HOLD-2-C-config.json",
+    "t05-128-HOLD-3-C-config.json",
+    "t05-128-HOLD-4-A-config.json"
+  ],
+  "shared_conditions": {
+    "expert_payload_budget_gib": 3,
+    "readers": 4,
+    "gpu_hot": 1,
+    "gpu_hot_wide": 1,
+    "unique_cohort": 1,
+    "allocator_cache_mib": 64,
+    "lookahead_depth": 0,
+    "max_ops_per_buffer": 40,
+    "max_mb_per_buffer": 40,
+    "minimum_available_bytes": 8500000000
+  },
+  "launch_preconditions": [
+    "Root verifies final exact libtest inventory, source/binary identity and mandatory CPU/proof/build results first.",
+    "Remove inherited MLXL3_SSD_SHARED_POOL and other stale experimental overrides before supervision; obsolete key is absent from every prepared plan env.",
+    "Use current qualified supervisor with AC power, quiet mode, one GPU model at a time, no builds/provers/other inference, one cumulative anchor, zero new Swapout, Swapin <= 256 MiB, RSS <= 10 GiB and process footprint < 12,000,000,000 bytes.",
+    "Run native tests individually and require exactly one passed, zero failed and zero ignored; all use --exact --ignored --nocapture --test-threads=1.",
+    "Capture is a separate diagnostic, not a timing run; t05-capture is presently empty, outputs must not exist, retain artifacts for actual compute/blit inspection.",
+    "Complete affected numerical/model/bridge qualification before release speed; speed plans do not themselves authorize bypassing preregistered gates.",
+    "Every output path is fresh; preserve failure logs and join/clean child process groups on any error or timeout."
+  ]
+}

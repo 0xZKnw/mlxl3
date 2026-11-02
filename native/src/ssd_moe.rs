@@ -28,6 +28,28 @@ struct PreparedRows {
     hot: Option<ResidentHot>,
 }
 
+// On failure, both independent consumers must finish before slot reuse.
+#[derive(Default)]
+struct ColdConsumers(Vec<Array>);
+struct ColdWaves {
+    first: Array,
+    rest: Option<Array>,
+}
+impl Drop for ColdConsumers {
+    fn drop(&mut self) {
+        let mut failed = false;
+        for value in &self.0 {
+            if let Err(error) = value.eval() {
+                failed = true;
+                eprintln!("Cold consumer cleanup failed: {error}");
+            }
+        }
+        if failed && let Err(error) = crate::array::synchronize() {
+            eprintln!("Cold consumer synchronization failed: {error}");
+        }
+    }
+}
+
 pub struct SsdMoe {
     gate: Projection,
     resident_gate: Option<Array>,
@@ -50,6 +72,35 @@ pub struct SsdMoe {
     shared_exl3: bool,
     stable_expert_kernels: bool,
     shared_batch: bool,
+    weighted_epilogue: bool,
+    cold_ready: bool,
+    cold_ready_rows: i32,
+    cold_priority: bool,
+    cold_shared: bool,
+    routed_index_cache: bool,
+    routed_indices: [Option<Array>; 8],
+    #[cfg(test)]
+    routed_index_builds: usize,
+    #[cfg(test)]
+    routed_index_hits: usize,
+    #[cfg(test)]
+    cold_shared_submissions: usize,
+    #[cfg(test)]
+    pub(crate) cold_ready_waves: Vec<usize>,
+    #[cfg(test)]
+    cold_ready_verify_overlap: bool,
+    #[cfg(test)]
+    cold_ready_verified_overlap: usize,
+    #[cfg(test)]
+    cold_ready_fail_after_wave: bool,
+    #[cfg(test)]
+    cold_ready_fail_after_prepare: bool,
+    #[cfg(test)]
+    cold_ready_complete_before_submit: bool,
+    #[cfg(test)]
+    cold_ready_prepared_rest: usize,
+    #[cfg(test)]
+    cold_priority_batches: usize,
     pub(crate) prefetch_pipeline: bool,
     #[cfg(test)]
     cohort_sizes: Vec<usize>,
@@ -131,6 +182,28 @@ impl SsdMoe {
         let shared_batch =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
+        let weighted_epilogue =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_WEIGHTED_EPILOGUE", "0")?)
+                .context("MLXL3_SSD_WEIGHTED_EPILOGUE must be 0 or 1")?;
+        let cold_ready =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
+                .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
+        let cold_ready_rows =
+            crate::cold_ready::parse_max_rows(Some(&control("MLXL3_SSD_COLD_READY_ROWS", "2")?))
+                .context("MLXL3_SSD_COLD_READY_ROWS must be 2 or 4")?;
+        let cold_priority =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_PRIORITY", "0")?)
+                .context("MLXL3_SSD_COLD_PRIORITY must be 0 or 1")?;
+        let cold_shared =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_SHARED", "0")?)
+                .context("MLXL3_SSD_COLD_SHARED must be 0 or 1")?;
+        let routed_index_cache = crate::flash_support::parse_gpu_hot_wide(&control(
+            "MLXL3_SSD_ROUTED_INDEX_CACHE",
+            "0",
+        )?)
+        .context("MLXL3_SSD_ROUTED_INDEX_CACHE must be 0 or 1")?;
+        crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
+            .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let prefetch_pipeline =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
                 .context("MLXL3_SSD_PREFETCH_PIPELINE must be 0 or 1")?;
@@ -234,6 +307,35 @@ impl SsdMoe {
             shared_exl3,
             stable_expert_kernels,
             shared_batch,
+            weighted_epilogue,
+            cold_ready,
+            cold_ready_rows,
+            cold_priority,
+            cold_shared,
+            routed_index_cache,
+            routed_indices: std::array::from_fn(|_| None),
+            #[cfg(test)]
+            routed_index_builds: 0,
+            #[cfg(test)]
+            routed_index_hits: 0,
+            #[cfg(test)]
+            cold_shared_submissions: 0,
+            #[cfg(test)]
+            cold_ready_waves: Vec::new(),
+            #[cfg(test)]
+            cold_ready_verify_overlap: false,
+            #[cfg(test)]
+            cold_ready_verified_overlap: 0,
+            #[cfg(test)]
+            cold_ready_fail_after_wave: false,
+            #[cfg(test)]
+            cold_ready_fail_after_prepare: false,
+            #[cfg(test)]
+            cold_ready_complete_before_submit: false,
+            #[cfg(test)]
+            cold_ready_prepared_rest: 0,
+            #[cfg(test)]
+            cold_priority_batches: 0,
             prefetch_pipeline,
             #[cfg(test)]
             cohort_sizes: Vec::new(),
@@ -316,14 +418,232 @@ impl SsdMoe {
             .context("SSD byte counter exhausted")?;
         #[cfg(test)]
         let read_profile = crate::flash_profile::span("disk_read_batch");
+        #[cfg(test)]
+        if read_profile.is_some() {
+            crate::array::disk_profile_enable(true);
+        }
         let result = Array::read_records(&sources, &mut self.banks, &views, self.readers);
         #[cfg(test)]
         if let Some(profile) = &read_profile {
-            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
+            profile.data(serde_json::json!({"jobs":jobs,"workers":self.readers,"schedule":crate::array::disk_profile_schedule(),"timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,"ok":result.is_ok()}));
         }
         result?;
         self.read_bytes = bytes;
         Ok(())
+    }
+
+    fn calculate_cold(&self, routed_x: &Array, cold: &[(usize, u32)]) -> Result<Array> {
+        self.calculate(
+            &routed_x.take(
+                &Array::from_u32(
+                    &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
+                    &[cold.len() as i32],
+                )?,
+                0,
+            )?,
+            &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
+        )
+    }
+
+    fn fill_ready(
+        &mut self,
+        jobs: &[(u32, usize)],
+        routed_x: &Array,
+        cold: &mut Vec<(usize, u32)>,
+        consumers: &mut ColdConsumers,
+        shared: Option<(&Array, &mut Option<Array>)>,
+        route_rows: i32,
+    ) -> Result<Option<ColdWaves>> {
+        ensure!(
+            (1..=self.cold_ready_rows).contains(&route_rows)
+                && routed_x.shape() == [route_rows * 10, H]
+                && cold
+                    .iter()
+                    .all(|&(index, _)| index < route_rows as usize * 10),
+            "invalid Cold wave route domain"
+        );
+        #[cfg(test)]
+        let priority_active = route_rows == 2 && self.cold_priority;
+        #[cfg(test)]
+        let cold_occurrences = cold.clone();
+        #[cfg(test)]
+        let diagnostic = crate::flash_profile::span("cold_ready_batch");
+        #[cfg(test)]
+        if let Some(event) = &diagnostic {
+            event.data(
+                serde_json::json!({"status":"incomplete","jobs":jobs.len(),"cold_rows":cold.len()}),
+            );
+        }
+        #[cfg(test)]
+        let prepare = crate::flash_profile::span("cold_ready_begin");
+        let bytes = EXPERT_BYTES
+            .checked_mul(jobs.len() as u64)
+            .and_then(|n| self.read_bytes.checked_add(n))
+            .context("SSD byte counter exhausted")?;
+        let sources = jobs
+            .iter()
+            .map(|&(expert, _)| {
+                self.records
+                    .get(expert as usize)
+                    .context("invalid expert")?
+                    .source()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let destinations = jobs
+            .iter()
+            .map(|&(_, slot)| expert_slot_destinations(slot))
+            .collect::<Vec<_>>();
+        let views = destinations
+            .iter()
+            .map(|ranges| ranges.as_slice())
+            .collect::<Vec<_>>();
+        // Reservations exclude Hot; only published slots enter W1. Drop joins all readers.
+        let mut batch =
+            unsafe { Array::begin_read_records(&sources, &mut self.banks, &views, self.readers)? };
+        let shared = match shared {
+            Some((x, output)) => {
+                // Start disk work before building the independent resident expert.
+                *output = Some(self.shared(x)?);
+                output.as_ref()
+            }
+            None => None,
+        };
+        #[cfg(test)]
+        drop(prepare);
+        #[cfg(test)]
+        let waiting = crate::flash_profile::span("cold_ready_wait");
+        let ready = batch.wait_ready(2)?;
+        #[cfg(test)]
+        drop(waiting);
+        let first = if ready.iter().all(|&done| done) {
+            None
+        } else {
+            #[cfg(test)]
+            let building = crate::flash_profile::span("cold_ready_first_build");
+            let slots = jobs
+                .iter()
+                .zip(&ready)
+                .filter_map(|(&(_, slot), &done)| done.then_some(slot as u32))
+                .collect::<Vec<_>>();
+            let (first, rest) = crate::cold_ready::partition(cold, &slots);
+            ensure!(
+                !first.is_empty() && !rest.is_empty(),
+                "invalid Cold partition"
+            );
+            let value = self.calculate_cold(routed_x, &first)?;
+            consumers.0.push(value.try_clone()?);
+            #[cfg(test)]
+            drop(building);
+            #[cfg(test)]
+            if self.cold_ready_complete_before_submit {
+                batch.finish()?;
+            }
+            #[cfg(test)]
+            let snapshot = crate::flash_profile::span("cold_ready_snapshot_before_submit");
+            #[cfg(test)]
+            if let Some(event) = &snapshot {
+                let mask = batch.ready()?;
+                event.data(serde_json::json!({"status":"ok","ready":mask.iter().filter(|&&done|done).count(),"jobs":mask.len()}));
+            }
+            #[cfg(test)]
+            drop(snapshot);
+            {
+                #[cfg(test)]
+                let _submitting = crate::flash_profile::span("cold_ready_first_submit");
+                // W1 can overlap subsequent CPU work even when all reads have completed.
+                if let Some(shared) = shared {
+                    consumers.0.push(shared.try_clone()?);
+                    Array::async_eval_all(&[&value, shared])?;
+                    #[cfg(test)]
+                    {
+                        self.cold_shared_submissions += 1;
+                    }
+                } else {
+                    value.async_eval()?;
+                }
+            }
+            #[cfg(test)]
+            if let Some(event) = crate::flash_profile::span("cold_ready_snapshot_after_submit") {
+                event.data(match batch.ready() {
+                    Ok(mask) => serde_json::json!({"status":"ok","ready":mask.iter().filter(|&&done|done).count(),"jobs":mask.len()}),
+                    Err(error) => serde_json::json!({"status":"diagnostic_error","error":error.to_string()}),
+                });
+            }
+            #[cfg(test)]
+            {
+                self.cold_ready_waves.push(first.len());
+                if self.cold_ready_verify_overlap {
+                    value.eval()?;
+                    ensure!(batch.ready()?.iter().any(|&done| !done));
+                    self.cold_ready_verified_overlap += 1;
+                }
+                ensure!(
+                    !self.cold_ready_fail_after_wave,
+                    "injected Cold wave failure"
+                );
+            }
+            #[cfg(test)]
+            let prepare_rest = !crate::flash_profile::fenced();
+            #[cfg(not(test))]
+            let prepare_rest = true;
+            // Fenced profiling evaluates intermediate stages; only a lazy graph is safe here.
+            let rest_output = if prepare_rest {
+                #[cfg(test)]
+                let _building = crate::flash_profile::span("cold_ready_rest_build");
+                let rest_output = self.calculate_cold(routed_x, &rest)?;
+                #[cfg(test)]
+                {
+                    self.cold_ready_prepared_rest += 1;
+                    ensure!(
+                        !rest_output.is_available_for_test()?,
+                        "W2 evaluated before join"
+                    );
+                    if self.cold_ready_verify_overlap {
+                        ensure!(batch.ready()?.iter().any(|&done| !done));
+                    }
+                    ensure!(
+                        !self.cold_ready_fail_after_prepare,
+                        "injected Cold preparation failure"
+                    );
+                }
+                Some(rest_output)
+            } else {
+                None
+            };
+            *cold = first.into_iter().chain(rest).collect();
+            Some(ColdWaves {
+                first: value,
+                rest: rest_output,
+            })
+        };
+        #[cfg(test)]
+        let finishing = crate::flash_profile::span("cold_ready_finish");
+        let finished = batch.finish();
+        #[cfg(test)]
+        drop(finishing);
+        #[cfg(test)]
+        if let Some(event) = &diagnostic {
+            let first_rows = first
+                .as_ref()
+                .map_or(0, |wave| wave.first.shape()[0] as usize);
+            event.data(serde_json::json!({
+                "status":if finished.is_ok(){"finished"}else{"failed_finish"},
+                "jobs":jobs.len(),"cold_rows":cold.len(),
+                "ready_initial":ready.iter().filter(|&&done|done).count(),
+                "ready_job_indices":ready.iter().enumerate().filter_map(|(i,&done)|done.then_some(i)).collect::<Vec<_>>(),
+                "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
+                "split":first.is_some(),"io_ok":finished.is_ok(),
+                "jobs_mapping":jobs,"workers":self.readers,
+                "route_rows":route_rows,"priority":priority_active,
+                "cold_occurrences":cold_occurrences,
+                "multiplicities":crate::cold_ready::job_multiplicities(jobs, &cold_occurrences),
+                "schedule":crate::array::disk_profile_schedule(),
+                "timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,
+            }));
+        }
+        finished?;
+        self.read_bytes = bytes;
+        Ok(first)
     }
 
     fn calculate(&self, x: &Array, slots: &[u32]) -> Result<Array> {
@@ -351,6 +671,8 @@ impl SsdMoe {
             .reshape(&[n * 2, H])?;
         let suh = slots.gather_scales(&self.banks[2])?.reshape(&[n * 2, H])?;
         let svh = slots.gather_scales(&self.banks[3])?.reshape(&[n * 2, I])?;
+        #[cfg(test)]
+        let gu_build = crate::flash_profile::span("expert_gate_up_build");
         let gu = linear::expert_slots(
             &expanded,
             &self.banks[0],
@@ -365,13 +687,21 @@ impl SsdMoe {
         )?
         .reshape(&[n, 2, I])?;
         #[cfg(test)]
+        drop(gu_build);
+        #[cfg(test)]
         crate::flash_profile::stage("expert_gate_up_completion", &gu)?;
+        #[cfg(test)]
+        let activation_build = crate::flash_profile::span("expert_swiglu_build");
         let activated = gu
             .slice(1, 0, 1)?
             .reshape(&[n, I])?
             .swiglu(&gu.slice(1, 1, 2)?.reshape(&[n, I])?)?;
         #[cfg(test)]
+        drop(activation_build);
+        #[cfg(test)]
         crate::flash_profile::stage("expert_swiglu_completion", &activated)?;
+        #[cfg(test)]
+        let down_build = crate::flash_profile::span("expert_down_build");
         let down = linear::expert_slots(
             &activated,
             &self.banks[1],
@@ -385,6 +715,8 @@ impl SsdMoe {
             self.stable_expert_kernels,
         )?;
         #[cfg(test)]
+        drop(down_build);
+        #[cfg(test)]
         crate::flash_profile::stage("expert_down_completion", &down)?;
         Ok(down)
     }
@@ -397,6 +729,8 @@ impl SsdMoe {
     }
 
     pub(crate) fn route(&self, x: &Array) -> Result<(Array, Array)> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("router_projection_and_topk_build");
         ensure!(
             x.shape() == [1, H] && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
             "streamed MoE expects one exact route row"
@@ -520,24 +854,48 @@ impl SsdMoe {
         self.forward_rows_prepared(x, next, depth, row_limit, None)
     }
 
-    fn routed_input(x: &Array) -> Result<Array> {
-        let rows = x.shape()[0];
+    fn routed_input(&mut self, x: &Array) -> Result<Array> {
+        let rows = *x
+            .shape()
+            .first()
+            .context("routed input needs a row dimension")?;
+        let routed_rows = rows
+            .checked_mul(10)
+            .context("routed input row count overflow")?;
+        let cache_slot =
+            (self.routed_index_cache && (1..=8).contains(&rows)).then(|| rows as usize - 1);
+        if let Some(indices) = cache_slot.and_then(|slot| self.routed_indices[slot].as_ref()) {
+            #[cfg(test)]
+            {
+                self.routed_index_hits += 1;
+            }
+            return x.take(indices, 0)?.astype(Dtype::Float16);
+        }
         let indices = (0..rows as u32)
             .flat_map(|row| std::iter::repeat_n(row, 10))
             .collect::<Vec<_>>();
-        x.take(&Array::from_u32(&indices, &[rows * 10])?, 0)?
-            .astype(Dtype::Float16)
+        let indices = Array::from_u32(&indices, &[routed_rows])?;
+        #[cfg(test)]
+        {
+            self.routed_index_builds += 1;
+        }
+        if let Some(slot) = cache_slot {
+            self.routed_indices[slot] = Some(indices.try_clone()?);
+        }
+        x.take(&indices, 0)?.astype(Dtype::Float16)
     }
 
     fn prepare_resident_hot(&mut self, x: &Array, selected: &Array) -> Result<Option<ResidentHot>> {
         if let Some(last) = self.last.take() {
+            #[cfg(test)]
+            let _profile = crate::flash_profile::span("hot_previous_bank_users_wait");
             last.eval()?;
         }
         let map = self.cache.borrow().resident_slot_map()?;
         if map.iter().all(|&slot| slot == u32::MAX) {
             return Ok(None);
         }
-        let input = Self::routed_input(x)?;
+        let input = self.routed_input(x)?;
         #[cfg(test)]
         let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
         let slots = linear::ExpertSlots::residents(selected, &map, self.banks[0].shape()[0])?;
@@ -807,7 +1165,7 @@ impl SsdMoe {
         }
         let routed_x = match early_input {
             Some(value) => value,
-            None => Self::routed_input(x)?,
+            None => self.routed_input(x)?,
         };
         if !early_hot && let Some(last) = self.last.take() {
             #[cfg(test)]
@@ -940,7 +1298,7 @@ impl SsdMoe {
         let mut filled = BTreeSet::new();
         #[cfg(test)]
         let read_start = std::time::Instant::now();
-        let jobs = cold
+        let mut jobs = cold
             .iter()
             .filter(|&&(i, _)| !routes[i].1)
             .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
@@ -958,12 +1316,58 @@ impl SsdMoe {
             self.schedule_events
                 .push(("demand_begin", route_start.elapsed().as_secs_f64()));
         }
-        if let Err(error) = self.fill_many(&jobs) {
-            if let Some(hot) = &hot_output {
-                hot.eval()?;
+        let mut consumers = ColdConsumers::default();
+        let mut shared = None;
+        // Wider Cold waves are opt-in; grouped and prefetched paths retain their fallback.
+        let split_cold = self.cold_ready
+            && (1..=self.cold_ready_rows).contains(&rows)
+            && depth == 0
+            && self.prefetcher.is_none()
+            && !self.shared_exl3
+            && !self.weighted_epilogue
+            && jobs.len() > 2
+            && hot_output.is_some();
+        let priority_active = split_cold && rows == 2 && self.cold_priority;
+        if priority_active {
+            crate::cold_ready::prioritize_jobs(&mut jobs, &cold);
+            #[cfg(test)]
+            {
+                self.cold_priority_batches += 1;
             }
-            return Err(error.context("loading cold EXL3 experts"));
         }
+        let read = if split_cold {
+            let hot = hot_output.as_ref().expect("Hot checked");
+            let lease = match hot.try_clone() {
+                Ok(lease) => lease,
+                Err(error) => {
+                    hot.eval().or_else(|_| crate::array::synchronize())?;
+                    return Err(error.context("retaining Hot during Cold reads"));
+                }
+            };
+            consumers.0.push(lease);
+            self.fill_ready(
+                &jobs,
+                &routed_x,
+                &mut cold,
+                &mut consumers,
+                self.cold_shared.then_some((x, &mut shared)),
+                rows,
+            )
+        } else {
+            self.fill_many(&jobs).map(|()| None)
+        };
+        let (first_cold, prepared_rest) = match read {
+            Ok(Some(waves)) => (Some(waves.first), waves.rest),
+            Ok(None) => (None, None),
+            Err(error) => {
+                if consumers.0.is_empty()
+                    && let Some(hot) = &hot_output
+                {
+                    hot.eval()?;
+                }
+                return Err(error.context("loading cold EXL3 experts"));
+            }
+        };
         fill.commit();
         #[cfg(test)]
         if !jobs.is_empty()
@@ -984,21 +1388,22 @@ impl SsdMoe {
                     .push(("demand_end", route_start.elapsed().as_secs_f64()));
             }
         }
-        let values = if let Some(hot_output) = hot_output {
+        let (values, already_weighted) = if let Some(hot_output) = hot_output {
             if cold.is_empty() {
-                hot_output
+                (hot_output, false)
             } else {
-                let cold_output = self.calculate(
-                    &routed_x.take(
-                        &Array::from_u32(
-                            &cold.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
-                            &[cold.len() as i32],
-                        )?,
-                        0,
-                    )?,
-                    &cold.iter().map(|p| p.1).collect::<Vec<_>>(),
-                )?;
-                let combined = Array::concatenate(&[&hot_output, &cold_output], 0)?;
+                let first_rows = first_cold.as_ref().map_or(0, |a| a.shape()[0] as usize);
+                let cold_output = match prepared_rest {
+                    Some(rest) => rest,
+                    None => self.calculate_cold(&routed_x, &cold[first_rows..])?,
+                };
+                let combined = if let Some(first) = &first_cold {
+                    Some(Array::concatenate(&[&hot_output, first, &cold_output], 0)?)
+                } else if self.weighted_epilogue {
+                    None
+                } else {
+                    Some(Array::concatenate(&[&hot_output, &cold_output], 0)?)
+                };
                 for (i, &(_, hit)) in routes.iter().enumerate() {
                     let index = if early_hot && snapshot_hot(ids[i]) {
                         i
@@ -1010,22 +1415,50 @@ impl SsdMoe {
                     };
                     order.push(index as u32);
                 }
-                combined.take(&Array::from_u32(&order, &[order.len() as i32])?, 0)?
+                if self.weighted_epilogue {
+                    (
+                        crate::weighted_epilogue::apply(
+                            &hot_output,
+                            &cold_output,
+                            &order,
+                            &weights,
+                            x.dtype(),
+                        )?,
+                        true,
+                    )
+                } else {
+                    (
+                        combined
+                            .expect("stock merge prepared")
+                            .take(&Array::from_u32(&order, &[order.len() as i32])?, 0)?,
+                        false,
+                    )
+                }
             }
         } else {
-            self.calculate(
-                &routed_x,
-                &routes.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
-            )?
+            (
+                self.calculate(
+                    &routed_x,
+                    &routes.iter().map(|p| p.0 as u32).collect::<Vec<_>>(),
+                )?,
+                false,
+            )
         };
-        let routed = values
-            .astype(x.dtype())?
-            .mul(&weights.reshape(&[rows * 10, 1])?)?
-            .reshape(&[rows, 10, H])?
-            .sum(1, false)?;
+        let weighted = if already_weighted {
+            values
+        } else {
+            values
+                .astype(x.dtype())?
+                .mul(&weights.reshape(&[rows * 10, 1])?)?
+        };
+        let routed = weighted.reshape(&[rows, 10, H])?.sum(1, false)?;
         #[cfg(test)]
         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
-        let output = routed.add(&self.shared(x)?)?;
+        let shared = match shared {
+            Some(value) => value,
+            None => self.shared(x)?,
+        };
+        let output = routed.add(&shared)?;
         #[cfg(test)]
         crate::flash_profile::stage("moe_add_completion", &output)?;
         self.last = Some(output.try_clone()?);
@@ -1048,10 +1481,14 @@ impl SsdMoe {
             }
             next.prefetch(&ids, depth)?;
         }
+        // The final output/last now retains every submitted bank consumer.
+        consumers.0.clear();
         Ok(output)
     }
 
     fn shared_projection(&self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("shared_projection_build");
         let gate = self.shared_gate.forward(x)?.astype(Dtype::Float16)?;
         #[cfg(test)]
         crate::flash_profile::stage("shared_gate_projection", &gate)?;
@@ -1068,6 +1505,8 @@ impl SsdMoe {
     }
 
     fn shared(&self, x: &Array) -> Result<Array> {
+        #[cfg(test)]
+        let _profile = crate::flash_profile::span("shared_expert_build");
         ensure!(
             x.shape().len() == 2
                 && (1..=8).contains(&x.shape()[0])
@@ -1216,12 +1655,20 @@ impl SsdMoe {
 mod hybrid_tests;
 
 #[cfg(test)]
+#[path = "ssd_moe/routed_index_tests.rs"]
+mod routed_index_tests;
+
+#[cfg(test)]
 #[path = "ssd_moe/shared_tests.rs"]
 mod shared_tests;
 
 #[cfg(test)]
 #[path = "ssd_moe/prefetch_tests.rs"]
 mod prefetch_tests;
+
+#[cfg(test)]
+#[path = "ssd_moe/cold_ready_tests.rs"]
+mod cold_ready_tests;
 
 #[cfg(test)]
 mod tests {
@@ -2202,6 +2649,47 @@ mod tests {
                     "retry after failed read diverged"
                 );
                 moe.drain()?;
+                if slots == 53 && readers == 4 && overlap {
+                    crate::flash_profile::start(false)?;
+                    let result = (|| -> Result<()> {
+                        let jobs = (0..5u32).map(|i| (i, i as usize)).collect::<Vec<_>>();
+                        moe.fill_many(&jobs)?;
+                        ensure!(crate::array::disk_profile()?.len() == 5);
+                        let before = moe.read_bytes;
+                        let bank = std::mem::replace(
+                            &mut moe.banks[0],
+                            Array::zeros_dtype(&[1], Dtype::UInt16)?,
+                        );
+                        let rejected = moe.fill_many(&jobs);
+                        moe.banks[0] = bank;
+                        ensure!(rejected.is_err() && moe.read_bytes == before);
+                        ensure!(
+                            crate::array::disk_profile()?.is_empty()
+                                && crate::array::disk_profile_schedule() == "static",
+                            "failed pre-FFI batch retained the previous timings"
+                        );
+                        Ok(())
+                    })();
+                    let events = crate::flash_profile::finish();
+                    result?;
+                    let events = serde_json::to_value(events?)?;
+                    let reads = events
+                        .as_array()
+                        .context("missing profile")?
+                        .iter()
+                        .filter(|e| e["name"] == "disk_read_batch")
+                        .collect::<Vec<_>>();
+                    ensure!(
+                        reads.len() == 2
+                            && reads[0]["data"]["ok"] == true
+                            && reads[1]["data"]["ok"] == false
+                    );
+                    ensure!(
+                        reads[1]["data"]["timings_job_worker_start_end_bytes_failed"]
+                            == serde_json::json!([])
+                    );
+                    println!("T18A_FAILED_PROFILE stale_timings_rejected=true jobs=5");
+                }
             }
         }
         Ok(())
