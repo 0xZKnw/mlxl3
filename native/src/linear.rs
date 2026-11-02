@@ -1714,6 +1714,10 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
 mod dense_epilogue_tests;
 
 #[cfg(test)]
+#[path = "linear/prepared_tests.rs"]
+mod prepared_tests;
+
+#[cfg(test)]
 mod tests {
     #[cfg(kani)]
     #[kani::proof]

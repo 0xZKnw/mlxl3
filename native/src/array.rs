@@ -2480,7 +2480,7 @@ mod tests {
                 "output[thread_position_in_grid.x] = input[thread_position_in_grid.x] + CACHE_SHIFT;"
             };
             let outputs = metal_kernel(
-                "mlxl3_cache_collision_regression",
+                "mlxl3_rs_expert_cache_collision_slots1",
                 &["input"],
                 &["output"],
                 &header,

@@ -1,4 +1,6 @@
 // Thin, exception-contained C ABI over the same MLX backend as the reference.
+#define NS_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -35,6 +37,7 @@
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
+#include "prepared_metal.h"
 
 namespace mx = mlx::core;
 static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_PATCH == 2,
@@ -804,7 +807,13 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
       if (!input_names[i]) throw std::invalid_argument("null Metal input name");
     for (size_t i = 0; i < noutputs; ++i)
       if (!output_names[i]) throw std::invalid_argument("null Metal output name");
-    thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+    struct Factory {
+      mx::fast::CustomKernelFunction function;
+      std::shared_ptr<mlxl3::PreparedMetalPlan> prepared;
+    };
+    thread_local const bool prepared_enabled =
+        mlxl3::prepared_metal_option(std::getenv("MLXL3_PREPARED_METAL"));
+    thread_local std::map<mlxl3::OwnedKernelKey, Factory,
                           mlxl3::KernelKeyOrder> cache;
     mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
     auto found = cache.find(key);
@@ -815,16 +824,19 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                                   strings(output_names, noutputs), header, source};
       auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
                                              source, header, true, false, mx::CompileOptions{});
-      found = cache.emplace(std::move(owned), std::move(function)).first;
+      found = cache.emplace(std::move(owned), Factory{std::move(function), nullptr}).first;
     }
     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
     for (size_t i = 0; i < noutputs; ++i) {
       shapes.push_back(shape(output_dims + offset, output_ranks[i])); offset += output_ranks[i];
       types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
     }
-    auto result = found->second(arrays(inputs, ninputs), shapes, types,
+    auto result = found->second.function(arrays(inputs, ninputs), shapes, types,
       {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
     if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
+    if (prepared_enabled && std::string_view(name).starts_with("mlxl3_rs_expert_") &&
+        std::strstr(name, "_slots1") && !std::strstr(name, "_resident"))
+      mlxl3::prepare_metal(result, found->second.prepared, types, grid, threadgroup);
     std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);
     for (auto& value : result) owned.push_back(std::make_unique<mx::array>(std::move(value)));
     for (size_t i = 0; i < noutputs; ++i) outputs[i] = owned[i].release();

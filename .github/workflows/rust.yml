@@ -401,6 +401,8 @@ jobs:
           python -m pip install mlx==0.32.2
           mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
           export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
+          # Compile the real prepared primitive test; numeric execution needs a physical GPU.
+          c++ -std=c++20 -O2 -Wall -Wextra -Werror -Wno-unused-parameter -I native/ffi -isystem "$MLXL3_MLX_ROOT/include" -isystem "$MLXL3_MLX_ROOT/include/metal_cpp" native/tests/prepared_metal.cpp -L "$MLXL3_MLX_ROOT/lib" -lmlx -Wl,-rpath,"$MLXL3_MLX_ROOT/lib" -framework Metal -framework Foundation -o build/ci/prepared-metal
           cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
           cargo build --locked --release --features mlx,chat
           cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
