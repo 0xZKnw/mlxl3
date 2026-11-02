@@ -64,6 +64,15 @@ fn load(checkpoint: &Checkpoint, capacity: usize) -> Result<SsdMoe> {
         moe.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
         "Cold shared flag not wired"
     );
+    ensure!(
+        Some(moe.cold_ready_rows)
+            == crate::cold_ready::parse_max_rows(
+                std::env::var("MLXL3_SSD_COLD_READY_ROWS").ok().as_deref()
+            )
+            && moe.cold_priority
+                == (std::env::var("MLXL3_SSD_COLD_PRIORITY").as_deref() == Ok("1")),
+        "Cold candidate options not wired"
+    );
     moe.readers = 4;
     moe.gpu_hot = true;
     moe.gpu_hot_wide = true;
@@ -247,6 +256,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     );
 
     reset(&mut moe)?;
+    moe.cold_ready_rows = 2;
     prime(&mut moe, &ids[..5])?;
     let x = Array::concatenate(&[&inputs[0], &inputs[1], &inputs[2]], 0)?;
     let oracle = expected.iter().flatten().copied().collect::<Vec<_>>();
@@ -262,6 +272,9 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     );
     Ok(())
 }
+
+#[path = "cold_ready_wide_tests.rs"]
+mod wide_tests;
 
 #[test]
 #[ignore = "physical Apple GPU and external Flash fixtures; COLD_READY=1; select alone"]

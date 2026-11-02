@@ -630,6 +630,31 @@ mod tests {
         check_runtime_parity(&[512], &[(true, true, true, 3, true)])
     }
 
+    #[test]
+    #[ignore = "physical Apple GPU, target/draft checkpoints, COLD_READY_ROWS=4 and tuned Hot; run alone"]
+    fn wide_cold_runtime_preserves_serial_tokens_and_states() -> Result<()> {
+        for (name, expected) in [
+            ("MLXL3_SSD_COLD_READY_ROWS", "4"),
+            ("MLXL3_SSD_GPU_HOT", "1"),
+            ("MLXL3_SSD_GPU_HOT_WIDE", "1"),
+            ("MLXL3_FLASH_MULTI_TOKEN", "1"),
+        ] {
+            ensure!(
+                std::env::var(name).as_deref() == Ok(expected),
+                "test requires {name}={expected}"
+            );
+        }
+        // B2 is the unchanged control; budgets exercise partial and complete B3/B4.
+        check_runtime_parity(
+            &[1, 2, 3, 4, 8, 17],
+            &[
+                (true, true, false, 1, false),
+                (true, true, false, 2, false),
+                (true, true, false, 3, false),
+            ],
+        )
+    }
+
     #[cfg(kani)]
     #[kani::proof]
     fn actual_pre_draft_runtime_preserves_serial_generation() {
