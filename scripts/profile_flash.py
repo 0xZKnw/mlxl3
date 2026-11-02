@@ -70,10 +70,11 @@ def readback_sample(event):
     return {**sample, "dtype": data["dtype"], "shape": data["shape"]}
 
 
-def cold_schedule_diagnostic(data, route=None):
+def cold_schedule_diagnostic(data, route=None, batch_wall_ns=None):
     fields = ("route_rows", "priority", "cold_occurrences", "multiplicities")
     present = [key in data for key in fields]
-    if not any(present):
+    has_ready_indices = "ready_job_indices" in data
+    if not any(present) and not has_ready_indices:
         return {"status": "unavailable_legacy", "missing_fields": list(fields)}
     assert all(present), "incomplete Cold schedule diagnostic"
     assert data["status"] == "finished" and data["io_ok"] is True
@@ -88,6 +89,11 @@ def cold_schedule_diagnostic(data, route=None):
     assert all(isinstance(v, list) for v in (occurrences, mapping, multiplicities))
     assert len(mapping) == len(multiplicities) == integer(data["jobs"]) > 2
     assert len(occurrences) == integer(data["cold_rows"]) <= rows * 10
+    has_resident_count = "resident_gpu_rows" in route
+    if has_resident_count:
+        residents = integer(route["resident_gpu_rows"])
+        assert residents <= rows * 10
+        assert len(occurrences) == rows * 10 - residents, "Cold/Hot parent count mismatch"
     seen, counts, first = set(), defaultdict(int), {}
     for item in occurrences:
         assert isinstance(item, list) and len(item) == 2
@@ -116,10 +122,14 @@ def cold_schedule_diagnostic(data, route=None):
     assert mapping == expected, "Cold job launch order does not match policy"
     timings = data["timings_job_worker_start_end_bytes_failed"]
     assert len(timings) == len(mapping), "incomplete Cold job timings"
+    if batch_wall_ns is not None:
+        integer(batch_wall_ns)
     for index, timing in enumerate(timings):
         assert len(timing) == 6
         job, _, begin, end, count, failed = map(integer, timing)
         assert job == index and begin <= end and count == EXPERT_BYTES and failed == 0
+        if batch_wall_ns is not None:
+            assert end <= batch_wall_ns, "Cold read timing exceeds batch span"
     completed = sorted(range(len(mapping)), key=lambda job: (timings[job][3], job))
     first_two = completed[:2]
     duplicated = sum(n > 1 for n in multiplicities)
@@ -129,14 +139,31 @@ def cold_schedule_diagnostic(data, route=None):
     assert w1 + w2 == len(occurrences)
     ready = integer(data["ready_initial"])
     assert 2 <= ready <= len(mapping)
+    if has_ready_indices:
+        ready_indices = data["ready_job_indices"]
+        assert isinstance(ready_indices, list) and len(ready_indices) == ready
+        assert all(integer(job) < len(mapping) for job in ready_indices)
+        assert len(set(ready_indices)) == ready, "duplicate ready job index"
     if split:
         assert 0 < w1 < len(occurrences) and ready < len(mapping)
+        if has_ready_indices:
+            assert w1 == sum(multiplicities[job] for job in ready_indices)
+        else:
+            ordered = sorted(multiplicities)
+            assert sum(ordered[:ready]) <= w1 <= sum(ordered[-ready:])
     else:
         assert w1 == 0 and ready == len(mapping)
     return {
         "status": "validated_schedule_only",
         "route_rows": rows,
         "priority": data["priority"],
+        "parent_partition_validation": "resident_count"
+        if has_resident_count
+        else "unavailable_legacy_parent",
+        "readiness_validation": "exact_indices" if has_ready_indices else "bounded_multiplicities",
+        "timing_bounds_validation": "batch_wall"
+        if batch_wall_ns is not None
+        else "unavailable_no_batch_span",
         "split": split,
         "ready_initial": ready,
         "w1_rows": w1,
@@ -276,7 +303,7 @@ def validate_events(events):
                 while ancestor is not None and events[ancestor]["name"] != "moe_forward_rows":
                     ancestor = events[ancestor]["parent"]
                 batches[-1]["cold_schedule"] = cold_schedule_diagnostic(
-                    data, None if ancestor is None else events[ancestor]["data"]
+                    data, None if ancestor is None else events[ancestor]["data"], end - begin
                 )
     for i, event in enumerate(events):
         duration = event["end_ns"] - event["start_ns"]

@@ -72,7 +72,23 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     }
     required = set(ci.required_names())
     assert set(baseline) - required == replaced
-    assert len(required) == 322
+    frozen = set(
+        json.loads((ROOT / "tests/fixtures/kani-obligations-d5a776e5.json").read_text())[
+            "required_harnesses"
+        ]
+    )
+    added = {
+        "dec_one::dec_one_storage_contract",
+        "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
+        "cold_ready::two_job_priority_keeps_records_and_stable_order",
+        "contracts::flash_reference_mb34_preserves_coverage_and_fallbacks",
+        "contracts::flash_reference_mb34_shape_scope_rejects_other_dimensions",
+        "contracts::flash_reference_mb34_role_parser_preserves_default_and_named_choices",
+        "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
+    }
+    assert len(frozen) == 322
+    assert frozen <= required
+    assert required - frozen == added
     assert {
         f"flash_support::verification::slot_capacity_{size}_matches_std"
         for size in ("empty", "one_byte", "two_bytes")
@@ -88,7 +104,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     }
     assert grid <= required
     ci.check_obligations(required | {"future_module::new_proof"})
-    for missing in grid:
+    for missing in grid | added:
         with pytest.raises(ValueError, match="missing proof obligations"):
             ci.check_obligations(required - {missing})
 
