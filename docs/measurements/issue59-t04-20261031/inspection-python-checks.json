@@ -1,0 +1,94 @@
+{
+  "status": "passed_synthetic_selftests_not_measurement",
+  "checks": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "--stdin-filename",
+        "inspection.py"
+      ],
+      "exit_code": 0,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "--stdin-filename",
+        "inspection.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "check",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+        "format",
+        "--check",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "1 file already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t04-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "{\n  \"status\": \"passed_synthetic_selftests_not_benchmark\",\n  \"engine_executed\": false,\n  \"synthetic_fixtures\": true,\n  \"controller_sha256\": \"e5b65a2a7c6dba841b491a70f7b06b950c0dfb220e13cde21812713594d2b2b7\",\n  \"positive_cases\": 3,\n  \"negative_cases\": 12,\n  \"cases\": [\n    {\n      \"case\": \"positive_AR\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": false,\n      \"status\": \"passed_external_oracle_mode_and_memory_not_gain\"\n    },\n    {\n      \"case\": \"positive_MTP\",\n      \"mode\": \"MTP\",\n      \"expected_rejection\": false,\n      \"status\": \"passed_external_oracle_mode_and_memory_not_gain\"\n    },\n    {\n      \"case\": \"positive_DF\",\n      \"mode\": \"DF\",\n      \"expected_rejection\": false,\n      \"status\": \"passed_external_oracle_mode_and_memory_not_gain\"\n    },\n    {\n      \"case\": \"incomplete\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"empty_text\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"wrong_hash\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"mtp_null\",\n      \"mode\": \"MTP\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"df_null\",\n      \"mode\": \"DF\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"zero_footprint\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"peak_limit\",\n      \"mode\": \"DF\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"nan_duration\",\n      \"mode\": \"MTP\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"missing_prompt\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"mtp_inactive\",\n      \"mode\": \"MTP\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"df_inactive\",\n      \"mode\": \"DF\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    },\n    {\n      \"case\": \"supervisor_unreaped\",\n      \"mode\": \"AR\",\n      \"expected_rejection\": true,\n      \"status\": \"failed_external_inspection\"\n    }\n  ],\n  \"journaling\": \"temporary cwd only; fixtures removed\"\n}\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-c",
+        "import importlib.util,json; print(json.dumps({\"crosshair_available\":importlib.util.find_spec(\"crosshair\") is not None}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"crosshair_available\": false}\n",
+      "stderr": ""
+    }
+  ],
+  "positive_cases": 3,
+  "negative_cases": 12,
+  "inspect_function_AST_identical": true,
+  "original_controller_sha256": "00dc714a290eab8b3c80d70d81eb3b823411d05612935b1ab42f21b2cf2b3e8e",
+  "formatted_controller_sha256": "e5b65a2a7c6dba841b491a70f7b06b950c0dfb220e13cde21812713594d2b2b7",
+  "selftest_sha256": "d5de3c842330a6ad8879c99addf14ceee5b5e54219e851486280040fe50933b7",
+  "style_failures_preserved": [
+    "inspection-python-checks-initial-failure.json",
+    "inspection-selftest-style-failure.json"
+  ],
+  "crosshair": {
+    "tool": "CrossHair",
+    "status": "not_verified_module_absent",
+    "available": false,
+    "probe": {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-c",
+        "import importlib.util,json; print(json.dumps({\"crosshair_available\":importlib.util.find_spec(\"crosshair\") is not None}))"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"crosshair_available\": false}\n",
+      "stderr": ""
+    },
+    "limitations": "No symbolic proof of the filesystem/journaling inspect function; no substitute implementation or package installation."
+  }
+}

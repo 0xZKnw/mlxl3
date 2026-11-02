@@ -1,0 +1,13 @@
+
+running 1 test
+test gdn_epilogue::tests::diagnostic_counterexample_exp_volatile_and_stock_probability_boundaries ... GDN_DIAG02_BASELINE values=6144 norm_f32_bits=0x3f801001 gate_f16_bits=0xc8dc stock_probability_bits=0x387c4076 stock_probability=6.0141516e-5 stock_product_bits=0x387c6000 stock_product=6.017089e-5 stock_out_bits=0x03f2 apply_out_bits=0x03f1 recorded_stock_p_bits=0x387c4076 recorded_midpoint_product_bits=0x387c6000 tie_even_out=0x03f2
+GDN_DIAG02_VARIANT name=original values=6144 probability_f32_bits=0x387c4074 probability_f32=6.014151e-5 product_f32_bits=0x387c5ffe product_f32=6.017088e-5 out_f16_bits=0x03f1 out_f32=6.0141087e-5 probability_mismatches=6144 product_mismatches=6144 output_mismatches=6144 output_matches_stock=false
+GDN_DIAG02_VARIANT name=precise_exp values=6144 probability_f32_bits=0x387c4076 probability_f32=6.0141516e-5 product_f32_bits=0x387c6000 product_f32=6.017089e-5 out_f16_bits=0x03f2 out_f32=6.020069e-5 probability_mismatches=0 product_mismatches=0 output_mismatches=0 output_matches_stock=true
+GDN_DIAG02_VARIANT name=without_volatile values=6144 probability_f32_bits=0x387c4074 probability_f32=6.014151e-5 product_f32_bits=0x387c5ffe product_f32=6.017088e-5 out_f16_bits=0x03f1 out_f32=6.0141087e-5 probability_mismatches=6144 product_mismatches=6144 output_mismatches=6144 output_matches_stock=false
+GDN_DIAG02_VARIANT name=precise_without_volatile values=6144 probability_f32_bits=0x387c4076 probability_f32=6.0141516e-5 product_f32_bits=0x387c6000 product_f32=6.017089e-5 out_f16_bits=0x03f2 out_f32=6.020069e-5 probability_mismatches=0 product_mismatches=0 output_mismatches=0 output_matches_stock=true
+GDN_DIAG02_VARIANT name=stock_probability_input values=6144 probability_f32_bits=0x387c4076 probability_f32=6.0141516e-5 product_f32_bits=0x387c6000 product_f32=6.017089e-5 out_f16_bits=0x03f2 out_f32=6.020069e-5 probability_mismatches=0 product_mismatches=0 output_mismatches=0 output_matches_stock=true
+GDN_DIAG02_COMPLETE variants=5 values_per_output=6144 outputs_per_variant=3 status=diagnostic_only_no_candidate_parity_or_gain_claim
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 371 filtered out; finished in 0.25s
+

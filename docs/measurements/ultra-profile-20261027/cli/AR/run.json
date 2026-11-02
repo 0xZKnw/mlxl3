@@ -1,0 +1,36 @@
+[
+  {
+    "name": "cli-AR",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys;from pathlib import Path;c=json.load(open(sys.argv[1]));o=Path(c['output']);assert not (o/'report.json').exists();n=runpy.run_path('scripts/benchmark-flash-bridge.py');n['run'].__globals__['PROMPTS']=c['prompts'];n['run'](Path(c['engine']),Path(c['model']),o,mtp=c['mode']=='MTP',tokens=128,repeats=c['repeats'],cache_gib=3,timeout=900,dflash_draft=Path(c['draft']) if c['mode']=='DF' else None)",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/cli/AR/config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 1500,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ]
+  }
+]

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--tests",
+    "--no-default-features",
+    "--harness",
+    "flash_profile::signature_interning_preserves_identity_for_three_requests",
+    "--output-format",
+    "terse"
+  ],
+  "status": "failed_or_interrupted",
+  "timeout_seconds": 120,
+  "rss_group_limit_bytes": 4294967296,
+  "error": "MemoryError('Kani group RSS exceeded 4GiB')",
+  "reaped": true,
+  "seconds": 15.345922665990656
+}

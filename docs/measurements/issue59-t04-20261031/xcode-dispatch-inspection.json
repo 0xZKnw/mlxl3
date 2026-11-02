@@ -1,0 +1,32 @@
+{
+  "status": "observed_physical_dispatch_reduction_not_speed",
+  "application": "Xcode 27.2",
+  "hardware": "Apple M5, macOS 27.2",
+  "scope": "Two captures of the preparation boundary from actual SSD GU [20,2,640]; no full-model dispatch count",
+  "libtest_sha256": "22073b88203fa4db0a3e2792f03f99c0e52f1a131c27f2f6d37c535ac10b384d",
+  "capture_bytes_cumulative": 521317700,
+  "capture_byte_limit_cumulative": 1073741824,
+  "output_values_per_capture": 12800,
+  "parity": "complete finite F16 bytes equal, input immutability checked",
+  "stock": {
+    "path": "build/issue59-t04-20261031/capture-r1/stock-r20.gputrace",
+    "summary_ax_excerpt": "Command Buffers 2 Render Encoders 0 Compute Encoders 1 Draw Calls 0 Dispatch Calls 3",
+    "dispatches": [
+      {"command": 11, "grid": [640,20,1], "threadgroup": [64,16,1], "function": "Cf2ISigmoidADf2IBroadcastACEf2IBroadcastCAFf2IMultiplyDEGf2IBroadcastFBHf2IBroadcastBFIf2OMultiplyGH_VV_f2f2_11160318154034397263_strided_2"},
+      {"command": 18, "grid": [12800,1,1], "threadgroup": [1024,1,1], "function": "vv_Multiplyfloat16"},
+      {"command": 24, "grid": [8,100,1], "threadgroup": [8,1,1], "function": "n2hadamard_128_float16"}
+    ]
+  },
+  "fused": {
+    "path": "build/issue59-t04-20261031/capture-r1/fused-r20.gputrace",
+    "summary_ax_excerpt": "Command Buffers 2 Render Encoders 0 Compute Encoders 1 Draw Calls 0 Dispatch Calls 2",
+    "dispatches": [
+      {"command": 11, "grid": [640,20,1], "threadgroup": [64,16,1], "function": "Df2ISigmoidAEf2IBroadcastADFf2IBroadcastDAGf2IMultiplyEFHf2IBroadcastGBIf2IBroadcastBGJf2IMultiplyHIKf2IBroadcastJCLf2IBroadcastCJMf2OMultiplyKL_VVV_f2f2f2_11160318154034397263_strided_2"},
+      {"command": 17, "grid": [8,100,1], "threadgroup": [8,1,1], "function": "n2hadamard_128_float16"}
+    ]
+  },
+  "profile_after_replay": false,
+  "gpu_time_measured": false,
+  "limits": "Selected AX observations from native Xcode replay. Shader debugging toolchain absent; optional Download declined with Not Now, replay worked. Displayed 0ns is not a timing result. Second command buffer not expanded; no universal blit count claimed.",
+  "cleanup": "Both workloads stopped; Quit Xcode selected in native menu; cua.listApps subsequently verified com.apple.dt.Xcode isRunning=false. No compiler/prover/inference overlapped replay."
+}

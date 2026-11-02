@@ -1,0 +1,41 @@
+    /// 64-wide output blocks per down-GEMM threadgroup (1, 2 or 4; the hidden width's blocks must divide by it): each
+    /// threadgroup walks ncb consecutive blocks of its M tile, the double buffer carried across them (block j + 1's first
+    /// stage decoded while block j's last multiplies); gate|up keeps 1
+    ncb: u8 = 1,
+    /// route in one launch (the table kernel counts, scans and scatters the slots itself) instead of MLX's argsort + the
+    /// table; outputs identical (see the module doc)
+    froute: bool = false,
+    /// prep, mid and finish in the vector layout (`text_prep_v`, ...) with aux simdgroups per threadgroup (4, 8, 16 or 32;
+    /// 0 = the strided kernels); outputs identical
+    aux: u8 = 0,
+    /// with aux: each block's sums (the deferred map's C term) in the lane's own order instead of the strided kernels' (no
+    /// shuffles; f32 sums in a different order, so outputs may differ in the last bits)
+    aux_lane_sums: bool = false,
+    /// the GEMMs' A operands (prep's xg / xu, mid's xd) stored in the A fragments' slot order: the lane that multiplies k 2q,
+    /// 2q + 1, 2q + 8, 2q + 9 of a 16-deep slice (fragb's and the register path's rule) finds them contiguous. 1: each
+    /// 32-element block in that order (`alayPos`), both slices of a 32-deep step at halfs 8q .. 8q + 7, one 16-byte load per
+    /// fragment row and step (8 per 64-deep stage instead of 32 half2 loads; 4 per register-path step instead of 16); 2: each
+    /// 16-element block (`alayPos16`, dense.zig's LANE_ORDER rule), one 8-byte load straight into each fragment row half (16
+    /// per stage, 8 per step: no splitting of a loaded vector across two fragments). The same values in the same slots, so
+    /// identical outputs. Where the shared-decode body runs it needs fragb (the padded bodies load A in natural order); its
+    /// writers are the strided prep and mid (aux 0)
+    alay: u8 = 0,
+    /// a fragment-order shared-decode simdgroup (fragb) or a register-path item whose rows end within its first 16 loads and
+    /// multiplies only that 16-row fragment row: half its 16x32x16 MMAs and A loads; the rows it skips are past the tile and
+    /// never stored, the rows it keeps take the same MMAs in the same order, so identical outputs
+    half_rows: bool = false,
+    /// each expert's full 128-row runs (and a remainder of more than `t128_cut` rows) in 128-row tiles on the bm-128 body, a
+    /// launch of their own beside the mixed launch over the rest (`Prefill.moeT128`, the notes above `t128_cut`): `moe`'s
+    /// bytes. Needs bm 64, the mixed table at split 1, froute's route and the strided mid and finish (aux 0)
+    t128: bool = false,
+
+    pub const Small = enum { off, all, mixed };
+
+    pub fn valid(o: Options) bool {
+        if (o.small == .mixed and o.wsp != 0) return false;
+        if (o.split != 1 and (o.split != 2 or o.small != .mixed)) return false;
+        if (o.wsp != 0 and (!o.dbuf or (o.wsp != 2 and o.wsp != 4 and o.wsp != 8 and o.wsp != 16) or 2 * o.bm / 32 + o.wsp > 32)) return false;
+        // both reshape the shared-decode body: nothing to do for the all-register path
+        if ((o.bk128 or o.ncb != 1) and o.small == .all) return false;
+        // the register path's reader: intr's (and its n % 16 == 0 check), and nothing to do where no register path runs
+        if (o.sintr and (!o.intr or o.small == .off)) return false;

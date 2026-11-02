@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 87, in <module>
+    run(*(Path(value) for value in sys.argv[1:]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 83, in run
+    supervisor["main"](plan)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 124, in main
+    assert not output.exists(), "refusing to overwrite a run"
+           ^^^^^^^^^^^^^^^^^^^
+AssertionError: refusing to overwrite a run

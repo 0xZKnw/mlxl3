@@ -1,0 +1,51 @@
+{
+  "status": "completed_positive_io_pending_trace_validation",
+  "epoch": 1793135084.23805,
+  "target_pid": 96509,
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "Time Profiler",
+    "--instrument",
+    "GPU",
+    "--instrument",
+    "Thread Activity",
+    "--instrument",
+    "System Call Trace",
+    "--instrument",
+    "Disk I/O Latency",
+    "--attach",
+    "96509",
+    "--time-limit",
+    "6s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/io-positive/capture.trace"
+  ],
+  "native_exit": 0,
+  "trace_exit": 0,
+  "io": {
+    "start_ns": 1793135087334286000,
+    "end_ns": 1793135087444613000,
+    "bytes_written": 134217728,
+    "bytes_read": 134217728,
+    "F_NOCACHE": 1,
+    "F_FULLFSYNC": true,
+    "inblock_delta": 0,
+    "outblock_delta": 0,
+    "parity": "byte_exact"
+  },
+  "elapsed_s": 8.797133415995631,
+  "native_reaped": true,
+  "trace_reaped": true,
+  "scratch_removed": true,
+  "block_io_trace_rows": 0,
+  "physical_io_sensor_qualified": false,
+  "observed_positive_calls": {
+    "BSC_sys_fcntl": 2,
+    "BSC_pwrite": 4,
+    "BSC_fsync": 1,
+    "BSC_pread": 4
+  },
+  "conclusion": "Device table unqualified even with read/write/fullfsync calls in recording; zero is not SSD0ms"
+}

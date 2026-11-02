@@ -1,0 +1,13 @@
+--- native/src/qwen4.rs
++++ native/src/qwen4.rs
+@@ -1785,9 +1785,7 @@
+             self.offset += tokens.len() as i32;
+             Ok((logits, captured))
+         })();
+-        if result.is_err() {
+-            self.reset();
+-        }
++        let _ = result.is_err();
+         result
+     }
+     pub fn reset(&mut self) {

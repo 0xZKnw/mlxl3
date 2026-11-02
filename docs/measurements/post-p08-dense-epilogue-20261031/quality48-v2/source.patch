@@ -1,0 +1,123 @@
+--- a/native/src/linear/dense_epilogue_tests.rs
++++ b/native/src/linear/dense_epilogue_tests.rs
+@@ -625,6 +625,120 @@
+     Ok(())
+ }
+ 
++#[test]
++#[ignore = "physical Apple GPU, Flash checkpoint and F02=1; all48 out weights versus explicit stock; run alone"]
++fn all_flash_out_weights_match_explicit_stock_b1_b2() -> Result<()> {
++    ensure!(
++        std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"),
++        "all48 quality must exercise the loaded F02 option"
++    );
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    ensure!(checkpoint.model_type == "qwen4_exp");
++    let mut checked = 0usize;
++    let mut gdn_weights = 0usize;
++    let mut qsa_weights = 0usize;
++    for layer in 0..48 {
++        let qsa = layer % 4 == 3;
++        let suffix = if qsa {
++            "self_attn.o_proj"
++        } else {
++            "linear_attn.out_proj"
++        };
++        let prefix = format!("model.language_model.layers.{layer}.{suffix}");
++        // Keep only one projection's weights resident, not a full Flash model.
++        let mut linear = Exl3Linear::from_checkpoint(&checkpoint, &prefix)?;
++        ensure!(linear.dense_epilogue, "{prefix}: flag was not loaded");
++        ensure!(
++            linear.rows == 6144
++                && linear.cols == WIDTH as i32
++                && linear.reference_accumulation
++                && linear.k == 4
++                && linear.cb == Codebook::Mul1
++                && linear.simdgroups == 4
++                && linear.bias.is_none()
++                && linear.svh.dtype() == Dtype::Float16
++                && linear.splits(linear.rows / 16, linear.cols / 16) == 2,
++            "{prefix}: an advertised target does not satisfy the F02 contract"
++        );
++        if qsa {
++            qsa_weights += 1;
++        } else {
++            gdn_weights += 1;
++        }
++        for rows in [1, 2] {
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                let values = (0..rows)
++                    .flat_map(|row| {
++                        (0..6144).map(move |column| {
++                            let value =
++                                ((layer * 71 + row * 37 + column * 13) % 997) as f32 / 1024.0 - 0.5;
++                            if dtype == Dtype::Float32 {
++                                value + 0.000123
++                            } else {
++                                value
++                            }
++                        })
++                    })
++                    .collect::<Vec<_>>();
++                if dtype == Dtype::Float32 {
++                    ensure!(values.iter().any(|&v| f16::from_f32(v).to_f32() != v));
++                }
++                let input = Array::from_f32(&values, &[rows, 6144])?.astype(dtype)?;
++                input.eval()?;
++
++                // Both controls explicitly bypass F02; env1 alone is not an oracle.
++                linear.dense_epilogue = false;
++                linear.flash_batch = false;
++                reset_kernel_requests_for_test();
++                let mut single_rows = Vec::new();
++                for row in 0..rows {
++                    single_rows.push(linear.forward(&input.slice(0, row, row + 1)?)?);
++                }
++                let expected = Array::concatenate(&single_rows.iter().collect::<Vec<_>>(), 0)?;
++                expected.eval()?;
++                ensure!(
++                    kernel_requests_for_test() == 0,
++                    "{prefix}: oracle reached F02"
++                );
++                if rows == 2 {
++                    ensure!(
++                        expected.slice(0, 0, 1)?.to_bytes()?
++                            != expected.slice(0, 1, 2)?.to_bytes()?,
++                        "{prefix}: vacuous two-row oracle"
++                    );
++                }
++                linear.dense_epilogue = true;
++                linear.flash_batch = true;
++                reset_kernel_requests_for_test();
++                let readbacks = Array::host_readbacks_for_test();
++                let actual = linear.forward(&input)?;
++                ensure!(Array::host_readbacks_for_test() == readbacks);
++                ensure!(
++                    kernel_requests_for_test() == 1 && last_rows_for_test() == rows as usize,
++                    "{prefix}/B{rows}/{dtype:?}: fused path not reached once"
++                );
++                compare(&actual, &expected, rows, WIDTH as i32, dtype, true)
++                    .with_context(|| format!("{prefix}/B{rows}/{dtype:?}"))?;
++
++                linear.dense_epilogue = false;
++                reset_kernel_requests_for_test();
++                let recovered = linear.forward(&input)?;
++                ensure!(
++                    kernel_requests_for_test() == 0,
++                    "{prefix}: OFF recovery used F02"
++                );
++                compare(&recovered, &expected, rows, WIDTH as i32, dtype, true)?;
++                checked += 1;
++            }
++        }
++    }
++    ensure!(gdn_weights == 36 && qsa_weights == 12 && checked == 192);
++    println!(
++        "F02_ALL48 weights=48 gdn=36 qsa=12 cases=192 rows=1,2 dtypes=F16,F32 stock_explicit_off=1 kernel_requests_per_on=1 status=byte_exact_stock_projection_oracle_not_external_B2"
++    );
++    Ok(())
++}
++
+ fn exclusive_report(path: &Path, value: &Value) -> Result<()> {
+     let file = fs::OpenOptions::new()
+         .write(true)

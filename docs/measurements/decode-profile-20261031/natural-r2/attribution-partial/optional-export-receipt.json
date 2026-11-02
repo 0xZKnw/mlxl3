@@ -1,0 +1,68 @@
+{
+  "status": "completed_optional_exports_with_explicit_unavailable",
+  "commands": [
+    {
+      "name": "time-sample-100us-user-kernel",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+        "export",
+        "--input",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/AR-combined-MAIN-plan-capture-1.trace",
+        "--xpath",
+        "/trace-toc/run[@number=\"1\"]/data/table[@schema=\"time-sample\" and @sample-rate-micro-seconds=\"100\" and @callstack=\"user kernel\"]",
+        "--output",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/time-sample-100us-user-kernel.xml"
+      ],
+      "status": "exported_not_analyzed",
+      "timeout_seconds": 120,
+      "pid": 25375,
+      "exit": 0,
+      "bytes": 14120337,
+      "sha256": "f6d3e01c0ef08fb9ed356a1fadf25fbd2fe2a92d131544a872a148f4d854a266",
+      "joined": true,
+      "elapsed_seconds": 3.55792775000009
+    },
+    {
+      "name": "time-sample-1000us-user",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+        "export",
+        "--input",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/AR-combined-MAIN-plan-capture-1.trace",
+        "--xpath",
+        "/trace-toc/run[@number=\"1\"]/data/table[@schema=\"time-sample\" and @sample-rate-micro-seconds=\"1000\" and @callstack=\"user\"]",
+        "--output",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/time-sample-1000us-user.xml"
+      ],
+      "status": "exported_not_analyzed",
+      "timeout_seconds": 120,
+      "pid": 25391,
+      "exit": 0,
+      "bytes": 12288336,
+      "sha256": "d6c9497770d9556fdca56860f5db3c32f7fc8b5d07a2166d160195562bc636df",
+      "joined": true,
+      "elapsed_seconds": 3.5552492080005322
+    },
+    {
+      "name": "context-switch",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+        "export",
+        "--input",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/AR-combined-MAIN-plan-capture-1.trace",
+        "--xpath",
+        "/trace-toc/run[@number=\"1\"]/data/table[@schema=\"context-switch\"]",
+        "--output",
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/context-switch.xml"
+      ],
+      "status": "exported_not_analyzed",
+      "timeout_seconds": 120,
+      "pid": 25410,
+      "exit": 0,
+      "bytes": 82698183,
+      "sha256": "7fa45fb149fd379155f0927af378da714fdee2c6e44296640f792418024d6ad4",
+      "joined": true,
+      "elapsed_seconds": 8.60520041699965
+    }
+  ]
+}

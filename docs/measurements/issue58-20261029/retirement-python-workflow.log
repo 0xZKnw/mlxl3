@@ -1,0 +1,30 @@
+{
+  "status": "passed_static_workflow_checks_not_remote_ci",
+  "workflow": ".github/workflows/rust.yml",
+  "sha256": "b6a20de9a8c0ca03c48179b8350b8cadfece595063c8193c06f982c3be87667e",
+  "yaml_loader": "PyYAML BaseLoader (preserves on key)",
+  "triggers": [
+    "pull_request",
+    "push:main"
+  ],
+  "jobs": [
+    "kani-flash-contracts",
+    "kani",
+    "native"
+  ],
+  "permissions": {
+    "contents": "read"
+  },
+  "removed_uniform_harness_absent": true,
+  "affected_python_checks_present": [
+    "tests/test_flash_pool_driver.py",
+    "tests/test_flash_shared_pool.py",
+    "tests/test_flash_profile.py",
+    "tests/test_flash_profile_export.py",
+    "tests/test_flash_slotstream_supervisor.py",
+    "scripts/benchmark-flash-bridge.py",
+    "tests/test_flash_benchmark.py"
+  ],
+  "production_secret_references_present": false,
+  "remote_ci_executed": false
+}

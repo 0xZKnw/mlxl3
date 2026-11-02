@@ -1,0 +1,66 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+  "matrix_sha256": "437a3a23420f299e80b61109c45ba7a33a5a050f5aa5a0ad7a212c7c79780508",
+  "commands": [
+    {
+      "name": "s4e-draft-commits-resume",
+      "command": [
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s4e-tests",
+        "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+        "MLXL3_SSD_GPU_HOT": "1",
+        "MLXL3_SSD_GPU_HOT_WIDE": "1",
+        "MLXL3_FLASH_MULTI_TOKEN": "1",
+        "MLXL3_SSD_UNIQUE_COHORT": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+        "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+        "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+        "MLXL3_FLASH_DRAFT_WIDTH": "1",
+        "MLXL3_FLASH_FORECAST_HC": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "2",
+        "MLXL3_SSD_PREFETCH_PIPELINE": "1",
+        "MLXL3_SSD_PREFETCH_EARLY": "1"
+      },
+      "native_test": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "expected_exit": 0,
+      "timeout_seconds": 900,
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   247407.\nPages active:                                 424015.\nPages inactive:                               404544.\nPages speculative:                             26363.\nPages throttled:                                   0.\nPages wired down:                             160137.\nPages purgeable:                               10464.\n\"Translation faults\":                     1035438093.\nPages copy-on-write:                        46805590.\nPages zero filled:                        1108985119.\nPages reactivated:                          85406256.\nPages purged:                               11787918.\nFile-backed pages:                            527561.\nAnonymous pages:                              327361.\nPages stored in compressor:                   432881.\nPages occupied by compressor:                 256232.\nDecompressions:                            170950953.\nCompressions:                              196738153.\nPageins:                                  1349464964.\nPageouts:                                     220657.\nSwapins:                                      237022.\nSwapouts:                                     448468.\nPages tagged:                                 112556.\nPages tagged resident:                         83914.\nPages tagged compressed:                       28642.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4517.\nPages tag-storage free:                         2976.\nPages tag-storage non-tag pageable:            41468.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    4400256.\nTagged compressions:                         5029714.\nTagged decompressions:                       4823881.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 1226.06M  free = 821.94M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 4053516288,
+          "File-backed pages": 8643559424,
+          "Pages occupied by compressor": 4198105088,
+          "Swapins": 3883368448,
+          "Swapouts": 7347699712
+        }
+      },
+      "executable_sha256": "e0102bdc813bc1b136caad40223a7a275b5e8b39f4922d8e9ec0fd11ecc468b5",
+      "pid": 38967,
+      "trigger_vm_bytes": {
+        "Pages free": 5918359552,
+        "File-backed pages": 5414191104,
+        "Pages occupied by compressor": 4892295168,
+        "Swapins": 3883368448,
+        "Swapouts": 7348158464
+      },
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "error": "AssertionError('new swapout')"
+    }
+  ],
+  "error": "PermissionError(1, 'Operation not permitted')"
+}

@@ -1,0 +1,75 @@
+{
+  "experiment": "POSTP08-COMPOSE-01",
+  "status": "stopped_by_user_switch_to_second_proposal",
+  "quality_plans": 9,
+  "bridge_plans": 12,
+  "speed_plans": 24,
+  "arms": {
+    "A": "stock",
+    "G": "GDN constants",
+    "F": "F02",
+    "C": "GDN+F02"
+  },
+  "order_per_mode": "AGFCCFGA",
+  "same_original_anchor": true,
+  "maximum_new_swapout_bytes": 33554432,
+  "already_observed_new_swapout_bytes": 15400960,
+  "cli": {
+    "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-compose-20261101/engine/prototype-engine",
+    "sha256": "2b0ab6951ef850baa2bc728bcd19060edfc8ac69bbf598cd230d5bb5452ff838",
+    "bytes": 10723344
+  },
+  "libtest": {
+    "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-gdn-constants-20261101/libtest-v2/prototype-engine",
+    "sha256": "605f18cd29014964ba4781d64a88fb1af29432ee09429d59b7e3667dcd1e6005",
+    "bytes": 11125072
+  },
+  "pending": [],
+  "new_native_code_change": false,
+  "installed_app_changed": false,
+  "quality_completed": [
+    "compose-quality-G-oracle",
+    "compose-quality-G-pair",
+    "compose-quality-G-mtp",
+    "compose-quality-G-dflash",
+    "compose-quality-C-oracle",
+    "compose-quality-C-pair",
+    "compose-quality-C-mtp",
+    "compose-quality-C-dflash",
+    "compose-quality-C-components48"
+  ],
+  "bench_completed": [
+    "compose-bridge17-AR-1-A",
+    "compose-bridge17-AR-2-G",
+    "compose-bridge17-AR-3-F",
+    "compose-bridge17-AR-4-C",
+    "compose-pilot128-AR-1-A",
+    "compose-pilot128-AR-2-G",
+    "compose-pilot128-AR-3-F",
+    "compose-pilot128-AR-4-C",
+    "compose-pilot128-AR-5-C",
+    "compose-pilot128-AR-6-F",
+    "compose-pilot128-AR-7-G",
+    "compose-pilot128-AR-8-A",
+    "compose-bridge17-MTP-1-A",
+    "compose-bridge17-MTP-2-G",
+    "compose-bridge17-MTP-3-F",
+    "compose-bridge17-MTP-4-C",
+    "compose-pilot128-MTP-1-A",
+    "compose-pilot128-MTP-2-G",
+    "compose-pilot128-MTP-3-F",
+    "compose-pilot128-MTP-4-C",
+    "compose-pilot128-MTP-5-C",
+    "compose-pilot128-MTP-6-F"
+  ],
+  "active": null,
+  "error": "KeyboardInterrupt()",
+  "stopped_at_utc": "2026-11-01T11:42:45.354025+00:00",
+  "interrupted": "compose-pilot128-MTP-7-G",
+  "unexecuted": [
+    "MTP128 final reference A8",
+    "all DF bridges and pilots"
+  ],
+  "decision": "GDN/F02 retained OFF as historical prototypes, no activation; user redirects to Cold readiness overlap",
+  "next_experiment": "POSTP08-COLD-READY-01"
+}

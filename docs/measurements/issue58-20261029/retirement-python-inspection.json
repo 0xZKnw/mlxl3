@@ -1,0 +1,162 @@
+{
+  "status": "passed_local_python_and_static_ci_checks",
+  "commands": [
+    {
+      "name": "tests",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_flash_pool_driver.py",
+        "tests/test_flash_shared_pool.py",
+        "tests/test_flash_profile.py",
+        "tests/test_flash_profile_export.py",
+        "tests/test_flash_slotstream_supervisor.py",
+        "tests/test_flash_benchmark.py"
+      ],
+      "stdin": null,
+      "exit_code": 0,
+      "seconds": 17.09231775000808,
+      "log": "docs/measurements/issue58-20261029/retirement-python-tests.log",
+      "passed": 344,
+      "skipped": 0
+    },
+    {
+      "name": "ruff-format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "tests/test_flash_pool_driver.py",
+        "tests/test_flash_shared_pool.py",
+        "tests/test_flash_profile.py",
+        "tests/test_flash_profile_export.py",
+        "tests/test_flash_slotstream_supervisor.py",
+        "tests/test_flash_benchmark.py",
+        "scripts/profile_flash.py",
+        "scripts/summarize_flash_profile.py",
+        "scripts/benchmark-flash-bridge.py",
+        "docs/measurements/issue58-20261029/pool-speed-driver.py",
+        "docs/measurements/slotstream-20261026/supervisor.py",
+        "docs/measurements/post-sushi-20261028/gpu-runner.py",
+        "tests/test_flash_memory_admission.py"
+      ],
+      "stdin": null,
+      "exit_code": 0,
+      "seconds": 0.062138583016349,
+      "log": "docs/measurements/issue58-20261029/retirement-python-ruff-format.log"
+    },
+    {
+      "name": "ruff-lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "tests/test_flash_pool_driver.py",
+        "tests/test_flash_shared_pool.py",
+        "tests/test_flash_profile.py",
+        "tests/test_flash_profile_export.py",
+        "tests/test_flash_slotstream_supervisor.py",
+        "tests/test_flash_benchmark.py",
+        "scripts/profile_flash.py",
+        "scripts/summarize_flash_profile.py",
+        "scripts/benchmark-flash-bridge.py",
+        "docs/measurements/issue58-20261029/pool-speed-driver.py",
+        "docs/measurements/slotstream-20261026/supervisor.py",
+        "docs/measurements/post-sushi-20261028/gpu-runner.py",
+        "tests/test_flash_memory_admission.py"
+      ],
+      "stdin": null,
+      "exit_code": 0,
+      "seconds": 0.027025499992305413,
+      "log": "docs/measurements/issue58-20261029/retirement-python-ruff-lint.log"
+    },
+    {
+      "name": "extract-format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "--stdin-filename",
+        "extract-current.py"
+      ],
+      "stdin": "docs/measurements/issue58-20261029/extract-current.txt",
+      "exit_code": 0,
+      "seconds": 0.022828250017482787,
+      "log": "docs/measurements/issue58-20261029/retirement-python-extract-format.log"
+    },
+    {
+      "name": "extract-lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "--select",
+        "F,E9",
+        "--stdin-filename",
+        "extract-current.py"
+      ],
+      "stdin": "docs/measurements/issue58-20261029/extract-current.txt",
+      "exit_code": 0,
+      "seconds": 0.023417084012180567,
+      "log": "docs/measurements/issue58-20261029/retirement-python-extract-lint.log"
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "docs/measurements/issue58-20261029/pool-speed-driver.py"
+      ],
+      "stdin": null,
+      "exit_code": 0,
+      "seconds": 0.023709000000962988,
+      "log": "docs/measurements/issue58-20261029/retirement-python-compile.log"
+    }
+  ],
+  "source_mutations": false,
+  "native_or_gpu_runs": false,
+  "workflow": {
+    "status": "passed_static_workflow_checks_not_remote_ci",
+    "workflow": ".github/workflows/rust.yml",
+    "sha256": "b6a20de9a8c0ca03c48179b8350b8cadfece595063c8193c06f982c3be87667e",
+    "yaml_loader": "PyYAML BaseLoader (preserves on key)",
+    "triggers": [
+      "pull_request",
+      "push:main"
+    ],
+    "jobs": [
+      "kani-flash-contracts",
+      "kani",
+      "native"
+    ],
+    "permissions": {
+      "contents": "read"
+    },
+    "removed_uniform_harness_absent": true,
+    "affected_python_checks_present": [
+      "tests/test_flash_pool_driver.py",
+      "tests/test_flash_shared_pool.py",
+      "tests/test_flash_profile.py",
+      "tests/test_flash_profile_export.py",
+      "tests/test_flash_slotstream_supervisor.py",
+      "scripts/benchmark-flash-bridge.py",
+      "tests/test_flash_benchmark.py"
+    ],
+    "production_secret_references_present": false,
+    "remote_ci_executed": false
+  },
+  "remaining_unverified": [
+    "remote GitHub run for this uncommitted tree",
+    "formal Python proof / symbolic checking not rerun (no executable change in this task)",
+    "native/GPU validation owned by root"
+  ]
+}

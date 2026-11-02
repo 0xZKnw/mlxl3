@@ -1,0 +1,301 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:780:29
+    |
+780 |                     None => assert!(!(2..24).contains(&rows)),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:844:21
+    |
+844 |             None => assert!(!(1..=8).contains(&time)),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/flash_support.rs:494:25
+    |
+494 |                 None => assert!(!(10..=512).contains(&capacity)),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `step`
+    --> native/src/flash_support.rs:1567:17
+     |
+1567 |               for step in 0..10_000 {
+     |                   ^^^^
+...
+1593 | /                             assert!(
+1594 | |                                 !(free && matches!(slots[slot], Slot::Ready(_))),
+1595 | |                                 "free slot ignored: capacity={capacity}, step={step}"
+1596 | |                             );
+     | |_____________________________- you might have meant to use string interpolation in this string literal
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+     |
+1567 |             for _step in 0..10_000 {
+     |                 +
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.09s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 6`
+Checking harness flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/8d2841ac8d740e8f/out/mlxl3_native-8d2841ac8d740e8f__RNvNtNtCs6eYgyRC0yTY_12mlxl3_native19flash_cache_profile6shared63global_frequency_aging_matches_wide_arithmetic_for_all_counters.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 1040 column 15 function std::option::Option::<u32>::unwrap_or thread 0
+Runtime Symex: 0.00566258s
+size of program expression: 824 steps
+slicing removed 375 assignments
+Generated 42 VCC(s), 18 remaining after simplification
+Runtime Postprocess Equation: 5.5583e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00738829s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.000173458s
+Solving with CaDiCaL 3.0.0
+16213 variables, 66477 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0323313s
+Runtime decision procedure: 0.0399191s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+16214 variables, 66478 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00689004s
+Runtime decision procedure: 0.00706546s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+16215 variables, 66479 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00691525s
+Runtime decision procedure: 0.00706325s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+16216 variables, 66480 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0294428s
+Runtime decision procedure: 0.0296007s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+16217 variables, 66481 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0446798s
+Runtime decision procedure: 0.0449163s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+16218 variables, 66482 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.0351695s
+Runtime decision procedure: 0.0352438s
+
+RESULTS:
+Check 1: std::option::Option::<u32>::unwrap_or.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1040:15 in function std::option::Option::<u32>::unwrap_or
+
+Check 2: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 3: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 4: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to shift left with overflow"
+	 - Location: native/src/flash_cache_profile/shared.rs:341:39 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 5: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_cache_profile/shared.rs:341:20 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 6: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_cache_profile/shared.rs:341:20 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 7: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(actual) == expected && actual <= count"
+	 - Location: native/src/flash_cache_profile/shared.rs:342:5 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 8: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: shift == 32 && count > 0"
+	 - Location: native/src/flash_cache_profile/shared.rs:343:5 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 9: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: shift == 0 && count == u32::MAX"
+	 - Location: native/src/flash_cache_profile/shared.rs:344:5 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 10: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: shift == 31 && count == u32::MAX"
+	 - Location: native/src/flash_cache_profile/shared.rs:345:5 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 11: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: epoch < source_epoch && count > 0"
+	 - Location: native/src/flash_cache_profile/shared.rs:346:5 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 12: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 13: core::num::<impl u32>::unchecked_shr.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:2281:17 in function core::num::<impl u32>::unchecked_shr
+
+Check 14: flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_cache_profile/shared.rs:341:20 in function flash_cache_profile::shared::global_frequency_aging_matches_wide_arithmetic_for_all_counters
+
+Check 15: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 16: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 17: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 18: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 19: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 20: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 21: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 22: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 23: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 24: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 25: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 26: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+
+SUMMARY:
+ ** 0 of 22 failed (1 unreachable)
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.21396913s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

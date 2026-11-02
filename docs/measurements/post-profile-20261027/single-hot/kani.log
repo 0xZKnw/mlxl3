@@ -1,0 +1,181 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:780:29
+    |
+780 |                     None => assert!(!(2..24).contains(&rows)),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:844:21
+    |
+844 |             None => assert!(!(1..=8).contains(&time)),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/flash_support.rs:494:25
+    |
+494 |                 None => assert!(!(10..=512).contains(&capacity)),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/linear.rs:2375:43
+     |
+2375 |             with_lane_order_test(true, || assert!(lane_order_enabled()));
+     |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/linear.rs:2534:44
+     |
+2534 |             with_grouped_mb3_test(true, || assert!(grouped_mb3_enabled()));
+     |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:2853:43
+     |
+2853 |             with_dense_mlp_batch(true, || assert!(dense_mlp_batch_enabled()));
+     |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3226:24
+     |
+3226 |             Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3227:24
+     |
+3227 |             Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `step`
+    --> native/src/flash_support.rs:1567:17
+     |
+1567 |               for step in 0..10_000 {
+     |                   ^^^^
+...
+1593 | /                             assert!(
+1594 | |                                 !(free && matches!(slots[slot], Slot::Ready(_))),
+1595 | |                                 "free slot ignored: capacity={capacity}, step={step}"
+1596 | |                             );
+     | |_____________________________- you might have meant to use string interpolation in this string literal
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+     |
+1567 |             for _step in 0..10_000 {
+     |                 +
+
+warning: unused variable: `index`
+    --> native/src/linear.rs:2687:18
+     |
+2687 |               for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                    ^^^^^
+2688 | /                 assert_eq!(
+2689 | |                     left.to_f16_bits()?,
+2690 | |                     right.to_f16_bits()?,
+2691 | |                     "grouped batch M={matrix_rows} output {index} differs"
+2692 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+2687 |             for (_index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                  +
+
+warning: unused variable: `name`
+    --> native/src/qwen35.rs:3740:18
+     |
+3740 |               for (name, actual, expected) in [
+     |                    ^^^^
+...
+3746 | /                 assert_eq!(
+3747 | |                     actual.to_f16_bits()?,
+3748 | |                     expected.to_f16_bits()?,
+3749 | |                     "fused GDN {name} differs at T={time}"
+3750 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+3740 |             for (_name, actual, expected) in [
+     |                  +
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.32s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 5`
+error: Failed to match the following harness(es):
+resident_hot_uses_one_submission_and_preserves_cold_mixed_and_hot_results
+Please specify the fully-qualified name of a harness.

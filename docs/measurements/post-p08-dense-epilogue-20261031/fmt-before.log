@@ -1,0 +1,807 @@
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/lib.rs:10:
+     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
+     smallm_kernel_key,
+ };
+-pub mod dflash;
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) mod dense_epilogue;
++pub mod dflash;
+ #[cfg(feature = "mlx")]
+ pub(crate) mod embedding;
+ #[cfg(any(test, kani))]
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:10:
+ use anyhow::{Context, Result, ensure};
+ use half::f16;
+ use serde_json::{Value, json};
+-use std::{fs, path::{Path, PathBuf}, time::Instant};
++use std::{
++    fs,
++    path::{Path, PathBuf},
++    time::Instant,
++};
+ 
+ const WIDTH: usize = 2560;
+ const CAPTURE_LIMIT: u64 = 3 * 1024 * 1024 * 1024 / 2;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:29:
+         .mul(svh)
+ }
+ 
+-fn compare(actual: &Array, expected: &Array, rows: i32, width: i32, dtype: Dtype, finite: bool) -> Result<Vec<u8>> {
+-    let count = usize::try_from(rows)?.checked_mul(usize::try_from(width)?).context("output count overflow")?;
++fn compare(
++    actual: &Array,
++    expected: &Array,
++    rows: i32,
++    width: i32,
++    dtype: Dtype,
++    finite: bool,
++) -> Result<Vec<u8>> {
++    let count = usize::try_from(rows)?
++        .checked_mul(usize::try_from(width)?)
++        .context("output count overflow")?;
+     ensure!(count > 0);
+     for value in [actual, expected] {
+-        ensure!(value.shape() == [rows, width] && value.dtype() == dtype, "wrong F02 output metadata");
++        ensure!(
++            value.shape() == [rows, width] && value.dtype() == dtype,
++            "wrong F02 output metadata"
++        );
+         let values = value.to_f32()?;
+         ensure!(values.len() == count, "empty/incomplete F02 output");
+         if finite {
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:40:
+-            ensure!(values.iter().all(|v| v.is_finite()), "nonfinite finite-fixture result");
++            ensure!(
++                values.iter().all(|v| v.is_finite()),
++                "nonfinite finite-fixture result"
++            );
+         }
+     }
+     let actual_bytes = actual.to_bytes()?;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:44:
+     let expected_bytes = expected.to_bytes()?;
+-    let size = match dtype { Dtype::Float16 => 2, Dtype::Float32 => 4, _ => anyhow::bail!("unsupported test output dtype") };
++    let size = match dtype {
++        Dtype::Float16 => 2,
++        Dtype::Float32 => 4,
++        _ => anyhow::bail!("unsupported test output dtype"),
++    };
+     ensure!(actual_bytes.len() == count * size && expected_bytes.len() == actual_bytes.len());
+     if finite {
+         if actual_bytes != expected_bytes {
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:49:
+-            let index = actual_bytes.as_chunks::<2>().0.iter()
++            let index = actual_bytes
++                .as_chunks::<2>()
++                .0
++                .iter()
+                 .zip(expected_bytes.as_chunks::<2>().0.iter())
+-                .position(|(a, b)| a != b).context("missing mismatch index")?;
+-            eprintln!("F02_FIRST_MISMATCH rows={rows} width={width} dtype={dtype:?} halfword={index} actual={:?} expected={:?}", &actual_bytes[index*2..index*2+2], &expected_bytes[index*2..index*2+2]);
++                .position(|(a, b)| a != b)
++                .context("missing mismatch index")?;
++            eprintln!(
++                "F02_FIRST_MISMATCH rows={rows} width={width} dtype={dtype:?} halfword={index} actual={:?} expected={:?}",
++                &actual_bytes[index * 2..index * 2 + 2],
++                &expected_bytes[index * 2..index * 2 + 2]
++            );
+         }
+-        ensure!(actual_bytes == expected_bytes, "F02 differs bytewise from stock/independent oracle");
++        ensure!(
++            actual_bytes == expected_bytes,
++            "F02 differs bytewise from stock/independent oracle"
++        );
+     } else {
+         ensure!(dtype == Dtype::Float16);
+         let mut nonfinite = 0;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:58:
+-        for (a, b) in actual_bytes.as_chunks::<2>().0.iter().zip(expected_bytes.as_chunks::<2>().0.iter()) {
++        for (a, b) in actual_bytes
++            .as_chunks::<2>()
++            .0
++            .iter()
++            .zip(expected_bytes.as_chunks::<2>().0.iter())
++        {
+             let a = u16::from_ne_bytes(*a);
+             let b = u16::from_ne_bytes(*b);
+-            if !f16::from_bits(b).is_finite() { nonfinite += 1; }
+-            ensure!(a == b || (f16::from_bits(a).is_nan() && f16::from_bits(b).is_nan()), "nonfinite class/sign or finite bytes differ");
++            if !f16::from_bits(b).is_finite() {
++                nonfinite += 1;
++            }
++            ensure!(
++                a == b || (f16::from_bits(a).is_nan() && f16::from_bits(b).is_nan()),
++                "nonfinite class/sign or finite bytes differ"
++            );
+         }
+         ensure!(nonfinite > 0, "nonfinite fixture was vacuous");
+     }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:71:
+     reset_kernel_requests_for_test();
+     let readbacks = Array::host_readbacks_for_test();
+     let actual = apply(parts, svh, rows)?.context("eligible F02 unexpectedly fell back")?;
+-    ensure!(Array::host_readbacks_for_test() == readbacks, "production F02 read back to host");
+-    ensure!(kernel_requests_for_test() == 1 && last_rows_for_test() == rows as usize, "F02 request path not reached once");
++    ensure!(
++        Array::host_readbacks_for_test() == readbacks,
++        "production F02 read back to host"
++    );
++    ensure!(
++        kernel_requests_for_test() == 1 && last_rows_for_test() == rows as usize,
++        "F02 request path not reached once"
++    );
+     let reference = stock(parts, svh, rows)?;
+-    let bytes = compare(&actual, &reference, rows, WIDTH as i32, Dtype::Float16, finite)?;
+-    ensure!([parts.to_bytes()?, svh.to_bytes()?] == before, "F02 changed an input alias");
++    let bytes = compare(
++        &actual,
++        &reference,
++        rows,
++        WIDTH as i32,
++        Dtype::Float16,
++        finite,
++    )?;
++    ensure!(
++        [parts.to_bytes()?, svh.to_bytes()?] == before,
++        "F02 changed an input alias"
++    );
+     Ok(bytes)
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:82:
+ fn scales() -> Result<Array> {
+-    let choices = [0.5, -1.5, 2.0, 0.25, -0.75, f16::from_bits(0x3c01).to_f32(), 0.0, -0.0];
+-    let bits = (0..WIDTH).map(|i| f16::from_f32(choices[i % choices.len()]).to_bits()).collect::<Vec<_>>();
++    let choices = [
++        0.5,
++        -1.5,
++        2.0,
++        0.25,
++        -0.75,
++        f16::from_bits(0x3c01).to_f32(),
++        0.0,
++        -0.0,
++    ];
++    let bits = (0..WIDTH)
++        .map(|i| f16::from_f32(choices[i % choices.len()]).to_bits())
++        .collect::<Vec<_>>();
+     Array::from_f16_bits(&bits, &[WIDTH as i32])
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:88:
+ fn parts_fixture(rows: i32, scenario: usize) -> Result<Array> {
+     let count = rows as usize * 2 * WIDTH;
+-    let anchors = [0.0, -0.0, 0.5, -0.5, f32::from_bits(0x3f80_1000), f32::from_bits(0x3f80_1001), -f32::from_bits(0x3f80_1001),
+-        f32::from_bits(0x3f80_0fff), f32::from_bits(0x3f80_1001),
+-        f16::from_bits(0x0400).to_f32(), -f16::from_bits(0x0400).to_f32(), f16::from_bits(1).to_f32(), -f16::from_bits(1).to_f32(),
+-        1.0 / 3.0, -2.5003, 7.001];
++    let anchors = [
++        0.0,
++        -0.0,
++        0.5,
++        -0.5,
++        f32::from_bits(0x3f80_1000),
++        f32::from_bits(0x3f80_1001),
++        -f32::from_bits(0x3f80_1001),
++        f32::from_bits(0x3f80_0fff),
++        f32::from_bits(0x3f80_1001),
++        f16::from_bits(0x0400).to_f32(),
++        -f16::from_bits(0x0400).to_f32(),
++        f16::from_bits(1).to_f32(),
++        -f16::from_bits(1).to_f32(),
++        1.0 / 3.0,
++        -2.5003,
++        7.001,
++    ];
+     let mut values = Vec::with_capacity(count);
+     for row in 0..rows as usize {
+         for plane in 0..2 {
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:98:
+                 let index = column + row * 19;
+                 let a = anchors[index % anchors.len()];
+                 let value = match scenario {
+-                    0 => if plane == 0 { a } else { anchors[(index * 7 + 5) % anchors.len()] * 0.125 },
+-                    1 => if plane == 0 { if column % 2 == 0 { 65504.0 } else { -65504.0 } }
+-                         else { (if column % 2 == 0 { -65504.0 } else { 65504.0 }) + ((index % 7) as f32 - 3.0) * 0.00390625 },
+-                    2 => if plane == 0 { f32::from_bits(0x3300_0000 + (index % 7) as u32) * if index % 2 == 0 { 1.0 } else { -1.0 } } else { a * f16::from_bits(1).to_f32() },
+-                    3 => if (column / 128 + row) % 2 == 0 { -0.0 } else { 0.0 },
++                    0 => {
++                        if plane == 0 {
++                            a
++                        } else {
++                            anchors[(index * 7 + 5) % anchors.len()] * 0.125
++                        }
++                    }
++                    1 => {
++                        if plane == 0 {
++                            if column % 2 == 0 { 65504.0 } else { -65504.0 }
++                        } else {
++                            (if column % 2 == 0 { -65504.0 } else { 65504.0 })
++                                + ((index % 7) as f32 - 3.0) * 0.00390625
++                        }
++                    }
++                    2 => {
++                        if plane == 0 {
++                            f32::from_bits(0x3300_0000 + (index % 7) as u32)
++                                * if index % 2 == 0 { 1.0 } else { -1.0 }
++                        } else {
++                            a * f16::from_bits(1).to_f32()
++                        }
++                    }
++                    3 => {
++                        if (column / 128 + row) % 2 == 0 {
++                            -0.0
++                        } else {
++                            0.0
++                        }
++                    }
+                     _ => anyhow::bail!("unknown finite scenario"),
+                 };
+                 values.push(value);
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:109:
+             }
+         }
+     }
+-    let shape = if rows == 1 { vec![2, WIDTH as i32] } else { vec![rows, 2, WIDTH as i32] };
++    let shape = if rows == 1 {
++        vec![2, WIDTH as i32]
++    } else {
++        vec![rows, 2, WIDTH as i32]
++    };
+     Array::from_f32(&values, &shape)
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:123:
+             check_parts(&parts_fixture(rows, scenario)?, &svh, rows, true)?;
+             finite_cases += 1;
+         }
+-        let shape = if rows == 1 { vec![WIDTH as i32, 2] } else { vec![rows, WIDTH as i32, 2] };
+-        let values = (0..rows as usize * 2 * WIDTH).map(|i| ((i * 37 % 257) as f32 - 128.0) / 64.0).collect::<Vec<_>>();
++        let shape = if rows == 1 {
++            vec![WIDTH as i32, 2]
++        } else {
++            vec![rows, WIDTH as i32, 2]
++        };
++        let values = (0..rows as usize * 2 * WIDTH)
++            .map(|i| ((i * 37 % 257) as f32 - 128.0) / 64.0)
++            .collect::<Vec<_>>();
+         let source = Array::from_f32(&values, &shape)?;
+         let strided = source.transpose(if rows == 1 { &[1, 0] } else { &[0, 2, 1] })?;
+-        let scale_source = Array::from_f16_bits(&(0..2 * WIDTH).map(|i| f16::from_f32(if i % 2 == 0 { 0.75 } else { -1.25 }).to_bits()).collect::<Vec<_>>(), &[WIDTH as i32, 2])?;
++        let scale_source = Array::from_f16_bits(
++            &(0..2 * WIDTH)
++                .map(|i| f16::from_f32(if i % 2 == 0 { 0.75 } else { -1.25 }).to_bits())
++                .collect::<Vec<_>>(),
++            &[WIDTH as i32, 2],
++        )?;
+         let scale_view = scale_source.slice(1, 0, 1)?.reshape(&[WIDTH as i32])?;
+         check_parts(&strided, &scale_view, rows, true)?;
+         finite_cases += 1;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:138:
+             values.extend(std::iter::repeat_n((row + 1) as f32, WIDTH));
+             values.extend(std::iter::repeat_n(0.0, WIDTH));
+         }
+-        let shape = if rows == 1 { vec![2, WIDTH as i32] } else { vec![rows, 2, WIDTH as i32] };
++        let shape = if rows == 1 {
++            vec![2, WIDTH as i32]
++        } else {
++            vec![rows, 2, WIDTH as i32]
++        };
+         let parts = Array::from_f32(&values, &shape)?;
+-        let half_scale = Array::from_f16_bits(&vec![f16::from_f32(0.5).to_bits(); WIDTH], &[WIDTH as i32])?;
++        let half_scale =
++            Array::from_f16_bits(&vec![f16::from_f32(0.5).to_bits(); WIDTH], &[WIDTH as i32])?;
+         let actual = check_parts(&parts, &half_scale, rows, true)?;
+-        let expected = (0..rows as usize * WIDTH).flat_map(|i| {
+-            let value = if i % 128 == 0 { f16::from_f32((i / WIDTH + 1) as f32 * 128.0 * hadamard_scale()).to_f32() * 0.5 } else { 0.0 };
+-            f16::from_f32(value).to_bits().to_ne_bytes()
+-        }).collect::<Vec<_>>();
+-        ensure!(actual == expected, "constant-vector independent oracle differs");
++        let expected = (0..rows as usize * WIDTH)
++            .flat_map(|i| {
++                let value = if i % 128 == 0 {
++                    f16::from_f32((i / WIDTH + 1) as f32 * 128.0 * hadamard_scale()).to_f32() * 0.5
++                } else {
++                    0.0
++                };
++                f16::from_f32(value).to_bits().to_ne_bytes()
++            })
++            .collect::<Vec<_>>();
++        ensure!(
++            actual == expected,
++            "constant-vector independent oracle differs"
++        );
+         finite_cases += 1;
+ 
+-        for (label, value, other) in [("nan", f32::from_bits(0x7fc0_1234), 0.0), ("positive_inf", f32::INFINITY, 0.0), ("negative_inf", f32::NEG_INFINITY, 0.0), ("opposed_infinity", f32::INFINITY, f32::NEG_INFINITY)] {
++        for (label, value, other) in [
++            ("nan", f32::from_bits(0x7fc0_1234), 0.0),
++            ("positive_inf", f32::INFINITY, 0.0),
++            ("negative_inf", f32::NEG_INFINITY, 0.0),
++            ("opposed_infinity", f32::INFINITY, f32::NEG_INFINITY),
++        ] {
+             let mut values = vec![0.25; rows as usize * 2 * WIDTH];
+             values[3] = value;
+             values[WIDTH + 3] = other;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:156:
+             let parts = Array::from_f32(&values, &shape)?;
+-            check_parts(&parts, &svh, rows, false).with_context(|| format!("nonfinite case {label} B{rows}"))?;
++            check_parts(&parts, &svh, rows, false)
++                .with_context(|| format!("nonfinite case {label} B{rows}"))?;
+         }
+-        let nonfinite_scales = (0..WIDTH).map(|i| [0x7c00, 0xfc00, 0x7e01][i % 3]).collect::<Vec<_>>();
++        let nonfinite_scales = (0..WIDTH)
++            .map(|i| [0x7c00, 0xfc00, 0x7e01][i % 3])
++            .collect::<Vec<_>>();
+         let nonfinite_scales = Array::from_f16_bits(&nonfinite_scales, &[WIDTH as i32])?;
+         check_parts(&parts_fixture(rows, 0)?, &nonfinite_scales, rows, false)?;
+     }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:163:
+-    println!("F02_PARTIALS finite_cases={finite_cases} nonfinite_cases=10 rows=1,2 status=exact_finite_and_nonfinite_classification_not_global_proof");
++    println!(
++        "F02_PARTIALS finite_cases={finite_cases} nonfinite_cases=10 rows=1,2 status=exact_finite_and_nonfinite_classification_not_global_proof"
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:174:
+         (parts.reshape(&[1, 2, WIDTH as i32])?, 1),
+         (parts_fixture(2, 0)?, 1),
+         (parts.try_clone()?, 2),
+-        (Array::zeros_dtype(&[3, 2, WIDTH as i32], Dtype::Float32)?, 3),
+-        (Array::zeros_dtype(&[2, WIDTH as i32 - 1], Dtype::Float32)?, 1),
++        (
++            Array::zeros_dtype(&[3, 2, WIDTH as i32], Dtype::Float32)?,
++            3,
++        ),
++        (
++            Array::zeros_dtype(&[2, WIDTH as i32 - 1], Dtype::Float32)?,
++            1,
++        ),
+         (parts.astype(Dtype::Float16)?, 1),
+         (Array::zeros_dtype(&[2, WIDTH as i32], Dtype::Int32)?, 1),
+     ];
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:183:
+     for (value, rows) in &wrong_parts {
+         reset_kernel_requests_for_test();
+         let readbacks = Array::host_readbacks_for_test();
+-        ensure!(apply(value, &svh, *rows)?.is_none(), "unsupported parts accepted");
++        ensure!(
++            apply(value, &svh, *rows)?.is_none(),
++            "unsupported parts accepted"
++        );
+         ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+         refused += 1;
+     }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:194:
+         ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+         refused += 1;
+     }
+-    for value in [svh.reshape(&[1, WIDTH as i32])?, svh.astype(Dtype::Float32)?, Array::zeros_dtype(&[WIDTH as i32 - 1], Dtype::Float16)?] {
++    for value in [
++        svh.reshape(&[1, WIDTH as i32])?,
++        svh.astype(Dtype::Float32)?,
++        Array::zeros_dtype(&[WIDTH as i32 - 1], Dtype::Float16)?,
++    ] {
+         reset_kernel_requests_for_test();
+         let readbacks = Array::host_readbacks_for_test();
+-        ensure!(apply(&parts, &value, 1)?.is_none(), "unsupported scale accepted");
++        ensure!(
++            apply(&parts, &value, 1)?.is_none(),
++            "unsupported scale accepted"
++        );
+         ensure!(kernel_requests_for_test() == 0 && Array::host_readbacks_for_test() == readbacks);
+         refused += 1;
+     }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:222:
+ fn fixture(root: &Path, value: &Value, width: i32) -> Result<Array> {
+     ensure!(value["count"] == width, "fixture cardinality differs");
+     let shape = value["shape"].as_array().context("missing fixture shape")?;
+-    let product = shape.iter().try_fold(1u64, |n, d| n.checked_mul(d.as_u64()?)).context("invalid fixture shape")?;
++    let product = shape
++        .iter()
++        .try_fold(1u64, |n, d| n.checked_mul(d.as_u64()?))
++        .context("invalid fixture shape")?;
+     ensure!(product == width as u64);
+     let bytes = fs::read(root.join(value["file"].as_str().context("missing fixture filename")?))?;
+-    ensure!(bytes.len() == width as usize * 4, "fixture file byte count differs");
++    ensure!(
++        bytes.len() == width as usize * 4,
++        "fixture file byte count differs"
++    );
+     let array = Array::from_bytes(&bytes, &[1, width], Dtype::Float32)?;
+     let values = array.to_f32()?;
+-    ensure!(values.len() == width as usize && values.iter().all(|v| v.is_finite()) && values.iter().any(|v| *v != 0.0), "empty/nonfinite/vacuous independent fixture");
++    ensure!(
++        values.len() == width as usize
++            && values.iter().all(|v| v.is_finite())
++            && values.iter().any(|v| *v != 0.0),
++        "empty/nonfinite/vacuous independent fixture"
++    );
+     Ok(array)
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:236:
+     let root = PathBuf::from(std::env::var("MLXL3_FLASH_PROJECTION_REFERENCE")?);
+     let attention_root = PathBuf::from(std::env::var("MLXL3_FLASH_ATTENTION_REFERENCE")?);
+     let projections: Value = serde_json::from_reader(fs::File::open(root.join("reference.json"))?)?;
+-    let attention: Value = serde_json::from_reader(fs::File::open(attention_root.join("reference.json"))?)?;
+-    ensure!(projections["status"] == "complete" && projections["projections"].as_array().is_some_and(|v| v.len() == 20) && attention["status"] == "complete" && attention["mode"] == "eval");
++    let attention: Value =
++        serde_json::from_reader(fs::File::open(attention_root.join("reference.json"))?)?;
++    ensure!(
++        projections["status"] == "complete"
++            && projections["projections"]
++                .as_array()
++                .is_some_and(|v| v.len() == 20)
++            && attention["status"] == "complete"
++            && attention["mode"] == "eval"
++    );
+     let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+     ensure!(checkpoint.model_type == "qwen4_exp");
+     let out = &projections["projections"][8];
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:244:
+     let qkv = &projections["projections"][4];
+-    for (entry, prefix, width, output) in [(out, "model.language_model.layers.0.linear_attn.out_proj", 6144, 2560), (qkv, "model.language_model.layers.0.linear_attn.in_proj_qkv", 2560, 10240)] {
+-        ensure!(entry["prefix"] == prefix && entry["dtype"] == "mlx.core.float16" && entry["input_width"] == width && entry["output_width"] == output);
++    for (entry, prefix, width, output) in [
++        (
++            out,
++            "model.language_model.layers.0.linear_attn.out_proj",
++            6144,
++            2560,
++        ),
++        (
++            qkv,
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            2560,
++            10240,
++        ),
++    ] {
++        ensure!(
++            entry["prefix"] == prefix
++                && entry["dtype"] == "mlx.core.float16"
++                && entry["input_width"] == width
++                && entry["output_width"] == output
++        );
+     }
+     let qsa = &attention["attention"]["15"][0]["stages"];
+     let mut result = Vec::new();
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:250:
+     for (name, prefix, source_root, input, oracle, width, output, qkv) in [
+-        ("gdn0-out", "model.language_model.layers.0.linear_attn.out_proj", &root, &out["input"], &out["output"], 6144, 2560, false),
+-        ("qsa15-out", "model.language_model.layers.15.self_attn.o_proj", &attention_root, &qsa["gated"], &qsa["out"], 6144, 2560, false),
+-        ("gdn0-qkv", "model.language_model.layers.0.linear_attn.in_proj_qkv", &root, &qkv["input"], &qkv["output"], 2560, 10240, true),
++        (
++            "gdn0-out",
++            "model.language_model.layers.0.linear_attn.out_proj",
++            &root,
++            &out["input"],
++            &out["output"],
++            6144,
++            2560,
++            false,
++        ),
++        (
++            "qsa15-out",
++            "model.language_model.layers.15.self_attn.o_proj",
++            &attention_root,
++            &qsa["gated"],
++            &qsa["out"],
++            6144,
++            2560,
++            false,
++        ),
++        (
++            "gdn0-qkv",
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            &root,
++            &qkv["input"],
++            &qkv["output"],
++            2560,
++            10240,
++            true,
++        ),
+     ] {
+-        let input_shape = if name == "qsa15-out" { json!([1, 1, width]) } else { json!([1, width]) };
+-        let output_shape = if name == "qsa15-out" { json!([1, 1, output]) } else { json!([1, output]) };
+-        ensure!(input["shape"] == input_shape && oracle["shape"] == output_shape, "wrong independent fixture layout for {name}");
++        let input_shape = if name == "qsa15-out" {
++            json!([1, 1, width])
++        } else {
++            json!([1, width])
++        };
++        let output_shape = if name == "qsa15-out" {
++            json!([1, 1, output])
++        } else {
++            json!([1, output])
++        };
++        ensure!(
++            input["shape"] == input_shape && oracle["shape"] == output_shape,
++            "wrong independent fixture layout for {name}"
++        );
+         let input_f32 = fixture(source_root, input, width)?;
+         let input = input_f32.astype(Dtype::Float16)?;
+-        ensure!(input.astype(Dtype::Float32)?.to_bytes()? == input_f32.to_bytes()?, "fixture input lost F16 representability");
++        ensure!(
++            input.astype(Dtype::Float32)?.to_bytes()? == input_f32.to_bytes()?,
++            "fixture input lost F16 representability"
++        );
+         let oracle = fixture(source_root, oracle, output)?;
+         let mut linear = Exl3Linear::from_checkpoint(&checkpoint, prefix)?;
+-        ensure!(linear.dense_epilogue == expected_loaded_flag, "F02 option was not loaded from the environment");
+-        ensure!(linear.reference_accumulation && linear.k == 4 && linear.cb == Codebook::Mul1 && linear.simdgroups == 4 && linear.bias.is_none());
++        ensure!(
++            linear.dense_epilogue == expected_loaded_flag,
++            "F02 option was not loaded from the environment"
++        );
++        ensure!(
++            linear.reference_accumulation
++                && linear.k == 4
++                && linear.cb == Codebook::Mul1
++                && linear.simdgroups == 4
++                && linear.bias.is_none()
++        );
+         // Exercise the existing batch dispatcher, as enabled in the runtime baseline.
+         linear.flash_batch = true;
+         input.eval()?;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:268:
+-        result.push(Case { name, prefix, width, output, dtype: if qkv { Dtype::Float16 } else { Dtype::Float32 }, linear, input, oracle, qkv });
++        result.push(Case {
++            name,
++            prefix,
++            width,
++            output,
++            dtype: if qkv { Dtype::Float16 } else { Dtype::Float32 },
++            linear,
++            input,
++            oracle,
++            qkv,
++        });
+     }
+     Ok(result)
+ }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:280:
+     let mut values = Vec::new();
+     for row in 0..rows {
+         values.extend(source.iter().enumerate().map(|(i, &v)| {
+-            let value = if row == 0 { v } else { -v * 0.5 + ((i + row as usize) % 13) as f32 / 512.0 };
+-            if dtype == Dtype::Float32 { value + 0.000123 } else { f16::from_f32(value).to_f32() }
++            let value = if row == 0 {
++                v
++            } else {
++                -v * 0.5 + ((i + row as usize) % 13) as f32 / 512.0
++            };
++            if dtype == Dtype::Float32 {
++                value + 0.000123
++            } else {
++                f16::from_f32(value).to_f32()
++            }
+         }));
+     }
+     if dtype == Dtype::Float32 {
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:288:
+-        ensure!(values.iter().any(|&v| f16::from_f32(v).to_f32() != v), "F32 fixture failed to exercise its cast");
++        ensure!(
++            values.iter().any(|&v| f16::from_f32(v).to_f32() != v),
++            "F32 fixture failed to exercise its cast"
++        );
+     }
+     Array::from_f32(&values, &[rows, case.width])?.astype(dtype)
+ }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:292:
+ 
+ fn serial_stock(case: &mut Case, input: &Array, rows: i32) -> Result<Array> {
+     let mut outputs = Vec::new();
+-    for row in 0..rows { outputs.push(forward(case, &input.slice(0, row, row + 1)?, false)?); }
++    for row in 0..rows {
++        outputs.push(forward(case, &input.slice(0, row, row + 1)?, false)?);
++    }
+     Array::concatenate(&outputs.iter().collect::<Vec<_>>(), 0)
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:299:
+ #[test]
+ #[ignore = "physical Apple GPU, env F02=1 and independent projection/attention fixtures; run alone"]
+ fn complete_flash_projections_match_independent_fixtures_and_batch_fallback() -> Result<()> {
+-    ensure!(std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"), "this test verifies real environment flag loading");
++    ensure!(
++        std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() == Ok("1"),
++        "this test verifies real environment flag loading"
++    );
+     let mut checks = 0;
+     for mut case in cases(true)? {
+         let input = case.input.try_clone()?;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:306:
+         reset_kernel_requests_for_test();
+         let actual = forward(&mut case, &input, true)?;
+         ensure!(kernel_requests_for_test() == usize::from(!case.qkv));
+-        compare(&actual.astype(Dtype::Float32)?, &case.oracle, 1, case.output, Dtype::Float32, true)?;
++        compare(
++            &actual.astype(Dtype::Float32)?,
++            &case.oracle,
++            1,
++            case.output,
++            Dtype::Float32,
++            true,
++        )?;
+         checks += 1;
+         for rows in [1, 2, 3] {
+             for dtype in [Dtype::Float16, Dtype::Float32] {
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:321:
+                 let candidate = forward(&mut case, &input, true)?;
+                 ensure!(Array::host_readbacks_for_test() == readbacks);
+                 let expected_requests = usize::from(!case.qkv && rows <= 2);
+-                ensure!(kernel_requests_for_test() == expected_requests, "wrong F02/fallback request count for {} B{rows} {dtype:?}", case.name);
+-                if expected_requests != 0 { ensure!(last_rows_for_test() == rows as usize); }
++                ensure!(
++                    kernel_requests_for_test() == expected_requests,
++                    "wrong F02/fallback request count for {} B{rows} {dtype:?}",
++                    case.name
++                );
++                if expected_requests != 0 {
++                    ensure!(last_rows_for_test() == rows as usize);
++                }
+                 compare(&candidate, &serial, rows, case.output, case.dtype, true)?;
+                 checks += 1;
+             }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:329:
+         }
+     }
+-    println!("F02_PROJECTIONS checks={checks} independent_B1=3 batch_B1_B2_B3=18 flag_loaded=1 status=exact_outputs_real_requests_and_fallbacks");
++    println!(
++        "F02_PROJECTIONS checks={checks} independent_B1=3 batch_B1_B2_B3=18 flag_loaded=1 status=exact_outputs_real_requests_and_fallbacks"
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:335:
+ fn exclusive_report(path: &Path, value: &Value) -> Result<()> {
+-    let file = fs::OpenOptions::new().write(true).create_new(true).open(path)?;
++    let file = fs::OpenOptions::new()
++        .write(true)
++        .create_new(true)
++        .open(path)?;
+     serde_json::to_writer_pretty(file, value)?;
+     Ok(())
+ }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:358:
+                 input.eval()?;
+                 let expected = serial_stock(&mut case, &input, rows)?;
+                 expected.eval()?;
+-                compare(&expected.slice(0, 0, 1)?.astype(Dtype::Float32)?, &case.oracle, 1, case.output, Dtype::Float32, true)?;
++                compare(
++                    &expected.slice(0, 0, 1)?.astype(Dtype::Float32)?,
++                    &case.oracle,
++                    1,
++                    case.output,
++                    Dtype::Float32,
++                    true,
++                )?;
+                 for enabled in [false, true] {
+                     for _ in 0..3 {
+                         let output = forward(&mut case, &input, enabled)?;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:368:
+                 }
+                 synchronize()?;
+                 for round in 0..12 {
+-                    let order = if round % 2 == 0 { [false, true] } else { [true, false] };
++                    let order = if round % 2 == 0 {
++                        [false, true]
++                    } else {
++                        [true, false]
++                    };
+                     for (position, enabled) in order.into_iter().enumerate() {
+                         reset_kernel_requests_for_test();
+                         let readbacks = Array::host_readbacks_for_test();
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:397:
+     })();
+     report["samples"] = json!(samples);
+     match result {
+-        Ok(()) => { report["status"] = json!("complete_projection_micro_not_model_gain"); report["parity"] = json!(true); }
+-        Err(error) => { report["status"] = json!("failed_or_interrupted"); report["error"] = json!(format!("{error:#}")); update_report(&path, &report)?; return Err(error); }
++        Ok(()) => {
++            report["status"] = json!("complete_projection_micro_not_model_gain");
++            report["parity"] = json!(true);
++        }
++        Err(error) => {
++            report["status"] = json!("failed_or_interrupted");
++            report["error"] = json!(format!("{error:#}"));
++            update_report(&path, &report)?;
++            return Err(error);
++        }
+     }
+     update_report(&path, &report)?;
+-    println!("F02_MICRO samples=96 forwards_per_sample=32 rows=1,2 status=complete_projection_micro_not_model_gain");
++    println!(
++        "F02_MICRO samples=96 forwards_per_sample=32 rows=1,2 status=complete_projection_micro_not_model_gain"
++    );
+     Ok(())
+ }
+ 
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:416:
+             entries += 1;
+             ensure!(entries <= 100_000, "capture tree exceeds entry bound");
+             let kind = entry.file_type()?;
+-            if kind.is_dir() { pending.push(entry.path()); }
+-            else {
++            if kind.is_dir() {
++                pending.push(entry.path());
++            } else {
+                 ensure!(kind.is_file(), "unsupported capture link or special file");
+-                bytes = bytes.checked_add(entry.metadata()?.len()).context("capture size overflow")?;
++                bytes = bytes
++                    .checked_add(entry.metadata()?.len())
++                    .context("capture size overflow")?;
+                 ensure!(bytes < CAPTURE_LIMIT, "capture budget exceeds 1.5 GiB");
+             }
+         }
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:432:
+ fn captures_complete_projection_chains_stock_or_fused() -> Result<()> {
+     ensure!(std::env::var("MTL_CAPTURE_ENABLED").as_deref() == Ok("1"));
+     let enabled = match std::env::var("MLXL3_FLASH_DENSE_EPILOGUE").as_deref() {
+-        Ok("0") => false, Ok("1") => true, _ => anyhow::bail!("capture requires explicit F02 0 or1"),
++        Ok("0") => false,
++        Ok("1") => true,
++        _ => anyhow::bail!("capture requires explicit F02 0 or1"),
+     };
+     let directory = PathBuf::from(std::env::var("MLXL3_F02_CAPTURE_OUTPUT")?);
+     let budget = PathBuf::from(std::env::var("MLXL3_F02_CAPTURE_BUDGET_ROOT")?);
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:439:
+     ensure!(directory.is_dir() && fs::read_dir(&directory)?.next().is_none());
+-    ensure!(directory.canonicalize()?.starts_with(budget.canonicalize()?), "capture output outside shared budget root");
++    ensure!(
++        directory
++            .canonicalize()?
++            .starts_with(budget.canonicalize()?),
++        "capture output outside shared budget root"
++    );
+     directory_bytes(&budget)?;
+     let path = directory.join("metadata.json");
+     let mut report = json!({"status":"incomplete", "parity":false, "enabled":enabled, "shared_budget_bytes":CAPTURE_LIMIT, "captures":[]});
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:459:
+             capture.finish()?;
+             let requests = kernel_requests_for_test();
+             ensure!(requests == usize::from(enabled && !case.qkv));
+-            compare(&actual.astype(Dtype::Float32)?, &case.oracle, 1, case.output, Dtype::Float32, true)?;
++            compare(
++                &actual.astype(Dtype::Float32)?,
++                &case.oracle,
++                1,
++                case.output,
++                Dtype::Float32,
++                true,
++            )?;
+             let capture_bytes = directory_bytes(&capture_path)?;
+             ensure!(capture_bytes > 0, "empty F02 capture");
+             let total_bytes = directory_bytes(&budget)?;
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear/dense_epilogue_tests.rs:472:
+     })();
+     report["captures"] = json!(records);
+     match result {
+-        Ok(()) => { report["status"] = json!("captured_exact_dispatch_inspection_pending"); report["parity"] = json!(true); }
+-        Err(error) => { report["status"] = json!("failed_or_interrupted"); report["error"] = json!(format!("{error:#}")); update_report(&path, &report)?; return Err(error); }
++        Ok(()) => {
++            report["status"] = json!("captured_exact_dispatch_inspection_pending");
++            report["parity"] = json!(true);
++        }
++        Err(error) => {
++            report["status"] = json!("failed_or_interrupted");
++            report["error"] = json!(format!("{error:#}"));
++            update_report(&path, &report)?;
++            return Err(error);
++        }
+     }
+     update_report(&path, &report)?;
+     println!("F02_CAPTURE captures=3 enabled={enabled} status=exact_dispatch_inspection_pending");
+Diff in /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/native/src/linear.rs:404:
+             return Ok(None);
+         };
+         let mut shape = x.shape().to_vec();
+-        *shape.last_mut().context("empty dense epilogue input shape")? = self.cols;
++        *shape
++            .last_mut()
++            .context("empty dense epilogue input shape")? = self.cols;
+         Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
+     }
+ 

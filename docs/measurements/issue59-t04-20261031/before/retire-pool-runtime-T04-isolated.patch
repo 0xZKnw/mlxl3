@@ -1,0 +1,112 @@
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2,6 +2,88 @@
+ use anyhow::Result;
+ 
+ pub const PREFILL_CHUNK: usize = 8;
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn swiglu_down_elements(shape: &[i32]) -> Option<i32> {
++    let &[rows, width] = shape else {
++        return None;
++    };
++    if !(1..=80).contains(&rows) || width != 640 {
++        return None;
++    }
++    rows.checked_mul(width)
++}
++
++#[test]
++fn swiglu_down_elements_accepts_all_supported_rows() {
++    for rows in 1..=80 {
++        assert_eq!(swiglu_down_elements(&[rows, 640]), Some(rows * 640));
++    }
++}
++
++#[test]
++fn swiglu_down_elements_rejects_invalid_counts_ranks_and_dimensions() {
++    for shape in [
++        &[][..],
++        &[640][..],
++        &[1, 640, 1][..],
++        &[1, 1, 640, 1, 1][..],
++        &[1, 1, 640, 1, 1, 1][..],
++        &[0, 640][..],
++        &[-1, 640][..],
++        &[81, 640][..],
++        &[i32::MIN, 640][..],
++        &[i32::MAX, 640][..],
++        &[1, 0][..],
++        &[1, -640][..],
++        &[1, 639][..],
++        &[1, 641][..],
++        &[80, i32::MIN][..],
++        &[80, i32::MAX][..],
++    ] {
++        assert_eq!(swiglu_down_elements(shape), None);
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::solver(kissat)]
++#[kani::unwind(17)]
++fn swiglu_down_elements_checks_symbolic_shapes_and_bounds() {
++    let dimensions: [i32; 5] = kani::any();
++    let rank: usize = kani::any();
++    if rank <= dimensions.len() {
++        let result = swiglu_down_elements(&dimensions[..rank]);
++        let valid = rank == 2 && (1..=80).contains(&dimensions[0]) && dimensions[1] == 640;
++        assert_eq!(result.is_some(), valid);
++        if let Some(elements) = result {
++            assert_eq!(rank, 2);
++            assert!((1..=80).contains(&dimensions[0]));
++            assert_eq!(dimensions[1], 640);
++            assert_eq!(i64::from(elements), i64::from(dimensions[0]) * 640);
++            assert!((640..=51200).contains(&elements));
++            let index: u32 = kani::any();
++            if index < elements as u32 {
++                assert!(index / 640 < dimensions[0] as u32);
++                assert!(index % 640 < 640);
++                assert!(u64::from(index) * 2 + 1 < elements as u64 * 2);
++                assert!(u64::from(index) * 4 + 3 < elements as u64 * 4);
++                kani::cover!(dimensions[0] == 80 && index == 51199);
++            }
++        }
++        kani::cover!(result == Some(640));
++        kani::cover!(result == Some(1280));
++        kani::cover!(result == Some(51200));
++        kani::cover!(result.is_none() && rank == 0);
++        kani::cover!(result.is_none() && rank == 5);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[0] == 0);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[0] == 81);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[0] == i32::MAX);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[1] == -640);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[1] == 639);
++        kani::cover!(result.is_none() && rank == 2 && dimensions[1] == 641);
++    }
++}
+ 
+ #[cfg(kani)]
+ #[kani::proof]
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -40,6 +40,7 @@
+             --harness weighted_geometry_bounds_every_symbolic_address
+             --harness weighted_geometry_checks_all_eighty_canonical_rows
+             --harness gdn_epilogue_geometry_checks_symbolic_shapes_and_addresses
++            --harness swiglu_down_elements_checks_symbolic_shapes_and_bounds
+             --harness pre_draft_choice_is_bounded_for_all_states
+             --harness pre_draft_observation_is_atomic_and_checked
+             --harness expert_cohorts_never_exceed_live_slot_capacity
+@@ -346,6 +347,10 @@
+           done
+           cargo test --locked --lib --features mlx,chat gdn_epilogue::capture_tests::capture_size_validates_internal_links_rejections_and_sparse_limits -- --exact --test-threads=1 | tee build/ci/gdn-capture-size.log
+           python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/gdn-capture-size.log").read_text()'
++          for test_name in swiglu_down_elements_accepts_all_supported_rows swiglu_down_elements_rejects_invalid_counts_ranks_and_dimensions; do
++            cargo test --locked --lib --features mlx,chat "flash_support::$test_name" -- --exact --test-threads=1 | tee "build/ci/$test_name.log"
++            python -c 'import sys; from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path(sys.argv[1]).read_text()' "build/ci/$test_name.log"
++          done
+       - name: Check LFM prefill CPU oracles against the MLX-feature source
+         if: matrix.os == 'macos-26'
+         shell: bash

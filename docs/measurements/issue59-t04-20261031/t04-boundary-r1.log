@@ -1,0 +1,9 @@
+
+running 1 test
+test ssd_moe::swiglu_down_tests::t04_swiglu_down_preserves_both_half_roundings_and_h128 ... T04_ROUNDING_PROBES dtype=Float16 stock_first4=[0, 0, 0, 0] candidate_first4=[0, 0, 0, 0] deferred_first4=[1, 0, 0, 0] expectation=physical_stock_not_cpu_ftz
+T04_ROUNDING_PROBES dtype=Float32 stock_first4=[1, 0, 0, 0] candidate_first4=[1, 0, 0, 0] deferred_first4=[1, 0, 0, 0] expectation=physical_stock_not_cpu_ftz
+T04_BOUNDARY cases=56 pre_h128_values=640000 h128_values=640000 rows=1,2,4,8,10,20,80 strides=2 boundary_phases=2 mutation_by_dtype=[true, true] rejected=13 exhaustive_cases=2 exhaustive_values=102400 finite_gate_patterns=63488 parity=byte_exact source_mutation=false
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 378 filtered out; finished in 0.21s
+

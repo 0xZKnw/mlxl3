@@ -1,0 +1,37 @@
+{
+  "status": "partial_diagnostic_not_formal_proof",
+  "commands": [
+    {
+      "label": "final-async",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/async-analysis.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial"
+      ],
+      "expected_exit": 0,
+      "status": "expected_outcome",
+      "source_sha256": "3cb783f2617b0b05fd897864c0d098c463cc626c67156494c84e60b60ea3713c",
+      "timeout_seconds": 180,
+      "pid": 26815,
+      "exit": 0,
+      "joined": true,
+      "elapsed_seconds": 10.613458750000063
+    },
+    {
+      "label": "bytecount-mutant",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/bytecount-mutant/analyze-bytecount-mutant.py",
+        "docs/measurements/decode-profile-20261031/natural-r2/attribution-partial/bytecount-mutant"
+      ],
+      "expected_exit": 1,
+      "status": "expected_outcome",
+      "source_sha256": "37b4c96c7af117c7a7cc4d91fd22e35c7af2853d6d9c732f5d7946c01fdffeb1",
+      "timeout_seconds": 180,
+      "pid": 26855,
+      "exit": 1,
+      "joined": true,
+      "elapsed_seconds": 6.34746129099949
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "t17-pilot128-MTP-3-C",
+  "phase": "pilot128",
+  "mode": "MTP",
+  "arm": "C",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/runs/t17-pilot128-MTP-3-C/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.525915750000001,
+      "decode_tps": 11.01864726019709,
+      "prefill_tps": 9.44145902013391,
+      "ttft_seconds": 10.189531458000001,
+      "counters": {
+        "mtp": {
+          "proposed": 72,
+          "accepted": 54,
+          "blocks": 72
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7788075608,
+      "lifetime_peak_bytes": 7877745240
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 12.544286792000001,
+      "decode_tps": 10.124130778084014,
+      "prefill_tps": 9.900660954034961,
+      "ttft_seconds": 8.283412374,
+      "counters": {
+        "mtp": {
+          "proposed": 78,
+          "accepted": 48,
+          "blocks": 78
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7788780120,
+      "lifetime_peak_bytes": 7877745240
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.380339667000001,
+      "decode_tps": 11.159596612767778,
+      "prefill_tps": 9.893952373162808,
+      "ttft_seconds": 8.79388425,
+      "counters": {
+        "mtp": {
+          "proposed": 72,
+          "accepted": 54,
+          "blocks": 72
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7788649024,
+      "lifetime_peak_bytes": 7881677376
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 12.370164625,
+      "decode_tps": 10.266637821725837,
+      "prefill_tps": 9.921280936988303,
+      "ttft_seconds": 8.26566775,
+      "counters": {
+        "mtp": {
+          "proposed": 78,
+          "accepted": 48,
+          "blocks": 78
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7787567680,
+      "lifetime_peak_bytes": 7881677376
+    }
+  ],
+  "report_sha256": "af9421aea543ad58bdf555f327fed0621fdb203549064c4a346c993294d35726",
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/prepared/t17-pilot128-MTP-3-C-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

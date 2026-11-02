@@ -1,0 +1,24 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.11s
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-17c30b72058e9f82)
+
+running 1 test
+test flash_cache_profile::shared::global_lfu_compares_frequencies_at_the_same_decay_epoch ... FAILED
+
+failures:
+
+---- flash_cache_profile::shared::global_lfu_compares_frequencies_at_the_same_decay_epoch stdout ----
+
+thread 'flash_cache_profile::shared::global_lfu_compares_frequencies_at_the_same_decay_epoch' (5888577) panicked at native/src/flash_cache_profile/shared.rs:305:5:
+assertion `left == right` failed: equally frequent older L1 should be evicted
+  left: [(1, false)]
+ right: [(0, false)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_cache_profile::shared::global_lfu_compares_frequencies_at_the_same_decay_epoch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 165 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

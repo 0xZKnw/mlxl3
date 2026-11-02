@@ -1,0 +1,117 @@
+{
+  "exact": {
+    "resident_slot_indices_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 18.8014609,
+      "cpu_running_gpu_idle_ms_per_output": 11.910378,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1333": 11.961819275,
+        "0": 11.910378,
+        "1333": 11.8589044
+      }
+    },
+    "resident_hot_output_async_eval": {
+      "calls": 1920,
+      "wall_ms_per_output": 3.8109747,
+      "cpu_running_gpu_idle_ms_per_output": 0.07423017500000001,
+      "clock_fit_endpoint_sensitivity_ms_per_output": {
+        "-1333": 0.0749353,
+        "0": 0.07423017500000001,
+        "1333": 0.07345222500000001
+      }
+    }
+  },
+  "sample_reports": {
+    "high": {
+      "eligible_samples": 4835,
+      "samples_by_role": {
+        "resident_slot_indices_async_eval": 4808,
+        "resident_hot_output_async_eval": 27
+      },
+      "main_samples": 20689,
+      "raw_types": {
+        "[('0', 'Timer Fired')]": 4830,
+        "no_exact_raw_time_tid_match": 5
+      },
+      "nearest_mlx": [
+        [
+          "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+          736
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::get_command_encoder()",
+          634
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::dispatch_threads(MTL::Size, MTL::Size)",
+          590
+        ],
+        [
+          "mlx::core::gpu::eval(mlx::core::array&)",
+          557
+        ],
+        [
+          "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+          481
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)",
+          200
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::set_input_array(mlx::core::array const&, int, long long)",
+          191
+        ],
+        [
+          "mlx::core::fast::CustomKernel::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+          115
+        ]
+      ]
+    },
+    "standard": {
+      "eligible_samples": 4830,
+      "samples_by_role": {
+        "resident_slot_indices_async_eval": 4803,
+        "resident_hot_output_async_eval": 27
+      },
+      "main_samples": 15645,
+      "raw_types": {
+        "[('0', 'Timer Fired')]": 4830
+      },
+      "nearest_mlx": [
+        [
+          "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+          736
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::get_command_encoder()",
+          634
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::dispatch_threads(MTL::Size, MTL::Size)",
+          590
+        ],
+        [
+          "mlx::core::gpu::eval(mlx::core::array&)",
+          557
+        ],
+        [
+          "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+          481
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)",
+          200
+        ],
+        [
+          "mlx::core::metal::CommandEncoder::set_input_array(mlx::core::array const&, int, long long)",
+          191
+        ],
+        [
+          "mlx::core::fast::CustomKernel::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+          115
+        ]
+      ]
+    }
+  }
+}

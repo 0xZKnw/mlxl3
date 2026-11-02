@@ -22,6 +22,7 @@ PARSE_VM = runpy.run_path(str(ROOT / "benchmarks/benchmark_flash_memory.py"))["p
 STOP = SUPERVISOR["stop"]
 QUIET = SUPERVISOR["check_quiet"]
 TRACER_JOIN_SECONDS = 60
+MAXIMUM_NEW_SWAPOUT_BYTES = 0
 BASELINE_ENV = {
     "MLXL3_ALLOCATOR_CACHE_MIB": "64",
     "MLXL3_PROFILE_KIND": "natural",
@@ -83,7 +84,7 @@ def guard(record, baseline, minimum_available, pids, admission=False):
     """Reuse strict byte VM parsing and quiet/process-group policy; never reanchor."""
     vm = PARSE_VM(subprocess.check_output(["vm_stat"], text=True, timeout=5))
     record["last_vm_bytes"] = vm
-    for key, limit in (("Swapouts", 0), ("Swapins", 256 << 20)):
+    for key, limit in (("Swapouts", MAXIMUM_NEW_SWAPOUT_BYTES), ("Swapins", 256 << 20)):
         delta = vm[key] - baseline[key]
         field = f"maximum_live_{key.lower()}_bytes"
         record[field] = max(record.get(field, 0), delta)

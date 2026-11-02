@@ -1,0 +1,16 @@
+{
+  "status": "passed_static_not_remote_ci",
+  "triggers": [
+    "pull_request",
+    "push:main"
+  ],
+  "kissat_paths": [
+    "kani-flash-contracts",
+    "kani"
+  ],
+  "proof_harnesses": [
+    "weighted_geometry_bounds_every_symbolic_address",
+    "weighted_geometry_checks_all_eighty_canonical_rows"
+  ],
+  "configuration_matches_executed_cli_solver": "kissat"
+}

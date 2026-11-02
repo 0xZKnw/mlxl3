@@ -1,0 +1,56 @@
+{
+  "status": "native_parity_and_both_gpu_replay_times_encoder_counters_qualified",
+  "timestamp": "2026-10-31T14:45:06.019827+00:00",
+  "native_test_passed": 1,
+  "ignored": 0,
+  "values": 25600,
+  "bytes": 102400,
+  "swaps": 0,
+  "capture_paths": [
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/gpu-witness-01/captures/legacy.gputrace",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/gpu-witness-01/captures/fused.gputrace"
+  ],
+  "xcode_ui": "required system-wide components Install clicked; waiting other system install tasks; no legal/auth prompt shown",
+  "fused_profile_observation": {
+    "gpu_time_microseconds": 18.38,
+    "mode": "Full",
+    "execution_mode": "Overlapping",
+    "performance_state": "Medium",
+    "device": "Apple M5",
+    "os": "macOS 27.2",
+    "command_buffers": 2,
+    "compute_encoders": 1,
+    "dispatch_calls": 1,
+    "pipeline": "custom_kernel_mlxl3_flash_weighted_epilogue_v1_float16_t_float16_t_uint32_t_float_float",
+    "encoder_counters_export": [
+      "docs/measurements/decode-profile-20261031/gpu-witness-01/captures/fused-counters.csv"
+    ],
+    "counter_availability": "nonempty encoder table with ALU,F32,F16,NeuralAccelerator,MMU,LLC utilization/limiter percentages; do not equate target occupancy with measured occupancy",
+    "limits": "isolated replay profiling of a small epilogue, not native production latency; no source-level attribution of all CPU time"
+  },
+  "legacy_profile_observation": {
+    "gpu_time_microseconds": 115.12,
+    "mode": "Full",
+    "execution_mode": "Overlapping",
+    "performance_state": "Medium",
+    "device": "Apple M5",
+    "os": "macOS 27.2",
+    "command_buffers": 2,
+    "compute_encoders": 1,
+    "dispatch_calls": 5,
+    "shader_cost_percentages": {
+      "gg1_copyfloat16float16_two_dispatches": 38.92,
+      "v_copyfloat16float32": 24.32,
+      "g2_Multiplyfloat32": 19.33,
+      "gather_frontfloat16_uint32_int_2": 17.42
+    },
+    "encoder_counters_export": "docs/measurements/decode-profile-20261031/gpu-witness-01/captures/legacy-counters.csv"
+  },
+  "limits": [
+    "isolated replay profiling, not native model speed",
+    "encoder counters qualified, per-dispatch hardware counter export not established",
+    "positive duration not ALU-only time",
+    "Full Overlapping Medium performance state, single profiling observation",
+    "no model/system-trace kernel identity qualified yet"
+  ]
+}

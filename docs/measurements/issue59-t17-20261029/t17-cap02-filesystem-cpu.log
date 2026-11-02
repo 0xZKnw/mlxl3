@@ -1,0 +1,16 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 1m 09s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-a762275d1a770dd8)
+
+running 1 test
+test gdn_epilogue::capture_tests::capture_size_validates_internal_links_rejections_and_sparse_limits ... GDN_CAPTURE_SIZE_INTERNAL cases=3 payload_bytes=20 targets_recounted=false
+GDN_CAPTURE_SIZE_INVALID_LINKS cases=8 escaped=false
+GDN_CAPTURE_SIZE_MISSING cases=4
+GDN_CAPTURE_SIZE_LIMIT cases=3 limit_bytes=1073741824
+GDN_CAPTURE_SIZE_CPU groups=4 cases=18
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.01s
+

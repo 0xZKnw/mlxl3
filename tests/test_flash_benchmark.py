@@ -16,6 +16,16 @@ bench = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bench)
 
 
+@pytest.mark.parametrize("prompts", [{}, [], {"": "x"}, {1: "x"}, {"X": " "}, {"X": None}])
+def test_invalid_context_prompts_fail_before_any_process(tmp_path, prompts, monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("must reject before spawning")
+
+    monkeypatch.setattr(bench.subprocess, "Popen", forbidden)
+    with pytest.raises(ValueError, match="prompts"):
+        bench.run(tmp_path / "missing", tmp_path, tmp_path / "out", prompts=prompts)
+
+
 @pytest.mark.parametrize(
     "fault",
     [
@@ -23,6 +33,7 @@ spec.loader.exec_module(bench)
         "auto_cache",
         "fixed_cache",
         "one_prompt",
+        "custom_prompts",
         "mode",
         "hash",
         "empty",
@@ -95,6 +106,7 @@ for line in sys.stdin:
         if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
         sys.exit(7 if fault == 'late_nonzero' else 0)
     counter += 1
+    if fault == 'custom_prompts': assert r['messages'] == [{'role':'user','content':'Long context fixture'}]
     if fault == 'silent': time.sleep(30)
     if fault == 'crash': sys.exit(3)
     if fault == 'eof': sys.exit(0)
@@ -160,6 +172,45 @@ for line in sys.stdin:
                 and "median_decode_tps" not in result
             )
             assert result["reaped"] and result["reader_joined"]
+        return
+    if fault == "custom_prompts":
+        result = bench.run(
+            engine,
+            tmp_path,
+            output,
+            tokens=2,
+            repeats=1,
+            timeout=2,
+            prompts={"LONG": "Long context fixture"},
+        )
+        assert result["prompts"] == {"LONG": "Long context fixture"}
+        assert result["median_decode_tps"] == {"LONG": 10}
+        assert result["spawn_to_ready_seconds"] > 0
+        assert result["reaped"] and result["reader_joined"]
+        prompts_file = tmp_path / "prompts.json"
+        prompts_file.write_text(json.dumps(result["prompts"]))
+        subprocess.run(
+            [
+                sys.executable,
+                spec.origin,
+                str(engine),
+                str(tmp_path),
+                str(tmp_path / "custom-cli"),
+                "--prompts-json",
+                str(prompts_file),
+                "--tokens",
+                "2",
+                "--repeats",
+                "1",
+                "--timeout",
+                "2",
+            ],
+            check=True,
+            timeout=10,
+            capture_output=True,
+        )
+        cli = json.loads((tmp_path / "custom-cli/report.json").read_text())
+        assert cli["status"] == "validated" and cli["prompts"] == result["prompts"]
         return
     if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
         if fault == "ok":

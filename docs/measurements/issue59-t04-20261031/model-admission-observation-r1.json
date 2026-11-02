@@ -1,0 +1,23 @@
+{
+  "status": "failed_or_interrupted_admission_no_model_launched",
+  "minimum_available_bytes": 12000000000,
+  "required_stable_seconds": 60,
+  "samples": [
+    {
+      "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   190746.\nPages active:                                 429830.\nPages inactive:                               557281.\nPages speculative:                              6624.\nPages throttled:                                   0.\nPages wired down:                             182426.\nPages purgeable:                               39757.\n\"Translation faults\":                     2115468100.\nPages copy-on-write:                        88234675.\nPages zero filled:                        2400867593.\nPages reactivated:                         163615067.\nPages purged:                               20720981.\nFile-backed pages:                            495556.\nAnonymous pages:                              498179.\nPages stored in compressor:                   271510.\nPages occupied by compressor:                 151791.\nDecompressions:                            380416097.\nCompressions:                              458232453.\nPageins:                                  2533097332.\nPageouts:                                     404540.\nSwapins:                                     3285472.\nSwapouts:                                    8597775.\nPages tagged:                                 125706.\nPages tagged resident:                        110279.\nPages tagged compressed:                       15427.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5714.\nPages tag-storage free:                          928.\nPages tag-storage non-tag pageable:            42323.\nPages tag-storage non-tag wired:                  76.\nBytes of compressed tags:                    2181568.\nTagged compressions:                         9764395.\nTagged decompressions:                       9448580.\n",
+      "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 404.88M  free = 1643.12M  (encrypted)\n",
+      "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+      "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "vm_bytes": {
+        "Pages free": 3125182464,
+        "File-backed pages": 8119189504,
+        "Pages occupied by compressor": 2486943744,
+        "Swapins": 53829173248,
+        "Swapouts": 140865945600
+      },
+      "elapsed_seconds": 0.04179058299632743,
+      "available_estimate_bytes": 11244371968
+    }
+  ],
+  "error": "AssertionError('full model headroom not yet met')"
+}

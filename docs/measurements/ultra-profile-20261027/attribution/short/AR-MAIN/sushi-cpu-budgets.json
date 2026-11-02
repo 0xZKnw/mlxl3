@@ -1,0 +1,27 @@
+{
+  "capture": "short/AR-MAIN",
+  "complete_steps": 20,
+  "cohorts": 960,
+  "all_hot_cohorts": 144,
+  "all_hot_fraction": 0.15,
+  "next_GDN_eligible_pairs": 110,
+  "next_prefix_before_router_readback_wall_ms_per_token": 2.71999795,
+  "next_prefix_gpu_idle_ms_per_token": 0.46943475,
+  "min_current_route_wait_next_prefix_budget_ms_per_token": 2.71999795,
+  "PLE_builds_in_selected_steps": 20,
+  "kernel_active_inside_async_submit_ms_per_token": 1.16580385,
+  "main_thread_fstat_calls": 5258,
+  "fstat_wall_ms_per_token": 0.11284655,
+  "misses_min_layer": [
+    45,
+    12
+  ],
+  "misses_max_layer": [
+    0,
+    129
+  ],
+  "misses_total": 2619,
+  "same_steps_control_before_ms_per_token": 91.6705812,
+  "traced_steps_ms_per_token": 113.75500840000001,
+  "limits": "GDN prefix includes more than GDN, and is only a loose same-queue budget, not a proved speedup. Kernel CPU means active CPU inside recorded syscall intervals. PLE present requires adaptation/rollback beyond upstream guard."
+}

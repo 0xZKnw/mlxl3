@@ -20,7 +20,7 @@ use std::{
     os::unix::fs::FileExt,
     path::PathBuf,
     rc::Rc,
-    sync::atomic::Ordering,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 const H: i32 = 2560;
@@ -35,6 +35,9 @@ mod draft;
 #[cfg(test)]
 #[path = "qwen4/prepared_conv_tests.rs"]
 mod prepared_conv_tests;
+
+#[cfg(test)]
+mod mtp_prefill_tests;
 
 /// Inclusive host timings; verification includes its existing GPU completion waits.
 #[cfg(feature = "chat")]
@@ -1720,6 +1723,38 @@ impl FlashNext {
         }
         self.offset = committed;
         Ok(())
+    }
+    pub fn prefill_mtp(
+        &mut self,
+        head: &mut FlashMtpHead,
+        tokens: &[u32],
+        cancelled: &AtomicBool,
+    ) -> Result<Array> {
+        self.reset();
+        head.reset();
+        let mut logits = None;
+        for (step, &token) in tokens.iter().enumerate() {
+            #[cfg(test)]
+            let step_span = crate::flash_profile::span("prefill_step");
+            #[cfg(test)]
+            if let Some(span) = &step_span {
+                span.data(serde_json::json!({"step": step, "token": token}));
+            }
+            if cancelled.load(Ordering::Relaxed) {
+                self.reset();
+                head.reset();
+                anyhow::bail!("generation cancelled");
+            }
+            if let Some(hidden) = &self.last_hidden {
+                #[cfg(test)]
+                let _span = crate::flash_profile::span("prefill_head_extend");
+                head.extend_cache(self, hidden, token)?;
+            }
+            // Keep the previous logits alive during the last step, as in sequential prefill.
+            logits =
+                self.forward_inner(token, None, !self.prefill_heads || tokens.len() - step <= 2)?;
+        }
+        logits.context("empty Flash MTP prefill")
     }
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(

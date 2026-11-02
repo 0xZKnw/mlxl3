@@ -1,0 +1,1660 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.96s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness flash_support::prefill_chunk_parser_matches_independent_byte_oracle...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/61e728187f747a88/out/mlxl3_native-61e728187f747a88__RNvNtCscwqYaKHqkTp_12mlxl3_native13flash_support52prefill_chunk_parser_matches_independent_byte_oracle.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.2 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 145 column 5 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.2 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 145 column 5 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.2 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 145 column 5 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.2 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 145 column 5 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 224 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.1 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 241 column 17 function core::str::validations::run_utf8_validation thread 0
+Not unwinding loop _RNvNtNtCsjpISKbLQvZs_4core3str11validations19run_utf8_validation.2 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs line 145 column 5 function core::str::validations::run_utf8_validation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/converts.rs line 91 column 11 function std::str::from_utf8 thread 0
+aborting path on assume(false) at file native/src/flash_support.rs line 36 column 1 function flash_support::prefill_chunk_parser_matches_independent_byte_oracle thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<usize> as std::cmp::PartialEq>::eq thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<usize>::is_some thread 0
+Runtime Symex: 1.31846s
+size of program expression: 57593 steps
+slicing removed 41508 assignments
+Generated 2459 VCC(s), 1237 remaining after simplification
+Runtime Postprocess Equation: 0.0370807s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.13385s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.0232758s
+Solving with CaDiCaL 3.0.0
+220992 variables, 633183 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.354806s
+Runtime decision procedure: 0.494163s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220993 variables, 633184 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0100153s
+Runtime decision procedure: 0.0116312s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220994 variables, 633185 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0207505s
+Runtime decision procedure: 0.0222761s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220995 variables, 633186 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0164281s
+Runtime decision procedure: 0.017876s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220996 variables, 633187 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0177054s
+Runtime decision procedure: 0.0191742s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220997 variables, 633188 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00785175s
+Runtime decision procedure: 0.00933929s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220998 variables, 633189 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00751704s
+Runtime decision procedure: 0.00903563s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+220999 variables, 633190 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0227606s
+Runtime decision procedure: 0.0242305s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221000 variables, 633191 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.018431s
+Runtime decision procedure: 0.0198094s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221001 variables, 633192 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00559542s
+Runtime decision procedure: 0.00697921s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221002 variables, 633193 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00919062s
+Runtime decision procedure: 0.0105946s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221003 variables, 633194 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0225169s
+Runtime decision procedure: 0.0241927s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221004 variables, 633195 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0120822s
+Runtime decision procedure: 0.0135412s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221005 variables, 633196 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00838017s
+Runtime decision procedure: 0.00978904s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221006 variables, 633197 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00480075s
+Runtime decision procedure: 0.00619237s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221007 variables, 633198 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00528821s
+Runtime decision procedure: 0.006706s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221008 variables, 633199 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00857771s
+Runtime decision procedure: 0.00996725s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+221009 variables, 633200 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.00346733s
+Runtime decision procedure: 0.00381679s
+
+RESULTS:
+Check 1: std::ptr::const_ptr::<impl *const u8>::align_offset.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1282:13 in function std::ptr::const_ptr::<impl *const u8>::align_offset
+
+Check 2: memcmp.precondition.1
+	 - Status: SUCCESS
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 3: memcmp.precondition.2
+	 - Status: SUCCESS
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 4: kani::rustc_intrinsics::offset::<usize, *const usize, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *const usize, usize>
+
+Check 5: kani::rustc_intrinsics::offset::<usize, *const usize, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *const usize, usize>
+
+Check 6: kani::rustc_intrinsics::offset::<usize, *const usize, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<usize, *const usize, usize>
+
+Check 7: std::str::from_utf8.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/converts.rs:91:11 in function std::str::from_utf8
+
+Check 8: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 9: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 10: kani::rustc_intrinsics::offset::<u8, *const u8, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u8, *const u8, usize>
+
+Check 11: core::str::validations::run_utf8_validation.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:132:28 in function core::str::validations::run_utf8_validation
+
+Check 12: core::str::validations::run_utf8_validation.assertion.2
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation
+
+Check 13: core::str::validations::run_utf8_validation.assertion.3
+	 - Status: UNREACHABLE
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:133:51 in function core::str::validations::run_utf8_validation
+
+Check 14: core::str::validations::run_utf8_validation.assertion.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 15: core::str::validations::run_utf8_validation.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 16: core::str::validations::run_utf8_validation.assertion.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 17: core::str::validations::run_utf8_validation.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 18: core::str::validations::run_utf8_validation.assertion.8
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 19: core::str::validations::run_utf8_validation.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 20: core::str::validations::run_utf8_validation.assertion.10
+	 - Status: UNREACHABLE
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 21: core::str::validations::run_utf8_validation.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 22: core::str::validations::run_utf8_validation.assertion.12
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 23: core::str::validations::run_utf8_validation.assertion.13
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 24: core::str::validations::run_utf8_validation.assertion.14
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 25: core::str::validations::run_utf8_validation.assertion.15
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:155:17 in function core::str::validations::run_utf8_validation
+
+Check 26: core::str::validations::run_utf8_validation.assertion.16
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 27: core::str::validations::run_utf8_validation.assertion.17
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:217:13 in function core::str::validations::run_utf8_validation
+
+Check 28: core::str::validations::run_utf8_validation.assertion.18
+	 - Status: UNREACHABLE
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:238:21 in function core::str::validations::run_utf8_validation
+
+Check 29: core::str::validations::run_utf8_validation.assertion.19
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 30: core::str::validations::run_utf8_validation.assertion.20
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:242:21 in function core::str::validations::run_utf8_validation
+
+Check 31: core::str::validations::run_utf8_validation.assertion.21
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:245:17 in function core::str::validations::run_utf8_validation
+
+Check 32: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 33: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 34: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 35: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 36: <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u8]>>::index
+
+Check 37: <std::option::Option<usize> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 38: <u8 as core::slice::cmp::SlicePartialEq<u8>>::equal_same_length.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_mul` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:156:24 in function <u8 as core::slice::cmp::SlicePartialEq<u8>>::equal_same_length
+
+Check 39: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 40: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 41: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 42: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 43: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 44: std::ptr::align_offset::mod_inv.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2316:36 in function std::ptr::align_offset::mod_inv
+
+Check 45: std::ptr::align_offset::mod_inv.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv
+
+Check 46: std::ptr::align_offset::mod_inv.assertion.2
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift right with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv
+
+Check 47: std::ptr::align_offset::mod_inv.assertion.3
+	 - Status: UNREACHABLE
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv
+
+Check 48: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 49: core::num::<impl usize>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 50: core::num::<impl usize>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 51: core::str::validations::utf8_char_width.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 52: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/flash_support.rs:36:1 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 53: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:41:51 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 54: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:42:19 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 55: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/flash_support.rs:42:18 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 56: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:34 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 57: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:54 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 58: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.assertion.6
+	 - Status: SUCCESS
+	 - Description: "assertion failed: prefill_chunk(value) == expected"
+	 - Location: native/src/flash_support.rs:50:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 59: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: value == "4""
+	 - Location: native/src/flash_support.rs:51:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 60: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: value == "32""
+	 - Location: native/src/flash_support.rs:52:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 61: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: value == "128""
+	 - Location: native/src/flash_support.rs:53:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 62: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: prefill_chunk(value).is_none()"
+	 - Location: native/src/flash_support.rs:54:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 63: std::option::Option::<usize>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<usize>::is_some
+
+Check 64: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 65: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 66: std::ptr::align_offset::<u8>.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2353:32 in function std::ptr::align_offset::<u8>
+
+Check 67: std::ptr::align_offset::<u8>.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2364:33 in function std::ptr::align_offset::<u8>
+
+Check 68: std::ptr::align_offset::<u8>.assume.1
+	 - Status: SUCCESS
+	 - Description: "Rust intrinsic assumption failed"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2387:18 in function std::ptr::align_offset::<u8>
+
+Check 69: std::ptr::align_offset::<u8>.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2390:40 in function std::ptr::align_offset::<u8>
+
+Check 70: std::ptr::align_offset::<u8>.exact_div.1
+	 - Status: SUCCESS
+	 - Description: "exact_div arguments divide exactly"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 71: std::ptr::align_offset::<u8>.exact_div.2
+	 - Status: SUCCESS
+	 - Description: "exact_div divisor is nonzero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 72: std::ptr::align_offset::<u8>.exact_div.3
+	 - Status: SUCCESS
+	 - Description: "exact_div division does not overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 73: std::ptr::align_offset::<u8>.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2415:24 in function std::ptr::align_offset::<u8>
+
+Check 74: std::ptr::align_offset::<u8>.arithmetic_overflow.5
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2417:24 in function std::ptr::align_offset::<u8>
+
+Check 75: std::ptr::align_offset::<u8>.arithmetic_overflow.6
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2441:27 in function std::ptr::align_offset::<u8>
+
+Check 76: std::ptr::align_offset::<u8>.arithmetic_overflow.7
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2444:33 in function std::ptr::align_offset::<u8>
+
+Check 77: std::ptr::align_offset::<u8>.arithmetic_overflow.8
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2447:27 in function std::ptr::align_offset::<u8>
+
+Check 78: std::ptr::align_offset::<u8>.arithmetic_overflow.9
+	 - Status: SUCCESS
+	 - Description: "attempt to shift by excessive shift distance"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2451:50 in function std::ptr::align_offset::<u8>
+
+Check 79: std::ptr::align_offset::<u8>.arithmetic_overflow.10
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2451:32 in function std::ptr::align_offset::<u8>
+
+Check 80: std::ptr::align_offset::<u8>.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2364:33 in function std::ptr::align_offset::<u8>
+
+Check 81: std::ptr::align_offset::<u8>.division-by-zero.2
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2390:40 in function std::ptr::align_offset::<u8>
+
+Check 82: std::ptr::align_offset::<u8>.division-by-zero.3
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 83: std::ptr::align_offset::<u8>.division-by-zero.4
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2395:22 in function std::ptr::align_offset::<u8>
+
+Check 84: std::ptr::align_offset::<u8>.bit_count.1
+	 - Status: SUCCESS
+	 - Description: "count trailing zeros is undefined for value zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2410:17 in function std::ptr::align_offset::<u8>
+
+Check 85: std::ptr::align_offset::<u8>.bit_count.2
+	 - Status: SUCCESS
+	 - Description: "count trailing zeros is undefined for value zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2411:17 in function std::ptr::align_offset::<u8>
+
+Check 86: std::option::Option::<usize>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 87: std::option::Option::<usize>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 88: std::option::Option::<usize>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 89: std::option::Option::<usize>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 90: std::option::Option::<usize>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 91: std::option::Option::<usize>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<usize>::is_some
+
+Check 92: core::num::<impl usize>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 93: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/macros/mod.rs:434:9 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 94: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:42:19 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 95: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:34 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 96: flash_support::prefill_chunk_parser_matches_independent_byte_oracle.array_bounds.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/flash_support.rs:43:54 in function flash_support::prefill_chunk_parser_matches_independent_byte_oracle
+
+Check 97: core::str::validations::utf8_char_width.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 98: core::str::validations::utf8_char_width.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 99: core::str::validations::utf8_char_width.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 100: core::str::validations::utf8_char_width.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 101: core::str::validations::utf8_char_width.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 102: core::str::validations::utf8_char_width.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 103: core::str::validations::utf8_char_width.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:279:5 in function core::str::validations::utf8_char_width
+
+Check 104: core::str::validations::run_utf8_validation.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 105: core::str::validations::run_utf8_validation.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 106: core::str::validations::run_utf8_validation.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 107: core::str::validations::run_utf8_validation.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 108: core::str::validations::run_utf8_validation.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 109: core::str::validations::run_utf8_validation.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:164:21 in function core::str::validations::run_utf8_validation
+
+Check 110: core::str::validations::run_utf8_validation.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 111: core::str::validations::run_utf8_validation.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 112: core::str::validations::run_utf8_validation.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 113: core::str::validations::run_utf8_validation.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 114: core::str::validations::run_utf8_validation.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 115: core::str::validations::run_utf8_validation.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 116: core::str::validations::run_utf8_validation.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 117: core::str::validations::run_utf8_validation.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 118: core::str::validations::run_utf8_validation.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 119: core::str::validations::run_utf8_validation.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 120: core::str::validations::run_utf8_validation.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 121: core::str::validations::run_utf8_validation.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 122: core::str::validations::run_utf8_validation.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 123: core::str::validations::run_utf8_validation.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 124: core::str::validations::run_utf8_validation.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 125: core::str::validations::run_utf8_validation.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 126: core::str::validations::run_utf8_validation.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 127: core::str::validations::run_utf8_validation.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 128: core::str::validations::run_utf8_validation.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 129: core::str::validations::run_utf8_validation.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 130: core::str::validations::run_utf8_validation.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 131: core::str::validations::run_utf8_validation.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 132: core::str::validations::run_utf8_validation.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 133: core::str::validations::run_utf8_validation.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 134: core::str::validations::run_utf8_validation.pointer_dereference.31
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 135: core::str::validations::run_utf8_validation.pointer_dereference.32
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 136: core::str::validations::run_utf8_validation.pointer_dereference.33
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 137: core::str::validations::run_utf8_validation.pointer_dereference.34
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 138: core::str::validations::run_utf8_validation.pointer_dereference.35
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 139: core::str::validations::run_utf8_validation.pointer_dereference.36
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 140: core::str::validations::run_utf8_validation.pointer_dereference.37
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 141: core::str::validations::run_utf8_validation.pointer_dereference.38
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 142: core::str::validations::run_utf8_validation.pointer_dereference.39
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 143: core::str::validations::run_utf8_validation.pointer_dereference.40
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 144: core::str::validations::run_utf8_validation.pointer_dereference.41
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 145: core::str::validations::run_utf8_validation.pointer_dereference.42
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:160:17 in function core::str::validations::run_utf8_validation
+
+Check 146: core::str::validations::run_utf8_validation.pointer_dereference.43
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 147: core::str::validations::run_utf8_validation.pointer_dereference.44
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 148: core::str::validations::run_utf8_validation.pointer_dereference.45
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 149: core::str::validations::run_utf8_validation.pointer_dereference.46
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 150: core::str::validations::run_utf8_validation.pointer_dereference.47
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 151: core::str::validations::run_utf8_validation.pointer_dereference.48
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:232:52 in function core::str::validations::run_utf8_validation
+
+Check 152: core::str::validations::run_utf8_validation.pointer_dereference.49
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 153: core::str::validations::run_utf8_validation.pointer_dereference.50
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 154: core::str::validations::run_utf8_validation.pointer_dereference.51
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 155: core::str::validations::run_utf8_validation.pointer_dereference.52
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 156: core::str::validations::run_utf8_validation.pointer_dereference.53
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 157: core::str::validations::run_utf8_validation.pointer_dereference.54
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:233:52 in function core::str::validations::run_utf8_validation
+
+Check 158: core::str::validations::run_utf8_validation.pointer_dereference.55
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 159: core::str::validations::run_utf8_validation.pointer_dereference.56
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 160: core::str::validations::run_utf8_validation.pointer_dereference.57
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 161: core::str::validations::run_utf8_validation.pointer_dereference.58
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 162: core::str::validations::run_utf8_validation.pointer_dereference.59
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 163: core::str::validations::run_utf8_validation.pointer_dereference.60
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:38 in function core::str::validations::run_utf8_validation
+
+Check 164: core::str::validations::run_utf8_validation.pointer_dereference.61
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:250:5 in function core::str::validations::run_utf8_validation
+
+Check 165: std::str::from_utf8.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/converts.rs:91:11 in function std::str::from_utf8
+
+Check 166: std::ptr::align_offset::mod_inv.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv
+
+Check 167: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 168: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 169: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 170: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 171: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 172: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 173: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 174: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 175: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 176: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 177: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 178: std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &[u8]>::eq
+
+Check 179: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 180: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 181: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 182: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 183: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 184: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 185: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 186: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 187: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 188: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 189: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 190: std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &str>::eq
+
+Check 191: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 192: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 193: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 194: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 195: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 196: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 197: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 198: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 199: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 200: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 201: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 202: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 203: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 204: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 205: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 206: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 207: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 208: <std::option::Option<usize> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<usize> as std::cmp::PartialEq>::eq
+
+Check 209: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 210: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 211: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 212: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 213: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 214: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:54 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 215: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 216: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 217: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 218: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 219: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 220: std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2153:63 in function std::cmp::impls::<impl std::cmp::PartialEq for usize>::eq
+
+Check 221: memcmp.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 222: memcmp.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 223: memcmp.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 224: memcmp.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 225: memcmp.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 226: memcmp.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 227: memcmp.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 228: memcmp.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 229: memcmp.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 230: memcmp.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 231: memcmp.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 232: memcmp.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 233: core::str::validations::run_utf8_validation.unwind.1
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 1"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:241:17 in function core::str::validations::run_utf8_validation
+
+Check 234: core::str::validations::run_utf8_validation.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:224:17 in function core::str::validations::run_utf8_validation
+
+Check 235: core::str::validations::run_utf8_validation.unwind.2
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 2"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/str/validations.rs:145:5 in function core::str::validations::run_utf8_validation
+
+Check 236: memcmp.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: <builtin-library-memcmp>:25 in function memcmp
+
+
+SUMMARY:
+ ** 0 of 232 failed (8 unreachable)
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.8296947s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

@@ -1,0 +1,174 @@
+{
+  "status": "complete_pilot128_not_promotion",
+  "processes": 12,
+  "warmups": 24,
+  "measurements": 24,
+  "admission_bytes": 11000000000,
+  "anchor": "T04-w1 unchanged",
+  "peak_reported_native_lifetime_bytes": 7902009944,
+  "counters_identical_by_mode_prompt_group": true,
+  "modes": {
+    "AR": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.617541485025923,
+            "prefill_tps": 10.243315562258735,
+            "mean_ttft_seconds": 8.4937094995
+          },
+          "C": {
+            "decode_tps": 10.392495788964695,
+            "prefill_tps": 10.237760639891464,
+            "mean_ttft_seconds": 8.498383396
+          }
+        },
+        "decode_delta_percent": -2.1195650271638944,
+        "prefill_delta_percent": -0.05422972994932884
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.323754919025657,
+            "prefill_tps": 10.357713040313552,
+            "mean_ttft_seconds": 7.917162854500001
+          },
+          "C": {
+            "decode_tps": 10.20278095760925,
+            "prefill_tps": 10.272001744987614,
+            "mean_ttft_seconds": 7.9832424369999995
+          }
+        },
+        "decode_delta_percent": -1.171801949632334,
+        "prefill_delta_percent": -0.8275117778638763
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.468587428311094,
+            "prefill_tps": 10.29850473654785,
+            "mean_ttft_seconds": 8.205436177000001
+          },
+          "C": {
+            "decode_tps": 10.29676458757195,
+            "prefill_tps": 10.254346110835927,
+            "mean_ttft_seconds": 8.2408129165
+          }
+        },
+        "decode_delta_percent": -1.6413182954795769,
+        "prefill_delta_percent": -0.4287867689686031
+      },
+      "control_drift_percent": {
+        "MAIN": -3.1974496572079625,
+        "HOLD": -1.8808865011811893
+      }
+    },
+    "MTP": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "decode_tps": 11.042913331350372,
+            "prefill_tps": 9.816175818032809,
+            "mean_ttft_seconds": 8.863577146
+          },
+          "C": {
+            "decode_tps": 10.9581107073873,
+            "prefill_tps": 9.62540715835307,
+            "mean_ttft_seconds": 9.039282062
+          }
+        },
+        "decode_delta_percent": -0.7679370598908886,
+        "prefill_delta_percent": -1.9434111940954346
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.08801860814815,
+            "prefill_tps": 9.786730848263991,
+            "mean_ttft_seconds": 8.379287708500001
+          },
+          "C": {
+            "decode_tps": 10.244775724011712,
+            "prefill_tps": 9.842481068021424,
+            "mean_ttft_seconds": 8.331865541500001
+          }
+        },
+        "decode_delta_percent": 1.5538939999272694,
+        "prefill_delta_percent": 0.5696510982247105
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.54389039667444,
+            "prefill_tps": 9.801866813772627,
+            "mean_ttft_seconds": 8.62143242725
+          },
+          "C": {
+            "decode_tps": 10.589443745718054,
+            "prefill_tps": 9.729524192947661,
+            "mean_ttft_seconds": 8.68557380175
+          }
+        },
+        "decode_delta_percent": 0.43203549477317527,
+        "prefill_delta_percent": -0.7380494164980544
+      },
+      "control_drift_percent": {
+        "MAIN": 2.755171433659953,
+        "HOLD": 4.381834250852612
+      }
+    },
+    "DF": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "decode_tps": 11.497301213002096,
+            "prefill_tps": 10.017137124758666,
+            "mean_ttft_seconds": 8.685626271
+          },
+          "C": {
+            "decode_tps": 11.566876049737777,
+            "prefill_tps": 10.058470205243228,
+            "mean_ttft_seconds": 8.6499418335
+          }
+        },
+        "decode_delta_percent": 0.6051405929680342,
+        "prefill_delta_percent": 0.4126236864862687
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "decode_tps": 10.894035461102003,
+            "prefill_tps": 10.023698202092906,
+            "mean_ttft_seconds": 8.181121979
+          },
+          "C": {
+            "decode_tps": 11.031665944360666,
+            "prefill_tps": 10.017059464555647,
+            "mean_ttft_seconds": 8.186723937500002
+          }
+        },
+        "decode_delta_percent": 1.2633562994180059,
+        "prefill_delta_percent": -0.06623042118200084
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "decode_tps": 11.187541766211005,
+            "prefill_tps": 10.02031953301872,
+            "mean_ttft_seconds": 8.433374125
+          },
+          "C": {
+            "decode_tps": 11.292933201961102,
+            "prefill_tps": 10.038334744658602,
+            "mean_ttft_seconds": 8.4183328855
+          }
+        },
+        "decode_delta_percent": 0.9420428361519351,
+        "prefill_delta_percent": 0.17978679802095332
+      },
+      "control_drift_percent": {
+        "MAIN": 1.2079332041221136,
+        "HOLD": -3.546557176235454
+      }
+    }
+  }
+}
