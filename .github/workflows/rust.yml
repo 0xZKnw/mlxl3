@@ -236,6 +236,9 @@ jobs:
           ruff check scripts/profile_flash.py tests/test_flash_profile.py tests/test_flash_memory_admission.py docs/measurements/decode-profile-20261031/capture.py tests/test_decode_capture.py
           python -m py_compile docs/measurements/decode-profile-20261031/capture.py
           python -m pytest -q tests/test_flash_profile.py tests/test_flash_memory_admission.py tests/test_decode_capture.py
+          ruff format --check tests/test_cold_schedule_diagnostic.py
+          ruff check tests/test_cold_schedule_diagnostic.py
+          python -m pytest -q tests/test_cold_schedule_diagnostic.py
           ruff check docs/measurements/decode-profile-p09-20261101/run.py docs/measurements/decode-profile-p09-20261101/run-mtp-head.py tests/test_decode_profile_p09.py
           python -m pytest -q tests/test_decode_profile_p09.py
           ruff check docs/measurements/decode-profile-p09-20261101/analyze.py tests/test_decode_p09_attribution.py
