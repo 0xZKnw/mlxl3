@@ -1,6 +1,6 @@
 # Desktop beta 6 Studio verification
 
-Status: source qualified on CPU; final package construction and publication in progress.
+Status: source and signed packages qualified; Desktop beta6 and engine2.0.2-beta.1 published.
 
 The working branch starts at `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`. Artifacts Studio and its independent revision workflow are removed. Agent Studio uses a full-window project controller; Chat and Agent share native completed-code cards and an on-demand isolated HTML preview. Saved artifact directories are not deleted.
 
@@ -43,10 +43,20 @@ No LLM inference, quantization, Metal kernel or WebGL test was run during this p
 
 The strengthened baseline reproduced a persistent missing code tail when a growing block crossed into its internal scroller. C1 gives that scroller a native initial/size anchor, measures its chunks consistently and preserves following until a user gesture suspends it. Thinking uses raw bounded chunks; stable/large text uses native drawing, while the small active suffix keeps the fade. The user confirmed the disappearance did not occur during C1.
 
-The optimized native-bitmap journey passes 30 exact marker/OCR captures across 131,226 bytes of thinking and 262,197 bytes of answer, code, tools, completion and two window sizes. Five initial large-burst prose captures required the explicitly recorded 2-second settling check; no instantaneous-rendering claim is made. Optimized physical-compositor attempts remained unavailable because macOS kept the test app inactive/occluded; they remain failed/unverified evidence, not passes. `--require-onscreen` retains those guards. Manual nonoptimized C1 had 30 visible captures and the user's observation.
+The optimized native-bitmap journey passes 30 exact marker/OCR captures across 131,226 bytes of thinking and 262,197 bytes of answer, code, tools, completion and two window sizes. The final optimized bitmap run had zero initial misses and recorded 30 physically visible captures, while its declared domain remains native bitmap/OCR. The earlier C1 run had five initial prose misses resolved after the recorded 2-second settling check; its evidence is retained separately. Optimized physical-compositor attempts remained unavailable because macOS kept the test app inactive/occluded; they remain failed/unverified evidence, not passes. `--require-onscreen` retains those guards. Manual nonoptimized C1 had 30 visible captures and the user's observation.
 
 Final CPU source checks: 141 raw-cache boundary/Unicode cases, 1,194 incremental code cases, 4,845 incremental Markdown cases, 1,179 mode/permission checks, 39 project checks and 44 workspace checks pass. See `desktop-bitmap-final.log/json`. The optimized ordinary response checks from `desktop-final4.log` passed their 786 fade cases, 63 drawing comparisons, 81 viewport frames, HTML lifecycle/Unicode source checks, 9 formulas/2 styles and 63 parser/chunk cases before the separate foreground-availability failure. The production rendering code is unchanged between those checks and the final bitmap run.
 
 Native engine: 284 CPU tests passed, 9 ignored; fmt and strict release Clippy with shipped `mlx,chat` features passed. Kani0.68/CBMC6.11 checks actual pre-draft cost observation for symbolic counters and arguments, no assumptions/stubs, unwind5: 380 obligations pass, 6 internal ZST/fmt checks are unreachable, all4 business covers are satisfied. This is bounded CPU accounting, not proof of readers/concurrency/Metal/inference. The 129 native source/build files match qualified main4c1d byte for byte; Cargo changes only version2.0.1→2.0.2. Main e966 adds profile-report compatibility without changing those algorithms.
 
 The fixture fixes its NSHostingView bounds explicitly because [Apple documents its default window sizing constraints](https://developer.apple.com/documentation/swiftui/nshostingview/sizingoptions). No source-level Swift verifier or fresh GPU/model/quantization/WebGL qualification is claimed.
+
+## Publication
+
+[Desktop beta6/build37](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.0-beta.6) and [engine2.0.2-beta.1](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.2-beta.1) are published as prereleases with latest=false. All eight uploaded asset sizes and GitHub SHA-256 digests match the local artifacts; release bodies match the English notes. The production UpdateManager accepts the anonymous public feed and selects beta6/build37 plus engine2.0.2-beta.1; the Stable channel remains v1.5.1. See `docs/measurements/desktop-v2-beta6/publication-verification.json` and `public-feed-preflight.log`.
+
+The exact-source publication CI snapshot has Profile/Conversion successful, Regression/Desktop and Native running, and Apple compatibility cancelled. Publication and merge without waiting for CI are explicitly authorized; no overall-green claim. Subsequent receipt-only commits do not change the frozen binary source or qualify unexecuted GPU/model paths.
+
+## Frozen release package
+
+Clean source `9df28b6d2a10e0d646f8a36532ae69c88c9ec3e8` produced Desktop2.0.0/build37 and engine2.0.2. Build170.58s; production DMG preflight36→37 passed6.15s and standalone engine install/activate/resolve2.0.1→2.0.2 passed3.13s in disposable storage. Wrong archive digest is rejected without activation; signatures/arm64/protocol/four runtime hashes/source agree, empty registries list0models, temporary roots/mounts are removed. Bundled and standalone runtime manifests are identical. No installed app was replaced. The exact-source CI has profile/conversion successful and other workflows running at publication preparation; no overall-green claim.

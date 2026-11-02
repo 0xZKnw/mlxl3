@@ -1,6 +1,6 @@
 # MLXL3 Engine 2.0.2-beta.1
 
-Prerelease `engine-v2.0.2-beta.1`, internal engine version **2.0.2**, published with `latest=false`. This runtime is also bundled with Desktop **2.0.0-beta.6 / build 37**. Release source: **PENDING_SOURCE_SHA**.
+Prerelease `engine-v2.0.2-beta.1`, internal engine version **2.0.2**, published with `latest=false`. This runtime is also bundled with Desktop **2.0.0-beta.6 / build 37**. Release source: **9df28b6d2a10e0d646f8a36532ae69c88c9ec3e8**
 
 ## Features
 
@@ -29,7 +29,7 @@ Prepared Metal, Cold Shared, DEC-ONE, MB3/MB4 reference projections, Cold priori
 
 ## Verification and limitations
 
-Current CPU/build/package checks: **PENDING_VERIFICATION_RESULTS**. Exact-source GitHub CI status: **PENDING_CI_STATUS**.
+Current CPU/build/package checks: **284 CPU tests passed / 9 ignored; fmt and strict release Clippy (`mlx,chat`) passed. Kani checked actual pre-draft accounting with symbolic counters, no assumptions/stubs, unwind5:380 successful obligations,6 internal unreachable checks,4/4 covers. Actual standalone install/activate/resolve and read-only DMG preflight passed, with identical bundled/standalone runtime hashes**. Exact-source GitHub CI status: **At the publication snapshot, Flash profile compatibility and EXL3 conversion workflows passed; Regression/Desktop and Native workflows were still running, and Apple compatibility was cancelled on source `9df28b6d2a10e0d646f8a36532ae69c88c9ec3e8`. Publication and merge before CI completion were explicitly authorized.**
 
 No inference, quantization, Metal/WebGL execution or new physical benchmark was run for this release preparation, as requested. Earlier component, state/logit, CLI and concurrency qualifications are preserved with their original identities; they do not establish physical parity or performance of this newly built package. See the [integrated runtime qualification](https://github.com/0xZKnw/mlxl3/blob/main/docs/measurements/merge-validation-20261101/README.md).
 
@@ -39,10 +39,12 @@ Historical Kani attempts for the affected Cold paths encountered a compiler inte
 
 | File | Bytes | SHA-256 |
 |---|---:|---|
-| PENDING_ENGINE_MANIFEST_FILENAME | PENDING_BYTES | `PENDING_SHA256` |
-| PENDING_ENGINE_ARCHIVE_FILENAME | PENDING_BYTES | `PENDING_SHA256` |
+| MLXL3-Engine-v2.0.2-beta.1.json | 13588 | `a537aeef420c67ff548b133e0ef50b5cd13b18fe5d4e645abea2d62b9a253d89` |
+| MLXL3-Engine-v2.0.2-beta.1-arm64.tar.gz | 67394836 | `92c4d06ccdf98860a7ff82b363ce35d6bb98c8ed0a6df8b296e024d5218d6993` |
+| MLXL3-Engine-v2.0.2-beta.1-arm64.tar.gz.sha256 | 106 | `c29c225fb6e8782267695e60b55fd4349b4d247b78ead23e16778dc144a63b6f` |
+| MLXL3-Engine-v2.0.2-beta.1.json.sha256 | 98 | `db78dca46b2bb17f34e9a335b92dd8877c6aeaf23825f85b3bcaa4350d5ae2eb` |
 
-Package provenance, signatures, architecture and runtime-file hashes: **PENDING_PACKAGE_RECEIPT**.
+Package provenance, signatures, architecture and runtime-file hashes: **[shared validation receipt](https://github.com/0xZKnw/mlxl3/releases/download/v2.0.0-beta.6/MLXL3-v2.0.0-beta.6-validation.json)**
 
 ## Acknowledgements
 
