@@ -75,7 +75,7 @@ import SwiftUI
     check(
       !String(decoding: zipBytes, as: UTF8.self).contains("history.git"),
       "Private Git history exported")
-    try store.apply()
+    try store.apply(reviewedRevision: try store.versions().first!.id)
     check(
       try String(contentsOf: source.appendingPathComponent("main.js"), encoding: .utf8)
         == "window.result = 2", "Reviewed changes not applied")
@@ -90,7 +90,7 @@ import SwiftUI
     _ = try store.checkpoint("Conflicting edits")
     try Data("USER-EDIT".utf8).write(to: source.appendingPathComponent("main.js"))
     do {
-      try store.apply()
+      try store.apply(reviewedRevision: try store.versions().first!.id)
       preconditionFailure("Source conflict was overwritten")
     } catch { checks += 1 }
     check(
@@ -125,19 +125,6 @@ import SwiftUI
     let readonly = try AgentSandbox.execute(
       root: workspace, command: "printf BAD > index.html", writable: false)
     check(readonly.status != 0, "Run bypassed disabled writes")
-    let artifact = try await ArtifactLibrary.shared.open("<!doctype html><p>v1</p>", base: root)
-    let old = try artifact.versions().first!.id
-    try await ArtifactLibrary.shared.append(
-      "<!doctype html><p>v2</p>", to: artifact.workspace, file: "index.html", base: root)
-    let reopened = try await ArtifactLibrary.shared.open("<!doctype html><p>v2</p>", base: root)
-    let artifactVersions = try reopened.versions()
-    check(
-      reopened.workspace == artifact.workspace && artifactVersions.count == 2,
-      "AI revision did not retain artifact identity/history: first=\(artifact.workspace.absoluteString) reopened=\(reopened.workspace.absoluteString) versions=\(artifactVersions.count)"
-    )
-    check(
-      try artifact.contents("index.html", revision: old) == Data("<!doctype html><p>v1</p>".utf8),
-      "Artifact revision destroyed old source")
     check(
       GeneratedHTML.documents("```html\n<p>run</p>\n```").count == 1
         && GeneratedHTML.documents("```js\nalert(1)\n```").isEmpty,
@@ -205,14 +192,7 @@ import SwiftUI
       try files.createDirectory(at: clean.workspace, withIntermediateDirectories: true)
       _ = try clean.importProject(cleanSource)
       let views: [(String, AnyView)] = [
-        (
-          "artifacts",
-          AnyView(
-            ArtifactStudioView(
-              workspace: artifact.workspace,
-              file: artifact.workspace.appendingPathComponent("index.html")))
-        ),
-        ("agent", AnyView(ArtifactStudioView(workspace: clean.workspace, projectMode: true))),
+        ("agent", AnyView(AgentStudioView(workspace: clean.workspace))),
         ("quantization", AnyView(QuantizationStudioView(quantizer: quantizer))),
       ]
       let folder = URL(fileURLWithPath: path)
@@ -236,7 +216,7 @@ import SwiftUI
       }
     }
     print(
-      "Studios checks passed: \(checks), actual Git, safe copy/edit/conflicts/restore, historical assets, ZIP, permissions and artifact revisions"
+      "Studios checks passed: \(checks), actual Git, safe copy/edit/conflicts/restore, historical assets, ZIP, permissions and generated HTML extraction"
     )
   }
 

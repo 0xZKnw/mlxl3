@@ -340,19 +340,33 @@ enum StreamingTextChunker {
     static let hardLimitCharacters = 16_000
 
     final class Cache {
+        private let markdown: Bool
         private var previousSource = ""
         private var previousChunks: [StreamingTextChunk] = []
 
+        init(markdown: Bool = true) { self.markdown = markdown }
+
+        private func split(_ source: String, continuingTable: [String] = []) -> [StreamingTextChunk]
+        {
+            if markdown {
+                return StreamingTextChunker.chunks(source, continuingTable: continuingTable)
+            }
+            return CodeTextChunker.chunks(source).map {
+                StreamingTextChunk(id: $0.id, source: $0.source, sourceOffset: $0.id)
+            }
+        }
+
         func chunks(_ source: String) -> [StreamingTextChunk] {
             if source.utf8.count == previousSource.utf8.count,
-               source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty {
+                source.utf8.elementsEqual(previousSource.utf8), !previousChunks.isEmpty
+            {
                 return previousChunks
             }
             defer { previousSource = source }
             // ponytail: exact append check still scans bytes; an explicit append
             // API is only needed if that check, rather than parsing, dominates.
             guard previousChunks.count > 2, source.utf8.starts(with: previousSource.utf8) else {
-                previousChunks = StreamingTextChunker.chunks(source)
+                previousChunks = split(source)
                 return previousChunks
             }
             // A full chunk of lookbehind keeps partial fences, headers and
@@ -360,7 +374,7 @@ enum StreamingTextChunker {
             let stableCount = previousChunks.count - 2
             let restart = previousChunks[stableCount]
             let boundary = source.utf8.index(source.utf8.startIndex, offsetBy: restart.sourceOffset)
-            let changed = StreamingTextChunker.chunks(String(source[boundary...]), continuingTable: restart.tableLines)
+            let changed = split(String(source[boundary...]), continuingTable: restart.tableLines)
             previousChunks.removeLast(2)
             previousChunks += changed.map { chunk in
                 StreamingTextChunk(
@@ -812,7 +826,7 @@ enum MarkdownRegressionCheck {
 }
 
 @MainActor
-private enum SyntaxHighlighter {
+enum SyntaxHighlighter {
     private static let base = NSColor(srgbRed: 0.82, green: 0.85, blue: 0.89, alpha: 1)
     private static let comment = NSColor(srgbRed: 0.43, green: 0.49, blue: 0.54, alpha: 1)
     private static let string = NSColor(srgbRed: 0.62, green: 0.83, blue: 0.65, alpha: 1)
@@ -1000,89 +1014,129 @@ private struct SyntaxDefinition {
     let types: [String]
 }
 
-private struct CodeBlockView: View, Equatable {
+struct CodeBlockView: View, Equatable {
     let language: String?
     let source: String
     let streaming: Bool
     var htmlPreviewEnabled = false
-    @State private var showingHTML = false
+    @EnvironmentObject private var studio: StudioModel
+    @State private var showingPreview = false
     @State private var copied = false
-    @State private var followsBottom = true
+    @State private var codeScroll = StreamingScrollState()
     @State private var chunkCache = CodeTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
+            && lhs.htmlPreviewEnabled == rhs.htmlPreviewEnabled
     }
 
+    private var canPreview: Bool {
+        !streaming && HTMLPreview.canRun(language: language, source: source, completed: htmlPreviewEnabled)
+    }
+    private var lineCount: Int { source.utf8.reduce(1) { $1 == 10 ? $0 + 1 : $0 } }
+
     var body: some View {
-        let chunks = chunkCache.highlightedChunks(source)
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                Text(language ?? "code")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
                     .foregroundStyle(StudioTheme.quiet)
-                Spacer()
-                if HTMLPreview.canRun(language: language, source: source, completed: htmlPreviewEnabled) {
-                    Button { showingHTML = true } label: {
-                        Label(L("Exécuter HTML", "Run HTML"), systemImage: "play.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .padding(.horizontal, 9).frame(height: 25)
+                Text(language?.uppercased() ?? "CODE")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 8)
+                if streaming {
+                    Text(L("Écriture…", "Writing…"))
+                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+                }
+                if canPreview {
+                    HStack(spacing: 2) {
+                        modeButton("Code", icon: "chevron.left.forwardslash.chevron.right", preview: false)
+                        modeButton(L("Aperçu", "Preview"), icon: "play", preview: true)
                     }
-                    .buttonStyle(StudioControlStyle())
-                    .help(L("Aperçu isolé avec JavaScript et imports CDN", "Isolated preview with JavaScript and CDN imports"))
+                    .padding(3).background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                 }
                 Button(action: copySource) {
-                    Label(copied ? L("Copié", "Copied") : L("Copier", "Copy"), systemImage: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 10, weight: .medium))
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
-                        .padding(.horizontal, 9)
-                        .frame(height: 25)
+                        .frame(width: 28, height: 28)
                 }
                 .buttonStyle(StudioControlStyle())
+                .accessibilityIdentifier("code.copy")
+                .accessibilityLabel(copied ? L("Copié", "Copied") : L("Copier le code", "Copy code"))
                 .help(L("Copier tout le bloc", "Copy entire block"))
             }
-            if chunks.count > 8 {
-                // Bound CoreText layout for generated files, while copy keeps the entire source.
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(chunks) { chunk in
-                                CodeTextChunkView(source: chunk.source, language: language, prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                                                  streaming: streaming && chunk.id == chunks.last?.id).equatable()
-                            }
-                            Color.clear.frame(height: 1).id("code-bottom")
-                        }
-                    }
+            .padding(.horizontal, 14).frame(height: 48)
+            .background(Color.white.opacity(0.025))
+            Rectangle().fill(StudioTheme.edge).frame(height: 1)
+            if showingPreview && canPreview && studio.studioDocument == nil {
+                InlineHTMLPreview(source: source, workspace: studio.selectedMode == .agent ? studio.agentWorkspaceURL : nil)
                     .frame(height: 440)
-                    .onScrollGeometryChange(for: Bool.self) { g in
-                        g.contentSize.height - g.visibleRect.maxY < 60
-                    } action: { _, bottom in followsBottom = bottom }
-                    .onChange(of: source.count) {
-                        if streaming && followsBottom { proxy.scrollTo("code-bottom", anchor: .bottom) }
+            } else if !streaming {
+                StudioCodeEditor(text: .constant(source), language: language ?? "text", editable: false,
+                                 documentID: "inline-code")
+                    .frame(height: min(440, max(76, CGFloat(lineCount) * 19 + 34)))
+            } else {
+                streamingCode.padding(16)
+            }
+        }
+        .background(StudioTheme.canvas)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .onChange(of: canPreview) { _, allowed in if !allowed { showingPreview = false } }
+    }
+
+    private func modeButton(_ label: String, icon: String, preview: Bool) -> some View {
+        Button { showingPreview = preview } label: {
+            Label(label, systemImage: icon)
+                .font(.system(size: 10, weight: .medium))
+                .padding(.horizontal, 9).frame(height: 26)
+                .foregroundStyle(showingPreview == preview ? StudioTheme.ink : StudioTheme.quiet)
+                .background(showingPreview == preview ? Color.white.opacity(0.085) : .clear,
+                            in: RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(preview ? "code.preview" : "code.source")
+        .accessibilityAddTraits(showingPreview == preview ? .isSelected : [])
+        .help(preview ? L("Aperçu isolé avec JavaScript et imports CDN", "Isolated preview with JavaScript and CDN imports") : L("Afficher le code source", "Show source code"))
+    }
+
+    @ViewBuilder private var streamingCode: some View {
+        let chunks = chunkCache.highlightedChunks(source)
+        if chunks.count > 8 {
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(chunks) { chunk in
+                        CodeTextChunkView(
+                            source: chunk.source, language: language,
+                            prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
+                            streaming: chunk.id == chunks.last?.id
+                        ).equatable()
                     }
                 }
-            } else {
+            }
+            .frame(height: 408)
+            .defaultScrollAnchor(.bottom, for: .initialOffset)
+            .defaultScrollAnchor(codeScroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+            .onScrollPhaseChange { _, phase in codeScroll.phaseChanged(phase) }
+            .onScrollGeometryChange(for: Bool.self) { g in
+                g.contentSize.height - g.visibleRect.maxY < 60
+            } action: { _, bottom in
+                codeScroll.proximityChanged(bottom)
+            }
+        } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(chunks) { chunk in
                     CodeTextChunkView(
-                        source: chunk.source,
-                        language: language,
+                        source: chunk.source, language: language,
                         prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                        streaming: streaming && chunk.id == chunks.last?.id
-                    )
-                    .equatable()
+                        streaming: chunk.id == chunks.last?.id
+                    ).equatable()
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            }.frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(13)
-        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.075), lineWidth: 0.7)
-        }
-        .sheet(isPresented: $showingHTML) { HTMLPreviewSheet(source: source) }
     }
 
     private func copySource() {
@@ -1499,27 +1553,34 @@ struct SmoothTokenText: View {
   @State private var fade = TokenFadeState()
   @State private var time: Double = 0
 
+  private var animates: Bool { streaming && !reduceMotion && source.utf8.count <= 16_000 }
+
   var body: some View {
-    content
-      .textRenderer(
-        TokenFadeRenderer(batches: streaming && !reduceMotion ? fade.batches : [], time: time)
-      )
-      .task(id: source) {
-        let now = ProcessInfo.processInfo.systemUptime
-        var transaction = Transaction(animation: nil)
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-          fade.update(source, at: now, animated: streaming && !reduceMotion)
-          time = now
-        }
-        guard !fade.batches.isEmpty else { return }
-        await Task.yield()
-        guard !Task.isCancelled else { return }
-        // Advancing one clock preserves the age of earlier fragments.
-        withAnimation(.linear(duration: TokenFadeState.duration)) {
-          time = now + TokenFadeState.duration
-        }
+    Group {
+      if animates {
+        content.textRenderer(TokenFadeRenderer(batches: fade.batches, time: time))
+      } else {
+        content
       }
+    }
+    .fixedSize(horizontal: false, vertical: true)
+    .task(id: source) {
+      guard animates else { fade = TokenFadeState(); return }
+      let now = ProcessInfo.processInfo.systemUptime
+      var transaction = Transaction(animation: nil)
+      transaction.disablesAnimations = true
+      withTransaction(transaction) {
+        fade.update(source, at: now, animated: true)
+        time = now
+      }
+      guard !fade.batches.isEmpty else { return }
+      await Task.yield()
+      guard !Task.isCancelled else { return }
+      // Advancing one clock preserves the age of earlier fragments.
+      withAnimation(.linear(duration: TokenFadeState.duration)) {
+        time = now + TokenFadeState.duration
+      }
+    }
   }
 }
 

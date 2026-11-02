@@ -151,8 +151,7 @@ final class StudioModel: ObservableObject {
         }
     }
     @Published var agentStudioBusy = false
-    private var pendingArtifactRevision: (UUID, ArtifactRevisionRequest, String)?
-    private var activeArtifactRevision: (String, ArtifactRevisionRequest)?
+    @Published var studioDocument: StudioDocument?
     private var generationWatchdog: Task<Void, Never>?
     private var cancellationFallback: Task<Void, Never>?
     private var cancellationReason: String?
@@ -761,10 +760,6 @@ final class StudioModel: ObservableObject {
         let requestID = UUID().uuidString
         activeRequestID = requestID
         activeResponseID = assistant.id
-        if let pending = pendingArtifactRevision, pending.0 == conversations[conversationIndex].id, pending.2 == text {
-            activeArtifactRevision = (requestID, pending.1)
-        }
-        pendingArtifactRevision = nil
         if selectedMode == .agent {
             generationStartedAt = .now
             generationLastActivity = .now
@@ -1672,7 +1667,7 @@ final class StudioModel: ObservableObject {
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
                 message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
             }
-            finishStudioTurn(requestID: event.requestID, source: message?.error == nil ? message?.content ?? "" : "")
+            finishAgentTurn()
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -1806,7 +1801,27 @@ extension StudioModel {
             .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
     }
 
-    var artifactBaseURL: URL { conversationFileURL.deletingLastPathComponent() }
+    func openAgentProject(_ source: URL) async {
+        guard !isGenerating, !agentStudioBusy else { return }
+        agentStudioBusy = true
+        defer { agentStudioBusy = false }
+        var conversation = Conversation(title: source.lastPathComponent)
+        conversation.agent = true
+        conversation.projectID = selectedProjectID
+        let workspace = conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appendingPathComponent("agent-workspaces/\(conversation.id.uuidString)/files")
+        do {
+            try await Task.detached { try AgentProjectStore(workspace: workspace).importProject(source) }.value
+            if let id = selectedConversationID { drafts[id] = draft }
+            conversations.insert(conversation, at: 0)
+            selectedConversationID = conversation.id
+            selectedMode = .agent
+            draft = ""
+            studioDocument = StudioDocument(workspace: workspace)
+            schedulePersistence()
+            refreshAgentWorkspace()
+        } catch { featureError = error.localizedDescription }
+    }
 
     func openAgentWorkspace() {
         guard let url = agentWorkspaceURL else { return }
@@ -1852,36 +1867,14 @@ extension StudioModel {
         catch { featureError = error.localizedDescription }
     }
 
-    func requestArtifactRevision(_ request: ArtifactRevisionRequest) {
-        guard !isGenerating, !agentStudioBusy, let id = selectedConversationID else { return }
-        let base = conversationFileURL.deletingLastPathComponent().standardizedFileURL.path
-        let isAgent = currentConversation?.agent == true
-        guard request.workspace.standardizedFileURL.path.hasPrefix(base + "/artifacts/")
-            || isAgent && request.workspace.standardizedFileURL == agentWorkspaceURL?.standardizedFileURL else {
-            featureError = L("Cet artefact appartient à une autre tâche.", "This artifact belongs to another task."); return
-        }
-        draft = L("Modifie ce document HTML selon la demande suivante : ", "Revise this HTML document as requested: ")
-            + request.instruction + "\n\n" + (isAgent ? "File: " + request.file + "\n" : "")
-            + "```html\n" + request.source + "\n```\n"
-            + (isAgent ? "Update the workspace file and verify it." : "Return the complete updated HTML document.")
-        if !isAgent { pendingArtifactRevision = (id, request, draft.trimmingCharacters(in: .whitespacesAndNewlines)) }
-        send()
-    }
-
-    private func finishStudioTurn(requestID: String?, source: String) {
-        let agentStore = currentConversation?.agent == true ? agentWorkspaceURL.map { AgentProjectStore(workspace: $0) } : nil
-        let artifact = activeArtifactRevision.flatMap { $0.0 == requestID ? $0.1 : nil }
-        activeArtifactRevision = nil
-        guard agentStore != nil || artifact != nil else { return }
-        let document = GeneratedHTML.documents(source).first
-        let base = conversationFileURL.deletingLastPathComponent()
+    private func finishAgentTurn() {
+        guard currentConversation?.agent == true, let workspace = agentWorkspaceURL else { return }
+        let store = AgentProjectStore(workspace: workspace)
         agentStudioBusy = true
         Task {
             defer { agentStudioBusy = false }
-            do {
-                if let agentStore { _ = try await Task.detached { try agentStore.checkpoint("Agent turn") }.value }
-                if let artifact, let document { try await ArtifactLibrary.shared.append(document, to: artifact.workspace, file: artifact.file, base: base) }
-            } catch { featureError = error.localizedDescription }
+            do { _ = try await Task.detached { try store.checkpoint("Agent turn") }.value }
+            catch { featureError = error.localizedDescription }
         }
     }
 

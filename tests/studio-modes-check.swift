@@ -230,15 +230,18 @@ extension StudioModel {
       "New agent tasks reuse the resident model")
     let secondWorkspace = studio.agentWorkspaceURL!
     _ = try studio.modesRegistryForCheck()
-    let secondConfig = try JSONSerialization.jsonObject(
-      with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json")))
+    let secondConfig =
+      try JSONSerialization.jsonObject(
+        with: Data(
+          contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json")))
       as! [String: Any]
     let secondServers = secondConfig["mcpServers"] as! [String: [String: Any]]
     check(
       secondWorkspace != workspace
         && (secondServers["sandbox"]?["args"] as? [String]) == [
           "--agent-tools", secondWorkspace.path,
-          secondWorkspace.deletingLastPathComponent().appendingPathComponent("studio/project.json").path,
+          secondWorkspace.deletingLastPathComponent().appendingPathComponent("studio/project.json")
+            .path,
         ],
       "Switching tasks replaces both helper paths without reusing another task's permissions")
     let secondState = try AgentProjectStore(workspace: secondWorkspace).state()

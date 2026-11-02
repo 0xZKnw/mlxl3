@@ -274,6 +274,13 @@ struct AgentProjectStore: Sendable {
     if !FileManager.default.fileExists(atPath: repository.path) {
       _ = try git(["init", "--bare", repository.path])
     }
+    // Checkpoints and ZIPs preserve bytes; project attributes cannot filter or hide files.
+    let info = repository.appendingPathComponent("info")
+    try FileManager.default.createDirectory(at: info, withIntermediateDirectories: true)
+    try Data(
+      "* -text -eol -ident -filter -working-tree-encoding -export-ignore -export-subst !diff\n".utf8
+    )
+    .write(to: info.appendingPathComponent("attributes"), options: .atomic)
     _ = try git(["read-tree", "--empty"])
     // Explicit paths prevent .gitignore or an Agent's exclusions from hiding a changed file.
     for start in stride(from: 0, to: inventory.paths.count, by: 100) {
@@ -322,16 +329,51 @@ struct AgentProjectStore: Sendable {
     return data
   }
 
-  func diff(from before: String, to after: String) throws -> String {
-    try requireRevision(before)
-    try requireRevision(after)
-    return String(
-      decoding: try git([
-        "diff", "--no-ext-diff", "--no-textconv", "--unified=3", before, after, "--",
-      ]), as: UTF8.self)
+  func paths(at revision: String) throws -> [String] {
+    try requireRevision(revision)
+    let paths = String(
+      decoding: try git(["ls-tree", "-r", "--name-only", "-z", revision]), as: UTF8.self
+    )
+    .split(separator: "\0").map(String.init)
+    guard paths.count <= Self.maximumFiles, paths.allSatisfy(Self.validPath) else {
+      throw CocoaError(.fileReadCorruptFile)
+    }
+    return paths
   }
 
-  func apply() throws {
+  func saveFile(_ path: String, text: String, revision: String) throws {
+    Self.mutation.lock()
+    defer { Self.mutation.unlock() }
+    guard try versions().first?.id == revision,
+      try HTMLPreview.data(at: workspace.appendingPathComponent(path), in: workspace)
+        == contents(path, revision: revision)
+    else { throw Self.changedWorkspace() }
+    try Self.write(Data(text.utf8), path: path, root: workspace)
+    _ = try checkpoint("Edited \(path)")
+  }
+
+  private static func changedWorkspace() -> NSError {
+    NSError(
+      domain: "MLXL3.Project", code: 2,
+      userInfo: [
+        NSLocalizedDescriptionKey: L(
+          "Les fichiers ont changé. Actualisez et examinez la nouvelle version avant de continuer.",
+          "Files changed. Refresh and review the new version before continuing.")
+      ])
+  }
+
+  func diff(from before: String, to after: String, path: String? = nil) throws -> String {
+    try requireRevision(before)
+    try requireRevision(after)
+    if let path, !Self.validPath(path) { throw CocoaError(.fileReadNoPermission) }
+    return String(
+      decoding: try git(
+        [
+          "diff", "--no-ext-diff", "--no-textconv", "--unified=3", before, after, "--",
+        ] + (path.map { [":(literal)" + $0] } ?? [])), as: UTF8.self)
+  }
+
+  func apply(reviewedRevision: String) throws {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
     var state = try state()
@@ -339,6 +381,10 @@ struct AgentProjectStore: Sendable {
       let latest = try versions().first?.id
     else { throw CocoaError(.fileWriteNoPermission) }
     let root = URL(fileURLWithPath: source)
+    guard latest == reviewedRevision, try Set(files().paths) == Set(paths(at: latest)),
+      try git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", latest, "--"]).isEmpty
+    else { throw Self.changedWorkspace() }
+    let reviewedPaths = Set(try paths(at: latest))
     let changes = String(
       decoding: try git(["diff", "--name-only", "-z", baseline, latest, "--"]), as: UTF8.self
     ).split(separator: "\0").map(String.init)
@@ -359,10 +405,14 @@ struct AgentProjectStore: Sendable {
             NSLocalizedDescriptionKey: "Conflict: \(path). The original changed after import."
           ])
       }
-      let local = workspace.appendingPathComponent(path)
       originals[path] = old
-      if FileManager.default.fileExists(atPath: local.path) {
-        replacements[path] = try HTMLPreview.data(at: local, in: workspace)
+      if reviewedPaths.contains(path) {
+        let reviewed = try contents(path, revision: latest)
+        guard
+          reviewed
+            == (try HTMLPreview.data(at: workspace.appendingPathComponent(path), in: workspace))
+        else { throw Self.changedWorkspace() }
+        replacements[path] = reviewed
       }
     }
     var applied: [String] = []
