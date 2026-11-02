@@ -1,0 +1,1350 @@
+{
+  "source": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531/quantization_config.json",
+  "sha256": "c057f732f92379dac8b345ee065d3f07c72df77fead15ee4ec972e8e9831bef5",
+  "projections": [
+    {
+      "name": "model.language_model.layers.0.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.1.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.2.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.3.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.4.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.5.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.6.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.7.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.8.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.9.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.10.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.11.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.12.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.13.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.14.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.15.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.16.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.17.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.18.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.19.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.20.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.21.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.22.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.23.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.24.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.25.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.26.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.27.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.28.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.29.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.30.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.31.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.32.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.33.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.34.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.35.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.36.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.37.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.38.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.39.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.40.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.41.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.42.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.43.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.44.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.45.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.46.linear_attn.out_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    },
+    {
+      "name": "model.language_model.layers.47.self_attn.o_proj",
+      "trellis": {
+        "shape": [
+          384,
+          160,
+          64
+        ],
+        "n_bytes": 7864320,
+        "dtype": "torch.int16"
+      },
+      "sv": {
+        "shape": [
+          2560
+        ],
+        "n_bytes": 5120,
+        "dtype": "torch.float16"
+      },
+      "su": {
+        "shape": [
+          6144
+        ],
+        "n_bytes": 12288,
+        "dtype": "torch.float16"
+      },
+      "mul1": true,
+      "bias": false
+    }
+  ]
+}

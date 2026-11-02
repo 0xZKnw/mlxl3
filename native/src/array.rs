@@ -278,6 +278,8 @@ unsafe extern "C" {
         grid: *const i32,
         threadgroup: *const i32,
         outputs: *mut *mut c_void,
+        initialize_outputs: i32,
+        initial_value: f32,
     ) -> i32;
 }
 
@@ -1630,6 +1632,39 @@ pub fn metal_kernel(
     grid: [i32; 3],
     threadgroup: [i32; 3],
 ) -> Result<Vec<Array>> {
+    metal_kernel_initialized(
+        name,
+        input_names,
+        output_names,
+        header,
+        source,
+        inputs,
+        output_shapes,
+        output_dtypes,
+        grid,
+        threadgroup,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn metal_kernel_initialized(
+    name: &str,
+    input_names: &[&str],
+    output_names: &[&str],
+    header: &str,
+    source: &str,
+    inputs: &[&Array],
+    output_shapes: &[Vec<i32>],
+    output_dtypes: &[Dtype],
+    grid: [i32; 3],
+    threadgroup: [i32; 3],
+    initial_value: Option<f32>,
+) -> Result<Vec<Array>> {
+    ensure!(
+        initial_value.is_none_or(f32::is_finite),
+        "invalid Metal output initializer"
+    );
     ensure!(
         input_names.len() == inputs.len(),
         "kernel input name count mismatch"
@@ -1682,6 +1717,8 @@ pub fn metal_kernel(
             grid.as_ptr(),
             threadgroup.as_ptr(),
             pointers.as_mut_ptr(),
+            i32::from(initial_value.is_some()),
+            initial_value.unwrap_or(0.0),
         )
     })?;
     // Take ownership of every returned handle even if one metadata read fails.
@@ -1691,6 +1728,90 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn metal_initializer_rejects_invalid_values_before_gpu_dispatch() {
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(
+                metal_kernel_initialized(
+                    "unused",
+                    &[],
+                    &["out"],
+                    "",
+                    "",
+                    &[],
+                    &[vec![16]],
+                    &[Dtype::UInt32],
+                    [1, 1, 1],
+                    [1, 1, 1],
+                    Some(value),
+                )
+                .is_err()
+            );
+        }
+        for (enabled, value) in [(2, 0.0), (-1, 0.0), (1, f32::INFINITY)] {
+            let status = unsafe {
+                mlxl3_metal_kernel(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    enabled,
+                    value,
+                )
+            };
+            assert!(
+                checked(status)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("initializer")
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; initialize private mutable outputs and evaluate pending graphs"]
+    fn metal_initialized_outputs_are_private_and_reset_on_every_call() -> Result<()> {
+        let mut pending = Vec::new();
+        for seed in 0..32u32 {
+            let initial = if seed % 2 == 0 { 0u32 } else { 7 };
+            let input = Array::from_u32(&[seed; 8], &[8])?;
+            let output = metal_kernel_initialized(
+                "mlxl3_test_initialized_state",
+                &["input"],
+                &["state"],
+                "",
+                "state[0] = input[0]; state[1] += 1u;",
+                &[&input],
+                &[vec![64]],
+                &[Dtype::UInt32],
+                [1, 1, 1],
+                [1, 1, 1],
+                Some(initial as f32),
+            )?
+            .remove(0);
+            pending.push((seed, initial, output));
+        }
+        for (seed, initial, output) in pending.into_iter().rev() {
+            let mut expected = vec![initial; 64];
+            expected[0] = seed;
+            expected[1] += 1;
+            assert_eq!(output.to_u32()?, expected);
+            assert_eq!(output.to_u32()?, expected, "evaluated output ran twice");
+        }
+        println!("INITIALIZED_OUTPUTS calls=32 values=2048 pending_reverse=true status=exact");
+        Ok(())
+    }
+
     #[test]
     #[ignore = "Apple MLX owned storage; isolated process with an invalid reader option"]
     fn disk_schedule_invalid_option_is_rejected_by_ffi_without_writes() -> Result<()> {
@@ -2462,6 +2583,8 @@ mod tests {
                     std::ptr::null(),
                     std::ptr::null(),
                     std::ptr::null_mut(),
+                    0,
+                    0.0,
                 )
             };
             assert!(checked(status).is_err());

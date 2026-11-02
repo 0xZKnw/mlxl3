@@ -408,7 +408,7 @@ jobs:
           cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
           python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path("build/ci/raw-draft-reader.log").read_text()'
           set -euo pipefail
-          for test_name in memory_stats_decode_keeps_zero_valid_and_preserves_all_fields memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work; do
+          for test_name in memory_stats_decode_keeps_zero_valid_and_preserves_all_fields memory_stats_ffi_rejects_short_and_null_outputs_before_gpu_work metal_initializer_rejects_invalid_values_before_gpu_dispatch; do
             cargo test --locked --lib --features mlx,chat "array::tests::$test_name" -- --exact --test-threads=1 | tee "build/ci/$test_name.log"
             python -c 'import sys; from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path(sys.argv[1]).read_text()' "build/ci/$test_name.log"
           done

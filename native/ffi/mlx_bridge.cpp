@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cerrno>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -799,8 +800,12 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const char* const* output_names, const char* header, const char* source,
                       void* const* inputs, size_t ninputs, const int32_t* output_dims,
                       const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
-                      const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
+                      const int32_t* grid, const int32_t* threadgroup, void** outputs,
+                      int32_t initialize_outputs, float initial_value) noexcept {
   return protect([&] {
+    if ((initialize_outputs != 0 && initialize_outputs != 1) ||
+        (initialize_outputs && !std::isfinite(initial_value)))
+      throw std::invalid_argument("invalid Metal output initializer");
     if (!name || !header || !source || (ninputs && !input_names) || (noutputs && !output_names))
       throw std::invalid_argument("null Metal kernel metadata");
     for (size_t i = 0; i < ninputs; ++i)
@@ -832,9 +837,10 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
       types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
     }
     auto result = found->second.function(arrays(inputs, ninputs), shapes, types,
-      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
+      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {},
+      initialize_outputs ? std::optional<float>(initial_value) : std::nullopt, false, {});
     if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
-    if (prepared_enabled && std::string_view(name).starts_with("mlxl3_rs_expert_") &&
+    if (!initialize_outputs && prepared_enabled && std::string_view(name).starts_with("mlxl3_rs_expert_") &&
         std::strstr(name, "_slots1") && !std::strstr(name, "_resident"))
       mlxl3::prepare_metal(result, found->second.prepared, types, grid, threadgroup);
     std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);

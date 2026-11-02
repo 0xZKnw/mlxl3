@@ -1,0 +1,37 @@
+{
+  "status": "complete_mixed_single_pairs_not_causal",
+  "modes": {
+    "AR": {
+      "decode_tps": {
+        "R2": 10.806854636075093,
+        "R3": 10.982538730974941,
+        "R3_vs_R2_percent": 1.6256727865422205
+      },
+      "prefill_seconds": {
+        "R2": 7.7350160205,
+        "R3": 7.660634915999999,
+        "R3_vs_R2_percent": -0.9616153903607816
+      }
+    },
+    "DF": {
+      "decode_tps": {
+        "R2": 12.423527449365153,
+        "R3": 11.906388910047603,
+        "R3_vs_R2_percent": -4.162574127398699
+      },
+      "prefill_seconds": {
+        "R2": 7.910838562,
+        "R3": 8.1773803125,
+        "R3_vs_R2_percent": 3.3693235983899728
+      }
+    }
+  },
+  "same_R3_DF_binary_between_series": {
+    "first_tps": 12.29914809185755,
+    "second_tps": 11.906388910047603,
+    "change_percent": -3.193385256251746
+  },
+  "maximum_campaign_swapout_bytes": 7929856,
+  "maximum_campaign_swapin_bytes": 45776896,
+  "limits": "No target source computation changed, but different release binaries. Single process per arm/mode, changing load and compressed memory. Negative DF result retained; neither exclusion performance benefit nor absence of all performance side effects established."
+}

@@ -1,0 +1,145 @@
+{
+  "status": "complete_all_samples_retained_small_mixed_signal",
+  "source_identity": "identity-r3.json",
+  "modes": {
+    "MTP": {
+      "samples": [
+        {
+          "arm": "A",
+          "prompt": "MAIN",
+          "tps": 11.827075391296155,
+          "prefill_s": 7.9576105,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "A",
+          "prompt": "HOLD",
+          "tps": 11.601125765068211,
+          "prefill_s": 7.555758792,
+          "hash": "c2d954f130ed2a98"
+        },
+        {
+          "arm": "C",
+          "prompt": "MAIN",
+          "tps": 11.84969647496217,
+          "prefill_s": 8.008158959,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "C",
+          "prompt": "HOLD",
+          "tps": 11.51742220346934,
+          "prefill_s": 7.56281075,
+          "hash": "c2d954f130ed2a98"
+        }
+      ],
+      "summary": {
+        "decode_tps": {
+          "A": 11.714100578182183,
+          "C": 11.683559339215755,
+          "change_percent": -0.26072201414517604
+        },
+        "prefill_seconds": {
+          "A": 7.756684646,
+          "C": 7.7854848545,
+          "change_percent": 0.3712953383357087
+        }
+      },
+      "protocol": "64 outputs; MAIN/HOLD; one warmup and measured response each; AC except DF CA"
+    },
+    "AR": {
+      "samples": [
+        {
+          "arm": "A",
+          "prompt": "MAIN",
+          "tps": 10.919639549395855,
+          "prefill_s": 8.312161291,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "A",
+          "prompt": "HOLD",
+          "tps": 10.821224130034631,
+          "prefill_s": 7.513579042,
+          "hash": "c2d954f130ed2a98"
+        },
+        {
+          "arm": "C",
+          "prompt": "MAIN",
+          "tps": 10.968413565312085,
+          "prefill_s": 8.225585542,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "C",
+          "prompt": "HOLD",
+          "tps": 11.093952904188857,
+          "prefill_s": 7.468233042,
+          "hash": "c2d954f130ed2a98"
+        }
+      ],
+      "summary": {
+        "decode_tps": {
+          "A": 10.870431839715243,
+          "C": 11.031183234750472,
+          "change_percent": 1.4787949311077186
+        },
+        "prefill_seconds": {
+          "A": 7.9128701665,
+          "C": 7.846909291999999,
+          "change_percent": -0.8335897482465104
+        }
+      },
+      "protocol": "64 outputs; MAIN/HOLD; one warmup and measured response each; AC except DF CA"
+    },
+    "DF": {
+      "samples": [
+        {
+          "arm": "A",
+          "prompt": "MAIN",
+          "tps": 12.366026838178836,
+          "prefill_s": 8.357935417,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "A",
+          "prompt": "HOLD",
+          "tps": 12.265190252787425,
+          "prefill_s": 7.667980416,
+          "hash": "c2d954f130ed2a98"
+        },
+        {
+          "arm": "C",
+          "prompt": "MAIN",
+          "tps": 12.399195138879096,
+          "prefill_s": 8.111578875,
+          "hash": "d7c2f53d11d70633"
+        },
+        {
+          "arm": "C",
+          "prompt": "HOLD",
+          "tps": 12.199101044836002,
+          "prefill_s": 7.639954875,
+          "hash": "c2d954f130ed2a98"
+        }
+      ],
+      "summary": {
+        "decode_tps": {
+          "A": 12.31560854548313,
+          "C": 12.29914809185755,
+          "change_percent": -0.13365521942979575
+        },
+        "prefill_seconds": {
+          "A": 8.0129579165,
+          "C": 7.875766875,
+          "change_percent": -1.7121148386103568
+        }
+      },
+      "protocol": "64 outputs; MAIN/HOLD; one warmup and measured response each; AC except DF CA"
+    }
+  },
+  "maximum_campaign_swapout_bytes": 6356992,
+  "maximum_campaign_swapin_bytes": 45711360,
+  "source_and_binary_hashes_verified": true,
+  "decision": "Promising experimental R3 retained locally; default OFF. Quality passed, stable gain across modes not established. No publication or installed app replacement."
+}

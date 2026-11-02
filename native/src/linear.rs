@@ -231,6 +231,7 @@ pub struct Exl3Linear {
     mtp_hidden_batch: bool,
     flash_batch: bool,
     dense_epilogue: bool,
+    dec_one: bool,
     lane_indices: Option<Array>,
 }
 
@@ -248,6 +249,18 @@ impl Exl3Linear {
             false
         };
         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
+        let dec_one = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_DEC_ONE") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::dense_epilogue::enabled_setting(setting.as_deref())
+                .context("MLXL3_FLASH_DEC_ONE must be 0 or 1")?
+                && crate::dec_one::target_scope(prefix)
+        } else {
+            false
+        };
         let scale = |primary, legacy| {
             let key = format!("{prefix}.{primary}");
             checkpoint_array(
@@ -287,6 +300,7 @@ impl Exl3Linear {
         )?;
         if checkpoint.model_type == "qwen4_exp" {
             linear.dense_epilogue = dense_epilogue;
+            linear.dec_one = dec_one;
             linear.simdgroups = 4;
             linear.reference_accumulation = true;
             // Flash keeps its reference layout; lane order was qualified on other models.
@@ -360,6 +374,7 @@ impl Exl3Linear {
             mtp_hidden_batch: false,
             flash_batch: false,
             dense_epilogue: false,
+            dec_one: false,
             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
         })
     }
@@ -407,6 +422,36 @@ impl Exl3Linear {
         *shape
             .last_mut()
             .context("empty dense epilogue input shape")? = self.cols;
+        Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
+    }
+
+    fn try_dec_one(
+        &self,
+        x: &Array,
+        xhat: &Array,
+        words: &Array,
+        rows: i32,
+        header: &str,
+    ) -> Result<Option<Array>> {
+        if !self.dec_one
+            || !self.reference_accumulation
+            || self.mtp_hidden_batch
+            || self.k != 4
+            || self.cb != Codebook::Mul1
+            || self.rows != 6144
+            || self.cols != 2560
+            || self.simdgroups != 4
+            || self.splits(384, 160) != 2
+            || !(1..=2).contains(&rows)
+            || !matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
+            || self.svh.dtype() != Dtype::Float16
+            || self.bias.is_some()
+        {
+            return Ok(None);
+        }
+        let value = crate::dec_one::apply(xhat, words, &self.svh, rows, header)?;
+        let mut shape = x.shape().to_vec();
+        *shape.last_mut().context("empty DEC-ONE input shape")? = self.cols;
         Ok(Some(value.astype(x.dtype())?.reshape(&shape)?))
     }
 
@@ -549,6 +594,9 @@ impl Exl3Linear {
                 self.cols
             );
             let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+            if let Some(output) = self.try_dec_one(x, &xhat, &words, 1, &header)? {
+                return Ok(output);
+            }
             let partials = array::metal_kernel(
                 &format!(
                     "mlxl3_rs_tile_{}_{}_{}_{}_{}_{}_{}",
@@ -668,6 +716,9 @@ impl Exl3Linear {
                 output = self.cols,
             );
         let words = self.trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
+        if let Some(output) = self.try_dec_one(x, &xhat, &words, matrix_rows, &header)? {
+            return Ok(output);
+        }
         let partials = array::metal_kernel(
             &format!(
                 "mlxl3_rs_tile_batch_{}_{}_{}_{}_{}_{}_{}_{}_{}",
