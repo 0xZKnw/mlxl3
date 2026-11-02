@@ -181,7 +181,11 @@ extension StudioModel {
       Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false,
       "No user or remote MCP in Agent")
     check(
-      (servers["sandbox"]?["args"] as? [String]) == ["--agent-tools", workspace.path],
+      (servers["sandbox"]?["args"] as? [String]) == [
+        "--agent-tools", workspace.path,
+        AgentProjectStore(workspace: workspace).metadata.appendingPathComponent("project.json")
+          .path,
+      ],
       "Production helper receives the task folder")
     check(
       !workspace.path.hasPrefix(registry.deletingLastPathComponent().path),

@@ -144,11 +144,53 @@ enum HTMLPreview {
   }
 }
 
-struct HTMLPreviewDocument: Identifiable {
+struct StudioDocument: Identifiable, Sendable {
   let id = UUID()
-  let source: String
   let workspace: URL
-  let file: URL
+  var file: URL? = nil
+}
+
+/// Lives only while its inline Preview tab is visible.
+struct InlineHTMLPreview: View {
+  let source: String
+  var workspace: URL? = nil
+  var file: URL? = nil
+  @State private var webView: WKWebView?
+  @State private var error: String?
+
+  var body: some View {
+    Group {
+      if let webView {
+        HTMLWebView(view: webView)
+      } else if let error {
+        VStack(spacing: 12) {
+          Image(systemName: "exclamationmark.triangle").font(.system(size: 24))
+          Text(error).font(.system(size: 12)).textSelection(.enabled)
+        }.foregroundStyle(StudioTheme.secondary).padding(24)
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      } else {
+        ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+    .task(id: source) {
+      webView?.stopLoading()
+      webView = nil
+      error = nil
+      do {
+        let loaded = try await HTMLPreview.makeWebView(
+          source: source, workspace: workspace, file: file)
+        guard !Task.isCancelled else {
+          loaded.stopLoading()
+          return
+        }
+        webView = loaded
+      } catch is CancellationError {
+      } catch {
+        self.error = error.localizedDescription
+      }
+    }
+    .onDisappear { webView = nil }
+  }
 }
 
 @MainActor
@@ -236,15 +278,6 @@ private final class PreviewPage: NSObject, WKURLSchemeHandler, WKNavigationDeleg
     initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
     decisionHandler: @escaping @MainActor (WKPermissionDecision) -> Void
   ) { decisionHandler(.deny) }
-}
-
-struct HTMLPreviewSheet: View {
-  let source: String
-  var workspace: URL? = nil
-  var file: URL? = nil
-  var body: some View {
-    ArtifactStudioView(source: source, workspace: workspace, file: file)
-  }
 }
 
 struct HTMLWebView: NSViewRepresentable {

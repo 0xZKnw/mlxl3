@@ -189,3 +189,6 @@ print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/ren
 
 # Beta 5 project/artifact integration shares the already-built app sources.
 MLXL3_STUDIOS_TMP="${test_dir}" zsh scripts/check-studios.sh
+
+# CPU-only full-window Studio navigation, editing and reviewed snapshot safety.
+zsh scripts/check-studio-workspace.sh

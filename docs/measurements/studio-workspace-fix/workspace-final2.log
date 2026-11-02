@@ -1,0 +1,10 @@
+Building for debugging...
+Build complete! (0,15 secs)
+tests/studio-workspace-check.swift:168:9: error: operator can throw but expression is not marked with 'try'
+166 |     check(
+167 |       unzip.terminationStatus == 0
+168 |         && (try Data(contentsOf: extraction.appendingPathComponent("café.txt"))) == raw,
+    |         |  `- note: call is to 'rethrows' function, but argument function can throw
+    |         `- error: operator can throw but expression is not marked with 'try'
+169 |       "Project attributes hid or transformed a ZIP file")
+170 |     let studio = StudioModel(

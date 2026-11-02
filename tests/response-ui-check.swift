@@ -2,6 +2,7 @@
 // production parser/worker without exporting implementation details.
 import AppKit
 import SwiftUI
+import WebKit
 
 private struct ReferenceFadeRenderer: TextRenderer {
   let tails: [(Int, Double)]
@@ -45,7 +46,117 @@ extension MarkdownResponseView {
   }
 }
 
+extension CodeBlockView {
+  @MainActor fileprivate static func previewForLifetimeCheck(_ source: String) -> Self {
+    var view = Self(language: "html", source: source, streaming: false, htmlPreviewEnabled: true)
+    view._showingPreview = State(initialValue: true)
+    return view
+  }
+}
+
 @main struct ResponseUICheck {
+  @MainActor private static func checkInlinePreviewLifetime() async throws {
+    func report(_ message: String) {
+      FileHandle.standardError.write(Data(("Inline lifetime: " + message + "\n").utf8))
+    }
+    func require(_ condition: Bool, _ message: String) {
+      report((condition ? "PASS " : "FAIL ") + message)
+      precondition(condition, message)
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-inline-lifetime-\(UUID())")
+    let suite = "mlxl3.inline-lifetime.\(UUID())"
+    let prefs = UserDefaults(suiteName: suite)!
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
+    let source = """
+      <!doctype html><html><body><p>Disposable lifetime check</p>
+      <script>window.mlxl3Ticks = 0; setInterval(() => { window.mlxl3Ticks += 1; }, 25);</script>
+      </body></html>
+      """
+    let host = NSHostingView(
+      rootView: CodeBlockView.previewForLifetimeCheck(source).environmentObject(studio)
+        .padding(24).background(StudioTheme.canvas).preferredColorScheme(.dark))
+    let window = NSWindow(
+      contentRect: NSRect(x: 40, y: 40, width: 800, height: 560), styleMask: [.titled],
+      backing: .buffered, defer: false)
+    window.contentView = host
+    window.orderFront(nil)
+    defer {
+      window.contentView = nil
+      window.orderOut(nil)
+      studio.studioDocument = nil
+    }
+    func webViews(_ view: NSView) -> [WKWebView] {
+      (view as? WKWebView).map { [$0] } ?? view.subviews.flatMap(webViews)
+    }
+    var loaded: WKWebView?
+    var loadedTicks = 0
+    var lastJavaScriptError: String?
+    for _ in 0..<80 {
+      host.layoutSubtreeIfNeeded()
+      if let candidate = webViews(host).first, !candidate.isLoading {
+        do {
+          if let ticks = try await candidate.evaluateJavaScript("window.mlxl3Ticks") as? NSNumber,
+            ticks.intValue > 0
+          {
+            loaded = candidate
+            loadedTicks = ticks.intValue
+            break
+          }
+        } catch { lastJavaScriptError = error.localizedDescription }
+      }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    if loaded == nil {
+      let actual = webViews(host)
+      report(
+        "load timeout: count=\(actual.count), views=\(actual.map { "url=\($0.url?.absoluteString ?? "nil") loading=\($0.isLoading)" }), lastJavaScriptError=\(lastJavaScriptError ?? "none")"
+      )
+    } else {
+      report(
+        "actual timer loaded: ticks=\(loadedTicks), url=\(loaded!.url?.absoluteString ?? "nil")")
+    }
+    require(loaded != nil, "The real inline preview did not run the disposable CPU timer")
+    let oldView = loaded!
+    studio.studioDocument = StudioDocument(workspace: root)
+    for _ in 0..<40 {
+      host.layoutSubtreeIfNeeded()
+      if webViews(host).isEmpty { break }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    report(
+      "after Agent Studio: native WebKit count=\(webViews(host).count), oldURL=\(oldView.url?.absoluteString ?? "nil")"
+    )
+    require(webViews(host).isEmpty, "Inline preview kept running behind Agent Studio")
+    var cleared = false
+    for _ in 0..<40 {
+      if let kind = (try? await oldView.evaluateJavaScript("typeof window.mlxl3Ticks")) as? String,
+        kind == "undefined"
+      {
+        cleared = true
+        break
+      }
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    report(
+      "after dismantle: oldURL=\(oldView.url?.absoluteString ?? "nil"), loading=\(oldView.isLoading)"
+    )
+    require(cleared, "Removed inline preview retained its executable page")
+    try await Task.sleep(for: .milliseconds(150))
+    let kind = try await oldView.evaluateJavaScript("typeof window.mlxl3Ticks") as? String
+    report("final timer type=\(kind ?? "nil")")
+    require(kind == "undefined", "Removed preview timer restarted")
+    print(
+      "Inline preview lifetime passed: actual CPU timer starts, Agent Studio removes WebKit and clears its executable page"
+    )
+  }
   @MainActor private static func checkHTMLControls() async throws {
     MarkdownResponseView.verifyHTMLPreviewLifetime()
     func require(_ condition: Bool, _ message: String) {
@@ -55,9 +166,13 @@ extension MarkdownResponseView {
       }
     }
     func changedHeaderPixels(_ a: NSBitmapImageRep, _ b: NSBitmapImageRep) -> Int {
+      require(
+        a.pixelsWide == b.pixelsWide && a.pixelsHigh == b.pixelsHigh,
+        "HTML header comparison changed scale")
       var changed = 0
-      for y in (70 * a.pixelsHigh / 600)..<(160 * a.pixelsHigh / 600) {
-        for x in (500 * a.pixelsWide / 800)..<(680 * a.pixelsWide / 800) {
+      // Only the mode-switch area; exclude Writing/Copy and the native code body.
+      for y in (75 * a.pixelsHigh / 600)..<(108 * a.pixelsHigh / 600) {
+        for x in (535 * a.pixelsWide / 800)..<(670 * a.pixelsWide / 800) {
           guard let first = a.colorAt(x: x, y: y)?.usingColorSpace(.sRGB),
             let second = b.colorAt(x: x, y: y)?.usingColorSpace(.sRGB)
           else { preconditionFailure("Missing header pixels") }
@@ -70,6 +185,9 @@ extension MarkdownResponseView {
         }
       }
       return changed
+    }
+    func nativeViews(_ view: NSView) -> [NSView] {
+      [view] + view.subviews.flatMap(nativeViews)
     }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(
       "mlxl3-html-ui-\(UUID())")
@@ -122,6 +240,9 @@ extension MarkdownResponseView {
           preconditionFailure("HTML transcript did not render")
         }
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        require(
+          !nativeViews(host).contains { $0 is WKWebView },
+          "HTML preview ran without user action in \(mode)/\(phase)")
         if let path = ProcessInfo.processInfo.environment["MLXL3_HTML_UI_SNAPSHOTS"] {
           let folder = URL(fileURLWithPath: path)
           try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -136,20 +257,64 @@ extension MarkdownResponseView {
       let processing = try await snapshot("tool")
       require(
         changedHeaderPixels(streaming, processing) < 15,
-        "HTML Run button appeared during a subsequent tool round")
+        "HTML Preview control appeared during a subsequent tool round in \(mode)")
       message.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
       let complete = try await snapshot("complete")
       require(
         changedHeaderPixels(processing, complete) > 30,
-        "Completed HTML has no visible Run button in \(mode)")
+        "Completed HTML has no visible Code/Preview switch in \(mode)")
       message.fail("Interrupted")
       let failed = try await snapshot("interrupted")
       require(
         changedHeaderPixels(streaming, failed) < 15,
-        "Interrupted HTML kept an executable Run button")
+        "Interrupted HTML kept an executable Preview control in \(mode)")
+    }
+    let source = "const café = 'é 👩‍💻 e\u{301}';\n// 日本語 <tag> & literal\nconsole.log(café);\n"
+    let codeHost = NSHostingView(
+      rootView: CodeBlockView(language: "javascript", source: source, streaming: false)
+        .environmentObject(studio).padding(24).background(StudioTheme.canvas).preferredColorScheme(
+          .dark))
+    let codeWindow = NSWindow(
+      contentRect: NSRect(x: 40, y: 40, width: 800, height: 360), styleMask: [.titled],
+      backing: .buffered, defer: false)
+    codeWindow.contentView = codeHost
+    codeWindow.orderFront(nil)
+    defer {
+      codeWindow.contentView = nil
+      codeWindow.orderOut(nil)
+    }
+    var editor: NSTextView?
+    for _ in 0..<40 {
+      codeHost.layoutSubtreeIfNeeded()
+      editor = nativeViews(codeHost).compactMap { $0 as? NSTextView }.first {
+        $0.accessibilityIdentifier() == "studio.code-editor"
+      }
+      if editor != nil { break }
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    require(editor != nil, "Completed code has no native source viewer")
+    require(
+      editor!.string.utf8.elementsEqual(source.utf8), "Code viewer changed Unicode or line breaks")
+    require(
+      !editor!.isEditable && editor!.isSelectable, "Generated code is not read-only/selectable")
+    let scroll = editor!.enclosingScrollView!
+    require(
+      scroll.rulersVisible && scroll.hasVerticalRuler && scroll.verticalRulerView != nil,
+      "Completed code has no line numbers")
+    require(
+      scroll.clipsToBounds && scroll.layer?.masksToBounds == true,
+      "Code gutter can bleed into the header")
+    require(!nativeViews(codeHost).contains { $0 is WKWebView }, "Code-only block created WebKit")
+    if let path = ProcessInfo.processInfo.environment["MLXL3_HTML_UI_SNAPSHOTS"] {
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      let bitmap = codeHost.bitmapImageRepForCachingDisplay(in: codeHost.bounds)!
+      codeHost.cacheDisplay(in: codeHost.bounds, to: bitmap)
+      try bitmap.representation(using: .png, properties: [:])!.write(
+        to: folder.appendingPathComponent("code-inline.png"))
     }
     print(
-      "HTML controls passed: Chat/Agent completion, global streaming gate, tool round and interruption pixels"
+      "HTML/code controls passed: Chat/Agent header pixels and source-level lifecycle gates; exact Unicode read-only native source, clipped line numbers and no automatic WebKit"
     )
   }
   @MainActor private static func checkScroll() async throws {
@@ -453,13 +618,31 @@ extension MarkdownResponseView {
     }
   }
 
-  @MainActor static func main() async throws {
+  @MainActor static func main() {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.regular)
     NSApp.activate()
+    Task { @MainActor in
+      do {
+        try await runChecks()
+        NSApp.terminate(nil)
+      } catch {
+        FileHandle.standardError.write(Data((String(describing: error) + "\n").utf8))
+        exit(1)
+      }
+    }
+    NSApp.run()
+  }
+
+  @MainActor private static func runChecks() async throws {
+    if CommandLine.arguments.contains("--check-inline-preview") {
+      try await checkInlinePreviewLifetime()
+      return
+    }
     checkFade()
     try await checkScroll()
     try await checkHTMLControls()
+    try await checkInlinePreviewLifetime()
     // These exact reply formulas used to fall back to raw $$ text.
     let formulas = [
       #"\mathbb{E}[T_n] = \sum_{i=0}^{n-1}\mathbb{E}[T_{i+1}-T_i] = e\,n\sum_{i=0}^{n-1}\frac{1}{n-i} = e\,n\left(1+\frac12+\frac13+\dots+\frac1n\right)."#,
