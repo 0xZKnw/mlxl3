@@ -1,0 +1,155 @@
+{
+  "scope": "CUA/Xcode dispatch inspection, not timing",
+  "xcode_ui_version": "27.2",
+  "metal_shader_debug_toolchain_installed": false,
+  "optional_download_started": false,
+  "replay_completed_without_shader_debug_toolchain": true,
+  "capture_root": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t17-20261029/capture-02",
+  "shapes": {
+    "stock-b1": {
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "render_encoders": 0,
+      "draw_calls": 0,
+      "dispatch_calls": 4,
+      "grid_per_dispatch": [
+        6144,
+        1,
+        1
+      ],
+      "threadgroup": [
+        1024,
+        1,
+        1
+      ],
+      "pipelines": [
+        {
+          "command": 8,
+          "function": "v_copyfloat16float32"
+        },
+        {
+          "command": 14,
+          "function": "v_Sigmoidfloat32float32"
+        },
+        {
+          "command": 21,
+          "function": "vv_Multiplyfloat32"
+        },
+        {
+          "command": 27,
+          "function": "v_copyfloat32float16"
+        }
+      ]
+    },
+    "fused-b1": {
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "render_encoders": 0,
+      "draw_calls": 0,
+      "dispatch_calls": 1,
+      "grid_per_dispatch": [
+        6144,
+        1,
+        1
+      ],
+      "threadgroup": [
+        128,
+        1,
+        1
+      ],
+      "pipelines": [
+        {
+          "command": 9,
+          "function": "custom_kernel_mlxl3_flash_gdn_epilogue_v1_float_float16_t_float16_t"
+        }
+      ]
+    },
+    "stock-b2": {
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "render_encoders": 0,
+      "draw_calls": 0,
+      "dispatch_calls": 10,
+      "grid_per_dispatch": [
+        6144,
+        1,
+        1
+      ],
+      "threadgroup": [
+        1024,
+        1,
+        1
+      ],
+      "pipelines": [
+        {
+          "command": 10,
+          "function": "v_copyfloat16float32"
+        },
+        {
+          "command": 15,
+          "function": "v_copyfloat16float32"
+        },
+        {
+          "command": 21,
+          "function": "v_Sigmoidfloat32float32"
+        },
+        {
+          "command": 26,
+          "function": "v_Sigmoidfloat32float32"
+        },
+        {
+          "command": 33,
+          "function": "vv_Multiplyfloat32"
+        },
+        {
+          "command": 39,
+          "function": "vv_Multiplyfloat32"
+        },
+        {
+          "command": 45,
+          "function": "v_copyfloat32float16"
+        },
+        {
+          "command": 50,
+          "function": "v_copyfloat32float16"
+        },
+        {
+          "command": 57,
+          "function": "gg1_copyfloat16float16"
+        },
+        {
+          "command": 63,
+          "function": "gg1_copyfloat16float16"
+        }
+      ]
+    },
+    "fused-b2": {
+      "command_buffers": 2,
+      "compute_encoders": 1,
+      "render_encoders": 0,
+      "draw_calls": 0,
+      "dispatch_calls": 1,
+      "grid_per_dispatch": [
+        12288,
+        1,
+        1
+      ],
+      "threadgroup": [
+        128,
+        1,
+        1
+      ],
+      "pipelines": [
+        {
+          "command": 9,
+          "function": "custom_kernel_mlxl3_flash_gdn_epilogue_v1_float_float_float16_t_float16_t"
+        }
+      ]
+    }
+  },
+  "raw_ax_persistence": "selected excerpts recorded here; full UI transcript and original gputrace packages retained",
+  "blit_inspection": "No blit observed. Both buffers expanded for stock-b1 and fused-b2; first buffer expanded for fused-b1 and stock-b2. No separate blit counter claimed for their unexpanded empty completion buffer.",
+  "xcode_exit": "CUA listApps com.apple.dt.Xcode isRunning=false after Quit menu",
+  "xcodebuild_version": "Xcode 27.2\nBuild version 27B52\n",
+  "xcode_select": "/Library/Developer/CommandLineTools"
+}

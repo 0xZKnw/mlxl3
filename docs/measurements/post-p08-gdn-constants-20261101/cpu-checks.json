@@ -1,0 +1,84 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt"
+    ],
+    "timeout_seconds": 60,
+    "exit": 0,
+    "status": "passed",
+    "elapsed_seconds": 0.5063673330005258,
+    "joined": true
+  },
+  {
+    "name": "fmt-check",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--check"
+    ],
+    "timeout_seconds": 60,
+    "exit": 0,
+    "status": "passed",
+    "elapsed_seconds": 0.4005726670002332,
+    "joined": true
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 300,
+    "exit": 0,
+    "status": "passed",
+    "elapsed_seconds": 8.626299666997511,
+    "joined": true
+  },
+  {
+    "name": "cpu-lib",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--lib",
+      "--",
+      "--test-threads=1"
+    ],
+    "timeout_seconds": 300,
+    "exit": 0,
+    "status": "passed",
+    "elapsed_seconds": 39.55931949999649,
+    "joined": true
+  },
+  {
+    "name": "build-lib",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "timeout_seconds": 600,
+    "exit": 0,
+    "status": "passed",
+    "elapsed_seconds": 70.40279641699453,
+    "joined": true
+  }
+]

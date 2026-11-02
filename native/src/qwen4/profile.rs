@@ -211,17 +211,11 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
                     logits = Some(target.forward_tokens(chunk)?);
                 }
             } else {
-                for (step, &token) in prompt_ids.iter().enumerate() {
-                    let step_span = profile::span("prefill_step");
-                    if let Some(s) = &step_span {
-                        s.data(serde_json::json!({"step":step,"token":token}));
-                    }
-                    if use_mtp && let (Some(h), Some(hidden)) = (&mut head, &target.last_hidden) {
-                        let _h = profile::span("prefill_head_extend");
-                        h.extend_cache(&target, hidden, token)?;
-                    }
-                    logits = Some(target.forward(token)?);
-                }
+                logits = Some(target.prefill_mtp(
+                    head.as_mut().context("missing MTP head")?,
+                    &prompt_ids,
+                    &std::sync::atomic::AtomicBool::new(false),
+                )?);
             }
         }
         let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];

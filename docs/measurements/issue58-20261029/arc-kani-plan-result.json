@@ -1,0 +1,51 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "a5f4e0cb4e08063cfa5fd2d49bb10193233677e9922a09a494bb97156caacdb9",
+  "matrix_sha256": "01555279169c17b6b8dc1614c575297cd33c9a6b7bd808716708df137dd1c67b",
+  "commands": [
+    {
+      "name": "arc-kani",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--tests",
+        "--no-default-features",
+        "--harness",
+        "arc_two_symbolic_batches_preserve_capacity_and_protected_membership"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "1"
+      },
+      "expected_exit": 0,
+      "timeout_seconds": 120,
+      "require_quiet": false,
+      "required_text": [
+        "VERIFICATION:- SUCCESSFUL"
+      ],
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    58050.\nPages active:                                 537256.\nPages inactive:                               601707.\nPages speculative:                              6156.\nPages throttled:                                   0.\nPages wired down:                             148927.\nPages purgeable:                               15010.\n\"Translation faults\":                     1927402623.\nPages copy-on-write:                        81639431.\nPages zero filled:                        2113437681.\nPages reactivated:                         153808083.\nPages purged:                               19400829.\nFile-backed pages:                            611805.\nAnonymous pages:                              533314.\nPages stored in compressor:                   302790.\nPages occupied by compressor:                 166602.\nDecompressions:                            361871139.\nCompressions:                              436885781.\nPageins:                                  2268713842.\nPageouts:                                     372966.\nSwapins:                                     3271567.\nSwapouts:                                    8597703.\nPages tagged:                                 119671.\nPages tagged resident:                        104900.\nPages tagged compressed:                       14771.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5786.\nPages tag-storage free:                           79.\nPages tag-storage non-tag pageable:            43110.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    2116480.\nTagged compressions:                         9252091.\nTagged decompressions:                       8949122.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 1048.50M  free = 999.50M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 951091200,
+          "File-backed pages": 10023813120,
+          "Pages occupied by compressor": 2729607168,
+          "Swapins": 53601353728,
+          "Swapouts": 140864765952
+        }
+      },
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "pid": 40720,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'arc_two_symbolic_batches_preserve_capacity_and_protected_membership'], 120)",
+      "exit_code": -15,
+      "reaped": true,
+      "seconds": 120.01848983301898
+    }
+  ],
+  "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'arc_two_symbolic_batches_preserve_capacity_and_protected_membership'], 120)"
+}

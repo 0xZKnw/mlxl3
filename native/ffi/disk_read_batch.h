@@ -13,8 +13,12 @@ namespace mlxl3 {
 class DiskReadBatch {
  public:
   explicit DiskReadBatch(std::vector<DiskRead> reads, size_t workers, bool profile = false,
-                         size_t held_job = std::numeric_limits<size_t>::max())
-      : reads_(std::move(reads)), errors_(reads_.size()),
+                         size_t held_job = std::numeric_limits<size_t>::max(),
+                         DiskSchedule schedule = DiskSchedule::Static)
+      : reads_(std::move(reads)),
+        schedule_(effective_disk_schedule(schedule, reads_.size(), workers)),
+        jobs_(reads_.size(), std::min(workers, reads_.size()), schedule_),
+        errors_(reads_.size()),
         states_(std::make_unique<std::atomic<uint8_t>[]>(reads_.size())),
         held_job_(held_job), tail_released_(held_job == std::numeric_limits<size_t>::max()) {
     if (!workers || workers > 4) throw std::invalid_argument("invalid disk worker count");
@@ -41,6 +45,7 @@ class DiskReadBatch {
   }
 
   size_t size() const noexcept { return reads_.size(); }
+  DiskSchedule schedule() const noexcept { return schedule_; }
 
   std::vector<uint8_t> ready() const {
     std::vector<uint8_t> mask(reads_.size());
@@ -95,7 +100,9 @@ class DiskReadBatch {
   static void run_worker(void* opaque) noexcept {
     auto& context = *static_cast<Worker*>(opaque);
     auto& batch = *context.batch;
-    for (size_t i = context.worker; i < batch.reads_.size(); i += batch.workers_) {
+    size_t cursor = context.worker;
+    for (size_t i = batch.jobs_.claim(cursor); i < batch.reads_.size();
+         i = batch.jobs_.claim(cursor)) {
       if (i == batch.held_job_) {
         std::unique_lock<std::mutex> lock(batch.mutex_);
         batch.progress_.wait(lock, [&] { return batch.tail_released_; });
@@ -123,6 +130,8 @@ class DiskReadBatch {
   }
 
   std::vector<DiskRead> reads_;
+  const DiskSchedule schedule_;
+  DiskWorkQueue jobs_;
   std::vector<std::exception_ptr> errors_;
   std::unique_ptr<std::atomic<uint8_t>[]> states_;
   std::vector<DiskTiming> timings_;

@@ -1,0 +1,1381 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.44s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 9`
+Checking harness dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/9248a70945d7cfc2/out/mlxl3_native-9248a70945d7cfc2__RNvNtCscwqYaKHqkTp_12mlxl3_native14dense_epilogue56dense_epilogue_geometry_bounds_real_launch_and_addresses.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 56 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for [i32]>::ne thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 49 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 9 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 10 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 11 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 12 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs line 49 column 15 function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<i32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/dense_epilogue.rs line 40 column 17 function dense_epilogue::geometry thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file native/src/dense_epilogue.rs line 177 column 1 function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<dense_epilogue::Geometry>::is_some thread 0
+Runtime Symex: 0.110641s
+size of program expression: 10899 steps
+slicing removed 6828 assignments
+Generated 602 VCC(s), 242 remaining after simplification
+Runtime Postprocess Equation: 0.00197479s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00721429s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.00347287s
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0302737s
+Runtime decision procedure: 0.0377977s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.062533s
+Runtime decision procedure: 0.0626704s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0618005s
+Runtime decision procedure: 0.0619393s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0653405s
+Runtime decision procedure: 0.0654539s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0624488s
+Runtime decision procedure: 0.0625804s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0619455s
+Runtime decision procedure: 0.0620711s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0616197s
+Runtime decision procedure: 0.0617463s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.062198s
+Runtime decision procedure: 0.0623189s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0645212s
+Runtime decision procedure: 0.0646524s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0646531s
+Runtime decision procedure: 0.0647635s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0649361s
+Runtime decision procedure: 0.0650502s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0653433s
+Runtime decision procedure: 0.0654712s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0654284s
+Runtime decision procedure: 0.0655434s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 10
+result:SATISFIABLE
+Runtime Solver: 0.0656198s
+Runtime decision procedure: 0.0657318s
+Running propositional reduction
+Solving with External SAT solver
+Writing temporary CNF
+Invoking SAT solver
+Solver returned code: 20
+result:UNSATISFIABLE
+Runtime Solver: 0.0598714s
+Runtime decision procedure: 0.0599313s
+
+RESULTS:
+Check 1: <std::option::Option<dense_epilogue::Geometry> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<dense_epilogue::Geometry> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 2: dense_epilogue::geometry.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:40:34 in function dense_epilogue::geometry
+
+Check 3: dense_epilogue::geometry.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/dense_epilogue.rs:40:34 in function dense_epilogue::geometry
+
+Check 4: dense_epilogue::geometry.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/dense_epilogue.rs:40:34 in function dense_epilogue::geometry
+
+Check 5: dense_epilogue::geometry.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:40:34 in function dense_epilogue::geometry
+
+Check 6: dense_epilogue::geometry.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/dense_epilogue.rs:40:17 in function dense_epilogue::geometry
+
+Check 7: memcmp.precondition.1
+	 - Status: SUCCESS
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 8: memcmp.precondition.2
+	 - Status: SUCCESS
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 9: core::slice::<impl [i32]>::as_array::<3>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 10: core::slice::<impl [i32]>::as_array::<3>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 11: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 12: core::slice::<impl [i32]>::as_array::<2>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 13: core::slice::<impl [i32]>::as_array::<2>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 14: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq
+
+Check 15: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:196:16 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 16: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:197:44 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 17: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:197:63 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 18: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:200:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 19: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:201:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 20: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:202:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 21: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.is_some() == expected"
+	 - Location: native/src/dense_epilogue.rs:203:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 22: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/dense_epilogue.rs:177:1 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 23: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (1..=2).contains(&rows)"
+	 - Location: native/src/dense_epilogue.rs:205:13 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 24: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.9
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.rows == rows"
+	 - Location: native/src/dense_epilogue.rs:206:13 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 25: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.10
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:207:39 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 26: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.11
+	 - Status: SUCCESS
+	 - Description: "assertion failed: layout.blocks == rows * 20"
+	 - Location: native/src/dense_epilogue.rs:207:13 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 27: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.12
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:209:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 28: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.13
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:210:27 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 29: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:210:27 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 30: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.14
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:211:30 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 31: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:211:30 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 32: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.15
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:212:26 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 33: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.16
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:212:26 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 34: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.17
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:213:26 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 35: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.18
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:214:30 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 36: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.19
+	 - Status: SUCCESS
+	 - Description: "assertion failed: p1 < rows as u32 * 5120"
+	 - Location: native/src/dense_epilogue.rs:214:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 37: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.20
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:215:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 38: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.21
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:215:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 39: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.22
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:215:49 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 40: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.23
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:215:49 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 41: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.24
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(p0) * 4 + 3 < rows as u64 * 5120 * 4"
+	 - Location: native/src/dense_epilogue.rs:215:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 42: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.25
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:216:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 43: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.26
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:216:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 44: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.27
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:216:49 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 45: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.28
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:216:49 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 46: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.29
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(p1) * 4 + 3 < rows as u64 * 5120 * 4"
+	 - Location: native/src/dense_epilogue.rs:216:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 47: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.30
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:217:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 48: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.31
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:217:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 49: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.32
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:217:53 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 50: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.33
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(column) * 2 + 1 < 2560 * 2"
+	 - Location: native/src/dense_epilogue.rs:217:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 51: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.34
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:218:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 52: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.35
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:218:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 53: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.36
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:218:52 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 54: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.37
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:218:52 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 55: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.38
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(index) * 2 + 1 < rows as u64 * 2560 * 2"
+	 - Location: native/src/dense_epilogue.rs:218:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 56: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 2 && index == 5119"
+	 - Location: native/src/dense_epilogue.rs:219:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 57: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.39
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:226:29 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 58: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.40
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:226:42 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 59: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.41
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:226:29 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 60: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.42
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:226:29 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 61: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.43
+	 - Status: SUCCESS
+	 - Description: "assertion failed: local < 128"
+	 - Location: native/src/dense_epilogue.rs:227:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 62: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.44
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:228:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 63: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:228:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 64: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.45
+	 - Status: SUCCESS
+	 - Description: "assertion failed: local / 32 == chunk"
+	 - Location: native/src/dense_epilogue.rs:228:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 65: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.46
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:229:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 66: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:229:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 67: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.47
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:229:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 68: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.5
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:229:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 69: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.48
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (local % 32) / 4 == thread"
+	 - Location: native/src/dense_epilogue.rs:229:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 70: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.49
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:230:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 71: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.6
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/dense_epilogue.rs:230:28 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 72: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.50
+	 - Status: SUCCESS
+	 - Description: "assertion failed: local % 4 == element"
+	 - Location: native/src/dense_epilogue.rs:230:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 73: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.51
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:231:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 74: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.52
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/dense_epilogue.rs:231:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 75: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.53
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/dense_epilogue.rs:231:47 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 76: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.54
+	 - Status: SUCCESS
+	 - Description: "assertion failed: block * 128 + local < rows as u32 * 2560"
+	 - Location: native/src/dense_epilogue.rs:231:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 77: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.55
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:232:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 78: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.arithmetic_overflow.7
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/dense_epilogue.rs:232:25 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 79: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.assertion.56
+	 - Status: SUCCESS
+	 - Description: "assertion failed: block / 20 < rows as u32"
+	 - Location: native/src/dense_epilogue.rs:232:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 80: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: rows == 2 && block == 39 && local == 127"
+	 - Location: native/src/dense_epilogue.rs:233:17 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 81: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_some() && rows == 1"
+	 - Location: native/src/dense_epilogue.rs:236:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 82: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_some() && rows == 2"
+	 - Location: native/src/dense_epilogue.rs:237:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 83: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.5
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_none() && rows == 0"
+	 - Location: native/src/dense_epilogue.rs:238:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 84: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.6
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_none() && rank == 5"
+	 - Location: native/src/dense_epilogue.rs:239:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 85: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.7
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_none() && scale_rank == 0"
+	 - Location: native/src/dense_epilogue.rs:240:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 86: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.8
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_none() && !partial_f32"
+	 - Location: native/src/dense_epilogue.rs:241:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 87: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.cover.9
+	 - Status: SATISFIED
+	 - Description: "cover condition: layout.is_none() && !scale_f16"
+	 - Location: native/src/dense_epilogue.rs:242:9 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 88: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 89: <std::option::Option<i32> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<i32> as std::ops::Try>::branch
+
+Check 90: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 91: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 92: core::slice::<impl [i32]>::as_array::<1>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<1>
+
+Check 93: core::slice::<impl [i32]>::as_array::<1>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:858:31 in function core::slice::<impl [i32]>::as_array::<1>
+
+Check 94: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq
+
+Check 95: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 96: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 97: kani::rustc_intrinsics::offset::<i32, *const i32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<i32, *const i32, usize>
+
+Check 98: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 99: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 100: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 101: <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[i32]>>::index
+
+Check 102: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 103: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 104: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 105: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 106: std::option::Option::<dense_epilogue::Geometry>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 107: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::contains::<i32>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::contains::<i32>
+
+Check 108: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for [i32]>::ne.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for [i32]>::ne
+
+Check 109: core::slice::<impl [i32]>::as_array::<1>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:861:13 in function core::slice::<impl [i32]>::as_array::<1>
+
+Check 110: core::slice::<impl [i32]>::as_array::<2>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:861:13 in function core::slice::<impl [i32]>::as_array::<2>
+
+Check 111: core::slice::<impl [i32]>::as_array::<3>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:861:13 in function core::slice::<impl [i32]>::as_array::<3>
+
+Check 112: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 113: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 114: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 115: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 116: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 117: std::option::Option::<dense_epilogue::Geometry>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<dense_epilogue::Geometry>::is_some
+
+Check 118: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:196:16 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 119: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:197:44 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 120: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:197:63 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 121: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:200:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 122: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:201:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 123: dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses.array_bounds.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/dense_epilogue.rs:202:24 in function dense_epilogue::dense_epilogue_geometry_bounds_real_launch_and_addresses
+
+Check 124: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for [i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:56:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for [i32]>::ne
+
+Check 125: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for [i32]>::eq
+
+Check 126: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:49:15 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for [i32]>::eq
+
+Check 127: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 128: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 129: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 130: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 131: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 132: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 133: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 134: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 135: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 136: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 137: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 138: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::le
+
+Check 139: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 140: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 141: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 142: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 143: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 144: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 145: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 146: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 147: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 148: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 149: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 150: std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for i32>::lt
+
+Check 151: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 152: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 153: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 154: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 155: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 156: std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:91:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 1]> for &[i32]>::ne
+
+Check 157: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 158: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 159: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 160: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 161: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 162: std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 2]> for &[i32]>::eq
+
+Check 163: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 164: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 165: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 166: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 167: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 168: std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/array/equality.rs:87:9 in function std::array::equality::<impl std::cmp::PartialEq<[i32; 3]> for &[i32]>::eq
+
+Check 169: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 170: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 171: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 172: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 173: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 174: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 175: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 176: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 177: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 178: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 179: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 180: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::le
+
+Check 181: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 182: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 183: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 184: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 185: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 186: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 187: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 188: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 189: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 190: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 191: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 192: std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &i32>::lt
+
+Check 193: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 194: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 195: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 196: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 197: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 198: <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<i32> as std::ops::RangeBounds<i32>>::end_bound
+
+Check 199: memcmp.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 200: memcmp.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 201: memcmp.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 202: memcmp.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 203: memcmp.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 204: memcmp.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 205: memcmp.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 206: memcmp.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 207: memcmp.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 208: memcmp.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 209: memcmp.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 210: memcmp.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+
+SUMMARY:
+ ** 0 of 201 failed
+
+ ** 9 of 9 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.2042143s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

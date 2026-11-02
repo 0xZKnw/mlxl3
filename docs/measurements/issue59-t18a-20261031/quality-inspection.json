@@ -1,0 +1,886 @@
+{
+  "status": "passed_independent_quality_artifact_inspection_not_speed",
+  "scope": "Existing receipts only; no build/test/proof/GPU/inference launched by auditor",
+  "identity": {
+    "path": "docs/measurements/issue59-t18a-20261031/final-identity-r3.json",
+    "sha256": "fdf050c0424b602f607c6a850a8d085e72ee57edcf78c9bc59c233e497717fc9",
+    "sources_checked": 531,
+    "mismatches_or_missing": [],
+    "binaries": {
+      "final_cli": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/engine/prototype-engine",
+        "sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+        "bytes": 10706864,
+        "actual_sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+        "actual_bytes": 10706864
+      },
+      "final_libtest": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/libtest-r2/prototype-engine",
+        "sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "bytes": 10980384,
+        "actual_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "actual_bytes": 10980384
+      },
+      "python_runner": {
+        "path": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "bytes": 34640,
+        "actual_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "actual_bytes": 34640
+      }
+    }
+  },
+  "physical": {
+    "executions": 17,
+    "distinct_selectors": 13,
+    "storage": 3,
+    "components": 9,
+    "full_model": 5,
+    "passed_each": 1,
+    "failed_each": 0,
+    "ignored_each": 0,
+    "filtered_out_each": 374,
+    "campaign": "T18A-w1 fresh after CPU verification, no automatic reanchor",
+    "anchor_bytes": {
+      "Swapouts": 140865945600,
+      "Swapins": 53831401472
+    },
+    "all_before_after_swapout_equal_anchor": true,
+    "all_reaped": true,
+    "all_delta_swapout_and_swapin_bytes": 0,
+    "commands": [
+      {
+        "phase": "storage-plan-result.json",
+        "name": "t18a-storage-0",
+        "selector": "array::tests::disk_schedule_profile_matches_real_batch_assignment",
+        "requested_flag": "0",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21755,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 3,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-storage-0.log",
+        "log_sha256": "65043d757a293b42d41e94bc6e5df7a231e641b15d3f02b12614b84109415a88",
+        "seconds_supervised_not_speed": 0.5509393749816809,
+        "available_estimate_bytes": 10951786496,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 19005440,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "storage-plan-result.json",
+        "name": "t18a-storage-1",
+        "selector": "array::tests::disk_schedule_profile_matches_real_batch_assignment",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21771,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 3,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-storage-1.log",
+        "log_sha256": "734e5e570c802ea4df495999ffb74fe6230e03528af778d573df1484f8be841a",
+        "seconds_supervised_not_speed": 0.14484637501300313,
+        "available_estimate_bytes": 10936958976,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 19005440,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "storage-plan-result.json",
+        "name": "t18a-storage-invalid",
+        "selector": "array::tests::disk_schedule_invalid_option_is_rejected_by_ffi_without_writes",
+        "requested_flag": "invalid",
+        "negative_option_oracle": true,
+        "status": "completed_expected_outcome",
+        "pid": 21787,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 3,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-storage-invalid.log",
+        "log_sha256": "40b2acc548cb075a73322c0b8715004e63203d9c4bf8125d27233467049a9e70",
+        "seconds_supervised_not_speed": 0.14681479200953618,
+        "available_estimate_bytes": 10936254464,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 19005440,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-record-boundaries-0",
+        "selector": "ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources",
+        "requested_flag": "0",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21841,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-record-boundaries-0.log",
+        "log_sha256": "f7cec1302172bdaba4f17778241042b5b9a445712f033997a7dfd9935c782b2c",
+        "seconds_supervised_not_speed": 0.1449749160092324,
+        "available_estimate_bytes": 10951983104,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 25706496,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-batch-aliases-0",
+        "selector": "ssd_moe::tests::disk_batches_reject_aliases_and_validate_every_record_before_writing",
+        "requested_flag": "0",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21857,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-batch-aliases-0.log",
+        "log_sha256": "958860ec3555af1730f0a1b0d5a87c492047f5bf395c3088204e4c0c36072b4f",
+        "seconds_supervised_not_speed": 0.15091129200300202,
+        "available_estimate_bytes": 10940219392,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 25903104,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-moe-oracle-0",
+        "selector": "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+        "requested_flag": "0",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21873,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 3,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-moe-oracle-0.log",
+        "log_sha256": "94725c2149d54c46c0df5fe386c97c078f0664cbcca5814c20cab7ee626be68e",
+        "seconds_supervised_not_speed": 11.549987707985565,
+        "available_estimate_bytes": 10939482112,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 790298624,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-record-boundaries-1",
+        "selector": "ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21915,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-record-boundaries-1.log",
+        "log_sha256": "f7cec1302172bdaba4f17778241042b5b9a445712f033997a7dfd9935c782b2c",
+        "seconds_supervised_not_speed": 0.144181290990673,
+        "available_estimate_bytes": 10944479232,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 790298624,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-batch-aliases-1",
+        "selector": "ssd_moe::tests::disk_batches_reject_aliases_and_validate_every_record_before_writing",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21931,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-batch-aliases-1.log",
+        "log_sha256": "958860ec3555af1730f0a1b0d5a87c492047f5bf395c3088204e4c0c36072b4f",
+        "seconds_supervised_not_speed": 0.14430004102177918,
+        "available_estimate_bytes": 10944397312,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 790298624,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-moe-oracle-1",
+        "selector": "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21947,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 3,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-moe-oracle-1.log",
+        "log_sha256": "d0b4f91819ed6a7e54957568d342608d2ad9ea77b23feeef217f77c81814f9dc",
+        "seconds_supervised_not_speed": 4.646653207979398,
+        "available_estimate_bytes": 10943676416,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 809664512,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-hot-overlap",
+        "selector": "ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 21976,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-hot-overlap.log",
+        "log_sha256": "0b5d5c54b40a69531a7645d06d1ce01331ecaa88559cc10a14517360fa5ec193",
+        "seconds_supervised_not_speed": 1.2276744589908049,
+        "available_estimate_bytes": 10927161344,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 809664512,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-wide-overlap",
+        "selector": "ssd_moe::hybrid_tests::wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22002,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-wide-overlap.log",
+        "log_sha256": "3c421693b43b47a47572aa797b34caad354e14ef33d4524eb0fb70f9bbf7852d",
+        "seconds_supervised_not_speed": 2.0035748750087805,
+        "available_estimate_bytes": 10945331200,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 809664512,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "component-plan-result.json",
+        "name": "t18a-unique-pending",
+        "selector": "ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22026,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-unique-pending.log",
+        "log_sha256": "9c7e305e2dc98d185b4335b4c8fc56df5c5d6a57ce23637b64c0271df1ee4d49",
+        "seconds_supervised_not_speed": 1.6432267089840025,
+        "available_estimate_bytes": 10972184576,
+        "minimum_available_bytes": 2000000000,
+        "children_maximum_rss_bytes": 830685184,
+        "maximum_live_swapout_bytes": null,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "model-quality-r3-plan-result.json",
+        "name": "t18a-final-model-oracle-r3",
+        "selector": "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22661,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-final-model-oracle-r3.log",
+        "log_sha256": "bbc1ea23acfcd76b35b61019baec8d4a2d8bb4c11056fde3918af83be8f19826",
+        "seconds_supervised_not_speed": 4.831303375016432,
+        "available_estimate_bytes": 10958209024,
+        "minimum_available_bytes": 10800000000,
+        "children_maximum_rss_bytes": 4156162048,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "model-quality-r3-plan-result.json",
+        "name": "t18a-final-model-components-r3",
+        "selector": "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22695,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-final-model-components-r3.log",
+        "log_sha256": "68166d33592b5d1152153ddf33daa7ce7db5fb909396484c0839fc97701f6308",
+        "seconds_supervised_not_speed": 3.587273374956567,
+        "available_estimate_bytes": 14141620224,
+        "minimum_available_bytes": 10800000000,
+        "children_maximum_rss_bytes": 4192583680,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "model-quality-r3-plan-result.json",
+        "name": "t18a-final-model-pairs-r3",
+        "selector": "qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22723,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-final-model-pairs-r3.log",
+        "log_sha256": "0c01cee85c67b62c12c8ca3ae7f98d7d52a747744b5ef7caa21dc95c1b6470f5",
+        "seconds_supervised_not_speed": 9.758707083004992,
+        "available_estimate_bytes": 14740652032,
+        "minimum_available_bytes": 10800000000,
+        "children_maximum_rss_bytes": 5557043200,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "model-quality-r3-plan-result.json",
+        "name": "t18a-final-model-mtp-r3",
+        "selector": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22764,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-final-model-mtp-r3.log",
+        "log_sha256": "bddda57aabe9d262e85d12872eaf06f1b6b3d5271438844deda2e1ac3deac759",
+        "seconds_supervised_not_speed": 9.7458968750434,
+        "available_estimate_bytes": 14960672768,
+        "minimum_available_bytes": 10800000000,
+        "children_maximum_rss_bytes": 6171541504,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      },
+      {
+        "phase": "model-quality-r3-plan-result.json",
+        "name": "t18a-final-model-dflash-r3",
+        "selector": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+        "requested_flag": "1",
+        "negative_option_oracle": false,
+        "status": "completed_expected_outcome",
+        "pid": 22804,
+        "exit_code": 0,
+        "reaped": true,
+        "swapouts_bytes": 0,
+        "swapins_bytes": 0,
+        "required_markers_present": 2,
+        "libtest_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "log": "docs/measurements/issue59-t18a-20261031/t18a-final-model-dflash-r3.log",
+        "log_sha256": "9f5c33f032eca38d173ab645a90c2b98935e93e20739b471ec0451990175d38e",
+        "seconds_supervised_not_speed": 26.91314970899839,
+        "available_estimate_bytes": 15015624704,
+        "minimum_available_bytes": 10800000000,
+        "children_maximum_rss_bytes": 7490732032,
+        "maximum_live_swapout_bytes": 0,
+        "test_footer_counts": {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "measured": 0,
+          "filtered_out": 374
+        }
+      }
+    ]
+  },
+  "admission": {
+    "model-admission-r1.json": {
+      "status": "refused_before_model",
+      "required_available_bytes": 11000000000,
+      "required_interval_seconds": 20,
+      "campaign": "T18A-w1 unchanged",
+      "model_launched": false,
+      "error": "AssertionError('headroom 10961993728 < 11000000000')",
+      "samples": [
+        {
+          "seconds": 0.046898750006221235,
+          "available_bytes": 10961993728
+        }
+      ]
+    },
+    "model-admission-r2.json": {
+      "status": "passed_before_launch",
+      "required_available_bytes": 10800000000,
+      "required_interval_seconds": 20,
+      "campaign": "T18A-w1 unchanged",
+      "model_launched": false,
+      "samples": [
+        {
+          "seconds": 0.038932374998694286,
+          "available_bytes": 10961043456
+        },
+        {
+          "seconds": 10.123491874983301,
+          "available_bytes": 10970759168
+        },
+        {
+          "seconds": 20.206620958982967,
+          "available_bytes": 10990256128
+        }
+      ]
+    },
+    "model-admission-r3.json": {
+      "status": "passed_before_launch",
+      "required_available_bytes": 10800000000,
+      "required_interval_seconds": 20,
+      "campaign": "T18A-w1 unchanged",
+      "model_launched": false,
+      "samples": [
+        {
+          "seconds": 0.040364540996961296,
+          "available_bytes": 10975281152
+        },
+        {
+          "seconds": 10.11807587504154,
+          "available_bytes": 10948214784
+        },
+        {
+          "seconds": 20.190184957988095,
+          "available_bytes": 10951622656
+        }
+      ]
+    }
+  },
+  "controller_memory": {
+    "status": "measured_cpu_only",
+    "rows": [
+      {
+        "mode": "bulk",
+        "files": 529,
+        "rss_before": 19087360,
+        "rss_after": 225034240,
+        "peak_rss": 225034240,
+        "seconds": 0.09747525001876056,
+        "large_files": [
+          {
+            "path": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib",
+            "bytes": 182351120,
+            "rss_after": 225034240
+          }
+        ]
+      },
+      {
+        "mode": "stream",
+        "files": 529,
+        "rss_before": 19103744,
+        "rss_after": 19398656,
+        "peak_rss": 19398656,
+        "seconds": 0.08461137500125915,
+        "large_files": [
+          {
+            "path": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib",
+            "bytes": 182351120,
+            "rss_after": 19398656
+          }
+        ]
+      }
+    ],
+    "all529_hashes_equal": true,
+    "limits": [
+      "Separate processes, one pass per implementation; no engine/GPU/model timing",
+      "Peak RSS is not live RSS or proof that hashing caused the previous admission failure",
+      "The two prior refusals and10.8GB guard remain unchanged"
+    ]
+  },
+  "controller_selftests": {
+    "status": "passed_synthetic_selftests_not_benchmark",
+    "engine_executed": false,
+    "synthetic_fixtures": true,
+    "controller_sha256": "f223e1cf7f940504413ffcc77a8e6c6df00006851af64514d28fbcf332e0b3db",
+    "positive_cases": 3,
+    "negative_cases": 14,
+    "cases": [
+      {
+        "case": "positive_AR",
+        "mode": "AR",
+        "expected_rejection": false,
+        "status": "passed_external_oracle_mode_and_memory_not_gain"
+      },
+      {
+        "case": "positive_MTP",
+        "mode": "MTP",
+        "expected_rejection": false,
+        "status": "passed_external_oracle_mode_and_memory_not_gain"
+      },
+      {
+        "case": "positive_DF",
+        "mode": "DF",
+        "expected_rejection": false,
+        "status": "passed_external_oracle_mode_and_memory_not_gain"
+      },
+      {
+        "case": "incomplete",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "empty_text",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "wrong_hash",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "mtp_null",
+        "mode": "MTP",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "df_null",
+        "mode": "DF",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "zero_footprint",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "peak_limit",
+        "mode": "DF",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "nan_duration",
+        "mode": "MTP",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "missing_prompt",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "mtp_inactive",
+        "mode": "MTP",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "df_inactive",
+        "mode": "DF",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "supervisor_unreaped",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "t18a_flag_mismatch",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      },
+      {
+        "case": "t04_not_disabled",
+        "mode": "AR",
+        "expected_rejection": true,
+        "status": "failed_external_inspection"
+      }
+    ],
+    "journaling": "temporary cwd only; fixtures removed",
+    "controller_sha256_matches_current": true
+  },
+  "input_sha256": {
+    "storage-plan-result.json": "bcf163116dc5f252d2de8774c3e5f1ec87f7892ada1640fb30e8153945e9a37a",
+    "component-plan-result.json": "14a16f68bc4372a2d57ceb7e06aacf3f5adf33e879e4d48020ad8105bf6554c2",
+    "model-quality-r3-plan-result.json": "ef16f282fe50f41ceb9cc020ee06deab5f2c96b60f78bc87713bdba7a4f7e9be"
+  },
+  "limits": [
+    "17 executions are 13 distinct selectors; the invalid-option oracle proves rejection without writes, not numerical parity.",
+    "Finite/count/byte contracts come from actual tests; no unprinted cardinality invented.",
+    "No universal continuous native footprint measurement or speed qualification in these receipts.",
+    "Admission and parent hash memory correction are not model speedups.",
+    "ASan/UBSan/TSan, finite tests and symbolic attempts do not prove the complete engine or concurrency.",
+    "Bridge/release throughput outside this audit."
+  ],
+  "numerical_stdout": {
+    "five_logit_positions": [
+      [
+        0,
+        248320
+      ],
+      [
+        1,
+        248320
+      ],
+      [
+        2,
+        248320
+      ],
+      [
+        3,
+        248320
+      ],
+      [
+        4,
+        248320
+      ]
+    ],
+    "printed_logit_relative_rmse": 0,
+    "printed_logit_max_abs": 0,
+    "draft_prefix": {
+      "captures": {
+        "byte_equal": true,
+        "count": 64000,
+        "name": "captured",
+        "relative_rmse": 0.0,
+        "tolerance": 0.004
+      },
+      "kind": "Dflash2",
+      "memory": {
+        "mlx_active_bytes": 6460081696,
+        "mlx_cache_bytes": 70178292,
+        "mlx_peak_bytes": 6783561724,
+        "process_compressed_lifetime_logical_bytes": 48955392,
+        "process_compressed_logical_bytes": 45334528,
+        "process_compressed_peak_logical_bytes": 45334528,
+        "process_decompressions": 230,
+        "process_footprint_bytes": 7347132584,
+        "process_id": 22804,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7385077976,
+        "process_start_abstime": 6298622868201
+      },
+      "prefix_cases": 36,
+      "status": "passed",
+      "target_logits_and_states": "byte_exact",
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    "mtp_budgets_proposed_accepted_blocks": [
+      [
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        1,
+        0,
+        1
+      ],
+      [
+        3,
+        2,
+        0,
+        2
+      ],
+      [
+        17,
+        12,
+        5,
+        12
+      ]
+    ],
+    "finite_contract": "qwen4::tests::check rejects empty/count mismatch/nonfinite actual or oracle; full logit and recurrent-entry byte guards also exercised; serial MTP/pair state bytes use tensor_state_bytes. Unprinted intermediate cardinalities not inferred."
+  },
+  "cpu_receipts": {
+    "reader_cases_per_sanitizer": 308,
+    "queue_cases_per_sanitizer": 4084,
+    "effective_policy_cases_per_sanitizer": 4096,
+    "sanitizers": [
+      "ASan+UBSan",
+      "TSan"
+    ],
+    "python_profiling_passed": 233,
+    "supervisor_after_streaming_correction_passed": 44,
+    "new_supervisor_cases": 7,
+    "controllers_synthetic": {
+      "positive": 3,
+      "negative": 14,
+      "engine_executed": false
+    },
+    "formal": {
+      "CBMC_queue": "PARSING ERROR, no verified properties",
+      "Kani_actual_MLX": "intrinsics.rs:243 ICE before obligations",
+      "CrossHair": "module absent; source not formally verified"
+    },
+    "not_a_sum_of_unique_tests": true
+  }
+}

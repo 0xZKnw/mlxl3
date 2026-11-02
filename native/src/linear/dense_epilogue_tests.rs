@@ -572,6 +572,127 @@ fn serial_stock(case: &mut Case, input: &Array, rows: i32) -> Result<Array> {
 }
 
 #[test]
+#[ignore = "physical Apple GPU and independent Flash fixtures; DEC_ONE=1, F02=0; run alone"]
+fn dec_one_complete_projections_preserve_fixtures_pending_rows_and_fallbacks() -> Result<()> {
+    use std::sync::atomic::Ordering::Relaxed;
+    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let mtp = Exl3Linear::from_checkpoint(&checkpoint, "mtp.layers.0.self_attn.o_proj")?;
+    ensure!(!mtp.dec_one, "DEC-ONE escaped into the MTP head");
+    crate::dec_one::REQUESTS.store(0, Relaxed);
+    let output = mtp.forward(&Array::zeros(&[1, 6144])?)?;
+    ensure!(output.shape() == [1, 2560]);
+    ensure!(output.to_f32()?.iter().all(|v| *v == 0.0));
+    ensure!(crate::dec_one::REQUESTS.load(Relaxed) == 0);
+    let mut checks = 0;
+    for mut case in cases(false)? {
+        ensure!(case.linear.dec_one, "DEC-ONE flag was not loaded");
+        let actual = case.linear.forward(&case.input)?.astype(Dtype::Float32)?;
+        compare(&actual, &case.oracle, 1, case.output, Dtype::Float32, true)?;
+        checks += 1;
+        for rows in [1, 2, 3] {
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                let input = input_rows(&case, rows, dtype)?;
+                let values = input.to_f32()?;
+                let mut columns = Vec::with_capacity(values.len());
+                for col in 0..case.width as usize {
+                    for row in 0..rows as usize {
+                        columns.push(values[row * case.width as usize + col]);
+                    }
+                }
+                let x = Array::from_f32(&columns, &[case.width, rows])?
+                    .astype(dtype)?
+                    .transpose(&[1, 0])?;
+                let before = x.to_bytes()?;
+                case.linear.dec_one = false;
+                let reference = serial_stock(&mut case, &x, rows)?;
+                case.linear.dec_one = true;
+                crate::dec_one::REQUESTS.store(0, Relaxed);
+                let mut pending = Vec::new();
+                for _ in 0..4 {
+                    pending.push(case.linear.forward(&x)?.astype(case.dtype)?);
+                }
+                ensure!(
+                    crate::dec_one::REQUESTS.load(Relaxed)
+                        == if !case.qkv && rows <= 2 { 4 } else { 0 }
+                );
+                for y in pending.into_iter().rev() {
+                    compare(&y, &reference, rows, case.output, case.dtype, true)?;
+                    checks += 1;
+                }
+                ensure!(x.to_bytes()? == before, "DEC-ONE mutated input");
+            }
+        }
+    }
+    ensure!(checks == 75);
+    println!(
+        "DEC_ONE_QUALITY checks=75 external=3 rows=1,2,3 dtypes=F16,F32 pending_reverse=4 status=byte_exact"
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; complete DEC-ONE projections, run only after quality"]
+fn dec_one_microbench_complete_projections() -> Result<()> {
+    let out = PathBuf::from(std::env::var("MLXL3_DEC_ONE_MICRO_OUT")?);
+    ensure!(!out.exists(), "micro report already exists");
+    let mut report = json!({"status":"incomplete", "parity":false, "samples":[]});
+    fs::write(&out, serde_json::to_vec_pretty(&report)?)?;
+    let result = (|| -> Result<()> {
+        for mut case in cases(false)?.into_iter().filter(|c| !c.qkv) {
+            for rows in [1, 2] {
+                let x = input_rows(&case, rows, Dtype::Float32)?;
+                case.linear.dec_one = false;
+                let expected = serial_stock(&mut case, &x, rows)?;
+                for enabled in [false, true] {
+                    case.linear.dec_one = enabled;
+                    compare(
+                        &case.linear.forward(&x)?.astype(case.dtype)?,
+                        &expected,
+                        rows,
+                        case.output,
+                        case.dtype,
+                        true,
+                    )?;
+                    for _ in 0..3 {
+                        case.linear.forward(&x)?.eval()?;
+                    }
+                }
+                for round in 0..6 {
+                    for enabled in if round % 2 == 0 {
+                        [false, true]
+                    } else {
+                        [true, false]
+                    } {
+                        case.linear.dec_one = enabled;
+                        synchronize()?;
+                        let start = Instant::now();
+                        for _ in 0..16 {
+                            case.linear.forward(&x)?.eval()?;
+                        }
+                        let us = start.elapsed().as_secs_f64() * 1e6 / 16.0;
+                        report["samples"].as_array_mut().unwrap().push(json!({"projection":case.name,"rows":rows,"round":round,"enabled":enabled,"us_per_forward":us}));
+                        fs::write(&out, serde_json::to_vec_pretty(&report)?)?;
+                    }
+                }
+            }
+        }
+        ensure!(report["samples"].as_array().unwrap().len() == 48);
+        Ok(())
+    })();
+    if let Err(error) = &result {
+        report["status"] = json!("failed");
+        report["error"] = json!(format!("{error:#}"));
+    } else {
+        report["status"] = json!("complete_projection_micro_not_model_gain");
+        report["parity"] = json!(true);
+    }
+    fs::write(&out, serde_json::to_vec_pretty(&report)?)?;
+    result?;
+    println!("DEC_ONE_MICRO samples=48 evaluated_calls=768 parity=byte_exact");
+    Ok(())
+}
+
+#[test]
 #[ignore = "physical Apple GPU, env F02=1 and independent projection/attention fixtures; run alone"]
 fn complete_flash_projections_match_independent_fixtures_and_batch_fallback() -> Result<()> {
     ensure!(

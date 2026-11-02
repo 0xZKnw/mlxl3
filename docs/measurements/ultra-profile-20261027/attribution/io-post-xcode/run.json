@@ -1,0 +1,39 @@
+{
+  "status": "recorded_pending_block_sensor",
+  "epoch": 1793138002.125418,
+  "target_pid": 97767,
+  "command": [
+    "/usr/bin/xcrun",
+    "xctrace",
+    "record",
+    "--template",
+    "Time Profiler",
+    "--instrument",
+    "GPU",
+    "--instrument",
+    "Thread Activity",
+    "--instrument",
+    "System Call Trace",
+    "--instrument",
+    "Disk I/O Latency",
+    "--attach",
+    "97767",
+    "--time-limit",
+    "6s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/io-post-xcode/capture.trace"
+  ],
+  "native_exit": 0,
+  "trace_exit": 0,
+  "io": {
+    "start_ns": 1793138005213072000,
+    "end_ns": 1793138005323881000,
+    "bytes_read": 134217728,
+    "bytes_written": 134217728,
+    "parity": "byte_exact"
+  },
+  "elapsed_s": 9.694292875006795,
+  "native_reaped": true,
+  "trace_reaped": true,
+  "scratch_removed": true
+}

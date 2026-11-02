@@ -278,6 +278,8 @@ unsafe extern "C" {
         grid: *const i32,
         threadgroup: *const i32,
         outputs: *mut *mut c_void,
+        initialize_outputs: i32,
+        initial_value: f32,
     ) -> i32;
 }
 
@@ -1630,6 +1632,39 @@ pub fn metal_kernel(
     grid: [i32; 3],
     threadgroup: [i32; 3],
 ) -> Result<Vec<Array>> {
+    metal_kernel_initialized(
+        name,
+        input_names,
+        output_names,
+        header,
+        source,
+        inputs,
+        output_shapes,
+        output_dtypes,
+        grid,
+        threadgroup,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn metal_kernel_initialized(
+    name: &str,
+    input_names: &[&str],
+    output_names: &[&str],
+    header: &str,
+    source: &str,
+    inputs: &[&Array],
+    output_shapes: &[Vec<i32>],
+    output_dtypes: &[Dtype],
+    grid: [i32; 3],
+    threadgroup: [i32; 3],
+    initial_value: Option<f32>,
+) -> Result<Vec<Array>> {
+    ensure!(
+        initial_value.is_none_or(f32::is_finite),
+        "invalid Metal output initializer"
+    );
     ensure!(
         input_names.len() == inputs.len(),
         "kernel input name count mismatch"
@@ -1682,6 +1717,8 @@ pub fn metal_kernel(
             grid.as_ptr(),
             threadgroup.as_ptr(),
             pointers.as_mut_ptr(),
+            i32::from(initial_value.is_some()),
+            initial_value.unwrap_or(0.0),
         )
     })?;
     // Take ownership of every returned handle even if one metadata read fails.
@@ -1691,6 +1728,90 @@ pub fn metal_kernel(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn metal_initializer_rejects_invalid_values_before_gpu_dispatch() {
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(
+                metal_kernel_initialized(
+                    "unused",
+                    &[],
+                    &["out"],
+                    "",
+                    "",
+                    &[],
+                    &[vec![16]],
+                    &[Dtype::UInt32],
+                    [1, 1, 1],
+                    [1, 1, 1],
+                    Some(value),
+                )
+                .is_err()
+            );
+        }
+        for (enabled, value) in [(2, 0.0), (-1, 0.0), (1, f32::INFINITY)] {
+            let status = unsafe {
+                mlxl3_metal_kernel(
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    0,
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    enabled,
+                    value,
+                )
+            };
+            assert!(
+                checked(status)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("initializer")
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU; initialize private mutable outputs and evaluate pending graphs"]
+    fn metal_initialized_outputs_are_private_and_reset_on_every_call() -> Result<()> {
+        let mut pending = Vec::new();
+        for seed in 0..32u32 {
+            let initial = if seed % 2 == 0 { 0u32 } else { 7 };
+            let input = Array::from_u32(&[seed; 8], &[8])?;
+            let output = metal_kernel_initialized(
+                "mlxl3_test_initialized_state",
+                &["input"],
+                &["state"],
+                "",
+                "state[0] = input[0]; state[1] += 1u;",
+                &[&input],
+                &[vec![64]],
+                &[Dtype::UInt32],
+                [1, 1, 1],
+                [1, 1, 1],
+                Some(initial as f32),
+            )?
+            .remove(0);
+            pending.push((seed, initial, output));
+        }
+        for (seed, initial, output) in pending.into_iter().rev() {
+            let mut expected = vec![initial; 64];
+            expected[0] = seed;
+            expected[1] += 1;
+            assert_eq!(output.to_u32()?, expected);
+            assert_eq!(output.to_u32()?, expected, "evaluated output ran twice");
+        }
+        println!("INITIALIZED_OUTPUTS calls=32 values=2048 pending_reverse=true status=exact");
+        Ok(())
+    }
+
     #[test]
     #[ignore = "Apple MLX owned storage; isolated process with an invalid reader option"]
     fn disk_schedule_invalid_option_is_rejected_by_ffi_without_writes() -> Result<()> {
@@ -1710,6 +1831,14 @@ mod tests {
                 .to_string()
                 .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
         );
+        let error = unsafe { Array::begin_read_records(&[(&file, 0); 5], &mut banks, &views, 4) }
+            .err()
+            .context("invalid option accepted by async FFI")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
+        );
         for bank in banks {
             ensure!(bank.to_bytes()? == [0xa5; 8]);
         }
@@ -1722,8 +1851,8 @@ mod tests {
     fn disk_schedule_profile_matches_real_batch_assignment() -> Result<()> {
         use std::io::Write;
         let dynamic_requested = match std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() {
-            Ok("1") => true,
-            Ok("0") | Err(std::env::VarError::NotPresent) => false,
+            Ok("1") | Err(std::env::VarError::NotPresent) => true,
+            Ok("0") => false,
             _ => anyhow::bail!("test requires the production 0/1 option"),
         };
         struct Reset;
@@ -1741,64 +1870,75 @@ mod tests {
         let (mut cases, mut dynamic_batches, mut records, mut bytes) = (0, 0, 0, 0);
         for workers in [1, 2, 4] {
             for count in [1usize, 4, 5, 9, 17, 512] {
-                let mut banks = (0..count)
-                    .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
-                    .collect::<Result<Vec<_>>>()?;
-                let sources = (0..count)
-                    .map(|i| (&file, (i * 32) as u64))
-                    .collect::<Vec<_>>();
-                let ranges = (0..count)
-                    .map(|i| vec![(i, 4, 16), (i, 40, 16)])
-                    .collect::<Vec<_>>();
-                let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
-                disk_profile_enable(true);
-                ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
-                Array::read_records(&sources, &mut banks, &views, workers)?;
-                let dynamic = dynamic_requested && workers > 1 && count > workers;
-                ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
-                let timings = disk_profile()?;
-                ensure!(timings.len() == count);
-                let mut worker_end = [0u64; 4];
-                let mut per_worker = [0usize; 4];
-                for (job, &[index, worker, begin, end, read_bytes, failed]) in
-                    timings.iter().enumerate()
-                {
-                    ensure!(
-                        index == job as u64
-                            && worker < count.min(workers) as u64
-                            && end >= begin
-                            && read_bytes == 32
-                            && failed == 0
-                    );
-                    if !dynamic {
-                        ensure!(worker as usize == job % count.min(workers));
+                for asynchronous in [false, true] {
+                    let mut banks = (0..count)
+                        .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
+                        .collect::<Result<Vec<_>>>()?;
+                    let sources = (0..count)
+                        .map(|i| (&file, (i * 32) as u64))
+                        .collect::<Vec<_>>();
+                    let ranges = (0..count)
+                        .map(|i| vec![(i, 4, 16), (i, 40, 16)])
+                        .collect::<Vec<_>>();
+                    let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
+                    disk_profile_enable(true);
+                    ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
+                    if asynchronous {
+                        let mut batch = unsafe {
+                            Array::begin_read_records(&sources, &mut banks, &views, workers)?
+                        };
+                        let ready = batch.wait_ready(2)?;
+                        ensure!(ready.iter().filter(|&&done| done).count() >= count.min(2));
+                        batch.finish()?;
+                    } else {
+                        Array::read_records(&sources, &mut banks, &views, workers)?;
                     }
-                    ensure!(begin >= worker_end[worker as usize]);
-                    worker_end[worker as usize] = end;
-                    per_worker[worker as usize] += 1;
+                    let dynamic = dynamic_requested && workers > 1 && count > workers;
+                    ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
+                    let timings = disk_profile()?;
+                    ensure!(timings.len() == count);
+                    let mut worker_end = [0u64; 4];
+                    let mut per_worker = [0usize; 4];
+                    for (job, &[index, worker, begin, end, read_bytes, failed]) in
+                        timings.iter().enumerate()
+                    {
+                        ensure!(
+                            index == job as u64
+                                && worker < count.min(workers) as u64
+                                && end >= begin
+                                && read_bytes == 32
+                                && failed == 0
+                        );
+                        if !dynamic {
+                            ensure!(worker as usize == job % count.min(workers));
+                        }
+                        ensure!(begin >= worker_end[worker as usize]);
+                        worker_end[worker as usize] = end;
+                        per_worker[worker as usize] += 1;
+                    }
+                    ensure!(per_worker.iter().sum::<usize>() == count);
+                    for (i, bank) in banks.iter().enumerate() {
+                        let mut expected = [0xa5; 64];
+                        expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
+                        expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
+                        ensure!(
+                            bank.shape() == [64]
+                                && bank.dtype() == Dtype::UInt8
+                                && bank.to_bytes()? == expected
+                        );
+                    }
+                    cases += 1;
+                    dynamic_batches += usize::from(dynamic);
+                    records += count;
+                    bytes += count * 32;
                 }
-                ensure!(per_worker.iter().sum::<usize>() == count);
-                for (i, bank) in banks.iter().enumerate() {
-                    let mut expected = [0xa5; 64];
-                    expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
-                    expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
-                    ensure!(
-                        bank.shape() == [64]
-                            && bank.dtype() == Dtype::UInt8
-                            && bank.to_bytes()? == expected
-                    );
-                }
-                cases += 1;
-                dynamic_batches += usize::from(dynamic);
-                records += count;
-                bytes += count * 32;
             }
         }
         ensure!(
-            cases == 18
-                && records == 1644
-                && bytes == 52608
-                && dynamic_batches == if dynamic_requested { 9 } else { 0 }
+            cases == 36
+                && records == 3288
+                && bytes == 105216
+                && dynamic_batches == if dynamic_requested { 18 } else { 0 }
         );
         println!(
             "T18A_STORAGE cases={cases} records={records} payload_bytes={bytes} dynamic_batches={dynamic_batches} static_batches={}",
@@ -2443,6 +2583,8 @@ mod tests {
                     std::ptr::null(),
                     std::ptr::null(),
                     std::ptr::null_mut(),
+                    0,
+                    0.0,
                 )
             };
             assert!(checked(status).is_err());
@@ -2461,7 +2603,7 @@ mod tests {
                 "output[thread_position_in_grid.x] = input[thread_position_in_grid.x] + CACHE_SHIFT;"
             };
             let outputs = metal_kernel(
-                "mlxl3_cache_collision_regression",
+                "mlxl3_rs_expert_cache_collision_slots1",
                 &["input"],
                 &["output"],
                 &header,

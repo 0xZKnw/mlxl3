@@ -1,0 +1,27 @@
+{
+  "status": "validated_historical_call_count_only",
+  "historical_trace": "docs/measurements/ultra-profile-20261027/attribution/AR-MAIN/profile/trace_1-decode.json",
+  "historical_trace_sha256": "6de2cf687927b4322e79d5aa88ff59a157562afefce96205fe55a522e9aa9c6f",
+  "signature_exact_bytes_equal_to_host_filter": true,
+  "output_steps": 127,
+  "target_rows": 1,
+  "exact_signature_requests": 6096,
+  "requests_per_output_step": 48,
+  "requests_per_layer": 127,
+  "layer_count": 48,
+  "host_filter_ns_per_call": {
+    "off_whole_builder_drop_metadata": 5529.21533203125,
+    "fine_closure_inclusive": 697.541015625
+  },
+  "conditional_projection_ms_per_step": {
+    "whole_builder_drop_metadata": 0.2654023359375,
+    "closure_inclusive": 0.03348196875
+  },
+  "limits": [
+    "Historical trace 2026-10-27 establishes call count only, no new full-model evaluation",
+    "Host-only cost is from synthetic non-evaluated fixture 2026-10-31; these projections are not a measured model speedup or proven bound under GPU load",
+    "Closure includes mandatory new primitive/input marshalling; source generation alone was not isolated",
+    "GPU eval hash/pipeline/encoder remain unmeasured",
+    "No addition to or subtraction from the historical 12.142ms GPU-idle attribution"
+  ]
+}

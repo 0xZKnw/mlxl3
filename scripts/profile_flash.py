@@ -70,6 +70,89 @@ def readback_sample(event):
     return {**sample, "dtype": data["dtype"], "shape": data["shape"]}
 
 
+def cold_schedule_diagnostic(data, route=None):
+    fields = ("route_rows", "priority", "cold_occurrences", "multiplicities")
+    present = [key in data for key in fields]
+    if not any(present):
+        return {"status": "unavailable_legacy", "missing_fields": list(fields)}
+    assert all(present), "incomplete Cold schedule diagnostic"
+    assert data["status"] == "finished" and data["io_ok"] is True
+    assert isinstance(route, dict), "Cold schedule has no routed parent"
+    rows = integer(data["route_rows"])
+    assert 1 <= rows <= 4 and rows == route["rows"]
+    assert type(data["priority"]) is bool and (not data["priority"] or rows == 2)
+    ids, slots = route["ids"], route["slots_hit"]
+    assert len(ids) == len(slots) == rows * 10
+    occurrences = data["cold_occurrences"]
+    mapping, multiplicities = data["jobs_mapping"], data["multiplicities"]
+    assert all(isinstance(v, list) for v in (occurrences, mapping, multiplicities))
+    assert len(mapping) == len(multiplicities) == integer(data["jobs"]) > 2
+    assert len(occurrences) == integer(data["cold_rows"]) <= rows * 10
+    seen, counts, first = set(), defaultdict(int), {}
+    for item in occurrences:
+        assert isinstance(item, list) and len(item) == 2
+        occurrence, slot = map(integer, item)
+        assert occurrence < rows * 10 and slot < route["capacity"]
+        assert occurrence not in seen, "duplicate Cold occurrence"
+        assert slot == slots[occurrence][0], "Cold occurrence uses a different routed slot"
+        assert not seen or occurrence > max(seen), "Cold occurrences are not in route order"
+        seen.add(occurrence)
+        counts[slot] += 1
+        first.setdefault(slot, occurrence)
+    assert all(hit or i in seen for i, (_, hit) in enumerate(slots)), "missing Cold miss"
+    assert len({expert for expert, _ in mapping}) == len(mapping)
+    assert len({slot for _, slot in mapping}) == len(mapping)
+    assert {slot for _, slot in mapping} == {slot for slot, hit in slots if not hit}
+    for (expert, slot), multiplicity in zip(mapping, multiplicities, strict=True):
+        assert integer(expert) < 512 and integer(slot) < route["capacity"]
+        assert 1 <= integer(multiplicity) == counts[slot] <= rows
+        assert all(ids[i] == expert for i, s in occurrences if s == slot)
+    expected = sorted(
+        mapping,
+        key=lambda job: (
+            (-counts[job[1]], first[job[1]]) if data["priority"] else (0, first[job[1]])
+        ),
+    )
+    assert mapping == expected, "Cold job launch order does not match policy"
+    timings = data["timings_job_worker_start_end_bytes_failed"]
+    assert len(timings) == len(mapping), "incomplete Cold job timings"
+    for index, timing in enumerate(timings):
+        assert len(timing) == 6
+        job, _, begin, end, count, failed = map(integer, timing)
+        assert job == index and begin <= end and count == EXPERT_BYTES and failed == 0
+    completed = sorted(range(len(mapping)), key=lambda job: (timings[job][3], job))
+    first_two = completed[:2]
+    duplicated = sum(n > 1 for n in multiplicities)
+    split = data["split"]
+    assert type(split) is bool
+    w1, w2 = integer(data["w1_rows"]), integer(data["w2_rows"])
+    assert w1 + w2 == len(occurrences)
+    ready = integer(data["ready_initial"])
+    assert 2 <= ready <= len(mapping)
+    if split:
+        assert 0 < w1 < len(occurrences) and ready < len(mapping)
+    else:
+        assert w1 == 0 and ready == len(mapping)
+    return {
+        "status": "validated_schedule_only",
+        "route_rows": rows,
+        "priority": data["priority"],
+        "split": split,
+        "ready_initial": ready,
+        "w1_rows": w1,
+        "w2_rows": w2,
+        "jobs": len(mapping),
+        "duplicated_jobs": duplicated,
+        "duplicated_job_fraction": duplicated / len(mapping),
+        "first_two_completed_jobs": first_two,
+        "first_two_completed_slots": [mapping[job][1] for job in first_two],
+        "first_two_completed_occurrences": sum(multiplicities[job] for job in first_two),
+        "read_tail_after_second_completion_ns": timings[completed[-1]][3]
+        - timings[completed[1]][3],
+        "limits": "read completions (ties by job index) and logical occurrences; not readiness publication, GPU idle or speedup",
+    }
+
+
 def validate_events(events):
     assert isinstance(events, list) and events, "empty trace"
     children = [0] * len(events)
@@ -145,9 +228,13 @@ def validate_events(events):
                     "capacity": cap,
                 }
             )
-        if name == "disk_read_batch":
-            assert data["ok"] is True
-            timings, mapping = data["timings_job_worker_start_end_bytes_failed"], data["jobs"]
+        if name in ("disk_read_batch", "cold_ready_batch"):
+            cold = name == "cold_ready_batch"
+            assert data["io_ok" if cold else "ok"] is True
+            timings = data["timings_job_worker_start_end_bytes_failed"]
+            mapping = data["jobs_mapping" if cold else "jobs"]
+            if cold:
+                assert data["status"] == "finished" and integer(data["jobs"]) == len(mapping)
             workers = integer(data["workers"])
             schedule = data.get("schedule", "static")
             assert schedule in ("static", "dynamic"), "unknown disk job schedule"
@@ -176,6 +263,7 @@ def validate_events(events):
             batches.append(
                 {
                     "layer": layer,
+                    "operation": name,
                     "jobs": len(mapping),
                     "schedule": schedule,
                     "last_completion_ns": max(t[3] for t in timings),
@@ -183,6 +271,13 @@ def validate_events(events):
                     "wall_ns": end - begin,
                 }
             )
+            if cold:
+                ancestor = parent
+                while ancestor is not None and events[ancestor]["name"] != "moe_forward_rows":
+                    ancestor = events[ancestor]["parent"]
+                batches[-1]["cold_schedule"] = cold_schedule_diagnostic(
+                    data, None if ancestor is None else events[ancestor]["data"]
+                )
     for i, event in enumerate(events):
         duration = event["end_ns"] - event["start_ns"]
         assert children[i] <= duration

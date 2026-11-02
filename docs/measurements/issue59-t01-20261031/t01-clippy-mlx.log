@@ -1,0 +1,23 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error: this `if` statement can be collapsed
+  --> native/src/linear/launch_profile_tests.rs:63:9
+   |
+63 | /         if self.active {
+64 | |             if let Err(error) = self.disable() {
+65 | |                 eprintln!("T01 collector cleanup failed: {error:#}");
+66 | |             }
+67 | |         }
+   | |_________^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+   = note: `-D clippy::collapsible-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+   |
+63 ~         if self.active
+64 ~             && let Err(error) = self.disable() {
+65 |                 eprintln!("T01 collector cleanup failed: {error:#}");
+66 ~             }
+   |
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

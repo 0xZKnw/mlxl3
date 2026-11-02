@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-01",
+  "scope": "Read-only source/profile research; no GPU, build, executable edit or benchmark",
+  "local_head": "d5a776e53425bb4d0ba61c0774c5399ae7987c06",
+  "dirty_worktree": true,
+  "sources": [
+    {
+      "path": "mlx-eval-v0322.cpp.txt",
+      "url": "https://github.com/ml-explore/mlx/blob/1f8e74e3f12f31365464a6867c6579f0e9b29d85/mlx/backend/metal/eval.cpp"
+    },
+    {
+      "path": "mlx-eval-current.cpp.txt",
+      "url": "https://github.com/ml-explore/mlx/blob/a8f66b5901791a38ff527f249e1f1a84f46c03b6/mlx/backend/metal/eval.cpp"
+    },
+    {
+      "url": "https://github.com/ml-explore/mlx/blob/1f8e74e3f12f31365464a6867c6579f0e9b29d85/mlx/backend/metal/device.cpp",
+      "inspected": "set_input_array, maybeInsertBarrier, end_encoding, commit; no proposed removal of hazard tracking"
+    },
+    {
+      "url": "https://github.com/beamivalice/sushi/blob/543c25fdd0e1907bf28ad22ed60830b8a536e994/docs/engine-expert-streaming.md",
+      "inspected": "specRoute/specMatches, deferred GDN, prefetch credits, partitionByMidpoint"
+    },
+    {
+      "url": "https://github.com/beamivalice/sushi/blob/543c25fdd0e1907bf28ad22ed60830b8a536e994/src/expert_io.zig",
+      "inspected": "read-cost scheduling and shared buffer lifetime"
+    },
+    {
+      "url": "https://github.com/Niko1221/Strata/blob/c62d5e3a15b40ea51c96aae9e8d36928965f53ab/docs/MAC.md",
+      "inspected": "contiguous expert packs, native Metal windows, failed ROUTE/PARTIAL variants"
+    },
+    {
+      "url": "https://github.com/Niko1221/Strata/blob/c62d5e3a15b40ea51c96aae9e8d36928965f53ab/metal/src/engine/stream.cpp",
+      "inspected": "streaming code and packed reads"
+    },
+    {
+      "url": "https://github.com/ml-explore/mlx/pull/4633",
+      "head": "8152d91c46d75a5760afc2aed6f97dcd568c204e",
+      "inspected": "residency renewal after seconds idle; not continuous decode fix"
+    },
+    {
+      "url": "https://github.com/ml-explore/mlx/pull/3578",
+      "head": "0f1191ecfebdb3ae109006340277504c38e2bded",
+      "inspected": "thread unsafe stream allows cross-thread use; not lock-free acceleration of current local stream"
+    },
+    {
+      "url": "https://github.com/ml-explore/mlx/issues/3789",
+      "inspected": "proposal and maintainer response; claimed aggregate gains not transferable or evidence of our callback hypothesis"
+    },
+    {
+      "url": "https://github.com/lablup/mlxcel/tree/8565cbc16766d598423d7f0b4b0f74853cae2269",
+      "inspected": "README and recursive overlay inventory only; no Metal eval.cpp overlay found; not a full audit"
+    },
+    {
+      "url": "https://developer.apple.com/documentation/metal/mtldispatchtype",
+      "inspected": "serial/concurrent semantics; serial encoder not selected without resource-order audit"
+    }
+  ],
+  "limitations": [
+    "MLX package identified as 0.32.2; no rebuild or binary-to-source provenance proof in this research.",
+    "Profile sampling counts are not function durations.",
+    "P09 correlation predates Dynamic+ColdU; no new speedup measured."
+  ]
+}

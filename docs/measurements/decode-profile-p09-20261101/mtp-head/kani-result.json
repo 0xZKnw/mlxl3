@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "actual_mtp_prefill_contract",
+    "--jobs",
+    "1"
+  ],
+  "timeout_seconds": 30,
+  "group_rss_cap_bytes": 536870912,
+  "proof_verified": false,
+  "before_vm": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    11905.\nPages active:                                 622750.\nPages inactive:                               690582.\nPages speculative:                              2048.\nPages throttled:                                   0.\nPages wired down:                             153727.\nPages purgeable:                               24098.\n\"Translation faults\":                      651456380.\nPages copy-on-write:                        21780723.\nPages zero filled:                         803148042.\nPages reactivated:                          63818897.\nPages purged:                                3795877.\nFile-backed pages:                            604352.\nAnonymous pages:                              711028.\nPages stored in compressor:                    94842.\nPages occupied by compressor:                  37686.\nDecompressions:                             77461868.\nCompressions:                              109811285.\nPageins:                                   569623231.\nPageouts:                                     135397.\nSwapins:                                     2023089.\nSwapouts:                                    4618811.\nPages tagged:                                 113304.\nPages tagged resident:                         95074.\nPages tagged compressed:                       18230.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4474.\nPages tag-storage free:                           84.\nPages tag-storage non-tag pageable:            44418.\nPages tag-storage non-tag wired:                  85.\nBytes of compressed tags:                    2464320.\nTagged compressions:                         1579898.\nTagged decompressions:                       1480552.\n",
+  "status": "memory_limit",
+  "exit_code": -15,
+  "seconds": 5.433114625004237,
+  "peak_group_rss_bytes": 541622272,
+  "reaped": true,
+  "after_vm": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    24246.\nPages active:                                 598723.\nPages inactive:                               696997.\nPages speculative:                              2786.\nPages throttled:                                   0.\nPages wired down:                             158378.\nPages purgeable:                               23141.\n\"Translation faults\":                      651599092.\nPages copy-on-write:                        21788847.\nPages zero filled:                         803223305.\nPages reactivated:                          63818949.\nPages purged:                                3795937.\nFile-backed pages:                            584568.\nAnonymous pages:                              713938.\nPages stored in compressor:                    94649.\nPages occupied by compressor:                  37504.\nDecompressions:                             77462061.\nCompressions:                              109811285.\nPageins:                                   569643633.\nPageouts:                                     135397.\nSwapins:                                     2023089.\nSwapouts:                                    4618811.\nPages tagged:                                 113201.\nPages tagged resident:                         94971.\nPages tagged compressed:                       18230.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4474.\nPages tag-storage free:                           93.\nPages tag-storage non-tag pageable:            44409.\nPages tag-storage non-tag wired:                  85.\nBytes of compressed tags:                    2464320.\nTagged compressions:                         1579898.\nTagged decompressions:                       1480552.\n"
+}

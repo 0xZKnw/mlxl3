@@ -1,0 +1,16 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error[E0433]: cannot find type `Codebook` in this scope
+   --> native/src/qwen4.rs:846:51
+    |
+846 |                     codec::decode_codeword(state, Codebook::Mul1).to_f32() * scale
+    |                                                   ^^^^^^^^ use of undeclared type `Codebook`
+    |
+help: consider importing this enum
+    |
+  3 + use crate::codec::Codebook;
+    |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

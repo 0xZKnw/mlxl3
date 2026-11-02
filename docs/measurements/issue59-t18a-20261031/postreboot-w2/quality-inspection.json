@@ -1,0 +1,305 @@
+{
+  "status": "passed_postreboot_w2_three_native_oracles_not_speed",
+  "scope": "Data-only independent inspection; no test/build/proof/GPU/model launch by auditor",
+  "identity": {
+    "path": "docs/measurements/issue59-t18a-20261031/postreboot-w2/identity.json",
+    "sha256": "c26028e1901225406d1e04db041885ba8c936020789a7217846f64eb083bcacc",
+    "sources_checked": 541,
+    "mismatches": [],
+    "binaries": {
+      "final_cli": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/engine/prototype-engine",
+        "sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+        "bytes": 10706864,
+        "actual_sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+        "actual_bytes": 10706864
+      },
+      "final_libtest": {
+        "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/libtest-r2/prototype-engine",
+        "sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "bytes": 10980384,
+        "actual_sha256": "de3616e3d2e0c3d9507e075cf9af4dfe8b3290f0b291ac704b3e1df537f8d910",
+        "actual_bytes": 10980384
+      },
+      "python_runner": {
+        "path": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "bytes": 34640,
+        "actual_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+        "actual_bytes": 34640
+      }
+    }
+  },
+  "campaign": "T18A-w2-post-system-update",
+  "anchor": {
+    "path": "docs/measurements/issue59-t18a-20261031/postreboot-w2/vm-anchor.json",
+    "sha256": "e9e53e3a23555994e78d80802f10dd2debd64eef0e8861dadcc829e721766015",
+    "vm_bytes": {
+      "Pages free": 1756381184,
+      "File-backed pages": 8913813504,
+      "Pages occupied by compressor": 1814790144,
+      "Swapins": 0,
+      "Swapouts": 0
+    }
+  },
+  "prospective_admission_bytes": 10500000000,
+  "admission_observations": [
+    {
+      "path": "docs/measurements/issue59-t18a-20261031/postreboot-admission-r5.json",
+      "sha256": "b003d8db5a09dba221eaf6db1b8ba43f0d3d709095a37956b82a51fe87e1a82a",
+      "status": "passed",
+      "minimum_available_bytes": 10500000000,
+      "quiet_checks": 3,
+      "samples": [
+        {
+          "available_estimate_bytes": 10620764160,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0
+        },
+        {
+          "available_estimate_bytes": 10643554304,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0
+        },
+        {
+          "available_estimate_bytes": 10670194688,
+          "swapouts_bytes": 0,
+          "swapins_bytes": 0
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "name": "t18a-w2-model-oracle-r3",
+      "selector": "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+      "pid": 11272,
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "exit_code": 0,
+      "new_swapout_bytes": 0,
+      "new_swapin_bytes": 0,
+      "minimum_available_bytes": 10500000000,
+      "available_estimate_bytes": 10646208512,
+      "seconds_supervised_not_speed": 6.994966792000014,
+      "footer_counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 374
+      },
+      "log": "docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-model-oracle-r3.log",
+      "log_sha256": "3f1b9c86d3ecf28b5c94c47fca12ad495ffabc831f3f8f20846abba08f2f87d1"
+    },
+    {
+      "name": "t18a-w2-model-mtp-r3",
+      "selector": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "pid": 11307,
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "exit_code": 0,
+      "new_swapout_bytes": 0,
+      "new_swapin_bytes": 0,
+      "minimum_available_bytes": 10500000000,
+      "available_estimate_bytes": 14733836288,
+      "seconds_supervised_not_speed": 10.596908333000101,
+      "footer_counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 374
+      },
+      "log": "docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-model-mtp-r3.log",
+      "log_sha256": "0556cd0d2377e166120fd9a7f8fb87d47e75181d9924ae82e64630a3ca074417"
+    },
+    {
+      "name": "t18a-w2-model-dflash-r3",
+      "selector": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "pid": 11348,
+      "status": "completed_expected_outcome",
+      "reaped": true,
+      "exit_code": 0,
+      "new_swapout_bytes": 0,
+      "new_swapin_bytes": 0,
+      "minimum_available_bytes": 10500000000,
+      "available_estimate_bytes": 15759097856,
+      "seconds_supervised_not_speed": 27.63387645800003,
+      "footer_counts": {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "measured": 0,
+        "filtered_out": 374
+      },
+      "log": "docs/measurements/issue59-t18a-20261031/postreboot-w2/t18a-w2-model-dflash-r3.log",
+      "log_sha256": "f0b73d93304ad5f12ed910dfbbf57e589d62345a94dced1aa436a1cd3747d2f8"
+    }
+  ],
+  "numerical": {
+    "logits": [
+      {
+        "step": 0,
+        "count": 248320,
+        "printed_relative_rmse": 0.0,
+        "printed_max_abs": 0.0
+      },
+      {
+        "step": 1,
+        "count": 248320,
+        "printed_relative_rmse": 0.0,
+        "printed_max_abs": 0.0
+      },
+      {
+        "step": 2,
+        "count": 248320,
+        "printed_relative_rmse": 0.0,
+        "printed_max_abs": 0.0
+      },
+      {
+        "step": 3,
+        "count": 248320,
+        "printed_relative_rmse": 0.0,
+        "printed_max_abs": 0.0
+      },
+      {
+        "step": 4,
+        "count": 248320,
+        "printed_relative_rmse": 0.0,
+        "printed_max_abs": 0.0
+      }
+    ],
+    "printed_gdn_entries": [
+      {
+        "step": 0,
+        "state": 0,
+        "count": 786432
+      },
+      {
+        "step": 0,
+        "state": 1,
+        "count": 786432
+      },
+      {
+        "step": 1,
+        "state": 0,
+        "count": 786432
+      },
+      {
+        "step": 1,
+        "state": 1,
+        "count": 786432
+      },
+      {
+        "step": 2,
+        "state": 0,
+        "count": 786432
+      },
+      {
+        "step": 2,
+        "state": 1,
+        "count": 786432
+      },
+      {
+        "step": 3,
+        "state": 0,
+        "count": 786432
+      },
+      {
+        "step": 3,
+        "state": 1,
+        "count": 786432
+      },
+      {
+        "step": 4,
+        "state": 0,
+        "count": 786432
+      },
+      {
+        "step": 4,
+        "state": 1,
+        "count": 786432
+      }
+    ],
+    "mtp_budget_proposed_accepted_blocks": [
+      [
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        1,
+        0,
+        1
+      ],
+      [
+        3,
+        2,
+        0,
+        2
+      ],
+      [
+        17,
+        12,
+        5,
+        12
+      ]
+    ],
+    "mtp_historical_counts_match": true,
+    "dflash": {
+      "captures": {
+        "byte_equal": true,
+        "count": 64000,
+        "name": "captured",
+        "relative_rmse": 0.0,
+        "tolerance": 0.004
+      },
+      "kind": "Dflash2",
+      "memory": {
+        "mlx_active_bytes": 6460107296,
+        "mlx_cache_bytes": 67109340,
+        "mlx_peak_bytes": 6783395832,
+        "process_compressed_lifetime_logical_bytes": 202817536,
+        "process_compressed_logical_bytes": 202276864,
+        "process_compressed_peak_logical_bytes": 202276864,
+        "process_decompressions": 33,
+        "process_footprint_bytes": 7340447864,
+        "process_id": 11348,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7375132816,
+        "process_start_abstime": 34433567132
+      },
+      "prefix_cases": 36,
+      "status": "passed",
+      "target_logits_and_states": "byte_exact",
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  },
+  "plans": {
+    "quality_sha256": "661b86dcf9216da239834530d47be2be2f86eeaa8cef495a15cdd7544fa931bc",
+    "result_sha256": "7532ca4eeee68182d20832b769eed5c5258b16d3299a1a7b1b1cf2b4bf76e4e8",
+    "manifest_sha256": "245fcc35d210d8346a7a70e8590474a483b88a5837be15e04604bbd9ea93386a",
+    "pilot_count": 8,
+    "pilot_all_same_admission": true
+  },
+  "limits": [
+    "Three targeted physical tests, not a full new GPU suite or benchmark.",
+    "Native tests enforce nonempty counts/finitude and their own exact/tolerant contracts; no unprinted total state cardinality invented.",
+    "Capture oracle tolerance0.004 remains distinct from byte-exact target logits/serial states.",
+    "DFlash memory footer is one observed boundary, not a continuous footprint sensor for all tests.",
+    "w1 remains separate; no pre/post-reboot timing mixture or model speedup established.",
+    "Source proofs remain limited by historical Kani MLX ICE, CBMC parsing and unavailable CrossHair."
+  ]
+}

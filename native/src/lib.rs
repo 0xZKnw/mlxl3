@@ -13,6 +13,8 @@ pub use contracts::{
     smallm_kernel_key,
 };
 #[cfg(any(feature = "mlx", test, kani))]
+pub(crate) mod dec_one;
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dense_epilogue;
 pub mod dflash;
 #[cfg(feature = "mlx")]

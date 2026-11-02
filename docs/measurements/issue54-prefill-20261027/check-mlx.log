@@ -1,0 +1,20 @@
+    Checking serde_core v1.0.229
+    Checking tokio v1.50.0
+    Checking zerocopy v0.8.57
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+    Checking serde_json v1.0.151
+    Checking serde v1.0.229
+    Checking tokio-util v0.7.18
+    Checking half v2.7.1
+    Checking h2 v0.3.27
+    Checking hyper v0.14.32
+error[E0433]: cannot find module or crate `metal` in this scope
+   --> native/src/array.rs:492:18
+    |
+492 |     let device = metal::Device::system_default().context("no Metal device")?;
+    |                  ^^^^^ use of unresolved module or unlinked crate `metal`
+    |
+    = help: if you wanted to use a crate named `metal`, use `cargo add metal` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error

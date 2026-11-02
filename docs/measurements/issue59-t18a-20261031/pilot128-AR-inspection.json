@@ -1,0 +1,812 @@
+{
+  "status": "AR_4_of_4_complete_data_validated_other_modes_pending",
+  "gain_established": false,
+  "scope": "AR only; independent data inspection, no engine/test/build/proof/GPU launched",
+  "order": "ACCA",
+  "processes_independent_per_arm": 2,
+  "warmups": 8,
+  "measured_responses": 8,
+  "other_modes": "MTP/DF pending in this report; do not combine their throughput",
+  "identity": {
+    "path": "final-identity-r3.json",
+    "sha256": "fdf050c0424b602f607c6a850a8d085e72ee57edcf78c9bc59c233e497717fc9",
+    "sources_verified": 531,
+    "source_mismatches": [],
+    "cli_sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+    "manifest_sha256": "62c8d2143e4aeaf11cbeeb125ad9794f081cf58d799762055a5f380b36d9f7f8"
+  },
+  "guards": {
+    "campaign": "T18A-w1 fresh after CPU verification, no automatic reanchor",
+    "anchor_bytes": {
+      "Swapouts": 140865945600,
+      "Swapins": 53831401472
+    },
+    "processes_reaped": 4,
+    "all_new_swapout_bytes": 0,
+    "new_swapin_bytes_sum": 0,
+    "native_footprint_max_bytes": 7158421480,
+    "native_lifetime_peak_max_bytes": 7158421480,
+    "footprint_scope": "reply footers, not universal continuous native sensor"
+  },
+  "aggregation": "decode=sum(127 transitions per measured response)/sum(stats.decode_seconds); prefill=sum(stats.prompt_tokens)/sum(stats.prefill_seconds); ALL combines MAIN/HOLD within AR only; warmups excluded",
+  "aggregates": {
+    "MAIN": {
+      "A": {
+        "responses": 2,
+        "decode_tokens": 254,
+        "decode_seconds": 24.327257582999998,
+        "decode_tps": 10.440963151452648,
+        "prompt_tokens": 174,
+        "prefill_seconds": 16.919626626000003,
+        "prefill_tps": 10.283914878630842,
+        "ttft_mean_seconds": 8.460232875500001,
+        "decode_tps_range": [
+          10.427762307820627,
+          10.454197460204291
+        ]
+      },
+      "C": {
+        "responses": 2,
+        "decode_tokens": 254,
+        "decode_seconds": 23.580051042,
+        "decode_tps": 10.77181722582295,
+        "prompt_tokens": 174,
+        "prefill_seconds": 16.584534583,
+        "prefill_tps": 10.491702322376833,
+        "ttft_mean_seconds": 8.2926463955,
+        "decode_tps_range": [
+          10.726672857097142,
+          10.817343190502907
+        ]
+      },
+      "decode_percent_C_vs_A": 3.1688079880280995,
+      "prefill_percent_C_vs_A": 2.0205091757201865,
+      "ttft_percent_C_vs_A": -1.980873132763461
+    },
+    "HOLD": {
+      "A": {
+        "responses": 2,
+        "decode_tokens": 254,
+        "decode_seconds": 24.353651624999998,
+        "decode_tps": 10.429647426641303,
+        "prompt_tokens": 164,
+        "prefill_seconds": 15.862017666,
+        "prefill_tps": 10.33916387267249,
+        "ttft_mean_seconds": 7.931586750500001,
+        "decode_tps_range": [
+          10.227864814761112,
+          10.639552098890297
+        ]
+      },
+      "C": {
+        "responses": 2,
+        "decode_tokens": 254,
+        "decode_seconds": 24.077874875,
+        "decode_tps": 10.549103744356094,
+        "prompt_tokens": 164,
+        "prefill_seconds": 15.580869290999999,
+        "prefill_tps": 10.52572850314145,
+        "ttft_mean_seconds": 7.790786541999999,
+        "decode_tps_range": [
+          10.491488944524916,
+          10.607354830405324
+        ]
+      },
+      "decode_percent_C_vs_A": 1.1453533645792602,
+      "prefill_percent_C_vs_A": 1.8044460148471941,
+      "ttft_percent_C_vs_A": -1.7751833640491377
+    },
+    "ALL": {
+      "A": {
+        "responses": 4,
+        "decode_tokens": 508,
+        "decode_seconds": 48.680909207999996,
+        "decode_tps": 10.435302221440795,
+        "prompt_tokens": 338,
+        "prefill_seconds": 32.781644292,
+        "prefill_tps": 10.310648147764972,
+        "ttft_mean_seconds": 8.195909813,
+        "decode_tps_range": [
+          10.227864814761112,
+          10.639552098890297
+        ]
+      },
+      "C": {
+        "responses": 4,
+        "decode_tokens": 508,
+        "decode_seconds": 47.657925917,
+        "decode_tps": 10.659297277953758,
+        "prompt_tokens": 338,
+        "prefill_seconds": 32.165403874,
+        "prefill_tps": 10.508184548965444,
+        "ttft_mean_seconds": 8.04171646875,
+        "decode_tps_range": [
+          10.491488944524916,
+          10.817343190502907
+        ]
+      },
+      "decode_percent_C_vs_A": 2.1465124033756666,
+      "prefill_percent_C_vs_A": 1.9158485322117391,
+      "ttft_percent_C_vs_A": -1.881345058304884
+    }
+  },
+  "drift": {
+    "MAIN": {
+      "A": {
+        "first": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 12.148230457999999,
+          "decode_tps": 10.454197460204291,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.346294709,
+          "prefill_tps": 10.423787205379401,
+          "ttft_mean_seconds": 8.346649459,
+          "decode_tps_range": [
+            10.454197460204291,
+            10.454197460204291
+          ]
+        },
+        "last": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 12.179027125,
+          "decode_tps": 10.427762307820627,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.573331917,
+          "prefill_tps": 10.147746621997488,
+          "ttft_mean_seconds": 8.573816292,
+          "decode_tps_range": [
+            10.427762307820627,
+            10.427762307820627
+          ]
+        },
+        "decode_percent_last_vs_first": -0.25286639633786967,
+        "prefill_percent_last_vs_first": -2.648179379942228
+      },
+      "C": {
+        "first": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 11.740405917000002,
+          "decode_tps": 10.817343190502907,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.255541041,
+          "prefill_tps": 10.538376536186611,
+          "ttft_mean_seconds": 8.255893707999999,
+          "decode_tps_range": [
+            10.817343190502907,
+            10.817343190502907
+          ]
+        },
+        "last": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 11.839645125,
+          "decode_tps": 10.726672857097142,
+          "prompt_tokens": 87,
+          "prefill_seconds": 8.328993542,
+          "prefill_tps": 10.445439723454164,
+          "ttft_mean_seconds": 8.329399083,
+          "decode_tps_range": [
+            10.726672857097142,
+            10.726672857097142
+          ]
+        },
+        "decode_percent_last_vs_first": -0.838194109301893,
+        "prefill_percent_last_vs_first": -0.8818892778533871
+      }
+    },
+    "HOLD": {
+      "A": {
+        "first": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 11.936592708,
+          "decode_tps": 10.639552098890297,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.851003583,
+          "prefill_tps": 10.44452459269754,
+          "ttft_mean_seconds": 7.851374209,
+          "decode_tps_range": [
+            10.639552098890297,
+            10.639552098890297
+          ]
+        },
+        "last": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 12.417058916999999,
+          "decode_tps": 10.227864814761112,
+          "prompt_tokens": 82,
+          "prefill_seconds": 8.011014083,
+          "prefill_tps": 10.235907608003142,
+          "ttft_mean_seconds": 8.011799292000001,
+          "decode_tps_range": [
+            10.227864814761112,
+            10.227864814761112
+          ]
+        },
+        "decode_percent_last_vs_first": -3.869404278513977,
+        "prefill_percent_last_vs_first": -1.9973813345248503
+      },
+      "C": {
+        "first": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 11.972824708,
+          "decode_tps": 10.607354830405324,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.757419916,
+          "prefill_tps": 10.570524850778234,
+          "ttft_mean_seconds": 7.7577546669999995,
+          "decode_tps_range": [
+            10.607354830405324,
+            10.607354830405324
+          ]
+        },
+        "last": {
+          "responses": 1,
+          "decode_tokens": 127,
+          "decode_seconds": 12.105050167000002,
+          "decode_tps": 10.491488944524916,
+          "prompt_tokens": 82,
+          "prefill_seconds": 7.823449375,
+          "prefill_tps": 10.48131023408073,
+          "ttft_mean_seconds": 7.823818417,
+          "decode_tps_range": [
+            10.491488944524916,
+            10.491488944524916
+          ]
+        },
+        "decode_percent_last_vs_first": -1.0923164891994186,
+        "prefill_percent_last_vs_first": -0.8439942004481948
+      }
+    },
+    "ALL": {
+      "A": {
+        "first": {
+          "responses": 2,
+          "decode_tokens": 254,
+          "decode_seconds": 24.084823166,
+          "decode_tps": 10.546060406977206,
+          "prompt_tokens": 169,
+          "prefill_seconds": 16.197298292,
+          "prefill_tps": 10.433838838633399,
+          "ttft_mean_seconds": 8.099011834,
+          "decode_tps_range": [
+            10.454197460204291,
+            10.639552098890297
+          ]
+        },
+        "last": {
+          "responses": 2,
+          "decode_tokens": 254,
+          "decode_seconds": 24.596086041999996,
+          "decode_tps": 10.326846294417432,
+          "prompt_tokens": 169,
+          "prefill_seconds": 16.584346,
+          "prefill_tps": 10.190332497886862,
+          "ttft_mean_seconds": 8.292807792000001,
+          "decode_tps_range": [
+            10.227864814761112,
+            10.427762307820627
+          ]
+        },
+        "decode_percent_last_vs_first": -2.0786350931077835,
+        "prefill_percent_last_vs_first": -2.3338135130562376
+      },
+      "C": {
+        "first": {
+          "responses": 2,
+          "decode_tokens": 254,
+          "decode_seconds": 23.713230625,
+          "decode_tps": 10.711319938507957,
+          "prompt_tokens": 169,
+          "prefill_seconds": 16.012960957,
+          "prefill_tps": 10.553950668700178,
+          "ttft_mean_seconds": 8.0068241875,
+          "decode_tps_range": [
+            10.607354830405324,
+            10.817343190502907
+          ]
+        },
+        "last": {
+          "responses": 2,
+          "decode_tokens": 254,
+          "decode_seconds": 23.944695292000002,
+          "decode_tps": 10.607777501552178,
+          "prompt_tokens": 169,
+          "prefill_seconds": 16.152442917,
+          "prefill_tps": 10.46281363558525,
+          "ttft_mean_seconds": 8.07660875,
+          "decode_tps_range": [
+            10.491488944524916,
+            10.726672857097142
+          ]
+        },
+        "decode_percent_last_vs_first": -0.966663656301936,
+        "prefill_percent_last_vs_first": -0.8635347650923997
+      }
+    }
+  },
+  "rows": [
+    {
+      "process": "t18a-pilot128-AR-1-A",
+      "position": 1,
+      "arm": "A",
+      "group": "warmup",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 12.013608083,
+      "decode_tps": 10.571345354582766,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.958334667,
+      "prefill_tps": 9.711626461164,
+      "ttft_seconds": 8.959983875,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7158110184,
+      "lifetime_peak_bytes": 7158110184
+    },
+    {
+      "process": "t18a-pilot128-AR-1-A",
+      "position": 1,
+      "arm": "A",
+      "group": "warmup",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.083107958999998,
+      "decode_tps": 10.510540866715104,
+      "prompt_tokens": 82,
+      "prefill_seconds": 8.04866525,
+      "prefill_tps": 10.188024654149952,
+      "ttft_seconds": 8.049601834,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7154833384,
+      "lifetime_peak_bytes": 7158110184
+    },
+    {
+      "process": "t18a-pilot128-AR-1-A",
+      "position": 1,
+      "arm": "A",
+      "group": "runs",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 12.148230457999999,
+      "decode_tps": 10.454197460204291,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.346294709,
+      "prefill_tps": 10.423787205379401,
+      "ttft_seconds": 8.346649459,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7158421480,
+      "lifetime_peak_bytes": 7158421480
+    },
+    {
+      "process": "t18a-pilot128-AR-1-A",
+      "position": 1,
+      "arm": "A",
+      "group": "runs",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 11.936592708,
+      "decode_tps": 10.639552098890297,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.851003583,
+      "prefill_tps": 10.44452459269754,
+      "ttft_seconds": 7.851374209,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7154636776,
+      "lifetime_peak_bytes": 7158421480
+    },
+    {
+      "process": "t18a-pilot128-AR-2-C",
+      "position": 2,
+      "arm": "C",
+      "group": "warmup",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 11.933136583000001,
+      "decode_tps": 10.642633570533732,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.879220084,
+      "prefill_tps": 9.798157853612675,
+      "ttft_seconds": 8.880971875,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7142594488,
+      "lifetime_peak_bytes": 7142594488
+    },
+    {
+      "process": "t18a-pilot128-AR-2-C",
+      "position": 2,
+      "arm": "C",
+      "group": "warmup",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.026985708000002,
+      "decode_tps": 10.55958683941258,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.803173083,
+      "prefill_tps": 10.508545578547434,
+      "ttft_seconds": 7.804058,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7142496208,
+      "lifetime_peak_bytes": 7142594488
+    },
+    {
+      "process": "t18a-pilot128-AR-2-C",
+      "position": 2,
+      "arm": "C",
+      "group": "runs",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 11.740405917000002,
+      "decode_tps": 10.817343190502907,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.255541041,
+      "prefill_tps": 10.538376536186611,
+      "ttft_seconds": 8.255893707999999,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7143839696,
+      "lifetime_peak_bytes": 7143839696
+    },
+    {
+      "process": "t18a-pilot128-AR-2-C",
+      "position": 2,
+      "arm": "C",
+      "group": "runs",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 11.972824708,
+      "decode_tps": 10.607354830405324,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.757419916,
+      "prefill_tps": 10.570524850778234,
+      "ttft_seconds": 7.7577546669999995,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7148591056,
+      "lifetime_peak_bytes": 7148591056
+    },
+    {
+      "process": "t18a-pilot128-AR-3-C",
+      "position": 3,
+      "arm": "C",
+      "group": "warmup",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 12.405578541999999,
+      "decode_tps": 10.237329889132711,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.842203834,
+      "prefill_tps": 9.83917602820555,
+      "ttft_seconds": 8.844146125,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7140923296,
+      "lifetime_peak_bytes": 7140923296
+    },
+    {
+      "process": "t18a-pilot128-AR-3-C",
+      "position": 3,
+      "arm": "C",
+      "group": "warmup",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.377847250000002,
+      "decode_tps": 10.260265572432232,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.870163541,
+      "prefill_tps": 10.419097338043485,
+      "ttft_seconds": 7.871100167,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7145887672,
+      "lifetime_peak_bytes": 7145887672
+    },
+    {
+      "process": "t18a-pilot128-AR-3-C",
+      "position": 3,
+      "arm": "C",
+      "group": "runs",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 11.839645125,
+      "decode_tps": 10.726672857097142,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.328993542,
+      "prefill_tps": 10.445439723454164,
+      "ttft_seconds": 8.329399083,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7146313656,
+      "lifetime_peak_bytes": 7146313656
+    },
+    {
+      "process": "t18a-pilot128-AR-3-C",
+      "position": 3,
+      "arm": "C",
+      "group": "runs",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.105050167000002,
+      "decode_tps": 10.491488944524916,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.823449375,
+      "prefill_tps": 10.48131023408073,
+      "ttft_seconds": 7.823818417,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7145805752,
+      "lifetime_peak_bytes": 7146313656
+    },
+    {
+      "process": "t18a-pilot128-AR-4-A",
+      "position": 4,
+      "arm": "A",
+      "group": "warmup",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 12.159857041999999,
+      "decode_tps": 10.44420173373285,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.901963875,
+      "prefill_tps": 9.773124360156988,
+      "ttft_seconds": 8.903529209,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7143626680,
+      "lifetime_peak_bytes": 7143626680
+    },
+    {
+      "process": "t18a-pilot128-AR-4-A",
+      "position": 4,
+      "arm": "A",
+      "group": "warmup",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.702899292000001,
+      "decode_tps": 9.99771761396091,
+      "prompt_tokens": 82,
+      "prefill_seconds": 7.941234167,
+      "prefill_tps": 10.325850903723891,
+      "ttft_seconds": 7.9421652499999995,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7143692240,
+      "lifetime_peak_bytes": 7143692240
+    },
+    {
+      "process": "t18a-pilot128-AR-4-A",
+      "position": 4,
+      "arm": "A",
+      "group": "runs",
+      "prompt": "MAIN",
+      "decode_tokens": 127,
+      "decode_seconds": 12.179027125,
+      "decode_tps": 10.427762307820627,
+      "prompt_tokens": 87,
+      "prefill_seconds": 8.573331917,
+      "prefill_tps": 10.147746621997488,
+      "ttft_seconds": 8.573816292,
+      "token_hash": "f6b5f974c6db2e7a",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7144150992,
+      "lifetime_peak_bytes": 7144150992
+    },
+    {
+      "process": "t18a-pilot128-AR-4-A",
+      "position": 4,
+      "arm": "A",
+      "group": "runs",
+      "prompt": "HOLD",
+      "decode_tokens": 127,
+      "decode_seconds": 12.417058916999999,
+      "decode_tps": 10.227864814761112,
+      "prompt_tokens": 82,
+      "prefill_seconds": 8.011014083,
+      "prefill_tps": 10.235907608003142,
+      "ttft_seconds": 8.011799292000001,
+      "token_hash": "9d02c1a97e015196",
+      "counters": {
+        "mtp_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "dflash_proposed_tokens": null,
+        "dflash_accepted_tokens": null,
+        "dflash_blocks": null
+      },
+      "footprint_bytes": 7143725008,
+      "lifetime_peak_bytes": 7144150992
+    }
+  ],
+  "processes": [
+    {
+      "name": "t18a-pilot128-AR-1-A",
+      "arm": "A",
+      "position": 1,
+      "report": "docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-1-A/report.json",
+      "report_sha256": "78ccab68bf7353256645044c911b3a35a9ea0108a5df4ea9fbaa75007aab2be0",
+      "external_inspection_sha256": "f68dfb2ec37d5137cede912bfbfe1b3bb1d6db39986a7382bceb9f180b6b3b18",
+      "supervisor_sha256": "0d3429bc64190be0adaaf3718dcd9665addbe4aa5ad356cb4df295162bf6a165",
+      "exit_code": 0,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "pid": 23843
+    },
+    {
+      "name": "t18a-pilot128-AR-2-C",
+      "arm": "C",
+      "position": 2,
+      "report": "docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-2-C/report.json",
+      "report_sha256": "a2f9741eb5c40d576ebea62ece5ba380204cf438ba7cc1356c76608115c3e5be",
+      "external_inspection_sha256": "b6ffc9f4203ce5c90ac76a8c4e9cb11a41b4dfa1ac17baec576f8bc6452e51c6",
+      "supervisor_sha256": "dd85be4d9115d2e1d559126b8698190e729394bba6e4288766f769d7be636136",
+      "exit_code": 0,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "pid": 24082
+    },
+    {
+      "name": "t18a-pilot128-AR-3-C",
+      "arm": "C",
+      "position": 3,
+      "report": "docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-3-C/report.json",
+      "report_sha256": "80e49ce918e3a0b36b7ddb1c2d4d7100e01ba6ba7cee75f6d996db1e95b07472",
+      "external_inspection_sha256": "ca5da09670b2a8c2d436525c248a0dcf0aafdbd1229bd942b2ab7df2f49a91fa",
+      "supervisor_sha256": "ec92f10274b251a7b944d6dbe6c56236307fda3c58dfe138c17dd44bb95cf211",
+      "exit_code": 0,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "pid": 24294
+    },
+    {
+      "name": "t18a-pilot128-AR-4-A",
+      "arm": "A",
+      "position": 4,
+      "report": "docs/measurements/issue59-t18a-20261031/prepared/runs/t18a-pilot128-AR-4-A/report.json",
+      "report_sha256": "fad8628cd60e979b8bb958a4e7df720cab69ac8d45fe7a194f0d162c469586c3",
+      "external_inspection_sha256": "c45b85c00f8de863032361a2fde7cc0089a4c05d14c066bc94d14f1a31a8d228",
+      "supervisor_sha256": "308406ce8c19505dfc55a437a69eeebfcb65e7513e350b4b67e02c8e9d168619",
+      "exit_code": 0,
+      "reaped": true,
+      "reader_joined": true,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "pid": 24499
+    }
+  ],
+  "limits": [
+    "Two independent processes per arm; one measured MAIN and HOLD response per process.",
+    "AR completion is not completion of the 12-process AR/MTP/DF campaign.",
+    "Full text/hash golden and counts do not prove 128 numerical states; separate native quality receipts cover their stated domains.",
+    "No excluded sample, arbitrary observer subtraction, sum of modes, or theoretical ceiling treated as measured gain.",
+    "Small differences need context from drift and other modes; no global gain qualified here."
+  ]
+}

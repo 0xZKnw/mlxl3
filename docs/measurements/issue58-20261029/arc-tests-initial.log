@@ -1,0 +1,18 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error[E0499]: cannot borrow `self.t2` as mutable more than once at a time
+  --> native/src/flash_cache_profile/shared/arc.rs:74:17
+   |
+71 |         for list in [&mut self.t1, &mut self.t2] {
+   |                     ----------------------------
+   |                     |              |
+   |                     |              first mutable borrow occurs here
+   |                     a temporary with access to the first borrow is created here ...
+...
+74 |                 self.t2.push_back(entry);
+   |                 ^^^^^^^ second mutable borrow occurs here
+...
+77 |         }
+   |         - ... and the first borrow might be used here, when that temporary is dropped and runs the `Drop` code for type `std::array::IntoIter`
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

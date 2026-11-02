@@ -1687,21 +1687,7 @@ fn prefill_flash_mtp(
         bail!("Flash MTP requires Flash Next");
     };
     *cache = None;
-    target.reset();
-    head.reset();
-    let mut logits = None;
-    for &token in tokens {
-        if cancelled.load(Ordering::Relaxed) {
-            target.reset();
-            head.reset();
-            bail!("generation cancelled");
-        }
-        if let Some(hidden) = &target.last_hidden {
-            head.extend_cache(target, hidden, token)?;
-        }
-        logits = Some(target.forward(token)?);
-    }
-    Ok((logits.context("empty Flash MTP prefill")?, None, 0))
+    Ok((target.prefill_mtp(head, tokens, cancelled)?, None, 0))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]

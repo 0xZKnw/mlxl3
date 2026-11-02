@@ -1,0 +1,19 @@
+{
+  "status": "audited_rejected_variant_C",
+  "reason": "No decode gain after implementation audit and correction; MAIN -3.78%, HOLD -0.53%; no production promotion",
+  "archive": "docs/measurements/post-sushi-20261028/retired-c-sources.tar.gz",
+  "archive_sha256": "9b3a7903981a72970e3c660b51d2f7c9760b354fd1737b217816ebbad234a24f",
+  "source_files": 101,
+  "prior_uncommitted_changes_preserved_by_verified_before_snapshots": true,
+  "restored_sources": {
+    "native/src/linear.rs": "42106754300edc10d4b73b24a63720681626805acd0d97e27737642b973be18e",
+    "native/src/ssd_moe.rs": "f5145c58c83da2e6e08920b83eddc069f5fd4523759162e1234d042441522672",
+    "native/src/flash_support.rs": "a92a010022741beae95f9bcab5ecc741193d421edf73be33a6503bf2f62e20b0"
+  },
+  "correction_tested": "removed eight unnecessary reshape calls per expert calculation; direct rank-2/rank-3 buffers, exact output",
+  "audit_limits": "GU span boundaries differ: A gathers input scales before GU span, B/C inside it; compare whole calculation, not GU delta. No global factory miss counter or GPU exclusive attribution for C; do not reject upstream Sushi as a whole.",
+  "diagnostic_cache_counts": "exact across A/B/C before/prefill/after",
+  "active_pipeline": "previous stock scales path",
+  "owned_gpu_processes_remaining": false,
+  "final_verification": "final-state.json"
+}

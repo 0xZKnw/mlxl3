@@ -1,0 +1,10 @@
+{'name': 'pool-kani', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 150.02794870900107, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 250, in <module>
+    main(Path(sys.argv[1]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 181, in main
+    record["exit_code"] = previous["monitor"](child, record, monitored_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 45, in monitor
+    raise subprocess.TimeoutExpired(r["command"], seconds)
+subprocess.TimeoutExpired: Command '['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'pooled_reservations_keep_batch_slots_distinct_and_bounded']' timed out after 150 seconds

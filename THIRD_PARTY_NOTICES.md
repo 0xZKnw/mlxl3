@@ -1,5 +1,31 @@
 # Third-party notices
 
+## Experimental DEC-ONE arrival and exact dense finish
+
+`native/shaders/flash_dec_one_finish.metal` adapts the device-fence and last-group
+arrival protocol from [TurboEXL3](https://github.com/davidtai/turboexl3/blob/087c75724863e71710d4615453d3d131d8f7accb/src/kernels/dense/dec_gemv_arrive.metal),
+Copyright (c) 2026 David Tai. Its canonical reduction and Hadamard finish reuse
+the MLX 0.32.2 adaptation credited in `flash_dense_epilogue.metal`,
+Copyright © 2023-2024 Apple Inc. Both contributions are MIT licensed:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ## Flash Next architecture and SSD integration
 
 `native/src/qwen4.rs` and its independent verification script follow Qwen's

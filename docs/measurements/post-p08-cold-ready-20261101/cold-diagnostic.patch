@@ -1,0 +1,89 @@
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -400,6 +400,14 @@
+         cold: &mut Vec<(usize, u32)>,
+         consumers: &mut ColdConsumers,
+     ) -> Result<Option<Array>> {
++        #[cfg(test)]
++        let diagnostic = crate::flash_profile::span("cold_ready_batch");
++        #[cfg(test)]
++        if let Some(event) = &diagnostic {
++            event.data(serde_json::json!({"status":"incomplete","jobs":jobs.len(),"cold_rows":cold.len()}));
++        }
++        #[cfg(test)]
++        let prepare = crate::flash_profile::span("cold_ready_begin");
+         let bytes = EXPERT_BYTES
+             .checked_mul(jobs.len() as u64)
+             .and_then(|n| self.read_bytes.checked_add(n))
+@@ -424,10 +432,18 @@
+         // Reservations exclude Hot; only published slots enter W1. Drop joins all readers.
+         let mut batch =
+             unsafe { Array::begin_read_records(&sources, &mut self.banks, &views, self.readers)? };
++        #[cfg(test)]
++        drop(prepare);
++        #[cfg(test)]
++        let waiting = crate::flash_profile::span("cold_ready_wait");
+         let ready = batch.wait_ready(2)?;
++        #[cfg(test)]
++        drop(waiting);
+         let first = if ready.iter().all(|&done| done) {
+             None
+         } else {
++            #[cfg(test)]
++            let building = crate::flash_profile::span("cold_ready_first_build");
+             let slots = jobs
+                 .iter()
+                 .zip(&ready)
+@@ -440,7 +456,27 @@
+             );
+             let value = self.calculate_cold(routed_x, &first)?;
+             consumers.0.push(value.try_clone()?);
++            #[cfg(test)]
++            drop(building);
++            #[cfg(test)]
++            if let Some(event) = crate::flash_profile::span("cold_ready_snapshot_before_submit") {
++                event.data(match batch.ready_for_test() {
++                    Ok(mask) => serde_json::json!({"status":"ok","ready":mask.iter().filter(|&&done|done).count(),"jobs":mask.len()}),
++                    Err(error) => serde_json::json!({"status":"diagnostic_error","error":error.to_string()}),
++                });
++            }
++            #[cfg(test)]
++            let submitting = crate::flash_profile::span("cold_ready_first_submit");
+             value.async_eval()?;
++            #[cfg(test)]
++            drop(submitting);
++            #[cfg(test)]
++            if let Some(event) = crate::flash_profile::span("cold_ready_snapshot_after_submit") {
++                event.data(match batch.ready_for_test() {
++                    Ok(mask) => serde_json::json!({"status":"ok","ready":mask.iter().filter(|&&done|done).count(),"jobs":mask.len()}),
++                    Err(error) => serde_json::json!({"status":"diagnostic_error","error":error.to_string()}),
++                });
++            }
+             #[cfg(test)]
+             {
+                 self.cold_ready_waves.push(first.len());
+@@ -457,7 +493,23 @@
+             *cold = first.into_iter().chain(rest).collect();
+             Some(value)
+         };
+-        batch.finish()?;
++        #[cfg(test)]
++        let finishing = crate::flash_profile::span("cold_ready_finish");
++        let finished = batch.finish();
++        #[cfg(test)]
++        drop(finishing);
++        #[cfg(test)]
++        if let Some(event) = &diagnostic {
++            let first_rows = first.as_ref().map_or(0, |value| value.shape()[0] as usize);
++            event.data(serde_json::json!({
++                "status":if finished.is_ok(){"finished"}else{"failed_finish"},
++                "jobs":jobs.len(),"cold_rows":cold.len(),
++                "ready_initial":ready.iter().filter(|&&done|done).count(),
++                "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
++                "split":first.is_some(),"io_ok":finished.is_ok(),
++            }));
++        }
++        finished?;
+         self.read_bytes = bytes;
+         Ok(first)
+     }

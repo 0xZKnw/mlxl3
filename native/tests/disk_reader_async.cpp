@@ -53,10 +53,13 @@ int main() {
   assert(std::fwrite(source.data(), 1, source.size(), file) == source.size());
   assert(std::fflush(file) == 0);
   size_t cases = 0;
+  for (auto schedule : {mlxl3::DiskSchedule::Static, mlxl3::DiskSchedule::Dynamic}) {
   for (size_t workers = 1; workers <= 4; ++workers) {
     for (size_t count : {1, 2, 3, 6, 20, 512}) {
       std::vector<Bank> banks(count);
-      mlxl3::DiskReadBatch batch(records(fd, banks), workers, true);
+      mlxl3::DiskReadBatch batch(records(fd, banks), workers, true, SIZE_MAX, schedule);
+      const bool dynamic = schedule == mlxl3::DiskSchedule::Dynamic && workers > 1 && count > workers;
+      assert((batch.schedule() == mlxl3::DiskSchedule::Dynamic) == dynamic);
       const auto mask = batch.wait_ready(2);
       assert(mask.size() == count && size_t(std::count(mask.begin(), mask.end(), 1)) >= std::min(count, size_t(2)));
       batch.finish(); batch.finish();
@@ -66,7 +69,8 @@ int main() {
       assert(timings.size() == count);
       for (size_t i = 0; i < count; ++i) {
         assert(batch.bytes(i) == 8 && timings[i].job == i);
-        assert(timings[i].worker == i % std::min(workers, count));
+        assert(timings[i].worker < std::min(workers, count));
+        if (!dynamic) assert(timings[i].worker == i % std::min(workers, count));
         assert(timings[i].end_ns >= timings[i].start_ns && timings[i].bytes == 8 && !timings[i].failed);
       }
       exact(banks, source); ++cases;
@@ -74,7 +78,7 @@ int main() {
   }
   for (size_t held : {size_t(0), size_t(2)}) {
     std::vector<Bank> banks(6);
-    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, held);
+    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, held, schedule);
     const auto early = batch.wait_ready(2);
     assert(!early[held] && batch.bytes(held) == 0);
     assert(std::count(early.begin(), early.end(), 1) >= 2);
@@ -85,7 +89,7 @@ int main() {
   {
     std::vector<Bank> banks(6);
     {
-      mlxl3::DiskReadBatch batch(records(fd, banks), 4, false, 0);
+      mlxl3::DiskReadBatch batch(records(fd, banks), 4, false, 0, schedule);
       assert(!batch.wait_ready(2)[0]);
     }  // Drop releases the gate and joins before destination storage is examined/freed.
     exact(banks, source); ++cases;
@@ -97,7 +101,7 @@ int main() {
     reads[0].offset = first_truncated ? source.size() - 1 : 0;
     reads[3].fd = first_truncated ? -1 : fd;
     reads[3].offset = first_truncated ? 0 : source.size() - 1;
-    mlxl3::DiskReadBatch batch(std::move(reads), 4, true, 0);
+    mlxl3::DiskReadBatch batch(std::move(reads), 4, true, 0, schedule);
     for (size_t repeat = 0; repeat < 2; ++repeat) {
       bool failed = false;
       try { if (!repeat) batch.wait_ready(512); else batch.finish(); }
@@ -120,7 +124,7 @@ int main() {
   {
     std::vector<Bank> banks(3);
     {
-      mlxl3::DiskReadBatch batch(records(fd, banks), 1, false, 0);
+      mlxl3::DiskReadBatch batch(records(fd, banks), 1, false, 0, schedule);
       bool timed_out = false;
       try { batch.wait_ready(2, std::chrono::milliseconds(1)); }
       catch (const std::runtime_error&) { timed_out = true; }
@@ -147,7 +151,7 @@ int main() {
     auto reject = [&](std::vector<mlxl3::DiskRead> reads, size_t workers, size_t held = SIZE_MAX) {
       for (auto& bank : banks) bank.fill(0xa5);
       bool failed = false;
-      try { mlxl3::DiskReadBatch batch(std::move(reads), workers, false, held); }
+      try { mlxl3::DiskReadBatch batch(std::move(reads), workers, false, held, schedule); }
       catch (const std::exception&) { failed = true; }
       assert(failed);
       for (const auto& bank : banks) assert(std::all_of(bank.begin(), bank.end(), [](auto v) { return v == 0xa5; }));
@@ -159,6 +163,16 @@ int main() {
     reject({{fd, UINT64_MAX, {{banks[0].data(), 8}}}}, 4);
     reject({{fd, 0, {{nullptr, 8}}}}, 4);
     reject({{fd, 0, {{banks[0].data(), 0}}}}, 4);
+  }
+  }
+  {
+    std::vector<Bank> banks(12);
+    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, 0, mlxl3::DiskSchedule::Dynamic);
+    // A blocked worker must not strand jobs 4 and 8 in its former static stripe.
+    const auto ready = batch.wait_ready(11, std::chrono::seconds(2));
+    assert(!ready[0] && std::count(ready.begin(), ready.end(), 1) == 11);
+    assert(batch.bytes(0) == 0);
+    batch.finish(); exact(banks, source); ++cases;
   }
   assert(std::fclose(file) == 0);
   std::cout << cases << " async disk reader cases passed\n";

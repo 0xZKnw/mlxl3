@@ -60,6 +60,19 @@ fn load(checkpoint: &Checkpoint, capacity: usize) -> Result<SsdMoe> {
         moe.cold_ready && !moe.shared_exl3 && !moe.weighted_epilogue,
         "test requires COLD_READY=1, SHARED_EXL3=0, WEIGHTED_EPILOGUE=0"
     );
+    ensure!(
+        moe.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
+        "Cold shared flag not wired"
+    );
+    ensure!(
+        Some(moe.cold_ready_rows)
+            == crate::cold_ready::parse_max_rows(
+                std::env::var("MLXL3_SSD_COLD_READY_ROWS").ok().as_deref()
+            )
+            && moe.cold_priority
+                == (std::env::var("MLXL3_SSD_COLD_PRIORITY").as_deref() == Ok("1")),
+        "Cold candidate options not wired"
+    );
     moe.readers = 4;
     moe.gpu_hot = true;
     moe.gpu_hot_wide = true;
@@ -156,10 +169,18 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                 let before = (moe.cold_ready_waves.len(), moe.read_bytes);
                 let overlaps = moe.cold_ready_verified_overlap;
                 let prepared = moe.cold_ready_prepared_rest;
+                let shared_submissions = moe.cold_shared_submissions;
                 // Holding job zero forces a non-prefix first wave without timing assumptions.
                 crate::array::hold_read_batch_job_for_test(Some(0));
                 let output = moe.forward_many(&x)?;
                 check(&output, &oracle, pair.len())?;
+                let dynamic = std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("0")
+                    && missing > moe.readers;
+                ensure!(
+                    crate::array::disk_profile_schedule()
+                        == if dynamic { "dynamic" } else { "static" },
+                    "Cold batch did not use the requested effective schedule"
+                );
                 ensure!(
                     moe.cold_ready_waves.len() == before.0 + 1
                         && moe.cold_ready_verified_overlap == overlaps + 1,
@@ -170,6 +191,11 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                     "W2 was not prepared before join"
                 );
                 ensure!(moe.read_bytes - before.1 == missing as u64 * EXPERT_BYTES);
+                ensure!(
+                    moe.cold_shared_submissions
+                        == shared_submissions + usize::from(moe.cold_shared),
+                    "Cold shared submission path not exercised"
+                );
                 mixed += 1;
                 let before = (moe.cold_ready_waves.len(), moe.read_bytes);
                 check(&moe.forward_many(&x)?, &oracle, pair.len())?;
@@ -230,6 +256,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     );
 
     reset(&mut moe)?;
+    moe.cold_ready_rows = 2;
     prime(&mut moe, &ids[..5])?;
     let x = Array::concatenate(&[&inputs[0], &inputs[1], &inputs[2]], 0)?;
     let oracle = expected.iter().flatten().copied().collect::<Vec<_>>();
@@ -245,6 +272,9 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     );
     Ok(())
 }
+
+#[path = "cold_ready_wide_tests.rs"]
+mod wide_tests;
 
 #[test]
 #[ignore = "physical Apple GPU and external Flash fixtures; COLD_READY=1; select alone"]

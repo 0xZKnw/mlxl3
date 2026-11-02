@@ -1,0 +1,11 @@
+--- native/src/dense_epilogue.rs
++++ proof_mutant.rs
+@@ -29,7 +29,7 @@
+     }
+     let valid = match rows {
+         1 => partial_shape == [2, WIDTH],
+-        2 => partial_shape == [2, 2, WIDTH],
++        2 => partial_shape == [2, 2, WIDTH - 1],
+         _ => false,
+     };
+     if !valid {

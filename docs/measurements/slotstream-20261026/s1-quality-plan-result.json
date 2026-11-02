@@ -1,0 +1,53 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+  "matrix_sha256": "70941518271415be85d591afa45f416d877cd767a66c327329513a5cf0240c9e",
+  "commands": [
+    {
+      "name": "s1-full-states",
+      "command": [
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/s1-tests",
+        "qwen4::tests::decoded_ple_cache_preserves_full_logits_states_and_warm_rows",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+        "MLXL3_SSD_GPU_HOT": "1",
+        "MLXL3_SSD_GPU_HOT_WIDE": "1",
+        "MLXL3_FLASH_MULTI_TOKEN": "1",
+        "MLXL3_SSD_UNIQUE_COHORT": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744"
+      },
+      "native_test": "qwen4::tests::decoded_ple_cache_preserves_full_logits_states_and_warm_rows",
+      "expected_exit": 0,
+      "timeout_seconds": 300,
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   116747.\nPages active:                                 532799.\nPages inactive:                               533165.\nPages speculative:                              1948.\nPages throttled:                                   0.\nPages wired down:                             171888.\nPages purgeable:                                4480.\n\"Translation faults\":                      986240182.\nPages copy-on-write:                        44608288.\nPages zero filled:                        1051056680.\nPages reactivated:                          82351266.\nPages purged:                               11461015.\nFile-backed pages:                            486857.\nAnonymous pages:                              581055.\nPages stored in compressor:                   281671.\nPages occupied by compressor:                 162151.\nDecompressions:                            164847071.\nCompressions:                              189634729.\nPageins:                                  1268180843.\nPageouts:                                     211563.\nSwapins:                                      207187.\nSwapouts:                                     424617.\nPages tagged:                                 114867.\nPages tagged resident:                         93356.\nPages tagged compressed:                       21511.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4434.\nPages tag-storage free:                          173.\nPages tag-storage non-tag pageable:            44320.\nPages tag-storage non-tag wired:                  76.\nBytes of compressed tags:                    3230464.\nTagged compressions:                         4873163.\nTagged decompressions:                       4676211.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 3072.00M  used = 1771.50M  free = 1300.50M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 1912782848,
+          "File-backed pages": 7976665088,
+          "Pages occupied by compressor": 2656681984,
+          "Swapins": 3394551808,
+          "Swapouts": 6956924928
+        }
+      },
+      "executable_sha256": "898b3515bcdca1c64c4f9a74dfbba31abb96c3cdd3db8eae0a23688a9bab0281",
+      "pid": 19675,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 0,
+      "error": "AssertionError('new swapout during S1 quality')",
+      "reaped": true,
+      "seconds": 4.107900582996081
+    }
+  ],
+  "error": "AssertionError('new swapout during S1 quality')"
+}

@@ -1,0 +1,70 @@
+{
+  "status": "completed_read_only_triage_no_implementation_or_benchmark",
+  "issue": "https://github.com/0xZKnw/mlxl3/issues/59",
+  "updated_at": "2026-10-29T21:43:44Z",
+  "body_sha256": "8cb16d55ad092ddc2c78c1ff8a60ca2349c786bbce9f7cc144e95521e776f1f8",
+  "priority": [
+    "T17 exact minimal GDN epilogue B1 then real B2",
+    "T04 SwiGLU to down preparation boundary",
+    "T01 bounded attribution filter before prepared launcher",
+    "T07/T10 genuine B2; T18a dynamic readers before conditional progressive Cold"
+  ],
+  "findings": [
+    {
+      "id": "T17",
+      "verified": "Normed already F32; castF32 is a no-op. z F16->F32, MLX SigmoidF32, MultiplyF32, castF16 are the four explicit remaining primitives, not proven physical dispatch count. Keep norm/recurrent/H128 stock. Multi-row norm remains per row; avoid an extra FP32 concat allocation.",
+      "locations": [
+        "native/src/qwen4.rs:265",
+        "native/src/qwen4.rs:395"
+      ],
+      "risks": "MLX sigmoid uses exp(abs(z)) then x<0?y:1-y, not naive exp(-z). Same formula not proof of JIT/metallib bit equality. Oracle half gate domain and full F32 intermediates needed. Upstream API refuses <=16rows and uses activation-dtype norm/table, cannot wire directly to our F32 B1/B2."
+    },
+    {
+      "id": "T04",
+      "verified": "SwiGLU is already mx::compile; target additional down.suh product outside closure; preserve SwiGLU F16 and subsequent product F16 boundaries, then H128 stock.",
+      "locations": [
+        "native/src/ssd_moe.rs:380",
+        "native/src/linear.rs:1423"
+      ],
+      "risks": "expert_mapped(input_pretransformed=true) wrapper does not preserve SSD slot_major/masked/groups; prepared path must use correct SSD metadata. precise_swiglu is different arithmetic. Do not silently repeat POSTPROFILE05 gathers."
+    },
+    {
+      "id": "T01",
+      "verified": "Existing factory128 cache is distinct from prepared immutable source/pipeline state. New issue agrees with T01-read.md: encoding, barriers, allocation and dispatch remain paid.",
+      "risks": "Own pipeline through completion, coordinate clear_library, bound variants, preserve fresh primitive/inputs per call. No 12ms ceiling measured for this wrapper."
+    },
+    {
+      "id": "T18a",
+      "verified": "Static i=worker;i+=workers GCD loop exists. Dynamic job claim is new relative to historical14/14B batching4workers. Can preserve MLX/math/submissions.",
+      "locations": [
+        "native/ffi/disk_reader.h:113"
+      ],
+      "risks": "Exactly once, bounds1..4, all jobs drained on error, lowest-index error replay and disjoint destinations preserved. No MLX calls from IO workers."
+    },
+    {
+      "id": "T18b",
+      "verified": "fill_many currently joins full batch before commit and Cold calculation; prefetch ReaderPool completion is different baseline-inactive path.",
+      "risks": "Requires partial expert completion ownership/leases and canonical contributions; additional graphs and dispatches may cost more than overlap."
+    }
+  ],
+  "historical_notes": [
+    "HENK0O-QWEN27-09 already used 256KiB F32 values indexed by half gates, for SiLU and recomputed norm. T17 distinction is sigmoid-only and stock nativeF32 norm, not invention of F32 LUT.",
+    "T05 numerical/capture valid, MAIN+2.036%, HOLD-0.728%, prefill heterogeneous, kept experimental flag0. No T05 test silently repeated.",
+    "T19 is a distinct prefill grouped512-expert workstream; current Flash forward_tokens is scalar, not a direct decode gain."
+  ],
+  "unverified": [
+    "T18 job fractions26.69/60.84/61.89 percent and ideal fixed-duration bounds2.31/4.12/3.81ms are issue claims not independently recomputed in this read.",
+    "No new native compile, proof, CPU test, GPU capture, model run or throughput measurement.",
+    "No quantified gain for T17, T04, T01, T18. GPU command activity in issue should not be described as exclusive useful arithmetic."
+  ],
+  "upstream": {
+    "commit": "7500027d2c9792cd20cb3ed7d33f92aa21e00972",
+    "blobs": {
+      "src/root.zig": "ad49dcaa88bd8bf888651889d7aaa5661ad102fc",
+      "src/spec.zig": "69b9848bcfdfeeabfe5f5d73a2ca64debc3bb052",
+      "src/gdn_out.zig": "338c04c2c8a1042e889f3461d863e47984f824b7",
+      "src/kernels/gdn_out/prep_2.metal": "dc932527f0717878c7530697caff5bf5b1b8c4c9"
+    }
+  },
+  "frozen_t05_sources_unchanged": 123
+}

@@ -1,6 +1,9 @@
 {
   "baseline_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
   "required_harnesses": [
+    "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
+    "cold_ready::two_job_priority_keeps_records_and_stable_order",
+    "dec_one::dec_one_storage_contract",
     "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
     "codec::verification::exl3_permutation_and_inverse_are_bijections",
     "codec::verification::reference_header_is_static_and_exactly_gated",
@@ -15,6 +18,8 @@
     "contracts::exl3_lane_order_preserves_shape_and_large_m_fallback",
     "contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
     "contracts::flash_reference_batch_has_exact_bounded_coverage",
+    "contracts::flash_reference_mb34_preserves_coverage_and_fallbacks",
+    "contracts::flash_reference_mb34_shape_scope_rejects_other_dimensions",
     "contracts::generation_stop_reason_matches_observed_terminal_event",
     "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
     "contracts::idle_cache_release_preserves_small_working_sets",

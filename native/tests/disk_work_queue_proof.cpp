@@ -14,7 +14,10 @@ void proof() {
   using namespace mlxl3;
   const auto count = nondet_size_t();
   const auto workers = nondet_size_t();
-  const auto requested = nondet_bool() ? DiskSchedule::Dynamic : DiskSchedule::Static;
+  const auto option = nondet_size_t();
+  __CPROVER_assume(option <= 2);
+  const auto requested = disk_schedule(option == 0 ? nullptr : option == 1 ? "0" : "1");
+  assert(requested == (option == 1 ? DiskSchedule::Static : DiskSchedule::Dynamic));
   __CPROVER_assume(count >= 1 && count <= 8 && workers >= 1 && workers <= 4 && workers <= count);
   const auto mode = effective_disk_schedule(requested, count, workers);
   assert((mode == DiskSchedule::Dynamic) ==
@@ -44,6 +47,7 @@ void proof() {
   }
   for (size_t i = 0; i < count; ++i) assert(seen[i]);
   __CPROVER_cover(count == 8 && workers == 4 && mode == DiskSchedule::Dynamic);
+  __CPROVER_cover(option == 0 && count == 8 && workers == 4 && mode == DiskSchedule::Dynamic);
   __CPROVER_cover(count == 8 && workers == 4 && mode == DiskSchedule::Static);
   __CPROVER_cover(count == 1 && workers == 1 && requested == DiskSchedule::Dynamic &&
                  mode == DiskSchedule::Static);

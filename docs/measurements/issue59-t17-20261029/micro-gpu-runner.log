@@ -1,0 +1,11 @@
+{'name': 't17-micro-invalid', 'status': 'completed_expected_outcome', 'reaped': True, 'seconds': 0.24053929198998958, 'swapouts_bytes': 0}
+{'name': 't17-micro-exhaustive', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 0.1848762920126319, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 87, in <module>
+    run(*(Path(value) for value in sys.argv[1:]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 83, in run
+    supervisor["main"](plan)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 185, in main
+    assert record["exit_code"] == item["expected_exit"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

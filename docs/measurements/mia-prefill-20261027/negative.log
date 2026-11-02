@@ -1,0 +1,17 @@
+
+running 1 test
+test ssd_moe::mia_tile::mia_prefill_tile_quality_and_speed ... MIA_TILE_CASE layer=0 rows=1 mixed=false strided=false launches=0 full_values=2560 parity=true
+MIA_TILE_CASE layer=0 rows=1 mixed=false strided=true launches=0 full_values=2560 parity=true
+MIA_TILE_CASE layer=0 rows=1 mixed=true strided=false launches=0 full_values=2560 parity=true
+MIA_TILE_CASE layer=0 rows=1 mixed=true strided=true launches=0 full_values=2560 parity=true
+Error: Condition failed: `actual.shape() == expected.shape() && data.len() == rows as usize * H as usize
+&& data.iter().all(|v| v.is_finite())`
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::mia_tile::mia_prefill_tile_quality_and_speed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 338 filtered out; finished in 0.97s
+

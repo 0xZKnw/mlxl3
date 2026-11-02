@@ -1,0 +1,407 @@
+use super::*;
+
+pub(super) fn delay(value: &Array) -> Result<Array> {
+    let outputs = crate::array::metal_kernel(
+        "mlxl3_test_slow_resident_experts",
+        &["value"],
+        &["out", "stamp"],
+        &format!("#define COUNT {}u\n", value.shape().iter().product::<i32>()),
+        "uint i=thread_position_in_grid.x; uint v=i+1u; for(uint j=0;j<4000000u;++j) { v^=v<<13; v^=v>>17; v^=v<<5; } stamp[i]=v; for(uint k=i;k<COUNT;k+=512u) out[k]=value[k];",
+        &[value],
+        &[value.shape().to_vec(), vec![512]],
+        &[Dtype::Float16, Dtype::UInt32],
+        [512, 1, 1],
+        [128, 1, 1],
+    )?;
+    Array::async_eval_all(&[&outputs[0], &outputs[1]])?;
+    outputs[0].try_clone()
+}
+
+fn prime_half(moe: &mut SsdMoe, input: &Array) -> Result<Vec<u32>> {
+    let ids = moe.route(input)?.0.to_u32()?;
+    ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
+    let routes = moe.cache.borrow_mut().reserve(&ids[..5])?;
+    let jobs = ids[..5]
+        .iter()
+        .zip(routes)
+        .map(|(&id, (slot, _))| (id, slot))
+        .collect::<Vec<_>>();
+    moe.fill_many(&jobs)?;
+    Ok(ids)
+}
+
+#[test]
+#[ignore = "physical Apple GPU; verify early hot does not block routes or demanded reads"]
+fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
+    let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+    let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+    moe.gpu_hot = true;
+    prime_half(&mut moe, &input)?;
+    moe.slow_hot_for_test = true;
+    let actual = moe.forward(&input)?;
+    println!(
+        "SSD_GPU_HOT_SCHEDULE {}",
+        serde_json::json!({
+            "submissions":moe.hybrid_submissions,"ready_at_routes":moe.hot_ready_at_routes,
+            "ready_at_demand":moe.hot_ready_at_demand,"events":moe.schedule_events,
+            "read_bytes":moe.read_bytes,"hits":moe.hits,"misses":moe.misses,
+        })
+    );
+    ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
+    ensure!(moe.hybrid_submissions == 1 && moe.read_bytes == 10 * EXPERT_BYTES);
+    ensure!(moe.hits == 5 && moe.misses == 5);
+    ensure!(
+        moe.hot_ready_at_routes == Some(false),
+        "routes waited for resident compute"
+    );
+    ensure!(
+        moe.hot_ready_at_demand == Some(false),
+        "demand waited for resident compute"
+    );
+    moe.drain()?;
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; error before reservation preserves only already filled residents"]
+fn early_hot_failure_preserves_ready_keys_and_recovers() -> Result<()> {
+    let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+    let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
+    moe.gpu_hot = true;
+    let ids = prime_half(&mut moe, &input)?;
+    let invalid = moe.banks[0].reshape(&[24, -1])?;
+    let bank = std::mem::replace(&mut moe.banks[0], invalid);
+    let error = moe
+        .forward(&input)
+        .err()
+        .context("invalid hot bank succeeded")?;
+    moe.banks[0] = bank;
+    ensure!(
+        error
+            .to_string()
+            .contains("expert slots were validated for a different bank capacity"),
+        "{error:#}"
+    );
+    ensure!(moe.read_bytes == 5 * EXPERT_BYTES && moe.misses == 0 && moe.hits == 0);
+    ensure!(ids[..5].iter().all(|&id| moe.cache.borrow().contains(id)));
+    ensure!(ids[5..].iter().all(|&id| !moe.cache.borrow().contains(id)));
+    moe.drain()?;
+    let actual = moe.forward(&input)?;
+    ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
+    ensure!(moe.read_bytes == 10 * EXPERT_BYTES && moe.misses == 5);
+    moe.drain()?;
+    println!("SSD_GPU_HOT_EARLY_FAILURE parity=byte_exact ready_keys=5 recovery=true");
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; wide hot work must start before host route and SSD waits"]
+fn wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows() -> Result<()> {
+    let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+    for wide in [false, true] {
+        for rows in 3..=8 {
+            let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 80, true)?;
+            moe.gpu_hot = true;
+            moe.gpu_hot_wide = wide;
+            prime_half(&mut moe, &input)?;
+            moe.slow_hot_for_test = true;
+            let x = Array::concatenate(&vec![&input; rows], 0)?;
+            let actual = moe.forward_draft_rows(&x)?;
+            ensure!(actual.shape() == [rows as i32, H]);
+            let values = actual.to_f32()?;
+            ensure!(values.len() == rows * H as usize && values.iter().all(|v| v.is_finite()));
+            ensure!(actual.to_bytes()? == expected.repeat(rows));
+            ensure!(moe.read_bytes == 10 * EXPERT_BYTES);
+            ensure!(moe.hybrid_submissions == u64::from(wide));
+            if wide {
+                ensure!(moe.hot_ready_at_routes == Some(false));
+                ensure!(moe.hot_ready_at_demand == Some(false));
+            }
+            moe.drain()?;
+        }
+    }
+    println!("SSD_GPU_HOT_WIDE rows=3..8 variants=2 cases=12 parity=byte_exact asynchronous=true");
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; one route window, maximal safe cohorts, pending ownership and recovery"]
+fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result<()> {
+    crate::array::set_default_cache_limit(512 << 20)?;
+    let (checkpoint, input, captured) = super::tests::admission_fixture()?;
+    let prefix = "model.language_model.layers.0.mlp";
+    let mut cases = 0;
+    for capacity in [20, 24, 53] {
+        for pending in [0, 4] {
+            if capacity == 20 && pending > 0 {
+                continue; // Prefetch admission guarantees twenty non-pending slots.
+            }
+            for rows in [6, 7, 8] {
+                let mut moe = SsdMoe::load(&checkpoint, prefix, capacity, true)?;
+                ensure!(
+                    moe.unique_cohorts,
+                    "test requires UNIQUE_COHORT=1 through the real loader"
+                );
+                moe.gpu_hot = true;
+                moe.gpu_hot_wide = true;
+                let ids = prime_half(&mut moe, &input)?;
+                moe.slow_hot_for_test = capacity == 53 && pending == 4 && rows == 8;
+                let mut claims = Vec::new();
+                for id in (0..512).filter(|id| !ids.contains(id)) {
+                    if claims.len() == pending {
+                        break;
+                    }
+                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
+                }
+                let x = Array::concatenate(&vec![&input; rows], 0)?;
+                let output = moe.forward_draft_rows(&x)?;
+                ensure!(
+                    output.shape() == [rows as i32, H]
+                        && output.to_bytes()? == captured.repeat(rows)
+                );
+                ensure!(moe.cohort_sizes == [rows] && moe.route_readbacks == 1);
+                ensure!(
+                    moe.window_hot_before_readback == [true],
+                    "window Hot was not submitted before the CPU readback"
+                );
+                ensure!(moe.hybrid_submissions == 1 && moe.read_bytes == 10 * EXPERT_BYTES);
+                ensure!(moe.cache.borrow().available_slots() == capacity - pending);
+                if moe.slow_hot_for_test {
+                    ensure!(
+                        moe.hot_ready_at_demand == Some(false),
+                        "demand waited for Hot"
+                    );
+                }
+                let map = moe.cache.borrow().resident_slot_map()?;
+                ensure!(
+                    map.iter()
+                        .all(|&s| claims.iter().all(|&(busy, _)| s != busy as u32))
+                );
+                for (slot, id) in claims {
+                    moe.cache.borrow_mut().publish_prefetch(slot, id, false);
+                }
+                moe.drain()?;
+                cases += 1;
+            }
+        }
+    }
+    // A first six-row union fits (row five repeats row zero), but the seventh does not.
+    let mut gate = vec![0.; H as usize * 512];
+    let mut values = vec![0.; 8 * H as usize];
+    for row in 0..8 {
+        values[row * H as usize + row] = 1.;
+        let group = [0, 1, 2, 3, 4, 0, 5, 0][row];
+        for expert in group * 10..group * 10 + 10 {
+            gate[row * 512 + expert] = 10.;
+        }
+    }
+    let mut unrelated = vec![0.; H as usize];
+    unrelated[8] = 1.;
+    for expert in 60..70 {
+        gate[8 * 512 + expert] = 10.;
+    }
+    let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
+    moe.resident_gate = Some(Array::from_f32(&gate, &[H, 512])?);
+    moe.gpu_hot = true;
+    moe.gpu_hot_wide = true;
+    for (dtype, prime_row) in [
+        (Dtype::Float32, 0),
+        (Dtype::Float32, 6),
+        (Dtype::Float32, 8),
+        (Dtype::Float16, 0),
+    ] {
+        let x = Array::from_f32(&values, &[8, H])?.astype(dtype)?;
+        let ids = (0..8)
+            .map(|row| moe.route(&x.slice(0, row, row + 1)?)?.0.to_u32())
+            .collect::<Result<Vec<_>>>()?
+            .concat();
+        // F16 deliberately uses the original projection, bypassing the F32 resident gate.
+        moe.unique_cohorts = false;
+        let expected = (0..8)
+            .map(|row| moe.forward(&x.slice(0, row, row + 1)?)?.to_bytes())
+            .collect::<Result<Vec<_>>>()?
+            .concat();
+        moe.drain()?;
+        for pending in [0, 4] {
+            let available = 53 - pending;
+            let mut maximal = Vec::new();
+            let mut begin = 0;
+            while begin < 8 {
+                let count = (1..=8 - begin)
+                    .take_while(|&n| {
+                        ids[begin * 10..(begin + n) * 10]
+                            .iter()
+                            .collect::<BTreeSet<_>>()
+                            .len()
+                            <= available
+                    })
+                    .count();
+                ensure!(count > 0);
+                maximal.push(count);
+                begin += count;
+            }
+            if dtype == Dtype::Float32 {
+                ensure!(maximal == if pending == 0 { vec![6, 2] } else { vec![4, 4] });
+            }
+            let old = (0..8)
+                .step_by(available / 10)
+                .map(|begin| (available / 10).min(8 - begin))
+                .collect::<Vec<_>>();
+            for (unique, sizes, reads) in [(false, old, 2), (true, maximal, 1)] {
+                *moe.cache.borrow_mut() = ExpertCache::new(53)?;
+                moe.unique_cohorts = unique;
+                let prime = if prime_row == 8 {
+                    Array::from_f32(&unrelated, &[1, H])?
+                } else {
+                    x.slice(0, prime_row, prime_row + 1)?
+                };
+                let half = prime_half(&mut moe, &prime)?;
+                let mut claims = Vec::new();
+                for id in (0..512).filter(|id| !ids.contains(id) && !half[..5].contains(id)) {
+                    if claims.len() == pending {
+                        break;
+                    }
+                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
+                }
+                moe.cohort_sizes.clear();
+                moe.route_readbacks = 0;
+                moe.window_hot_before_readback.clear();
+                let submissions = moe.hybrid_submissions;
+                let read_bytes = moe.read_bytes;
+                let output = moe.forward_draft_rows(&x)?;
+                ensure!(output.shape() == [8, H] && output.to_bytes()? == expected);
+                ensure!(
+                    moe.cohort_sizes == sizes && moe.route_readbacks == reads,
+                    "{dtype:?}/unique={unique}: cohorts {:?} expected {sizes:?}, readbacks {} expected {reads}",
+                    moe.cohort_sizes,
+                    moe.route_readbacks
+                );
+                ensure!(moe.hybrid_submissions - submissions == if unique { 1 } else { 2 });
+                if unique {
+                    ensure!(moe.window_hot_before_readback == [true]);
+                    if dtype == Dtype::Float32 {
+                        ensure!(
+                            moe.read_bytes - read_bytes
+                                == if prime_row == 8 { 60 } else { 55 } * EXPERT_BYTES
+                        );
+                        if prime_row == 0 {
+                            ensure!(
+                                half[..5].iter().all(|&id| moe.cache.borrow().contains(id)),
+                                "reused Hot demand was not counted before choosing cold victims"
+                            );
+                        } else if prime_row == 8 {
+                            ensure!(
+                                half[..5].iter().all(|&id| !moe.cache.borrow().contains(id)),
+                                "unselected residents must not be counted as Hot demand"
+                            );
+                        } else if pending == 0 {
+                            ensure!(
+                                half[..5].iter().any(|&id| !moe.cache.borrow().contains(id)),
+                                "the full Cold prefix must force eviction of captured Hot"
+                            );
+                        }
+                    }
+                }
+                moe.drain()?;
+                ensure!(moe.cache.borrow().available_slots() == available);
+                for (slot, id) in claims {
+                    ensure!(!moe.cache.borrow_mut().publish_prefetch(slot, id, false));
+                }
+                ensure!(moe.cache.borrow().available_slots() == 53);
+                cases += 1;
+            }
+        }
+    }
+    let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
+    moe.gpu_hot = true;
+    moe.gpu_hot_wide = true;
+    let ids = prime_half(&mut moe, &input)?;
+    let bad = ids[5] as usize;
+    let saved = moe.records[bad].data_offsets;
+    moe.records[bad].data_offsets[0] = u64::MAX;
+    let x = Array::concatenate(&[&input; 8], 0)?;
+    ensure!(moe.forward_draft_rows(&x).is_err());
+    moe.drain()?;
+    ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
+    moe.records[bad].data_offsets = saved;
+    ensure!(moe.forward_draft_rows(&x)?.to_bytes()? == captured.repeat(8));
+    moe.drain()?;
+    println!(
+        "SSD_UNIQUE_WINDOW cases={} rows=6..8 capacities=20,24,53 fallback=6+2/4+4 readbacks=1 hot_before_readback=true hot_demand_counted=true hot_survives_eviction=true cold_cache_hits_recomputed=true pending=excluded io_recovery=true parity=byte_exact",
+        cases + 1
+    );
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn actual_unique_window_demand_entry() {
+    unique_windows_preserve_outputs_pending_slots_and_greedy_fallback().unwrap();
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn actual_hybrid_hot_demand_entry() {
+    demanded_reads_start_while_gpu_resident_experts_are_pending().unwrap();
+}
+
+#[test]
+#[ignore = "physical Apple GPU; pending prefetch claims reduce the production cohort capacity"]
+fn wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership() -> Result<()> {
+    let (checkpoint, input, expected) = super::tests::admission_fixture()?;
+    for (capacity, rows) in [(53, 5), (53, 8), (80, 8)] {
+        for unique in [false, true] {
+            let mut moe = SsdMoe::load(
+                &checkpoint,
+                "model.language_model.layers.0.mlp",
+                capacity,
+                true,
+            )?;
+            moe.gpu_hot = true;
+            moe.gpu_hot_wide = true;
+            moe.unique_cohorts = unique;
+            prime_half(&mut moe, &input)?;
+            let mut pending = Vec::new();
+            for id in 0..512 {
+                if let Some(slot) = moe.cache.borrow_mut().claim_prefetch(id)? {
+                    pending.push((slot, id));
+                    if pending.len() == 4 {
+                        break;
+                    }
+                }
+            }
+            ensure!(pending.len() == 4 && moe.cache.borrow().available_slots() == capacity - 4);
+            let x = Array::concatenate(&vec![&input; rows], 0)?;
+            let output = moe.forward_draft_rows(&x)?;
+            ensure!(
+                output.shape() == [rows as i32, H] && output.to_bytes()? == expected.repeat(rows)
+            );
+            ensure!(
+                moe.hybrid_submissions == if unique { 1 } else { 2 },
+                "unexpected Hot submissions for unique={unique}"
+            );
+            ensure!(moe.route_readbacks == if unique { 1 } else { 2 });
+            let map = moe.cache.borrow().resident_slot_map()?;
+            ensure!(
+                map.iter()
+                    .all(|&slot| pending.iter().all(|&(busy, _)| slot != busy as u32))
+            );
+            ensure!(moe.cache.borrow().available_slots() == capacity - 4);
+            for (slot, id) in pending {
+                moe.cache.borrow_mut().publish_prefetch(slot, id, false);
+            }
+            ensure!(moe.cache.borrow().available_slots() == capacity);
+            moe.drain()?;
+        }
+    }
+    println!(
+        "SSD_GPU_HOT_PENDING cases=6 unique=0,1 claims=4 parity=byte_exact ownership=preserved"
+    );
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn actual_wide_hybrid_hot_demand_entry() {
+    wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows().unwrap();
+}

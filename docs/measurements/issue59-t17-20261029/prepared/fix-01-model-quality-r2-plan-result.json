@@ -1,0 +1,74 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "a5f4e0cb4e08063cfa5fd2d49bb10193233677e9922a09a494bb97156caacdb9",
+  "matrix_sha256": "247ab66a4f5c8407b6a111e67a9fa57b4a6db891cd47cb5712da4ba2372d34da",
+  "commands": [
+    {
+      "name": "t17-fix-01-model-gdn-integration-r2",
+      "command": [
+        "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t17-20261029/libtest-fix-01/prototype-engine",
+        "qwen4::tests::flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "env": {
+        "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+        "MLXL3_SSD_GPU_HOT": "1",
+        "MLXL3_SSD_GPU_HOT_WIDE": "1",
+        "MLXL3_FLASH_MULTI_TOKEN": "1",
+        "MLXL3_SSD_UNIQUE_COHORT": "1",
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+        "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+        "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+        "MLXL3_FLASH_DRAFT_WIDTH": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_FLASH_DRAFT_Q4": "1",
+        "MLXL3_FLASH_DRAFT_RING": "1",
+        "MLX_MAX_OPS_PER_BUFFER": "40",
+        "MLX_MAX_MB_PER_BUFFER": "40",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_SHARED_EXL3": "0",
+        "MLXL3_SSD_WEIGHTED_EPILOGUE": "0",
+        "MLXL3_FLASH_GDN_EPILOGUE": "1"
+      },
+      "expected_exit": 0,
+      "timeout_seconds": 900,
+      "require_quiet": true,
+      "required_text": [
+        "running 1 test",
+        "qwen4::tests::flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes",
+        "GDN_EPILOGUE_INTEGRATION cohorts=1,2,4,8 kernel_graph_requests_per_cohort=1 outputs_states_prefixes=byte_exact continuation=true invalid_atomic=true",
+        "1 passed; 0 failed; 0 ignored",
+        "1 passed; 0 failed"
+      ],
+      "native_test": "qwen4::tests::flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes",
+      "minimum_available_bytes": 8500000000,
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    31594.\nPages active:                                 494237.\nPages inactive:                               604051.\nPages speculative:                               526.\nPages throttled:                                   0.\nPages wired down:                             193381.\nPages purgeable:                               36656.\n\"Translation faults\":                     2065848644.\nPages copy-on-write:                        86290439.\nPages zero filled:                        2253652530.\nPages reactivated:                         160726106.\nPages purged:                               20393527.\nFile-backed pages:                            455816.\nAnonymous pages:                              642998.\nPages stored in compressor:                   348376.\nPages occupied by compressor:                 194909.\nDecompressions:                            373513300.\nCompressions:                              450362410.\nPageins:                                  2427927660.\nPageouts:                                     395142.\nSwapins:                                     3283659.\nSwapouts:                                    8597711.\nPages tagged:                                 148102.\nPages tagged resident:                        128904.\nPages tagged compressed:                       19198.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 7797.\nPages tag-storage free:                           19.\nPages tag-storage non-tag pageable:            41179.\nPages tag-storage non-tag wired:                  77.\nBytes of compressed tags:                    2940608.\nTagged compressions:                         9604543.\nTagged decompressions:                       9289900.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 568.56M  free = 1479.44M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 517636096,
+          "File-backed pages": 7468089344,
+          "Pages occupied by compressor": 3193389056,
+          "Swapins": 53799469056,
+          "Swapouts": 140864897024
+        }
+      },
+      "available_estimate_bytes": 7985725440,
+      "error": "AssertionError('load headroom estimate')",
+      "reaped": true,
+      "seconds": 7.458991603925824e-06
+    }
+  ],
+  "error": "AssertionError('load headroom estimate')"
+}

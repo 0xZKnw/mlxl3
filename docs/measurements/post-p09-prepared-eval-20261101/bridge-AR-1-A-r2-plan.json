@@ -1,0 +1,58 @@
+[
+  {
+    "name": "bridge-AR-1-A-r2",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p09-prepared-eval-20261101/cli-r2",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-AR-1-A-r2",
+      "--cache-gib",
+      "3",
+      "--tokens",
+      "17",
+      "--repeats",
+      "1",
+      "--timeout",
+      "180"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_SHARED_EXL3": "0",
+      "MLXL3_FLASH_SWIGLU_DOWN": "0",
+      "MLXL3_FLASH_GDN_EPILOGUE": "0",
+      "MLXL3_SSD_WEIGHTED_EPILOGUE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40",
+      "MLXL3_FLASH_PREFILL_HEADS": "1",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+      "MLXL3_FLASH_DENSE_EPILOGUE": "0",
+      "MLXL3_FLASH_PREPARED_CONV": "0",
+      "MLXL3_PREPARED_METAL": "0"
+    },
+    "require_quiet": true,
+    "minimum_available_bytes": 10500000000,
+    "expected_exit": 0,
+    "timeout_seconds": 900,
+    "required_text": [
+      "\"token_hash\""
+    ]
+  }
+]

@@ -1,0 +1,40 @@
+{
+  "status": "capture_sensor_invalid_missing_preexisting_command_buffer_not_zero_real_work",
+  "legacy": {
+    "command_buffers": 1,
+    "compute_encoders": 0,
+    "dispatch_calls": 0,
+    "commands": [
+      "commandBufferWithUnretainedReferences",
+      "addCompletedHandler",
+      "commit",
+      "waitUntilCompleted"
+    ]
+  },
+  "fused": {
+    "command_buffers": 1,
+    "compute_encoders": 0,
+    "dispatch_calls": 0,
+    "commands": [
+      "newSharedEvent",
+      "newBuffer",
+      "newFence",
+      "waitUntilSignaledValue",
+      "commandBufferWithUnretainedReferences",
+      "addCompletedHandler",
+      "commit",
+      "waitUntilCompleted"
+    ]
+  },
+  "inspection": "Xcode27.1 GPU Frame Debugger via CUA; same two frozen gputrace files",
+  "cause": "Apple capture records only command buffers created after start; MLX commit creates next buffer in advance; synchronize before start leaves precapture buffer. Test must flush immediately after capture start.",
+  "sources": [
+    "https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically",
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp",
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/metal.cpp"
+  ],
+  "mlx_device_git_blob": "2f25f894e494a4328886148bb6e3332d9f9b298a",
+  "mlx_metal_git_blob": "e95b6f0b9e6e6ee6763f7e907129df7c17b1f8bb",
+  "numeric_outputs": "passed25600values102400bytes",
+  "dispatch_reduction": "not measured; do not infer zero actual kernels"
+}

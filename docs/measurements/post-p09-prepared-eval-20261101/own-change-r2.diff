@@ -1,0 +1,504 @@
+--- before/build.rs
++++ after/build.rs
+@@ -125,7 +125,9 @@
+         ])
+         .arg(&object)
+         .arg("-I")
+-        .arg(root.join("include")));
++        .arg(root.join("include"))
++        .arg("-I")
++        .arg(root.join("include/metal_cpp")));
+     run(Command::new("/usr/bin/ar")
+         .arg("crs")
+         .arg(&archive)
+@@ -138,6 +140,8 @@
+     println!("cargo:rustc-link-lib=static=mlxl3_mlx_bridge");
+     println!("cargo:rustc-link-lib=dylib=mlx");
+     println!("cargo:rustc-link-lib=dylib=c++");
++    println!("cargo:rustc-link-lib=framework=Metal");
++    println!("cargo:rustc-link-lib=framework=Foundation");
+     println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
+     println!(
+         "cargo:rustc-link-arg=-Wl,-rpath,{}",
+--- before/native/ffi/mlx_bridge.cpp
++++ after/native/ffi/mlx_bridge.cpp
+@@ -1,4 +1,6 @@
+ // Thin, exception-contained C ABI over the same MLX backend as the reference.
++#define NS_PRIVATE_IMPLEMENTATION
++#define MTL_PRIVATE_IMPLEMENTATION
+ #include <algorithm>
+ #include <array>
+ #include <atomic>
+@@ -35,6 +37,7 @@
+ #include "mlx/transforms.h"
+ #include "mlx/memory.h"
+ #include "mlx/version.h"
++#include "prepared_metal.h"
+ 
+ namespace mx = mlx::core;
+ static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_PATCH == 2,
+@@ -804,7 +807,13 @@
+       if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+     for (size_t i = 0; i < noutputs; ++i)
+       if (!output_names[i]) throw std::invalid_argument("null Metal output name");
+-    thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
++    struct Factory {
++      mx::fast::CustomKernelFunction function;
++      std::shared_ptr<mlxl3::PreparedMetalPlan> prepared;
++    };
++    thread_local const bool prepared_enabled =
++        mlxl3::prepared_metal_option(std::getenv("MLXL3_PREPARED_METAL"));
++    thread_local std::map<mlxl3::OwnedKernelKey, Factory,
+                           mlxl3::KernelKeyOrder> cache;
+     mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
+     auto found = cache.find(key);
+@@ -815,16 +824,19 @@
+                                   strings(output_names, noutputs), header, source};
+       auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                              source, header, true, false, mx::CompileOptions{});
+-      found = cache.emplace(std::move(owned), std::move(function)).first;
++      found = cache.emplace(std::move(owned), Factory{std::move(function), nullptr}).first;
+     }
+     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+     for (size_t i = 0; i < noutputs; ++i) {
+       shapes.push_back(shape(output_dims + offset, output_ranks[i])); offset += output_ranks[i];
+       types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
+     }
+-    auto result = found->second(arrays(inputs, ninputs), shapes, types,
++    auto result = found->second.function(arrays(inputs, ninputs), shapes, types,
+       {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
+     if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
++    if (prepared_enabled && std::string_view(name).starts_with("mlxl3_rs_expert_") &&
++        std::strstr(name, "_slots1") && !std::strstr(name, "_resident"))
++      mlxl3::prepare_metal(result, found->second.prepared, types, grid, threadgroup);
+     std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);
+     for (auto& value : result) owned.push_back(std::make_unique<mx::array>(std::move(value)));
+     for (size_t i = 0; i < noutputs; ++i) outputs[i] = owned[i].release();
+--- before/native/src/linear.rs
++++ after/native/src/linear.rs
+@@ -1712,6 +1712,10 @@
+ #[cfg(test)]
+ #[path = "linear/dense_epilogue_tests.rs"]
+ mod dense_epilogue_tests;
++
++#[cfg(test)]
++#[path = "linear/prepared_tests.rs"]
++mod prepared_tests;
+ 
+ #[cfg(test)]
+ mod tests {
+--- before/native/src/array.rs
++++ after/native/src/array.rs
+@@ -2480,7 +2480,7 @@
+                 "output[thread_position_in_grid.x] = input[thread_position_in_grid.x] + CACHE_SHIFT;"
+             };
+             let outputs = metal_kernel(
+-                "mlxl3_cache_collision_regression",
++                "mlxl3_rs_expert_cache_collision_slots1",
+                 &["input"],
+                 &["output"],
+                 &header,
+--- before/.github/workflows/rust.yml
++++ after/.github/workflows/rust.yml
+@@ -401,6 +401,8 @@
+           python -m pip install mlx==0.32.2
+           mlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+           export MLXL3_MLX_ROOT="$mlxl3_mlx_root"
++          # Compile the real prepared primitive test; numeric execution needs a physical GPU.
++          c++ -std=c++20 -O2 -Wall -Wextra -Werror -Wno-unused-parameter -I native/ffi -isystem "$MLXL3_MLX_ROOT/include" -isystem "$MLXL3_MLX_ROOT/include/metal_cpp" native/tests/prepared_metal.cpp -L "$MLXL3_MLX_ROOT/lib" -lmlx -Wl,-rpath,"$MLXL3_MLX_ROOT/lib" -framework Metal -framework Foundation -o build/ci/prepared-metal
+           cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
+           cargo build --locked --release --features mlx,chat
+           cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
+--- before/native/ffi/prepared_metal.h
++++ after/native/ffi/prepared_metal.h
+@@ -0,0 +1,149 @@
++// MLX 0.32.2 binding order follows Apple Inc.'s MIT-licensed custom_kernel.cpp.
++#pragma once
++
++#include "mlx/allocator.h"
++#include "mlx/backend/metal/device.h"
++#include "mlx/fast_primitives.h"
++#include <cstring>
++#include <limits>
++#include <mutex>
++#include <sstream>
++
++namespace mlxl3 {
++namespace pmx = mlx::core;
++
++inline bool prepared_metal_option(const char* value) {
++  if (!value || std::strcmp(value, "0") == 0) return false;
++  if (std::strcmp(value, "1") == 0) return true;
++  throw std::invalid_argument("MLXL3_PREPARED_METAL must be 0 or 1");
++}
++
++struct PreparedMetalPlan {
++  using Signature = std::tuple<pmx::Dtype, bool, bool>;
++  std::vector<Signature> inputs;
++  std::vector<pmx::Dtype> outputs;
++  std::vector<std::tuple<bool, bool, bool>> shape_infos;
++  pmx::Device device;
++  std::string name, library;
++  std::once_flag initialized;
++  struct ReleasePipeline {
++    void operator()(MTL::ComputePipelineState* p) const { p->release(); }
++  };
++  std::unique_ptr<MTL::ComputePipelineState, ReleasePipeline> pipeline;
++
++  PreparedMetalPlan(pmx::fast::CustomKernel& kernel,
++                    const std::vector<pmx::array>& in,
++                    const std::vector<pmx::Dtype>& out)
++      : outputs(out), device(kernel.stream().device) {
++    auto state = kernel.state();
++    if (!std::get<5>(state) || std::get<6>(state) ||
++        !std::get<7>(state).empty() || std::get<8>(state) || std::get<9>(state))
++      throw std::invalid_argument("unsupported prepared Metal state");
++    name = std::get<0>(state);
++    std::ostringstream key;
++    key << name << '_' << std::hex << std::hash<std::string>{}(std::get<1>(state))
++        << '_' << std::dec << std::get<10>(state);
++    library = key.str();
++    shape_infos = std::move(std::get<4>(state));
++    for (const auto& x : in) inputs.push_back(signature(x));
++  }
++
++  static Signature signature(const pmx::array& x) {
++    return {x.dtype(), x.ndim() == 0, x.size() < 8};
++  }
++
++  bool matches(const std::vector<pmx::array>& in,
++               const std::vector<pmx::Dtype>& out, pmx::Device d) const {
++    if (d != device || in.size() != inputs.size() || out != outputs) return false;
++    for (size_t i = 0; i < in.size(); ++i)
++      if (signature(in[i]) != inputs[i]) return false;
++    return true;
++  }
++};
++
++class PreparedMetal : public pmx::Primitive {
++ public:
++  PreparedMetal(std::shared_ptr<pmx::Primitive> original,
++                std::shared_ptr<PreparedMetalPlan> plan,
++                const int32_t* grid, const int32_t* group)
++      : Primitive(original->stream()), original_(std::move(original)),
++        plan_(std::move(plan)), grid_(grid[0], grid[1], grid[2]),
++        group_(std::min(grid[0], group[0]), std::min(grid[1], group[1]),
++               std::min(grid[2], group[2])),
++        threads_(uint64_t(group[0]) * group[1] * group[2]) {}
++
++  const char* name() const override { return "MLXL3PreparedMetal"; }
++  void eval_cpu(const std::vector<pmx::array>&, std::vector<pmx::array>&) override {
++    throw std::runtime_error("Custom kernels only run on GPU.");
++  }
++
++  void eval_gpu(const std::vector<pmx::array>& inputs,
++                std::vector<pmx::array>& outputs) override {
++    bool first = false;
++    std::call_once(plan_->initialized, [&] {
++      // Let MLX compile the exact source/options and retain its pipeline afterwards.
++      original_->eval_gpu(inputs, outputs);
++      auto& device = pmx::metal::device(stream().device);
++      auto library = device.get_library(plan_->library);
++      auto pipeline = device.get_kernel(plan_->name, library);
++      if (!pipeline) throw std::runtime_error("missing prepared Metal pipeline");
++      plan_->pipeline.reset(pipeline->retain());
++      first = true;
++    });
++    if (first) return;
++    for (const auto& in : inputs) {
++      if (!in.flags().row_contiguous) {
++        original_->eval_gpu(inputs, outputs);
++        return;
++      }
++    }
++    if (threads_ > plan_->pipeline->maxTotalThreadsPerThreadgroup())
++      throw std::invalid_argument("prepared Metal threadgroup exceeds pipeline limit");
++    for (auto& out : outputs) out.set_data(pmx::allocator::malloc(out.nbytes()));
++    auto& encoder = pmx::metal::get_command_encoder(stream());
++    encoder.set_compute_pipeline_state(plan_->pipeline.get());
++    int index = 0;
++    for (size_t i = 0; i < inputs.size(); ++i) {
++      const auto& in = inputs[i];
++      encoder.set_input_array(in, index++);
++      if (in.ndim() == 0) continue;
++      const auto& info = plan_->shape_infos[i];
++      if (std::get<0>(info)) encoder.set_vector_bytes(in.shape(), in.ndim(), index++);
++      if (std::get<1>(info)) encoder.set_vector_bytes(in.strides(), in.ndim(), index++);
++      if (std::get<2>(info)) encoder.set_bytes(in.ndim(), index++);
++    }
++    for (auto& out : outputs) encoder.set_output_array(out, index++);
++    encoder.dispatch_threads(grid_, group_);
++  }
++
++ private:
++  std::shared_ptr<pmx::Primitive> original_;
++  std::shared_ptr<PreparedMetalPlan> plan_;
++  MTL::Size grid_, group_;
++  uint64_t threads_;
++};
++
++// Called only on fresh arrays produced by the pinned MLX metal_kernel factory.
++inline void prepare_metal(std::vector<pmx::array>& outputs,
++                          std::shared_ptr<PreparedMetalPlan>& plan,
++                          const std::vector<pmx::Dtype>& types,
++                          const int32_t* grid, const int32_t* group) {
++  uint64_t threads = 1;
++  for (int i = 0; i < 3; ++i) {
++    if (grid[i] <= 0 || group[i] <= 0 ||
++        threads > std::numeric_limits<uint64_t>::max() / uint64_t(group[i]))
++      throw std::invalid_argument("invalid prepared Metal dispatch dimensions");
++    threads *= uint64_t(group[i]);
++  }
++  if (outputs.empty() || !outputs[0].has_primitive() ||
++      std::strcmp(outputs[0].primitive().name(), "CustomKernel") != 0)
++    throw std::invalid_argument("prepared Metal requires a fresh CustomKernel");
++  auto original = outputs[0].primitive_ptr();
++  auto& kernel = static_cast<pmx::fast::CustomKernel&>(*original);
++  const auto& inputs = outputs[0].inputs();
++  if (!plan || !plan->matches(inputs, types, original->stream().device))
++    plan = std::make_shared<PreparedMetalPlan>(kernel, inputs, types);
++  auto prepared = std::make_shared<PreparedMetal>(original, plan, grid, group);
++  for (auto& out : outputs) out.primitive_ptr() = prepared;
++}
++} // namespace mlxl3
+--- before/native/tests/prepared_metal.cpp
++++ after/native/tests/prepared_metal.cpp
+@@ -0,0 +1,95 @@
++#define NS_PRIVATE_IMPLEMENTATION
++#define MTL_PRIVATE_IMPLEMENTATION
++#include "prepared_metal.h"
++#include "mlx/fast.h"
++#include "mlx/ops.h"
++#include "mlx/transforms.h"
++#include <cassert>
++#include <cmath>
++#include <iostream>
++
++namespace mx = mlx::core;
++
++int main() {
++  assert(!mlxl3::prepared_metal_option(nullptr));
++  assert(!mlxl3::prepared_metal_option("0"));
++  assert(mlxl3::prepared_metal_option("1"));
++  for (const char* value : {"", "01", "true", "-1", "2", "1 "}) {
++    bool rejected = false;
++    try { mlxl3::prepared_metal_option(value); }
++    catch (const std::invalid_argument&) { rejected = true; }
++    assert(rejected);
++  }
++  const std::string source =
++      "uint i=thread_position_in_grid.x; if(i>=uint(x_shape[0]*x_shape[1])) return; "
++      "a[i]=x[i]+x_ndim+x_shape[1]+x_strides[1]; b[i]=x[i]*2;";
++  auto factory = mx::fast::metal_kernel("prepared_binding_test", {"x"}, {"a", "b"}, source);
++  std::shared_ptr<mlxl3::PreparedMetalPlan> plan;
++  std::vector<mx::array> pending;
++  std::vector<std::vector<float>> expected;
++  size_t cases = 0;
++  // Cross the constant/device boundary and keep old graphs alive across plan replacement.
++  for (int rows : {1, 2, 4, 8, 16, 32}) {
++    for (auto type : {mx::float16, mx::float32}) {
++      for (bool strided : {false, true}) {
++        for (int revision : {0, 1, 2}) {
++          std::vector<float> data(rows * 2);
++          for (int i = 0; i < rows * 2; ++i) data[i] = float(i + revision * 13) / 4;
++          auto x = mx::array(data.data(), {rows, 2});
++          if (strided) x = mx::transpose(mx::reshape(x, {2, rows}));
++          x = mx::astype(x, type);
++          const std::vector<mx::Dtype> types{type, type};
++          auto reference = factory({x}, {{rows, 2}, {rows, 2}}, types,
++                                   {rows * 2, 1, 1}, {32, 1, 1}, {}, {}, false, {});
++          auto actual = factory({x}, {{rows, 2}, {rows, 2}}, types,
++                                {rows * 2, 1, 1}, {32, 1, 1}, {}, {}, false, {});
++          int32_t grid[3]{rows * 2, 1, 1}, group[3]{32, 1, 1};
++          mlxl3::prepare_metal(actual, plan, types, grid, group);
++          assert(std::string(actual[0].primitive().name()) == "MLXL3PreparedMetal");
++          mx::eval(reference);
++          for (size_t out = 0; out < actual.size(); ++out) {
++            auto ref = mx::astype(reference[out], mx::float32);
++            ref.eval();
++            std::vector<float> oracle(ref.data<float>(), ref.data<float>() + ref.size());
++            assert(oracle.size() == data.size());
++            for (int i = 0; i < rows * 2; ++i) {
++              auto value = data[strided ? (i % 2) * rows + i / 2 : i];
++              assert(oracle[i] == (out == 0 ? value + 5 : value * 2));
++            }
++            pending.push_back(actual[out]);
++            expected.push_back(std::move(oracle));
++          }
++          ++cases;
++        }
++      }
++    }
++  }
++  // Evaluate after replacing input arrays/plans, then in reverse sibling order.
++  for (size_t i = pending.size(); i-- > 0;) {
++    auto value = mx::astype(pending[i], mx::float32);
++    value.eval();
++    assert(value.size() == expected[i].size());
++    for (size_t j = 0; j < value.size(); ++j)
++      assert(std::isfinite(value.data<float>()[j]) && value.data<float>()[j] == expected[i][j]);
++  }
++  auto scalar_factory = mx::fast::metal_kernel("prepared_scalar", {"x"}, {"y"}, "y[0]=x+3;");
++  std::shared_ptr<mlxl3::PreparedMetalPlan> scalar_plan;
++  for (float value : {1.f, 2.f, -3.f}) {
++    auto outputs = scalar_factory({mx::array(value)}, {{1}}, {mx::float32},
++                                   {1, 1, 1}, {1, 1, 1}, {}, {}, false, {});
++    int32_t grid[3]{1, 1, 1};
++    mlxl3::prepare_metal(outputs, scalar_plan, {mx::float32}, grid, grid);
++    assert(outputs[0].item<float>() == value + 3);
++  }
++  for (int dimension : {0, -1, INT32_MAX}) {
++    auto outputs = scalar_factory({mx::array(1.f)}, {{1}}, {mx::float32},
++                                   {1, 1, 1}, {1, 1, 1}, {}, {}, false, {});
++    int32_t grid[3]{1, 1, 1}, group[3]{dimension, dimension, dimension};
++    bool rejected = false;
++    try { mlxl3::prepare_metal(outputs, scalar_plan, {mx::float32}, grid, group); }
++    catch (const std::invalid_argument&) { rejected = true; }
++    assert(rejected);
++  }
++  std::cout << "PREPARED_QUALITY cases=" << cases << " outputs=" << pending.size()
++            << " scalar=3 invalid=3 exact=true\n";
++}
+--- before/native/src/linear/prepared_tests.rs
++++ after/native/src/linear/prepared_tests.rs
+@@ -0,0 +1,140 @@
++use super::*;
++use std::time::Instant;
++
++#[test]
++#[ignore = "physical Apple GPU; prepared eval component oracle then micro, run alone"]
++fn prepared_cold_chain_quality_and_micro() -> anyhow::Result<()> {
++    let prepared = std::env::var("MLXL3_PREPARED_METAL")?;
++    ensure!(prepared == "0" || prepared == "1");
++    let mut checked = 0;
++    for (input, output, projections) in [(2560usize, 640usize, 2usize), (640, 2560, 1)] {
++        let words = input / 16 * (output / 16) * 32;
++        let packed = (0..10 * projections * words)
++            .map(|i| (i as u16).wrapping_mul(1777))
++            .collect::<Vec<_>>();
++        let bank = Array::from_u16(
++            &packed,
++            &[
++                10,
++                projections as i32,
++                (input / 16) as i32,
++                (output / 16) as i32,
++                32,
++            ],
++        )?;
++        for routes_count in [1usize, 2, 4, 8, 16, 32] {
++            let routes = (0..routes_count)
++                .map(|r| (r % 10) as u32)
++                .collect::<Vec<_>>();
++            let slots = ExpertSlots::new(&routes, 10)?;
++            let rows = routes_count * projections;
++            let value = |r: usize, c: usize| ((r * 37 + c * 13) % 997) as f32 / 1024. - 0.5;
++            let values = (0..rows)
++                .flat_map(|r| (0..input).map(move |c| value(r, c)))
++                .collect::<Vec<_>>();
++            let scales = |width: usize| {
++                (0..rows * width)
++                    .map(|i| half::f16::from_f32(0.5 + (i % 11) as f32 / 32.).to_bits())
++                    .collect::<Vec<_>>()
++            };
++            let su = scales(input);
++            let sv = scales(output);
++            let suh = Array::from_f16_bits(&su, &[rows as i32, input as i32])?;
++            let svh = Array::from_f16_bits(&sv, &[rows as i32, output as i32])?;
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                let mut expected = Vec::new();
++                for row in 0..rows {
++                    let index =
++                        routes[row / projections] as usize * projections + row % projections;
++                    let mut reference = Exl3Linear::new(
++                        Array::from_u16(
++                            &packed[index * words..(index + 1) * words],
++                            &[(input / 16) as i32, (output / 16) as i32, 32],
++                        )?,
++                        Array::from_f16_bits(&su[row * input..(row + 1) * input], &[input as i32])?,
++                        Array::from_f16_bits(
++                            &sv[row * output..(row + 1) * output],
++                            &[output as i32],
++                        )?,
++                        None,
++                        2,
++                        Codebook::Mul1,
++                    )?;
++                    reference.simdgroups = 4;
++                    reference.reference_accumulation = true;
++                    let x = Array::from_f32(
++                        &values[row * input..(row + 1) * input],
++                        &[1, input as i32],
++                    )?
++                    .astype(dtype)?;
++                    expected.extend(reference.forward(&x)?.to_bytes()?);
++                }
++                for strided in [false, true] {
++                    let x = if strided {
++                        let transposed = (0..input)
++                            .flat_map(|c| (0..rows).map(move |r| value(r, c)))
++                            .collect::<Vec<_>>();
++                        Array::from_f32(&transposed, &[input as i32, rows as i32])?
++                            .astype(dtype)?
++                            .transpose(&[1, 0])?
++                    } else {
++                        Array::from_f32(&values, &[rows as i32, input as i32])?.astype(dtype)?
++                    };
++                    let make = || {
++                        expert_slots(
++                            &x,
++                            &bank,
++                            &suh,
++                            &svh,
++                            &slots,
++                            output as i32,
++                            projections as i32,
++                            2,
++                            Codebook::Mul1,
++                            false,
++                        )
++                    };
++                    let y = make()?;
++                    ensure!(y.shape() == [rows as i32, output as i32]);
++                    let floats = y.to_f32()?;
++                    ensure!(floats.len() == rows * output && floats.iter().all(|v| v.is_finite()));
++                    ensure!(
++                        y.to_bytes()? == expected,
++                        "prepared Cold differs from independent single-row projection"
++                    );
++                    checked += 1;
++                    if strided || dtype != Dtype::Float32 {
++                        continue;
++                    }
++                    for _ in 0..8 {
++                        make()?.eval()?;
++                    }
++                    for batch in 0..8 {
++                        let mut times = [0.0f64; 3];
++                        for _ in 0..32 {
++                            let t = Instant::now();
++                            let y = make()?;
++                            times[0] += t.elapsed().as_secs_f64();
++                            let t = Instant::now();
++                            y.async_eval()?;
++                            times[1] += t.elapsed().as_secs_f64();
++                            let t = Instant::now();
++                            y.eval()?;
++                            times[2] += t.elapsed().as_secs_f64();
++                            ensure!(y.to_bytes()? == expected, "micro output diverged");
++                        }
++                        eprintln!(
++                            "PREPARED_MICRO flag={prepared} input={input} output={output} routes={routes_count} rows={rows} batch={batch} calls=32 build_us={} submit_us={} wait_us={}",
++                            times[0] * 1e6 / 32.,
++                            times[1] * 1e6 / 32.,
++                            times[2] * 1e6 / 32.
++                        );
++                    }
++                }
++            }
++        }
++    }
++    ensure!(checked == 48);
++    eprintln!("PREPARED_CHAIN_QUALITY cases={checked} exact=true");
++    Ok(())
++}

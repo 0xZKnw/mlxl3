@@ -9,8 +9,8 @@ namespace mlxl3 {
 enum class DiskSchedule { Static, Dynamic };
 
 inline DiskSchedule disk_schedule(const char* value) {
-  if (!value || std::strcmp(value, "0") == 0) return DiskSchedule::Static;
-  if (std::strcmp(value, "1") == 0) return DiskSchedule::Dynamic;
+  if (!value || std::strcmp(value, "1") == 0) return DiskSchedule::Dynamic;
+  if (std::strcmp(value, "0") == 0) return DiskSchedule::Static;
   throw std::invalid_argument("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1");
 }
 
@@ -20,8 +20,8 @@ inline DiskSchedule effective_disk_schedule(DiskSchedule requested, size_t count
       ? DiskSchedule::Dynamic : DiskSchedule::Static;
 }
 
-// Only job assignment changes. Completion, errors and publication remain with
-// read_disk_records' synchronous join. Relaxed atomics allocate unique indices;
+// Only job assignment changes. Each reader owns completion, errors and publication.
+// Relaxed atomics allocate unique indices;
 // no record contents or slot leases are published through this counter.
 class DiskWorkQueue {
  public:

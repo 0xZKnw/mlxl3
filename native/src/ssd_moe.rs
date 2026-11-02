@@ -74,6 +74,11 @@ pub struct SsdMoe {
     shared_batch: bool,
     weighted_epilogue: bool,
     cold_ready: bool,
+    cold_ready_rows: i32,
+    cold_priority: bool,
+    cold_shared: bool,
+    #[cfg(test)]
+    cold_shared_submissions: usize,
     #[cfg(test)]
     pub(crate) cold_ready_waves: Vec<usize>,
     #[cfg(test)]
@@ -88,6 +93,8 @@ pub struct SsdMoe {
     cold_ready_complete_before_submit: bool,
     #[cfg(test)]
     cold_ready_prepared_rest: usize,
+    #[cfg(test)]
+    cold_priority_batches: usize,
     pub(crate) prefetch_pipeline: bool,
     #[cfg(test)]
     cohort_sizes: Vec<usize>,
@@ -175,11 +182,16 @@ impl SsdMoe {
         let cold_ready =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
                 .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
-        let cold_ready = cold_ready
-            && !crate::flash_support::parse_gpu_hot_wide(&control(
-                "MLXL3_SSD_DYNAMIC_READERS",
-                "0",
-            )?)
+        let cold_ready_rows =
+            crate::cold_ready::parse_max_rows(Some(&control("MLXL3_SSD_COLD_READY_ROWS", "2")?))
+                .context("MLXL3_SSD_COLD_READY_ROWS must be 2 or 4")?;
+        let cold_priority =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_PRIORITY", "0")?)
+                .context("MLXL3_SSD_COLD_PRIORITY must be 0 or 1")?;
+        let cold_shared =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_SHARED", "0")?)
+                .context("MLXL3_SSD_COLD_SHARED must be 0 or 1")?;
+        crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let prefetch_pipeline =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
@@ -286,6 +298,11 @@ impl SsdMoe {
             shared_batch,
             weighted_epilogue,
             cold_ready,
+            cold_ready_rows,
+            cold_priority,
+            cold_shared,
+            #[cfg(test)]
+            cold_shared_submissions: 0,
             #[cfg(test)]
             cold_ready_waves: Vec::new(),
             #[cfg(test)]
@@ -300,6 +317,8 @@ impl SsdMoe {
             cold_ready_complete_before_submit: false,
             #[cfg(test)]
             cold_ready_prepared_rest: 0,
+            #[cfg(test)]
+            cold_priority_batches: 0,
             prefetch_pipeline,
             #[cfg(test)]
             cohort_sizes: Vec::new(),
@@ -415,7 +434,21 @@ impl SsdMoe {
         routed_x: &Array,
         cold: &mut Vec<(usize, u32)>,
         consumers: &mut ColdConsumers,
+        shared: Option<(&Array, &mut Option<Array>)>,
+        route_rows: i32,
     ) -> Result<Option<ColdWaves>> {
+        ensure!(
+            (1..=self.cold_ready_rows).contains(&route_rows)
+                && routed_x.shape() == [route_rows * 10, H]
+                && cold
+                    .iter()
+                    .all(|&(index, _)| index < route_rows as usize * 10),
+            "invalid Cold wave route domain"
+        );
+        #[cfg(test)]
+        let priority_active = route_rows == 2 && self.cold_priority;
+        #[cfg(test)]
+        let cold_occurrences = cold.clone();
         #[cfg(test)]
         let diagnostic = crate::flash_profile::span("cold_ready_batch");
         #[cfg(test)]
@@ -450,6 +483,14 @@ impl SsdMoe {
         // Reservations exclude Hot; only published slots enter W1. Drop joins all readers.
         let mut batch =
             unsafe { Array::begin_read_records(&sources, &mut self.banks, &views, self.readers)? };
+        let shared = match shared {
+            Some((x, output)) => {
+                // Start disk work before building the independent resident expert.
+                *output = Some(self.shared(x)?);
+                output.as_ref()
+            }
+            None => None,
+        };
         #[cfg(test)]
         drop(prepare);
         #[cfg(test)]
@@ -493,7 +534,16 @@ impl SsdMoe {
                 #[cfg(test)]
                 let _submitting = crate::flash_profile::span("cold_ready_first_submit");
                 // W1 can overlap subsequent CPU work even when all reads have completed.
-                value.async_eval()?;
+                if let Some(shared) = shared {
+                    consumers.0.push(shared.try_clone()?);
+                    Array::async_eval_all(&[&value, shared])?;
+                    #[cfg(test)]
+                    {
+                        self.cold_shared_submissions += 1;
+                    }
+                } else {
+                    value.async_eval()?;
+                }
             }
             #[cfg(test)]
             if let Some(event) = crate::flash_profile::span("cold_ready_snapshot_after_submit") {
@@ -565,6 +615,12 @@ impl SsdMoe {
                 "ready_initial":ready.iter().filter(|&&done|done).count(),
                 "w1_rows":first_rows,"w2_rows":cold.len()-first_rows,
                 "split":first.is_some(),"io_ok":finished.is_ok(),
+                "jobs_mapping":jobs,"workers":self.readers,
+                "route_rows":route_rows,"priority":priority_active,
+                "cold_occurrences":cold_occurrences,
+                "multiplicities":crate::cold_ready::job_multiplicities(jobs, &cold_occurrences),
+                "schedule":crate::array::disk_profile_schedule(),
+                "timings_job_worker_start_end_bytes_failed":crate::array::disk_profile()?,
             }));
         }
         finished?;
@@ -1202,7 +1258,7 @@ impl SsdMoe {
         let mut filled = BTreeSet::new();
         #[cfg(test)]
         let read_start = std::time::Instant::now();
-        let jobs = cold
+        let mut jobs = cold
             .iter()
             .filter(|&&(i, _)| !routes[i].1)
             .filter_map(|&(i, slot)| filled.insert(slot).then_some((ids[i], slot as usize)))
@@ -1221,15 +1277,24 @@ impl SsdMoe {
                 .push(("demand_begin", route_start.elapsed().as_secs_f64()));
         }
         let mut consumers = ColdConsumers::default();
-        // shortcut: qualify B1/B2 without prefetch/grouped epilogues before widening.
+        let mut shared = None;
+        // Wider Cold waves are opt-in; grouped and prefetched paths retain their fallback.
         let split_cold = self.cold_ready
-            && rows <= 2
+            && (1..=self.cold_ready_rows).contains(&rows)
             && depth == 0
             && self.prefetcher.is_none()
             && !self.shared_exl3
             && !self.weighted_epilogue
             && jobs.len() > 2
             && hot_output.is_some();
+        let priority_active = split_cold && rows == 2 && self.cold_priority;
+        if priority_active {
+            crate::cold_ready::prioritize_jobs(&mut jobs, &cold);
+            #[cfg(test)]
+            {
+                self.cold_priority_batches += 1;
+            }
+        }
         let read = if split_cold {
             let hot = hot_output.as_ref().expect("Hot checked");
             let lease = match hot.try_clone() {
@@ -1240,7 +1305,14 @@ impl SsdMoe {
                 }
             };
             consumers.0.push(lease);
-            self.fill_ready(&jobs, &routed_x, &mut cold, &mut consumers)
+            self.fill_ready(
+                &jobs,
+                &routed_x,
+                &mut cold,
+                &mut consumers,
+                self.cold_shared.then_some((x, &mut shared)),
+                rows,
+            )
         } else {
             self.fill_many(&jobs).map(|()| None)
         };
@@ -1342,7 +1414,11 @@ impl SsdMoe {
         let routed = weighted.reshape(&[rows, 10, H])?.sum(1, false)?;
         #[cfg(test)]
         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
-        let output = routed.add(&self.shared(x)?)?;
+        let shared = match shared {
+            Some(value) => value,
+            None => self.shared(x)?,
+        };
+        let output = routed.add(&shared)?;
         #[cfg(test)]
         crate::flash_profile::stage("moe_add_completion", &output)?;
         self.last = Some(output.try_clone()?);

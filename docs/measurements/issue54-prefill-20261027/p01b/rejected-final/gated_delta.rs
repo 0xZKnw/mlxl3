@@ -1,0 +1,837 @@
+//! Qwen Gated DeltaNet state transition through the production MSL kernel.
+use crate::array::{self, Array, Dtype};
+use anyhow::{Context, Result, ensure};
+
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_qkv(
+    qkv: &Array,
+    conv_state: &Array,
+    conv_weight: &Array,
+    q_scale: &Array,
+    k_scale: &Array,
+    key_heads: i32,
+    value_heads: i32,
+    key_dim: i32,
+    value_dim: i32,
+    conv_length: i32,
+) -> Result<(Array, Array, Array, Array)> {
+    let [batch, time, conv_dims]: [i32; 3] = qkv
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet QKV input must have rank 3"))?;
+    let keys = key_heads
+        .checked_mul(key_dim)
+        .context("Gated DeltaNet key width overflow")?;
+    let values = value_heads
+        .checked_mul(value_dim)
+        .context("Gated DeltaNet value width overflow")?;
+    ensure!(
+        batch == 1
+            && (1..=8).contains(&time)
+            && key_heads > 0
+            && value_heads > 0
+            && key_dim == 128
+            && value_dim > 0
+            && value_dim % 8 == 0
+            && conv_length > 1
+            && conv_dims == 2 * keys + values,
+        "invalid fused Gated DeltaNet preparation dimensions"
+    );
+    ensure!(
+        qkv.dtype() == Dtype::Float16
+            && conv_state.dtype() == Dtype::Float16
+            && conv_weight.dtype() == Dtype::Float16
+            && q_scale.dtype() == Dtype::Float16
+            && k_scale.dtype() == Dtype::Float16
+            && conv_state.shape() == [1, conv_length - 1, conv_dims]
+            && conv_weight.shape() == [conv_dims, conv_length, 1]
+            && q_scale.shape().is_empty()
+            && k_scale.shape().is_empty(),
+        "invalid fused Gated DeltaNet preparation tensors"
+    );
+    let header = format!(
+        r#"
+#define TIME {time}
+#define KEY_HEADS {key_heads}
+#define VALUE_HEADS {value_heads}
+#define KEY_DIM {key_dim}
+#define VALUE_DIM {value_dim}
+#define KEYS {keys}
+#define CONV_LENGTH {conv_length}
+#define CONV_HISTORY {history}
+#define CONV_DIMS {conv_dims}
+
+inline half mlxl3_gdn_input(
+    const device half* qkv,
+    const device half* conv_state,
+    uint position,
+    uint channel
+) {{
+    if (position < uint(CONV_HISTORY)) {{
+        return conv_state[position * uint(CONV_DIMS) + channel];
+    }}
+    return qkv[(position - uint(CONV_HISTORY)) * uint(CONV_DIMS) + channel];
+}}
+
+inline half mlxl3_gdn_conv_silu(
+    const device half* qkv,
+    const device half* conv_state,
+    const device half* conv_weight,
+    uint time,
+    uint channel
+) {{
+    float acc = 0.0f;
+    for (uint index = 0u; index < uint(CONV_LENGTH); ++index) {{
+        acc += float(mlxl3_gdn_input(qkv, conv_state, time + index, channel))
+            * conv_weight[channel * uint(CONV_LENGTH) + index];
+    }}
+    half value = half(acc);
+    half tail = half(1.0h) / (half(1.0h) + metal::exp(metal::abs(value)));
+    half sigmoid = value < half(0.0h) ? tail : half(1.0h) - tail;
+    return value * sigmoid;
+}}
+"#,
+        history = conv_length - 1,
+    );
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_gdn_prepare_t{time}_kh{key_heads}_vh{value_heads}_vd{value_dim}_c{conv_length}"
+        ),
+        &["qkv", "conv_state", "conv_weight", "q_scale", "k_scale"],
+        &["q", "k", "v", "state_out"],
+        &header,
+        include_str!("../shaders/gated_delta_prepare.metal"),
+        &[qkv, conv_state, conv_weight, q_scale, k_scale],
+        &[
+            vec![1, time, key_heads, key_dim],
+            vec![1, time, key_heads, key_dim],
+            vec![1, time, value_heads, value_dim],
+            conv_state.shape().to_vec(),
+        ],
+        &[
+            Dtype::Float16,
+            Dtype::Float16,
+            Dtype::Float16,
+            Dtype::Float16,
+        ],
+        [32, key_heads.max(value_heads), time],
+        [32, 1, 1],
+    )?;
+    ensure!(
+        outputs.len() == 4,
+        "Gated DeltaNet preparation returned wrong outputs"
+    );
+    let state = outputs
+        .pop()
+        .context("missing Gated DeltaNet convolution state")?;
+    let v = outputs.pop().context("missing Gated DeltaNet V")?;
+    let k = outputs.pop().context("missing Gated DeltaNet K")?;
+    let q = outputs.pop().context("missing Gated DeltaNet Q")?;
+    Ok((q, k, v, state))
+}
+
+pub fn step(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    let [batch, time, key_heads, key_dim]: [i32; 4] = q
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet q must have rank 4"))?;
+    let [v_batch, v_time, value_heads, value_dim]: [i32; 4] = v
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet v must have rank 4"))?;
+    ensure!(
+        batch > 0 && batch == v_batch && time > 0 && v_time == time,
+        "invalid Gated DeltaNet batch/time dimensions"
+    );
+    ensure!(
+        key_dim == 128 && value_dim > 0 && value_dim % 8 == 0,
+        "packed Gated DeltaNet requires key dim 128 and value dim divisible by 8"
+    );
+    ensure!(
+        key_heads > 0 && value_heads > 0 && value_heads % key_heads == 0,
+        "invalid Gated DeltaNet head counts"
+    );
+    ensure!(k.shape() == q.shape(), "Gated DeltaNet q/k shapes differ");
+    ensure!(
+        q.dtype() == Dtype::Float16
+            && k.dtype() == Dtype::Float16
+            && v.dtype() == Dtype::Float16
+            && beta.dtype() == Dtype::Float16,
+        "native packed Gated DeltaNet expects FP16 q/k/v/beta"
+    );
+    ensure!(
+        g.shape() == [batch, time, value_heads] && g.dtype() == Dtype::Float32,
+        "Gated DeltaNet decay must be FP32 [batch,time,value_heads]"
+    );
+    ensure!(
+        beta.shape() == [batch, time, value_heads],
+        "invalid Gated DeltaNet beta shape"
+    );
+    ensure!(
+        state.shape() == [batch, value_heads, value_dim, key_dim]
+            && state.dtype() == Dtype::Float32,
+        "Gated DeltaNet state must be FP32 [batch,value_heads,value_dim,128]"
+    );
+    let header = format!(
+        "#define InT half\n#define StT float\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
+    );
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_gdn_packed_b{batch}_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}"
+        ),
+        &["q", "k", "v", "g", "beta", "state_in"],
+        &["y", "state_out"],
+        &header,
+        include_str!("../shaders/gated_delta_packed.metal"),
+        &[q, k, v, g, beta, state],
+        &[
+            vec![batch, time, value_heads, value_dim],
+            state.shape().to_vec(),
+        ],
+        &[Dtype::Float16, Dtype::Float32],
+        [
+            32,
+            value_dim / 8,
+            batch
+                .checked_mul(value_heads)
+                .context("GDN grid overflow")?,
+        ],
+        [32, 2, 1],
+    )?;
+    ensure!(
+        outputs.len() == 2,
+        "Gated DeltaNet kernel returned wrong output count"
+    );
+    let state = outputs.pop().context("missing Gated DeltaNet state")?;
+    let output = outputs.pop().context("missing Gated DeltaNet output")?;
+    Ok((output, state))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_gates(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    let (output, state, _) =
+        step_with_gates_impl(q, k, v, a, b, a_log, dt_bias, state, Retention::None)?;
+    Ok((output, state))
+}
+
+#[allow(clippy::too_many_arguments)]
+/// History contains partial-commit states (T-1 rows), or the legacy one row at T=1.
+pub fn step_with_gates_history(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, Array, Array)> {
+    let (output, state, mut extra) =
+        step_with_gates_impl(q, k, v, a, b, a_log, dt_bias, state, Retention::History)?;
+    Ok((
+        output,
+        state,
+        extra
+            .pop()
+            .context("missing fused Gated DeltaNet history")?,
+    ))
+}
+
+#[derive(Clone, Copy)]
+enum Retention {
+    None,
+    History,
+    Tape,
+}
+
+pub struct RecurrentTape {
+    initial: Array,
+    keys: Array,
+    delta: Array,
+    decay: Array,
+    time: i32,
+}
+
+impl RecurrentTape {
+    pub fn replay(&self, retained: i32) -> Result<Array> {
+        let retained = crate::contracts::gdn_tape_prefix(self.time, retained)
+            .context("invalid GDN tape commit prefix")?;
+        let value_heads = self.initial.shape()[1];
+        let value_dim = self.initial.shape()[2];
+        let key_heads = self.keys.shape()[2];
+        let header = format!(
+            "#define RETAINED {retained}\n#define Dk 128\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n"
+        );
+        let mut outputs = array::metal_kernel(
+            &format!("mlxl3_rs_gdn_replay_r{retained}_hk{key_heads}_hv{value_heads}_dv{value_dim}"),
+            &["k", "delta_tape", "decay_tape", "state_in"],
+            &["state_out"],
+            &header,
+            include_str!("../shaders/gated_delta_replay.metal"),
+            &[&self.keys, &self.delta, &self.decay, &self.initial],
+            &[self.initial.shape().to_vec()],
+            &[Dtype::Float32],
+            [32, value_dim / 8, value_heads],
+            [32, 2, 1],
+        )?;
+        outputs.pop().context("missing GDN replay state")
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn step_with_gates_tape(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+) -> Result<(Array, Array, RecurrentTape)> {
+    let (out, next, mut extra) =
+        step_with_gates_impl(q, k, v, a, b, a_log, dt_bias, state, Retention::Tape)?;
+    let decay = extra.pop().context("missing GDN decay tape")?;
+    let delta = extra.pop().context("missing GDN delta tape")?;
+    Ok((
+        out,
+        next,
+        RecurrentTape {
+            initial: state.try_clone()?,
+            keys: k.try_clone()?,
+            delta,
+            decay,
+            time: q.shape()[1],
+        },
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn step_with_gates_impl(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    a: &Array,
+    b: &Array,
+    a_log: &Array,
+    dt_bias: &Array,
+    state: &Array,
+    retention: Retention,
+) -> Result<(Array, Array, Vec<Array>)> {
+    let save_history = matches!(retention, Retention::History);
+    let save_tape = matches!(retention, Retention::Tape);
+    let [batch, time, key_heads, key_dim]: [i32; 4] = q
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet q must have rank 4"))?;
+    let [v_batch, v_time, value_heads, value_dim]: [i32; 4] = v
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Gated DeltaNet v must have rank 4"))?;
+    let history_rows = crate::contracts::gdn_history_rows(time)
+        .context("fused Gated DeltaNet gates require 1 to 8 tokens")?;
+    ensure!(
+        batch == 1 && v_batch == batch && v_time == time,
+        "fused Gated DeltaNet gates require 1 to 8 tokens"
+    );
+    ensure!(
+        key_dim == 128
+            && value_dim > 0
+            && value_dim % 8 == 0
+            && key_heads > 0
+            && value_heads > 0
+            && value_heads % key_heads == 0,
+        "invalid fused Gated DeltaNet head dimensions"
+    );
+    ensure!(
+        k.shape() == q.shape()
+            && a.shape() == [batch, time, value_heads]
+            && b.shape() == a.shape()
+            && a_log.shape() == [value_heads]
+            && dt_bias.shape() == [value_heads]
+            && state.shape() == [batch, value_heads, value_dim, key_dim],
+        "invalid fused Gated DeltaNet gate shapes"
+    );
+    ensure!(
+        q.dtype() == Dtype::Float16
+            && k.dtype() == Dtype::Float16
+            && v.dtype() == Dtype::Float16
+            && a.dtype() == Dtype::Float16
+            && b.dtype() == Dtype::Float16
+            && a_log.dtype() == Dtype::Float32
+            && dt_bias.dtype() == Dtype::Float16
+            && state.dtype() == Dtype::Float32,
+        "invalid fused Gated DeltaNet gate dtypes"
+    );
+    let header = format!(
+        "#define MLXL3_GDN_FUSED_GATES 1\n#define MLXL3_GDN_SAVE_HISTORY {}\n#define MLXL3_GDN_SAVE_TAPE {}\n#define InT half\n#define StT float\n#define B {batch}\n#define T {time}\n#define Dk {key_dim}\n#define Dv {value_dim}\n#define Hk {key_heads}\n#define Hv {value_heads}\n",
+        u8::from(save_history),
+        u8::from(save_tape),
+    );
+    let output_names: &[&str] = if save_tape {
+        &["y", "state_out", "delta_tape", "decay_tape"]
+    } else if save_history {
+        &["y", "state_out", "state_history"]
+    } else {
+        &["y", "state_out"]
+    };
+    let mut output_shapes = vec![
+        vec![batch, time, value_heads, value_dim],
+        state.shape().to_vec(),
+    ];
+    let mut output_dtypes = vec![Dtype::Float16, Dtype::Float32];
+    if save_history {
+        output_shapes.push(vec![history_rows, batch, value_heads, value_dim, key_dim]);
+        output_dtypes.push(Dtype::Float32);
+    }
+    if save_tape {
+        output_shapes.push(vec![batch, time, value_heads, value_dim]);
+        output_shapes.push(vec![batch, time, value_heads]);
+        output_dtypes.extend([Dtype::Float32, Dtype::Float32]);
+    }
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_gdn_packed_gates_h{}_tape{}_t{time}_hk{key_heads}_hv{value_heads}_dv{value_dim}",
+            u8::from(save_history),
+            u8::from(save_tape)
+        ),
+        &["q", "k", "v", "a", "b", "a_log", "dt_bias", "state_in"],
+        output_names,
+        &header,
+        include_str!("../shaders/gated_delta_packed.metal"),
+        &[q, k, v, a, b, a_log, dt_bias, state],
+        &output_shapes,
+        &output_dtypes,
+        [32, value_dim / 8, value_heads],
+        [32, 2, 1],
+    )?;
+    ensure!(
+        outputs.len() == output_names.len(),
+        "fused Gated DeltaNet gates returned wrong output count"
+    );
+    let extra = outputs.split_off(2);
+    let state = outputs
+        .pop()
+        .context("missing fused Gated DeltaNet state")?;
+    let output = outputs
+        .pop()
+        .context("missing fused Gated DeltaNet output")?;
+    Ok((output, state, extra))
+}
+
+pub fn step_vector(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    step_vector_impl(q, k, v, g, beta, state, false)
+}
+
+pub fn step_vector_with_beta(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta_raw: &Array,
+    state: &Array,
+) -> Result<(Array, Array)> {
+    ensure!(
+        q.shape().get(1) == Some(&1),
+        "fused vector beta requires one decode token"
+    );
+    step_vector_impl(q, k, v, g, beta_raw, state, true)
+}
+
+fn step_vector_impl(
+    q: &Array,
+    k: &Array,
+    v: &Array,
+    g: &Array,
+    beta: &Array,
+    state: &Array,
+    beta_is_raw: bool,
+) -> Result<(Array, Array)> {
+    let [batch, time, heads, dim]: [i32; 4] = q
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("vector Gated DeltaNet q must have rank 4"))?;
+    ensure!(
+        batch > 0
+            && time > 0
+            && heads > 0
+            && dim == 128
+            && k.shape() == q.shape()
+            && v.shape() == q.shape()
+            && g.shape() == q.shape()
+            && beta.shape() == [batch, time, heads]
+            && state.shape() == [batch, heads, dim, dim],
+        "invalid vector Gated DeltaNet dimensions"
+    );
+    ensure!(
+        q.dtype() == Dtype::Float16
+            && k.dtype() == Dtype::Float16
+            && v.dtype() == Dtype::Float16
+            && g.dtype() == Dtype::Float32
+            && beta.dtype()
+                == if beta_is_raw {
+                    Dtype::Float32
+                } else {
+                    Dtype::Float16
+                }
+            && state.dtype() == Dtype::Float32,
+        "invalid vector Gated DeltaNet dtypes"
+    );
+    let source = r#"
+        uint packed = thread_position_in_grid.z;
+        uint batch = packed / HEADS;
+        uint head = packed - batch * HEADS;
+        uint lane = thread_position_in_threadgroup.x;
+        uint value_index = thread_position_in_grid.y;
+        uint base = lane * 4u;
+        ulong state_base = (ulong(batch) * HEADS * 128u + head * 128u + value_index) * 128u;
+        float local[4];
+        for (uint i = 0u; i < 4u; ++i) {
+            local[i] = state_in[state_base + base + i];
+        }
+        for (uint t = 0u; t < TIME; ++t) {
+            ulong vector_base = ((ulong(batch) * TIME + t) * HEADS + head) * 128u;
+            float memory = 0.0f;
+            for (uint i = 0u; i < 4u; ++i) {
+                uint key_index = base + i;
+                local[i] *= g[vector_base + key_index];
+                memory += local[i] * float(k[vector_base + key_index]);
+            }
+            memory += simd_shuffle_xor(memory, 1);
+            memory += simd_shuffle_xor(memory, 2);
+            memory += simd_shuffle_xor(memory, 4);
+            memory += simd_shuffle_xor(memory, 8);
+            memory += simd_shuffle_xor(memory, 16);
+#if MLXL3_GDN_VECTOR_FUSED_BETA
+            float beta_value = beta_raw[(ulong(batch) * TIME + t) * HEADS + head];
+            float beta_tail = 1.0f / (1.0f + metal::exp(metal::abs(beta_value)));
+            half beta_t = half(beta_value < 0.0f ? beta_tail : 1.0f - beta_tail);
+#else
+            half beta_t = beta[(ulong(batch) * TIME + t) * HEADS + head];
+#endif
+            float delta = (float(v[vector_base + value_index]) - memory)
+                * float(beta_t);
+            float output = 0.0f;
+            for (uint i = 0u; i < 4u; ++i) {
+                uint key_index = base + i;
+                local[i] += float(k[vector_base + key_index]) * delta;
+                output += local[i] * float(q[vector_base + key_index]);
+            }
+            output += simd_shuffle_xor(output, 1);
+            output += simd_shuffle_xor(output, 2);
+            output += simd_shuffle_xor(output, 4);
+            output += simd_shuffle_xor(output, 8);
+            output += simd_shuffle_xor(output, 16);
+            if (lane == 0u) y[vector_base + value_index] = half(output);
+        }
+        for (uint i = 0u; i < 4u; ++i) {
+            state_out[state_base + base + i] = local[i];
+        }
+    "#;
+    let fused_header = if beta_is_raw {
+        "#define MLXL3_GDN_VECTOR_FUSED_BETA 1\n"
+    } else {
+        ""
+    };
+    let beta_name = if beta_is_raw { "beta_raw" } else { "beta" };
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_rs_gdn_vector{}_b{batch}_t{time}_h{heads}_d{dim}_v2",
+            if beta_is_raw { "_raw_beta" } else { "" }
+        ),
+        &["q", "k", "v", "g", beta_name, "state_in"],
+        &["y", "state_out"],
+        &format!("{fused_header}#define TIME {time}u\n#define HEADS {heads}u\n"),
+        source,
+        &[q, k, v, g, beta, state],
+        &[q.shape().to_vec(), state.shape().to_vec()],
+        &[Dtype::Float16, Dtype::Float32],
+        [
+            32,
+            dim,
+            batch.checked_mul(heads).context("GDN grid overflow")?,
+        ],
+        [32, 4, 1],
+    )?;
+    let state = outputs
+        .pop()
+        .context("missing vector Gated DeltaNet state")?;
+    let output = outputs
+        .pop()
+        .context("missing vector Gated DeltaNet output")?;
+    Ok((output, state))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn tape_replay_matches_every_serial_prefix() -> Result<()> {
+        let half_array = |shape: &[i32], seed: usize| -> Result<Array> {
+            let len = shape.iter().map(|&d| d as usize).product::<usize>();
+            let bits = (0..len)
+                .map(|i| half::f16::from_f32(((i * 7 + seed) % 31) as f32 / 64.0 - 0.25).to_bits())
+                .collect::<Vec<_>>();
+            Array::from_f16_bits(&bits, shape)
+        };
+        for (kh, hv, dv) in [(2, 4, 16), (16, 32, 128), (16, 48, 128)] {
+            let a_log = Array::from_f32(
+                &(0..hv).map(|i| -4.0 + i as f32 / 32.).collect::<Vec<_>>(),
+                &[hv],
+            )?;
+            let bias = half_array(&[hv], 5)?;
+            let initial = Array::from_f32(
+                &(0..hv * dv * 128)
+                    .map(|i| (i % 23) as f32 / 128. - 0.125)
+                    .collect::<Vec<_>>(),
+                &[1, hv, dv, 128],
+            )?;
+            for time in 0..=9 {
+                let q = half_array(&[1, time, kh, 128], 1)?;
+                let k = half_array(&[1, time, kh, 128], 3)?;
+                let v = half_array(&[1, time, hv, dv], 9)?;
+                let a = half_array(&[1, time, hv], 11)?;
+                let b = half_array(&[1, time, hv], 17)?;
+                let actual = step_with_gates_tape(&q, &k, &v, &a, &b, &a_log, &bias, &initial);
+                if time == 0 || time == 9 {
+                    assert!(actual.is_err());
+                    continue;
+                }
+                let (out, final_state, tape) = actual?;
+                let (without_tape, state_without_tape) =
+                    step_with_gates(&q, &k, &v, &a, &b, &a_log, &bias, &initial)?;
+                assert_eq!(
+                    without_tape.to_bytes()?,
+                    out.to_bytes()?,
+                    "commit-total output T={time}"
+                );
+                assert_eq!(
+                    state_without_tape.to_bytes()?,
+                    final_state.to_bytes()?,
+                    "commit-total state T={time}"
+                );
+                assert_eq!(tape.delta.shape(), [1, time, hv, dv]);
+                assert_eq!(tape.decay.shape(), [1, time, hv]);
+                let mut state = initial.try_clone()?;
+                let mut rows = Vec::new();
+                for row in 0..time {
+                    let (expected, next) = step_with_gates(
+                        &q.slice(1, row, row + 1)?,
+                        &k.slice(1, row, row + 1)?,
+                        &v.slice(1, row, row + 1)?,
+                        &a.slice(1, row, row + 1)?,
+                        &b.slice(1, row, row + 1)?,
+                        &a_log,
+                        &bias,
+                        &state,
+                    )?;
+                    state = next;
+                    rows.push(expected);
+                    assert_eq!(
+                        tape.replay(row + 1)?.to_bytes()?,
+                        state.to_bytes()?,
+                        "replay hv={hv} T={time} retained={}",
+                        row + 1
+                    );
+                }
+                assert_eq!(
+                    out.to_bytes()?,
+                    Array::concatenate(&rows.iter().collect::<Vec<_>>(), 1)?.to_bytes()?,
+                    "output hv={hv} T={time}"
+                );
+                assert_eq!(
+                    final_state.to_bytes()?,
+                    state.to_bytes()?,
+                    "final state hv={hv} T={time}"
+                );
+                for retained in [i32::MIN, 0, time + 1, i32::MAX] {
+                    assert!(tape.replay(retained).is_err());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn compact_gate_history_matches_every_serial_prefix() -> Result<()> {
+        let half_array = |shape: &[i32], seed: usize| -> Result<Array> {
+            let count = shape.iter().product::<i32>() as usize;
+            let bits: Vec<_> = (0..count)
+                .map(|i| half::f16::from_f32(((i * 7 + seed) % 31) as f32 / 64.0 - 0.25).to_bits())
+                .collect();
+            Array::from_f16_bits(&bits, shape)
+        };
+        let a_log = Array::from_f32(&[-4.0, -3.0, -2.0, -1.0], &[4])?;
+        let bias = half_array(&[4], 5)?;
+        let initial = Array::from_f32(
+            &(0..4 * 16 * 128)
+                .map(|i| (i % 23) as f32 / 128.0 - 0.125)
+                .collect::<Vec<_>>(),
+            &[1, 4, 16, 128],
+        )?;
+        for time in 0..=9 {
+            let q = half_array(&[1, time, 2, 128], 1)?;
+            let k = half_array(&[1, time, 2, 128], 3)?;
+            let v = half_array(&[1, time, 4, 16], 9)?;
+            let a = half_array(&[1, time, 4], 11)?;
+            let b = half_array(&[1, time, 4], 17)?;
+            let result = step_with_gates_history(&q, &k, &v, &a, &b, &a_log, &bias, &initial);
+            if time == 0 || time == 9 {
+                assert!(result.is_err(), "invalid history length {time}");
+                continue;
+            }
+            let (actual, final_state, history) = result?;
+            let expected_rows = if time == 1 { 1 } else { time - 1 };
+            assert_eq!(history.shape(), [expected_rows, 1, 4, 16, 128]);
+            let mut state = initial.clone();
+            let mut expected_outputs = Vec::new();
+            for row in 0..time {
+                let (output, next) = step_with_gates(
+                    &q.slice(1, row, row + 1)?,
+                    &k.slice(1, row, row + 1)?,
+                    &v.slice(1, row, row + 1)?,
+                    &a.slice(1, row, row + 1)?,
+                    &b.slice(1, row, row + 1)?,
+                    &a_log,
+                    &bias,
+                    &state,
+                )?;
+                expected_outputs.push(output);
+                state = next;
+                if row < expected_rows {
+                    assert_eq!(
+                        history.slice(0, row, row + 1)?.to_bytes()?,
+                        state.to_bytes()?,
+                        "history T={time}, row={row}"
+                    );
+                }
+            }
+            assert_eq!(final_state.to_bytes()?, state.to_bytes()?, "state T={time}");
+            assert_eq!(
+                actual.to_bytes()?,
+                Array::concatenate(&expected_outputs.iter().collect::<Vec<_>>(), 1)?.to_bytes()?,
+                "output T={time}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn packed_step_with_gates_matches_graph() -> Result<()> {
+        let mut qkv = vec![0u16; 128];
+        qkv[0] = half::f16::ONE.to_bits();
+        let q = Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?;
+        let values = Array::from_f16_bits(&[half::f16::ONE.to_bits(); 8], &[1, 1, 1, 8])?;
+        let a = Array::from_f16_bits(&[half::f16::from_f32(-0.75).to_bits()], &[1, 1, 1])?;
+        let b = Array::from_f16_bits(&[half::f16::from_f32(0.625).to_bits()], &[1, 1, 1])?;
+        let a_log = Array::from_f32(&[-4.25], &[1])?;
+        let dt_bias = Array::from_f16_bits(&[half::f16::from_f32(0.125).to_bits()], &[1])?;
+        let state = Array::zeros_dtype(&[1, 1, 8, 128], Dtype::Float32)?;
+        let zero = Array::from_f16_bits(&[0], &[])?;
+        let beta = b.sigmoid()?;
+        let softplus = a.add(&dt_bias)?.logaddexp(&zero)?;
+        let decay = a_log.exp()?.mul(&softplus)?.negative()?.exp()?;
+        let (expected, expected_state) = step(&q, &q, &values, &decay, &beta, &state)?;
+        let (actual, actual_state) =
+            step_with_gates(&q, &q, &values, &a, &b, &a_log, &dt_bias, &state)?;
+        assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
+        assert_eq!(actual_state.to_f32()?, expected_state.to_f32()?);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn vector_step_with_beta_matches_graph() -> Result<()> {
+        let mut qkv = vec![0u16; 128];
+        qkv[0] = half::f16::ONE.to_bits();
+        let q = Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?;
+        let g = Array::from_f32(&[1.0; 128], &[1, 1, 1, 128])?;
+        let beta_raw = Array::from_f32(&[0.625], &[1, 1, 1])?;
+        let beta = beta_raw.sigmoid()?.astype(Dtype::Float16)?;
+        let state = Array::from_f32(&[0.25; 128 * 128], &[1, 1, 128, 128])?;
+        let (expected, expected_state) = step_vector(&q, &q, &q, &g, &beta, &state)?;
+        let (actual, actual_state) = step_vector_with_beta(&q, &q, &q, &g, &beta_raw, &state)?;
+        assert_eq!(actual.to_f16_bits()?, expected.to_f16_bits()?);
+        assert_eq!(actual_state.to_f32()?, expected_state.to_f32()?);
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn vector_step_matches_one_hot_update() -> Result<()> {
+        let mut qkv = vec![0u16; 128];
+        qkv[0] = half::f16::ONE.to_bits();
+        let ones = vec![half::f16::ONE.to_bits(); 128];
+        let (output, state) = step_vector(
+            &Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?,
+            &Array::from_f16_bits(&qkv, &[1, 1, 1, 128])?,
+            &Array::from_f16_bits(&ones, &[1, 1, 1, 128])?,
+            &Array::from_f32(&vec![1.; 128], &[1, 1, 1, 128])?,
+            &Array::from_f16_bits(&[half::f16::ONE.to_bits()], &[1, 1, 1])?,
+            &Array::zeros_dtype(&[1, 1, 128, 128], Dtype::Float32)?,
+        )?;
+        assert!(output.to_f32()?.iter().all(|&value| value == 1.));
+        let state = state.to_f32()?;
+        assert!((0..128).all(|row| state[row * 128] == 1.));
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Apple GPU"]
+    fn vector_batch_matches_serial_steps() -> Result<()> {
+        let mut qkv = vec![0u16; 256];
+        qkv[0] = half::f16::ONE.to_bits();
+        qkv[128] = half::f16::ONE.to_bits();
+        let qkv = Array::from_f16_bits(&qkv, &[1, 2, 1, 128])?;
+        let values = Array::from_f16_bits(&vec![half::f16::ONE.to_bits(); 256], &[1, 2, 1, 128])?;
+        let decay = Array::from_f32(&[vec![0.8; 128], vec![0.9; 128]].concat(), &[1, 2, 1, 128])?;
+        let beta = Array::from_f16_bits(&[half::f16::ONE.to_bits(); 2], &[1, 2, 1])?;
+        let initial = Array::zeros_dtype(&[1, 1, 128, 128], Dtype::Float32)?;
+        let (batched, batched_state) = step_vector(&qkv, &qkv, &values, &decay, &beta, &initial)?;
+        let mut state = initial;
+        let mut serial = Vec::new();
+        for time in 0..2 {
+            let (output, next) = step_vector(
+                &qkv.slice(1, time, time + 1)?,
+                &qkv.slice(1, time, time + 1)?,
+                &values.slice(1, time, time + 1)?,
+                &decay.slice(1, time, time + 1)?,
+                &beta.slice(1, time, time + 1)?,
+                &state,
+            )?;
+            serial.push(output);
+            state = next;
+        }
+        let serial = Array::concatenate(&serial.iter().collect::<Vec<_>>(), 1)?;
+        assert_eq!(batched.to_f16_bits()?, serial.to_f16_bits()?);
+        assert_eq!(batched_state.to_f32()?, state.to_f32()?);
+        Ok(())
+    }
+}
