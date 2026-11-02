@@ -1,15 +1,27 @@
 import SwiftUI
 
 enum StudioTheme {
-    static let canvas = Color(red: 0.070, green: 0.072, blue: 0.072)
-    static let sidebar = Color(red: 0.046, green: 0.048, blue: 0.049)
-    static let panel = Color.white.opacity(0.035)
-    static let edge = Color.white.opacity(0.085)
-    static let ink = Color(red: 0.91, green: 0.90, blue: 0.87)
-    static let quiet = Color.white.opacity(0.48)
-    static let secondary = Color.white.opacity(0.68)
-    static let accent = Color(red: 0.84, green: 0.87, blue: 0.86)
-    static let thinking = Color.white.opacity(0.68)
+    static func adaptiveColor(light: NSColor, dark: NSColor) -> NSColor {
+        NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+        }
+    }
+    private static func adaptive(light: Double, dark: Double) -> Color {
+        Color(nsColor: adaptiveColor(light: NSColor(white: light, alpha: 1),
+                                     dark: NSColor(white: dark, alpha: 1)))
+    }
+    static let canvas = adaptive(light: 0.97, dark: 0.071)
+    static let sidebar = adaptive(light: 0.93, dark: 0.047)
+    static let composer = adaptive(light: 1, dark: 0.107)
+    static let contrast = adaptive(light: 0, dark: 1)
+    static let onAccent = adaptive(light: 1, dark: 0)
+    static let panel = contrast.opacity(0.035)
+    static let edge = contrast.opacity(0.085)
+    static let ink = adaptive(light: 0.10, dark: 0.91)
+    static let quiet = contrast.opacity(0.58)
+    static let secondary = contrast.opacity(0.72)
+    static let accent = adaptive(light: 0.18, dark: 0.86)
+    static let thinking = secondary
 }
 
 /// A single, restrained interaction surface for navigation and toolbars.
@@ -30,7 +42,7 @@ struct StudioControlStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .foregroundStyle(emphasized ? StudioTheme.ink : StudioTheme.secondary)
-                .background(Color.white.opacity(configuration.isPressed ? 0.11 : (hovered ? 0.075 : (emphasized ? 0.055 : 0))),
+                .background(StudioTheme.contrast.opacity(configuration.isPressed ? 0.11 : (hovered ? 0.075 : (emphasized ? 0.055 : 0))),
                             in: RoundedRectangle(cornerRadius: 6))
                 .contentShape(RoundedRectangle(cornerRadius: 6))
                 .opacity(enabled ? 1 : 0.32)
@@ -74,9 +86,9 @@ struct PremiumGlass: ViewModifier {
                     .stroke(
                         LinearGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.14), location: 0),
-                                .init(color: Color.white.opacity(0.055), location: 0.42),
-                                .init(color: Color.white.opacity(0.10), location: 1),
+                                .init(color: StudioTheme.contrast.opacity(0.14), location: 0),
+                                .init(color: StudioTheme.contrast.opacity(0.055), location: 0.42),
+                                .init(color: StudioTheme.contrast.opacity(0.10), location: 1),
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -90,7 +102,7 @@ struct PremiumGlass: ViewModifier {
 }
 
 extension View {
-    func premiumGlass(radius: CGFloat = 18, tint: Color = Color.white.opacity(0.045)) -> some View {
+    func premiumGlass(radius: CGFloat = 18, tint: Color = StudioTheme.contrast.opacity(0.045)) -> some View {
         modifier(PremiumGlass(radius: radius, tint: tint))
     }
 }
@@ -103,7 +115,7 @@ struct RoundGlassButtonStyle: ButtonStyle {
     @ViewBuilder func makeBody(configuration: Configuration) -> some View {
         if bright {
             configuration.label
-                .foregroundStyle(Color.black.opacity(0.9))
+                .foregroundStyle(StudioTheme.onAccent.opacity(0.9))
                 .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
                             in: RoundedRectangle(cornerRadius: 8))
                 .glassEffect(.clear.interactive(isEnabled), in: RoundedRectangle(cornerRadius: 8))
@@ -125,7 +137,7 @@ struct PrimaryGlassButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color.black.opacity(0.88))
+            .foregroundStyle(StudioTheme.onAccent.opacity(0.88))
             .background(StudioTheme.ink.opacity(configuration.isPressed ? 0.7 : 1),
                         in: RoundedRectangle(cornerRadius: 7))
             .opacity(isEnabled ? 1 : 0.35)

@@ -211,7 +211,7 @@ private struct ConversationRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
-        .background(Color.white.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
+        .background(StudioTheme.contrast.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
                     in: RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .onHover { hovered = $0 }

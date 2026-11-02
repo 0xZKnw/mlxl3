@@ -44,7 +44,7 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(studio.theme.colorScheme)
                 .onAppear {
                     if !isPreview {
                         studio.start()

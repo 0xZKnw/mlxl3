@@ -44,9 +44,9 @@ struct MTPTuningControls: View {
                                     .foregroundStyle(row.score == nil ? StudioTheme.quiet : StudioTheme.ink)
                             }
                             GeometryReader { geometry in
-                                Capsule().fill(Color.white.opacity(0.05))
+                                Capsule().fill(StudioTheme.contrast.opacity(0.05))
                                     .overlay(alignment: .leading) {
-                                        Capsule().fill(row.depth == winner ? StudioTheme.accent : Color.white.opacity(0.22))
+                                        Capsule().fill(row.depth == winner ? StudioTheme.accent : StudioTheme.contrast.opacity(0.22))
                                             .frame(width: geometry.size.width * max(0, min(1, row.decodeTPS / max(1, maxTPS))))
                                     }
                             }.frame(height: 3)
@@ -59,7 +59,7 @@ struct MTPTuningControls: View {
                         }
                     }
                 }
-                .padding(12).background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
+                .padding(12).background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 10))
                 Text(L("Réglage enregistré : ", "Saved setting: ") + (studio.mtpEnabled ? "MTP\(studio.mtpDepth)" : "Baseline"))
                     .font(.system(size: 10, weight: .medium)).foregroundStyle(StudioTheme.accent)
             }

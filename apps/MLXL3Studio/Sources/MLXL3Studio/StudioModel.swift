@@ -86,6 +86,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var modelContextLimit: Int?
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
+    @Published private(set) var theme: AppTheme = .dark
+    @Published private(set) var loadModelOnStartup = true
     @Published private(set) var language: AppLanguage = .fr
     @Published private(set) var modelIdleUnloadDelay = ModelIdleUnloadDelay.defaultValue
     @Published private(set) var memorySaverEnabled = false
@@ -130,6 +132,8 @@ final class StudioModel: ObservableObject {
         self.isPreview = isPreview
         self.preferences = preferences
         self.idleUnloadNow = idleUnloadNow
+        self.theme = AppTheme.load(from: preferences)
+        self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
@@ -226,6 +230,16 @@ final class StudioModel: ObservableObject {
     var savedContextLength: Int {
         guard let name = selectedModelName else { return 0 }
         return (preferences.dictionary(forKey: "studio.contextLengths")?[name] as? Int) ?? 0
+    }
+
+    func setTheme(_ value: AppTheme) {
+        theme = value
+        preferences.set(value.rawValue, forKey: AppTheme.preferenceKey)
+    }
+
+    func setLoadModelOnStartup(_ value: Bool) {
+        loadModelOnStartup = value
+        preferences.set(value, forKey: StartupModelPreference.key)
     }
 
     func setLanguage(_ value: AppLanguage) {
@@ -422,10 +436,10 @@ final class StudioModel: ObservableObject {
         guard !didStart else { return }
         didStart = true
         updateManager.startAutomaticCheck()
-        refreshModels()
+        refreshModels(autoLoad: loadModelOnStartup, isStartup: true)
     }
 
-    func refreshModels(autoLoad: Bool = true) {
+    func refreshModels(autoLoad: Bool = true, isStartup: Bool = false) {
         guard !isPreview else { return }
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
@@ -442,7 +456,9 @@ final class StudioModel: ObservableObject {
                     self.ejectModel()
                     self.selectedModelName = models[0].name
                 }
-                if autoLoad && !self.isGenerating { self.loadSelectedModel() }
+                if autoLoad && (!isStartup || self.loadModelOnStartup) && !self.isGenerating {
+                    self.loadSelectedModel()
+                }
             case let .failure(error):
                 self.engineState = .failed(error.localizedDescription)
             }

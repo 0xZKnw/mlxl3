@@ -51,7 +51,9 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'list':
-    print('[]', flush=True)
+    if os.environ.get('MLXL3_FIXTURE_LIST_DELAY') == '1':
+        time.sleep(0.2)
+    print(os.environ.get('MLXL3_FIXTURE_MODELS', '[]'), flush=True)
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':

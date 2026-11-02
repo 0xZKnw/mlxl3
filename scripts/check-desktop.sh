@@ -47,6 +47,15 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
 "${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
 
+# Appearance persistence, startup gate and actual subprocess lifecycle.
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/desktop-preferences-check.swift > "${test_dir}/DesktopPreferencesCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/DesktopPreferencesCombined.swift" -o "${test_dir}/preferences-check"
+"${test_dir}/preferences-check" "$PWD/tests/fake-desktop-engine.py"
+
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \

@@ -28,11 +28,34 @@ struct AppSettingsView: View {
             .padding(.bottom, 20)
 
             Rectangle()
-                .fill(Color.white.opacity(0.075))
+                .fill(StudioTheme.contrast.opacity(0.075))
                 .frame(height: 1)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    Label(L("Apparence", "Appearance"), systemImage: "paintpalette")
+                        .font(.system(size: 13, weight: .semibold))
+                    Picker(L("Thème", "Theme"), selection: Binding(
+                        get: { studio.theme }, set: { studio.setTheme($0) }
+                    )) {
+                        ForEach(AppTheme.allCases, id: \.self) { theme in
+                            Text(theme.title).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel(L("Thème de l’interface", "Interface theme"))
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Charger le modèle au démarrage", "Load model on startup"), isOn: Binding(
+                            get: { studio.loadModelOnStartup },
+                            set: { studio.setLoadModelOnStartup($0) }
+                        ))
+                        Text(L("À l’ouverture de MLXL3, charge le dernier modèle sélectionné, ou le premier disponible. Sinon, sélectionne un modèle pour le charger. Le changement s’applique au prochain démarrage.", "When MLXL3 opens, loads the last selected model, or the first available one. Otherwise, select a model to load it. Changes apply on the next launch."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
                     Label(L("Langue de l’app", "App language"), systemImage: "globe")
                         .font(.system(size: 13, weight: .semibold))
                     Picker(L("Langue de l’app", "App language"), selection: Binding(
@@ -111,10 +134,10 @@ struct AppSettingsView: View {
                             .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(16)
-                    .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+                    .background(StudioTheme.contrast.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                            .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
                     }
                     Divider()
                     UpdateSettingsCard(
@@ -148,7 +171,7 @@ struct AppSettingsView: View {
         .id(studio.language)
         .frame(width: 650, height: 560)
         .background(StudioTheme.canvas)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(studio.theme.colorScheme)
     }
 
     private func dataFlowRow(_ title: String, _ detail: String, _ icon: String) -> some View {
@@ -195,7 +218,7 @@ private struct UpdateSettingsCard: View {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
+                        .fill(StudioTheme.contrast.opacity(0.07))
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(StudioTheme.accent)
@@ -229,7 +252,7 @@ private struct UpdateSettingsCard: View {
             .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                    .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
             }
 
             HStack(spacing: 10) {

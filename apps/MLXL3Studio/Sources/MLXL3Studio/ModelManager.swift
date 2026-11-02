@@ -60,7 +60,7 @@ struct ModelManagerView: View {
         Button(action: action) {
             Label(title, systemImage: icon).font(.system(size: 12, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading).padding(11)
-                .background(active ? Color.white.opacity(0.065) : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .background(active ? StudioTheme.contrast.opacity(0.065) : .clear, in: RoundedRectangle(cornerRadius: 7))
         }.buttonStyle(StudioControlStyle())
     }
 
