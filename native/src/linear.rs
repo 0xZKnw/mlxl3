@@ -261,6 +261,17 @@ impl Exl3Linear {
         } else {
             false
         };
+        let reference_mb34_roles = if checkpoint.model_type == "qwen4_exp" {
+            let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34_ROLES") {
+                Ok(value) => Some(value),
+                Err(std::env::VarError::NotPresent) => None,
+                Err(error) => return Err(error.into()),
+            };
+            crate::contracts::flash_reference_mb34_roles(setting.as_deref())
+                .context("MLXL3_FLASH_REFERENCE_MB34_ROLES must be qkv, z, out or all")?
+        } else {
+            crate::contracts::FlashReferenceMb34Roles::Qkv
+        };
         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
         let dec_one = if checkpoint.model_type == "qwen4_exp" {
             let setting = match std::env::var("MLXL3_FLASH_DEC_ONE") {
@@ -320,7 +331,16 @@ impl Exl3Linear {
             linear.lane_indices = None;
             linear.flash_batch = crate::flash_support::multi_token_verifier()?;
             linear.reference_mb34 = reference_mb34
-                && crate::contracts::flash_reference_mb34_scope(prefix, linear.rows, linear.cols);
+                && if reference_mb34_roles == crate::contracts::FlashReferenceMb34Roles::Qkv {
+                    crate::contracts::flash_reference_mb34_scope(prefix, linear.rows, linear.cols)
+                } else {
+                    crate::contracts::flash_reference_mb34_role_scope(
+                        prefix,
+                        linear.rows,
+                        linear.cols,
+                        reference_mb34_roles,
+                    )
+                };
             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
             if linear.mtp_hidden_batch {
                 ensure!(
@@ -706,8 +726,7 @@ impl Exl3Linear {
                 matrix_rows,
                 self.reference_mb34
                     && self.simdgroups == 4
-                    && self.rows == 2560
-                    && self.cols == 10240,
+                    && crate::contracts::flash_reference_mb34_shape(self.rows, self.cols),
             )
             .context("unsupported Flash reference batch")?
         } else {

@@ -630,7 +630,7 @@ pub(crate) fn flash_reference_batch_layout(rows: i32) -> Option<(i32, i32)> {
     Some((2, (rows + 1) / 2))
 }
 
-/// Opt-in qkv geometry: each decoded tile serves all three/four verified rows.
+/// Opt-in reference geometry: each decoded tile serves all three/four verified rows.
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn flash_reference_mb34_layout(rows: i32, enabled: bool) -> Option<(i32, i32)> {
     if enabled && matches!(rows, 3 | 4) {
@@ -642,12 +642,51 @@ pub(crate) fn flash_reference_mb34_layout(rows: i32, enabled: bool) -> Option<(i
 
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn flash_reference_mb34_scope(prefix: &str, input: i32, output: i32) -> bool {
-    if input != 2560 || output != 10240 {
-        return false;
+    flash_reference_mb34_role_scope(prefix, input, output, FlashReferenceMb34Roles::Qkv)
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FlashReferenceMb34Roles {
+    Qkv,
+    Z,
+    Out,
+    All,
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn flash_reference_mb34_roles(value: Option<&str>) -> Option<FlashReferenceMb34Roles> {
+    match value {
+        None | Some("qkv") => Some(FlashReferenceMb34Roles::Qkv),
+        Some("z") => Some(FlashReferenceMb34Roles::Z),
+        Some("out") => Some(FlashReferenceMb34Roles::Out),
+        Some("all") => Some(FlashReferenceMb34Roles::All),
+        _ => None,
     }
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn flash_reference_mb34_shape(input: i32, output: i32) -> bool {
+    matches!((input, output), (2560, 10240) | (2560, 6144) | (6144, 2560))
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn flash_reference_mb34_role_scope(
+    prefix: &str,
+    input: i32,
+    output: i32,
+    roles: FlashReferenceMb34Roles,
+) -> bool {
+    use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
+    let suffix = match (roles, input, output) {
+        (Qkv | All, 2560, 10240) => ".linear_attn.in_proj_qkv",
+        (Z | All, 2560, 6144) => ".linear_attn.in_proj_z",
+        (Out | All, 6144, 2560) => ".linear_attn.out_proj",
+        _ => return false,
+    };
     let Some(layer) = prefix
         .strip_prefix("model.language_model.layers.")
-        .and_then(|name| name.strip_suffix(".linear_attn.in_proj_qkv"))
+        .and_then(|name| name.strip_suffix(suffix))
     else {
         return false;
     };
@@ -703,6 +742,151 @@ fn flash_reference_mb34_scope_is_only_target_gdn_qkv() {
     ] {
         assert!(!flash_reference_mb34_scope(prefix, 2560, 10240));
     }
+}
+
+#[test]
+fn flash_reference_mb34_role_parser_and_scopes_are_strict() {
+    use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
+    assert_eq!(flash_reference_mb34_roles(None), Some(Qkv));
+    for (value, role) in [("qkv", Qkv), ("z", Z), ("out", Out), ("all", All)] {
+        assert_eq!(flash_reference_mb34_roles(Some(value)), Some(role));
+    }
+    for value in ["", "0", "1", "QKV", " qkv", "qkv ", "qkv,z", "out\0", "é"] {
+        assert_eq!(flash_reference_mb34_roles(Some(value)), None);
+    }
+    let cases = [
+        (Qkv, "in_proj_qkv", 2560, 10240),
+        (Z, "in_proj_z", 2560, 6144),
+        (Out, "out_proj", 6144, 2560),
+    ];
+    for layer in 0..48 {
+        for (role, suffix, input, output) in cases {
+            let prefix = format!("model.language_model.layers.{layer}.linear_attn.{suffix}");
+            assert!(flash_reference_mb34_shape(input, output));
+            for selected in [Qkv, Z, Out, All] {
+                assert_eq!(
+                    flash_reference_mb34_role_scope(&prefix, input, output, selected),
+                    selected == role || selected == All,
+                );
+            }
+            assert!(!flash_reference_mb34_role_scope(
+                &prefix, output, input, role
+            ));
+            assert!(!flash_reference_mb34_role_scope(
+                &format!("{prefix}.extra"),
+                input,
+                output,
+                All
+            ));
+        }
+    }
+    for prefix in [
+        "mtp.layers.0.linear_attn.in_proj_z",
+        "mtp.layers.0.self_attn.o_proj",
+        "model.language_model.layers.0.self_attn.o_proj",
+        "model.language_model.layers.00.linear_attn.out_proj",
+        "model.language_model.layers.48.linear_attn.in_proj_z",
+        "model.language_model.layers.-1.linear_attn.in_proj_qkv",
+    ] {
+        for (_, _, input, output) in cases {
+            assert!(!flash_reference_mb34_role_scope(prefix, input, output, All));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_reference_mb34_role_shapes_and_selection_are_exact() {
+    use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
+    let input: i32 = kani::any();
+    let output: i32 = kani::any();
+    let choice: u8 = kani::any();
+    let roles = match choice % 4 {
+        0 => Qkv,
+        1 => Z,
+        2 => Out,
+        _ => All,
+    };
+    let qkv = flash_reference_mb34_role_scope(
+        "model.language_model.layers.0.linear_attn.in_proj_qkv",
+        input,
+        output,
+        roles,
+    );
+    let z = flash_reference_mb34_role_scope(
+        "model.language_model.layers.47.linear_attn.in_proj_z",
+        input,
+        output,
+        roles,
+    );
+    let out = flash_reference_mb34_role_scope(
+        "model.language_model.layers.1.linear_attn.out_proj",
+        input,
+        output,
+        roles,
+    );
+    assert_eq!(
+        qkv,
+        matches!(roles, Qkv | All) && input == 2560 && output == 10240
+    );
+    assert_eq!(
+        z,
+        matches!(roles, Z | All) && input == 2560 && output == 6144
+    );
+    assert_eq!(
+        out,
+        matches!(roles, Out | All) && input == 6144 && output == 2560
+    );
+    assert_eq!(
+        flash_reference_mb34_shape(input, output),
+        (input == 2560 && matches!(output, 10240 | 6144)) || (input == 6144 && output == 2560)
+    );
+    assert!(!flash_reference_mb34_role_scope(
+        "mtp.layers.0.self_attn.o_proj",
+        input,
+        output,
+        roles
+    ));
+    assert!(!flash_reference_mb34_role_scope(
+        "model.language_model.layers.3.self_attn.o_proj",
+        input,
+        output,
+        roles
+    ));
+    kani::cover!(qkv);
+    kani::cover!(z);
+    kani::cover!(out);
+    kani::cover!(roles == All && out);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_reference_mb34_role_parser_preserves_default_and_named_choices() {
+    use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
+    let choice: u8 = kani::any();
+    let value = match choice % 8 {
+        0 => None,
+        1 => Some("qkv"),
+        2 => Some("z"),
+        3 => Some("out"),
+        4 => Some("all"),
+        5 => Some("qkv,z"),
+        6 => Some("ALL"),
+        _ => Some(""),
+    };
+    let expected = match choice % 8 {
+        0 | 1 => Some(Qkv),
+        2 => Some(Z),
+        3 => Some(Out),
+        4 => Some(All),
+        _ => None,
+    };
+    assert_eq!(flash_reference_mb34_roles(value), expected);
+    kani::cover!(choice % 8 == 0);
+    kani::cover!(choice % 8 == 2);
+    kani::cover!(choice % 8 == 3);
+    kani::cover!(choice % 8 == 4);
+    kani::cover!(choice % 8 == 5);
 }
 
 #[cfg(kani)]

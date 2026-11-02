@@ -83,6 +83,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "cold_ready::two_job_priority_keeps_records_and_stable_order",
         "contracts::flash_reference_mb34_preserves_coverage_and_fallbacks",
         "contracts::flash_reference_mb34_shape_scope_rejects_other_dimensions",
+        "contracts::flash_reference_mb34_role_parser_preserves_default_and_named_choices",
+        "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
     }
     assert len(frozen) == 322
     assert frozen <= required
