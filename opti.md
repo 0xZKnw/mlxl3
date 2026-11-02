@@ -1,5 +1,133 @@
 # MLXL3 — journal des optimisations
 
+## ISSUE66-67-CODE-01 — préparation hors tests des trois candidats, 2 novembre 2026
+
+- **Code prêt, vérification différée demandée.** A COLD_PRIORITY0/1défaut0 branché uniquementB2ColdReadyadmissible, tristable desjobs ; B COLD_READY_ROWS2/4défaut2, bornes routed_x/occurrences et protectionsW1/W2 conservées ; C FLASH_REFERENCE_MB340/1défaut0, qkvGDNcible2560→10240seulement, vraiesgéométriesMB3/MB4, shadercanoniqueinchangé,18KiodéclarésMB4. Diagnosticmapping/multiplicités/queueI/Oetcompatlegacy ajouté. TestsCPU/GPU/modèle/25casPythonet4harnaisKaniCPUpréparés+CI, **zéroexécutiontest/preuve/GPU**. Cargo checkmlx/chatalltargets11,84s, Clippystrictalltargets6,77s,fmt/Ruff passent ; avertissementdépendanceblock0.1.6préexistant. Revueinterfaces/shapes/cohortes/leases/fallbacksfaite, performances/qualiténumériquenonvérifiées. [Rapport et commandes](docs/measurements/issues66-67-code-20261102/README.md). Demande suivante autorise commits séparés etpushdetoutletravaild'hier ; publicationenpréparation, appinstalléeinchangée. Aucun essai en cours ; les candidats restentOFF.
+- Préenregistré avant implémentation : demande explicite « code deja tout ça, les tests on les fera plus tard ». Préparer le code, les régressions et harnais ; **aucun test, Kani/CBMC, inférence ou benchmark exécuté pendant cette étape**, conformément à cette instruction. Format/compilation statique permis, contrôle du diff et des chemins obligatoire. Qualité non vérifiée et gain non mesuré jusqu'à la campagne ultérieure, candidats OFF par défaut.
+- A/#66 : priorité de lancement des jobs Cold par multiplicité B2, tri stable et slots/occurrences/restauration conservés, quatre lecteurs et seuil ready2 conservés. Instrumentation du plan de lecture pour qualifier doublons et taille de vague ; aucun changement du cache ou des octets demandés. Flag strict expérimental distinct, défaut0.
+- B/#67 : ColdReady B3/B4 opt-in, domaine borné quatre lignes, fallbacks prefetch/groupement/épilogue existants conservés ; adapter la préparation/restauration et couvrir erreurs, duplication, slots réutilisés, B1/B2 témoins. Flag distinct, défaut domaine B1/B2 actuel. Pas de suppression aveugle de garde.
+- C/#67 : vrai partage EXL3 MB3/4, première portée projection qkv GDN cible2560→10240 seulement, MB2 baseline et B1/B2 inchangés, autres formes/largeurs hors scope fallback existant. Réutiliser le shader canonique MB avec ordre des sommes/splits/arrondis par ligne conservés ; option distincte défautOFF. Préparer oracles réels et Kani CPU des layouts, sans les exécuter ici. Extensions z/out conditionnelles aux futures mesures, pas de port large préalable.
+- Préparer analyse du diagnostic et manifest des sources/options pour les mesures ultérieures ; comparer à largeur identique et séparer A/B/C puis composition. Baseline HEADd5a776e5 modifié, Dynamic+ColdUON, DEC-ONE/Prepared/ColdSharedOFF ; budget experts3Gio, aucune activation/push/app installée. Réutiliser les gardes/ancre explicitement autorisées seulement lors d'une future campagne préenregistrée, sans nouvelle ancre silencieuse. Skills formal-proof/Rust/C++ lus ; CI existante à inspecter et adapter si les nouveaux harnais le nécessitent. État : code en préparation, aucun test ou GPU lancé.
+
+## ISSUE66-67-READ-01 — lecture des deux dernières revues, 2 novembre 2026
+
+- **Revue close, aucun essai lancé.** Dernières créées #66/#67, ouvertes le2novembre08:45:12/21UTC, zérocommentaire lorslecture ; corps recherche/récupérationdirecte identiques, snapshots conservés. #66 prioritéSSD en tête remplace explicitement sonannexe : attribuer queue résiduelle aprèsDynamic+ColdU, puis filtrer ordrejobs par multiplicitéB2 (dédup premièreoccurrence1231, wait_ready2ligne471 ; aucun tri de cette nature danscheminlu). #67 verrous toujoursprésents : ColdReadyrows<=2 et !shared_exl3/!weighted_epilogue1251, layout référenceFlashMB2pourB2..B8contracts626/linear687 ; vraie piste ColdReadyB3/B4 puisMB3/4séparés, gainnonmesuré. Callbacks restentcomplément, handlersseulspuisconteneurs. Dynamic+Cold déjà compatible/defaultONlocal, SharedaprèsSSD déjàécran−0,150/+0,334%/OFF, DEC-ONE R3/directauditéetabandonné : recommandationsannexenelesréouvrentpas. F1configHot/Wide/Uniquedéfaut0vsbenchmarktunedconfirmé ; F2timeout30s→DropjoinFOREVERconfirméstatiquement(nonreproduit) ; F3indicesimmuablesVec/Arrayrecréésconfirmé809. PreDraftBudgetdéjàcoûtsB2/B3/B4séparés. Analyse66déléguéeread-onlyet67recoupéeroot ; aucunbuild/GPU/preuve/CI/push/app, aucunepromesse15/20. [Rapport, limites et snapshots](docs/measurements/issues66-67-review-20261102/README.md). Documentsseulement, aucunessai encours.
+- Préenregistré avant analyse : demande « vas voir les 2 dernieres issues mlxl3 ». Lire #66 et #67 avec leurs commentaires, comparer les points actionnables aux essais locaux clos et au code courant ; distinguer main d5a776e5 de l'état local Dynamic+ColdU/DEC-ONE. Revue en lecture seule du moteur, sans prototype, compilation, GPU ni publication. Identifier les pistes nouvelles, celles déjà traitées et les écarts de provenance avant recommandation. État : en cours.
+
+## POSTP09-TARGETED-RESEARCH-03 — nouvelle piste après abandon DEC-ONE, 1 novembre 2026
+
+- **Recherche close, aucun prototype ou benchmark lancé.** Sources Sushi543c25f, Strata c62d5e3, MLX0.32.2/1f8e74e3 et main a8f66b59 consultées sur internet ; MLXcel8565cbc lu au niveau README/inventaire, sans audit complet. Premier filtre recommandé : réduire la gestion keepalive/callback par primitive dans `gpu::eval`, en la regroupant par command buffer, kernels/arithmétique/frontières de routes inchangés. Ce n'est pas un patch amont validé ni le lanceur T01B. Piles P09 `host_async_submit` AR/MTP/DF :329/258/233 échantillons, première frameMLX=gpu::eval23/25/14 ; allocations/libérations visibles, zéro frame explicitementaddCompletedHandler. Coût propre et gain non mesurés ; 12,433/9,323/7,940ms sont l'enveloppe de toute soumission exposée, non attribuable au candidat. Risques donation/durée de vie/erreurs et filtre discriminant consignés. Deuxième piste : primitive regroupant une chaîne complète sans changer les dispatchs ; troisième : top10SIMD historique, OPT28B−0,474% sur une seule paire puis interruption, SIMD01 jamais qualifiéGPU. Aucune relance silencieuse. DirectMetal/preadv déjà présents ; deferredGDN Sushi pénalisé par misses historiques~86% des transitions admissibles ; refresh residency PR4633 vise l'idle de plusieurs secondes, pas le decode continu. [Rapport et sources](docs/measurements/post-p09-targeted-research-03-20261101/README.md), extraction/empreintes`evidence.json`. Docs seulement, moteur/app inchangés, DEC-ONEclos/OFF, Dynamic+ColdUON. Aucun build/GPU/proveur/CI ou publication dans cette recherche ; pas de gain annoncé.
+- Préenregistré avant recherche : demande utilisateur « recherche une meilleure piste ». Repartir des mesures P09/Dynamic et du dernier diagnostic, puis des appels réellement exécutés ; examiner un mécanisme qui retire une attente/soumission/travail mesuré. Lire les essais historiques voisins avant recommandation, vérifier implémentations/fallbacks/coûts et éviter de refaire shared-after-SSD, prepared launch ou DEC-ONE sans nouveauté concrète. Recherche seulement, aucun nouveau prototype, build ou benchmark GPU autorun à ce stade. Livrable : meilleure hypothèse testable, coût/plafond correctement qualifié, pièges et premier contrôle discriminant. État : en cours.
+
+## POSTP09-COLD-SHARED-01 — filtre court demandé, 1 novembre 2026
+
+- **CLÔTURE du filtre, passage direct à la piste 2 demandé.** Qualité ciblée passe ; écran AR MAIN 11,253891→11,237026 tok/s (−0,150%), HOLD 11,229366→11,266913 (+0,334%). Temps prefill −0,206%/+0,312%. Huit réponses warm/mesure égales au préfixe de la référence externe128, hashes A/C égaux, 31 transitions/réponse, processus joints et zéro nouvelle écriture swap durant ces cinq processus GPU. Écran unique A/C, pas de preuve de gain ni de régression, candidat local conservé OFF pour composition ; aucun MTP/DF modèle lancé. `screen-summary.json` et rapports dans le dossier de l'essai. Audit : calcul partagé une seule fois après lancement SSD, mêmes poids/arithmétique, conservation des consommateurs ; MLX construit une bande BFS puis l'exécute à rebours, donc l'ordre des deux sorties n'assure pas W1 prioritaire. Pas de capture supplémentaire dans ce filtre rapide, priorité réelle W1 non vérifiée ; aucune conclusion générale d'inefficacité de l'idée. Aucun modèle/build/proveur restant à cette clôture.
+- Filtre qualité terminé : trois sélections physiques passent (20 mixtes + 20 Hot, doublons/fallbacks, erreur/reprise, oracle indépendant cible logits/états), 0 Swapout. Build mlx/chat, fmt et Clippy passent. Kani première commande sans `--tests` n'a sélectionné aucun harnais ; reprise avec le nom qualifié et `--tests` : ICE intrinsics.rs:243 avant obligations, non vérifié. Rustfmt a seulement réuni une assertion de test sur une ligne après compilation ; binaire et note d'identité conservés. **Écran court suivant** : deux processus A/C, 32 sorties MAIN/HOLD, un warmup + une mesure ; le vrai bridge sert aussi de contrôle d'intégration, pas de campagne17 séparée pour respecter la demande rapide. Comparer sorties complètes A/C et préfixes externes avant d'interpréter les chronos. Aucun défaut activé ni MTP/DF complet sur ce filtre.
+- Préenregistré avant code : tester rapidement la piste 1, puis passer à la piste 2 sans campagne exhaustive de sélection. Différence OPT27/73 : construire le shared après `begin_read_records`, le soumettre avec W1 ; aucune anticipation avant routes/SSD. Flag strict `MLXL3_SSD_COLD_SHARED=0|1`, défaut 0 ; Dynamic+ColdU ON, prepared OFF, 3 Gio. Shared préparé une fois, retenu/joint avec ColdConsumers sur erreur, fallback inchangé sans split admissible.
+- Filtre : build réel mlx/chat et fmt/Clippy, réutilisation de deux oracles Cold (sorties externes B1/B2, doublons/fallbacks ; erreurs/reprise) avec assertion du nouveau chemin, puis oracle états cible et bridge court avant vitesse. Tentative Kani ciblée bornée, diagnostic ICE antérieur conservé si identique. Écran AR MAIN/HOLD court A/C, 32 sorties, une chauffe et une mesure ; mêmes golds et compteurs, aucun gain confirmé ni activation sur ce seul écran. Audit du placement/fallback/ownership avant conclusion, puis passage direct à la piste 2. Pas de suite mille tests, capture Xcode ou relance pour bruit dans ce filtre utilisateur.
+- Réutiliser l'ancre MTPHEAD et ses plafonds autorisés 32 Mio Swapout / 256 Mio Swapin, admission modèle 10,5 Go, secteur, aucun build/proveur pendant GPU ; ne pas réancrer silencieusement. Identité, snapshots et bruts sous `docs/measurements/post-p09-cold-shared-20261101`. Si les gardes bloquent, poursuivre la piste 2 côté CPU sans prétendre mesurer. État : en cours.
+
+## POSTP09-DEC-ONE-01 — piste 2 autorisée après filtre shared, 1 novembre 2026
+
+- **CLÔTURE — abandon demandé explicitement par l'utilisateur.** Aucun nouveau benchmark ni activation ; code expérimental local reste OFF, application installée inchangée, binaires/sources R2/R3 et tous résultats conservés. Qualité passe, performance globale non concluante. Comparaison directe ON R2/R3 terminée : AR10,806855→10,982539tok/s(+1,626%), DF12,423527→11,906389(−4,163%), prefill−0,962/+3,369%.16réponses exactes au préfixe externe, hashes/acceptations identiques, processus/lecteurs joints ; +512Kio puis+1MioSwapout conservés. Même R3/DF passe12,299148→11,906389 entre deux séries(−3,193%) sans changement de code. Aucun effet de bord fonctionnel de l'exclusion trouvé :128identités natives comparées, seulslinear/dec_one/test changent, forward/apply/shader identiques et48préfixes réels toujours admis ; la têteMTP est conditionnelle au mode. Le bénéfice de l'exclusion n'est pas établi et le résultat DF négatif n'est pas effacé. Preuves `direct-summary.json`, `r3-summary.json`, `r3-exclusion-source-audit.json` ; cumul ancreMTPHEAD7 929 856Bécrits/45 776 896Blus, sous32/256Mio. Tous essais lancés clos ; profil léger et ablation B1 seuls non exécutés. Aucun rejet automatique pour faible gain : arrêt sur choix utilisateur.
+- **Audit complémentaire demandé explicitement après résultats R3 : l'exclusion pourrait-elle être mal adaptée ?** R3 six passages release clos : AR+1,479%, MTP−0,261%, DF−0,134% ; tempsprefill−0,834/+0,371/−1,712%, qualité entière, `r3-summary.json`. Le gain initial important n'est pas stable ; candidat local conservé OFF, aucun retrait. Avant nouvelle mesure : vérifier le diff exact R2/R3, tous les préfixes cibles et chargement conditionnel tête, puis comparer directement les deux binaires figés avec DEC_ONE=1 dans les deux bras. Quatre processus courts préenregistrés : AR R2 puisR3, DF R3 puisR2 ; MAIN/HOLD64, une chauffe+mesure, mêmes options/ancre32Mio/256Mio et garde10,5Go. Propriété à contrôler : effet de bord de R3 sur les deux modes sans têteMTP ; cette comparaison ne mesure pas le gain contre OFF et ne remplace aucun résultat précédent. Aucun build, nouveau flag ou kernel, pas de répétition automatique. Qualité des deux sources déjà passée ; golden/acceptations/hash/CLI contrôlés à chaque passage.
+- R3 AR CLI A/C64 terminé : moyenne10,870432→11,031183tok/s(+1,479%), prefill7,912870→7,846909s(−0,834%), huit réponses exactes au préfixe externe et hashes identiques, processus/lecteurs joints. C ajoute384KioSwapout, sous plafond et conservés. Le gain initial R2+5,807% n'est pas reproduit à cette amplitude ; signal R3 positif plus modeste, pas de retrait pour bruit. DFlash C terminé/qualifié, témoin A en cours ; ne pas chiffrer son gain avant fin.
+- R3 MTP CLI A/C64 terminé : MAIN11,827075→11,849696 ; HOLD11,601126→11,5174tok/s (valeurs exactes dans rapports). Moyenne environ−0,26%, prefill environ+0,37%, tous textes/hashes/comptes34/28 et35/27 identiques,8réponses warm/mesure conformes au golden externe128,0Swapout etprocessus/lecteurs joints. La baisse importante R2 ne se reproduit pas dans ce filtre R3, sans prouver que l'exclusion tête en est la cause. AR/DF encore en cours ; aucun changement du défaut.
+- Diagnostic R3/ON terminé : six phases128,0Swapout, joint121,213s. Les trois analyses passent ; tokens/texte/hashes/acceptation et compteurs hit/miss/octets cible sont identiques phase par phase entre les trois bras. Traces R3 : total90,601 / verify85,218 / tête3,757 / route30,931 / soumission19,087 / cold_wait11,481 / cold_finish10,031ms par transition. R3 proche du témoin, mais la projection tête ne représente pas l'écart principal ; aucune preuve causale de son exclusion. `diagnostic-summary.json` conserve tous les postes et limites. Les six passages CLI préenregistrés restent inchangés ; ordre entre modes fixé avant lancement : MTP A/C d'abord pour la question utilisateur, puis AR A/C, DF C/A. Pas de relance supplémentaire du profilage.
+- Diagnostic R2/ON terminé : six phases128 qualifiées par analyseur/golden, parité interne entière, joint138,563s ; +960KioSwapout sous plafond conservés. Moyenne des trois traces, ms/transition : total89,046→98,875 ; verify_pair83,519→92,918 ; tête3,877→4,149 ; route_readback inclusif30,055→36,033 ; soumission18,475→20,088 ; cold_wait11,676→12,234 ; cold_finish10,377→10,084. Intervalles imbriqués non additionnables. Les octets SSD logiques correspondent exactement phase par phase aux témoins ; pas d'augmentation de demande justifiant la baisse. Prefill témoin aussi plus lent dans cette série, Equibop/WindowServer actifs (snapshot conservé), pmset sans warning thermique enregistré : conditions non constantes, causalité du kernel non démontrée. La tête ne porte qu'une petite partie de l'écart observé. Diagnostic R3/ON lancé sans changer le protocole.
+- Diagnostic R2/OFF terminé : six phases128, golden externe et analyseur existant passent (`diagnostic-R2-A/analysis.json`), logits/états exacts internes, rétention0 après warmup, processus joint120,805s et0Swapout. Les temps sont inclusifs hôte : control_before tête3,649 / vérification79,767 / réparation0,756 / total84,767ms par transition. Ces valeurs ne constituent ni GPU exclusif ni gain release. R2/ON lancé ensuite, même protocole ; pas de compilation/proof concurrente.
+- R3 qualité physique terminée : 5/5 sélections explicites passent (75 projections et exclusion réelle têteMTP, oracle cible, états MTP, 36 préfixes DFlash, oracle indépendant têteMTP), processus joints et zéro nouvelle écriture swap. Clippy strict mlx/chat tous targets passe. Aucune nouvelle mesure de vitesse R3 à ce stade ; lancement du diagnostic détaillé R2/OFF préenregistré.
+- Révision prospective du diagnostic, avant tout lancement : l'ancien `flash_light_profile_preserves_natural_decode` conserve les intermédiaires cfg(test), ce qui peut modifier le graphe MLX ; les trois passages légers prévus sont annulés, non exécutés. Réutiliser à leur place le harnais détaillé existant `qwen4::profile::flash_detailed_profile_preserves_full_outputs_and_states`, kind=natural, MAIN/MTP128, trois processus R2/OFF, R2/ON, R3/ON. Six phases par processus (warmup, control_before, trace1–3, control_after), rétention désactivée et comptée zéro après warmup, parité logits/états contre warmup et golden externe128. Les temps inclusifs tête/vérification/réparation et événements SSD servent au diagnostic, jamais présentés comme GPU exclusif ou débit release. Aucune modification du profileur, aucun nouveau kernel. R3 build et suite complète passent : 314 tests passés, 207 ignorés ; Clippy strict en cours avant GPU. Qualité physique R3 puis diagnostic et six passages CLI R3 déjà préenregistrés, mêmes ancre/plafonds/options. Pas de relance automatique pour obtenir un résultat favorable.
+- Diagnostic complémentaire préenregistré pour répondre au contraste AR/DF/MTP : après qualitéR3, réutiliser sans modification `flash_light_profile_preserves_natural_decode`, MAIN/MTP64, une chauffe+unephase mesurée, troisprocessus baselineR2flag0 /R2flag1 /R3flag1. Comparer temps inclusifs tête, vérification et réparation, routes/misses/octetslus, pasadditionner les horloges imbriquées ni attribuer duGPUidle. Ce harnais utilise un prefill historique calculant toutes les têtes, donc **diagnostic décode, pas chronoCLI/prefill**, vérification externe des64tokens/hash/texte obligatoire. TestsClockcfg(test) ne deviennent pasdes tok/s release ; pasdeXcode/capture lourde supplémentaire. Les compteurs système déjà audités ne montrent pas de pic de décompressions propre au passageMTP lent (~63k/response aussi chez les autres), mais ne séparent pasprefill/décode ; aucune cause mémoire exclusive conclue.
+- TêteMTP R2 : oracle indépendantheld02 passe sur10pas, états/logits/caches vérifiés (2,15s),0Swapout ; la portée supplémentaire n'est donc pas une divergence numérique démontrée. R3 ne modifie que l'activation au chargement : préfixe cible requis, B1/B2 etshader inchangés. Le diff `r2-to-r3-scope.diff` confirme que F02 n'a pas changé et que l'ablationB1 n'est pas présente. Nouveau contrôle de chargement/exécution de la projectiontête : flagdésactivé etzérorequêteDEC-ONE. KaniR3 passe136obligations/7covers : layout i32symbolique inchangé etsélectionsymboliqueu8 parmi5préfixes (portée bornée àces5strings, paspreuve detousUTF8), sansassume. Buildcompletmlx/chatR3 lancé, pasdeGPUconcurrent.
+- Oracle têteR2 : première invocation échoue avant chargement (variable `MLXL3_FLASH_MTP_REFERENCE` absente),0testpassé etéchec conservé. Reprise préenregistrée avec fixtureheld02 existante, statut/4..31pas vérifiés etempreintefixée ; source/binaireR2inchangés.
+- **Audit de chemins après demande explicite de Justin : périmètreR2 sous-documenté.** MTP etDFlash width1 partagent `Layer::prepare_rows` (GDN groupéB2, QSA sérielB1), même `SsdMoe::forward_rows` à profondeur0 ; la seule différence de row_limit2/8 n'altère pas ces2lignes. La têteMTP native contient aussi `mtp.layers.0.self_attn.o_proj`, réellement6144→2560/K4/Mul1/F16, donc R2 fusionne **49 projections**, pas uniquement les48 cibles jusque-là auditées. DFlash utilise une tête distincte. Les textes/acceptations restentidentiques, pas de bug numérique démontré ; le testMTP précédent compare des parcours utilisant tous deux le même flag, la référence indépendante spécifique à la tête n'avait pas été relancée. **Révision R3 avant tout build/mesure : isoler d'abord cette projection propre à MTP, en limitant DEC-ONE aux préfixes `model.language_model.layers.` tout en gardantB1/B2 cibles inchangés.** Le brouillonB1seul n'a été ni compilé ni testé ; son premier patch avait touché le gardeF02 homonyme, erreur repérée à la relecture et corrigée avant compilation. Brouillon conservé comme diff, ne pas l'attribuer aux mesuresR2. Ne pas combiner deux ablations. Oracle têteMTP externe à exécuter d'abord surR2figée, puis contrôlesR3 composant/cible/MTP/DF et filtre3modes déjà prévu. Hypothèse de coût têteMTP non établie : mesurer avant de conclure.
+- Confirmation MTP MAIN64 C/A terminée : A11,851331/C10,921912tok/s(−7,843%), prefillA8,394201/C7,964636s(−5,117%), sorties et34propositions/28acceptations identiques,0Swapout. Première série et confirmation conservées séparément ; activité utilisateur possible mais non démontrée comme cause. DF64 ACCA : MAIN+0,773%, HOLD+3,942%, moyenne11,393476→11,658279tok/s(+2,324%) ; tempsprefill moyen+3,244%, tous textes/acceptations égaux, A4+256KioSwapout. **Aucun défaut général activé** ; la portée B1/B2 doit être isolée avant décision.
+- **R3 préenregistrée — ablation ciblée B1 seul**, pas nouveau réglage arbitraire de kernel : limiter le dispatch DEC-ONE aux seules projections à une ligne ; B2 reprend exactement le chemin stock. Hypothèse : coût du finish/arrivée à deux lignes ou son ordonnancement peut expliquer le contraste MTP, à tester sans présumer la cause. Garder R2/bins/logs et aucune somme de gains. Changement minimal du garde `try_dec_one` et assertion du test de chemin ; aucun nouveau flag ni modification du shader/calcul B1. Layout B2 et sa preuve restent inchangés comme code expérimental interne, non dispatché depuis la projection R3. Qualifier composant avec B2 fallback, cible/MTP/DF et vrai CLI, puis filtre AR/MTP/DF64 A/C (une chauffe+mesure MAIN/HOLD, ordre inversé pour DF) avec contrôle externe intégré ; pas nouvelle campagne ACCA par mode ni relance supplémentaire automatique. Toute activation resterait fondée sur l'ensemble des résultats et la portée mesurée. Build/fmt/Clippy/suite pertinente complète R3, tentative Kani du garde réel à ajouter à la propriété existante si praticable. Même ancre/plafonds, un GPU et aucune compilation/proof pendant mesures. ÉtatR2 clos, R3 en cours.
+- Condition supplémentaire rapportée par Justin après les mesures MTP : il utilisait le Mac pendant une partie de la série. Horaire, type et charge non quantifiés ; cause possible de perturbation, pas preuve causale ni motif d’exclure les résultats. La confirmation inverse déjà prévue reste unique et tous les passages sont conservés.
+- MTP64 ACCA terminé : MAIN11,461075→10,787282tok/s(−5,879%), HOLD11,440234→11,484472(+0,387%), moyenne−2,749%. PrefillMAIN+8,641%, HOLD−3,060%, moyenne+2,787%. C2MAIN10,0596 etC3MAIN11,5150, forte dispersion ; A1MAIN11,7874/A4MAIN11,1348. Tous textes/hashes et comptes34/35propositions,28/27acceptations sont identiques ; aucune divergence numérique trouvée. C2+384KioSwapout conservé, tous processus joints. Les192 en-têtes de tenseurs réels sur5shards confirment aussi le périmètre48sorties (pas seulement quantization_config). **Une seule confirmation ciblée préenregistrée après DFlash** : MTP MAIN64, ordreC/A, une chauffe+mesure par bras, mêmesbins/options/gardes, pour vérifier si le ralentissementMAIN/prefill se reproduit. Conserver l'intégralité de la première série et de la confirmation ; ne pas remplacer C2 ni itérer jusqu'au vert. Aucun changement du kernel ni activation avant décision. Un premier patch documentaire mal formé a été refusé sans écriture, puis corrigé.
+- PiloteAR64 ACCA complet : MAIN10,606267→11,130284tok/s(+4,941%), HOLD10,588729→11,295461(+6,674%) ; moyenne des quatre mesures par bras10,597498→11,212873(+5,807%). Tempsprefill moyen7,995081→7,809316s(−2,323%). Seize réponses warm/mesure conformes au préfixe externe, hashes A/C égaux. Dérives visibles et écran32 presque neutre conservés, pas de généralisation touscontextes. Les4processus sont joints, seulA1 ajoute320Kio Swapout sous plafond. **Extension préenregistrée** : après audit et fermeture Xcode, MTP puisDFlash2 en64sorties MAIN/HOLD, ACCA,1chauffe+1mesure, mêmesidentités/options/ancre, contrôle golden intégré à chaque passage ; pas de bridge32 supplémentaire puisque les états/acceptation/rollback sont déjà qualifiés. Conserver toutes les mesures et modes/compteurs, examinerprefill etdécode avant éventuelle activation ; aucune optimisation du fill ni autre changement moteur dans cette série.
+- Captures R2 A/C réalisées,6/6oracles exacts,zéroSwapout : Xcode27.2 sansprofilagereplay confirme GDN8→5dispatchs,QSA8→5,QKVtémoin6→6,2commandbuffers/1computeencoder. CandidatGDN exécuté `custom_kernel_mlxl3_flash_dec_one_s2_b1_v1_float16_t_uint32_t_float16_t_uint32_t`, grid20480×1×2/TG128. Fill6420U32 observé, sortie lue offset20560B dansle même buffer ; aucunCPUreadback ajouté dansleport. CommeF02ilreste5dispatchs : fusionQMV/finish compenséeparfill. CoûtGPUexclusif du fill/fences/registres **nonmesuré**, pasdecausalité chiffrée ; ce coûtconcret mériteuneautrepiste ultérieure, pasune réécriture nonqualifiée maintenant. AX a brièvement indiqué RuntimeIssue sur de multiples appels, marques disparues à la sélection et bouton disabled, aucun diagnostic stable ; pas de claim validation Metal complète. QuelquesinteractionsUI/path/replay ont nécessitéactualisation, aucunbenchmarkmodèle pendantreplay.
+- Audit statique : les48 projections attention du checkpoint sont bien6144→2560/K4/Mul1/F16/sansbiais et chargées via Projection→Exl3Linear, métadonnées épinglées dans `checkpoint-output-audit.json`. Point de coût à vérifier physiquement : DEC-ONE ajoute un fill de toute la sortie privée (25,68/51,28Ko), donc la fusion peut conserver autant de dispatchs que F02, avec fences/compteurs en plus. **Capture diagnostic préenregistrée après fin du pilote**, sans code/binaire modifié : réutiliser `captures_complete_projection_chains_stock_or_fused`, F02=0 dans les deux bras et DEC_ONE=0/1 ; les champs `enabled`/`kernel_requests` de ce test concernent F02 uniquement, ne pas les présenter comme compteur DEC-ONE. Captures GDN/QSA et QKV témoin, oracle externe après chaque capture, budget partagé1,5Gio, mêmes gardes petitGPU2Go. Inspecter les dispatchs réellement exécutés et copies ; aucun tok/s tiré du replay Xcode. Différence historique F02 : nouveau kernel d'arrivée avec initialisation privée, propriété précise maintenant demandée par Justin.
+- Audit approfondi demandé pendant le pilote : vérifier couverture réelle des 48 sorties attention dans le checkpoint, acheminement Projection→Exl3Linear, dtypes/splits, coût init/fences/allocations et fidélité au mécanisme Turbo. Lecture statique/métadonnées seulement pendant les chronos ; aucun build/proveur ou autre GPU concurrent. Si un défaut concret apparaît, le consigner puis qualifier un correctif distinct sans mélanger les binaires. Premier pilote A terminé, +320Kio Swapout sous plafond cumulatif ; conserver sa baisse vs écran32 (longueur et conditions distinctes), ne pas éliminer de point ni annoncer un gain sur cette seule différence.
+- Bridge R2 A/C32 terminé : MAIN11,098895→11,096485 tok/s, HOLD11,156478→11,150335 ; prefill7,748207→7,812933s /7,278561→7,292800s. Huit réponses warm/mesure conformes au préfixe128 externe, compteurs31/32 contrôlés, processus joints, zéro Swapout. Pas de gain établi. PiloteAR64 ACCA préenregistré lancé pour décision, aucun autre mode vitesse ni modification de code entre les bras.
+- R2 compilée (CLI91c8f689…/libtest02859cd3…) et quatre contrôles physiques passent : 75 projections exactes, oracle cible indépendant logits/états, MTP avec acceptation/reprise, DFlash36 préfixes largeurs1..8/captures64000 valeurs exactes. Zéro Swapout durant ces quatre processus, tous joints ; mêmes budgets/ancre. Le shader n'a pas changé après R1, source Rust maintenant immuable. Une commande d'empreinte ad hoc avec Python système trop ancien pour `hashlib.file_digest` a échoué après copie du CLI ; calcul refait avec Python3.12, identitéR2 complète avant tout lancement. Bridge32 A/C en cours, pas encore de gain modèle mesuré.
+- Micro initial terminé, qualité exacte, 48 lots/768 évaluations, zéro Swapout : médianes temps GDN B1 +0,72%, B2 +1,18%, QSA B1 +17,86%, B2 −2,13%. Grandes dérives intra-série (GDN A887→345µs), aucune attribution causale ou conclusion tok/s. Audit avant décision trouve un défaut concret de coût CPU : `dec_one::apply` concatène les deux grands fragments MSL à chaque appel, contrairement au source statique stock. **Correctif R2 préenregistré** : source immuable construite une fois par processus via OnceLock, aucun tableau/poids capturé, shader et calculs identiques. Conserver R1 et ses mesures ; répéter seulement oracle composant puis états modèle concernés, pas de recherche de paramètres micro. Build CLI/libtest R2, oracles cible/MTP/DF, bridge32 MAIN/HOLD A/C pour intégration, puis pilote AR64 ACCA (1 chauffe+1mesure par prompt, tous résultats conservés), mêmes options/ancre. Étendre MTP/DF et prefill uniquement si le pilote donne une raison de conserver ; sinon laisser OFF après audit, sans campagne longue.
+- Première qualification composant passée : Kani sur la fonction réelle `dec_one::layout` (i32 symbolique sans assume) : 83 obligations / 4 covers satisfaites ; pas preuve Metal. Clippy strict/fmt/build libtest réels passent. Suite lib MLX : 218 passés / 196 ignorés ; deux sélections physiques supplémentaires passent (32 sorties initialisées privées, 75 contrôles projections GDN/QSA/B1/B2/F16/F32/strides/pending4/fallbackB3 et trois références externes). Zéro Swapout, tous enfants joints. CBMC C++ réel échoue au parsing libc++ avant obligations, non vérifié ; tests orchestrateur CI44 ignorés faute prlimit Linux, YAML vérifié localement et CI PR/main mise à jour sans run distant du diff non publié. Deux tentatives de patch sans correspondance ont été refusées avant édition, sources relues puis patches ciblés appliqués. Micro préenregistré maintenant admissible, aucune vitesse mesurée à ce point.
+- Port précis avant édition : flag `MLXL3_FLASH_DEC_ONE=0|1`, défaut0. Seulement Flash dense K4/Mul1 6144→2560, SG4, S2, NT1, B1/B2, sans biais, échelles F16, préparation stock. Réutiliser sans modification le corps QMV canonique ; suffixe d'arrivée après écriture des partiels, 16 groupes par bloc128, fence device/compteur entier/dernier groupe, aucun spin. Reprendre exactement le finish F02/MLX (ordre p1+p0 avec +0, casts F16 et H128), le fusionner au QMV plutôt que relancer F02 seul. Un output UInt32 privé contient partiels, compteurs et sortieF16 ; initialisation zéro via `CustomKernel init_value`, puis vue sur la sortie. Cela évite de muter un input MLX partagé et limite l'initialisation à un dispatch ; coût total inclura zéro, offsets et scratchs (~25/50 Kio par appel B1/B2). ABI interne étendue explicitement pour l'init optionnel, option absente inchangée.
+- Sources primaires relues : MLX0.32.2 CustomKernel init/fill et transforms BFS ; Turbo087c757 `dec_gemv_arrive.metal` et licence MIT (David Tai). Pas d'import du DEFER affine, du nombre de splits ni du H128 Turbo. Tests prévus : géométrie réelle/bornes/refus + Kani ciblé ; FFI initialisation/invalides et source C++ via CBMC si praticable ; deux poids GDN/QSA avec fixtures externes, B1/B2/F16/F32/strides/pending/appels répétés et fallback B3, comparés à la chaîne stock explicite. Micro complet alterné 3 chauffes et 6 paires de 16 appels pour B1/B2 après qualité, pas de tok/s déduit du micro. Oracles modèle/AR/MTP/DF et prefill avant éventuelle activation, protocole modèle figé après examen du filtre composant. Même ancre/plafonds/secteur, petit GPU admission2Go, modèle10,5Go. Dossier `docs/measurements/post-p09-dec-one-20261101` ; maintenant en cours.
+- Préenregistrement recherche/port : projection dense Flash 6144→2560 K4, préparation canonique séparée, mêmes splits/FMA et arbre de réduction ; dernier groupe publié termine réduction/H128/échelles. Relire les vrais shaders locaux et le DEC-ONE épinglé dans le rapport Turbo avant de figer le port. Aucun rerun F02 seul ni copie du réglage GPU 40 cœurs. Kernel expérimental OFF ; compter initialisation/compteurs/scratchs dans toute mesure. Qualité composant indépendante avant micro, cas répétés/pending/strides/dtypes ; protocoles physiques et portée exacte à préciser avant exécution. État : en attente de fin du filtre 1.
+
+## POSTP09-TARGETED-RESEARCH-02 — retour aux postes dominants, 1 novembre 2026
+
+- **CLÔTURE — recherche terminée, aucune nouvelle optimisation exécutée.** [Classement, code, antécédents et limites](docs/measurements/post-p09-targeted-research-20261101/README.md), [extraction et 15 empreintes](docs/measurements/post-p09-targeted-research-20261101/evidence.json). Premier essai recommandé : préparer l'expert partagé après lancement SSD, puis examiner sa soumission avec W1 ; les anciens OPT27/73 le plaçaient avant les lectures. Construction shared P09 exposée : 0,761/1,126/0,959 ms par sortie AR/MTP/DF ; calcul GPU shared et gain propre non mesurés. Deuxième : chaîne dense EXL3 complète, mécanisme DEC-ONE exact déjà proposé, pas un nouveau cache de pipeline ; coût propre à attribuer avant port large. W3 abaissée après examen de 381 sorties Dynamic : 1 454/9 192 lots séparés ont ≥2 jobs supplémentaires prêts après W1 avec des lectures restantes ; attente finale de ces seuls cas 1,631 ms/sortie, enveloppe hôte conditionnelle et non gain GPU. Pas de répétition de gather×scale, ARC/pool ou suppression de la sortie précoce des routes.
+- Vérifications de recherche : entrées P09 complètes et parité enregistrée, 27 sorties par mode ; trois séquences Dynamic 1..127, lots terminés/masques monotones/totaux de samples et hashes contrôlés. Une inspection initiale attendait un objet au lieu d'une liste et s'est arrêtée avant écriture, corrigée sans rerun des mesures. État prepared T01B clos et README mis à jour : AR négatif, MTP partiel, DF128 non lancé ; aucun processus GPU/build/proveur observé à la clôture. Aucun code exécutable ajouté dans cette recherche, aucun nouveau test moteur/Kani/CI, aucune publication ou app modifiée. Dynamic+ColdU reste ON, prepared reste OFF.
+- Préenregistrement conservé : Justin demande des pistes plus pertinentes que le lanceur prepared après les résultats AR décevants. Relire P09, le diagnostic Dynamic+ColdU et le code effectif ; classer par travail/synchronisation réellement retirable, distinguer plafonds conditionnels et coûts non mesurés, vérifier antécédents et pièges. Pas de nouveau prototype GPU/benchmark dans cette étape ; aucune reprise automatique T01B. Baseline Dynamic+ColdU activée, 3 Gio, contrat numérique préservé. Livrable : liste courte avec points de code et premier test discriminant. État initial : préenregistré avant exploration.
+
+## POSTP09-DYNAMIC-DEFAULT-01 — activation demandée, 1 novembre 2026
+
+- **CLÔTURE : défautDynamic+ColdU activé etqualifié danslecode local**, overrideDynamic0préservé. Dixsélectionsphysiques passent (default/0/1,invalidflag,Cold+fences+erreurs,oraclecible,MTP,DF), puis3CLI17MAIN/HOLD sanslesdeuxflags :12réponseswarm/mesure conformesgoldexterne,logits/étatsqualifiés séparément. ZéroSwapoutpendantces13processus, tousjoints. CPU276passés/9ignorés ; MLX311/203ignorés ; fmt,Clippy,buildréel,ASan/UBSan/TSan passent. KaniICEintrinsics243(6,68s,~896Mo),CBMCparseheaders(exit6) : propriétésformelles nonvérifiées. IdentitésCLI3e41cd52…/libtest341ccbdc…vérifiées ; erreurinitialeinspecteurad hoc champtext/cache_context corrigéesansmodifierdonnées. Résultats `docs/measurements/post-p09-dynamic-default-20261101/qualification.json` etplans/logs. Performance précédenteinchangée(+0,535/+0,960/+1,030%decode,+0,700%prefillMTPaccepté). Aucunpush/appinstallée/CIremotedudifflocal.
+- Première vérification : fileCPU4096politiques/4084ordresconcurrents passe ASan/UBSan etTSan ; syntaxeproof etClippymlx/chat passent. Une commande build a utilisé par erreur le nompackage `mlxl3-native` comme ciblebinaire : arrêt avantcompilation, log conservé ; commande corrigée `--bin mlxl3-rs` passe58,15s etlibtestconstruit. Suitesordinaires etqualificationdefault enpréparation ; aucun GPU lancé àcepoint.
+- Justin demande explicitement Dynamic+ColdU par défaut et accepte le +0,70% de tempsprefillMTP court au vu du gain decode. Cette autorisation lève la réserve d'activation de POSTP09-DYNAMIC-COLD-01, sans modifier ses mesures ni prétendre que le coût a disparu.
+- Changement prévu : défautDynamic dans le parseur C++ partagé sync/async, défautRust cohérent ; ColdU déjàON. Préserver override0, validation0/1 stricte et fallbackStatic pour≤1job/worker. Callers Array read/begin→FFI→DiskWorkQueue et SsdMoe Flash ; aucunenv global modifié dans un modèle vivant.
+- Vérifications avant clôture : testsparseur/default/override/invalides et4096politiques/4084ordresconcurrents, sanitizers, adaptationharnessCBMC/Kani réel souslimites antérieures, fmt/Clippy/buildmlx,chat/suitespertinentes. TestsFFI sansflag puis0/1, oraclescible/MTP/DF sanslesdeuxflags etCLI17 sansflags MAIN/HOLD en3modes ; reprendre les oracles existants, vérifier modes/compteurs/tokens/états. Les28chronos précédents du cheminflag1 restent la preuve deperformance ; pas de nouvellecampagne complète pour modifier seulement le défaut.
+- Identité/bins distincts et snapshotsavantédition sous docs/measurements/post-p09-dynamic-default-20261101. Mêmeancre MTPHEAD-S32,32MioSwapout/256MioSwapin cumulés, admission10,5Go,secteur,unmodèle etaucunbuild/proveurconcurrent. Appinstallée/push/publicationhorsscope. **État : préenregistré avant édition.**
+
+## POSTP09-PREPARED-EVAL-01 — deuxième proposition T01B, 1 novembre 2026
+
+- **CLÔTURE àlademande dechangerdepiste : candidatdésactivé, qualitécomposant/étatsvalidée, performanceARdéfavorable ; MTP/DFpiloteincomplets, aucunbenchmarkencours.** AR128ACCAcomplet(aprèsrepriseA4power) :11,16049→10,96964tok/s(−1,710%),prefill7,65568→8,09237s(+5,704%). MAIN−0,643%decode/+2,014%prefill ; HOLD−2,759%/+9,656%. Auditcodes/bindings/mémoireconservé ; pasdecausecertaine desvariations. MTPA1terminé ; MTPC2interrompuparSIGINTausuperviseur surchangementdedirectionutilisateur,finallynettoyage/jointure ; MTP3/4etDF128nonlancés. Commanded'arrêtinitiale refuséedanssonassertiondecasse `Python`/`python`, puisPIDcontrôleurvérifiécorrigéetarrêt130. Aucunrejetdel'idéegénéralepréparationdechaînes, aucunportT01Bactivé. Dynamic+ColdUresteON. Pasdepush/appinstallée ; sourcesetpreuvespréservées.
+- PiloteAR : A1,C1,C2terminés goldexact ; C2+896KioSwapout sousplafondcumulatifconservé. A4interrompu14,32s pargarde `live power changed`, avanttouteréponsecomplète,processusjoint. MacdéjàrevenuAC100%aucontrôleimmédiat ; aucunréancrage ni relâchementdegarde. **Reprisepréenregistrée uniquementdeA4interrompu**, nouveauplan/out `short-AR-4-A-resume-r2`, mêmebinary/options/matrice ; originalincompletconservé. LesautresplansMTP/DFnonlancésrestentinchangés. Pausealimentationqualifiel'incertitude, n'autoriseaucunsampleexclu des3passagesterminés.
+- Bridge17R2 A/C trois modes terminé6/6,24réponsesgoldexternesvalidées, modes/longueurs/compteurs contrôlés,tousprocessusjoints,0Swapout. ARMAIN11,218→11,163/HOLD11,239→11,265 ; MTPMAIN11,359→13,065/HOLD12,826→12,911 ; DFMAIN12,756→12,912/HOLD13,043→12,873tok/s. Contrôlescourtsvariablessansconclusionvitesse. Pilote128ACCAparmode lancésuridentity-final corrigée, mêmesbins etflags, aucunecompilationconcurrente ; aucunréancrage.
+- Auditprovenance : leshashessources/binsontbienrecalculés etvérifiés, mais3champsdescriptifs hérités (`status`,parentidentity,release_source_note) parlaientencoredel'ancienneconfirmation. Errata séparés danslesdossiersdefault/prepared préserventlesidentitésdéjàutilisées etclarifientleréelchangementproduction ; identity-final.json corrigéserviraaupilote128. Aucunplan,hashsource/binaire,chronoougarde changé ; dépendanceMLX etheaderABI épinglésdansdependencies.json. Lesancienslibellésneconstituentpasunepreuve de sourceinchangée.
+- MicroACCA complet :4processus/192oraclesdtype-strides,12288appelsmesurés,384lots conservés,0Swapout. Submissionwall typiquement−2à−6µs/appel ; tempschaîneGU1route−0,97%,GU2−1,71%,Down2−6,79%,maisDown1+10,23% etgrandesbaisseswaitsurcertainesformes(jusqu'à−41,25%) : **nepasattribuercesvariationsGPUwaitaulanceur niannoncerungainmodèle**. Touséchantillonsdansmicro-analysis.json. Premièreanalysead hoc attendaitmarqueuren débutdeligne : libtestpréfixe le premier, assertion95/96 arrêtéerapport ; parsingcorrigéexige96lotscomplets/processus, aucune mesure relancée. Audit : mêmespipeline/shader/grille/threads/bindings/allocateur/barrières ; wrapperajouteunprimitive/shared_ptr etgardeconstructionfactoryoriginale. Mesuremodèle nécessairepourtrancher, pasrejetautomatique pourDown1.
+- Préenregistrement pilote réel aprèsaudit : mêmeCLI R2, Dynamic+ColdUdéfaut auxdeuxbras, prepared0(A)/1(C). Bridge17MAIN/HOLD trois modesAC pourcontratsréels, puisAR/MTP/DF128ordreACCA,1chauffe+1mesure/prompt, mêmesgold/compteurs/options/ancregardes et3Gio. Micro n'estpasunplafondtok/s. Conserverles12passagespilote ; pasdelong512automatique ni confirmationpourdécimales. Si signalpetit/ambigu : garderexpérimental etdocumenter, sansactivationT01B ; si bénéficecohérent : qualifierprefilllongavantactivationéventuelle. AucunchangementnumériqueniSSD. Plans/identitévitesseàfigeravantlancement.
+- R2qualitéavantmicro : 311testsMLX/chatpassés,204ignorés ; fmt/Clippy/buildetYAMLCIpassent. SeptcontrôlesFFI/Cold/erreurs/étatscible/MTP/DFlash R2passent,177vaguesnaturelles observées,aucunSwapout ; ASanR2déjàpropre. CLI984e51e4… etlibtestabc55eff… figésdansidentity-r2.json. Kani entréeRustslotsréelle retenté8,42s/~893Mo, mêmeICEavantobligations ; CBMCparse resteincompatible. MicroACCAprédéfini lancé uniquementaprèscescontrôles ; aucunecompilation/proveurconcurrent, aucunchaînage versvitessemodèle sansinspection.
+- Correctif R2 : ASan/UBSan passe maintenant sansdiagnostic avecarrêtaupremierUB (`asan-r2.log`),72cas/144sorties+scalaires. Propriétairepipelineunique avecdeleternonnull, aucune désactivationdesanitizer. L'ancienexit0 avecUB resteéchecqualitédocumenté. RecompilationRust/CLI etcontrôlesR2encours avantmicro. Lepréfixe estdésormaiscomparéavec starts_with exact ; tests/identitésinitiaux conservés.
+- Premiercontrôle : sortiesC++72cas/144outputs+3scalaires exactes, mutationndim détectée ; cacheFFI330requêtes/320clés,Cold,oraclecible,MTP passent. **ASan/UBSan nonvalidé malgréexit0** : logUBSan détecte `NS::SharedPtr` appellantrelease surnullptr dansmetal-cpp, inspectéavantmicro. Correctif préenregistré : propriétaireuniqueavecdeleternonnull (retain/release identiques, aucune suppressiondebarrière), scopeprefixexpert exact16caractères ; fixerUBSAN_OPTIONS=halt_on_error=1 dansleplan. Rebuild etrelance descontrôlespointerownership/FFI/états concernés, conservertouslogsinitiaux. Aucunmicro exécuté ni gainannoncé. CBMCsurcodeC++réel échoueparseheadersavantobligations, propriétésnonvérifiées.
+- AuditABIavantcompilation : helperscopy_gpu/metal::utils etRTTI CustomKernel ne sontpasexportés parlibmlx. Adaptation : premierappel délégué auvraiPrimitiveCustomKernel, récupération de sapipeline déjàcompilée viaAPIexportée puisretain ; entréesnoncontiguës restentdéléguées. Cast uniquementd'unproduitfreshdelafactoryversionnée, nomvérifié. Aucunrecodage decompilation/copy/barrières. Prototypeheaderettestsécrits séparémentpendantqualificationdefault ; raccordementFFI/build suivant. Micro porte leschaînesGU2projections etDown1 sur1/2/4/8/16/32routes (donc2..64lignesGU),48oraclesdtype/strides avantmesuresdechaqueforme, comparaisonprojectionindépendante ; paslectureSSDchronométrée.
+- Préenregistrement du prototype étroit : entrée C ABI `mlxl3_metal_kernel`, uniquement `mlxl3_rs_expert_*_slots1` nonresident (Cold), flagexpérimental `MLXL3_PREPARED_METAL=1`, défaut0. Réutiliser la factory existante ; conserver un plan sansarrays par entrée (cache128 borné), signature dtype/scalar/constant<8 conforme au générateur MLX1f8e74e3, source/options/shapes-info issues du vrai CustomKernel. Compilation/pipeline retenue une fois àl'évaluation, bindings surlesentréescourantes, copiescontiguës/temporaires etbarrièresMLX conservés. Ni préallocation de scratchpartagé ni changement deskernels. Si types changent, remplacerleplan sansinvalider lesgraphesvivants ; pas de nouveauhashsource danschaqueeval. Scopepremierfiltre : composant physique avantmicro, 1/2/4/8/16/32lignes, dtypes/strides, entréesmutables etgraphespendants, erreurs etéviction ; comparer exact au cheminCustomKernel etoracleColdexistant. Micro alternéACCA, chauffe8 et8lots de32évaluations parforme, tempsconstruction/submit/eval total distincts, aucune extrapolationtok/s. Réutiliser ancre/gardes ; aucunequalificationmodèle/activationT01B avantoraclesétats etbridge si candidat retenu. Sourceamont sauvegardée dans docs/measurements/post-p09-prepared-eval-20261101 ; implémentation pasencore exécutée àcepoint.
+- Demande utilisateur : passer à la deuxième piste après activationDynamic. Lire POSTP09-RESEARCH-01 etfiltreT01A : le coût5,529µs ne mesure que construction sansévaluation ; T01B reste nonmesuré. Cible : coût réel d'évaluation/encodage CustomKernel MLX0.32.2 sur chaîneCold, shaders/calcul/frontièresSSD inchangés. Ni12ms promis,ni retrait de la sortieprécoce `slots.indices().async_eval()` (POSTPROFILE03),ni troisièmevague.
+- Première étape : auditer l'API/ABI locale et sourceprimaireversionnée, identifier un lanceurprepared minimal avec pipeline/métadonnéesstables mais entrées/scratchs explicites ; éviter capturesstales/donation/réutilisationavantfinGPU et duplicationsdu cachefactory. Puispréenregistrer formes/oracles/micro etprototype précis avanttout nouvelessai. Baseline future : Dynamic+ColdU pardéfaut activéetqualifié,3Gio. Aucun benchmark T01B autorisé par une hypothèse de coût nonqualifiée. **État : recherche ciblée en cours, aucun prototype T01B exécuté.**
+
+## POSTP09-DYNAMIC-COLD-01 — composition Dynamic+Cold U, préenregistrement 1 novembre 2026
+
+- **CLÔTURE — qualité validée, petitgain decode observé, prometteur conservé enoption pourcomposition ; défautStatic, code local, appinstalléeinchangée.** Aucunessairestantencours. Touslespassages inclus : AR11,3555→11,4162tok/s(+0,535%),MTP11,5452→11,6560(+0,960%),DF12,2702→12,3966(+1,030%). Tempsprefillcourt moyen−0,941%/+0,700%/−0,008% ; long512−0,657%/+0,145%/−0,501%. LeHOLDMTPinitial+2,25%nesereproduitpasdansconfirmation(−0,80%) mais lamoyennecomplèteHOLDreste+1,236% : conditionzérorégressionprefilluniversellenonétablie, pasd'activationglobale, aucunrejetpourpetitgain. Combinaisontestée `MLXL3_SSD_DYNAMIC_READERS=1`, `MLXL3_SSD_COLD_READY=1` disponiblelocalement. [Bilan final, tableaux, audit et limites](docs/measurements/post-p09-dynamic-cold-20261101/README.md), `final-summary.json`, diffpropreàcetessai `final-own-change.diff`.
+- Clôturepreuves :28processusbridge/chrono,100réponsesgoldexternes ;12sélectionsphysiques et2diagnostics6phases,42processussupervisésjoints. CPU276passés/9ignorés,MLX311/203ignorés,Python1311passés,ASan/UBSan83etTSan83,mutationdétectée,fmt/Ruff/Clippystrictpassent. AssertionsnaturellesCold corrigéesetretentéesA/C ; aucunautredéfautmoteurconcrettrouvéaprèsaudit. KaniICE/CBMCparsing/CrossHairabsent restentnonvérifiés, aucuneCIremotedudifflocal ; pasdepreuvecomplèteCPU/Metal/concurrence. Hashes197sources/plans et4binaires vérifiésfinaux ; CLI689548f8…inchangé, qwen4diffsupplémentaireuniquementcfg(test)libtestd8fef182…. Aucunpush/merge/publication/install.
+- Ressourcesfinales :2,9375MioSwapout/10,34375MioSwapin cumulésdepuisancreautoriséeinchangée(32/256Mio),RSSenfantsmax7532871680B,empreintenativeviemax7933499896B ; secteur,aucunexécutabledecampagnerestant. Rapportclosuread hoc initial avaitmultipliéàtortdescompteursévénementsVMnonutiliséspourlesgardes : corrigéenconservantuniquementchampspagesmémoire/swap, originalexplicitementinvalidedansclosure-invalid-extra-units.json ; aucunchrono,ancreoucontrôlesuperviseurmodifié. Lesétats «encours» ci-dessous sonthistoriques etsupersédésparcetteclôture.
+
+- Vérifications complètes avant GPU : CPU276passés/9ignorés, MLX/chat311passés/203ignorés, Python1311passés98,73s ; zéroéchec. FormatRust/Python, Ruff, Clippystrict passent. CLI etlibtest figés dans build/post-p09-dynamic-cold-20261101 ; identité188sources/plans et3binaires conservée dans le dossier de mesures. Les tests physiques explicitement ignorés vont être sélectionnés séparément, aucun skip pris pourvalidation. État : **qualification physique en cours, vitesse non mesurée**.
+- Physique10/10passés : stockage36cas parbras/3288records/105216octets,18lotsDynamic réellement observés enflag1 ; optioninvalide refuseavantécriture. Coldmixte20+Hot20/fallbacks/duplicates bitexact dans lesdeuxmodes, préparation/fences/erreur/reprise passent ; oraclecible5étapes48couches+états/logits, MTPbudgets1/2/3/17 etDF36préfixeslargeurs1..8 passent (états/logits byteexact, captures64000valeurs byteexact). Aucun nouveauSwapout durant ces10commandes ; tousprocessusjoints. Étapes suivantes : bridge17réel A/C trois modes avant pilote128 ; vitesse encore nonmesurée.
+- Bridge17 A/C trois modes terminé6/6 :24réponses chauffe/mesure validées contregoldexterne (tokens/texte), compteurs/modes/mémoire/identités etjointures contrôlés ; aucunepariténumériqueattribuéeauhash. ARcontrôlecourt11,49/11,64→11,34/11,33tok/s, MTP13,09/13,10→12,73/12,23, DF12,90/12,67→12,86/12,80 (MAIN/HOLD), pasdedécisionvitesse sur17sorties. 256KioSwapout au premierbridge conservés sousplafondcumulatif, aucunréancrage. [Rapport en cours et audit du port](docs/measurements/post-p09-dynamic-cold-20261101/README.md). Pilote128ACCA suivant, aucun défaut concret trouvé dans la composition à ce stade.
+- PiloteAR128ACCA complet4/4,16réponsesgoldvalidées : débitagrégé127transitions/temps MAIN11,4089→11,4667(+0,507%),HOLD11,3026→11,3661(+0,562%),ensemble11,3555→11,4162(+0,535%). Tempsprefill moyen−1,212%/−0,651% (ensemble−0,941%) ; tempsgénération−0,698%. Petit signal cohérent àconserverpourqualification, pasdepreuve statistique ; témoins/candidats etchauffes tousconservés dans performance-summary.json/inspection.json. +384KioSwapout surC1 sousplafond, aucunréancrage. MTP128 en cours,DFetprefilllongrestants. Demande utilisateur de revérifier si négatif intégrée : inspecter distribution réelle deslecteurs/vagues/jointure si un ralentissement se répète, avant décision.
+- Audit complémentaire — lacune de test repérée avant décision : qwen4.rs/oracle indépendant garde encore l'ancienne condition `Dynamic!=1` autour de l'assertion « natural_waves>0 ». Les comparaisons effectives logits/états/routes restent exécutées et les testsCold séparés exigent déjà la composition réelle ; ce défaut ne désactive pas le moteur. Correction prévue uniquement cfg(test) après fermeture de la série figée en cours : enlever cette exclusion obsolète, reconstruirelibtest, relancer l'oracleA/C avec assertion positive,fmt/lint affectés. Préserver les identités et mesuresCLI anciennes ; nouvelle identité de qualification documentant le diff exclusivementtest. Pas de modification du binaireCLI mesuré ni de nouvelle campagne de vitesse requise pour cette seule assertion.
+- MTP128ACCA terminé4/4,16réponsesgoldvalidées : MAIN11,9732→12,0267(+0,446%),HOLD11,1122→11,2076(+0,859%),ensemble11,5266→11,6027(+0,660%). PréfillMAIN−0,143%,HOLD+2,250%de temps,ensemble+1,018% ; tempsgénérationensemble+0,030%. Le coûtHOLD répété mérite investigation avantactivation. **Préenregistrement diagnostic ciblé MTP/HOLD C-A**, après correctiontest/qualité et piloteDF : réutiliser libtest/profile natural sixphases128 (chauffe,contrôleavant,3tracesnatives,contrôleaprès), sansXcode ; mêmesflags/cache/gardes/ancre, zérocompilationconcurrente. Vérifier fullparity, goldexterne, jobs/bytes/routes identiques ; analyser workers réels, dernierjob, déséquilibre, taillesW1/W2,wait/finish/submit etprefill vsdecode. Duréeswall imbriquées,nongainCLI niGPUidle exact ; aucunbiaisdephasesouretentiondegraphe accepté. Plans/identitérévisiontestàfigeravantlancement. Une seuleconfirmationCA libérée parmodeambigu restepermise aprèsaudit, pas de relancejusqu'auvert.
+- Lacunetest corrigée et vérifiée : suppression uniquementcfg(test) de la conditionobsolète ; diffconservé oracle-assertion.diff, nouveau libtestd8fef182… et identity-oracle.json(parentidentitépréservée), CLI689548f8… strictementinchangé. Oracles A/C passent avecassertionpositive :177/154vaguesnaturelles, logits/états/routes externes vérifiés ; 0Swapoutdurantcesdeuxcommandes. Format/Clippystrict passent ; ancienneincompatibilitéKani/CBMC reste nonvérifiée, pasrelancedeproveurinchangé. Aucunevitesse attribuéeàcecorrectifde test. PiloteDF128 suivant ; profilsMTPHOLDdéjàfigés avant lancement.
+- Limite du diagnostic identifiée avant lancement : FlashNext::reset remet étatsKV/GDN àzéro mais conserve volontairement le cacheexperts. Le CLI alterneMAIN/HOLD ; le profilnativeHOLD répèteHOLD. A/C restent comparables àhistoriqueidentique dans chaqueprotocole, mais le profilHOLD n'est pas une reproduction exacteduHOLDCLI. S'en servir pourauditer jobs/concurrence/vagues/synchronisations, pas pourattribuer causalement les2,25%CLI ; seuleconfirmationCLIplannedCA reprendra l'historiquedeprompts exactsi ambiguïté. Aucun changementcacheniapplicationfaitsurceconstat.
+- DF128ACCA terminé4/4 : MAIN12,4894→12,6307(+1,131%),HOLD12,0560→12,1309(+0,621%),ensemble12,2689→12,3757(+0,871%). PréfilltempsMAIN+1,370%,HOLD+0,056%,ensemble+0,734% ; tempsgénération−0,178%. LeMAINC1lentnese reproduitpasenC2, aucunéchantillonexclu. Pilote3modes12/12complet,48réponsesgoldvalidées etcompteursacceptation strictementégaux parprompt danslesdeuxbras. Signaldecodepetitfavorablepartout ; prefillMTP/DFencoreàtrancher, **aucuneactivationpardéfaut**. DiagnosticMTPHOLDC-Aen cours ; sixplanslong512/64 prévus seront exercés puisque decodefavorable.
+- DiagnosticMTPHOLD C/A terminé :12phases128 fullparity+goldexterne,3tracesprefill/decodeparbras validées parprofile_flash.analyze ; rétentionstages désactivée horschauffe. Routes/hits/misses/octets strictementégaux parphase/bras ; decode66316jobs/11007lots cumulés,6733lotséligiblesDynamic(61,2%). Suréligibles,4lecteursréellementactifs presque partout,concurrencemoyenne2,932→3,190 ; duréelecturelot1085,04→1045,42µs(−3,65%),écartdefinlecteurs559,10→362,67µs. Sur381transitions,waitCold−0,208ms/sortie,finish−0,599ms,maisbuild/submit/etc compensent~0,123ms ; lotColdwall−0,685ms/sortie. **Pas de tempsGPUexclusif ni de gainCLI attribuable àcesintervalles imbriqués**. W1moyenne2,418→2,415lignes,taillepresqueinchangée ; trousentreljobs3,020→3,497µs/lot,aucunesérialisationdes4workers ni coûtatomiquemassifobservé. Préfilléligible31,9%deslots ; diagnosticrépétéHOLDn'expliquepasàluiseull'historiqueCLIalterné. Aucun défautmoteurconcrettrouvé ; lacunetestdéjàcorrigée. +448KioSwapoutdutémoinconservés sousplafond ; rapportsnatifs/analysesdansledossier,processusjoints. Long512/64CA trois modes suivant, puis confirmationCA unique MTP/DF siambiguïtérestante.
+- Confirmationprospective aprèsaudit : utiliser l'uniqueCA autorisée pour **MTP128 etDF128**, quatreprocessus au total, mêmes MAIN/HOLD/chauffes/flags/binaire/ancre, aprèsleslongs. Motif : prefillHOLDMTP+2,25% répété, MAINDF+1,37% moyenavecunseulpassage lent ; aucun défautportageCPU/GPU identifié. Plansconfirm-* etidentity-confirm.json épinglésavantlancement. Garder lepilote etconfirmation séparés puisprésenter l'ensemble sanssupprimerunpassage ; pasd'autreconfirmationcourteautorépétée. Justin accepte lepetitgain etle maintient comme candidat ; cela ne lève pasle contrôleprefill demandé.
+- Long512/64 AR etMTP terminés CA : ARprefill42,5382→42,2586s(−0,657%),decode10,8294→10,8407tok/s(+0,105%). MTPprefill43,1538→43,2166s(+0,145%),decode11,7333→11,8509(+1,003%). Unepaireparmode,sansgarantie statistique ;8réponseswarm/mesure conformesàgoldlongP09 utiliséuniquementpourqualité.0Swapoutsurces4processus. DFlongencours,confirmationcourteMTP/DFrestante ; aucunautrecode moteur modifié.
+- DFlong512/64 terminéCA : prefill43,8018→43,5825s(−0,501%),decode12,2680→12,3059tok/s(+0,309%),tempsgénération−0,480%. Les6processuslongs/12réponses sontcomplets,goldexternelongvalidé,0Swapoutdurantles6. Aucunralentissementprefilllongpratiqueidentifié surcepilote ; seulespetitesvariationsmesurées,pasgarantiegénérale. ConfirmationMTP/DF128CA unique lancée avecidentity-confirm.json ; aucunautreessainiactivationprévusavantsoninspection.
+- ConfirmationMTP128CA terminée : decode11,5825→11,7640tok/s(+1,567%),prefillmoyen+0,066% (MAIN+0,874%,HOLD−0,800%). Le ralentissementHOLDinitialnese répètepas ; touséchantillonsconservés. Pilote+confirmationMTP (3processus/bras) :11,5452→11,6560(+0,960%),prefillmoyen+0,700% (MAIN+0,197%,HOLD+1,236%). Gaindecodecohérent ; absenceuniverselledecoûtprefillnonprouvée. +512KioSwapoutdutémoinconservés sousplafond,aucunréancrage. DFconfirmationencours,aucunnouvelessaiaprèscelle-ci.
+
+- Demande explicite : implémenter et tester AR/MTP/DFlash, conserver si decode favorable sans ralentir le prefill ; auditer l'adaptation avant rejet. Recherche précédente POSTP09-RESEARCH-01, historique T18a mixte et ColdU/P2 relus. Nouveau mécanisme : file dynamique dans les lots asynchrones ColdU, qui étaient exclus par le flagDynamic. Aucun changement de math/cache/politique ni troisième vague.
+- Port minimal : réutiliser DiskWorkQueue dans DiskReadBatch, conserver publication release/acquire après record entier, jointure/destruction/ordre canonique des erreurs et leases MLX. Propager le schedule effectif au profil FFI, lever l'exclusion côté SsdMoe en préservant validation du flag. Même flag existant0/1, défaut0 durant qualification. Callers : Array::begin_read_records→FFI→workers, SsdMoe::fill_ready→AR/verify MTP/DFlash ; fallback synchrone reste régi par le même flag. Snapshots avantédition sous docs/measurements/post-p09-dynamic-cold-20261101/before/.
+- Qualité avant vitesse : tests C++Static/Dynamic,1..4workers,1/2/3/6/20/512jobs, prédicats de publication, record retenu permettant de démontrer le vol de jobs, erreurs/troncature/EINTR/lectures partielles/drop/timeout/reprise, ASan+UBSan et TSan. Mutation schedule forcéStatic doit être détectée. CBMC réel async, Kani entrée Rust réelle avec choix symbolique des chemins, plafonds60s/2Gio (CBMC15s/512Mio), diagnostics préservés ; paspreuve Metal/concurrence. Format,Clippymlx/chat,buildsCLI/libtest, suitesCPU/MLX ordinaires et testsPython pertinents ; workflows PR/main inspectés, étendre les contrôles existants si nécessaire.
+- Physique : tests FFI options/schedule/payload puis Cold externes B1/B2/duplicates/fallbacks/fenced/erreurs avec Dynamic, oracle indépendant cible états/logits, MTP préfixes/commit/continuation et DFlash largeur1..8/rollback. Même modèle FlashNext2.05bpw65c89531,drafta22a1744,3Gio53slots×48,4lecteurs,Hot/Wide/Unique/Overlap/COLD_READY1,lookahead0,MLX40/40,alloc64Mio ; TAIL2 et autres flags identiques aux deux bras. Bridge réel17MAIN/HOLD A/C avant128. BinaireC2figé reste témoin externe qualité.
+- Pilote : mêmeCLI flagDynamic0(A)/1(C), ColdU1 aux deux bras ; AR puisMTP puisDFlashB2, ordreACCA,1chauffe+1mesure par promptMAIN87/HOLD82,128sorties127transitions,4processus/mode. Mesures brutes/compteurs/logits selonqualité séparés ; pas addition aux anciens gains. Si signal ambigu après audit, une seule confirmationCA par mode affecté ; si candidat favorable, vérifier prefill512/64sorties enCA (1chauffe+1mesure), trois modes, sansextrapolation petitprompt. Décision parmode, seuil2% seulement investigation, ni statistique obligatoire ni régression automatiquement acceptable.
+- Gardes : réutiliser sansréancrage l'ancre MTPHEAD-S32 autorisée docs/measurements/decode-profile-p09-20261101/anchor-mtp-head.json,32MioSwapout/256MioSwapin cumulés ; admission10,5Go,secteur,unmodèle,aucunbuild/proveurconcurrent,superviseur P09 existant. Avantédition environ15Go estimés disponibles, cumul swap à revérifier avant GPU. Aucun changementapp/push/merge. **État : en cours, avant code et nouvelles mesures.**
+- Implémentation locale raccordée : même file Dynamic dans DiskReadBatch, fallbackStatic quand≤1job/worker, publication et leases inchangés ; schedule effectif restitué au finish. TestsASan+UBSan83/83 etTSan83/83, mutant fileStatic avec métadonnéeDynamic détecté par le jobretenu, sourceproduction inchangée après mutation isolée. Python ciblé170passés,fmt/Clippymlx/chat passent,CLIrelease construit56,79s ; libtest en compilation. Kani réel choixsymboliquebool des cheminsCold échoueICEintrinsics243 à8,37s/pic895Mo, processusjoint ; aucuneobligation vérifiée. CBMC absentduPATH puis binaireKani6.11 retrouvé : parsing headersC++ échoueexit6 à0,22s ; CrossHairabsent. Aucun GPU modèle/vitesse lancé ; CI PR/main exécute déjà les sources de tests C++ modifiées soussanitizers et leur syntaxeproof, aucune nouvelle CI distante surdiffnonpublié.
+
+## POSTP09-RESEARCH-01 — pistes decode après P09, 1 novembre 2026
+
+- Demande utilisateur : rechercher les optimisations permettant de se rapprocher de15tok/s à partir du profilage courant et du code, avec consultation amont si utile. Recherche seule : aucun nouveau prototype, build, benchmark ou chargement GPU prévu à ce stade.
+- Baseline : P09, HEADd5a776e53425bb4d0ba61c0774c5399ae7987c06 et modifications locales documentées ; ColdU déjà intégré, variante MTPHEAD-TAIL2 locale distincte. ARMAIN11,48696tok/s, MTP12,13720 etDFB2 12,46338 ; traces et release séparés. Préserver les plafonds conditionnels/non additifs et le budget experts3Gio.
+- Antécédents à confronter : POSTPROFILE03 (suppression async détruit overlap), POSTPROFILE02 (seuils buffers), POSTPROFILE05/T04/T17/F02/composition, T01A/B, cache global/ARC, ColdU déjà livré, spéculation Sushi limitée par hits/rollback. Différence : nouveau profil commun AR/MTP/DF P09 et état amont courant épinglé ; pas de répétition de vitesse autorisée par cette seule entrée.
+- Livrable : audit statique des chemins réellement exécutés, sources primaires épinglées, shortlist classée avec mécanisme, coûts encore non mesurés, pièges et premier test discriminant. **Recherche terminée, aucun essai moteur lancé.** [Rapport et ordre proposé](docs/measurements/post-p09-research-20261101/README.md), extraction P09/empreintes `evidence.json`, sources primaires `upstream.json` dans ce dossier.
+- Premier candidat : Dynamic+ColdU. Le flag actuel Dynamic désactive ColdU ; leur composition n'a pas été testée. Jointure finale CPUBlocked∩GPUidle P09 AR4,744/MTP10,341/DF9,171ms/sortie, enveloppes non entièrement récupérables. Ensuite lanceur préparé pendant eval (distinct du petit budget T01A), éventuelle troisième vague Cold filtrée par coût, DEC-ONE exact distinct de F02 arrêté. Aucun gain propre chiffré ni addition des budgets.
+- Amont : Sushi543c25f confirme spéculationGDN/restauration/largeurs limitées ; MLXPR4647 fusionnée27oct permet config runtime, absente de notre0.32.2. Hypothèse initiale banqueGU41,4Mio>seuil40 **corrigée avant prototype** : MLX compte data_size en éléments, vueU32≈10,35unitésMi ; pas de dépassement causé par cette banque seule. Seuils relégués au comptage diagnostique, pas nouvelle promesse de gain. SourceTurbo087c757 relue sans reprise des gains/arrondis/réglagesM5Max.
+- Vérification documentaire : lectures de code/historiques, extraction des trois attributions complètes87–113 et calcul des20,389ms AR à retirer pour15tok/s. Première extraction arrêtée par attente erronée du nom de statut, corrigée après inspection ; données productrices inchangées. Aucun nouveau GPU/build/proveur/CI, aucun code moteur édité ; pistes non implémentées et non mesurées, aucun push/publication/app.
+
 ## Procédure courante — conserver les petits gains et mesurer leur composition — 1 novembre 2026
 
 Révision demandée explicitement par Justin le 1 novembre : assouplir la décision
@@ -22207,3 +22335,638 @@ Native41322940759,Apple41322940757,conversion41322940850 en attente.
 Aucun succès distant final annoncé ; limites de preuves inchangées.
 Ce reçu final est documentaire ; aucun nouveau benchmark ni changement
 exécutable. Captures brutes locales préservées, aucune app installée changée.
+
+## DECODE-PROFILE-09 — nouveau profilage après intégration, 1 novembre 2026 — interrompu sur garde swap
+
+Demande explicite : campagne nouvelle, seul sans subagents, puis corrections
+locales ciblées démontrées. Référence restaurable d5a776e53425bb4d0ba61c0774c5399ae7987c06,
+Cold U conservé par défaut ; aucun ancien chrono considéré comme mesure de
+cette source. Relire P08 et les contrôleurs existants avant instrumentation.
+Première étape préenregistrée : inventaire en lecture des chemins AR/MTP/DFlash,
+couverture des observateurs, instruments disponibles et ressources actuelles.
+Pas de modèle, compilation, prover ni nouveau benchmark durant cet inventaire.
+La matrice physique, identités, qualité, marge mémoire, gardes et instrumentation
+seront figées avant chaque essai ; journaliser les refus avant chargement.
+Mesurer séparément démarrage/chargement, prefill, premier token et decode stable,
+coûts superposés, longue traîne et overhead des observateurs. Aucune somme
+naïve de compteurs ; distinction mesure directe/estimation/non mesuré.
+Réutiliser contrôleurs/tests fiables, sans nouvelle infrastructure générique.
+Aucune application utilisateur fermée ni tuée, aucune app installée remplacée.
+Le profilage et ses corrections restent locaux ; pas de nouvelle publication
+automatique dans cette campagne. Rapport prévu docs/decode-profile-p09-20261101.md.
+
+P09-OBS1 préenregistrement : le chemin fill_ready conserve déjà les timings
+POSIX dans la FFI après finish(), mais son événement cold_ready_batch n'en
+exporte ni le mapping ni les timings. Le collecteur ne voit ainsi que les
+lots synchrones de fallback : attribution SSD incomplète avec Cold U actif.
+Ajouter les données existantes uniquement sous cfg(test), après jointure,
+et faire valider les deux types de lots par le même analyseur. Pas de nouveau
+timer, fence, copie de tensor ou changement release. Tests positifs/négatifs
+du parseur, vraie qualité Cold et oracle modèle avant capture ; contrôle de
+parité six phases et overhead du diagnostic durant la campagne.
+Étendre le benchmark bridge existant à un fichier de prompts explicite et
+consigner le temps spawn→ready ; tests processus jetables avant modèle.
+La nouvelle campagne demandée utilisera une nouvelle ancre identifiée après
+préparation, zéro nouvelle écriture swap et au plus256Mio lus, sans réancrage
+après incident. Admission≥10,5Go stable, RSS≤10Gio, footprint≤12Go ; un seul
+modèle, secteur, gardes existantes conservées. Les anciens incidents restent
+dans leurs campagnes closes, aucune correction rétroactive de leurs compteurs.
+
+P09-OBS1 contrôles : le cas synthétique exécuté sur le vrai analyseur ancien
+ignore10lectures ; le corrigé en compte10. Suite Python dépendante461passés,
+contrôles supplémentaires et affectés222passés ; CrossHair non installé.
+Le changement Rust est exclusivement un export serde sous cfg(test), après
+la jointure existante ; aucun nouvel invariant de calcul/offset ou durée de
+vie GPU modifié. Le chemin Kani MLX réel était déjà non vérifié par limite
+compilation/mémoire lors de P2 ; pas de nouveau proveur coûteux pour cet export,
+conformément à la demande de pertinence. Sa correction est testée sur le vrai
+chemin physique, sans prétendre à une preuve source. Build libtest MLX/chat
+release72s ; fmt passe, Clippy en cours. Matrice CLI et étapes inscrites dans
+docs/decode-profile-p09-20261101.md avant lancement.
+
+P09 admission trois relevés13,856/13,861/13,868Go, secteur/quiet. Nouvelle
+ancre créée une fois, dans decode-profile-p09-20261101/anchor.json ; sources
+et binaires figés identity.json. Clippy strict et fmt passent. Qualité physique
+Cold passée2,310s, oracle indépendant passé4,802s : cinq tokens/48couches,
+248320logits et reset exacts,177vagues naturelles ; zéro nouvelle écriture
+swap. Aucun gain de vitesse déduit de ces tests. Début du pilote CLI AR1.
+
+P09 AR1 terminé114,562s, processus joint,0Swapout ;4mesures après2chauffes.
+MAIN11,4791/11,4708tok/s, HOLD11,3951/11,3827tok/s ; sortie128tokens conforme
+aux deux hashes historiques. Chargement annoncé0,5893s, spawn→ready1,6298s
+(écart inclut démarrage/checkpoint/transport, attribution détaillée non mesurée).
+Pas de candidat comparé : ce sont des références actuelles, pas un nouveau gain.
+Suite de la matrice préenregistrée MTP/DF/DF/MTP/AR avec contrôle croisé des
+textes/hashes et compteurs après chaque processus ; modèle unique et même ancre.
+
+P09 interruption : baseline2 MTP119,394s, baseline3 DF114,671s et baseline4
+DF112,699s complets, zéroSwapout et sorties128/hash/texte identiques à AR.
+Baseline5 MTP arrêtée67,420s :196608octets(192Kio) de nouveau Swapout global,
+1949696octets lus cumulés. Admission16,670Go estimés ; au déclenchement,
+libre132759552B,file-backed8756396032B,compresseur2173796352B. Ces compteurs
+globaux ne prouvent pas quel processus a provoqué l'écriture. Garde0 respectée,
+parent40938 terminé(-15)/joint ; série5 partielle conservée, série6 non lancée.
+Pas de nouvelle ancre ni relance GPU automatique. Question utilisateur :
+plafond P09 cumulatif32Mio incident inclus, ou libération RAM puis nouvelle
+campagne zéro écriture. Les anciens64Mio/1Gio visaient l'ancre précédente.
+Captures corrélées, contextes longs et corrections de performance non lancés ;
+analyse CPU et clôture des preuves continuent. Aucun débit partiel promu en gain.
+
+- 45-Q/R processus quality-cold : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/quality-plan-result.json.
+
+- 45-Q/R processus quality-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/quality-plan-result.json.
+
+- 45-Q/R processus baseline-1-AR : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-1-AR-plan-result.json.
+
+- 45-Q/R processus baseline-2-MTP : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-2-MTP-plan-result.json.
+
+- 45-Q/R processus baseline-3-DF : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-3-DF-plan-result.json.
+
+- 45-Q/R processus baseline-4-DF : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-4-DF-plan-result.json.
+
+- 45-Q/R processus baseline-5-MTP : **failed_or_interrupted**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-5-MTP-plan-result.json.
+
+P09 clôture CPU après interruption : suite pertinente complète1286passés en96,35s,
+incluant le vrai CLI du benchmark avec fichier de prompts et erreurs avant spawn.
+Ruff check/format et git diff --check passent. Les ensembles461/222 précédents
+se recouvrent avec cette suite et ne sont pas additionnés. Rapport actualisé :
+docs/decode-profile-p09-20261101.md ; statistiques complètes dans
+docs/measurements/decode-profile-p09-20261101/baseline-partial-summary.json.
+Médianes MAIN/HOLD : AR11,475/11,389 ; MTP11,985/11,090 ; DFlash B2
+12,463/11,919tok/s. Prefill7,824/7,292s,8,373/7,698s,8,033/7,553s.
+Ce sont des références partielles, pas un boost. DFlash vérification cible
+74,927/77,671ms par token émis ; CPU/GPU/SSD critique non séparés à ce stade.
+La queue AR HOLD est hors des trois timers DFlash, résidu non assimilé au CPU.
+Piste de code future : prefill MTP calcule encore tous les heads intermédiaires ;
+pas de prototype ni plafond mesuré, ancien HEADONLY excluait ce mode.
+Contrôle de clôture prévu : comparer les hashes actuels aux sources/binaires
+figés de P09 et vérifier l'absence de processus possédés, sans lancer de modèle.
+Captures/overhead/contextes longs/candidats restent non exécutés. Réponse au
+plafond32Mio depuis la même ancre toujours attendue ; zéro nouvelle relance,
+aucune publication P09, aucune app installée modifiée.
+
+P09 reçu final CPU :131empreintes de sources figées identiques, hashes CLI et
+libtest inchangés, aucun processus de campagne restant. Preuve :
+docs/measurements/decode-profile-p09-20261101/final-cpu-inspection.json.
+Statut demeure interrompu, sans validation complète du profilage ni gain annoncé.
+
+P09-ATTR1 préenregistrement : adapter l'analyse temporelle P08 dans un fichier
+P09 distinct, en conservant son lecteur XML et ses contrôles finis d'intervalles.
+Sélectionner jusqu'à40transitions complètes couvertes, minimum16, puis calibrer
+les horloges sur les lots POSIX synchrones et vérifier leur nombre/octets. Ajouter
+Cold U au rapprochement indépendant de chaque lot ; son GPU peut dépendre de W1,
+donc ne pas reprendre l'ancien plafond « GPU indépendant » pour ces lots.
+Rapporter unions/intersections CPU/GPU/POSIX et attentes visibles, sans déduire
+une causalité SSD physique. Ajouter budgets de spans inclusifs et exclusifs,
+partition CPU/GPU du créneau complet et garde des traces/parités incomplètes.
+Tests synthétiques positifs et données corrompues avant analyse physique ;
+conserver les fenêtres/critères identiques entre modes et mesurer l'overhead.
+
+P09-S32 préenregistrement, reprise explicitement autorisée : l'utilisateur accepte
+32Mio cumulés depuis l'ancre P09, incident192Kio compris. Ancre inchangée,
+lectures≤256Mio et autres gardes conservées. Mettre à jour le wrapper P09 pour
+appliquer ce plafond aussi au contrôleur de capture, sans changer le défaut zéro
+des anciennes captures ; tester bornes exactes, dépassement, compteurs inversés,
+identité et branchement réel des deux contrôleurs. Archiver leurs sources avant
+modification et figer identity-s32.json, conserver les anciennes preuves.
+Répéter seulement MTP5 interrompu sous nouveau nom puis terminer AR6, avant
+les captures MAIN AR/MTP/DF préenregistrées. Mesures1–4 conservées ; interruption
+et délai de reprise empêchent de supposer l'absence de dérive. Tests CPU achevés
+avant GPU, un seul modèle, aucune compilation ou application utilisateur tuée.
+
+P09-S32 contrôles :116tests des contrôleurs/ancres/processus passent en53,91s,
+Ruff passe. Tentative CrossHair : module absent, aucune preuve source acquise.
+Anciennes sources archivées before-s32 ; identité-s32 figée avec les mêmes
+binaires et ancre. Une assertion préparatoire distinguant à tort chemin relatif
+et absolu a arrêté la création avant écriture ; normalisation corrigée, seuls
+run.py/capture.py ont changé dans les131sources précédemment figées.
+
+- 45-Q/R processus baseline-5-MTP-s32 : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-5-MTP-s32-plan-result.json.
+
+P09-S32 MTP5 terminé :4mesures après2chauffes, texte/hash128tokens et compteurs MTP identiques au passage2. MAIN [12.215191567266547, 12.232941157752094]tok/s ; HOLD [11.347655876974432, 11.23027508846218]tok/s. Cumul196608B écrits/12075008B lus ; processus joint. Inspection baseline-5-MTP-s32-inspection.json. Témoin AR6 suivant, sans candidat nouveau.
+
+- 45-Q/R processus baseline-6-AR-s32 : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/baseline-6-AR-s32-plan-result.json.
+
+P09-S32 AR6 terminé :4mesures après2chauffes, texte/hash128tokens identiques à AR1. MAIN [11.544058806826667, 11.494845743978491]tok/s ; HOLD [11.607772454755965, 11.45045751621612]tok/s. Cumul786432B écrits/12664832B lus ; processus joint. Inspection baseline-6-AR-s32-inspection.json. Aucun modèle actif avant tests CPU ATTR1.
+
+P09-ATTR1 contrôles :9cas synthétiques passent, dont lectures Cold/synchrones,
+GPU actif/idle, budgets exclusifs, octets faux, lecture manquante, mapping faux,
+parité absente, enfant hors parent, trou CPU et fenêtre trop courte.3375unions+
+3375intersections finies et cas XML corrompus passent ; ce n'est pas une preuve
+générale. Ruff a détecté un check=False manquant dans le test, corrigé puis vert.
+Workflow PR/main étendu, aucun run distant du diff local. Baselines complètes
+dans baseline-complete-summary.json ; dérive dernier/premier processus de0,03%
+à1,99% selon mode/prompt, délai de reprise conservé. Début capture AR MAIN S32.
+
+P09-ATTR2 préenregistrement : conserver ATTR1/source AR puis ajouter aux mêmes
+intervalles les échantillons Time Profiler du TID d'inférence, Running ou contexte
+juste avant Interrupted identifié. Séparer samples CPUactif/GPUidle, scopes et
+symboles MLX ; pas de conversion du nombre/poids de samples en ms exactes.
+Rapprocher time-sample/time-profile par timestamp/TID et conserver inconnus,
+frames manquantes et rejets. Témoins synthétiques avant réanalyse versionnée.
+Historique POSTPROFILE03 relu : retirer le premier async_eval des indices viole
+l'événement précoce des routes et l'overlap ; ne pas retester ce faux raccourci.
+
+P09-LONG préenregistrement : compléter MAIN87/HOLD82 par le prompt historique
+ultra-profile-20261027/prompts/context-512.txt (ancien essai long non exécuté).
+CLI release inchangé,3Gio/mêmes options,64sorties,1chauffe+2mesures dans chaque
+processus AR puis MTP puis DF. Figer le texte dans prompts-long.json avant départ,
+relever le vrai nombre de tokens plutôt que supposer512. Comparer les sorties,
+comptes/modes/acceptation, prefill/TTFT/décode/tempscomplet et mémoire ; corpus
+différent, ne pas appeler l'écart à MAIN/HOLD un effet de longueur pur. Ce sont
+des références supplémentaires, pas un candidat ni un A/B d'optimisation.
+Même ancre S32/gardes, aucun build/proveur/export concurrent à ces mesures.
+
+P09-MTPHEAD préenregistrement avant code : le profil courant confirme87heads
+cible dans le prefill MTP MAIN,453ms inclusifs (amont compris), contre11AR/1DF.
+L'ancien HEADONLY excluait MTP. Après fin des références LONG : déplacer le
+prefill MTP existant dans une méthode FlashNext réutilisée par CLI et diagnostic,
+conserver reset/cancel/extend_cache/last_hidden/ordre et ne calculer les logits
+qu'au dernier token quand le flag HEADS existant est actif. Aucun changement
+au decode AR/MTP/DF, pas de nouveau flag ni calcul approximatif. Référence
+restaurable et binaires P09 conservés. État : préparation seulement, pas d'édition
+des sources figées tant qu'un GPU baseline tourne.
+Qualité : comparer au vieux parcours explicite target.forward pour longueurs
+1/2/7/8/9/17, logits248320 finis/byteexacts, états cibles et KVhead, continuation
+MTP/compteurs, comptes de headsN→1, invalides/empty/cancel/reset/récupération.
+Oracle indépendant et bridge réel MTP MAIN/HOLD avant chronos ; contrôles AR/DF
+inchangés. Tenter Kani réel ciblé et borné, sans GPU, puis fmt/Clippy/build/suites
+pertinentes. Matrice avant/après MTP : même binaire flag0/1, MAIN/HOLD128 et
+LONG512/64,1chauffe+2mesures, ordre A-C-C-A. Mesurer prefill/TTFT/décode/temps
+complet et sortie/acceptation, garder seulement un gain sans régression decode
+répétée. Auditer mécanisme/fallbacks/copies/fences si décevant, avant retrait.
+Pas de publication/app installée ; plafond S32 original toujours conservé.
+
+P09 AR capture S32 terminée :six phases, parité complète interne logits/états et golden externe validées ; cible/tracer joints. Cumul 786432B écrits/60407808B lus. Durées decode par phase [('warmup', 11.172184541), ('control_before', 11.455248458), ('trace_1', 12.789492083), ('trace_2', 13.504626459), ('trace_3', 10.9880265), ('control_after', 10.532484959)]. Capture enregistrée, couverture et attribution encore à inspecter. Trace2 peut chevaucher la sauvegarde xctrace ; ne pas attribuer tout son overhead aux seuls spans. Exports bornés puis analyse, aucun modèle pendant ces opérations.
+
+P09-ATTR1 AR qualifié sur40transitions78–117 : calage−25282ns, demi-largeur1438ns,637lots synchrones témoins ;5885lectures/7344550620B rapprochées une fois, dont1054lots Cold et637fallback. Budget instrumenté101,376ms/token, GPU modèle58,931ms ; CPU actif37,058ms dont19,869ms GPUidle. Routes33,753ms dont33,662ms GPUmodèle ; soumission25,066ms dont12,620ms CPUactif/GPUidle. Lectures POSIX∩attenteCPU∩GPUidle20,352ms/token, pas une causalité NAND. Traces/export/attribution et source exacte archivées AR-attribution/. Overhead/dérive : témoins decode11,455→10,532s, ne pas extrapoler ces ms au CLI ni annoncer un gain.
+
+P09 MTP capture S32 terminée :six phases, parité complète interne logits/états MTP et golden externe, cible/tracer joints. Cumul 786432B écrits/62078976B lus. Decode [('warmup', 10.504913542), ('control_before', 10.489123625), ('trace_1', 12.178224792), ('trace_2', 15.698221167), ('trace_3', 10.394442583), ('control_after', 9.963247417)]. Exports/attribution suivants, pas de modèle concurrent.
+
+P09-ATTR2 contrôles10cas passent ; AR-r2 conserve exactement les budgets ATTR1.1433samples du TID,786éligibles CPUactif/GPUidle (prédécesseurs Interrupted explicitement dérivés),491dans host_async_submit. Fonctions MLX/allocateur/driver retrouvées, pas de ms déduites des comptes. MTP attribution complète40pas87–126, calage±1730ns :102,636ms muraux/66,060ms GPUmodèle,16,875ms CPUactif/GPUidle,17,569ms bloqué/GPUidle. Fenêtre AR78–117 différente : ne pas comparer ces budgets comme un gain entre modes. Nouvelle propriété avant DF : après les trois captures, calculer aussi leur intersection de tokens couverts (minimum16), sans choisir selon la vitesse, pour comparaison homogène. Aucun essai moteur nouveau.
+
+P09 DF capture S32 terminée :six phases, parité complète target/draft/logits et golden externe, cible/tracer joints. Cumul 786432B écrits/65421312B lus. Decode [('warmup', 10.095573666), ('control_before', 10.053646666), ('trace_1', 11.624664166), ('trace_2', 12.124394792), ('trace_3', 10.08876825), ('control_after', 9.735442417)]. Exports/attribution communs suivants, pas de modèle concurrent.
+
+P09 comparaison corrélée commune terminée :13tests de l’analyseur passent, fenêtre déterminée uniquement par couverture87–113(27tokens), exports et calculs sans GPU concurrent. AR97,861ms/token dont59,175GPUmodèle/19,545CPUactif GPUidle/17,910bloqué GPUidle ; MTP102,622/66,386/17,106/17,185 ; DF90,544/58,665/14,834/16,060. Durées instrumentées, pas des gains CLI. Résultats complets AR-common/MTP-common/DF-common ; les fenêtres initiales restent archivées. Prefill trace3 : heads AR11,MTP87,DF1 ; MTP453ms inclusifs et86extensions du head121ms. Ces453ms incluent une fin de travail amont : plafond du retrait des logits, pas gain assuré. Début LONG AR, binaires inchangés.
+
+- 45-Q/R processus long-AR : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/long-AR-plan-result.json.
+
+P09 LONG AR terminé :512tokens réels,64sorties/63decode,1chauffe+2mesures avec texte/hash identiques. {'prefill_seconds': [41.195511458, 41.729507209], 'decode_tps': [11.025398523503766, 10.843956363162937], 'elapsed_seconds': [46.910222958, 47.539804125]}. Cumul 786432B écrits/66076672B lus, processus joint. Référence courante LONG pour comparaison MTP/DF, pas golden indépendant numérique.
+
+- 45-Q/R processus long-MTP : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/long-MTP-plan-result.json.
+
+P09 LONG MTP terminé :sorties64 identiques à AR512,1chauffe+2mesures. {'prefill_seconds': [44.561578375, 44.866184042], 'decode_tps': [11.678768970519377, 11.676604934340075], 'elapsed_seconds': [49.9571195, 50.262683042], 'mtp_proposed_tokens': [34, 34], 'mtp_accepted_tokens': [29, 29], 'mtp_blocks': [34, 34]}. Cumul 786432B écrits/66994176B lus, processus joint. Début LONG DF.
+
+- 45-Q/R processus long-DF : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/long-DF-plan-result.json.
+
+P09 LONG DF terminé :512tokens/64sorties identiques à AR,1chauffe+2mesures. {'prefill_seconds': [43.741542833, 44.373937958], 'decode_tps': [12.153233366956012, 12.233272883256177], 'elapsed_seconds': [48.926611042, 49.524779792], 'dflash_proposed_tokens': [32, 32], 'dflash_accepted_tokens': [30, 30], 'dflash_blocks': [32, 32]}. Cumul 786432B écrits/68108288B lus ; processus joint. Références LONG complètes, pas de gain candidat. Début implémentation P09-MTPHEAD préenregistrée.
+
+P09-MTPHEAD implémentation locale : boucle unique FlashNext::prefill_mtp utilisée
+par bridge et profileur ; mêmes resets/annulation/extension KV/forward_inner,
+logits seulement finaux sous flag existant. Tests physiques dédiés comparent
+l'ancien parcours explicite, 6longueurs×2réglages, états/logits/3pas MTP et5erreurs.
+Tentative Kani prévue sur l'entrée réelle avec token u32, bool head/cancel
+symboliques, deux tokens ; aucune abstraction MLX. Budget30s/RSS groupe512Mio,
+arrêt borné de ses seuls processus, aucune preuve annoncée si interrompu/FFI
+incompatible. Avant compilation et sans GPU ; ancre P09 S32 conservée.
+
+P09-MTPHEAD Kani réel arrêté à la limite mémoire après5,43s, pic groupe541622272B ; processus joint, aucune obligation ni couverture qualifiée, propriété non vérifiée. Compteurs après tentative depuis ancre :{'Swapins': 636960768, 'Swapouts': 365019136}. Pas de stub MLX ni preuve déclarée ; sources/log/commande dans mtp-head/kani*.
+
+P09-MTPHEAD contrôle de reprise : dépassement déjà présent AVANT Kani,348,109375Mio écrits/607,453125Mio lus depuis ancreP09, strictement inchangés après cette tentative. LONG DF avait fini à0,75Mio/64,95Mio ; origine de la hausse globale entre ces relevés non attribuée. Aucun GPU candidat lancé. Plafonds32Mio/256Mio dépassés : campagne GPU bloquée, aucun réancrage automatique. Terminer uniquement compilation/contrôles CPU et préparation des plans avant demande de nouvelle campagne. Clippy mlx,chat all-targets passe ; avertissement dépendance block antérieur.
+
+P09-MTPHEAD contrôles achevés avant GPU :fmt et Clippy strict mlx,chat all-targets passent ; builds release CLI57,60s/libtest74s. Python1302tests passent95,77s. Suite Rust sans fonctionnalités par défaut/chat :190+35+16+35tests passent,9ignorés,aucun échec ; ce contrôle CPU ne valide pas le nouveau chemin MLX. Tests physiques exacts présents dans libtest, mais non lancés. Ruff et diff-check passent. Kani non vérifié (limite mémoire, conservée). Identité finale mtp-head/identity.json :CLI07e6ea7300ed081dee413be41a248226c559acb7bd523e348d7293d36327244a,libtest140a99275bdacd5f8bb1f0ce0f6089c1cc9284f6f451230c97c79d4a44358581. Plans qualité/oracle/bridge et A-C-C-A courts/longs prêts ; campagnes non démarrées. État candidat :prototype local,qualité GPU et performance non mesurées,bloqué dépassement S32 ; pas de publication/app modifiée.
+
+P09-MTPHEAD-S32 nouvelle campagne autorisée explicitement par la réponse
+« j'ai fermé brave vas y » à la question32Mio écritures/256Mio lectures avec
+nouvelle ancre. Préenregistrement : conserver ancreP09 et incident inchangés,
+créer anchor-mtp-head.json, réutiliser le contrôleur P09 testé via une petite
+entrée dédiée fixant cette ancre ; tester son branchement et refus d'ancienne
+identité avant GPU. Aucun changement aux sources/binaires du candidat.
+Brave fermé, secteur ; estimation initiale12,47Go supérieure au seuil10,5Go.
+Plans existants : qualité physique, oracle, contrôle AR/DF, bridge réel puis
+A-C-C-A MAIN/HOLD128 et LONG512/64, sans compilation concomitante. Même cache3Gio,
+4lecteurs, mêmes plafonds et gardes. Statut en préparation CPU, aucun GPU lancé.
+
+P09-MTPHEAD-S32 préparation :un mauvais nom du parseur (parse_vm_stat au lieu de parse_vm) a arrêté la création avant écriture de l’ancre ; tentative contrôleur suivante rejetée car identité inexistante, aucun processus GPU lancé. Log conservé quality-controller-preparation-failure.log. Nom corrigé.18tests de garde passent, Ruff passe ; CrossHair absent. Nouvelle ancre explicite docs/measurements/decode-profile-p09-20261101/anchor-mtp-head.json, UTC2026-11-01T18:16:55.205303+00:00, mémoire estimée13.144948736Go. Ancienne ancre conservée :{'Swapouts': 365019136, 'Swapins': 640286720}. Identité-restart figée, binaires natifs inchangés. Début des trois contrôles physiques séquentiels ; inspection avant chrono.
+
+- 45-Q/R processus quality-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/quality-plan-result.json.
+
+- 45-Q/R processus quality-target-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/quality-plan-result.json.
+
+- 45-Q/R processus quality-ar-dflash : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/quality-plan-result.json.
+
+P09-MTPHEAD-S32 qualité physique :3tests exacts sélectionnés passent,aucun ignoré dans ces sélections. Nouveau MTP19,26s :6longueurs×2réglages,logits248320/états target+KVhead byteexacts,3pas continuation/compteurs,headN→1,5erreurs+reprise. Oracle indépendant modèle2,74s,177waves Cold. Contrôle AR/DFlash6longueurs×2modes,états/captures/KV/continuation/erreurs passe. Tous processus joints,zéro nouvelle écriture/lecture swap. Preuves mtp-head/quality-*.log et quality-plan-result.json. Prochaine étape bridgeMTP réel MAIN/HOLD avant A/C.
+
+- 45-Q/R processus quality-bridge-MTP : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/quality-bridge-plan-result.json.
+
+P09-MTPHEAD-S32 bridge réel qualifié :2chauffes+2requêtes MAIN/HOLD128,texte/hash/tokens et compteursMTP exacts à baseline-5-MTP-s32. Processus/lecteur joints,swap0/0. Aucun gain conclu de cette qualification. Début matricecourte A-C-C-A préenregistrée,1chauffe parprompt+2répétitions parprocessus ; source/flags figés.
+
+- 45-Q/R processus mtp-head-short-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/short-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-short-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/short-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-short-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/short-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-short-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/short-ACCA-plan-result.json.
+
+P09-MTPHEAD-S32 courte A-C-C-A terminée :24requêtes(8chauffes/16mesures),texte/tokens/compteurs exacts,binaireunique,processus joints. {'MAIN': {'medians': {'A': {'prefill_seconds': 8.168188063, 'decode_tps': 12.112766261523479, 'elapsed_seconds': 18.632224625, 'end_to_end_ttft_seconds': 8.168698021}, 'C': {'prefill_seconds': 7.896740042, 'decode_tps': 11.953921814280708, 'elapsed_seconds': 18.5215772915, 'end_to_end_ttft_seconds': 7.8973558745000005}}, 'prefill_time_reduction_percent': 3.323234221670246, 'decode_tps_change_percent': -1.3113804379049632, 'total_time_reduction_percent': 0.5938492892122782}, 'HOLD': {'medians': {'A': {'prefill_seconds': 7.670827729, 'decode_tps': 11.14941721386798, 'elapsed_seconds': 19.055425729, 'end_to_end_ttft_seconds': 7.671313355}, 'C': {'prefill_seconds': 7.5118826875, 'decode_tps': 11.135830292348984, 'elapsed_seconds': 18.914634729, 'end_to_end_ttft_seconds': 7.512520395999999}}, 'prefill_time_reduction_percent': 2.072071582302637, 'decode_tps_change_percent': -0.12186216784583204, 'total_time_reduction_percent': 0.7388499317847019}}. Statut performance provisoire,decode variations à contrôler sur LONG avant décision ; inspection short-inspection.json. Swap0écrit/393216B lus cumulés. RUSAGE_CHILDREN du superviseur multi-processus est un maximum cumulatif, pas un pic attribuable à chaque processus ; mémoire parrequête dans stats.memory. Début LONG préenregistré.
+
+P09-MTPHEAD audit d’adaptation avant toute décision de retrait : bridge réel
+appelle bien la méthode partagée ; aucun nouveau kernel/dtype/forme/copie ni
+fallback inattendu. Flag0 reproduit toutes les projections,flag1 seulement la
+dernière ; les états/compteurs ont passé l’oracle et les continuations. Chaque
+streams.eval()/drain et extension KV MTP reste en place. Mémoire MLX active
+MAIN première mesure A7294088672B/C7294094304B ; cache~67,5Mo,footprint~7,776Go.
+Aucun surcoût mémoire matériel ni défaut concret trouvé. La légère baisse
+MAIN decode ne peut être imputée au seul code inchangé : effets d’allocateur,
+cache et conditions restent possibles. Le bridge ne conserve pas de temps par
+token, donc son total ne sépare pas transitoire initial et régime stable. Ne pas
+inventer cette décomposition. LONG en cours pour vérifier la tendance avant
+une éventuelle expérience complémentaire ; aucune correction spéculative faite.
+
+- 45-Q/R processus mtp-head-long-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/long-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-long-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/long-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-long-3-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/long-ACCA-plan-result.json.
+
+- 45-Q/R processus mtp-head-long-4-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head/long-ACCA-plan-result.json.
+
+P09-MTPHEAD-S32 LONG A-C-C-A terminé :12requêtes(4chauffes/8mesures),sorties/tokens/compteurs exacts,processus joints. {'medians': {'A': {'prefill_seconds': 44.4321515835, 'decode_tps': 11.905834102177781, 'elapsed_seconds': 49.7409675205, 'end_to_end_ttft_seconds': 44.4337204995}, 'C': {'prefill_seconds': 42.9538175, 'decode_tps': 11.71764703624201, 'elapsed_seconds': 48.2832375415, 'end_to_end_ttft_seconds': 42.955251417}}, 'prefill_time_reduction_percent': 3.3271719482722117, 'decode_tps_change_percent': -1.5806289951692643, 'total_time_reduction_percent': 2.930642590334054}. Preuve long-inspection.json. Petites baisses decode surMAIN etLONG : auditaucundéfautconcret ; absence de régression pas validée à ce stade. Cumul écrit524288B/lu786432B.
+
+P09-MTPHEAD-TAIL2 préenregistrement avant modification : variante finale-seule
+(C1) correctement adaptée numériquement mais baisse decode MAIN−1,31%,LONG−1,58%
+observée avec gain prefill2,07–3,33%. Pas d’activation validée en l’état.
+Différence concrète à isoler : l’ancien loop conserve le logits précédent vivant
+pendant forward(token) puis le remplace ; C1 n’en conserve aucun à l’entrée du
+dernier token. L’allocateur/cache après prefill peut donc différer malgré états
+identiques. Ce mécanisme est une hypothèse, pas une cause démontrée. C2 conserve
+les deux dernières projections sous le même flag, donc le buffer précédent lors
+du dernier token ; coût attendu une seule projection supplémentaire, non mesuré.
+Conserver C1 et tous ses binaires/mesures. Changement unique de condition, tests
+N→min(2,N) et anciennes parités/erreurs ; tenter Kani réel borné512Mio/30s et
+vérifications affectées avant GPU. Même nouvelle ancreMTPHEAD32/256Mio.
+Après qualification numérique, pilote CLI C2 puis A (ordre inverse), MAIN/HOLD,
+128sorties,1chauffe+2mesures parprompt/processus ; comparer sorties exactes et
+prefill/decode/tempscomplet. Si tendance favorable, confirmation A puis C2 (donc
+C-A-A-C au total) et pilote LONG512 C2-A (64sorties,1chauffe+2mesures). Pas de
+rejet automatique si mauvais : analyser l’hypothèse et les traces/allocations.
+Aucun autre kernel/flag/config, aucune publication ni application remplacée.
+
+P09-MTPHEAD-TAIL2 CPU :fmt/Clippy strict passent ; Kani réel arrêté à512Mio après3.54s,pic546258944B,processus joint,aucune obligation prouvée. Pas de GPU pendant compilation. Plans qualité/bridge puis pilote et confirmation distincts conservés ; ne lancer confirmation que selon résultat pilote comme préenregistré.
+
+P09-MTPHEAD-TAIL2 builds terminés,CLI/libtest figés dans build/decode-profile-p09-20261101/mtp-head-tail2 ; seules deux sources natives attendues changées depuisC1. Identité mtp-head-tail2/identity.json. TentativeKani n’a ajouté aucun swap ; dernier cumul0,5Mio écrit/0,75Mio lu. Début du contrôle numérique affecté MTP, témoins AR/DF/oracle natifs précédents inchangés.
+
+- 45-Q/R processus tail2-quality-mtp : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/quality-plan-result.json.
+
+P09-MTPHEAD-TAIL2 qualité physique passe :6longueurs×2réglages,5erreurs/reprise,logits/états/KV et continuation/compteurs exacts,comptes N→min(2,N) vérifiés. Processus joint,swapcumul524288B écrit/786432B lu. Début bridgequalité C2 avant pilote.
+
+- 45-Q/R processus tail2-quality-bridge : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/quality-bridge-plan-result.json.
+
+P09-MTPHEAD-TAIL2 bridge qualifié :4requêtes MAIN/HOLD128,warmups compris,texte/hash/tokens/compteurs exacts à baselineP09 ; processus et lecteur joints. Ces chronos de qualité ne font pas partie du pilote. Début pilotecourtC2-A préenregistré,1chauffe+2mesures parprompt.
+
+- 45-Q/R processus tail2-short-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/short-pilot-plan-result.json.
+
+- 45-Q/R processus tail2-short-2-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/short-pilot-plan-result.json.
+
+P09-MTPHEAD-TAIL2 pilotecourt terminé :12requêtes exactes,processus joints. Médianes{'MAIN': {'A': {'prefill_seconds': 8.463474270999999, 'decode_tps': 11.786459342807536, 'elapsed_seconds': 19.241046292}, 'C': {'prefill_seconds': 7.795246854, 'decode_tps': 12.215163627185126, 'elapsed_seconds': 18.192789979}}, 'HOLD': {'A': {'prefill_seconds': 7.888927000000001, 'decode_tps': 10.994752743872565, 'elapsed_seconds': 19.4404286045}, 'C': {'prefill_seconds': 7.9121824169999995, 'decode_tps': 11.217737846008696, 'elapsed_seconds': 19.235028083}}}. MAIN favorable et decode sans baisse sur les deux prompts ; HOLD prefill8,479s conservé,outlier non attribué,petit n et dérive empêchent conclusion. Confirmer par A-C2 déjà préenregistré (C-A-A-C total),puis piloteLONG conditionné à ce contrôle. Aucun gain confirméC2 ni activation.
+
+- 45-Q/R processus tail2-short-3-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/short-confirm-plan-result.json.
+
+Publication explicitement demandée par l’utilisateur : rapport consolidé P09
+publié dans https://github.com/0xZKnw/mlxl3/issues/65 (profilage terminé,limites,
+protocoles,empreintes,CPU/GPU/POSIX,acceptation,classement et statut C1/C2 séparé).
+Texte exact archivé dans published-issue-body.md. Aucun code/artefact brut poussé
+ni application installée remplacée. C2confirmation courte reste en cours.
+
+- 45-Q/R processus tail2-short-4-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/short-confirm-plan-result.json.
+
+P09-MTPHEAD-TAIL2 C-A-A-C court complet :24requêtes,16mesures,exacttexte/tokens/compteurs,tous processus joints. {'MAIN': {'medians': {'A': {'prefill_seconds': 8.258390896, 'decode_tps': 11.997435338425786, 'elapsed_seconds': 18.9865871045, 'end_to_end_ttft_seconds': 8.258874041999999}, 'C': {'prefill_seconds': 7.8528458335, 'decode_tps': 12.123513266083751, 'elapsed_seconds': 18.391596938, 'end_to_end_ttft_seconds': 7.853339667}}, 'prefill_time_reduction_percent': 4.9107031576384745, 'decode_tps_change_percent': 1.0508739918285492, 'total_time_reduction_percent': 3.133739429973603}, 'HOLD': {'medians': {'A': {'prefill_seconds': 7.763429479, 'decode_tps': 11.090091803480677, 'elapsed_seconds': 19.227353792000002, 'end_to_end_ttft_seconds': 7.7639042495}, 'C': {'prefill_seconds': 7.39021475, 'decode_tps': 11.13516743911288, 'elapsed_seconds': 18.885492042, 'end_to_end_ttft_seconds': 7.390689}}, 'prefill_time_reduction_percent': 4.807343584552958, 'decode_tps_change_percent': 0.40644961674758395, 'total_time_reduction_percent': 1.7779968772522525}}. OutlierHOLD8,479s conservé,dérive desprocessus visible ; ces hausses decode ne prouvent pas le mécanisme allocateur. Prefill favorable,pas de baisse decode médiane ; début piloteLONG C2-A prévu,64sorties et1chauffe+2mesures parprocessus.
+
+- 45-Q/R processus tail2-long-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/long-pilot-plan-result.json.
+
+- 45-Q/R processus tail2-long-2-A : **completed_expected_outcome**, joint=True ; docs/measurements/decode-profile-p09-20261101/mtp-head-tail2/long-pilot-plan-result.json.
+
+P09-MTPHEAD-TAIL2 piloteLONG terminé :6requêtes(2chauffes/4mesures),texte/hash/tokens/compteurs exacts,processus/lecteurs joints. {'medians': {'A': {'prefill_seconds': 44.999675708, 'decode_tps': 11.74776405055913, 'elapsed_seconds': 50.3638656875, 'end_to_end_ttft_seconds': 45.001128521}, 'C': {'prefill_seconds': 43.734215729, 'decode_tps': 11.66103375763078, 'elapsed_seconds': 49.138632541999996, 'end_to_end_ttft_seconds': 43.735894938}}, 'prefill_time_reduction_percent': 2.8121535524199937, 'decode_tps_change_percent': -0.7382706407371487, 'total_time_reduction_percent': 2.4327623163447942}. Cumul écrit1048576B/lu1163264B. Décision :qualité validée dans domaines testés ; prometteur conservé local pour composition (prefill/tempscomplet favorables),aucune validation inconditionnelle de non-régression decode ni gain decode attribué au mécanisme. LONG−0,74%environ garde incertitude petit n/ordreC-A ; aucun échantillon retiré. C1 non retenu comme réglage livré,binaires/preuves conservés. C2 reste prototype local,pas de push/app remplacée. Plan long-confirm préparé non lancé,aucun test/mesure en cours ; hashesfinaux exacts,rapport et issue à actualiser.
+
+Clôture P09/TAIL2 :rapport local actualisé et bilan C2 ajouté à issue65,corps relu viaGitHub strictement identique au fichier published-issue-body-final.md. Reçu publication-receipt.json. Toutes campagnes lancées terminées et jointes,aucune mesure GPU en cours ; planLONGsupplémentaire non exécuté explicitement. Source/binaires C2 toujours exacts à identity.json. Dernier cumul sous nouvelle ancre :1048576B écrits/1163264B lus. Qualité validée dans domaines testés,performance prometteur conservé local,pas de garantie globale decode,pas de push/app remplacée.
+
+- 45-Q/R processus storage-0 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-01-result.json.
+
+- 45-Q/R processus storage-1 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-02-result.json.
+
+- 45-Q/R processus invalid-option : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-03-result.json.
+
+- 45-Q/R processus cold-static : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-04-result.json.
+
+- 45-Q/R processus cold-dynamic : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-05-result.json.
+
+- 45-Q/R processus cold-preparation : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-06-result.json.
+
+- 45-Q/R processus cold-recovery : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-07-result.json.
+
+- 45-Q/R processus target-oracle : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-08-result.json.
+
+- 45-Q/R processus mtp-states : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-09-result.json.
+
+- 45-Q/R processus df-prefixes : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/quality-10-result.json.
+
+- 45-Q/R processus bridge-AR-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/bridge-AR-1-A-plan-result.json.
+
+- 45-Q/R processus bridge-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/bridge-AR-2-C-plan-result.json.
+
+- 45-Q/R processus bridge-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/bridge-MTP-1-A-plan-result.json.
+
+- 45-Q/R processus bridge-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/bridge-MTP-2-C-plan-result.json.
+
+- 45-Q/R processus bridge-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/bridge-DF-1-A-plan-result.json.
+
+- 45-Q/R processus bridge-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/bridge-DF-2-C-plan-result.json.
+
+- 45-Q/R processus short-AR-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-AR-1-A-plan-result.json.
+
+- 45-Q/R processus short-AR-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-AR-2-C-plan-result.json.
+
+- 45-Q/R processus short-AR-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-AR-3-C-plan-result.json.
+
+- 45-Q/R processus short-AR-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-AR-4-A-plan-result.json.
+
+- 45-Q/R processus short-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-MTP-1-A-plan-result.json.
+
+- 45-Q/R processus short-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-MTP-2-C-plan-result.json.
+
+- 45-Q/R processus short-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-MTP-3-C-plan-result.json.
+
+- 45-Q/R processus short-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-MTP-4-A-plan-result.json.
+
+- 45-Q/R processus oracle-assertion-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/oracle-assertion-A-plan-result.json.
+
+- 45-Q/R processus oracle-assertion-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/oracle-assertion-C-plan-result.json.
+
+- 45-Q/R processus short-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-DF-1-A-plan-result.json.
+
+- 45-Q/R processus short-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-DF-2-C-plan-result.json.
+
+- 45-Q/R processus short-DF-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-DF-3-C-plan-result.json.
+
+- 45-Q/R processus short-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/short-DF-4-A-plan-result.json.
+
+- 45-Q/R processus diagnostic-MTP-HOLD-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/diagnostic-MTP-HOLD-C-plan-result.json.
+
+- 45-Q/R processus diagnostic-MTP-HOLD-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dynamic-cold-20261101/diagnostic-MTP-HOLD-A-plan-result.json.
+
+- 45-Q/R processus long-AR-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-AR-1-C-plan-result.json.
+
+- 45-Q/R processus long-AR-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-AR-2-A-plan-result.json.
+
+- 45-Q/R processus long-MTP-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-MTP-1-C-plan-result.json.
+
+- 45-Q/R processus long-MTP-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-MTP-2-A-plan-result.json.
+
+- 45-Q/R processus long-DF-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-DF-1-C-plan-result.json.
+
+- 45-Q/R processus long-DF-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/long-DF-2-A-plan-result.json.
+
+- 45-Q/R processus confirm-MTP-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/confirm-MTP-1-C-plan-result.json.
+
+- 45-Q/R processus confirm-MTP-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/confirm-MTP-2-A-plan-result.json.
+
+- 45-Q/R processus confirm-DF-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/confirm-DF-1-C-plan-result.json.
+
+- 45-Q/R processus confirm-DF-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-cold-20261101/confirm-DF-2-A-plan-result.json.
+
+- 45-Q/R processus storage-default : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-01-result.json.
+
+- 45-Q/R processus storage-0 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-02-result.json.
+
+- 45-Q/R processus storage-1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-03-result.json.
+
+- 45-Q/R processus invalid-option : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-04-result.json.
+
+- 45-Q/R processus cold-dynamic : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-05-result.json.
+
+- 45-Q/R processus cold-preparation : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-06-result.json.
+
+- 45-Q/R processus cold-recovery : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-07-result.json.
+
+- 45-Q/R processus target-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-08-result.json.
+
+- 45-Q/R processus mtp-states : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-09-result.json.
+
+- 45-Q/R processus df-prefixes : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/quality-10-result.json.
+
+- 45-Q/R processus bridge-AR-default : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/bridge-AR-plan-result.json.
+
+- 45-Q/R processus bridge-MTP-default : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/bridge-MTP-plan-result.json.
+
+- 45-Q/R processus bridge-DF-default : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dynamic-default-20261101/bridge-DF-plan-result.json.
+
+- 45-Q/R processus cpp : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-01-result.json.
+
+- 45-Q/R processus asan : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-02-result.json.
+
+- 45-Q/R processus mutant : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-03-result.json.
+
+- 45-Q/R processus cache : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-04-result.json.
+
+- 45-Q/R processus cold : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-05-result.json.
+
+- 45-Q/R processus cold-preparation : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-06-result.json.
+
+- 45-Q/R processus cold-recovery : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-07-result.json.
+
+- 45-Q/R processus target-oracle : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-08-result.json.
+
+- 45-Q/R processus mtp-states : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-09-result.json.
+
+- 45-Q/R processus df-prefixes : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-10-result.json.
+
+- 45-Q/R processus asan-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-prepared-eval-20261101/quality-asan-r2-result.json.
+
+- 45-Q/R processus cache-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-04-result.json.
+
+- 45-Q/R processus cold-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-05-result.json.
+
+- 45-Q/R processus cold-preparation-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-06-result.json.
+
+- 45-Q/R processus cold-recovery-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-07-result.json.
+
+- 45-Q/R processus target-oracle-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-08-result.json.
+
+- 45-Q/R processus mtp-states-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-09-result.json.
+
+- 45-Q/R processus df-prefixes-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/quality-r2-10-result.json.
+
+- 45-Q/R processus micro-1-0-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/micro-r2-1-plan-result.json.
+
+- 45-Q/R processus micro-2-1-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/micro-r2-2-plan-result.json.
+
+- 45-Q/R processus micro-3-1-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/micro-r2-3-plan-result.json.
+
+- 45-Q/R processus micro-4-0-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/micro-r2-4-plan-result.json.
+
+- 45-Q/R processus bridge-AR-1-A-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-AR-1-A-r2-plan-result.json.
+
+- 45-Q/R processus bridge-AR-2-C-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-AR-2-C-r2-plan-result.json.
+
+- 45-Q/R processus bridge-MTP-1-A-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-MTP-1-A-r2-plan-result.json.
+
+- 45-Q/R processus bridge-MTP-2-C-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-MTP-2-C-r2-plan-result.json.
+
+- 45-Q/R processus bridge-DF-1-A-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-DF-1-A-r2-plan-result.json.
+
+- 45-Q/R processus bridge-DF-2-C-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/bridge-DF-2-C-r2-plan-result.json.
+
+- 45-Q/R processus short-AR-1-A-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-AR-1-A-r2-plan-result.json.
+
+- 45-Q/R processus short-AR-2-C-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-AR-2-C-r2-plan-result.json.
+
+- 45-Q/R processus short-AR-3-C-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-AR-3-C-r2-plan-result.json.
+
+- 45-Q/R processus short-AR-4-A-r2 : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-AR-4-A-r2-plan-result.json.
+
+- 45-Q/R processus short-AR-4-A-resume-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-AR-4-A-resume-r2-plan-result.json.
+
+- 45-Q/R processus short-MTP-1-A-r2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-MTP-1-A-r2-plan-result.json.
+
+- 45-Q/R processus short-MTP-2-C-r2 : **failed_or_interrupted**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-prepared-eval-20261101/short-MTP-2-C-r2-plan-result.json.
+
+- 45-Q/R processus quality-1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-cold-shared-20261101/quality-1-result.json.
+
+- 45-Q/R processus quality-2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-cold-shared-20261101/quality-2-result.json.
+
+- 45-Q/R processus quality-3 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-cold-shared-20261101/quality-3-result.json.
+
+- 45-Q/R processus screen-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-cold-shared-20261101/screen-A-result.json.
+
+- 45-Q/R processus screen-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-cold-shared-20261101/screen-C-result.json.
+
+- 45-Q/R processus component-1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/component-1-result.json.
+
+- 45-Q/R processus component-2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/component-2-result.json.
+
+- 45-Q/R processus component-3 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/component-3-result.json.
+
+- 45-Q/R processus r2-quality-0 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r2-quality-0-result.json.
+
+- 45-Q/R processus r2-quality-1 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-quality-1-result.json.
+
+- 45-Q/R processus r2-quality-2 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-quality-2-result.json.
+
+- 45-Q/R processus r2-quality-3 : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-quality-3-result.json.
+
+- 45-Q/R processus r2-bridge-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-bridge-1-A-result.json.
+
+- 45-Q/R processus r2-bridge-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-bridge-2-C-result.json.
+
+- 45-Q/R processus r2-pilot-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-pilot-1-A-result.json.
+
+- 45-Q/R processus r2-pilot-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-pilot-2-C-result.json.
+
+- 45-Q/R processus r2-pilot-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-pilot-3-C-result.json.
+
+- 45-Q/R processus r2-pilot-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-pilot-4-A-result.json.
+
+- 45-Q/R processus capture-r2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/capture-r2-A-result.json.
+
+- 45-Q/R processus capture-r2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/capture-r2-C-result.json.
+
+- 45-Q/R processus r2-MTP-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-1-A-result.json.
+
+- 45-Q/R processus r2-MTP-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-2-C-result.json.
+
+- 45-Q/R processus r2-MTP-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-3-C-result.json.
+
+- 45-Q/R processus r2-MTP-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-4-A-result.json.
+
+- 45-Q/R processus r2-DF-1-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-DF-1-A-result.json.
+
+- 45-Q/R processus r2-DF-2-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-DF-2-C-result.json.
+
+- 45-Q/R processus r2-DF-3-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-DF-3-C-result.json.
+
+- 45-Q/R processus r2-DF-4-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-DF-4-A-result.json.
+
+- 45-Q/R processus r2-MTP-MAIN-confirm-1-C : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-MAIN-confirm-1-C-result.json.
+
+- 45-Q/R processus r2-MTP-MAIN-confirm-2-A : **completed_expected_outcome**, joint=True ; /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p09-dec-one-20261101/r2-MTP-MAIN-confirm-2-A-result.json.
+
+- 45-Q/R processus r2-head-external-audit : **failed_or_interrupted**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r2-head-external-audit-result.json.
+
+- 45-Q/R processus r2-head-external-audit-envfix : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r2-head-external-audit-envfix-result.json.
+
+- 45-Q/R processus r3-quality-0 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-quality-0-result.json.
+
+- 45-Q/R processus r3-quality-1 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-quality-1-result.json.
+
+- 45-Q/R processus r3-quality-2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-quality-2-result.json.
+
+- 45-Q/R processus r3-quality-3 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-quality-3-result.json.
+
+- 45-Q/R processus r3-quality-4 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-quality-4-result.json.
+
+- 45-Q/R processus diagnostic-R2-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/diagnostic-R2-A-result.json.
+
+- 45-Q/R processus diagnostic-R2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/diagnostic-R2-C-result.json.
+
+- 45-Q/R processus diagnostic-R3-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/diagnostic-R3-C-result.json.
+
+- 45-Q/R processus r3-MTP-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-MTP-1-A-result.json.
+
+- 45-Q/R processus r3-MTP-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-MTP-2-C-result.json.
+
+- 45-Q/R processus r3-AR-1-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-AR-1-A-result.json.
+
+- 45-Q/R processus r3-AR-2-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-AR-2-C-result.json.
+
+- 45-Q/R processus r3-DF-1-C : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-DF-1-C-result.json.
+
+- 45-Q/R processus r3-DF-2-A : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/r3-DF-2-A-result.json.
+
+- 45-Q/R processus direct-1-AR-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/direct-1-AR-r2-result.json.
+
+- 45-Q/R processus direct-2-AR-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/direct-2-AR-r3-result.json.
+
+- 45-Q/R processus direct-3-DF-r3 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/direct-3-DF-r3-result.json.
+
+- 45-Q/R processus direct-4-DF-r2 : **completed_expected_outcome**, joint=True ; docs/measurements/post-p09-dec-one-20261101/direct-4-DF-r2-result.json.
