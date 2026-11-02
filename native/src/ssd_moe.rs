@@ -74,6 +74,9 @@ pub struct SsdMoe {
     shared_batch: bool,
     weighted_epilogue: bool,
     cold_ready: bool,
+    cold_shared: bool,
+    #[cfg(test)]
+    cold_shared_submissions: usize,
     #[cfg(test)]
     pub(crate) cold_ready_waves: Vec<usize>,
     #[cfg(test)]
@@ -175,6 +178,9 @@ impl SsdMoe {
         let cold_ready =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
                 .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
+        let cold_shared =
+            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_SHARED", "0")?)
+                .context("MLXL3_SSD_COLD_SHARED must be 0 or 1")?;
         crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let prefetch_pipeline =
@@ -282,6 +288,9 @@ impl SsdMoe {
             shared_batch,
             weighted_epilogue,
             cold_ready,
+            cold_shared,
+            #[cfg(test)]
+            cold_shared_submissions: 0,
             #[cfg(test)]
             cold_ready_waves: Vec::new(),
             #[cfg(test)]
@@ -411,6 +420,7 @@ impl SsdMoe {
         routed_x: &Array,
         cold: &mut Vec<(usize, u32)>,
         consumers: &mut ColdConsumers,
+        shared: Option<(&Array, &mut Option<Array>)>,
     ) -> Result<Option<ColdWaves>> {
         #[cfg(test)]
         let diagnostic = crate::flash_profile::span("cold_ready_batch");
@@ -446,6 +456,14 @@ impl SsdMoe {
         // Reservations exclude Hot; only published slots enter W1. Drop joins all readers.
         let mut batch =
             unsafe { Array::begin_read_records(&sources, &mut self.banks, &views, self.readers)? };
+        let shared = match shared {
+            Some((x, output)) => {
+                // Start disk work before building the independent resident expert.
+                *output = Some(self.shared(x)?);
+                output.as_ref()
+            }
+            None => None,
+        };
         #[cfg(test)]
         drop(prepare);
         #[cfg(test)]
@@ -489,7 +507,16 @@ impl SsdMoe {
                 #[cfg(test)]
                 let _submitting = crate::flash_profile::span("cold_ready_first_submit");
                 // W1 can overlap subsequent CPU work even when all reads have completed.
-                value.async_eval()?;
+                if let Some(shared) = shared {
+                    consumers.0.push(shared.try_clone()?);
+                    Array::async_eval_all(&[&value, shared])?;
+                    #[cfg(test)]
+                    {
+                        self.cold_shared_submissions += 1;
+                    }
+                } else {
+                    value.async_eval()?;
+                }
             }
             #[cfg(test)]
             if let Some(event) = crate::flash_profile::span("cold_ready_snapshot_after_submit") {
@@ -1220,6 +1247,7 @@ impl SsdMoe {
                 .push(("demand_begin", route_start.elapsed().as_secs_f64()));
         }
         let mut consumers = ColdConsumers::default();
+        let mut shared = None;
         // shortcut: qualify B1/B2 without prefetch/grouped epilogues before widening.
         let split_cold = self.cold_ready
             && rows <= 2
@@ -1239,7 +1267,13 @@ impl SsdMoe {
                 }
             };
             consumers.0.push(lease);
-            self.fill_ready(&jobs, &routed_x, &mut cold, &mut consumers)
+            self.fill_ready(
+                &jobs,
+                &routed_x,
+                &mut cold,
+                &mut consumers,
+                self.cold_shared.then_some((x, &mut shared)),
+            )
         } else {
             self.fill_many(&jobs).map(|()| None)
         };
@@ -1341,7 +1375,11 @@ impl SsdMoe {
         let routed = weighted.reshape(&[rows, 10, H])?.sum(1, false)?;
         #[cfg(test)]
         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
-        let output = routed.add(&self.shared(x)?)?;
+        let shared = match shared {
+            Some(value) => value,
+            None => self.shared(x)?,
+        };
+        let output = routed.add(&shared)?;
         #[cfg(test)]
         crate::flash_profile::stage("moe_add_completion", &output)?;
         self.last = Some(output.try_clone()?);

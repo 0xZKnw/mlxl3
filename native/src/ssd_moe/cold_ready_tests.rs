@@ -60,6 +60,10 @@ fn load(checkpoint: &Checkpoint, capacity: usize) -> Result<SsdMoe> {
         moe.cold_ready && !moe.shared_exl3 && !moe.weighted_epilogue,
         "test requires COLD_READY=1, SHARED_EXL3=0, WEIGHTED_EPILOGUE=0"
     );
+    ensure!(
+        moe.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
+        "Cold shared flag not wired"
+    );
     moe.readers = 4;
     moe.gpu_hot = true;
     moe.gpu_hot_wide = true;
@@ -156,6 +160,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                 let before = (moe.cold_ready_waves.len(), moe.read_bytes);
                 let overlaps = moe.cold_ready_verified_overlap;
                 let prepared = moe.cold_ready_prepared_rest;
+                let shared_submissions = moe.cold_shared_submissions;
                 // Holding job zero forces a non-prefix first wave without timing assumptions.
                 crate::array::hold_read_batch_job_for_test(Some(0));
                 let output = moe.forward_many(&x)?;
@@ -177,6 +182,11 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                     "W2 was not prepared before join"
                 );
                 ensure!(moe.read_bytes - before.1 == missing as u64 * EXPERT_BYTES);
+                ensure!(
+                    moe.cold_shared_submissions
+                        == shared_submissions + usize::from(moe.cold_shared),
+                    "Cold shared submission path not exercised"
+                );
                 mixed += 1;
                 let before = (moe.cold_ready_waves.len(), moe.read_bytes);
                 check(&moe.forward_many(&x)?, &oracle, pair.len())?;
