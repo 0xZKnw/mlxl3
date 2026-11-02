@@ -1,6 +1,10 @@
 # MLXL3 — journal des optimisations
 
-### DESKTOP-2026-11-02-LONG-RESPONSE-VISIBILITY — en cours, préenregistré
+### DESKTOP-2026-11-02-LONG-RESPONSE-VISIBILITY — validé dans le domaine testé, prêt pour paquet
+
+- Clôture fonctionnelle : cible bitmap optimisée30/30 et Source attendu complet,141cas cache brut,1194fragments code et4845Markdown,1179modes/permissions,39projets/44workspace passent (desktop-bitmap-final,254,59s). La suite réponse optimisée ordinaire est réutilisée de finale4 (786fondu/63dessins,81frames,9formules/2styles,63parseurs/bridge/history), produit inchangé depuisC1. Domaine CI : bitmap natif exact/OCRCPU, pas une preuve du compositeur ; option --require-onscreen conserve les gardes physiques. Les tentatives physiques optimisées restent indisponibles (appinactive/occlusion8192 malgréviewport900×700 valide) ; elles ne sont pas requalifiées. C1manuelnonoptimisé30/30+confirmationutilisateur restent séparés. Aucun essaiUI actif ni nouveau débit revendiqué ; app installée inchangée.
+
+- Finale3/4 : toute la suite optimisée réponse (786fondu/63dessins,81frames, clipboard/bridge/history,9formules/2styles, HTML/teardown) passe ; stress encore non présenté/occulté, même dans bundle de test. Activation CUA brève : première capture thinkingAlpha reconnaît son marqueur, mais garde après OCR échoue quand un panneau couvre ensuite la fenêtre ; trace partielle conservée. Corriger l’observateur temporel : vérifier visibilité avant/après cacheDisplay synchrone, pas après analyse asynchrone d’une image déjà valide ; fenêtre de test au niveau statusBar/tous espaces, rien dans l’app livrée. Rejouer seulement stress optimisé et contrôles cache/modes/Studio restants ; aucun composant déjà vert/rendu produit modifié, aucun critère corps/marker assoupli.
 
 - Finale2 rencontre encore une fenêtre non présentée (visible logique mais occlusion sur le bureau) avant le premier screenshot. Contrôle non validé, trace conservée ; le stress autonome C1 reste30/30. Isoler le stress dans un second processus AppKit du même binaire compilé, avec présentation bornée/orderFrontRegardless et assertions de visibilité conservées, plutôt que modifier la logique produit ou supprimer l’oracle. CI check-desktop lance ce processus sous son superviseur90s. Finale3 en cours, mêmes critères/bornes.
 
@@ -20,6 +24,8 @@
 - Corriger le mécanisme partagé établi ou circonscrire la couverture, puis rejouer les seuls contrôles affectés avant source/paquets finaux. Aucun benchmark de débit/CPU/FPS, aucune optimisation numérique ni nouveau flag moteur. Résultats et limites à consigner avec source exacte.
 
 ### DESKTOP-2026-11-02-BETA6-ENGINE202 — en cours, préparation avant paquet
+
+- Pré-construction : code fonctionnel figé aprèsUI/native ci-dessus ; intégrer aussi main e9663b03 (profilagehistorique seulement, algorithmes native toujours129fichiers byte exacts4c1d). Fixer commit propre maintenant ; construire scripts/build-macos-dmg.sh avec Python3.12 du venv partagé, MLX0.32.2, SDK26.5, Rust mlx,chat, Desktop2.0.0/build37 et moteur2.0.2. Aucun autre modèle/GPU/testMetal. Contrôles paquet réels ensuite (signature/architecture/source/runtime/DMG readonly/updater36→37), archivemoteur Beta1 et publicationdes2canaux latest=false ; ne pas promettre la nouvelle qualificationphysique.
 
 - Validation bornée CPU avant paquet : répéter uniquement le harnais historique `flash_draft_budget::pre_draft_observation_is_atomic_and_checked` (observe-v2) sur le moteur intégré2.0.2, pour vérifier atomie/overflow de l’observation de coûts B2/B3/B4 réellement utilisée, sans prétendre prouver MLX/lecteurs concurrents. Tous u64/usize symboliques, aucune hypothèse/stub, boucle fixe3/unwind5,4covers. Limite120s/processus descendants joints ; ne pas relancer la partition Cold coûteuse déjà interrompue. Source Rust algorithmique identique au main4c1d, versionseule changée ; suiteCPU284/9ignorés, fmt/Clippy livrable déjà réussis. Résultat à consigner.
 

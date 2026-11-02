@@ -162,12 +162,15 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift 
     tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
 response_sources=("${sources[@]}")
 response_sources=("${(@)response_sources:#*/MarkdownResponseView.swift}")
+response_app="${test_dir}/MLXL3 Response Check.app"
+mkdir -p "${response_app}/Contents/MacOS"
+cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
 swiftc "${swiftc_args[@]}" -O \
     "${response_sources[@]}" "${math_objects[@]}" \
-    "${test_dir}/ResponseUICombined.swift" -o "${test_dir}/response-check"
-"${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py"
-# Use a fresh AppKit process so previous WebKit windows cannot hide the stress fixture.
-run_fixture_check "${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+    "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
+"${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
+# A registered app and a fresh process make physical viewport visibility observable.
+run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
 
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).

@@ -1,6 +1,6 @@
 # Desktop beta 6 Studio verification
 
-Status: UI candidate verified on CPU; release integration and final package qualification in progress.
+Status: source qualified on CPU; final package construction and publication in progress.
 
 The working branch starts at `f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6`. Artifacts Studio and its independent revision workflow are removed. Agent Studio uses a full-window project controller; Chat and Agent share native completed-code cards and an on-demand isolated HTML preview. Saved artifact directories are not deleted.
 
@@ -38,3 +38,15 @@ The original sheet was captured and its unreviewed-apply bug reproduced before t
 These are deterministic integration tests and finite native rendering checks, not a formal proof. No maintained source verifier for this SwiftUI/AppKit implementation is configured; source-level Swift properties remain unproved. No behavioral Rust implementation is changed by the UI work. The engine integration carries main's existing qualifications and their original source identities separately.
 
 No LLM inference, quantization, Metal kernel or WebGL test was run during this preparation. The covered-preview check uses only a disposable HTML page with a CPU JavaScript counter. External CDN execution and physical numerical behavior of the rebuilt runtime remain unverified in this release run. The user's installed app and personal dirty checkout remain untouched.
+
+## Long response correction and final qualification
+
+The strengthened baseline reproduced a persistent missing code tail when a growing block crossed into its internal scroller. C1 gives that scroller a native initial/size anchor, measures its chunks consistently and preserves following until a user gesture suspends it. Thinking uses raw bounded chunks; stable/large text uses native drawing, while the small active suffix keeps the fade. The user confirmed the disappearance did not occur during C1.
+
+The optimized native-bitmap journey passes 30 exact marker/OCR captures across 131,226 bytes of thinking and 262,197 bytes of answer, code, tools, completion and two window sizes. Five initial large-burst prose captures required the explicitly recorded 2-second settling check; no instantaneous-rendering claim is made. Optimized physical-compositor attempts remained unavailable because macOS kept the test app inactive/occluded; they remain failed/unverified evidence, not passes. `--require-onscreen` retains those guards. Manual nonoptimized C1 had 30 visible captures and the user's observation.
+
+Final CPU source checks: 141 raw-cache boundary/Unicode cases, 1,194 incremental code cases, 4,845 incremental Markdown cases, 1,179 mode/permission checks, 39 project checks and 44 workspace checks pass. See `desktop-bitmap-final.log/json`. The optimized ordinary response checks from `desktop-final4.log` passed their 786 fade cases, 63 drawing comparisons, 81 viewport frames, HTML lifecycle/Unicode source checks, 9 formulas/2 styles and 63 parser/chunk cases before the separate foreground-availability failure. The production rendering code is unchanged between those checks and the final bitmap run.
+
+Native engine: 284 CPU tests passed, 9 ignored; fmt and strict release Clippy with shipped `mlx,chat` features passed. Kani0.68/CBMC6.11 checks actual pre-draft cost observation for symbolic counters and arguments, no assumptions/stubs, unwind5: 380 obligations pass, 6 internal ZST/fmt checks are unreachable, all4 business covers are satisfied. This is bounded CPU accounting, not proof of readers/concurrency/Metal/inference. The 129 native source/build files match qualified main4c1d byte for byte; Cargo changes only version2.0.1→2.0.2. Main e966 adds profile-report compatibility without changing those algorithms.
+
+The fixture fixes its NSHostingView bounds explicitly because [Apple documents its default window sizing constraints](https://developer.apple.com/documentation/swiftui/nshostingview/sizingoptions). No source-level Swift verifier or fresh GPU/model/quantization/WebGL qualification is claimed.

@@ -511,6 +511,11 @@ extension CodeBlockView {
           domain: "MLXL3LongVisibility", code: 1, userInfo: [NSLocalizedDescriptionKey: message])
       }
     }
+    let requireOnscreen = CommandLine.arguments.contains("--require-onscreen")
+    report(
+      requireOnscreen
+        ? "DOMAIN physical onscreen capture required"
+        : "DOMAIN native bitmap/OCR only; physical display is not validated")
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(
       "mlxl3-long-visibility-\(UUID())")
     let suite = "io.mlxl3.long-visibility.\(UUID())"
@@ -527,12 +532,18 @@ extension CodeBlockView {
     let host = NSHostingView(
       rootView: MessagesView(messages: [previous, message])
         .environmentObject(studio).background(StudioTheme.canvas).preferredColorScheme(.dark))
+    host.sizingOptions = []
+    host.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
+    host.autoresizingMask = [.width, .height]
     let window = NSWindow(
       contentRect: NSRect(x: 50, y: 50, width: 900, height: 700),
       styleMask: [.titled, .resizable], backing: .buffered, defer: false)
-    window.level = .floating
+    window.level = .statusBar
+    window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     window.hidesOnDeactivate = false
+    window.title = "MLXL3 Long Visibility Check"
     window.contentView = host
+    window.setContentSize(NSSize(width: 900, height: 700))
     NSApp.activate()
     window.makeKeyAndOrderFront(nil)
     defer {
@@ -544,11 +555,28 @@ extension CodeBlockView {
       return view.subviews.lazy.compactMap { nativeScroll($0) }.first
     }
     func normalized(_ text: String) -> String { String(text.lowercased().filter(\.isLetter)) }
-    func ensurePresented(_ label: String) async throws {
-      guard !window.isVisible || !window.occlusionState.contains(.visible) else { return }
+    func presentationDetails(_ label: String) {
       report(
-        "PRESENTATION RECOVERY \(label): visible=\(window.isVisible), occluded=\(!window.occlusionState.contains(.visible))"
+        "PRESENTATION \(label): windowFrame=\(window.frame), hostBounds=\(host.bounds), screen=\(String(describing: window.screen?.frame)), appActive=\(NSApp.isActive), visible=\(window.isVisible), occlusion=\(window.occlusionState.rawValue)"
       )
+    }
+    presentationDetails("setup")
+    func unavailableOnscreen(_ label: String) throws {
+      presentationDetails("unavailable-\(label)")
+      let reason =
+        "UNAVAILABLE physical onscreen verification at \(label); compositor presentation was not established"
+      report(reason)
+      throw NSError(
+        domain: "MLXL3LongVisibility", code: 4,
+        userInfo: [NSLocalizedDescriptionKey: reason])
+    }
+    func ensurePresented(_ label: String) async throws {
+      guard requireOnscreen else {
+        try require(window.isVisible, "Native bitmap window is logically hidden at \(label)")
+        return
+      }
+      guard !window.isVisible || !window.occlusionState.contains(.visible) else { return }
+      presentationDetails("recovery-\(label)")
       NSApp.activate()
       window.makeKeyAndOrderFront(nil)
       window.orderFrontRegardless()
@@ -559,27 +587,39 @@ extension CodeBlockView {
         }
         try await Task.sleep(for: .milliseconds(100))
       }
-      try require(
-        window.isVisible && window.occlusionState.contains(.visible),
-        "Native stress window failed bounded presentation setup at \(label)")
+      try unavailableOnscreen("bounded-presentation-\(label)")
     }
     try await ensurePresented("setup")
     var frames = 0
     var firstMisses = 0
+    var bitmapCaptures = 0
+    var physicalCaptures = 0
+    var expectedViewport = NSSize(width: 900, height: 700)
     func checkFrame(_ label: String, marker: String, save: Bool = false) async throws {
       func capture() throws -> (
-        bitmap: NSBitmapImageRep, image: CGImage, ink: Int, height: CGFloat, offset: CGFloat
+        bitmap: NSBitmapImageRep, image: CGImage, ink: Int, height: CGFloat, offset: CGFloat,
+        onscreen: Bool
       ) {
         host.layoutSubtreeIfNeeded()
+        let physicalBefore = window.isVisible && window.occlusionState.contains(.visible)
+        if requireOnscreen && !physicalBefore { try unavailableOnscreen("before-capture-\(label)") }
         try require(
-          window.isVisible && window.occlusionState.contains(.visible),
-          "Native stress window is hidden/occluded at \(label)")
+          window.isVisible && host.bounds.size == expectedViewport,
+          "Native bitmap window is hidden or has invalid viewport at \(label): \(host.bounds)")
         guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
           throw NSError(
             domain: "MLXL3LongVisibility", code: 3,
             userInfo: [NSLocalizedDescriptionKey: "No viewport bitmap at \(label)"])
         }
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        let physicalAfter = window.isVisible && window.occlusionState.contains(.visible)
+        if requireOnscreen && !physicalAfter { try unavailableOnscreen("after-capture-\(label)") }
+        try require(
+          window.isVisible && host.bounds.size == expectedViewport,
+          "Native bitmap viewport changed during capture at \(label): \(host.bounds)")
+        let onscreen = physicalBefore && physicalAfter
+        bitmapCaptures += 1
+        if onscreen { physicalCaptures += 1 }
         let outer = nativeScroll(host)
         let height = outer?.documentView?.bounds.height ?? 0
         let offset = outer?.contentView.bounds.minY ?? 0
@@ -593,7 +633,7 @@ extension CodeBlockView {
             }
           }
         }
-        return (bitmap, bitmap.cgImage!, ink, height, offset)
+        return (bitmap, bitmap.cgImage!, ink, height, offset, onscreen)
       }
       func saveBitmap(_ bitmap: NSBitmapImageRep, suffix: String) throws {
         guard let folder = ProcessInfo.processInfo.environment["MLXL3_STREAM_UI_SNAPSHOTS"] else {
@@ -612,7 +652,7 @@ extension CodeBlockView {
         .value
       var found = normalized(text).contains(normalized(marker))
       report(
-        "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+        "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
       )
       if !found || snapshot.ink < 40 {
         firstMisses += 1
@@ -626,7 +666,7 @@ extension CodeBlockView {
           .value
         found = normalized(text).contains(normalized(marker))
         report(
-          "\(label) settled ink=\(snapshot.ink) marker=\(found) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+          "\(label) settled ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
         )
         try saveBitmap(
           snapshot.bitmap,
@@ -634,9 +674,6 @@ extension CodeBlockView {
       } else if save {
         try saveBitmap(snapshot.bitmap, suffix: "first")
       }
-      try require(
-        window.occlusionState.contains(.visible), "Native stress window became occluded at \(label)"
-      )
       try require(
         snapshot.ink >= 40 && found,
         "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(text); ink=\(snapshot.ink), height=\(snapshot.height), offset=\(snapshot.offset)"
@@ -691,12 +728,14 @@ extension CodeBlockView {
     try require(
       message.content.utf8.count >= 250_000 && message.toolActivities.first?.state == .complete,
       "Long answer/tool fixture did not reach the declared boundary")
-    window.setContentSize(NSSize(width: 640, height: 520))
+    expectedViewport = NSSize(width: 640, height: 520)
+    window.setContentSize(expectedViewport)
     try await checkFrame("narrow", marker: "VISIBLE FINAL CHECKPOINT")
-    window.setContentSize(NSSize(width: 900, height: 700))
+    expectedViewport = NSSize(width: 900, height: 700)
+    window.setContentSize(expectedViewport)
     try await checkFrame("wide", marker: "VISIBLE FINAL CHECKPOINT")
     report(
-      "PASS \(frames) actual viewport/OCR checks, initial misses=\(firstMisses) preserved, >120KiB thinking + >250KiB answer, tool/completion/resize, detached OCR CPU only"
+      "PASS domain=\(requireOnscreen ? "physical-onscreen" : "native-bitmap-only") checks=\(frames), bitmapCaptures=\(bitmapCaptures), physicalCaptures=\(physicalCaptures), initial misses=\(firstMisses) preserved, >120KiB thinking + >250KiB answer, tool/completion/resize, detached OCR CPU only"
     )
   }
 
