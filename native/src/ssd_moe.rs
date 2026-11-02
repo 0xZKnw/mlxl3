@@ -77,6 +77,12 @@ pub struct SsdMoe {
     cold_ready_rows: i32,
     cold_priority: bool,
     cold_shared: bool,
+    routed_index_cache: bool,
+    routed_indices: [Option<Array>; 8],
+    #[cfg(test)]
+    routed_index_builds: usize,
+    #[cfg(test)]
+    routed_index_hits: usize,
     #[cfg(test)]
     cold_shared_submissions: usize,
     #[cfg(test)]
@@ -191,6 +197,11 @@ impl SsdMoe {
         let cold_shared =
             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_SHARED", "0")?)
                 .context("MLXL3_SSD_COLD_SHARED must be 0 or 1")?;
+        let routed_index_cache = crate::flash_support::parse_gpu_hot_wide(&control(
+            "MLXL3_SSD_ROUTED_INDEX_CACHE",
+            "0",
+        )?)
+        .context("MLXL3_SSD_ROUTED_INDEX_CACHE must be 0 or 1")?;
         crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
         let prefetch_pipeline =
@@ -301,6 +312,12 @@ impl SsdMoe {
             cold_ready_rows,
             cold_priority,
             cold_shared,
+            routed_index_cache,
+            routed_indices: std::array::from_fn(|_| None),
+            #[cfg(test)]
+            routed_index_builds: 0,
+            #[cfg(test)]
+            routed_index_hits: 0,
             #[cfg(test)]
             cold_shared_submissions: 0,
             #[cfg(test)]
@@ -836,13 +853,35 @@ impl SsdMoe {
         self.forward_rows_prepared(x, next, depth, row_limit, None)
     }
 
-    fn routed_input(x: &Array) -> Result<Array> {
-        let rows = x.shape()[0];
+    fn routed_input(&mut self, x: &Array) -> Result<Array> {
+        let rows = *x
+            .shape()
+            .first()
+            .context("routed input needs a row dimension")?;
+        let routed_rows = rows
+            .checked_mul(10)
+            .context("routed input row count overflow")?;
+        let cache_slot =
+            (self.routed_index_cache && (1..=8).contains(&rows)).then(|| rows as usize - 1);
+        if let Some(indices) = cache_slot.and_then(|slot| self.routed_indices[slot].as_ref()) {
+            #[cfg(test)]
+            {
+                self.routed_index_hits += 1;
+            }
+            return x.take(indices, 0)?.astype(Dtype::Float16);
+        }
         let indices = (0..rows as u32)
             .flat_map(|row| std::iter::repeat_n(row, 10))
             .collect::<Vec<_>>();
-        x.take(&Array::from_u32(&indices, &[rows * 10])?, 0)?
-            .astype(Dtype::Float16)
+        let indices = Array::from_u32(&indices, &[routed_rows])?;
+        #[cfg(test)]
+        {
+            self.routed_index_builds += 1;
+        }
+        if let Some(slot) = cache_slot {
+            self.routed_indices[slot] = Some(indices.try_clone()?);
+        }
+        x.take(&indices, 0)?.astype(Dtype::Float16)
     }
 
     fn prepare_resident_hot(&mut self, x: &Array, selected: &Array) -> Result<Option<ResidentHot>> {
@@ -855,7 +894,7 @@ impl SsdMoe {
         if map.iter().all(|&slot| slot == u32::MAX) {
             return Ok(None);
         }
-        let input = Self::routed_input(x)?;
+        let input = self.routed_input(x)?;
         #[cfg(test)]
         let _prepare = crate::flash_profile::span("gpu_resident_hot_prepare");
         let slots = linear::ExpertSlots::residents(selected, &map, self.banks[0].shape()[0])?;
@@ -1125,7 +1164,7 @@ impl SsdMoe {
         }
         let routed_x = match early_input {
             Some(value) => value,
-            None => Self::routed_input(x)?,
+            None => self.routed_input(x)?,
         };
         if !early_hot && let Some(last) = self.last.take() {
             #[cfg(test)]
@@ -1613,6 +1652,10 @@ impl SsdMoe {
 #[cfg(test)]
 #[path = "ssd_moe/hybrid_tests.rs"]
 mod hybrid_tests;
+
+#[cfg(test)]
+#[path = "ssd_moe/routed_index_tests.rs"]
+mod routed_index_tests;
 
 #[cfg(test)]
 #[path = "ssd_moe/shared_tests.rs"]
