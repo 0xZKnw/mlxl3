@@ -1,0 +1,62 @@
+{
+  "status": "verified",
+  "parity": true,
+  "prior_attempt": "result-01-audit-gap.json",
+  "plan_sha256": "9af60cafedd44ad8941b6cfe08c21d304fb00094bcc29fad1a1b24b79f82a260",
+  "phases": [
+    {
+      "label": "nt2-target",
+      "status": "passed",
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1",
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      },
+      "exit_code": 0,
+      "quality_elapsed_seconds": 3.3690629999999997,
+      "dyld_images": 706,
+      "stdout_sha256": "ccbcf2d9cdf96e15bc68afa28fac1a4bd6d8c388e12ccdaa31b923de536efe42",
+      "stderr_sha256": "3fe6d02fcdd4bc42f045ff6a6acae33e807be799b952b2bb0d90448a1cf01d21"
+    },
+    {
+      "label": "nt2-ar-bridge",
+      "status": "passed",
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_NATIVE_FLASH_NT2": "1"
+      },
+      "bridge_report": "nt2-ar-bridge.json",
+      "exit_code": 0,
+      "quality_elapsed_seconds": 69.107568542,
+      "dyld_images": 1430,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "ed19c3f08433ad53352031a95f39565d1e7d4d62113c12080e41e7f66ad5e5c9"
+    },
+    {
+      "label": "prefetch-target",
+      "status": "passed",
+      "environment_override": {
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "exit_code": 0,
+      "quality_elapsed_seconds": 3.647373625,
+      "dyld_images": 706,
+      "stdout_sha256": "5972dee0f8fafa4dc4f79364b8ee29025a9d78aec204ca8775c416b0e637861a",
+      "stderr_sha256": "e2a0ee532d480051d6b45db30c4c7ea581122aa7855ab393fbdbdb21986276bf"
+    },
+    {
+      "label": "prefetch-ar-bridge",
+      "status": "passed",
+      "environment_override": {
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "bridge_report": "prefetch-ar-bridge.json",
+      "exit_code": 0,
+      "quality_elapsed_seconds": 71.210068542,
+      "dyld_images": 1430,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "abb205e49a250d7dee853cfc5f6b2dd7dd60557c70c90840ffd2607000f8e58b"
+    }
+  ]
+}

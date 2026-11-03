@@ -185,6 +185,7 @@ pub struct Metal {
     qmv_pipeline: ComputePipelineState,
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
+    flash_qmv_nt2: ComputePipelineState,
     dense_qmv: [[ComputePipelineState; 3]; 2],
     dense_finish: ComputePipelineState,
     mapped_glu: ComputePipelineState,
@@ -329,6 +330,7 @@ impl Metal {
             let codebook_pipeline = pipeline("exl3_codebook")?;
             let qmv_pipeline = pipeline("exl3_qmv")?;
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
+            let flash_qmv_nt2 = pipeline("flash_reference_qmv_nt2")?;
             let dense_qmv = [
                 [
                     pipeline("dense_qmv_s4_n1")?,
@@ -390,6 +392,7 @@ impl Metal {
                 qmv_pipeline,
                 prepare128_pipeline,
                 flash_qmv_pipeline,
+                flash_qmv_nt2,
                 dense_qmv,
                 dense_finish,
                 mapped_glu,

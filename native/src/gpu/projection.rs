@@ -28,6 +28,8 @@ pub struct FlashProjection<'a> {
     generic: bool,
     simdgroups: u32,
     nt: u32,
+    #[cfg(test)]
+    nt2_submissions: std::cell::Cell<u64>,
 }
 
 #[derive(Clone, Copy)]
@@ -127,6 +129,13 @@ impl<'a> FlashProjection<'a> {
             .and_then(|v| u32::try_from(v).ok())
             .context("invalid packed geometry or index overflow")?;
         let mtp_hidden = !generic && name == "mtp.fc_hidden";
+        let cb = if tensors.contains_key(&format!("{name}.mul1")) {
+            Codebook::Mul1
+        } else if tensors.contains_key(&format!("{name}.mcg")) {
+            Codebook::Mcg
+        } else {
+            Codebook::Default
+        };
         if mtp_hidden {
             ensure!(
                 input == 2560 && output == 2560 && k != 7,
@@ -171,8 +180,30 @@ impl<'a> FlashProjection<'a> {
         let nt: u32 = if generic {
             if output / 16 >= 1024 { 2 } else { 4 }
         } else {
-            1
+            let eligible = !mtp_hidden
+                && (metal.device_name() == "Apple M5"
+                    || metal.device_name().starts_with("Apple M5 "));
+            let candidate = contracts::flash_resident_nt(output, k, cb as u32, eligible, true);
+            let enabled = if candidate == 2 {
+                let flag = std::env::var("MLXL3_NATIVE_FLASH_NT2");
+                let value = match &flag {
+                    Ok(v) => Some(v.as_str()),
+                    Err(std::env::VarError::NotPresent) => None,
+                    Err(e) => bail!("MLXL3_NATIVE_FLASH_NT2 must be 0 or 1: {e}"),
+                };
+                contracts::flash_nt2_flag(value).context("MLXL3_NATIVE_FLASH_NT2 must be 0 or 1")?
+            } else {
+                false
+            };
+            contracts::flash_resident_nt(output, k, cb as u32, eligible, enabled)
         };
+        if nt == 2 && !generic {
+            ensure!(
+                metal.flash_qmv_nt2.thread_execution_width() == 32
+                    && metal.flash_qmv_nt2.max_total_threads_per_threadgroup() >= 128,
+                "unsupported Flash NT2 projection threadgroup"
+            );
+        }
         if generic {
             let pipeline =
                 &metal.dense_qmv[usize::from(simdgroups == 8)][nt.trailing_zeros() as usize];
@@ -193,13 +224,6 @@ impl<'a> FlashProjection<'a> {
                 .context("missing projection scale")?;
             scale(&metal.device, t, width)
         };
-        let cb = if tensors.contains_key(&format!("{name}.mul1")) {
-            Codebook::Mul1
-        } else if tensors.contains_key(&format!("{name}.mcg")) {
-            Codebook::Mcg
-        } else {
-            Codebook::Default
-        };
         Ok(Self {
             metal,
             packed,
@@ -219,6 +243,8 @@ impl<'a> FlashProjection<'a> {
             generic,
             simdgroups,
             nt,
+            #[cfg(test)]
+            nt2_submissions: std::cell::Cell::new(0),
         })
     }
 
@@ -353,11 +379,18 @@ impl<'a> FlashProjection<'a> {
                 } else if self.generic {
                     &gpu.dense_qmv[usize::from(self.simdgroups == 8)]
                         [self.nt.trailing_zeros() as usize]
+                } else if self.nt == 2 {
+                    &gpu.flash_qmv_nt2
                 } else {
                     &gpu.flash_qmv_pipeline
                 },
                 (&self.svh, self.offsets.svh),
-                self.output / 16 / self.nt,
+                if self.generic {
+                    self.output / 16 / self.nt
+                } else {
+                    contracts::flash_reference_groups(self.output, self.nt)
+                        .context("invalid Flash reference tile grid")?
+                },
             )
         };
         Metal::encode_bound(
@@ -405,6 +438,10 @@ impl<'a> FlashProjection<'a> {
             MTLSize::new(u64::from(outputs / 128), 1, 1),
             64,
         );
+        #[cfg(test)]
+        if !self.generic && self.nt == 2 {
+            self.nt2_submissions.set(self.nt2_submissions.get() + 1);
+        }
         Ok(dest)
     }
 }
@@ -434,6 +471,175 @@ pub(super) fn submit_encoded(
             buffer: dest,
         })
     })
+}
+
+#[test]
+#[ignore = "physical Apple M5; launched by tests/physical_flash_nt2.py"]
+fn physical_flash_resident_nt2() -> Result<()> {
+    use crate::tensor_layout::MatrixLayout;
+    use serde::Deserialize;
+    use std::{fs, path::PathBuf};
+    #[derive(Deserialize)]
+    struct Case {
+        path: PathBuf,
+        prefix: String,
+        x: Vec<u16>,
+        fp32: bool,
+        generic: bool,
+        candidate_nt: u32,
+        control_nt: u32,
+    }
+    let root = PathBuf::from(std::env::var_os("MLXL3_NT2_FIXTURES").context("fixtures required")?);
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(root.join("native-cases.json"))?)?;
+    let refs: Vec<Vec<u16>> = serde_json::from_slice(&fs::read(root.join("stock.json"))?)?;
+    ensure!(
+        !cases.is_empty() && cases.len() == refs.len(),
+        "incomplete fixture matrix"
+    );
+    let literal = std::env::var("MLXL3_NATIVE_FLASH_NT2").ok();
+    let gpu = Metal::new()?;
+    ensure!(
+        gpu.device_name() == "Apple M5" || gpu.device_name().starts_with("Apple M5 "),
+        "unqualified hardware"
+    );
+    let real = crate::checkpoint::inspect(&cases.last().context("missing real fixture")?.path)?;
+    let hidden = FlashProjection::load(&gpu, &real, "mtp.fc_hidden")?;
+    ensure!(hidden.nt == 1 && hidden.mtp_hidden && hidden.splits == 2);
+    ensure!(hidden.submit(&vec![0; 2560]).is_err() && hidden.nt2_submissions.get() == 0);
+    let selected_case = cases
+        .iter()
+        .find(|c| !c.generic && c.candidate_nt == 2)
+        .context("missing NT2 case")?;
+    let selected_checkpoint = crate::checkpoint::inspect(&selected_case.path)?;
+    let Some(enabled) = contracts::flash_nt2_flag(literal.as_deref()) else {
+        let error = FlashProjection::load(&gpu, &selected_checkpoint, &selected_case.prefix)
+            .err()
+            .context("invalid flag accepted")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_NATIVE_FLASH_NT2 must be 0 or 1")
+        );
+        let generic = cases
+            .iter()
+            .find(|c| c.generic)
+            .context("missing generic control")?;
+        let c = crate::checkpoint::inspect(&generic.path)?;
+        ensure!(FlashProjection::load_exl3(&gpu, &c, &generic.prefix)?.nt == generic.control_nt);
+        fs::write(
+            root.join("invalid-flag.json"),
+            b"{\"rejected\":true,\"fc_hidden_nt\":1,\"generic_unchanged\":true}",
+        )?;
+        return Ok(());
+    };
+    for invalid in 0..5 {
+        let mut c = crate::checkpoint::inspect(&selected_case.path)?;
+        let trellis = c
+            .tensors
+            .get_mut(&format!("{}.trellis", selected_case.prefix))
+            .context("missing test trellis")?;
+        match invalid {
+            0 => trellis.shape[0] += 1,
+            1 => trellis.shape[1] += 1,
+            2 => trellis.shape[2] += 1,
+            3 => trellis.dtype = "U8".into(),
+            _ => {
+                c.tensors
+                    .get_mut(&format!("{}.bias", selected_case.prefix))
+                    .context("missing test bias")?
+                    .shape[0] -= 1
+            }
+        }
+        ensure!(
+            FlashProjection::load(&gpu, &c, &selected_case.prefix).is_err(),
+            "malformed case {invalid} accepted"
+        );
+    }
+    let mut result = Vec::new();
+    let mut unequal = 0;
+    let mut selected = 0;
+    for (i, (case, expected)) in cases.iter().zip(&refs).enumerate() {
+        let checkpoint = crate::checkpoint::inspect(&case.path)?;
+        let load = if case.generic {
+            FlashProjection::load_exl3
+        } else {
+            FlashProjection::load
+        };
+        let layer = load(&gpu, &checkpoint, &case.prefix)?;
+        let nt = if enabled {
+            case.candidate_nt
+        } else {
+            case.control_nt
+        };
+        ensure!(
+            layer.nt == nt,
+            "case {i}: expected NT{nt}, selected NT{}",
+            layer.nt
+        );
+        ensure!(layer.submit(&[]).is_err() && layer.submit(&case.x[1..]).is_err());
+        ensure!(
+            layer.nt2_submissions.get() == 0,
+            "invalid input encoded a command"
+        );
+        let actual = if case.fp32 {
+            let values: Vec<f32> = case
+                .x
+                .iter()
+                .map(|&x| f32::from_bits(f16::from_bits(x).to_f32().to_bits() ^ 1))
+                .collect();
+            let input = gpu.f32_storage(&values)?.matrix(MatrixLayout {
+                shape: [
+                    u32::try_from(case.x.len() / layer.input as usize)?,
+                    layer.input,
+                ],
+                strides: [i64::from(layer.input), 1],
+                offset: 0,
+            })?;
+            layer.submit_fp16_view(&input)?.read()?
+        } else {
+            layer.submit(&case.x)?.read()?
+        };
+        let submissions = u64::from(enabled && !case.generic && nt == 2);
+        ensure!(
+            layer.nt2_submissions.get() == submissions,
+            "case {i}: wrong encoded path count"
+        );
+        selected += submissions;
+        ensure!(
+            actual.len() == expected.len() && !actual.is_empty(),
+            "case {i}: truncated output"
+        );
+        ensure!(
+            actual
+                .iter()
+                .chain(expected)
+                .all(|&w| f16::from_bits(w).is_finite()),
+            "case {i}: nonfinite output"
+        );
+        ensure!(
+            expected.iter().any(|&w| f16::from_bits(w) != f16::ZERO),
+            "case {i}: trivial oracle"
+        );
+        let differs = actual.iter().zip(expected).filter(|(a, b)| a != b).count();
+        unequal += differs;
+        fs::write(
+            root.join(format!("native-{}-{i}.bin", u8::from(enabled))),
+            actual
+                .iter()
+                .flat_map(|w| w.to_le_bytes())
+                .collect::<Vec<_>>(),
+        )?;
+        result.push(serde_json::json!({"case":i,"prefix":case.prefix,"fp32":case.fp32,"nt":nt,"nt2_submissions":submissions,"words":actual.len(),"unequal":differs}));
+    }
+    fs::write(
+        root.join(format!("native-{}.json", u8::from(enabled))),
+        serde_json::to_vec_pretty(
+            &serde_json::json!({"parity":unequal==0,"cases":result,"nt2_submissions":selected,"unequal":unequal}),
+        )?,
+    )?;
+    ensure!(!enabled || selected > 0, "candidate never encoded NT2");
+    ensure!(unequal == 0, "resident NT2 diverged in {unequal} words");
+    Ok(())
 }
 
 impl Metal {
@@ -541,6 +747,8 @@ impl<'a> FlashExpert<'a> {
                 generic: false,
                 simdgroups: 4,
                 nt: 1,
+                #[cfg(test)]
+                nt2_submissions: std::cell::Cell::new(0),
             })
         };
         Ok(Self {

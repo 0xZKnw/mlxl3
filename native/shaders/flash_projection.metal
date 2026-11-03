@@ -29,6 +29,15 @@ kernel void flash_reference_qmv(FLASH_QMV_ARGUMENTS) {
 #include "_qmv_tile_kernel.metal"
 }
 
+// Resident NT2 preserves the canonical per-tile reduction and half boundaries.
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 2u
+kernel void flash_reference_qmv_nt2(FLASH_QMV_ARGUMENTS) {
+#include "_qmv_tile_kernel.metal"
+}
+#undef MLXL3_QMV_NT
+#define MLXL3_QMV_NT 1u
+
 // MTP's four-stream projection uses a different accumulation order in each split.
 #undef MLXL3_QMV_MB
 #define MLXL3_QMV_MB 4u

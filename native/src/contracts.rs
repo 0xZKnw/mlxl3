@@ -1,5 +1,146 @@
 //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_nt2_flag(value: Option<&str>) -> Option<bool> {
+    match value {
+        None | Some("0") => Some(false),
+        Some("1") => Some(true),
+        Some(_) => None,
+    }
+}
+
+/// The resident experiment excludes MTP hidden, routed records and generic families.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_resident_nt(
+    output: u32,
+    k: u32,
+    cb: u32,
+    eligible: bool,
+    enabled: bool,
+) -> u32 {
+    if eligible
+        && enabled
+        && matches!(k, 3 | 4)
+        && cb == 2
+        && output >= 2560
+        && output.is_multiple_of(128)
+    {
+        2
+    } else {
+        1
+    }
+}
+
+/// Complete 128-wide finish blocks ensure NT1/NT2 have no partial output tiles.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_reference_groups(output: u32, nt: u32) -> Option<u32> {
+    if output == 0 || !output.is_multiple_of(128) || !matches!(nt, 1 | 2) {
+        return None;
+    }
+    Some(output / (16 * nt))
+}
+
+#[test]
+fn native_flash_resident_nt2_keeps_defaults_scope_and_tail_boundaries() {
+    for (value, expected) in [
+        (None, Some(false)),
+        (Some("0"), Some(false)),
+        (Some("1"), Some(true)),
+        (Some(""), None),
+        (Some("true"), None),
+        (Some(" 1"), None),
+        (Some("01"), None),
+        (Some("2"), None),
+        (Some("1\n"), None),
+    ] {
+        assert_eq!(flash_nt2_flag(value), expected);
+    }
+    for output in [
+        0,
+        128,
+        2432,
+        2559,
+        2560,
+        2576,
+        2688,
+        248320,
+        u32::MAX - 127,
+        u32::MAX,
+    ] {
+        for k in 0..=9 {
+            for cb in 0..=3 {
+                for eligible in [false, true] {
+                    for enabled in [false, true] {
+                        let expected = u32::from(
+                            eligible
+                                && enabled
+                                && [3, 4].contains(&k)
+                                && cb == 2
+                                && output / 16 >= 160
+                                && output % 128 == 0,
+                        ) + 1;
+                        assert_eq!(
+                            flash_resident_nt(output, k, cb, eligible, enabled),
+                            expected
+                        );
+                    }
+                }
+            }
+        }
+        for nt in 0..=4 {
+            let expected = (output != 0 && output % 128 == 0 && [1, 2].contains(&nt))
+                .then(|| output / 16 / nt);
+            assert_eq!(flash_reference_groups(output, nt), expected);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_flash_resident_nt2_selector_preserves_every_fallback() {
+    let (output, k, cb): (u32, u32, u32) = kani::any();
+    let (eligible, enabled): (bool, bool) = kani::any();
+    let nt = flash_resident_nt(output, k, cb, eligible, enabled);
+    let selected = eligible
+        && enabled
+        && (k == 3 || k == 4)
+        && cb == 2
+        && output / 16 >= 160
+        && output % 128 == 0;
+    assert_eq!(nt, if selected { 2 } else { 1 });
+    kani::cover!(selected && k == 3 && output == 2560);
+    kani::cover!(selected && k == 4 && output == 248320);
+    kani::cover!(!selected && eligible && enabled && k == 2 && output == 2560);
+    kani::cover!(!selected && eligible && enabled && k == 4 && cb == 2 && output == 2432);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_flash_reference_grid_covers_only_complete_output_tiles() {
+    let (output, nt, group, tile, column): (u32, u32, u32, u32, u32) = kani::any();
+    let groups = flash_reference_groups(output, nt);
+    assert_eq!(
+        groups.is_some(),
+        output > 0 && output % 128 == 0 && (nt == 1 || nt == 2)
+    );
+    if let Some(groups) = groups {
+        assert_eq!(u64::from(groups) * u64::from(nt) * 16, u64::from(output));
+        if group < groups && tile < nt && column < 16 {
+            let index = (group * nt + tile) * 16 + column;
+            assert!(index < output);
+            assert_eq!(
+                u64::from(index),
+                (u64::from(group) * u64::from(nt) + u64::from(tile)) * 16 + u64::from(column)
+            );
+            kani::cover!(nt == 2 && group == groups - 1 && tile == 1 && column == 15);
+        }
+        kani::cover!(nt == 1 && output == 128);
+        kani::cover!(nt == 2 && output == 248320);
+    } else {
+        kani::cover!(output == 2576 && nt == 2);
+    }
+}
+
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
     rows > 0

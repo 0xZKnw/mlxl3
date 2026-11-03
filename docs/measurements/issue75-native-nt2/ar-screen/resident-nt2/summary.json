@@ -1,0 +1,582 @@
+{
+  "status": "completed_short_AR_screen",
+  "quality_parity": true,
+  "decision": "Retain numerically qualified NT2 port; observed small positive decode changes on both prompts under this short matched budget. Default remainsOFF in isolated port pending final AR activation/confirmation.",
+  "generated_utc": "2026-11-03T21:28:47.413690+00:00",
+  "protocol": "../protocol.json",
+  "arms": "../arms.json",
+  "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+  "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+  "order": "ABBA",
+  "tokens": 32,
+  "warmups": 8,
+  "measured_responses": 8,
+  "samples_per_prompt_per_kind": 2,
+  "expert_bank_capacity_bytes": 3174942528,
+  "slots_per_layer": 53,
+  "layers": 48,
+  "power": "AC100%before/after everyarm",
+  "thermal": "notmeasured",
+  "all_children_reaped": true,
+  "by_prompt": {
+    "MAIN": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            4.660325679719304,
+            4.7042610043026025
+          ],
+          "candidate": [
+            4.8141065746137,
+            4.802780375790181
+          ]
+        },
+        "median": {
+          "control": 4.682293342010953,
+          "candidate": 4.8084434752019405
+        },
+        "range": {
+          "control": [
+            4.660325679719304,
+            4.7042610043026025
+          ],
+          "candidate": [
+            4.802780375790181,
+            4.8141065746137
+          ]
+        },
+        "candidate_change_percent": 2.694195428960633,
+        "control_drift_percent": 0.9427522367051466,
+        "paired_changes_percent": [
+          3.299788586956831,
+          2.0942581926783
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            6.651895625000002,
+            6.589770417
+          ],
+          "candidate": [
+            6.439408750000002,
+            6.454594541999999
+          ]
+        },
+        "median": {
+          "control": 6.620833021000001,
+          "candidate": 6.447001646
+        },
+        "range": {
+          "control": [
+            6.589770417,
+            6.651895625000002
+          ],
+          "candidate": [
+            6.439408750000002,
+            6.454594541999999
+          ]
+        },
+        "candidate_change_percent": -2.6255212062989863,
+        "control_drift_percent": -0.9339474264526082,
+        "paired_changes_percent": [
+          -3.1943807747284003,
+          -2.0512987015644857
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.698879677433571,
+            4.806206602621616
+          ],
+          "candidate": [
+            4.6738664519319215,
+            4.868646743898374
+          ]
+        },
+        "median": {
+          "control": 4.752543140027594,
+          "candidate": 4.771256597915148
+        },
+        "range": {
+          "control": [
+            4.698879677433571,
+            4.806206602621616
+          ],
+          "candidate": [
+            4.6738664519319215,
+            4.868646743898374
+          ]
+        },
+        "candidate_change_percent": 0.39375671795469636,
+        "control_drift_percent": 2.2840960517351405,
+        "paired_changes_percent": [
+          -0.532323175283167,
+          1.2991564125166555
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            18.515051666,
+            18.101593875
+          ],
+          "candidate": [
+            18.614139042,
+            17.869441875
+          ]
+        },
+        "median": {
+          "control": 18.3083227705,
+          "candidate": 18.2417904585
+        },
+        "range": {
+          "control": [
+            18.101593875,
+            18.515051666
+          ],
+          "candidate": [
+            17.869441875,
+            18.614139042
+          ]
+        },
+        "candidate_change_percent": -0.3633992738384717,
+        "control_drift_percent": -2.2330901282833215,
+        "paired_changes_percent": [
+          0.5351720199731291,
+          -1.282494799094036
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            18.515982416,
+            18.102571209
+          ],
+          "candidate": [
+            18.614865125999998,
+            17.870808915999998
+          ]
+        },
+        "median": {
+          "control": 18.309276812500002,
+          "candidate": 18.242837021
+        },
+        "range": {
+          "control": [
+            18.102571209,
+            18.515982416
+          ],
+          "candidate": [
+            17.870808915999998,
+            18.614865125999998
+          ]
+        },
+        "candidate_change_percent": -0.3628750178414686,
+        "control_drift_percent": -2.2327262886292387,
+        "paired_changes_percent": [
+          0.5340397704987732,
+          -1.2802727873528763
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            18.515987833,
+            18.102576876
+          ],
+          "candidate": [
+            18.614870833999998,
+            17.870813875
+          ]
+        },
+        "median": {
+          "control": 18.3092823545,
+          "candidate": 18.2428423545
+        },
+        "range": {
+          "control": [
+            18.102576876,
+            18.515987833
+          ],
+          "candidate": [
+            17.870813875,
+            18.614870833999998
+          ]
+        },
+        "candidate_change_percent": -0.3628760467701775,
+        "control_drift_percent": -2.2327242852428375,
+        "paired_changes_percent": [
+          0.5340411858759442,
+          -1.2802762976096949
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            25.167897583,
+            24.692357584
+          ],
+          "candidate": [
+            25.054299292,
+            24.325427458
+          ]
+        },
+        "median": {
+          "control": 24.9301275835,
+          "candidate": 24.689863375
+        },
+        "range": {
+          "control": [
+            24.692357584,
+            25.167897583
+          ],
+          "candidate": [
+            24.325427458,
+            25.054299292
+          ]
+        },
+        "candidate_change_percent": -0.9637504168210409,
+        "control_drift_percent": -1.889470494830714,
+        "paired_changes_percent": [
+          -0.45136186137665346,
+          -1.4860068535446858
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          7231887216,
+          7236917080
+        ],
+        "candidate": [
+          7229249368,
+          7222843200
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          7262738288,
+          7263672152
+        ],
+        "candidate": [
+          7266342744,
+          7271044952
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          3853598720,
+          2630877184
+        ],
+        "candidate": [
+          2373107712,
+          2631827456
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          1170870,
+          1041735
+        ],
+        "candidate": [
+          1039133,
+          1056206
+        ]
+      }
+    },
+    "HOLD": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            4.730928324856968,
+            4.742182152354243
+          ],
+          "candidate": [
+            4.753492443531691,
+            4.836645892947512
+          ]
+        },
+        "median": {
+          "control": 4.736555238605606,
+          "candidate": 4.795069168239602
+        },
+        "range": {
+          "control": [
+            4.730928324856968,
+            4.742182152354243
+          ],
+          "candidate": [
+            4.753492443531691,
+            4.836645892947512
+          ]
+        },
+        "candidate_change_percent": 1.2353688849034095,
+        "control_drift_percent": 0.23787778474988475,
+        "paired_changes_percent": [
+          0.4769490705696988,
+          1.991988868381478
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            6.552625166000002,
+            6.537074917000002
+          ],
+          "candidate": [
+            6.521520833,
+            6.409400375000001
+          ]
+        },
+        "median": {
+          "control": 6.544850041500002,
+          "candidate": 6.4654606040000004
+        },
+        "range": {
+          "control": [
+            6.537074917000002,
+            6.552625166000002
+          ],
+          "candidate": [
+            6.409400375000001,
+            6.521520833
+          ]
+        },
+        "candidate_change_percent": -1.2130062109384276,
+        "control_drift_percent": -0.23731326920219953,
+        "paired_changes_percent": [
+          -0.47468506456610493,
+          -1.9530836592980938
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.646394284532857,
+            4.723369244169438
+          ],
+          "candidate": [
+            4.773423869466766,
+            4.823102555556351
+          ]
+        },
+        "median": {
+          "control": 4.684881764351148,
+          "candidate": 4.798263212511559
+        },
+        "range": {
+          "control": [
+            4.646394284532857,
+            4.723369244169438
+          ],
+          "candidate": [
+            4.773423869466766,
+            4.823102555556351
+          ]
+        },
+        "candidate_change_percent": 2.4201560223604535,
+        "control_drift_percent": 1.6566600878625382,
+        "paired_changes_percent": [
+          2.7339389891376964,
+          2.111486657750161
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            17.648093334,
+            17.360489041
+          ],
+          "candidate": [
+            17.178445125,
+            17.001504541
+          ]
+        },
+        "median": {
+          "control": 17.5042911875,
+          "candidate": 17.089974833
+        },
+        "range": {
+          "control": [
+            17.360489041,
+            17.648093334
+          ],
+          "candidate": [
+            17.001504541,
+            17.178445125
+          ]
+        },
+        "candidate_change_percent": -2.366941626267449,
+        "control_drift_percent": -1.629662125856468,
+        "paired_changes_percent": [
+          -2.6611838463886484,
+          -2.0678248127238397
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            17.649177208999998,
+            17.361509875
+          ],
+          "candidate": [
+            17.179241416,
+            17.002349166000002
+          ]
+        },
+        "median": {
+          "control": 17.505343542,
+          "candidate": 17.090795291
+        },
+        "range": {
+          "control": [
+            17.361509875,
+            17.649177208999998
+          ],
+          "candidate": [
+            17.002349166000002,
+            17.179241416
+          ]
+        },
+        "candidate_change_percent": -2.368124053123477,
+        "control_drift_percent": -1.6299192341573066,
+        "paired_changes_percent": [
+          -2.6626498642687957,
+          -2.068718167866135
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            17.649182209,
+            17.361515084
+          ],
+          "candidate": [
+            17.179247916,
+            17.002359708
+          ]
+        },
+        "median": {
+          "control": 17.5053486465,
+          "candidate": 17.090803812
+        },
+        "range": {
+          "control": [
+            17.361515084,
+            17.649182209
+          ],
+          "candidate": [
+            17.002359708,
+            17.179247916
+          ]
+        },
+        "candidate_change_percent": -2.3681038456945136,
+        "control_drift_percent": -1.6299175882115713,
+        "paired_changes_percent": [
+          -2.6626406109647394,
+          -2.068686829820454
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            24.201824291,
+            23.898607916
+          ],
+          "candidate": [
+            23.700783125,
+            23.41177025
+          ]
+        },
+        "median": {
+          "control": 24.0502161035,
+          "candidate": 23.556276687500002
+        },
+        "range": {
+          "control": [
+            23.898607916,
+            24.201824291
+          ],
+          "candidate": [
+            23.41177025,
+            23.700783125
+          ]
+        },
+        "candidate_change_percent": -2.0537836910667684,
+        "control_drift_percent": -1.2528657813318578,
+        "paired_changes_percent": [
+          -2.070261976847443,
+          -2.037096335113575
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          7235032944,
+          7217993560
+        ],
+        "candidate": [
+          7226103640,
+          7187191616
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          7266080624,
+          7266768728
+        ],
+        "candidate": [
+          7268095832,
+          7271044952
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          3917135872,
+          2657943552
+        ],
+        "candidate": [
+          2438479872,
+          2735702016
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          1526101,
+          1379189
+        ],
+        "candidate": [
+          1360975,
+          1366869
+        ]
+      }
+    }
+  },
+  "limits": [
+    "Short32-token screen,2samples/kind/prompt; no statistical or sustained universal guarantee.",
+    "Only explicitNT2flag0/1 was measured; no installedapp/defaultactivation yet.",
+    "No64-token/longcontext/combined-port confirmation yet.",
+    "Prior0.6GiBquick5tok/s is not a comparison baseline.",
+    "Kani host selection/grid proofs do not prove Metal arithmetic; physical numerical scope is documented separately."
+  ]
+}

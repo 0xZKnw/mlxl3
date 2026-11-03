@@ -1,0 +1,175 @@
+{
+  "status": "active_ar_only_user_priority",
+  "arms": [
+    {
+      "experiment": "resident-nt2",
+      "arm": 1,
+      "kind": "control",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+      "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+      "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0"
+      },
+      "output": "resident-nt2/screen-1-control",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": null,
+      "source_receipt": "../candidate.json",
+      "quality_status": "AR_target_and_production_bridge_passed",
+      "build_provenance": "599628120c95-dirty; frozen executable source hashes equal89fdabbf",
+      "quality_receipt": "../ar-quality/result.json",
+      "parity": true,
+      "started_utc": "2026-11-03T21:19:37.560148+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.660325679719304,
+        "HOLD": 4.730928324856968
+      },
+      "elapsed_seconds": 100.88929341599578,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "resident-nt2",
+      "arm": 2,
+      "kind": "candidate",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+      "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+      "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "1",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0"
+      },
+      "output": "resident-nt2/screen-2-candidate",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": null,
+      "source_receipt": "../candidate.json",
+      "quality_status": "AR_target_and_production_bridge_passed",
+      "build_provenance": "599628120c95-dirty; frozen executable source hashes equal89fdabbf",
+      "quality_receipt": "../ar-quality/result.json",
+      "parity": true,
+      "started_utc": "2026-11-03T21:21:18.475217+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.8141065746137,
+        "HOLD": 4.753492443531691
+      },
+      "elapsed_seconds": 99.8118902920105,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "resident-nt2",
+      "arm": 3,
+      "kind": "candidate",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+      "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+      "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "1",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0"
+      },
+      "output": "resident-nt2/screen-3-candidate",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": null,
+      "source_receipt": "../candidate.json",
+      "quality_status": "AR_target_and_production_bridge_passed",
+      "build_provenance": "599628120c95-dirty; frozen executable source hashes equal89fdabbf",
+      "quality_receipt": "../ar-quality/result.json",
+      "parity": true,
+      "started_utc": "2026-11-03T21:22:58.309696+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.802780375790181,
+        "HOLD": 4.836645892947512
+      },
+      "elapsed_seconds": 98.88277545801247,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "resident-nt2",
+      "arm": 4,
+      "kind": "control",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/direct-cli",
+      "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+      "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0"
+      },
+      "output": "resident-nt2/screen-4-control",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": null,
+      "source_receipt": "../candidate.json",
+      "quality_status": "AR_target_and_production_bridge_passed",
+      "build_provenance": "599628120c95-dirty; frozen executable source hashes equal89fdabbf",
+      "quality_receipt": "../ar-quality/result.json",
+      "parity": true,
+      "started_utc": "2026-11-03T21:24:37.215160+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.7042610043026025,
+        "HOLD": 4.742182152354243
+      },
+      "elapsed_seconds": 100.21180787499179,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "source_full_arms_sha256": "239d4366f68278d8f44bca9eea5c428502f1474b5336e6ba5cb5bf58b8c05302",
+  "receipt_paths_rebased": true
+}

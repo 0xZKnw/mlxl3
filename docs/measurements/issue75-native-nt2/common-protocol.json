@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "status": "preregistered_not_run",
+  "date": "2026-11-03",
+  "objective": "Port existing Flash Next optimizations to the independent native runtime, qualify correction then measure each mechanism separately.",
+  "base_main": "599628120c95df45b00a2076ffe466331a9c94f2",
+  "hardware": {
+    "device": "Apple M5",
+    "memory_bytes": 25769803776,
+    "os": "macOS 27.2 build26B123",
+    "power": "record before/after every arm; last observed battery100% discharging",
+    "thermal": "not measured"
+  },
+  "model": {
+    "path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "average_bpw": 2.05,
+    "resident_nt2_scope": "actual K3/K4 MUL1 headers; not inferred from average bits"
+  },
+  "draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "fixed": {
+    "cache_gib": 3,
+    "readers": 4,
+    "lookahead": 0,
+    "reuse_prompt_cache": false,
+    "context": 4096,
+    "temperature": 0,
+    "top_k": 1,
+    "repetition_penalty": 1,
+    "environment": {
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+    }
+  },
+  "harness": "scripts/benchmark-flash-bridge.py",
+  "prompt_source": "PROMPTS.MAIN and PROMPTS.HOLD from exact hashed harness",
+  "quality_before_speed": [
+    "Per-port independent component shape/value/finiteness and error oracles, with measured path actually selected.",
+    "Actual target logits/states/continuations and affected production bridge mode, cancellation/rollback/recovery.",
+    "Frozen source/binary/checkpoint/options, completed CPU/proof jobs, no other model."
+  ],
+  "screen": {
+    "order": [
+      "control",
+      "candidate",
+      "candidate",
+      "control"
+    ],
+    "tokens": 32,
+    "measured_repeats_per_prompt_per_process": 1,
+    "warmups_per_prompt_per_process": 1,
+    "prompts": [
+      "MAIN",
+      "HOLD"
+    ],
+    "one_model_process_at_a_time": true,
+    "request_timeout_seconds": 300
+  },
+  "experiments": [
+    {
+      "id": "resident-nt2",
+      "owner": "native_families",
+      "mode": "AR",
+      "flag": "MLXL3_NATIVE_FLASH_NT2",
+      "control": "0",
+      "candidate": "1",
+      "prototype_default": "0",
+      "prior": "FLASHSSD-2026-10-12-10",
+      "prior_scope": "8-matrix numerical and15 quality controls passed; component0.35\u201316.59% faster, macro interrupted/inconclusive; no established full-model gain.",
+      "new_reason": "Native resident projection path is still NT1; preserve SG4/splits/rounding and exclude routed/fc_hidden/generic families."
+    },
+    {
+      "id": "dflash-prefill-headonly",
+      "owner": "zero_mlx_conversion",
+      "mode": "DFlash2 mode1",
+      "flag": "MLXL3_FLASH_PREFILL_HEADS",
+      "prior": "PREFILL-2026-10-27-HEADONLY",
+      "prior_scope": "Initial screen about5\u20136% TTFT; final historical pooled TTFT MAIN\u22124.210%,HOLD\u22123.827%,LONG\u22125.074%. No native/decode gain inferred.",
+      "new_reason": "Native draft prefill eagerly computes full target heads/readback per prompt token; preserve trunk/captures/append/final logits and any intermediate cache logits genuinely required.",
+      "control": "0",
+      "candidate": "1",
+      "prototype_default": "1",
+      "semantics": {
+        "0": "eager head on every prefill row",
+        "1": "real head only on final row of each nonempty prefill/extend_prefill call"
+      }
+    },
+    {
+      "id": "dynamic-readers",
+      "owner": "native_ssd",
+      "mode": "AR initially",
+      "flag": "MLXL3_SSD_DYNAMIC_READERS",
+      "control": "0",
+      "candidate": "1",
+      "prototype_default": "0",
+      "prior": "POSTP09-DYNAMIC-COLD-01 and POSTP09-DYNAMIC-DEFAULT-01",
+      "prior_scope": "Historical decode AR+0.535%,MTP+0.960%,DF+1.030%; small MTP prefill cost retained.",
+      "new_reason": "Native owned Read service round-robin worker queues do not implement shared-cursor stealing; keep same4 workers and byte/ticket limits."
+    }
+  ],
+  "analysis": {
+    "metrics": [
+      "decode_tps",
+      "decode_seconds",
+      "prefill_tps",
+      "prefill_seconds",
+      "ttft_seconds",
+      "end_to_end_ttft_seconds",
+      "draft_load_seconds",
+      "native_metal_allocated_bytes",
+      "process_footprint_bytes",
+      "process_lifetime_peak_bytes"
+    ],
+    "must_match": [
+      "generated_tokens",
+      "token_hash",
+      "cache_context text",
+      "executed mode",
+      "effective cache slots/byte budget"
+    ],
+    "retain_all_samples": true,
+    "report_medians_and_ranges": true,
+    "no_universal_3_percent_gate": true,
+    "no_cross_budget_comparison_to_prior_0_6_gib_5_tps": true,
+    "no_summed_component_gains": true,
+    "release_timings_exclude_instrumented_runs": true,
+    "confirmation": "Only a coherent useful screen may trigger a separately frozen64-token confirmation; do not rerun silently for noise.",
+    "swap": "observed if captured; no user-revoked swap abort threshold reintroduced"
+  },
+  "integration": "Validate each isolated port first; combined gains require their own final controlled measurement. No installed app replacement, merge or release.",
+  "harness_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8"
+}

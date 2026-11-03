@@ -1,0 +1,448 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1107:17
+     |
+1107 |         None => assert!(!(2..=8).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1260:17
+     |
+1260 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `flash_nt2_flag` is never used
+ --> native/src/contracts.rs:4:15
+  |
+4 | pub(crate) fn flash_nt2_flag(value: Option<&str>) -> Option<bool> {
+  |               ^^^^^^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1329:19
+     |
+1329 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve` and `publish` are never used
+    --> native/src/flash_support.rs:1337:19
+     |
+1336 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1337 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1358 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3164:15
+     |
+3164 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3231:15
+     |
+3231 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.27s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness contracts::native_flash_reference_grid_covers_only_complete_output_tiles...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/a5ae987c526d04a6/out/mlxl3_native-a5ae987c526d04a6__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts61native_flash_reference_grid_covers_only_complete_output_tiles.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u32>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 119 column 1 function contracts::native_flash_reference_grid_covers_only_complete_output_tiles thread 0
+Runtime Symex: 0.0121879s
+size of program expression: 1322 steps
+slicing removed 683 assignments
+Generated 59 VCC(s), 48 remaining after simplification
+Runtime Postprocess Equation: 0.000178584s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00736538s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.541e-06s
+Solving with CaDiCaL 3.0.0
+12916 variables, 66393 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000569125s
+Runtime decision procedure: 0.00805754s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12917 variables, 66394 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000289375s
+Runtime decision procedure: 0.000369375s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12918 variables, 66395 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000220625s
+Runtime decision procedure: 0.000283542s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12919 variables, 66396 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000527667s
+Runtime decision procedure: 0.000612459s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12920 variables, 66397 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.01778s
+Runtime decision procedure: 0.0178635s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+12921 variables, 66398 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.00428883s
+Runtime decision procedure: 0.00432029s
+
+RESULTS:
+Check 1: contracts::flash_reference_groups.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:40:19 in function contracts::flash_reference_groups
+
+Check 2: contracts::flash_reference_groups.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:40:10 in function contracts::flash_reference_groups
+
+Check 3: contracts::flash_reference_groups.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:40:10 in function contracts::flash_reference_groups
+
+Check 4: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:124:23 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 5: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:124:23 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 6: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: groups.is_some() == output > 0 && output % 128 == 0 && (nt == 1 || nt == 2)"
+	 - Location: native/src/contracts.rs:122:5 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 7: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/contracts.rs:119:1 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 8: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: output == 2576 && nt == 2"
+	 - Location: native/src/contracts.rs:140:9 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 9: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:127:20 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 10: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:127:20 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 11: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(groups) * u64::from(nt) * 16 == u64::from(output)"
+	 - Location: native/src/contracts.rs:127:9 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 12: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:129:26 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 13: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:129:25 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 14: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:129:25 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 15: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:129:25 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 16: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: index < output"
+	 - Location: native/src/contracts.rs:130:13 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 17: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:133:18 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 18: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.12
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:133:17 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 19: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.13
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:133:17 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 20: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.14
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:133:17 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 21: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.15
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(index) ==
+(u64::from(group) * u64::from(nt) + u64::from(tile)) * 16 + u64::from(column)"
+	 - Location: native/src/contracts.rs:131:13 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 22: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.assertion.16
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/contracts.rs:135:46 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 23: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 2 && group == groups - 1 && tile == 1 && column == 15"
+	 - Location: native/src/contracts.rs:135:13 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 24: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 1 && output == 128"
+	 - Location: native/src/contracts.rs:137:9 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 25: contracts::native_flash_reference_grid_covers_only_complete_output_tiles.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 2 && output == 248320"
+	 - Location: native/src/contracts.rs:138:9 in function contracts::native_flash_reference_grid_covers_only_complete_output_tiles
+
+Check 26: core::num::<impl u32>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 27: core::num::<impl u32>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 28: std::option::Option::<u32>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<u32>::is_some
+
+Check 29: std::option::Option::<u32>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 30: std::option::Option::<u32>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 31: std::option::Option::<u32>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 32: std::option::Option::<u32>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 33: std::option::Option::<u32>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 34: std::option::Option::<u32>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 35: core::num::<impl u32>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 36: contracts::flash_reference_groups.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/contracts.rs:40:10 in function contracts::flash_reference_groups
+
+
+SUMMARY:
+ ** 0 of 32 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.1575933s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.
