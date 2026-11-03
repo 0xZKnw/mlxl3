@@ -293,7 +293,9 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
             if cancelled.swap(false, Ordering::Relaxed) {
                 emit_event(json!({"type":"cancelled","request_id":id}))?;
             } else {
-                emit_event(json!({"type":"error","request_id":id,"message":e.to_string()}))?;
+                emit_event(
+                    json!({"type":"error","request_id":id,"message":e.to_string(),"mtp_active":false,"dflash_active":false}),
+                )?;
             }
         }
     }
