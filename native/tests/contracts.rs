@@ -607,3 +607,57 @@ fn cli_codec_recovers_after_invalid_request() {
     assert!(responses[2]["data"].is_array());
     assert!(!root.path().join("models.json").exists());
 }
+
+#[test]
+fn real_checkpoint_tiles_match_independent_exl3_reference() {
+    use mlxl3_native::codec::{Codebook, decode_codeword, unpack};
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct Fixture {
+        shape: [usize; 3],
+        k: usize,
+        mode: u32,
+        tiles: [Tile; 3],
+    }
+
+    #[derive(Deserialize)]
+    struct Tile {
+        tile: usize,
+        packed: Vec<u16>,
+        states: Vec<u16>,
+        f16_bits: Vec<u16>,
+    }
+
+    for name in ["flash", "qwen-dense", "qwen-moe", "lfm-moe"] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("docs/native-coverage/baselines/exl3")
+            .join(format!("{name}.json"));
+        let fixture: Fixture = serde_json::from_reader(fs::File::open(path).unwrap()).unwrap();
+        let [rows, cols, words] = fixture.shape;
+        assert_eq!(words, fixture.k * 16);
+        let mode = Codebook::try_from(fixture.mode).unwrap();
+        for (tile, expected_index) in
+            fixture
+                .tiles
+                .into_iter()
+                .zip([0, rows * cols / 2, rows * cols - 1])
+        {
+            assert_eq!(tile.tile, expected_index);
+            assert_eq!(tile.packed.len(), words);
+            assert_eq!(tile.states.len(), 256);
+            assert_eq!(tile.f16_bits.len(), 256);
+            let states = unpack(&tile.packed, fixture.k).unwrap();
+            assert_eq!(states, tile.states, "{name} tile {expected_index}");
+            for (state, expected_bits) in states.into_iter().zip(tile.f16_bits) {
+                let weight = decode_codeword(state, mode);
+                assert!(weight.is_finite());
+                assert_eq!(
+                    weight.to_bits(),
+                    expected_bits,
+                    "{name} tile {expected_index}"
+                );
+            }
+        }
+    }
+}

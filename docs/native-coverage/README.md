@@ -68,3 +68,16 @@ Les cinq processus prévus concernaient le contrôle Qwen dense puis les capture
 Sur le M5 24 Go, le CLI R5 a traité successivement les IDs 1 et 2 du Qwen MoE 35B. Chaque pas fournit un vecteur de 248 320 logits FP16 finis en ordre de vocabulaire. Les deux fichiers gzip conservent les mots FP16 little-endian, à comparer après décompression aux SHA-256 du reçu. Ce golden provient du moteur MLX de référence. Le CLI ne fournit pas les états internes Qwen dans ce mode. [Premier token](baselines/qwen-moe-two-tokens/swap-observed/token-1.f16le.gz) · [Second token](baselines/qwen-moe-two-tokens/swap-observed/token-2.f16le.gz) · [Reçu](baselines/qwen-moe-two-tokens/swap-observed/qwen-moe-serial.json).
 
 Après 60,317 s de compteurs stables, le premier essai a dépassé 12 Go d’empreinte, puis le second a dépassé 32 Mio de swap écrit. Les deux processus ont été rejoints avant le premier logit. À la demande de l’utilisateur, la troisième exécution mesure le swap sans seuil d’arrêt, depuis la même ancre. Elle termine en 5,867 s, avec 209 Mio de swap système écrit cumulé et 12,405 Go d’empreinte maximale échantillonnée. Durée de capture, démarrage et chargement compris. [Ancre](baselines/qwen-moe-two-tokens/anchor.json) · [Essai 12 Go](baselines/qwen-moe-two-tokens/qwen-moe-serial.json) · [Essai 14 Go](baselines/qwen-moe-two-tokens/retry14/qwen-moe-serial.json) · [Superviseur utilisé](baselines/qwen-moe-two-tokens/observe-swap.py.txt).
+
+#### Layouts disque et tuiles EXL3
+
+Les en-têtes, formes, dtypes et octets couvrent tous les shards des quatre cibles et les sidecars Flash. L’index conserve aussi les drafts Qwen MTP dense/MoE et Flash DFlash/DSpark présents. Chaque payload a été parcouru par intervalles contigus, avec vérification du nombre d’octets pour sa forme et son dtype. Le DFlash packé Qwen MoE est distribué séparément. L’installation draft contient huit des 56 fichiers du manifeste, tous vérifiés par taille et SHA-256. Les 48 autres concernent le target, le tokenizer et la vision. Le CLI a reconnu cette installation. [Layouts](baselines/tensor-layouts.json) · [Vérificateur](baselines/index-layouts.py.txt) · [Manifeste DFlash vérifié](baselines/qwen-moe-dflash.json) · [Inspection CLI](baselines/qwen-moe-dflash-inspection.json).
+
+Les fixtures de composant conservent les mots compactés d’une projection par cible. Trois tuiles par projection couvrent la première, la centrale et la dernière. Le décodeur de référence NumPy produit 256 états et 256 valeurs FP16 finies par tuile, en ordre kernel avant permutation, Hadamard et échelles. Le CLI Rust reproduit les 3 072 états et les 3 072 valeurs bit à bit. Une modification d’un bit dans chacune des douze tuiles déclenche un écart. Le test Rust relit ces fixtures sur Linux et macOS, sans les poids. [Fixtures et provenance](baselines/exl3) · [Test de régression](../../native/tests/contracts.rs).
+
+| Cible | Projection | Bits | Codebook |
+|---|---|---:|---|
+| Flash-Next | couche 0, expert 0, gate | 2 | Mul1 |
+| Qwen dense | couche 0, gate | 1 | Mul1 |
+| Qwen MoE | couche 0, expert 0, gate | 3 | Mcg |
+| LFM MoE | couche 10, expert 0, w1 | 4 | Mcg |

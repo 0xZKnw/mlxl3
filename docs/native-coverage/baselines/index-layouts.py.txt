@@ -1,0 +1,52 @@
+"""Index the shapes and stored bytes of the local checkpoints, including Flash sidecars."""
+from pathlib import Path
+from collections import Counter
+import hashlib, json, math
+d=Path('docs/native-coverage/baselines'); b=Path('build/issue75n')
+roots={k:Path(v) for k,v in json.loads((b/'local-paths.json').read_text()).items()}
+parents=roots['qwen-moe'].parent; roots.update({'flash':parents/'Qwen3.8-Flash-Next-exl3-205-65c89531','qwen-moe-mtp':parents/'Qwen3.6-35B-A3B-MTP-4bit','qwen-dense-mtp':Path.home()/'Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit','flash-dflash':parents/'drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744','flash-dspark':parents/'drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf'})
+width={'BOOL':1,'U8':1,'I8':1,'F16':2,'BF16':2,'U16':2,'I16':2,'F32':4,'U32':4,'I32':4,'F64':8,'U64':8,'I64':8}
+inventory={}
+for name,p in roots.items():
+ groups=Counter(); metadata=[]
+ for f in sorted(p.glob('*.safetensors')):
+  with f.open('rb') as inp:
+   n=int.from_bytes(inp.read(8),'little');assert 0<n<100_000_000
+   raw=inp.read(n);head=json.loads(raw)
+  intervals=[];h=hashlib.sha256();total=f.stat().st_size
+  for key,record in head.items():
+   if key=='__metadata__':continue
+   typ=record['dtype'];shape=tuple(record['shape']); start,end=record['data_offsets']
+   assert all(type(i) is int and i>=0 for i in shape) and 0<=start<=end<=total-8-n
+   assert end-start==math.prod(shape)*width[typ]
+   intervals.append((start,end))
+   role='.'.join('*' if segment.isdecimal() else segment for segment in key.split('.'))
+   groups[role,typ,shape]+=1
+  cursor=0
+  for start,end in sorted(intervals):
+   assert cursor==start;cursor=end
+  assert cursor+8+n==total
+  item={'shard':f.name,'header_bytes':n,'header_sha256':hashlib.sha256(raw).hexdigest(),'tensor_count':len(intervals),'payload_bytes':cursor}
+  if name in ['qwen-moe-mtp','qwen-dense-mtp','flash-dflash','flash-dspark']:
+   with f.open('rb') as fp:item['file_sha256']=hashlib.file_digest(fp,'sha256').hexdigest()
+  metadata.append(item)
+ assert metadata and groups
+ inventory[name]={'directory':p.name,'shards':metadata,'roles':[{'role':role,'dtype':typ,'shape':shape,'count':count,'stored_bytes':math.prod(shape)*width[typ]*count} for (role,typ,shape),count in sorted(groups.items())]}
+ assert sum(r['stored_bytes'] for r in inventory[name]['roles'])==sum(x['payload_bytes'] for x in metadata)
+(d/'tensor-layouts.json').write_text(json.dumps(inventory,indent=2)+'\n')
+print([(k,len(v['roles']),sum(x['tensor_count'] for x in v['shards'])) for k,v in inventory.items()])
+
+packed=parents/'Qwen3.6-35B-A3B-DFlash2'
+manifest=json.loads((packed/'manifest.json').read_bytes())
+items={};omitted=[]
+for a in manifest['artifacts']:
+ path=Path(a['path']);assert not path.is_absolute() and '..' not in path.parts
+ assert path.as_posix() not in items
+ f=packed/path
+ if not f.is_file() and path.parts[0] in {'target','tokenizer','vision'}:
+  omitted.append(str(path));continue
+ assert f.is_file() and f.stat().st_size==a['size']
+ with f.open('rb') as fp:assert hashlib.file_digest(fp,'sha256').hexdigest()==a['sha256']
+ items[path.as_posix()]={'bytes':a['size'],'sha256':a['sha256']}
+assert len(items)==8 and len(omitted)==48 and len(items)+len(omitted)==len(manifest['artifacts'])
+(d/'qwen-moe-dflash.json').write_text(json.dumps({'status':'verified_disk_artifacts','model':manifest['model'],'format':manifest['format'],'execution_geometry':manifest['execution_geometry'],'draft':manifest['draft'],'manifest_sha256':hashlib.sha256((packed/'manifest.json').read_bytes()).hexdigest(),'local_draft_and_layout':items,'artifacts_outside_draft_install':omitted},indent=2)+'\n')
