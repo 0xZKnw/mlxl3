@@ -24,9 +24,20 @@ pub(crate) mod embedding;
 mod flash_cache_profile;
 #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
 mod flash_config;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
 pub(crate) mod flash_draft_budget;
 pub(crate) mod flash_draft_metadata;
+#[cfg(any(
+    all(feature = "mlx", feature = "chat"),
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    kani
+))]
+mod flash_draft_options;
 pub mod flash_memory;
 #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
 pub(crate) mod flash_ngrams;
@@ -77,3 +88,8 @@ pub mod tokenizer;
 pub mod tool_call;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod weighted_epilogue;
+
+#[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
+mod native_bf16;
+#[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
+pub mod native_draft;

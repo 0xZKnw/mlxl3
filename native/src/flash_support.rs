@@ -434,7 +434,12 @@ pub(crate) fn parse_gpu_hot_wide(value: &str) -> Option<bool> {
     }
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
 pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
     match (value.as_bytes(), adaptive) {
         ([digit @ b'1'..=b'7'], false) => Some(usize::from(*digit - b'0')),
