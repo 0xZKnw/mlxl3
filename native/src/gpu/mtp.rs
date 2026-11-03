@@ -82,7 +82,12 @@ impl<'a> FlashMtpHead<'a> {
                 offset: 0,
             })?;
         let private = Storage::StorageModePrivate;
-        gpu.command(|cmd| {
+        #[cfg(test)]
+        let capture =
+            std::env::var_os("MLXL3_FLASH_MTP_DIRECT_PARTS").map(std::path::PathBuf::from);
+        #[cfg(test)]
+        let mut parts = Vec::new();
+        let result = gpu.command(|cmd| {
             let norm =
                 gpu.encode_stream_norm(cmd, &embedding, &self.embedding_gain, self.eps, private)?;
             let projected_embedding = self.embedding_fc.encode_row(cmd, &norm, private)?;
@@ -119,8 +124,29 @@ impl<'a> FlashMtpHead<'a> {
                 MTLSize::new(320, 1, 1),
                 32,
             );
+            #[cfg(test)]
+            if capture.is_some() {
+                parts.extend([
+                    ("embedding", embedding),
+                    ("embedding_norm", norm),
+                    ("embedding_fc", projected_embedding),
+                    ("hidden_norm", normalized),
+                    ("hidden_fc", projected_hidden),
+                    ("mixed", mixed.clone()),
+                ]);
+            }
             Ok(mixed)
-        })
+        })?;
+        #[cfg(test)]
+        if let Some(dir) = capture {
+            for (name, row) in parts {
+                std::fs::write(
+                    dir.join(format!("{token}-{name}.bin")),
+                    row.export_bytes(gpu)?,
+                )?;
+            }
+        }
+        Ok(result)
     }
     pub fn forward(
         &mut self,

@@ -6,6 +6,18 @@ Before implementation. Port the checkpoint's one-layer Flash MTP using the targe
 
 - First held-out step failed before attention: 10,235 of 10,240 mixed-stream words differed. The native MTP hidden projection used four SIMD groups while its stock reduction deliberately consumes the first two and dispatches two. Match both the feature-specific tile stride and the physical threadgroup (64 threads), then compare the same frozen values.
 
+- La première relance après correction a sélectionné zéro test. La cible Cargo partagée entre worktrees a réutilisé un exécutable de tests de la branche des états malgré un package_id MTP. Aucun résultat numérique n’est retenu pour cette relance. Isoler le répertoire target, nettoyer uniquement le package de cette copie et vérifier les noms d’essais et leur comptage avant le replay.
+
+- Le binaire de test isolé a exécuté le bon cas. Le passage à deux groupes ramène la première divergence de 10 235 à 331 mots sur 10 240, avant l’attention. Capturer séparément les normalisations des entrées et leurs deux projections FC chez l’oracle et dans le noyau natif, sur le premier token de la fixture tenue à part.
+
+- La capture séparée identifie la première différence : le parcours embedding (entrée, normalisation, projection) est intégralement exact. La normalisation globale de la ligne cachée diffère sur 6 566 valeurs FP32 (maximum 9,54e-7), puis sa FC sur 485 moitiés. Capturer le dispatch de réduction/normalisation de l’oracle réel avant de changer l’arrondi.
+
+- La capture Metal du vrai tenseur [1,1,10240] identifie row_reduce_looped_1_reduce_sumfloat32. La première implémentation divisait l’axe comme une réduction globale à deux passes ; remplacer ce calcul par les quatre lectures contiguës par thread et la réduction de rangée à 1024 threads de cet encodeur. Le réciproque initial différait d’un ULP. Rejouer tous les dix pas de MTP.
+
+- Les dix pas de la tête MTP reproduisent maintenant les 2 771 840 valeurs des flux mixtes, sorties de couche, mélange final, vocabulaire et caches disponibles, sans écart. L’extension de cache seule reproduit également l’extension de la tête complète. Vérifier ensuite les séquences, les deux issues de proposition et l’état après refus dans la session de décodage.
+
+- Session physique validée sur les budgets 1, 2, 3 et 17 : la référence indépendante et le chemin direct retournent les mêmes tokens et les mêmes compteurs. Le budget 17 accepte 5 des 12 propositions ; la tête, le dernier caché et les 248 320 logits de la continuation concordent avec le décodage ordinaire. Annulation, mauvaise ancre, limite et EOF après mutation partielle suivie de reprise passent. Le lanceur bridge avec MTP sera vérifié séparément.
+
 ## I75-N6-STATE-20261103 — session snapshots and the production forward-trace wire format
 
 Before implementation. The direct Flash CLI can run complete prompts, but the forward --states surface still explicitly rejects requests. Reuse existing owning GDN, PLE and QSA frames with a session-bound cursor and hidden row. Publish the whole snapshot only after a successful step. Exercise restore after divergent suffixes, reset/replay and transaction failure. For the same imposed token, compare the raw bytes, names, order and shapes of all 48 layer residuals, all 36 recurrent states and all logits against the independently built Rust/MLX CLI. Check --batch with --states against the stock Flash empty-state batch contract. Stream the JSON encoding from typed fields without materializing an aggregate JSON value. Scope is state and protocol correctness, without throughput measurements.
