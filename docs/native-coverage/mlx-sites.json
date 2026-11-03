@@ -1694,11 +1694,14 @@
     "array::synchronize": 1,
     "config MLXL3_FLASH_DRAFT": 1
   },
+  "native/src/flash_memory.rs": {
+    "config MLXL3_FLASH_REQUEST_MIB": 1,
+    "mlx": 1
+  },
   "native/src/flash_ngrams.rs": {
     ".to_f32": 3,
     "array::from_fn": 1,
-    "config MLXL3_PLE_MODEL": 1,
-    "mlx": 1
+    "config MLXL3_PLE_MODEL": 1
   },
   "native/src/flash_profile.rs": {
     ".dtype": 1,
@@ -1839,10 +1842,10 @@
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
+    ".memory_stats": 1,
+    ".sum": 1,
     ".to_f32": 9,
-    "config MLXL3_FLASH_MODEL": 2,
-    "config MLXL3_FLASH_REQUEST_MIB": 1,
-    "mlxl3_read_process_stats": 2
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/gpu/gdn.rs": {
     ".shape": 1,
@@ -1855,6 +1858,11 @@
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2
+  },
+  "native/src/gpu/memory.rs": {
+    ".memory_stats": 2,
+    "config MLXL3_FLASH_MODEL": 1,
+    "mlxl3_read_process_stats": 2
   },
   "native/src/gpu/moe.rs": {
     ".ready": 2,
@@ -2159,7 +2167,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 171,
+    "mlx": 173,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2456,8 +2464,7 @@
     "array::flash_program_cache": 2,
     "array::memory_stats": 5,
     "array::synchronize": 2,
-    "config MLXL3_FLASH_MODEL": 1,
-    "config MLXL3_FLASH_REQUEST_MIB": 1
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/qwen4/mtp_prefill_tests.rs": {
     ".chat_greedy_ids": 1,

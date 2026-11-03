@@ -106,3 +106,9 @@ impl<'a> FlashGate<'a> {
         })
     }
 }
+
+impl FlashGate<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        backings.record("fixed_weights", &self.weight)
+    }
+}

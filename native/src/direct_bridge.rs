@@ -93,6 +93,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let gpu = Metal::new()?;
     let mut model = FlashNext::load(&gpu, &c, 0)?;
     let limit = model.context_limit();
+    let speculative = model.request_memory_limit().is_none();
     anyhow::ensure!(
         requested >= 0 && requested as u32 <= limit,
         "invalid requested context length"
@@ -113,7 +114,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":false,"dflash_tune_supported":false,"dflash_configure_supported":false,"mtp_configure_supported":true,"mtp_auto_download_supported":false,"mtp_supported":true,"mtp_max_depth":1,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":false,"dflash_tune_supported":false,"dflash_configure_supported":false,"mtp_configure_supported":true,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":1,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"flash":{"backend":"direct-metal","memory":model.memory_ledger(None)?}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -135,6 +136,9 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         let id = request.request_id.clone();
         let result = (|| -> Result<()> {
             match request.kind.as_str() {
+                "flash_memory" => emit_event(
+                    json!({"type":"flash_memory","request_id":id,"ledger":model.memory_ledger(head.as_ref().map(|(_,head)|head))?}),
+                ),
                 "ping" => emit_event(
                     json!({"type":"pong","request_id":id,"memory":model.memory_stats()?}),
                 ),
@@ -222,7 +226,13 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         request.allowed_tools.as_deref(),
                         request.response_schema.as_deref(),
                     );
-                    model.reset();
+                    if request.memory_saver {
+                        if let Err(error) = model.release_idle_state() {
+                            eprintln!("Idle memory cleanup failed: {error:#}");
+                        }
+                    } else {
+                        model.reset();
+                    }
                     if let Some((_, h)) = &mut head {
                         h.reset();
                     }

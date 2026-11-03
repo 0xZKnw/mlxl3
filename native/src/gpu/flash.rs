@@ -17,7 +17,7 @@ use std::{os::unix::fs::FileExt, rc::Rc};
 mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
-enum Layer<'a> {
+pub(super) enum Layer<'a> {
     Gdn(FlashGdnLayer<'a>),
     Ple(Box<FlashPleLayer<'a>>),
     Qsa(FlashQsaLayer<'a>),
@@ -58,6 +58,28 @@ impl Layer<'_> {
             Self::Qsa(_) => None,
         }
     }
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.record_memory(backings),
+            Self::Ple(layer) => layer.record_memory(backings),
+            Self::Qsa(layer) => layer.record_memory(backings),
+        }
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.release_idle_state(),
+            Self::Ple(layer) => layer.release_idle_state(),
+            Self::Qsa(layer) => layer.release_idle_state(),
+        }
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.shrink(slots),
+            Self::Ple(layer) => layer.shrink(slots),
+            Self::Qsa(layer) => layer.shrink(slots),
+        }
+    }
+
     fn reset(&mut self) {
         match self {
             Self::Gdn(a) => a.reset(),
@@ -84,14 +106,15 @@ pub struct FlashTraceTensor {
 pub struct FlashNext<'a> {
     checkpoint_path: std::path::PathBuf,
     owner: Rc<()>,
-    hidden: Option<MatrixView>,
-    gpu: &'a Metal,
+    pub(super) hidden: Option<MatrixView>,
+    pub(super) gpu: &'a Metal,
     embed: TensorInfo,
-    layers: Vec<Layer<'a>>,
-    mixer: FlashHc<'a>,
-    head: FlashProjection<'a>,
-    context: u32,
+    pub(super) layers: Vec<Layer<'a>>,
+    pub(super) mixer: FlashHc<'a>,
+    pub(super) head: FlashProjection<'a>,
+    pub(super) context: u32,
     offset: u32,
+    pub(super) request_limit: Option<u64>,
 }
 impl<'a> FlashNext<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
@@ -106,11 +129,10 @@ impl<'a> FlashNext<'a> {
                 && context <= config.context as u32,
             "native Flash context exceeds the supported checkpoint limit"
         );
-        ensure!(
-            std::env::var_os("MLXL3_FLASH_REQUEST_MIB").is_none(),
-            "native Flash request memory budgets are not available for this build"
-        );
+        let request_limit = crate::flash_memory::request_limit()?;
         let slots = layer_slots()?;
+        let total_slots = slots.iter().sum();
+        gpu.admit_load(request_limit, total_slots)?;
         let embed = c
             .tensors
             .get("model.language_model.embed_tokens.weight")
@@ -124,6 +146,7 @@ impl<'a> FlashNext<'a> {
             .into_iter()
             .enumerate()
             .map(|(i, slots)| -> Result<_> {
+                gpu.admit_load(request_limit, total_slots)?;
                 let prefix = format!("model.language_model.layers.{i}");
                 Ok(if i == 1 {
                     Layer::Ple(Box::new(FlashPleLayer::load(
@@ -156,6 +179,7 @@ impl<'a> FlashNext<'a> {
             head.dimensions() == [2560, 248320],
             "invalid Flash language model head"
         );
+        gpu.admit_load(request_limit, total_slots)?;
         Ok(Self {
             checkpoint_path: c.path.clone(),
             owner: Rc::new(()),
@@ -167,6 +191,7 @@ impl<'a> FlashNext<'a> {
             head,
             context,
             offset: 0,
+            request_limit,
         })
     }
     pub fn snapshot(&self) -> FlashSnapshot {
@@ -205,19 +230,7 @@ impl<'a> FlashNext<'a> {
         self.gpu.flash_log_probs(logits)
     }
     pub fn memory_stats(&self) -> Result<crate::runtime_stats::MemoryStats> {
-        unsafe extern "C" {
-            fn mlxl3_read_process_stats(values: *mut u64, count: usize) -> i32;
-        }
-        let mut host = [0u64; 9];
-        ensure!(
-            unsafe { mlxl3_read_process_stats(host.as_mut_ptr(), host.len()) } == 0,
-            "invalid native process statistics extent"
-        );
-        Ok(crate::runtime_stats::MemoryStats::native(
-            host,
-            self.gpu.device.current_allocated_size(),
-            std::process::id(),
-        ))
+        self.gpu.memory_stats()
     }
     pub fn context_limit(&self) -> u32 {
         self.context

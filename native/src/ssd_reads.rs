@@ -114,6 +114,9 @@ impl ReadService {
             gate.wait();
         }
     }
+    pub(crate) fn in_flight(&self) -> usize {
+        self.active.load(Ordering::Acquire)
+    }
     pub(crate) fn submit(
         &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
@@ -275,7 +278,7 @@ mod tests {
         )?;
         assert!(broken.ready(true).is_err());
         drop(broken);
-        assert_eq!(pool.active.load(Ordering::Acquire), 0);
+        assert_eq!(pool.in_flight(), 0);
         let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
         assert_eq!(retry.ready(true)?[0].1, b"0123456789abcdef");
         Ok(())
@@ -315,15 +318,15 @@ mod tests {
         let mut pending = pool.start(vec![(lease()?, file.try_clone()?, 0, 5)], Duration::ZERO)?;
         let timed_out = pending.ready(true).is_err();
         drop(pending);
-        let still_active = pool.active.load(Ordering::Acquire) == 1;
+        let still_active = pool.in_flight() == 1;
         let refused_reuse = pool.submit(std::iter::empty()).is_err();
         pool.release_test_gate();
         let deadline = Instant::now() + Duration::from_secs(2);
-        while pool.active.load(Ordering::Acquire) != 0 && Instant::now() < deadline {
+        while pool.in_flight() != 0 && Instant::now() < deadline {
             std::thread::yield_now();
         }
         assert!(timed_out && still_active && refused_reuse);
-        assert_eq!(pool.active.load(Ordering::Acquire), 0);
+        assert_eq!(pool.in_flight(), 0);
         let mut retry = pool.start(vec![(lease()?, file, 0, 5)], Duration::from_secs(2))?;
         assert_eq!(retry.ready(true)?[0].1, b"owned");
         Ok(())
@@ -338,7 +341,7 @@ mod tests {
         )?;
         assert!(batch.ready(true).is_err());
         drop(batch);
-        assert_eq!(pool.active.load(Ordering::Acquire), 0);
+        assert_eq!(pool.in_flight(), 0);
         Ok(())
     }
     #[test]

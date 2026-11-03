@@ -345,3 +345,43 @@ mod tests {
         Ok(())
     }
 }
+
+impl FlashMoeRow<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        backings.slots.push(self.slots.len());
+        self.gate.record_memory(backings)?;
+        self.shared.record_memory(backings, "fixed_weights")?;
+        backings.record("fixed_weights", &self.switch)?;
+        for expert in self.slots.iter().flatten() {
+            backings.resident_experts += 1;
+            expert.record_memory(backings, "expert_banks")?;
+        }
+        Ok(())
+    }
+    pub(super) fn drain(&mut self) -> Result<()> {
+        self.gpu.ensure_reads_idle()?;
+        for command in &self.last {
+            command.wait_until_completed();
+            ensure!(
+                command.status() == MTLCommandBufferStatus::Completed,
+                "Flash MoE command failed during drain"
+            );
+        }
+        self.last.clear();
+        Ok(())
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        ensure!(
+            (10..=self.slots.len()).contains(&slots),
+            "invalid Flash cache shrink"
+        );
+        if slots == self.slots.len() {
+            return Ok(());
+        }
+        self.drain()?;
+        let cache = ExpertCache::new(slots)?;
+        self.slots = (0..slots).map(|_| None).collect();
+        self.cache = Rc::new(RefCell::new(cache));
+        Ok(())
+    }
+}

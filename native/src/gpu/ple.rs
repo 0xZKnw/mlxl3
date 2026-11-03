@@ -366,3 +366,30 @@ mod tests {
         Ok(())
     }
 }
+
+impl FlashPleLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [
+            &self.ple.key,
+            &self.ple.value,
+            &self.ple.nk,
+            &self.ple.nq,
+            &self.ple.nc,
+            &self.ple.conv,
+        ] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(history) = &self.ple.history {
+            backings.record("ple", &history.buffer)?;
+        }
+        backings.ple_rows += self.ple.rows.cache_bytes();
+        self.body.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.reset();
+        self.body.release_idle_state()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.body.shrink(slots)
+    }
+}

@@ -22,6 +22,10 @@ pub struct FlashMtpHead<'a> {
 impl<'a> FlashMtpHead<'a> {
     pub fn load(c: &Checkpoint, target: &FlashNext<'a>) -> Result<Self> {
         ensure!(
+            target.request_memory_limit().is_none(),
+            "Flash request memory budget supports AR only"
+        );
+        ensure!(
             target.checkpoint_path == c.path,
             "MTP requires the target checkpoint"
         );
@@ -581,4 +585,23 @@ fn speculative_commits_match_stock_sequence_and_ordinary_state() -> Result<()> {
     target.restore(&before)?;
     ensure!(session.advance(&mut target, &mut head, 0, 32, 3)? == expected);
     Ok(())
+}
+
+impl FlashMtpHead<'_> {
+    pub(in crate::gpu) fn record_memory(
+        &self,
+        target: &FlashNext,
+        backings: &mut crate::gpu::memory::Backings,
+    ) -> Result<()> {
+        ensure!(
+            Rc::ptr_eq(&self.owner, &target.owner),
+            "MTP belongs to a different target"
+        );
+        backings.record("fixed_weights", &self.embedding_gain)?;
+        backings.record("fixed_weights", &self.hidden_gain)?;
+        self.embedding_fc.record_memory(backings)?;
+        self.hidden_fc.record_memory(backings)?;
+        self.layer.record_memory(backings)?;
+        self.mixer.record_memory(backings)
+    }
 }
