@@ -595,8 +595,8 @@ extension CodeBlockView {
     var bitmapCaptures = 0
     var physicalCaptures = 0
     var expectedViewport = NSSize(width: 900, height: 700)
-    func checkFrame(_ label: String, marker: String, save: Bool = false) async throws {
-      func capture() throws -> (
+    @MainActor func checkFrame(_ label: String, marker: String, save: Bool = false) async throws {
+      @MainActor func capture() throws -> (
         bitmap: NSBitmapImageRep, image: CGImage, ink: Int, height: CGFloat, offset: CGFloat,
         onscreen: Bool
       ) {
@@ -635,7 +635,7 @@ extension CodeBlockView {
         }
         return (bitmap, bitmap.cgImage!, ink, height, offset, onscreen)
       }
-      func saveBitmap(_ bitmap: NSBitmapImageRep, suffix: String) throws {
+      @MainActor func saveBitmap(_ bitmap: NSBitmapImageRep, suffix: String) throws {
         guard let folder = ProcessInfo.processInfo.environment["MLXL3_STREAM_UI_SNAPSHOTS"] else {
           return
         }

@@ -1,5 +1,11 @@
 # MLXL3 — journal des optimisations
 
+### PR72-2026-11-03-FINAL-CI — derniers blocages identifiés, correctif de harnais préparé
+
+- Sur8b03ca93, jobs ciblé62/17/25/240, natifLinux etmacOS, Metal/loader, profils etconversion passent. Desktopcomplet avance au-delà de l’ancien timeout : chunking141cas, code1194fragments etMarkdown4845fragments passent ; compilationResponseUI échoue sur `sending snapshot risks causing data races`. Ce test est hérité de main, aucun défaut de génération/GPU établi par cette erreur de compilation. Trace `desktop-8b03ca93-compile-failure.log` conservée ; suitecomplète non validée.
+- Avant correction/relance ciblée : rendre explicite MainActor sur checkFrame/capture/saveBitmap, qui manipulent déjà les vues/NSBitmap. OCR reste dans Task.detached sur le CGImage immuable ; aucun uncheckedSendable ni assertion supprimée. Ajouter la compilation optimisée exacte du harnais au job ciblé pour détecter ce diagnostic avant la longue suite. Pas de changement produit/numérique ; validationSwift distante à reprendre sur le prochainSHA, aucune réussite anticipée.
+- Autres limites exactes : routesKani échoue par2timeouts600s sur grouped_expert_routes_cover_eight_symbolic_origins_exactly et grouped_expert_routes_eighty_symbolic_inputs_are_bounded, pas de contre-exemple rapporté ; Appleguard annulé15min sur les dimensionsGDN. Sourcesnative etworkflowsRust/Apple inchangés de main. Ne pas réduire les domaines ni relancer aveuglément. La demande de clôture du parent impose de rendre les résultats/limites au prochain point utile plutôt qu’attendre indéfiniment ; aucune expérienceGPU/benchmark active.
+
 ### PR72-2026-11-03-CI-BUDGET — délai global corrigé, validation CI à poursuivre
 
 - Source43308c84/run41602738499 : jobdesktop-and-protocol annulé à25min pendant swift-frontend de la suite rendu, après Python2362/137ignorés, appcompilée, modes1179, idle114, préférences62, notifications17, logo25, sampling965, updater/HTML/import/workspace/bridge réussis. Aucun échec fonctionnel rapporté sur ces étapes ; rendu et contrôles suivants non achevés, pas de validation complète. Extrait `desktop-43308c84-timeout.log` conservé.

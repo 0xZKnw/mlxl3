@@ -1,0 +1,45 @@
+2026-11-03T08:59:41.0802650Z Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping
+2026-11-03T08:59:41.0827110Z Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI
+2026-11-03T08:59:41.0857190Z Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+2026-11-03T08:59:41.0880990Z Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+2026-11-03T08:59:41.0882510Z DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+2026-11-03T08:59:41.0883470Z MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+2026-11-03T08:59:41.0984100Z Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+2026-11-03T08:59:41.0986510Z Markdown checks passed: fences, 300k code, long tables
+2026-11-03T08:59:41.0997100Z Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+2026-11-03T08:59:52.4124080Z Agent sandbox checks passed: 25, real commands, file/network/child isolation, environment, limits, process cleanup and invalid input
+2026-11-03T08:59:54.4986810Z Agent protocol checks passed: 29, real MCP commands, errors, bounded input and parent-death cleanup
+2026-11-03T09:01:47.8968410Z Studio modes checks passed: 1179, navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle
+2026-11-03T09:03:37.9686980Z Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+2026-11-03T09:05:00.7997100Z Desktop preference checks passed: 62 assertions, isolated persistence, appearance, actual startup/manual loading and errors
+2026-11-03T09:06:17.7469200Z Completion notification checks passed: 17 assertions; permission, persistence, background/foreground, cancellation, errors, duplicates
+2026-11-03T09:07:30.4980030Z Logo appearance checks passed: 25, actual artwork, light/dark/blue, transparent corners and negative controls
+2026-11-03T09:08:49.7719710Z Speculative sampling checks passed: 965 assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests
+2026-11-03T09:09:58.2281790Z Update channel checks passed: stable/beta selection, official suffixes/assets, persistence, no downgrade, beta1→beta2 build, lookup/download/ready cancellation
+2026-11-03T09:09:58.2283710Z Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+2026-11-03T09:11:06.8797710Z Transfer snapshots /asset: ["0.0:false", "65536.0:false", "131072.0:false", "196608.0:false", "262144.0:false", "327680.0:false", "425984.0:false", "458752.0:false", "557056.0:false", "622592.0:false", "688128.0:false", "720896.0:false", "819200.0:false", "884736.0:false", "917504.0:false", "983040.0:false", "1028096.0:false", "1028096.0:true"]
+2026-11-03T09:11:06.8831270Z Transfer snapshots /unknown: ["0.0:false", "32768.0:false", "98304.0:false", "163840.0:false", "262144.0:false", "327680.0:false", "393216.0:false", "458752.0:false", "524288.0:false", "589824.0:false", "655360.0:false", "720896.0:false", "786432.0:false", "851968.0:false", "917504.0:false", "983040.0:false", "1028096.0:false", "1028096.0:true"]
+2026-11-03T09:11:06.8832420Z Updater transfer checks passed: 22
+2026-11-03T09:12:43.7407690Z HTML preview checks passed: 34; CDN not requested
+2026-11-03T09:13:49.5126860Z File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+2026-11-03T09:14:49.1283950Z Workspace checks passed: 229, including deterministic retrieval, persistence, branching, profiles, MCP validation and bridge journeys
+2026-11-03T09:14:49.1817650Z Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+2026-11-03T09:14:49.2908560Z MCP checks passed: default off, persisted on/off, request flag, isolated preview
+2026-11-03T09:17:03.7924810Z Bridge checks passed: stale/current callbacks, stop during decoding, per-frame boundaries, oversized-process cleanup/recovery, reload, cancellation, stale/current process exit
+2026-11-03T09:19:33.9217630Z Markdown checks passed: fences, 300k code, long tables
+2026-11-03T09:19:33.9342830Z Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+2026-11-03T09:19:33.9445400Z Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+2026-11-03T09:21:30.1360830Z /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/mlxl3-check.mGy48E1J6R/ResponseUICombined.swift:2316:29: error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T09:21:30.1368330Z 2314 |         "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+2026-11-03T09:21:30.1375960Z 2316 |       if !found || snapshot.ink < 40 {
+2026-11-03T09:21:30.1376990Z      |                             |- error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T09:21:30.1377930Z      |                             `- note: 'snapshot' is captured by a main actor-isolated closure. main actor-isolated uses in closure may race against later nonisolated uses
+2026-11-03T09:21:30.1386630Z 2319 |         try saveBitmap(snapshot.bitmap, suffix: "first-miss")
+2026-11-03T09:21:30.1387270Z      |             `- note: access can happen concurrently
+2026-11-03T09:21:30.1390240Z 2332 |           suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
+2026-11-03T09:21:30.1391530Z 2334 |         try saveBitmap(snapshot.bitmap, suffix: "first")
+2026-11-03T09:21:30.1392040Z      |             `- note: access can happen concurrently
+2026-11-03T09:21:30.1397450Z 2337 |         snapshot.ink >= 40 && found,
+2026-11-03T09:21:30.1397880Z      |                  `- note: access can happen concurrently
+2026-11-03T09:21:30.1399190Z 2338 |         "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(text); ink=\(snapshot.ink), height=\(snapshot.height), offset=\(snapshot.offset)"
+2026-11-03T09:21:30.2643260Z ##[error]Process completed with exit code 1.
