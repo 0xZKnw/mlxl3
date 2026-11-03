@@ -1,5 +1,14 @@
 # Third-party notices
 
+## Flash attention on Metal
+
+The one- and two-pass attention reductions in `native/shaders/flash_qsa.metal`
+follow Apple MLX 0.32.2. The sparse index kernel dispatch in
+`native/src/gpu/qsa.rs` follows the device and matrix capability selection in
+that version. See the [vector attention source](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/sdpa_vector.h),
+[device capabilities](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp)
+and [MLX license](https://github.com/ml-explore/mlx/blob/v0.32.2/LICENSE).
+
 ## Experimental DEC-ONE arrival and exact dense finish
 
 `native/shaders/flash_dec_one_finish.metal` adapts the device-fence and last-group
@@ -246,6 +255,13 @@ The scalar shared-expert switch and weighted expert reduction in
 [`dot.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/dot.h)
 and [strided reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_col.h).
 
+The direct Flash hyper-connection uses the shared GEMV body and the last-axis sum
+order from Apple's [Metal row reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_row.h).
+Its sigmoid follows the [unary operator](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/unary_ops.h).
+
+The direct GDN uses the previously qualified MLXL3 Flash convolution and packed
+Gated DeltaNet bodies. The normalization follows Apple's [Metal RMS kernel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/rms_norm.metal).
+
 Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
 <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 
@@ -277,3 +293,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The native Flash QSA single-pass kernel specializes the vector SDPA implementation from [MLX 0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/scaled_dot_product_attention/sdpa_vector.h), Copyright © 2024 Apple Inc., under the MIT license above.
+
+The FP16 vocabulary reduction in `native/shaders/flash_logsumexp.metal` specializes Apple's looped [MLX 0.32.2 logsumexp kernel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/logsumexp.h), Copyright © 2025 Apple Inc., under the MIT license above.
+
+## Native Metal trellis conversion
+
+The native tile search in `native/shaders/quantize_tiles.metal` adapts
+PonyExl3's Metal reference at 8e7fa6b1556f59fc669e25087903b279b9b0346f,
+Copyright 2026 Theinruj Toranavikrai, under Apache-2.0. The port preserves
+the two tail-biting passes, FP16 costs and predecessor tie order. The engine
+manifest includes PonyExl3's NOTICE and the Apache-2.0 license text.

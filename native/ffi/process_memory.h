@@ -1,4 +1,6 @@
 #pragma once
+#include <libproc.h>
+#include <unistd.h>
 
 #include <array>
 #include <cstdint>
@@ -39,4 +41,16 @@ inline std::array<uint64_t, 9> process_memory_values(
   }
   return values;
 }
+inline std::array<uint64_t, 9> current_process_memory() {
+  rusage_info_v4 usage{};
+  const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
+                   reinterpret_cast<rusage_info_t*>(&usage)) == 0;
+  task_vm_info_data_t vm{};
+  mach_msg_type_number_t vm_count = TASK_VM_INFO_COUNT;
+  const auto vm_ok = task_info(mach_task_self(), TASK_VM_INFO,
+    reinterpret_cast<task_info_t>(&vm), &vm_count) == KERN_SUCCESS;
+  return process_memory_values(usage, ok, vm, vm_count, vm_ok);
+}
 }  // namespace mlxl3
+
+extern "C" int mlxl3_read_process_stats(uint64_t* out, size_t count) noexcept;

@@ -1,0 +1,45 @@
+{
+  "status": "affected_path_validated",
+  "change": "Evaluate AppKit snapshot ink comparisons to scalar Bool values before short-circuit autoclosures.",
+  "production_changed": false,
+  "formal_verification": {
+    "tool": "Swift 6 strict concurrency/type checker",
+    "property": "Actor isolation and Sendable checking of the actual combined production/fixture source.",
+    "classification": "compiler source check, not a formal proof",
+    "hosted_old_source": "failed in job126080322045",
+    "local_old_source": "passes on arm64-apple-macosx26.2; hosted error not reproduced locally",
+    "local_new_source": "strict compile passes",
+    "environment_failures": [
+      "CLT package lacks SwiftUIMacros plugin; Xcode package build succeeds in12.90s",
+      "Default host macOS27.2 target fails pre-existing VoiceController.installTap deprecation; shipped macOS26.2 target compiles."
+    ]
+  },
+  "runtime": {
+    "affected_long_visibility": {
+      "status": "passed",
+      "elapsed_seconds": 24.334336042404175,
+      "checks": 30,
+      "bitmap_captures": 30,
+      "physical_captures_observed": 30,
+      "required_domain": "native-bitmap-only",
+      "first_misses": 0,
+      "thinking": ">120KiB",
+      "answer": ">250KiB",
+      "bound_seconds": 90,
+      "process_group_joined": true
+    },
+    "complete_standard_fixture": {
+      "status": "failed",
+      "exit_code": -5,
+      "elapsed_seconds": 4.462696075439453,
+      "message": "Initial transcript is not at the bottom:922.0",
+      "phase": "before changed assertions",
+      "process_group_joined": true
+    }
+  },
+  "limits": [
+    "Complete standard AppKit fixture remains failed locally; no overall UI/CI green claim.",
+    "No installed application or release replaced.",
+    "Exact new-head hosted CI still requires inspection."
+  ]
+}
