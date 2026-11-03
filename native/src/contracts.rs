@@ -2336,7 +2336,8 @@ fn flash_gate_dispatch_bounds_output_and_weight_addresses() {
 }
 
 /// Flash HC GEMV threadgroups and threads per group for the three checkpoint matrices.
-pub fn flash_hc_dispatch(input: u32, output: u32) -> Option<(u32, u32)> {
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_hc_dispatch(input: u32, output: u32) -> Option<(u32, u32)> {
     match (input, output) {
         (10240, 320 | 4) => Some((output / 4, 256)),
         (320, 10240) => Some((output / 32, 256)),
