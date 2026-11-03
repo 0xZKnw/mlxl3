@@ -40,6 +40,19 @@ def synthetic(root, rng):
                 tensors[prefix + ".bias"] = rng.normal(0, 0.17, cols).astype(np.float16)
             storage[prefix] = {"quant_format": "exl3"}
             cases.append(make_case(rng, root, prefix, width, 1 if k % 2 else 3))
+    for expert, down in (("synthetic_expert", "layer_k8_cb0"), ("bad_expert", "layer_k1_cb0")):
+        for projection, src in (
+            ("gate_proj", "layer_k4_cb0"),
+            ("up_proj", "layer_k3_cb1"),
+            ("down_proj", down),
+        ):
+            dest = expert + "." + projection
+            storage[dest] = {"quant_format": "exl3"}
+            for name, val in list(tensors.items()):
+                if name.startswith(src + "."):
+                    tensors[dest + name[len(src) :]] = val
+    for batch in (1, 3):
+        cases.append(make_case(rng, root, "synthetic_expert", 128, batch, expert=True))
     tensors["four.trellis"] = np.zeros((512, 8, 16), dtype=np.uint16)
     tensors["four.suh"] = np.ones(8192, dtype=np.float16)
     tensors["four.svh"] = np.ones(128, dtype=np.float16)
@@ -57,10 +70,10 @@ def synthetic(root, rng):
     return cases
 
 
-def make_case(rng, root, prefix, width, batch):
+def make_case(rng, root, prefix, width, batch, *, expert=False):
     x = rng.normal(0, 0.125, (batch, width)).astype(np.float16)
     return {
-        "op": "metal-checkpoint-linear",
+        "op": "metal-checkpoint-expert" if expert else "metal-checkpoint-linear",
         "path": str(root),
         "prefix": prefix,
         "x": x.view(np.uint16).ravel().tolist(),
@@ -75,6 +88,18 @@ def verify(args, root, report):
         for label, width in (("gate_proj", 2560), ("down_proj", 640)):
             prefix = "model.language_model.layers.0.mlp.experts.0." + label
             cases.append(make_case(rng, ckpt, prefix, width, 3))
+        for suffix in ("experts.0", "shared_expert"):
+            for batch in (1, 3):
+                cases.append(
+                    make_case(
+                        rng,
+                        ckpt,
+                        "model.language_model.layers.0.mlp." + suffix,
+                        2560,
+                        batch,
+                        expert=True,
+                    )
+                )
     (root / "cases.json").write_text(json.dumps(cases))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
     env["MLXL3_PROJECTION_FIXTURES"] = str(root)
@@ -102,6 +127,8 @@ def verify(args, root, report):
         "unsupported projection geometry/split count",
         "input is not a complete row",
     ]
+    invalid.append({**cases[0], "op": "metal-checkpoint-expert", "prefix": "bad_expert"})
+    errors.append("incompatible Flash expert projection geometry")
     stream = [*invalid, *cases]
     run = subprocess.run(
         [args.cli, "codec"],

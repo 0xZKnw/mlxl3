@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",
         "dec_one::dec_one_storage_contract",

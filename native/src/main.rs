@@ -879,21 +879,33 @@ fn codec_loop() -> Result<()> {
                 | "metal-decode"
                 | "metal-qmv"
                 | "metal-prepare128"
-                | "metal-checkpoint-linear" => {
+                | "metal-checkpoint-linear"
+                | "metal-checkpoint-expert"
+                | "metal-swiglu" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
-                        "metal-checkpoint-linear" => {
+                        "metal-swiglu" => Ok(json!(gpu.swiglu(&request.x, &request.data)?.read()?)),
+                        "metal-checkpoint-linear" | "metal-checkpoint-expert" => {
                             let checkpoint =
                                 checkpoint::inspect(std::path::Path::new(&request.path))?;
-                            let flight = mlxl3_native::gpu::FlashProjection::load(
-                                gpu,
-                                &checkpoint,
-                                &request.prefix,
-                            )?
-                            .submit(&request.x)?;
+                            let flight = if request.op == "metal-checkpoint-expert" {
+                                mlxl3_native::gpu::FlashExpert::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &request.prefix,
+                                )?
+                                .submit(&request.x)?
+                            } else {
+                                mlxl3_native::gpu::FlashProjection::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &request.prefix,
+                                )?
+                                .submit(&request.x)?
+                            };
                             Ok(json!(flight.read()?))
                         }
                         "metal-prepare128" => Ok(json!(gpu.prepare128(

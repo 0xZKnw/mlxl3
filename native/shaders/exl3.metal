@@ -153,3 +153,13 @@ kernel void flash_finish128(const device float* partials [[buffer(0)]],
 }
 
 #include "flash_projection.metal"
+
+kernel void flash_swiglu(const device half* gate [[buffer(0)]],
+    const device half* up [[buffer(1)]], device half* dest [[buffer(2)]],
+    constant uint& count [[buffer(3)]], uint i [[thread_position_in_grid]]) {
+    if (i >= count) return;
+    half g = gate[i];
+    half tail = half(1) / (half(1) + metal::exp(metal::abs(g)));
+    half sigmoid = g < half(0) ? tail : half(1) - tail;
+    dest[i] = (g * sigmoid) * up[i];
+}

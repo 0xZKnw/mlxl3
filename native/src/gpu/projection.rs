@@ -8,8 +8,8 @@ use crate::{
 use anyhow::{Context, Result, bail, ensure};
 use half::{bf16, f16};
 use metal::{
-    Buffer, CommandBuffer, DeviceRef, MTLCommandBufferStatus, MTLResourceOptions as Storage,
-    MTLSize, foreign_types::ForeignType,
+    Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
+    MTLResourceOptions as Storage, MTLSize, foreign_types::ForeignType,
 };
 use objc::{msg_send, sel, sel_impl};
 use std::os::unix::fs::FileExt;
@@ -188,79 +188,212 @@ impl<'a> FlashProjection<'a> {
     /// Each encoder uses tracked resources. The standard command buffer retains them
     /// (including both scratch buffers) through completion even if this layer is dropped.
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
+        let extents = self.extents(x.len())?;
+        submit(self.metal, x, |cmd, x| {
+            self.encode(cmd, x, extents, Storage::StorageModeShared)
+        })
+    }
+
+    fn extents(&self, elements: usize) -> Result<[u32; 3]> {
         ensure!(
-            x.len().is_multiple_of(self.input as usize),
+            elements.is_multiple_of(self.input as usize),
             "input is not a complete row"
         );
-        let batch = u32::try_from(x.len() / self.input as usize)?;
-        let [inputs, partials, outputs] =
-            contracts::projection_extents(batch, self.input, self.output, self.splits)
-                .context("invalid Flash projection batch or index overflow")?;
+        let batch = u32::try_from(elements / self.input as usize)?;
+        contracts::projection_extents(batch, self.input, self.output, self.splits)
+            .context("invalid Flash projection batch or index overflow")
+    }
+
+    fn encode(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &Buffer,
+        [inputs, partials, outputs]: [u32; 3],
+        storage: Storage,
+    ) -> Result<Buffer> {
+        let batch = inputs / self.input;
         let gpu = self.metal;
-        objc::rc::autoreleasepool(|| {
-            let x = upload(&gpu.device, x)?;
-            let prepared = buffer(
-                &gpu.device,
-                u64::from(inputs) * 2,
-                Storage::StorageModePrivate,
-            )?;
-            let partial = buffer(
-                &gpu.device,
-                u64::from(partials) * 4,
-                Storage::StorageModePrivate,
-            )?;
-            let dest = buffer(
-                &gpu.device,
-                u64::from(outputs) * 2,
-                Storage::StorageModeShared,
-            )?;
-            let cmd = gpu.queue.new_command_buffer();
-            Metal::encode(
-                cmd,
-                &gpu.prepare128_pipeline,
-                &[&x, &self.suh, &prepared],
-                [self.input, 0, 0, 0, 0],
-                MTLSize::new(u64::from(inputs / 128), 1, 1),
-                64,
-            );
-            let (pipeline, third, groups) = if self.k == 7 {
-                (&gpu.k7_pipeline, &gpu.inverse, self.output)
-            } else {
-                (&gpu.flash_qmv_pipeline, &self.svh, self.output / 16)
-            };
-            Metal::encode(
-                cmd,
-                pipeline,
-                &[&prepared, &self.packed, third, &partial],
-                [batch, self.k, self.cb as u32, self.input, self.output],
-                MTLSize::new(u64::from(groups), u64::from(batch), u64::from(self.splits)),
-                128,
-            );
-            Metal::encode(
-                cmd,
-                &gpu.finish128_pipeline,
-                &[
-                    &partial,
-                    &self.svh,
-                    self.bias.as_ref().unwrap_or(&self.svh),
-                    &dest,
-                ],
-                [
-                    self.splits,
-                    0,
-                    u32::from(self.bias.is_some()),
-                    0,
-                    self.output,
-                ],
-                MTLSize::new(u64::from(outputs / 128), 1, 1),
-                64,
-            );
-            cmd.commit();
-            Ok(ProjectionOutput {
-                command: cmd.to_owned(),
-                buffer: dest,
-                count: outputs as usize,
-            })
+        let prepared = buffer(
+            &gpu.device,
+            u64::from(inputs) * 2,
+            Storage::StorageModePrivate,
+        )?;
+        let partial = buffer(
+            &gpu.device,
+            u64::from(partials) * 4,
+            Storage::StorageModePrivate,
+        )?;
+        let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
+        Metal::encode(
+            cmd,
+            &gpu.prepare128_pipeline,
+            &[x, &self.suh, &prepared],
+            [self.input, 0, 0, 0, 0],
+            MTLSize::new(u64::from(inputs / 128), 1, 1),
+            64,
+        );
+        let (pipeline, third, groups) = if self.k == 7 {
+            (&gpu.k7_pipeline, &gpu.inverse, self.output)
+        } else {
+            (&gpu.flash_qmv_pipeline, &self.svh, self.output / 16)
+        };
+        Metal::encode(
+            cmd,
+            pipeline,
+            &[&prepared, &self.packed, third, &partial],
+            [batch, self.k, self.cb as u32, self.input, self.output],
+            MTLSize::new(u64::from(groups), u64::from(batch), u64::from(self.splits)),
+            128,
+        );
+        Metal::encode(
+            cmd,
+            &gpu.finish128_pipeline,
+            &[
+                &partial,
+                &self.svh,
+                self.bias.as_ref().unwrap_or(&self.svh),
+                &dest,
+            ],
+            [
+                self.splits,
+                0,
+                u32::from(self.bias.is_some()),
+                0,
+                self.output,
+            ],
+            MTLSize::new(u64::from(outputs / 128), 1, 1),
+            64,
+        );
+        Ok(dest)
+    }
+}
+
+fn submit(
+    gpu: &Metal,
+    x: &[u16],
+    encode: impl FnOnce(&CommandBufferRef, &Buffer) -> Result<Buffer>,
+) -> Result<ProjectionOutput> {
+    objc::rc::autoreleasepool(|| {
+        let input = upload(&gpu.device, x)?;
+        let cmd = gpu.queue.new_command_buffer();
+        let dest = encode(cmd, &input)?;
+        cmd.commit();
+        Ok(ProjectionOutput {
+            command: cmd.to_owned(),
+            count: dest.length() as usize / 2,
+            buffer: dest,
         })
+    })
+}
+
+impl Metal {
+    fn encode_swiglu(
+        &self,
+        cmd: &CommandBufferRef,
+        gate: &Buffer,
+        up: &Buffer,
+        storage: Storage,
+    ) -> Result<Buffer> {
+        ensure!(
+            gate.length() == up.length() && gate.length() > 0 && gate.length().is_multiple_of(2),
+            "invalid SwiGLU input extents"
+        );
+        let count = u32::try_from(gate.length() / 2)?;
+        let output = buffer(&self.device, gate.length(), storage)?;
+        let threads = self.swiglu_pipeline.thread_execution_width();
+        Self::encode(
+            cmd,
+            &self.swiglu_pipeline,
+            &[gate, up, &output],
+            [count, 0, 0, 0, 0],
+            MTLSize::new(u64::from(count).div_ceil(threads), 1, 1),
+            threads as usize,
+        );
+        Ok(output)
+    }
+
+    pub fn swiglu(&self, gate: &[u16], up: &[u16]) -> Result<ProjectionOutput> {
+        ensure!(
+            !gate.is_empty() && gate.len() == up.len(),
+            "invalid SwiGLU input extents"
+        );
+        u32::try_from(gate.len()).context("SwiGLU exceeds Metal index range")?;
+        submit(self, gate, |cmd, gate| {
+            let up = upload(&self.device, up)?;
+            self.encode_swiglu(cmd, gate, &up, Storage::StorageModeShared)
+        })
+    }
+}
+
+pub struct FlashExpert<'a> {
+    gate: FlashProjection<'a>,
+    up: FlashProjection<'a>,
+    down: FlashProjection<'a>,
+}
+
+impl<'a> FlashExpert<'a> {
+    pub fn load(gpu: &'a Metal, checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
+        let layer = |name| FlashProjection::load(gpu, checkpoint, &format!("{prefix}.{name}_proj"));
+        let gate = layer("gate")?;
+        let up = layer("up")?;
+        let down = layer("down")?;
+        ensure!(
+            contracts::compatible_flash_expert(
+                [gate.input, gate.output],
+                [up.input, up.output],
+                [down.input, down.output]
+            ),
+            "incompatible Flash expert projection geometry"
+        );
+        Ok(Self { gate, up, down })
+    }
+
+    pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
+        let gpu = self.gate.metal;
+        let gate_extents = self.gate.extents(x.len())?;
+        let up_extents = self.up.extents(x.len())?;
+        let down_extents = self.down.extents(gate_extents[2] as usize)?;
+        submit(gpu, x, |cmd, x| {
+            let gate = self
+                .gate
+                .encode(cmd, x, gate_extents, Storage::StorageModePrivate)?;
+            let up = self
+                .up
+                .encode(cmd, x, up_extents, Storage::StorageModePrivate)?;
+            let activated = gpu.encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
+            self.down
+                .encode(cmd, &activated, down_extents, Storage::StorageModeShared)
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU; failure after encoding and before commit"]
+    fn refused_encoding_never_publishes_partial_work() -> Result<()> {
+        let metal = Metal::new()?;
+        let one = f16::ONE.to_bits();
+        let twenty = f16::from_f32(20.0).to_bits();
+        let first = metal.swiglu(&[twenty], &[one])?;
+        let mut observed = None;
+        let failure = submit(&metal, &[one], |cmd, x| {
+            let _output = metal.encode_swiglu(cmd, x, x, Storage::StorageModePrivate)?;
+            observed = Some(cmd.to_owned());
+            bail!("injected after a valid encoder")
+        });
+        assert!(
+            failure
+                .err()
+                .is_some_and(|e| e.to_string().contains("injected"))
+        );
+        assert_eq!(
+            observed.unwrap().status(),
+            MTLCommandBufferStatus::NotEnqueued
+        );
+        ensure!(metal.swiglu(&[0], &[one])?.read()? == [0] && first.read()? == [twenty]);
+        Ok(())
     }
 }

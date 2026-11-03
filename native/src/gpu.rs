@@ -10,7 +10,7 @@ use metal::{
 };
 
 mod projection;
-pub use projection::{FlashProjection, ProjectionOutput};
+pub use projection::{FlashExpert, FlashProjection, ProjectionOutput};
 
 pub struct Metal {
     device: Device,
@@ -22,6 +22,7 @@ pub struct Metal {
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
+    swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
     inverse: Buffer,
 }
@@ -62,6 +63,7 @@ impl Metal {
             let qmv_pipeline = pipeline("exl3_qmv")?;
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
             let k7_pipeline = pipeline("flash_k7_qmv")?;
+            let swiglu_pipeline = pipeline("flash_swiglu")?;
             let finish128_pipeline = pipeline("flash_finish128")?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
@@ -85,6 +87,7 @@ impl Metal {
                 prepare128_pipeline,
                 flash_qmv_pipeline,
                 finish128_pipeline,
+                swiglu_pipeline,
                 k7_pipeline,
                 inverse,
             })

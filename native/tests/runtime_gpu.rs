@@ -156,12 +156,13 @@ fn portable_exl3_prefill_matches_independent_single_rows() -> Result<()> {
 fn flash_projection_stock_oracle() -> Result<()> {
     use mlxl3_native::{
         checkpoint,
-        gpu::{FlashProjection, Metal},
+        gpu::{FlashExpert, FlashProjection, Metal},
     };
     use serde::Deserialize;
     use std::{fs, path::PathBuf};
     #[derive(Deserialize)]
     struct Case {
+        op: String,
         path: PathBuf,
         prefix: String,
         x: Vec<u16>,
@@ -173,26 +174,60 @@ fn flash_projection_stock_oracle() -> Result<()> {
     ensure!(!cases.is_empty());
     let mut expected = Vec::new();
     let mut last = None;
+    let mut expert_lifetime_checked = false;
     for case in cases {
         if last.as_ref().is_none_or(|(path, _)| path != &case.path) {
             last = Some((case.path.clone(), checkpoint::inspect(&case.path)?));
         }
         let checkpoint = &last.as_ref().unwrap().1;
-        let stock = Exl3Linear::from_checkpoint(checkpoint, &case.prefix)?;
+        let expert = case.op == "metal-checkpoint-expert";
+        let load = |name: &str| Exl3Linear::from_checkpoint(checkpoint, name);
+        let (stock, tail) = if expert {
+            (
+                load(&format!("{}.gate_proj", case.prefix))?,
+                Some((
+                    load(&format!("{}.up_proj", case.prefix))?,
+                    load(&format!("{}.down_proj", case.prefix))?,
+                )),
+            )
+        } else {
+            (load(&case.prefix)?, None)
+        };
+        let cols = tail
+            .as_ref()
+            .map_or(stock.output_dims(), |(_, down)| down.output_dims());
         let width = stock.input_dims() as usize;
         ensure!(!case.x.is_empty() && case.x.len().is_multiple_of(width));
         let mut bits = Vec::new();
         for row in case.x.chunks_exact(width) {
             let x = Array::from_f16_bits(row, &[1, width as i32])?;
-            let output = stock.forward(&x)?;
-            ensure!(output.shape() == [1, stock.output_dims()]);
+            let mut output = stock.forward(&x)?;
+            if let Some((up, down)) = &tail {
+                output = down.forward(&output.swiglu(&up.forward(&x)?)?)?;
+            }
+            ensure!(output.shape() == [1, cols]);
             bits.extend(output.to_f16_bits()?);
         }
         ensure!(
-            bits.len() == case.x.len() / width * stock.output_dims() as usize
+            bits.len() == case.x.len() / width * cols as usize
                 && bits.iter().all(|&v| f16::from_bits(v).is_finite())
         );
-        if expected.is_empty() {
+        if expert && !expert_lifetime_checked {
+            let (first, second) = {
+                let gpu = Metal::new()?;
+                let layer = FlashExpert::load(&gpu, checkpoint, &case.prefix)?;
+                let first = layer.submit(&case.x)?;
+                ensure!(layer.submit(&[]).is_err());
+                let second = layer.submit(&case.x)?;
+                drop(layer.submit(&case.x)?);
+                (first, second)
+            };
+            ensure!(
+                second.read()? == bits && first.read()? == bits,
+                "early expert drop or reverse read changed output"
+            );
+            expert_lifetime_checked = true;
+        } else if expected.is_empty() && !expert {
             let (first, second) = {
                 let device = Metal::new()?;
                 let layer = FlashProjection::load(&device, checkpoint, &case.prefix)?;

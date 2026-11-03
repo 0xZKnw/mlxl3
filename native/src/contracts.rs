@@ -1236,6 +1236,50 @@ pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
     })?
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn compatible_flash_expert(gate: [u32; 2], up: [u32; 2], down: [u32; 2]) -> bool {
+    gate == up && down == [gate[1], gate[0]]
+}
+
+#[test]
+fn flash_expert_rejects_each_incompatible_weight_axis() {
+    assert!(compatible_flash_expert(
+        [2560, 640],
+        [2560, 640],
+        [640, 2560]
+    ));
+    for (up, down) in [
+        ([640, 640], [640, 2560]),
+        ([2560, 128], [640, 2560]),
+        ([2560, 640], [128, 2560]),
+        ([2560, 640], [640, 128]),
+    ] {
+        assert!(!compatible_flash_expert([2560, 640], up, down));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_expert_submissions_share_intermediate_extents() {
+    let gate: [u32; 2] = kani::any();
+    let up: [u32; 2] = kani::any();
+    let down: [u32; 2] = kani::any();
+    let batch: u32 = kani::any();
+    if compatible_flash_expert(gate, up, down) {
+        let ge = projection_extents(batch, gate[0], gate[1], 1);
+        let ue = projection_extents(batch, up[0], up[1], 1);
+        let de = projection_extents(batch, down[0], down[1], 1);
+        assert_eq!(ge, ue);
+        if let (Some([inputs, _, g]), Some([d, _, outputs])) = (ge, de) {
+            assert_eq!(g, d);
+            assert_eq!(inputs, outputs);
+            kani::cover!(batch == 3 && gate == [2560, 640]);
+        }
+    } else {
+        kani::cover!(gate == up && down[0] != gate[1]);
+    }
+}
+
 /// Counts addressed by the projection shaders in 32-bit element indices.
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn projection_extents(
