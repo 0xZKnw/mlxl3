@@ -93,6 +93,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
         "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
         "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+        "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
         "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
         "speculative::normalized_greedy_retains_first_finite_maximum",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",

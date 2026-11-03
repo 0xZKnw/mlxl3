@@ -105,6 +105,17 @@ enum Command {
     },
     /// JSON-line codec oracle used for differential tests (not a chat bridge).
     Codec,
+    /// Quantize complete FP32 kernel-order tiles with the autonomous Metal trellis.
+    QuantizeTiles {
+        input: PathBuf,
+        output: PathBuf,
+        #[arg(long)]
+        k: u32,
+        #[arg(long, default_value_t = 0)]
+        codebook: u32,
+        #[arg(long, default_value_t = 256 * 1024 * 1024)]
+        max_scratch_bytes: u64,
+    },
     /// Feed a JSON array of text chunks on stdin; return reasoning/answer fragments.
     Split {
         #[arg(long, default_value = "")]
@@ -1293,6 +1304,21 @@ fn main() -> std::process::ExitCode {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
+        Command::QuantizeTiles {
+            input,
+            output,
+            k,
+            codebook,
+            max_scratch_bytes,
+        } => {
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            mlxl3_native::quantize::run_tiles(&input, &output, k, codebook, max_scratch_bytes)?;
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            {
+                let _ = (input, output, k, codebook, max_scratch_bytes);
+                bail!("tile quantization requires native Metal on macOS");
+            }
+        }
         Command::RuntimeInfo => {
             println!(
                 "{}",
