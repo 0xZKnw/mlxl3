@@ -1,0 +1,23 @@
+2026-11-03T17:36:41.8534900Z Bridge checks passed: stale/current callbacks, stop during decoding, per-frame boundaries, oversized-process cleanup/recovery, reload, cancellation, stale/current process exit
+2026-11-03T17:38:37.5696320Z Markdown checks passed: fences, 300k code, long tables
+2026-11-03T17:38:37.5699810Z Plain thinking chunks passed: 141 finite boundary/Unicode/fence/table/append/replacement/truncation cases; exact raw bytes and bounded 2048-grapheme layouts
+2026-11-03T17:38:37.5726970Z Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+2026-11-03T17:38:37.5728200Z Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+2026-11-03T17:39:55.9109230Z /var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/mlxl3-check.Fm0wB95hTy/ResponseUICombined.swift:2299:29: error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T17:39:55.9110920Z 2297 |         "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+2026-11-03T17:39:55.9118120Z 2298 |       )
+2026-11-03T17:39:55.9118390Z 2299 |       if !found || snapshot.ink < 40 {
+2026-11-03T17:39:55.9119010Z      |                             |- error: sending 'snapshot' risks causing data races [#SendingRisksDataRace]
+2026-11-03T17:39:55.9119850Z      |                             `- note: 'snapshot' is captured by a main actor-isolated closure. main actor-isolated uses in closure may race against later nonisolated uses
+2026-11-03T17:39:55.9120400Z 2300 |         firstMisses += 1
+2026-11-03T17:39:55.9120770Z 2301 |         report("FIRST MISS \(label): expected=\(marker); OCR=\(text)")
+2026-11-03T17:39:55.9121230Z 2302 |         try saveBitmap(snapshot.bitmap, suffix: "first-miss")
+2026-11-03T17:39:55.9121640Z      |             `- note: access can happen concurrently
+2026-11-03T17:39:55.9122180Z 2303 |         // Let native layout and scroll animations run without the OCR observer blocking the main actor.
+2026-11-03T17:39:55.9122700Z 2304 |         try await Task.sleep(for: .seconds(2))
+2026-11-03T17:39:55.9123010Z      :
+2026-11-03T17:39:55.9123410Z 2315 |           suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
+2026-11-03T17:39:55.9123830Z 2316 |       } else if save {
+2026-11-03T17:39:55.9124270Z 2317 |         try saveBitmap(snapshot.bitmap, suffix: "first")
+2026-11-03T17:39:55.9124660Z      |             `- note: access can happen concurrently
+

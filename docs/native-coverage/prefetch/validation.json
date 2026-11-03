@@ -135,5 +135,24 @@
     "other_checks": "pending/running at inspection; no full-green claim"
   },
   "source_review": "Independent sibling agent reviewed byte/file ownership, Rc cache/slot owners, lease publication, worker drain and shrink; no concrete concern. This is source review, not a proof.",
-  "raw_logs": "build/issue75prefetch/ retains initial check/lint failures, mutation, proof logs, full suites, source/binary identities, four selected physical invocations and commands represented by the committed test names"
+  "raw_logs": "build/issue75prefetch/ retains initial check/lint failures, mutation, proof logs, full suites, source/binary identities, four selected physical invocations and commands represented by the committed test names",
+  "CI_exact_head_42a7e41b": {
+    "native_macos": "success",
+    "native_linux": "success",
+    "kani_speculative": "success",
+    "kani_allocator": "success",
+    "conversion": "success",
+    "flash_profiles": "success",
+    "native_coverage": "failed: final fixture/config counts absent from inventory; metadata correction follows",
+    "kani_flash": "process_error failed_fill dead object; two_routes timeout600s",
+    "kani_core": "timeouts cold_row_limit, MB34 parser/shapes600s and sidecar collection258s",
+    "kani_routes": "grouped routes8/80 timeouts600s each",
+    "desktop_protocol": "cancelled",
+    "apple_compatibility": "cancelled"
+  },
+  "inventory_CI_fix": {
+    "production_code_changed": false,
+    "checker": "passed after reviewing14 count deltas",
+    "tests": "4 passed"
+  }
 }
