@@ -50,5 +50,15 @@ int main() {
   auto zero = mlxl3::process_memory_values({}, true, {}, TASK_VM_INFO_COUNT, true);
   assert(zero[8] == 15);
   for (size_t i = 0; i < 8; ++i) assert(zero[i] == 0);
+  std::array<uint64_t, 11> actual{};
+  actual.fill(UINT64_MAX);
+  assert(mlxl3_read_process_stats(nullptr, 9) == -1);
+  for (size_t count = 0; count < 9; ++count) {
+    assert(mlxl3_read_process_stats(actual.data() + 1, count) == -1);
+    for (auto word : actual) assert(word == UINT64_MAX);
+  }
+  assert(mlxl3_read_process_stats(actual.data() + 1, 9) == 0);
+  assert(actual.front() == UINT64_MAX && actual.back() == UINT64_MAX);
+  assert((actual[9] & 1) && actual[1] > 0 && actual[8] > 0);
   assert(cases == 32);
 }

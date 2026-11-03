@@ -109,7 +109,6 @@ impl Ngrams {
             read_bytes: 0,
         })
     }
-    #[cfg(feature = "mlx")]
     pub(crate) fn cache_bytes(&self) -> usize {
         self.cache.len() * 82
     }

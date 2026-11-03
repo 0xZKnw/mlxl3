@@ -1,0 +1,421 @@
+{
+  "schema": 1,
+  "origin": "MLX 0.32.2 actual advanced-converter LDLQ products; source FP16 128x128 seed 7508, K4/MCG, identity scales, buffer32/feedback16, 192 correlated activations. Observer checkpoint verified against independent uninstrumented baseline (4096 exact words).",
+  "products": [
+    {
+      "path": "product-00.npz",
+      "sha256": "498e397df01786a9948af00e6be9c0139366bf9c3b7fa5b131ee55c89a9dd89b",
+      "arrays": {
+        "left": {
+          "shape": [
+            16,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-01.npz",
+      "sha256": "6847842b2536c18d1df0b8d3d3fb9a57121dafe0ab2c181414f95853fef36360",
+      "arrays": {
+        "left": {
+          "shape": [
+            96,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            32,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            96,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-02.npz",
+      "sha256": "04f4abfad96b39ebaed6bcb463f3c75fc2d5cf919d7687692298bb5301124d4c",
+      "arrays": {
+        "left": {
+          "shape": [
+            16,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-03.npz",
+      "sha256": "1314f7ec6f703e4de11c80c2e96b3fcb3a9ac73e3ea154a7629803eabc2e9b82",
+      "arrays": {
+        "left": {
+          "shape": [
+            64,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            32,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            64,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-04.npz",
+      "sha256": "3faa5fe784caf7ab796ffefe4c60ee4b3d2b59b7030e3841ac96b7cd3dad8544",
+      "arrays": {
+        "left": {
+          "shape": [
+            16,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-05.npz",
+      "sha256": "fa7d0e42d094207bef0d6276e5e4d64c6a810ac77695a45e40af7283954810f3",
+      "arrays": {
+        "left": {
+          "shape": [
+            32,
+            32
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            32,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            32,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "product-06.npz",
+      "sha256": "cdcbb63015c9df7a53fc0f115f438221dab23f62e8bb5d88a02e9a51122c19dc",
+      "arrays": {
+        "left": {
+          "shape": [
+            16,
+            16
+          ],
+          "dtype": "float32"
+        },
+        "right": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "output": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    }
+  ],
+  "searches": [
+    {
+      "path": "search-00.npz",
+      "sha256": "7bd7f0a98f81561af761ee6e7ea5d795baf497f19204a55b14540de7cbeeeace",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-01.npz",
+      "sha256": "21806f2b37d07e2a62c31d953c8f49ceb4a51371d66c5c57194487bbc08a26b2",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-02.npz",
+      "sha256": "48dc30790a58f7512059a051fe5485b15c08fdece0bc039df0e7e79ce383870c",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-03.npz",
+      "sha256": "25097e64a1c621079ab0cdddd5eb415a1dced68e115ce94dcbe6d89c4ce7f7cf",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-04.npz",
+      "sha256": "08dd0d55a92b0b430e88f9ecb12d7bf753c31ba58e2c42aff30a2f6894b5a1fc",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-05.npz",
+      "sha256": "7de475e33b8e84983daab48d25d3ba406862ec4fb88ffbd6be44217f8b250fcf",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-06.npz",
+      "sha256": "3405a569da8220746c67e2ad437e9751de5678a48583521c420ae4df857899fc",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    },
+    {
+      "path": "search-07.npz",
+      "sha256": "403dbfd63b45dc50b5c1907e06197d49822983a8070ebe9eecd06dfe680c8fd3",
+      "arrays": {
+        "rows": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        },
+        "packed": {
+          "shape": [
+            1,
+            8,
+            64
+          ],
+          "dtype": "uint16"
+        },
+        "decoded": {
+          "shape": [
+            16,
+            128
+          ],
+          "dtype": "float32"
+        }
+      }
+    }
+  ]
+}

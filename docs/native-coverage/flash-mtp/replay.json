@@ -1,0 +1,282 @@
+{
+  "status": "verified",
+  "scope": "Flash MTP head and greedy target session; physical M5 integration",
+  "source_commit": "70cc6efd98eb1f2b53bb5e602cdc9118b5c359ee",
+  "base_pr": 92,
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "hardware": "Apple M5, 24 GiB, macOS build 26B123",
+  "SSD_cache_GiB": 0.6,
+  "direct_test_sha256": "70a0356ba4cfe46a387d988bc22c0cc5de970e3378ae4bc98a7911bdda9dcae3",
+  "stock_test_sha256": "992dd68ccd2476e2b92c581d5aa5ba6d558e44974c4b9f3e2875da066c1c6d89",
+  "fixture": {
+    "directory": "flash-mtp-oracle-held-02",
+    "manifest_sha256": "b2a7ddfdb903aa3396949a5fff95ada3dfd67a7712572bbb346b5ecc94154b92",
+    "producer": "mlx-vlm 0.7.3 + PonyExl3 8e7fa6b",
+    "checked_fields": {
+      "mixed": 102400,
+      "layer": 102400,
+      "output": 25600,
+      "logits": 2483200,
+      "keys": 28160,
+      "values": 28160,
+      "index_tail": 1920
+    },
+    "steps": [
+      {
+        "token": 78768,
+        "position": 0,
+        "sha256": {
+          "input": "c0af1e4cd2c7236b7f592c535327d913f9276ac252927b28f4064968bdb5717a",
+          "mixed": "1419e4ba3fdf1dcf4caa076cd4e9f5878463ef6fe85d6a8fbb91366052e0a62d",
+          "layer": "26ccf3bedf21e8259702ba15fac8de39065e222ce20fc49b5914d940a8007906",
+          "output": "494e0b4cd95927a5c15259f1f03a584e2de928e551adceddc3c53424d2d8682d",
+          "logits": "3e459e0cc2401d61f6f80198c5216aefba3fc38280c471a179282faf5b0d93ed",
+          "keys": "050538a5dc2db3ec97e8334cadd4dedf496e8ce82555d999a280b5564ee04a5f",
+          "values": "e4f045bd0518e35109872fc047a8d3f23be00d799e4df89e75ed5377629ce225",
+          "index_tail": "7f8d3d19192f3c0a3ae1bf323be719bf9bd643b70d9b82f834c14c18d9830cfb"
+        }
+      },
+      {
+        "token": 11,
+        "position": 1,
+        "sha256": {
+          "input": "4496eef411a7192e6e301393e69a67a8f04fa310f5a7138f5fb8999603578a80",
+          "mixed": "7542587d44f533aa9e72999eeafca4137c6fe8300cd944a54d738ae594a1bc8a",
+          "layer": "3768df8937d98af3d0f973d3adb7ec0551c999ad279dbc362bb0674b44435e7e",
+          "output": "a619950355dfb4a0c6fcb5725ffc6477174eccd02fa20c2c8519d3559f9c3dce",
+          "logits": "a771a5e6d29bbedece40fa7f6034ff417f686bb988ff9945ce6add4e198c17dd",
+          "keys": "56b97711d2a74dbf4bec7a20b28377bd44abca9b48373e578e7b9b975a479c49",
+          "values": "7065fa944169e4d679e7442021a4f7e50030d7ea9a463e15377adb21f90d3155",
+          "index_tail": "0837f1b62e04e72fe81262fe54cbbddfbbbe3b2cfb2b8fd707976a2a26862b6d"
+        }
+      },
+      {
+        "token": 220,
+        "position": 2,
+        "sha256": {
+          "input": "c8d09afe36cef5ba9686a398b43bbd6d57df32d338ac83823ac55dd3a0c5b70b",
+          "mixed": "297c15fcb77f73c15305a504dac2326c9e0b16285222ffe2a50b8350faa06d4f",
+          "layer": "86d7d6814fe541b33fd22f3e91a09621ce09054f272dced560726a8526f178b3",
+          "output": "51dd7188f078a46e5deaffd63e9784096b1b0ef0f95f935cf83072978fcd658e",
+          "logits": "2878bce92a727f426f9094b0d09d76a78723793d433824f36147815050e77524",
+          "keys": "e026e3742d2ca6aee7b596196e6944192983abbb2a643c0e3b6330647619b6cc",
+          "values": "a99ca5d6b3cb890d8dd4edad68713b119d7cfe7ec8096910a7ee6cb71a7bb707",
+          "index_tail": "4e52750048c65f35be0e87ed83ae7b25a13a0a37f4e7c573744931831b0f0adc"
+        }
+      },
+      {
+        "token": 96748,
+        "position": 3,
+        "sha256": {
+          "input": "1c1a72495012c1383bb40d4ca11b14174e8c703c7b6b6e5b8ae4adf8c7dcbd0a",
+          "mixed": "caf7c101ee91a3ed03fb99c60c2d4e7e548d12fe2134b5d32be906900488aaaa",
+          "layer": "79f5c901abc15436e564afb0caa6ebbc61f421f39b8899d059c9b7016eab2e38",
+          "output": "d553e1f754920e3f08f672b83236a5abf4d3004bbba951bc1dc2bec4e4a6bb80",
+          "logits": "e58eb06f370f7deae3150e738f474a54d26bf3844dcf256c2a52ac8ea1e34749",
+          "keys": "c28301734dd6a3cf162aa4be528145d9067e9d613dabc71f2a0345444c34e6cd",
+          "values": "051cf0181e7754f2645e69d979b21f42cd1b46ae93462b5765d3d816f7db4fd7"
+        }
+      },
+      {
+        "token": 729,
+        "position": 4,
+        "sha256": {
+          "input": "8a6144ef11d516801b2faf085a92d74e4328ed36df4c342c6b260efa00921370",
+          "mixed": "52f823a7e2dd7aca039bf7e325c8730c9e58e968d3d4a2d22903fbbdfed621db",
+          "layer": "7b6e37c6d316f2a700dac8fe2c1ae73dfd739f0fba55284e0d0b696e7c8f6192",
+          "output": "eb1190ba144079bd535bc4ef889de8612767e5a84a8e72e2c6df626b6d1e6b41",
+          "logits": "597456bff4210bb717b882b1b758e0c05760f027c62e0d698b9b403bdbf5d829",
+          "keys": "6d22f9b7afff1b3db5cf56312700a2564d9426043e388282aef29e64be2bf91d",
+          "values": "f360ad20cfc6d9b214ac932d5021b50bed536013c2ca76ab8ed7dd8b50412a2c",
+          "index_tail": "7edb24063fc0718244d2dc5ab4828a7df56fe20009b9244a66dd8b0a2203e379"
+        }
+      },
+      {
+        "token": 687,
+        "position": 5,
+        "sha256": {
+          "input": "0417ef643172d89f2a97ea95123474382fb69a937f1b8bbaed31d7d769d9781e",
+          "mixed": "35fb8eb26b62e2bd6b99a7c18277fab75cf1e5de4d26de0cd3bb4256c65b1155",
+          "layer": "7f7f05e963ec1bca2260be138e4db8c672c4be225ac58d73a281ab4651a9d591",
+          "output": "1b138462e150ffe117f37047b82de707826ebcf24fc62611b988bab750f363ae",
+          "logits": "758378b1d70b48bd6147706fa4702c40746fb3384869d03e88011aa63c4370a7",
+          "keys": "d4914e01d7da33ec864a2d239350babcdbe49cfe9ed6e77f55db354a6e32c5c4",
+          "values": "6d7004bcbe51bac4e1a89cd6266afd9d7e2578bbbe49ea331201086fd50e5eb3",
+          "index_tail": "364464896a7bd6798f5bc82e33cffa21df33eed797e95c40402b0b37a582ebb0"
+        }
+      },
+      {
+        "token": 281,
+        "position": 6,
+        "sha256": {
+          "input": "18dd13e62a20f101682a665f278e991d254fae8ec7c831b6663d2cfe85bc6de3",
+          "mixed": "e43692a47d23190a84dc243eaa51cbf81aa02c79357da6048f5c1eb239160dce",
+          "layer": "f59b8bf3dfb872406c540b16d67b66a6954b6110b1f5f7b7ab6bf1efa062622f",
+          "output": "ec87510c2e3ec98f958cbc083a5b807ca589624a2a813fc6afb776f764c96769",
+          "logits": "4d06889bc1e3619887271e4535955e838a1a9a30280ecad1632b938a3b302eab",
+          "keys": "9ce91bdd4149e51f7026d409d31deea26fc3bd8e03b12c1566bd845c8b65ed12",
+          "values": "e2e412321d788593d7ba3b9b8e567ae52201e0560802d9db8b018c8a12576b07",
+          "index_tail": "9ca310c102d152a0f4799b0c34ed5300ae374797ac5481059e38943747f582b5"
+        }
+      },
+      {
+        "token": 2007,
+        "position": 7,
+        "sha256": {
+          "input": "1a0ef3f10883fe21ea1cd592b39868581895d1657bafcec57e3844d23ead7385",
+          "mixed": "77f8f50184ff73e7b93f471d744d7f1e395a0a5708bb3e3576d7e69fde34f164",
+          "layer": "8b95da75d34a23f7e2b81c4abf2e2d45b0976c428519cf4ff523d8ef15a1969a",
+          "output": "99ac05ab9121e25078f2137b92f646387733a4d0e9fe6e4d442d846ffd2863ab",
+          "logits": "98a0c0da38963c70ef1368f84c8645d21924ce2f7b4681536987a5e286da3fea",
+          "keys": "4c3bd5415eb747475f8e080105858b57fa620c75492fa52a7be9d71207006001",
+          "values": "c77f01c801934563763ab416892016aca723b3bf0847c25149777171d06c5f0c"
+        }
+      },
+      {
+        "token": 248044,
+        "position": 8,
+        "sha256": {
+          "input": "b05efa40286b8def3d87c9c64f7e4581c495a1f906dc719ada1e75e1b879ffd9",
+          "mixed": "4440d33bfaddab7b123d62b5fbd487edc012886f7ffe17b5562f44057ef4c387",
+          "layer": "78edba626321d179f72b3ecb6225f8993e1c3a0982213c805530fb081c6cfbf2",
+          "output": "a33d6a3ab90a0cf4b74c2ebec00435f2b252e37d14227a1a7931ed6f124f17a1",
+          "logits": "fa1aa66df5aeaced68d7ef6ace78089fc417b3ba89d5cc263df99a06eeb5e6fe",
+          "keys": "a02b4f59bad6070918079c5ac37ba725c5203a7fd4e7e4d885b757f998618a28",
+          "values": "c83e3b0730b4652eae9c4a2eb1040455446a51fd9152d0a27ff68eff974eebe4",
+          "index_tail": "a478fa4403ccc5ed4aed85f97bf93173899fbdfa1dce28831dad340efb2f62df"
+        }
+      },
+      {
+        "token": 248319,
+        "position": 9,
+        "sha256": {
+          "input": "9c8d6ad0d5d5d594530f8ace30029eb2cc55f964c7da524128861d4967496f6c",
+          "mixed": "528b83ecebd6572271cf2066b8c1e5974a5aa16614dc52633f6af893d28450df",
+          "layer": "583950d508435ed9907dc32ac11931c01888c7e4c77fc3867b98f3bde6a85475",
+          "output": "99211da2281c3155e774fc118b1e1addb533bc773b4b5f131f41fcb7a1a40bde",
+          "logits": "c18fabfe0cc63245047b5befad3840ca37917a07ada120acfebaf2ac1275bc92",
+          "keys": "9610b22f712d85a4dbfbdc9acd6a9749b0bcbf8d71666adbc115bc465ecc6ce2",
+          "values": "1bf1176d7672484f944984ea45f5c704e16ff1f6aaf9d4f3263b3eb08093c3e6",
+          "index_tail": "678952ec6641ee15ee0e47e141fdf9af79776ae3b82b4d49704e0eaaeb2aff05"
+        }
+      }
+    ],
+    "unequal_finite_words": 0
+  },
+  "session": {
+    "prompt": [
+      248044,
+      78768,
+      11
+    ],
+    "stock_reference": "Rust/MLX 0.32.2",
+    "oracle": {
+      "1": {
+        "proposed": 0,
+        "accepted": 0,
+        "tokens": [
+          28783
+        ]
+      },
+      "2": {
+        "proposed": 1,
+        "accepted": 0,
+        "tokens": [
+          28783,
+          34454
+        ]
+      },
+      "3": {
+        "proposed": 2,
+        "accepted": 0,
+        "tokens": [
+          28783,
+          34454,
+          5992
+        ]
+      },
+      "17": {
+        "proposed": 12,
+        "accepted": 5,
+        "tokens": [
+          28783,
+          34454,
+          5992,
+          13516,
+          47991,
+          644,
+          220,
+          17,
+          23505,
+          72478,
+          401,
+          79235,
+          29854,
+          1778,
+          4606,
+          34454,
+          3656
+        ]
+      }
+    },
+    "checked": [
+      "greedy tokens and counters",
+      "head KV, compressed indices and tail against AR",
+      "last target hidden row and next 248320 logits",
+      "pending token ownership, budget boundaries, cancellation",
+      "injected EOF after proposal then rollback and retry"
+    ]
+  },
+  "kani": {
+    "version": "0.68.0",
+    "harness": "speculative::normalized_greedy_retains_first_finite_maximum",
+    "lengths": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "inputs": "three arbitrary IEEE-754 f32 words",
+    "obligations": 195,
+    "failed": 0,
+    "unreachable": 1,
+    "covers": 2,
+    "full_package": "compiler ICE in kani-compiler/src/intrinsics.rs:243"
+  },
+  "suites": {
+    "cpu": {
+      "passed": 307,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 308,
+      "failed": 0,
+      "ignored": 24
+    },
+    "stock": {
+      "passed": 344,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "python": {
+    "passed": 7,
+    "subtests": 6,
+    "skipped_macOS": 44
+  },
+  "prior_diagnostics": {
+    "mixed_unequal_initial": 10235,
+    "mixed_unequal_after_projection_fix": 331,
+    "hidden_norm_ulp": 1,
+    "hidden_norm_unequal": 6566,
+    "hidden_fc_unequal": 485,
+    "discarded_zero_selected_runs": 1
+  },
+  "physical_tests": [
+    "gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary",
+    "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+    "gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state"
+  ]
+}
