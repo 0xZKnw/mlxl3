@@ -51,7 +51,7 @@ type RoundDraft = mlxl3_native::dflash::DFlashWeights;
     target_os = "macos",
     feature = "direct-metal"
 ))]
-type RoundDraft = std::convert::Infallible;
+type RoundDraft = mlxl3_native::native_draft::Session;
 #[cfg(any(
     test,
     all(
@@ -2194,7 +2194,6 @@ struct BridgeRequest {
     response_schema: Option<String>,
     #[serde(default)]
     dflash2: bool,
-    #[cfg(feature = "mlx")]
     #[serde(default)]
     dflash_draft_path: String,
     #[serde(default = "default_mtp_depth")]
@@ -3205,8 +3204,12 @@ fn bridge_generate_round(
     };
     #[cfg(not(feature = "mlx"))]
     let (mut logits, cached, mut mtp_session) = {
-        let _ = (draft, dflash_mode, cache, conversation, reuse);
-        direct_bridge::prefill(model, mtp.as_deref_mut(), &tokens, mtp_depth, cancelled)?
+        let _ = (dflash_mode, cache, conversation, reuse);
+        if let Some(draft) = draft {
+            (draft.prefill(model, &tokens, cancelled)?, 0, None)
+        } else {
+            direct_bridge::prefill(model, mtp.as_deref_mut(), &tokens, mtp_depth, cancelled)?
+        }
     };
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     #[cfg(feature = "mlx")]
@@ -3343,6 +3346,9 @@ fn bridge_generate_round(
                     u32::try_from(context_limit)?,
                     budget - generated.len(),
                 )?);
+            } else if let Some(draft) = draft {
+                dflash_next =
+                    Some(draft.advance(model, next, context_limit, budget - generated.len())?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -3445,6 +3451,22 @@ fn bridge_generate_round(
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
         #[cfg(not(feature = "mlx"))]
         mtp_blocks: mtp_session.as_ref().map(|s| s.proposed),
+        #[cfg(not(feature = "mlx"))]
+        dflash_proposed_tokens: draft.map(|s| s.stats().0),
+        #[cfg(not(feature = "mlx"))]
+        dflash_accepted_tokens: draft.map(|s| s.stats().1),
+        #[cfg(not(feature = "mlx"))]
+        dflash_blocks: draft.map(|s| s.stats().2),
+        #[cfg(not(feature = "mlx"))]
+        dflash_profile: draft.map(|s| s.profile()),
+        #[cfg(not(feature = "mlx"))]
+        dflash_lookup_blocks: draft.map(|_| 0),
+        #[cfg(not(feature = "mlx"))]
+        dflash_block_seconds: draft.map_or(0., |d| {
+            let p = d.profile();
+            p.draft_seconds + p.verification_seconds + p.commit_cache_seconds
+        }),
+
         ..Default::default()
     };
     #[cfg(feature = "mlx")]

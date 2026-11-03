@@ -219,6 +219,14 @@ impl<'a> FlashNext<'a> {
             std::process::id(),
         ))
     }
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn checkpoint_path(&self) -> &std::path::Path {
+        &self.checkpoint_path
+    }
     pub fn context_limit(&self) -> u32 {
         self.context
     }
@@ -259,12 +267,18 @@ impl<'a> FlashNext<'a> {
         &mut self,
         token: u32,
         mut trace: Option<&mut Vec<FlashTraceTensor>>,
+        mut captures: Option<(&[usize], &mut Vec<MatrixView>)>,
     ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
         for (i, layer) in self.layers.iter_mut().enumerate() {
             streams = layer
                 .forward(&streams, token)
                 .with_context(|| format!("running Flash layer {i}"))?;
+            if let Some((ids, rows)) = &mut captures
+                && ids.contains(&i)
+            {
+                rows.push(streams.clone());
+            }
             if let Some(t) = &mut trace {
                 t.push(FlashTraceTensor {
                     name: format!("layer_{i}"),
@@ -283,18 +297,90 @@ impl<'a> FlashNext<'a> {
         Ok(streams)
     }
 
+    #[cfg(feature = "chat")]
+    pub(crate) fn forward_captured(
+        &mut self,
+        token: u32,
+        ids: &[usize; 5],
+    ) -> Result<(Vec<u16>, crate::native_bf16::Matrix)> {
+        let before = self.snapshot();
+        let operation = (|| {
+            let mut rows = Vec::with_capacity(5);
+            let logits = self.prefill_inner(&[token], None, Some((ids, &mut rows)))?;
+            ensure!(rows.len() == 5, "incomplete native draft captures");
+            let mut captured = Vec::with_capacity(12800);
+            for row in rows {
+                ensure!(row.shape() == [1, 10240] && row.dtype == crate::gpu::view::FloatType::F32);
+                let bytes = row.export_bytes(self.gpu)?;
+                ensure!(bytes.len() == 40960);
+                let values: Vec<_> = bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|&b| f32::from_le_bytes(b))
+                    .collect();
+                for col in 0..2560 {
+                    captured.push(crate::native_bf16::round(
+                        ((values[col] + values[2560 + col])
+                            + values[5120 + col]
+                            + values[7680 + col])
+                            * 0.25,
+                    ));
+                }
+            }
+            Ok((logits, crate::native_bf16::Matrix::new(1, 12800, captured)?))
+        })();
+        if operation.is_err() {
+            self.restore(&before)?;
+        }
+        operation
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn draft_embedding(&self, token: u32) -> Result<Vec<f32>> {
+        Ok(self
+            .embedding_bits(token)?
+            .into_iter()
+            .map(|bits| crate::native_bf16::round(f16::from_bits(bits).to_f32()))
+            .collect())
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn draft_logits(&self, rows: &crate::native_bf16::Matrix) -> Result<Vec<Vec<f32>>> {
+        ensure!(
+            rows.cols == 2560 && (1..=7).contains(&rows.rows),
+            "invalid native draft head rows"
+        );
+        rows.values
+            .as_chunks::<2560>()
+            .0
+            .iter()
+            .map(|row| {
+                let half: Vec<_> = row.iter().map(|&v| f16::from_f32(v).to_bits()).collect();
+                Ok(self
+                    .head
+                    .submit(&half)?
+                    .read()?
+                    .into_iter()
+                    .map(|v| crate::native_bf16::round(f16::from_bits(v).to_f32()))
+                    .collect())
+            })
+            .collect()
+    }
+
     pub fn forward_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
         let mut trace = Vec::with_capacity(84);
-        let logits = self.prefill_inner(&[token], Some(&mut trace))?;
+        let logits = self.prefill_inner(&[token], Some(&mut trace), None)?;
         Ok((logits, trace))
     }
     pub fn prefill(&mut self, tokens: &[u32]) -> Result<Vec<u16>> {
-        self.prefill_inner(tokens, None)
+        self.prefill_inner(tokens, None, None)
     }
     fn prefill_inner(
         &mut self,
         tokens: &[u32],
         trace: Option<&mut Vec<FlashTraceTensor>>,
+        captures: Option<(&[usize], &mut Vec<MatrixView>)>,
     ) -> Result<Vec<u16>> {
         let end = crate::flash_support::flash_prompt_end(self.offset, tokens.len(), self.context)
             .context("empty prompt or Flash context exhausted")?;
@@ -306,9 +392,9 @@ impl<'a> FlashNext<'a> {
         let before = self.snapshot();
         let result = (|| {
             for &token in prefix {
-                self.hidden(token, None)?;
+                self.hidden(token, None, None)?;
             }
-            let streams = self.hidden(last, trace)?;
+            let streams = self.hidden(last, trace, captures)?;
             let mixed = self.mixer.read(&streams, false)?.mixed;
             let logits = self.head.submit_fp16_view(&mixed)?.read()?;
             self.hidden = Some(streams);
