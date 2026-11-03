@@ -1,0 +1,110 @@
+"""Read-only qualification of available models. Keep original fixtures and join every child."""
+from pathlib import Path
+import array, hashlib, json, math, os, resource, runpy, subprocess, sys, time
+
+root=Path.cwd(); b=root/'build/issue75n'; raw=b/'raw'; docs=root/'docs/native-coverage/baselines'
+stock=Path('/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0/build/issue75')
+ref=root/'docs/measurements/issue75-migration-20261103'
+inputs=json.loads((b/'local-paths.json').read_text())
+models=json.loads((docs/'local-checkpoints.json').read_text())
+campaign=docs/'qwen-moe-two-tokens'
+docs=campaign/'retry14';docs.mkdir(exist_ok=True)
+raw=raw/'qwen-moe-two-tokens'/'retry14';raw.mkdir(exist_ok=True)
+read=lambda p:json.loads(p.read_bytes())
+def sha(p):
+ with p.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+bins=read(ref/'source-manifest.json')['binaries']
+for name in ['r5-cli','r5-libtest']: assert sha(stock/name)==bins[name]
+anchorfile=campaign/'anchor.json'
+supervise=runpy.run_path('docs/measurements/slotstream-20261026/supervisor.py')
+parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+footprint=runpy.run_path('benchmarks/benchmark_idle_memory.py')['footprint']
+def check(row,pid=None):
+ vm=parse(subprocess.check_output(['vm_stat'],text=True,timeout=2))
+ incoming=vm['Swapins']-anchor['Swapins']; outgoing=vm['Swapouts']-anchor['Swapouts']
+ for key,value in [('swapout_bytes',outgoing),('swapin_bytes',incoming)]:
+  row[key]=max(value,row.get(key,0))
+ assert 0<=incoming<=256<<20 and 0<=outgoing<=32<<20,'cumulative swap guard'
+ assert 'AC Power' in subprocess.check_output(['pmset','-g','batt'],text=True,timeout=2),'power changed'
+ if pid is None:
+  row['available_before']=vm['Pages free']+vm['File-backed pages']
+  assert row['available_before']>=8_000_000_000,'admission 8 GB'
+ guard={};supervise['check_quiet'](guard,pid)
+ row['quiet_checks']=row.get('quiet_checks',0)+1
+ if pid:
+  # Drop other process names, including those outside the experiment.
+  size=footprint(pid); rss=subprocess.run(['ps','-p',str(pid),'-o','rss='],capture_output=True,text=True,timeout=2,check=False)
+  if not rss.stdout.strip(): raise ProcessLookupError(pid)
+  row['max_footprint_bytes']=max(row.get('max_footprint_bytes',0),size)
+  row['max_rss_bytes']=max(row.get('max_rss_bytes',0),int(rss.stdout)*1024)
+  assert size<=14_000_000_000 and row['max_rss_bytes']<=10<<30,'process memory guard'
+
+def tensors(path,tokens,vocab,states):
+ rows=[]
+ with path.open() as f:
+  for line in f:
+   j=json.loads(line); logits=j['logits']
+   assert len(logits)==vocab and all(type(x) is int and 0<=x<=65535 and (x&0x7c00)!=0x7c00 for x in logits),'logit count/finitude'
+   data=array.array('H',logits);assert sys.byteorder=='little' and data.itemsize==2
+   snap={}
+   for st in j['states']:
+    shape=st['shape']; blob=bytes(st['data'])
+    assert shape and all(type(n) is int and n>0 for n in shape) and blob and len(blob)%math.prod(shape)==0 and st['name'] not in snap
+    snap[st['name']]={'shape':shape,'bytes':len(blob),'sha256':hashlib.sha256(blob).hexdigest()}
+   if states:assert snap,'empty states'
+   rows.append({'token':j['token'],'logits':len(logits),'logits_sha256':hashlib.sha256(data).hexdigest(),'states':snap})
+ assert [x['token'] for x in rows]==tokens
+ return rows
+def run(model,mode):
+ lib=mode=='frozen'; tag=model+'-'+mode
+ key='r5-libtest' if lib else 'r5-cli'; exe=stock/key
+ env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','MLX_','DYLD_'))}
+ env['MLXL3_ALLOCATOR_CACHE_MIB']='64';env['DEVELOPER_DIR']='/Applications/Xcode.app/Contents/Developer'
+ if lib:
+  case='qwen35::tests::checkpoint_optimization_matches_saved_logits_and_states'
+  fixture=Path.home()/'Documents/mix-stq1_0/build/qwen38-norm-reference'
+  args=[str(exe),case,'--exact','--ignored','--nocapture','--test-threads=1']
+  env.update(MLXL3_QWEN_TEST_MODEL=inputs[model],MLXL3_QWEN_REFERENCE_DIR=str(fixture))
+ else:
+  args=[str(exe),'forward',inputs[model],'--tokens','1,2']
+  if model=='lfm-moe':args.append('--states')
+  if mode=='batch':args.append('--batch')
+ row={'model':model,'mode':mode,'status':'starting','command':args,'binary_sha256':bins[key],'source':'a7eb377cd46326760e295d9b79ad1c2d63622a3b','options':{k:v for k,v in env.items() if k.startswith('MLXL3_')},'limits':{'rss':10<<30,'footprint':14_000_000_000,'swapout':32<<20,'swapin':256<<20,'deadline_s':180},'anchor_sha256':sha(anchorfile),'runner_sha256':sha(Path(__file__)),'reaped':False}
+ receipt=docs/(tag+'.json');assert not receipt.exists()
+ def save():receipt.write_text(json.dumps(row,indent=2)+'\n')
+ save();child=None;t=time.monotonic();out=raw/(tag+'.stdout');err=raw/(tag+'.stderr')
+ try:
+  check(row)
+  with out.open('xb') as of, err.open('xb') as ef:
+   child=subprocess.Popen(args,stdout=of,stderr=ef,env=env,start_new_session=True)
+   while child.poll() is None:
+    if time.monotonic()-t>180:raise TimeoutError('180 s elapsed')
+    try:check(row,child.pid)
+    except (OSError,ValueError) as e:
+     if child.poll() is None:raise
+    assert out.stat().st_size<=768<<20,'fixture output bound'
+    time.sleep(.2)
+  assert child.returncode==0,f'child exit {child.returncode}'
+  row['children_maximum_rss_bytes']=resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+  assert row['children_maximum_rss_bytes']<=10<<30,'peak RSS guard'
+  vm=parse(subprocess.check_output(['vm_stat'],text=True,timeout=2))
+  assert 0<=vm['Swapouts']-anchor['Swapouts']<=32<<20 and 0<=vm['Swapins']-anchor['Swapins']<=256<<20
+  if lib:
+   s=out.read_text()+err.read_text()
+   assert case in s and '1 passed; 0 failed' in s and s.count('128 state arrays and 248320 finite logits bit-identical')==12, 'incomplete oracle'
+   row['oracle_lines']=[line.strip() for line in s.splitlines() if 'finite logits bit-identical' in line]
+  else:row['outputs']=tensors(out,[2] if mode=='batch' else [1,2],models[model]['vocab_size'],model=='lfm-moe')
+  row['status']='completed'
+ except BaseException as e:
+  row['status']='interrupted_or_failed';row['error']=f'{type(e).__name__}: {e}';raise
+ finally:
+  if child is not None:
+   if child.poll() is None:supervise['stop'](child)
+   row['exit_code']=child.wait();row['reaped']=True
+  row['elapsed_s']=round(time.monotonic()-t,3)
+  if out.exists():row['stdout_sha256']=sha(out)
+  if err.exists():row['stderr_sha256']=sha(err)
+  save();print(tag,row['status'],row.get('error',''),flush=True)
+ return row
+anchor=read(anchorfile)['vm_bytes']
+run('qwen-moe','serial')
