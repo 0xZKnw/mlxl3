@@ -1,0 +1,33 @@
+{
+  "status": "complete",
+  "base": "79ddd6b345381be77ffd6c80a28d6a198c4f93b6",
+  "theme": "midnightBlue",
+  "targeted_assertions": 62,
+  "coverage": [
+    "all four preferences round-trip",
+    "draft and conversation unchanged",
+    "actual settings pixel check confirms blue canvas",
+    "render Light/Dark/Midnight blue/Light in same instance",
+    "System appearance follows host application",
+    "actual main window rendered and visually inspected",
+    "startup model selection/manual loading/errors unchanged"
+  ],
+  "release_build": "passed",
+  "signed_test_bundle": "rebuilt",
+  "sources": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/AppSettingsView.swift": "2c6c3fc742db995fe33fd9599b14915061913e52e53191c4104509647f47c205",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ChatComponents.swift": "41aba71ddf9c6f0bf7ba3e41fefd859bc0020effbef6a52ac55627cfea240982",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/DesktopPreferences.swift": "fc1692dd8daf480450d2eb8aef6b6415285f7a6419040ed1cd7039d8643a54bd",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift": "23c3f94e720e365d32445d7b175c8db9c90d6aeada24c1315fd5224c8ed8ea58",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MLXL3StudioApp.swift": "82f9f7269ab9877caea18323508e73844a7e9c1692d5482721eacda4960e9e61",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MenuBarPanel.swift": "54cc196a28d35e19f11e2f27b1deb61a7e42b4842251f9331cf607b0e4bcb276",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/ModelManager.swift": "9df97e25d169030cc397c533f0c9182cbdb380081e76854a521a3758bc78be17",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/StudioView.swift": "128dabdaccd61191311fac51a1c5b35ff85dc5bc7705ae12002b5af496262a21",
+    "apps/MLXL3Studio/Sources/MLXL3Studio/Theme.swift": "2d6997636419bffe17dbb9e725d5119d964417d733576802dd2e6ae3e24aa3b0",
+    "tests/desktop-preferences-check.swift": "1f31d12f2e9b07cadcd9d87b784a095e62c4721d161d676fd81045063150daa1"
+  },
+  "formal_swift": "not verified; no Swift source verifier configured; same limitation as preceding report",
+  "full_desktop_and_python_suites": "passed on preceding feature commit, not repeated for this palette-only change",
+  "engine_model_tests": "not repeated; no engine, model or generation code changed",
+  "installed_app_replaced": false
+}

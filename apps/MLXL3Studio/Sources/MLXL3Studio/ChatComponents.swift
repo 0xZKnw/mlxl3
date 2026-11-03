@@ -123,7 +123,7 @@ private struct MessageView: View {
                     .textSelection(.enabled)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
-                    .background(Color.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
+                    .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
                 }
                 HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
             }
@@ -256,7 +256,7 @@ private struct MCPToolActivityRow: View {
             if let result = activity.result, !result.isEmpty {
                 Text(result)
                     .font(.system(size: 10.5, weight: .regular, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.58))
+                    .foregroundStyle(StudioTheme.contrast.opacity(0.58))
                     .lineLimit(10)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -283,13 +283,13 @@ private struct MCPToolActivityRow: View {
                     .foregroundStyle(stateColor)
             }
         }
-        .tint(Color.white.opacity(0.42))
+        .tint(StudioTheme.contrast.opacity(0.42))
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
+        .background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
         .overlay {
             RoundedRectangle(cornerRadius: 11)
-                .stroke(Color.white.opacity(0.07), lineWidth: 0.6)
+                .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.6)
         }
     }
 
@@ -401,7 +401,7 @@ private struct ThinkingBlock: View, Equatable {
             }
             .foregroundStyle(StudioTheme.thinking)
         }
-        .tint(Color.white.opacity(0.52))
+        .tint(StudioTheme.contrast.opacity(0.52))
         .padding(.leading, 14)
         .padding(.vertical, 5)
         .overlay(alignment: .leading) {
@@ -478,7 +478,7 @@ private struct MetricChip: View {
             Image(systemName: icon)
                 .font(.system(size: 8, weight: .semibold))
             Text(value)
-                .foregroundStyle(Color.white.opacity(0.72))
+                .foregroundStyle(StudioTheme.contrast.opacity(0.72))
             Text(label)
                 .foregroundStyle(StudioTheme.quiet)
         }
@@ -529,12 +529,13 @@ struct ChatAttachmentView: View {
         .foregroundStyle(StudioTheme.secondary)
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .background(StudioTheme.contrast.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         .frame(maxWidth: 300)
     }
 }
 
 struct ComposerView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
     @State private var dropTargeted = false
@@ -608,7 +609,7 @@ struct ComposerView: View {
                     Button(action: studio.stopGeneration) {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(StudioTheme.onAccent)
                             .frame(width: 31, height: 31)
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
@@ -618,7 +619,7 @@ struct ComposerView: View {
                     Button(action: studio.send) {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(studio.canSend ? Color.black : Color.white.opacity(0.35))
+                            .foregroundStyle(studio.canSend ? StudioTheme.onAccent : StudioTheme.contrast.opacity(0.35))
                             .frame(width: 31, height: 31)
                     }
                     .buttonStyle(RoundGlassButtonStyle(bright: true))
@@ -638,10 +639,10 @@ struct ComposerView: View {
             guard !studio.isGenerating else { return }
             focused = true
         }
-        .background(Color(red: 0.105, green: 0.108, blue: 0.108), in: RoundedRectangle(cornerRadius: 12))
+        .background(StudioTheme.composer(for: appTheme), in: RoundedRectangle(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(dropTargeted ? StudioTheme.accent : Color.white.opacity(focused ? 0.22 : 0.10), lineWidth: dropTargeted ? 1.5 : 0.7)
+                .stroke(dropTargeted ? StudioTheme.accent : StudioTheme.contrast.opacity(focused ? 0.22 : 0.10), lineWidth: dropTargeted ? 1.5 : 0.7)
                 .allowsHitTesting(false)
         }
         .dropDestination(for: URL.self) { urls, _ in

@@ -1,6 +1,13 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h:h}"
+preferences_only=false
+if [[ "${1:-}" == --preferences-only && $# == 1 ]]; then
+    preferences_only=true
+elif (( $# != 0 )); then
+    print -u2 "Usage: $0 [--preferences-only]"
+    exit 2
+fi
 test_python="${MLXL3_TEST_PYTHON:-}"
 if [[ -z "${test_python}" ]]; then
     test_python="$(command -v python3)"
@@ -57,6 +64,56 @@ else
     math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
 fi
 
+# Both CI paths compile and run the same registered response app and fixtures.
+check_response_ui() {
+    local -a response_sources
+    response_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
+    local response_app="${test_dir}/MLXL3 Response Check.app"
+    awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
+        tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
+    mkdir -p "${response_app}/Contents/MacOS"
+    cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
+    swiftc "${swiftc_args[@]}" -O \
+        "${response_sources[@]}" "${math_objects[@]}" \
+        "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
+    print "Response UI Swift 6 compilation passed"
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
+    # A fresh process runs the fixed-size native bitmap/OCR checks.
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+}
+
+# The focused PR job and the full suite execute the same production fixtures.
+check_preferences() {
+    local -a idle_sources
+    idle_sources=("${(@)sources:#*/StudioModel.swift}")
+    # Appearance persistence, startup gate and actual subprocess lifecycle.
+    awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+        tests/desktop-preferences-check.swift > "${test_dir}/DesktopPreferencesCombined.swift"
+    swiftc "${swiftc_args[@]}" -warnings-as-errors \
+        "${idle_sources[@]}" "${math_objects[@]}" \
+        "${test_dir}/DesktopPreferencesCombined.swift" -o "${test_dir}/preferences-check"
+    run_fixture_check "${test_dir}/preferences-check" "$PWD/tests/fake-desktop-engine.py"
+
+    awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+        tests/completion-notifications-check.swift > "${test_dir}/CompletionNotificationsCombined.swift"
+    swiftc "${swiftc_args[@]}" -warnings-as-errors \
+        "${idle_sources[@]}" "${math_objects[@]}" \
+        "${test_dir}/CompletionNotificationsCombined.swift" -o "${test_dir}/notification-check"
+    run_fixture_check "${test_dir}/notification-check" "$PWD/tests/fake-desktop-engine.py"
+    swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
+        tests/logo-appearance-check.swift -o "${test_dir}/logo-appearance-check"
+    run_fixture_check "${test_dir}/logo-appearance-check"
+    if ${preferences_only}; then
+        check_response_ui
+    fi
+}
+
+if ${preferences_only}; then
+    check_preferences
+    print "Desktop preferences, notifications, logo and response UI checks passed"
+    exit 0
+fi
+
 awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
     tests/studio-hardening-check.swift > "${test_dir}/StudioHardeningCombined.swift"
 hardening_sources=("${(@)sources:#*/UpdateManager.swift}")
@@ -89,6 +146,8 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
 "${test_dir}/idle-unload-check" "$PWD/tests/fake-desktop-engine.py"
+
+check_preferences
 
 # Keep global speculative preferences independent of current-model sampling.
 awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
@@ -158,19 +217,7 @@ swiftc "${swiftc_args[@]}" -O \
     -o "${test_dir}/streaming-check"
 "${test_dir}/streaming-check"
 
-awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
-    tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
-response_sources=("${sources[@]}")
-response_sources=("${(@)response_sources:#*/MarkdownResponseView.swift}")
-response_app="${test_dir}/MLXL3 Response Check.app"
-mkdir -p "${response_app}/Contents/MacOS"
-cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
-swiftc "${swiftc_args[@]}" -O \
-    "${response_sources[@]}" "${math_objects[@]}" \
-    "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
-"${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
-# A registered app and a fresh process make physical viewport visibility observable.
-run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+check_response_ui
 
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).

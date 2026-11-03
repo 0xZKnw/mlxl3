@@ -361,7 +361,8 @@ extension StudioModel {
     logoWindow.isReleasedWhenClosed = false
     defer { logoWindow.close() }
     let logoHost = NSHostingView(
-      rootView: MonogramMark(size: 96).padding(16).background(StudioTheme.canvas))
+      rootView: MonogramMark(size: 96).padding(16).background(StudioTheme.canvas)
+        .studioAppearance(.dark))
     logoWindow.contentView = logoHost
     logoHost.frame = NSRect(x: 0, y: 0, width: 128, height: 128)
     try await Task.sleep(for: .milliseconds(250))

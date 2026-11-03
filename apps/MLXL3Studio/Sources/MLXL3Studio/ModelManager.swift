@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ModelManagerView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.dismiss) private var dismiss
     @State private var discover = false
@@ -33,14 +34,14 @@ struct ModelManagerView: View {
                         .font(.system(size: 27, weight: .regular, design: .serif))
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
                         .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
-                }.padding(18).frame(width: 180).background(StudioTheme.sidebar)
+                }.padding(18).frame(width: 180).background(StudioTheme.sidebar(for: appTheme))
                 Divider().overlay(StudioTheme.edge)
                 if quantize { QuantizationStudioView(quantizer: studio.quantizer) }
                 else if discover { HubBrowserView(library: studio.modelLibrary) } else { installed }
             }
             LibraryDownloadView(library: studio.modelLibrary)
         }
-        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas)
+        .foregroundStyle(StudioTheme.ink).background(StudioTheme.canvas(for: appTheme))
         .onAppear { if studio.quantizer.converting { quantize = true } }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(width: min(1040, (NSScreen.main?.visibleFrame.width ?? 1200) - 60),
@@ -64,7 +65,7 @@ struct ModelManagerView: View {
         Button(action: action) {
             Label(title, systemImage: icon).font(.system(size: 12, weight: .medium))
                 .frame(maxWidth: .infinity, alignment: .leading).padding(11)
-                .background(active ? Color.white.opacity(0.065) : .clear, in: RoundedRectangle(cornerRadius: 7))
+                .background(active ? StudioTheme.contrast.opacity(0.065) : .clear, in: RoundedRectangle(cornerRadius: 7))
         }.buttonStyle(StudioControlStyle())
     }
 
@@ -130,6 +131,7 @@ struct ModelManagerView: View {
 }
 
 private struct HubBrowserView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var library: ModelLibrary
 
@@ -183,7 +185,7 @@ private struct HubBrowserView: View {
             }
             if let error = library.error { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
         }.padding(26).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .overlay { if library.loadingDetail { ProgressView().padding(20).background(StudioTheme.canvas, in: RoundedRectangle(cornerRadius: 12)) } }
+            .overlay { if library.loadingDetail { ProgressView().padding(20).background(StudioTheme.canvas(for: appTheme), in: RoundedRectangle(cornerRadius: 12)) } }
             .onChange(of: library.query) { library.search() }
             .onAppear { if library.results.isEmpty { library.search() } }
     }

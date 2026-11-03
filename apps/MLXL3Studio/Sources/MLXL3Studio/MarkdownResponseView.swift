@@ -592,7 +592,7 @@ private struct MarkdownChunkView: View, Equatable {
         case let .unordered(indent, text):
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Circle()
-                    .fill(Color.white.opacity(indent == 0 ? 0.72 : 0.42))
+                    .fill(StudioTheme.contrast.opacity(indent == 0 ? 0.72 : 0.42))
                     .frame(width: indent == 0 ? 4.5 : 3.5, height: indent == 0 ? 4.5 : 3.5)
                 animatedText(text, size: 15, weight: .regular)
                     .lineSpacing(4)
@@ -602,7 +602,7 @@ private struct MarkdownChunkView: View, Equatable {
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text(number + ".")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.48))
+                    .foregroundStyle(StudioTheme.contrast.opacity(0.48))
                     .frame(minWidth: 18, alignment: .trailing)
                 animatedText(text, size: 15, weight: .regular)
                     .lineSpacing(4)
@@ -611,11 +611,11 @@ private struct MarkdownChunkView: View, Equatable {
         case let .quote(text):
             HStack(spacing: 12) {
                 Capsule()
-                    .fill(Color.white.opacity(0.22))
+                    .fill(StudioTheme.contrast.opacity(0.22))
                     .frame(width: 2)
                 animatedText(text, size: 13.5, weight: .regular)
                     .italic()
-                    .foregroundStyle(Color.white.opacity(0.68))
+                    .foregroundStyle(StudioTheme.contrast.opacity(0.68))
             }
             .padding(.vertical, 2)
         case let .code(language, text):
@@ -634,7 +634,7 @@ private struct MarkdownChunkView: View, Equatable {
             Rectangle()
                 .fill(
                     LinearGradient(
-                        colors: [.clear, Color.white.opacity(0.16), .clear],
+                        colors: [.clear, StudioTheme.contrast.opacity(0.16), .clear],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
@@ -655,7 +655,7 @@ private struct MarkdownChunkView: View, Equatable {
             streaming: streaming
         )
         .font(.system(size: size, weight: weight))
-        .foregroundStyle(Color.white.opacity(0.92))
+        .foregroundStyle(StudioTheme.contrast.opacity(0.92))
     }
 
     private func headingSize(_ level: Int) -> CGFloat {
@@ -827,13 +827,27 @@ enum MarkdownRegressionCheck {
 
 @MainActor
 enum SyntaxHighlighter {
-    private static let base = NSColor(srgbRed: 0.82, green: 0.85, blue: 0.89, alpha: 1)
-    private static let comment = NSColor(srgbRed: 0.43, green: 0.49, blue: 0.54, alpha: 1)
-    private static let string = NSColor(srgbRed: 0.62, green: 0.83, blue: 0.65, alpha: 1)
-    private static let keyword = NSColor(srgbRed: 0.48, green: 0.73, blue: 0.98, alpha: 1)
-    private static let type = NSColor(srgbRed: 0.74, green: 0.67, blue: 0.94, alpha: 1)
-    private static let number = NSColor(srgbRed: 0.94, green: 0.72, blue: 0.43, alpha: 1)
-    private static let function = NSColor(srgbRed: 0.48, green: 0.84, blue: 0.86, alpha: 1)
+    private static let base = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.10, green: 0.13, blue: 0.17, alpha: 1),
+        dark: NSColor(srgbRed: 0.82, green: 0.85, blue: 0.89, alpha: 1))
+    private static let comment = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.32, green: 0.36, blue: 0.39, alpha: 1),
+        dark: NSColor(srgbRed: 0.43, green: 0.49, blue: 0.54, alpha: 1))
+    private static let string = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.15, green: 0.39, blue: 0.20, alpha: 1),
+        dark: NSColor(srgbRed: 0.62, green: 0.83, blue: 0.65, alpha: 1))
+    private static let keyword = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.08, green: 0.30, blue: 0.65, alpha: 1),
+        dark: NSColor(srgbRed: 0.48, green: 0.73, blue: 0.98, alpha: 1))
+    private static let type = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.43, green: 0.22, blue: 0.62, alpha: 1),
+        dark: NSColor(srgbRed: 0.74, green: 0.67, blue: 0.94, alpha: 1))
+    private static let number = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.55, green: 0.29, blue: 0.05, alpha: 1),
+        dark: NSColor(srgbRed: 0.94, green: 0.72, blue: 0.43, alpha: 1))
+    private static let function = StudioTheme.adaptiveColor(
+        light: NSColor(srgbRed: 0.05, green: 0.36, blue: 0.40, alpha: 1),
+        dark: NSColor(srgbRed: 0.48, green: 0.84, blue: 0.86, alpha: 1))
     private static var lexerCache: [String: NSRegularExpression] = [:]
     private static var markupRegexCache: [(NSRegularExpression, NSColor)]?
 
@@ -1192,10 +1206,10 @@ private struct MarkdownTableView: View {
                     }
                 }
             }
-            .background(Color.white.opacity(0.018), in: RoundedRectangle(cornerRadius: 11))
+            .background(StudioTheme.contrast.opacity(0.018), in: RoundedRectangle(cornerRadius: 11))
             .overlay {
                 RoundedRectangle(cornerRadius: 11)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 0.7)
+                    .stroke(StudioTheme.contrast.opacity(0.10), lineWidth: 0.7)
             }
             .clipShape(RoundedRectangle(cornerRadius: 11))
         }
@@ -1209,18 +1223,18 @@ private struct MarkdownTableView: View {
             streaming: streaming
         )
         .font(.system(size: 12.5, weight: isHeader ? .semibold : .regular, design: .rounded))
-        .foregroundStyle(Color.white.opacity(isHeader ? 0.92 : 0.76))
+        .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
         .frame(minWidth: 112, maxWidth: 260, alignment: frameAlignment(column))
         .padding(.horizontal, 12)
         .padding(.vertical, isHeader ? 10 : 9)
-        .background(isHeader ? Color.white.opacity(0.055) : Color.clear)
+        .background(isHeader ? StudioTheme.contrast.opacity(0.055) : Color.clear)
         .overlay(alignment: .trailing) {
             if column < header.count - 1 {
-                Rectangle().fill(Color.white.opacity(0.07)).frame(width: 0.7)
+                Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(width: 0.7)
             }
         }
         .overlay(alignment: .bottom) {
-            Rectangle().fill(Color.white.opacity(0.07)).frame(height: 0.7)
+            Rectangle().fill(StudioTheme.contrast.opacity(0.07)).frame(height: 0.7)
         }
     }
 
@@ -1250,7 +1264,7 @@ private enum InlineLatexText {
                     return Text("\(result)\(Text(raw))")
                 }
                 let offset = mode == .display ? -2.4 : -1.2
-                let formula = Text(Image(nsImage: image)).baselineOffset(offset)
+                let formula = Text(Image(nsImage: image).renderingMode(.template)).baselineOffset(offset)
                 return Text("\(result)\(formula)")
             }
         }
@@ -1464,6 +1478,7 @@ private enum LatexImageCache {
         )
         let (_, rendered) = renderer.asImage()
         guard let rendered else { return nil }
+        rendered.isTemplate = true
         cache.setObject(rendered, forKey: key, cost: Int(rendered.size.width * rendered.size.height * 4))
         return rendered
     }
@@ -1483,6 +1498,8 @@ private struct LatexBlockView: View {
             ) {
                 ScrollView(.horizontal) {
                     Image(nsImage: image)
+                        .renderingMode(.template)
+                        .foregroundStyle(StudioTheme.ink)
                         .accessibilityLabel(latex)
                         .padding(.horizontal, 16)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -1491,7 +1508,7 @@ private struct LatexBlockView: View {
             } else {
                 Text("$$\n\(latex)\n$$")
                     .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.68))
+                    .foregroundStyle(StudioTheme.contrast.opacity(0.68))
             }
         }
         .padding(.vertical, 7)

@@ -1,0 +1,25 @@
+{
+  "status": "complete",
+  "desktop_suite": "passed",
+  "new_preferences_assertions": 52,
+  "tests": "real StudioModel/bridge subprocess, temporary history and isolated preferences, no user models",
+  "appearance": "settings Light/Dark/Light on same instance; System follows application appearance; rich code/math/table renders visually inspected in Light/Dark",
+  "mutation": "incorrect default detected in copied production source; original source never mutated",
+  "release_build": "passed",
+  "release_sha256": "12bd438158f5aa749dc297ed027f74e74a0aadb19e64ad13db080d75efe15901",
+  "python_lint": "ruff F,E9 passed; py_compile passed with local cache directory",
+  "shell_syntax": "zsh -n passed",
+  "formal_swift": "not verified; no Swift verifier configured or available, not a proof",
+  "limitations": [
+    "physical model inference not rerun; engine/Rust/Metal unchanged",
+    "native button clicks not automated; production setters, generated views and bridge exercised",
+    "hosted CI not yet run for new commit",
+    "installed app not replaced"
+  ],
+  "retained_initial_failures": [
+    "final helper used old SwiftPM output layout; corrected to actual .build/debug path",
+    "system appearance fixture changed individual window instead of application; corrected to NSApplication appearance and now passes",
+    "initial standalone py_compile cache location denied by sandbox; passed using workspace PYTHONPYCACHEPREFIX"
+  ],
+  "source_state": "modified local files based on72f4744, not final commit identity yet"
+}
