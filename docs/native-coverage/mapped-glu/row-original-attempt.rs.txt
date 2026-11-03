@@ -1,0 +1,47 @@
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn mapped_expert_row_offset(row: u32, width: u32, rows: u32) -> Option<u32> {
+    if width == 0 || !width.is_multiple_of(128) || rows == 0 || row >= rows {
+        return None;
+    }
+    width.checked_mul(rows)?;
+    row.checked_mul(width)
+}
+
+#[test]
+fn mapped_expert_rows_cover_the_bank_without_wrapping_or_unaligned_offsets() {
+    assert_eq!(mapped_expert_row_offset(0, 2048, 8), Some(0));
+    assert_eq!(mapped_expert_row_offset(7, 2048, 8), Some(14336));
+    for (row, width, rows) in [
+        (8, 2048, 8),
+        (0, 2047, 8),
+        (0, 0, 8),
+        (0, 2048, 0),
+        (0, u32::MAX - 127, 2),
+    ] {
+        assert_eq!(mapped_expert_row_offset(row, width, rows), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank() {
+    let row: u32 = kani::any();
+    let width: u32 = kani::any();
+    let rows: u32 = kani::any();
+    let offset = mapped_expert_row_offset(row, width, rows);
+    let total = u64::from(width) * u64::from(rows);
+    let accepted = width > 0
+        && width.is_multiple_of(128)
+        && rows > 0
+        && row < rows
+        && total <= u64::from(u32::MAX);
+    assert_eq!(offset.is_some(), accepted);
+    if let Some(offset) = offset {
+        assert_eq!(u64::from(offset), u64::from(row) * u64::from(width));
+        assert!(offset.is_multiple_of(128));
+        assert!(u64::from(offset) + u64::from(width) <= total);
+        kani::cover!(row == 0);
+        kani::cover!(row == rows - 1 && rows == 8 && width == 2048);
+    }
+    kani::cover!(width == 0 && offset.is_none());
+}

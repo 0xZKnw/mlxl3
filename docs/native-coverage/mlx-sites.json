@@ -1842,6 +1842,7 @@
     "shader ../shaders/flash_reference_reduction.h": 1,
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
+    "shader ../shaders/mapped_expert.metal": 1,
     "shader ../shaders/router_topk.h": 1
   },
   "native/src/gpu/flash.rs": {
@@ -1883,11 +1884,13 @@
     "config MLXL3_PLE_MODEL": 1
   },
   "native/src/gpu/projection.rs": {
-    ".shape": 2,
+    ".shape": 5,
     ".swiglu": 2,
     ".to_f32": 1,
     ".transpose": 1,
-    "config MLXL3_DISABLE_TENSOR_OPS": 1
+    "config MLXL3_DENSE_DECODE_NT4": 1,
+    "config MLXL3_DISABLE_TENSOR_OPS": 2,
+    "config MLXL3_QWEN_NATIVE_MODEL": 2
   },
   "native/src/gpu/qsa.rs": {
     ".shape": 1,
@@ -2145,18 +2148,18 @@
     ".swiglu": 1,
     ".take": 7,
     ".to_bytes": 5,
-    ".to_f16_bits": 30,
+    ".to_f16_bits": 32,
     ".to_f32": 12,
     ".to_u32": 3,
     ".transpose": 19,
     ".try_clone": 7,
     "Array::concatenate": 1,
-    "Array::from_f16_bits": 39,
+    "Array::from_f16_bits": 42,
     "Array::from_f32": 11,
     "Array::from_u16": 5,
-    "Array::from_u32": 3,
+    "Array::from_u32": 4,
     "Array::to_f16_bits": 2,
-    "array::Array": 27,
+    "array::Array": 29,
     "array::capture_for_request": 1,
     "array::clear_cache": 8,
     "array::memory_stats": 9,
@@ -2177,7 +2180,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 173,
+    "mlx": 178,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {

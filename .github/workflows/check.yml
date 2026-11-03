@@ -21,9 +21,11 @@ jobs:
       - run: python -m unittest discover -s tests -p test_native_coverage.py
       - run: python -m unittest discover -s tests -p test_flash_run_report.py
       - run: python -m unittest discover -s tests -p test_flash_trace_report.py
-      - run: python -m pip install numpy==2.5.2
+      - run: python -m pip install numpy==2.5.2 safetensors==0.8.0
       - run: python -m unittest discover -s tests -p test_physical_qwen_gdn.py
-      - run: python -m py_compile tests/physical_flash_projection.py tests/physical_qwen_gdn.py
+      - run: python -m unittest discover -s tests -p test_physical_mapped_expert.py
+      - run: python -m unittest discover -s tests -p test_physical_projection_group.py
+      - run: python -m py_compile tests/physical_flash_projection.py tests/physical_qwen_gdn.py tests/physical_mapped_expert.py tests/physical_projection_group.py
       - run: python scripts/check_native_coverage.py
 
   desktop-and-protocol:
