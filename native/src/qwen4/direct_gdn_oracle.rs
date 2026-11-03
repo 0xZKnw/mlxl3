@@ -138,3 +138,45 @@ fn ple_history_and_complete_layer_on_twelve_steps() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "physical Flash dense-QSA single-query and complete-layer oracle"]
+fn dense_qsa_across_simd_stripes_and_residual() -> Result<()> {
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QSA_MODEL")?))?;
+    let root = PathBuf::from(std::env::var("MLXL3_QSA_ORACLE_DIR")?);
+    for half in [false, true] {
+        let mut attn = Qsa::load(&c, "model.language_model.layers.15.self_attn", 1e-6, 1e7)?;
+        let mut layer = Layer::load(
+            &c,
+            "model.language_model.layers.3",
+            false,
+            false,
+            1e-6,
+            1e7,
+            10,
+            crate::ssd_moe::ResolvedPolicy::resolve(true, false)?,
+        )?;
+        for (full, width, count) in [(false, H, 512), (true, WIDTH, 4)] {
+            let mut file = File::create(root.join(format!("rows-{half}-{full}.bin")))?;
+            for t in 0..count {
+                let row = (0..width)
+                    .map(|i| ((i * 17 + t * 83) % 257 - 128) as f32 / 237.)
+                    .collect::<Vec<_>>();
+                let x = Array::from_f32(&row, &[1, width])?;
+                let x = if half { x.astype(Dtype::Float16)? } else { x };
+                let y = if full {
+                    layer.forward(&x, EOS)?
+                } else {
+                    attn.forward(&x)?
+                };
+                ensure!(
+                    y.shape() == [1, width] && y.dtype() == x.dtype(),
+                    "unexpected QSA output shape or dtype"
+                );
+                use std::io::Write;
+                file.write_all(&y.to_bytes()?)?;
+            }
+        }
+    }
+    Ok(())
+}

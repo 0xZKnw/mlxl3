@@ -143,3 +143,9 @@ Sur le M5, cinq entrées successives de la couche 2 reproduisent 4 375 520 valeu
 `metal-checkpoint-ple-layer` accepte le préfixe `model.language_model.layers.1`, des streams de largeur 10 240 et un ID de vocabulaire par ligne dans `token_ids`. Chaque pas exécute PLE, GDN puis le MLP. `metal-checkpoint-ple` isole la branche PLE avec le préfixe `model.language_model.layers.1.ple` et expose ses stades en mode `return_raw`. Les mots des n-grammes sont lus dans les 128 shards du checkpoint et conservés dans le cache partagé avec le lecteur historique.
 
 Cinq captures indépendantes vérifient 832 040 valeurs, avec tous les états de l’historique. Deux séquences de douze pas en FP16 et FP32 comparent 2 703 360 valeurs supplémentaires de l’historique, de la sortie PLE et du résidu complet de la couche. La reprise après lecture invalide est exercée au dernier head de PLE puis à l’intérieur du MoE. [Rapport numérique](ple/physical.json) · [Provenance et mutation de la convolution](ple/provenance.json).
+
+### Attention QSA Flash en contexte court
+
+Les opérations de diagnostic `metal-checkpoint-qsa` et `metal-checkpoint-qsa-layer` évaluent des lignes successives du même contexte (1 à 512 tokens). La première accepte les 2 560 activations d’attention et la deuxième les 10 240 valeurs du résidu. La sélection de blocs sparse commence au-delà de cette plage. Un snapshot reste rejouable après l’écriture d’un suffixe divergent.
+
+Les couches 15 et 35 reproduisent les captures indépendantes. Les 512 positions de deux séquences FP16 et FP32 et quatre sorties de la couche 3 par dtype correspondent à la référence de production. [Comparaisons et empreintes](qsa/physical.json) · [Mutation, sources et vérification de l’append](qsa/provenance.json).

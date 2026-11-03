@@ -11,7 +11,7 @@ pub(super) struct Pipelines {
     step: ComputePipelineState,
     norm: ComputePipelineState,
     gate: ComputePipelineState,
-    to_float: ComputePipelineState,
+    pub(super) to_float: ComputePipelineState,
 }
 impl Pipelines {
     pub(super) fn load(p: &impl Fn(&str) -> Result<ComputePipelineState>) -> Result<Self> {
@@ -39,11 +39,7 @@ pub struct FlashGdnState {
     frame: Option<Frame>,
 }
 
-pub struct FlashGdnOutput {
-    pub values: MatrixView,
-    pub trace: Option<BTreeMap<&'static str, Vec<u32>>>,
-}
-
+pub type FlashGdnOutput = super::FlashAttentionOutput;
 pub struct FlashGdn<'a> {
     gpu: &'a Metal,
     qkv: FlashProjection<'a>,
@@ -283,12 +279,57 @@ impl<'a> FlashGdn<'a> {
     }
 }
 
-/// A complete non-PLE Flash layer with recurrent attention.
-pub struct FlashGdnLayer<'a> {
+pub(super) struct LayerResidual<'a> {
     attn_hc: super::FlashHc<'a>,
-    attention: FlashGdn<'a>,
     mlp_hc: super::FlashHc<'a>,
     moe: super::FlashMoeRow<'a>,
+}
+impl<'a> LayerResidual<'a> {
+    pub(super) fn load(
+        gpu: &'a Metal,
+        c: &Checkpoint,
+        prefix: &str,
+        eps: f32,
+        slots: usize,
+    ) -> Result<Self> {
+        Ok(Self {
+            attn_hc: super::FlashHc::load(
+                gpu,
+                c,
+                &format!("{prefix}.attn_hyper_connection"),
+                eps,
+                true,
+            )?,
+            mlp_hc: super::FlashHc::load(
+                gpu,
+                c,
+                &format!("{prefix}.mlp_hyper_connection"),
+                eps,
+                true,
+            )?,
+            moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
+        })
+    }
+    pub(super) fn forward(
+        &mut self,
+        streams: &MatrixView,
+        attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+    ) -> Result<MatrixView> {
+        let read = self.attn_hc.read(streams, false)?;
+        let gate = read
+            .gate
+            .as_ref()
+            .context("missing attention injection gate")?;
+        let attention = attend(&read.mixed)?;
+        let written = self.attn_hc.write(streams, &attention.values, gate)?;
+        Ok(self.mlp_hc.forward_moe(&written, &mut self.moe, false)?.0)
+    }
+}
+
+/// A complete non-PLE Flash layer with recurrent attention.
+pub struct FlashGdnLayer<'a> {
+    residual: LayerResidual<'a>,
+    attention: FlashGdn<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
     pub fn load(
@@ -316,22 +357,8 @@ impl<'a> FlashGdnLayer<'a> {
         slots: usize,
     ) -> Result<Self> {
         Ok(Self {
-            attn_hc: super::FlashHc::load(
-                gpu,
-                c,
-                &format!("{prefix}.attn_hyper_connection"),
-                eps,
-                true,
-            )?,
             attention: FlashGdn::load(gpu, c, &format!("{prefix}.linear_attn"), eps)?,
-            mlp_hc: super::FlashHc::load(
-                gpu,
-                c,
-                &format!("{prefix}.mlp_hyper_connection"),
-                eps,
-                true,
-            )?,
-            moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
+            residual: LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
     }
     pub fn snapshot(&self) -> FlashGdnState {
@@ -344,21 +371,10 @@ impl<'a> FlashGdnLayer<'a> {
         self.attention.reset()
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
-        let read = self.attn_hc.read(streams, false)?;
-        let gate = read
-            .gate
-            .as_ref()
-            .context("missing attention injection gate")?;
         let before = self.snapshot();
-        let attention = self.attention.forward(&read.mixed, false)?;
         let residual = self
-            .attn_hc
-            .write(streams, &attention.values, gate)
-            .and_then(|written| {
-                self.mlp_hc
-                    .forward_moe(&written, &mut self.moe, false)
-                    .map(|(out, _, _)| out)
-            });
+            .residual
+            .forward(streams, |x| self.attention.forward(x, false));
         if residual.is_err() {
             self.restore(&before)?;
         }
@@ -403,13 +419,13 @@ mod tests {
             1e-6,
             false,
         )?;
-        let good = std::mem::replace(&mut layer.mlp_hc, final_mixer);
+        let good = std::mem::replace(&mut layer.residual.mlp_hc, final_mixer);
         let error = layer
             .forward(&y)
             .err()
             .context("missing injection was used")?;
         ensure!(error.to_string().contains("injection gate"));
-        layer.mlp_hc = good;
+        layer.residual.mlp_hc = good;
         let resumed = layer.forward(&y)?;
         layer.reset();
         let reset = layer.forward(&x)?;

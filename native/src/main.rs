@@ -935,6 +935,8 @@ fn codec_loop() -> Result<()> {
                 | "metal-checkpoint-moe"
                 | "metal-checkpoint-hc"
                 | "metal-checkpoint-mlp"
+                | "metal-checkpoint-qsa-layer"
+                | "metal-checkpoint-qsa"
                 | "metal-checkpoint-gdn"
                 | "metal-checkpoint-gdn-layer"
                 | "metal-checkpoint-ple"
@@ -984,6 +986,61 @@ fn codec_loop() -> Result<()> {
                                 }
                             }
                             Ok(json!(out))
+                        }
+                        "metal-checkpoint-qsa" | "metal-checkpoint-qsa-layer" => {
+                            let input = request.input_view(gpu)?;
+                            let [rows, width] = input.shape();
+                            anyhow::ensure!(
+                                (1..=512).contains(&rows)
+                                    && width
+                                        == if request.op.ends_with("-layer") {
+                                            10240
+                                        } else {
+                                            2560
+                                        },
+                                "invalid Flash QSA rows"
+                            );
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let config: serde_json::Value = serde_json::from_reader(
+                                std::fs::File::open(c.path.join("config.json"))?,
+                            )?;
+                            let theta = config["text_config"]["rope_parameters"]["rope_theta"]
+                                .as_f64()
+                                .context("missing Flash RoPE")?
+                                as f32;
+                            if request.op.ends_with("-layer") {
+                                let mut layer = mlxl3_native::gpu::FlashQsaLayer::load(
+                                    gpu,
+                                    &c,
+                                    &request.prefix,
+                                    flash_checkpoint_epsilon(&c)?,
+                                    theta,
+                                    rows,
+                                    request.slots.unwrap_or(10),
+                                )?;
+                                return (0..rows)
+                                    .map(|r| {
+                                        Ok(json!(layer.forward(&input.row(r)?)?.read_output()?))
+                                    })
+                                    .collect::<Result<Vec<_>>>()
+                                    .map(|v| json!(v));
+                            }
+                            let mut a = mlxl3_native::gpu::FlashQsa::load(
+                                gpu,
+                                &c,
+                                &request.prefix,
+                                flash_checkpoint_epsilon(&c)?,
+                                theta,
+                                rows,
+                            )?;
+                            let mut result = Vec::new();
+                            for r in 0..rows {
+                                let row = a.forward(&input.row(r)?, request.return_raw)?;
+                                result.push(
+                                    json!({"values":row.values.read_output()?,"trace":row.trace}),
+                                );
+                            }
+                            Ok(json!(result))
                         }
                         "metal-checkpoint-gdn" | "metal-checkpoint-gdn-layer" => {
                             let input = request.input_view(gpu)?;

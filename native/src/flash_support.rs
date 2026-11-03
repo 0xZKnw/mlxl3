@@ -2873,3 +2873,38 @@ fn flash_record_projection_bindings_fit_the_pinned_read() {
         kani::cover!(r.trellis + 409600 == EXPERT_BYTES);
     }
 }
+
+/// Byte offset for a dense QSA KV append, and whether live suffixes require a new slab.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn qsa_append(offset: u32, published: u32, capacity: u32) -> Option<(u64, bool)> {
+    (capacity <= 512 && offset < capacity && offset <= published && published <= capacity)
+        .then(|| (u64::from(offset) * 1024, offset < published))
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn qsa_append_preserves_all_published_rows() {
+    let (offset, published, capacity) = (kani::any(), kani::any(), kani::any());
+    let plan = qsa_append(offset, published, capacity);
+    let valid =
+        offset <= published && published <= capacity && capacity <= 512 && offset < capacity;
+    assert_eq!(plan.is_some(), valid);
+    if let Some((bytes, copy)) = plan {
+        assert_eq!(bytes / 1024, u64::from(offset));
+        assert!(bytes + 1024 <= u64::from(capacity) * 1024);
+        assert!(copy || offset == published);
+        assert!(!copy || offset < published);
+        kani::cover!(copy && offset > 0);
+        kani::cover!(!copy && offset + 1 == capacity);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn qsa_append_handles_empty_full_and_forked_prefixes() {
+    assert_eq!(qsa_append(0, 0, 1), Some((0, false)));
+    assert_eq!(qsa_append(510, 512, 512), Some((522240, true)));
+    for (offset, end, cap) in [(1, 1, 1), (1, 0, 1), (0, 2, 1), (0, 0, 0), (0, 0, 513)] {
+        assert_eq!(qsa_append(offset, end, cap), None);
+    }
+}

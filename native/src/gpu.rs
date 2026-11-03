@@ -11,6 +11,13 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+pub struct FlashAttentionOutput {
+    pub values: MatrixView,
+    pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
+}
+
+mod qsa;
+pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod gdn;
@@ -172,6 +179,7 @@ pub struct Metal {
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
+    qsa: qsa::Pipelines,
     gdn: gdn::Pipelines,
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
@@ -236,6 +244,14 @@ impl Metal {
                     include_str!("../shaders/flash_gdn_epilogue.metal"),
                 )
                 .replace(
+                    "#include \"flash_qsa.metal\"",
+                    include_str!("../shaders/flash_qsa.metal"),
+                )
+                .replace(
+                    "#include \"flash_rope.metal\"",
+                    include_str!("../shaders/flash_rope.metal"),
+                )
+                .replace(
                     "#include \"flash_ple.metal\"",
                     include_str!("../shaders/flash_ple.metal"),
                 )
@@ -287,6 +303,7 @@ impl Metal {
                 hc::Pipelines::load(&pipeline, "half")?,
                 hc::Pipelines::load(&pipeline, "float")?,
             ];
+            let qsa = qsa::Pipelines::load(&pipeline)?;
             let gdn = gdn::Pipelines::load(&pipeline)?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
@@ -304,6 +321,7 @@ impl Metal {
                 swiglu_pipeline,
                 k7_pipeline,
                 hc,
+                qsa,
                 gdn,
                 ple,
                 moe_switch,

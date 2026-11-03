@@ -284,3 +284,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The native Flash QSA single-pass kernel specializes the vector SDPA implementation from [MLX 0.32.2](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/scaled_dot_product_attention/sdpa_vector.h), Copyright © 2024 Apple Inc., under the MIT license above.

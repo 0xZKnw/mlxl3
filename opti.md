@@ -1,5 +1,19 @@
 # MLXL3 — journal des optimisations
 
+## I75-N5-QSA-20261103 — Flash short-context QSA for the first prompt
+
+Preregistered after #87. Port the attention used by the remaining twelve Flash layers. In a first bounded context of 1–512 tokens the reference always attends to every position. Indexer scores never influence any output in this range. Use contiguous token-major half KV, checked append with retained snapshots, the existing EXL3 projection and rotary kernel, the [Apple single-pass vector attention](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/scaled_dot_product_attention/sdpa_vector.h) and HC/MoE from #85. Compare all captured Q/K/V, normalization, rotations, gated attention and final projections with the five sequential independent ATT08/09 rows for both layers 15 and 35. Compare current production on longer rows crossing SIMD stripes, both dtypes and a complete QSA layer. Check branching, reset, rejected inputs, suffix recovery and exhaustion before a state change; mutate the grouped-query mapping. No throughput claim. Full sparse attention, long contexts and complete model generation tracked separately.
+
+- Première comparaison physique des dix lignes ATT08 : 378 880 valeurs, 2 207 écarts en comptant la projection et sa sortie promue. Les trois projections d’entrée et toutes les clés sont exactes. Le premier écart est la normalisation des requêtes (cinq coefficients sur trois lignes). Examiner la réduction réellement sélectionnée pour cette largeur et la première rotation avant de valider.
+
+- Le dispatch v0.32.2 de réduction sélectionne un seul SIMD32 pour les lignes de largeur ≤512. Avec deux blocs de quatre composantes par lane, le même corpus reproduit 378 880 valeurs bit à bit. Étendre au-delà de 32 positions et au résidu complet avant intégration.
+
+- Le replay physique étendu compare les 512 positions dans chaque dtype et quatre résidus de la couche 3 dans chaque dtype. Avec les dix captures précédentes, 3 082 240 mots correspondent exactement. Vérifier la conservation de deux suffixes divergents et une mutation du partage des têtes KV.
+
+- La mutation qui alterne les deux têtes KV au lieu de partager chacune entre douze requêtes change 81913 mots sur les captures. Source restaurée et comparée. Le test physique rejoue les deux suffixes divergents après saturation et refuse le snapshot d’une autre couche. Kani atteint les deux couvertures (fork et dernière place) pour toutes les entrées u32 de l’append.
+
+- **QSA dense jusqu’à 512 positions et couche 3 validées sur Flash local.** Binaire release final : 3 082 240 comparaisons, zéro écart, aucune image MLX chargée. Tests Rust 302 réussis/18 ignorés (chat), 338/238 (mlx,chat). Rejeu GDN après mutualisation du résidu, trois Clippy stricts, deux releases, AIR, format, Ruff et inventaire réussis. Python 4 réussis/44 Linux sautés. Kani ciblé 39 vérifications et deux couvertures ; le Kani global macOS 0.68 reproduit son ICE avant verdict. Pas de débit mesuré. [Rapport](docs/native-coverage/qsa/physical.json) · [Provenance](docs/native-coverage/qsa/provenance.json).
+
 ## I75-N5-PLE-20261103 - Flash PLE and recurrent layer 1
 
 Preregistration. Layer 1 adds the PLE branch before GDN. Reuse the CPU decoder of its sixteen 4-bit n-gram rows, the 16,384-row cache, checked offsets and EOS segmentation, the existing GEMV body and four-stream normalization. Historical baseline: [Flash SSD](docs/flash-next-ssd-implementation.md), ATT08 independent eval captures, and #86. Compare embedding, key/query, raw/gate, gated/normed, conv_raw/convolution and residual output for five captured layer-1 inputs. Also compare the full nine-row convolution history over a longer sequence, reset, replay, EOS, failed reads and downstream errors. Compare a complete PLE/GDN/MLP layer against production Layer::forward. Mutate the convolution taps and run the source-level checks on actual row offsets and packed indices. No throughput measurement.
