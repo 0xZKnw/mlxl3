@@ -361,6 +361,30 @@ fn draft_head_replays_retained_steps_and_vocabulary() -> Result<()> {
         Ok(values)
     };
     for (i, case) in steps.iter().enumerate() {
+        ensure!(case["position"] == i);
+        for (key, width) in [
+            ("input", 10240),
+            ("mixed", 10240),
+            ("layer", 10240),
+            ("output", 2560),
+            ("logits", 248320),
+        ] {
+            ensure!(
+                case[key]["shape"] == serde_json::json!([1, 1, width]),
+                "invalid {key} shape at {i}"
+            );
+        }
+        for key in ["keys", "values"] {
+            ensure!(
+                case[key]["shape"] == serde_json::json!([1, 2, i + 1, 256]),
+                "invalid {key} shape at {i}"
+            );
+        }
+        if (i + 1).is_multiple_of(4) {
+            ensure!(case["index_tail"].is_null());
+        } else {
+            ensure!(case["index_tail"]["shape"] == serde_json::json!([1, (i + 1) % 4, 128]));
+        }
         let token = u32::try_from(case["token"].as_u64().context("missing token")?)?;
         let hidden = gpu
             .f32_storage(&words(&case["input"], 10240)?)?
