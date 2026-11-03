@@ -1,0 +1,324 @@
+{
+  "status": "verified",
+  "base": "74a7aa144c141794a8426dddf6c08c4a83cb0d4f",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "model": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "binary_sha256": {
+    "native": "7790b348937eefe117ac42fcac100314d98538c081a2d1ed305b381ab5efaa3c",
+    "mlx": "49b812579dd5b137f46150db8209bec10359a94157a57e7b38052a23a58e2561"
+  },
+  "prompt": "Combien font 2 + 2 ? Réponds en un chiffre. /no_think",
+  "max_tokens": 256,
+  "slot_budget_gib": 0.6,
+  "expected_text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266",
+  "runs": [
+    {
+      "pair": "warmup",
+      "engine": "native",
+      "status": "verified",
+      "utc": "2026-11-03T13:42:45.914531+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t89%; discharging; 4:52 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 36.534937833,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t89%; discharging; 4:52 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 4.2,
+      "decode_tps": 4.2,
+      "ttft_ms": 17147,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "warmup",
+      "engine": "mlx",
+      "status": "verified",
+      "utc": "2026-11-03T13:43:22.492543+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t89%; discharging; 4:52 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 17.7660105,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t89%; discharging; 4:42 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 8.8,
+      "decode_tps": 9.8,
+      "ttft_ms": 8158,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "1",
+      "engine": "native",
+      "status": "verified",
+      "utc": "2026-11-03T13:43:40.296491+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t89%; discharging; 4:42 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 36.770999290999995,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:32 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 4.2,
+      "decode_tps": 4.3,
+      "ttft_ms": 17348,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "1",
+      "engine": "mlx",
+      "status": "verified",
+      "utc": "2026-11-03T13:44:17.105906+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:32 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 17.40904637499999,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:32 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 9.2,
+      "decode_tps": 9.9,
+      "ttft_ms": 7823,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "2",
+      "engine": "mlx",
+      "status": "verified",
+      "utc": "2026-11-03T13:44:34.554026+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:32 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 17.77502491700001,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:22 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 8.8,
+      "decode_tps": 9.8,
+      "ttft_ms": 8186,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "2",
+      "engine": "native",
+      "status": "verified",
+      "utc": "2026-11-03T13:44:52.367810+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t88%; discharging; 4:22 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 38.271597833,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t87%; discharging; 4:12 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 4.0,
+      "decode_tps": 4.2,
+      "ttft_ms": 18218,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "3",
+      "engine": "native",
+      "status": "verified",
+      "utc": "2026-11-03T13:45:30.682603+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t87%; discharging; 4:12 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 38.51406225000002,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t87%; discharging; 4:12 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 3.8,
+      "decode_tps": 4.2,
+      "ttft_ms": 18752,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    },
+    {
+      "pair": "3",
+      "engine": "mlx",
+      "status": "verified",
+      "utc": "2026-11-03T13:46:09.243468+00:00",
+      "before": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t87%; discharging; 4:12 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "wall_seconds": 17.660084499999982,
+      "exit": 0,
+      "after": {
+        "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36044899)\t87%; discharging; 4:02 remaining present: true",
+        "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "swap_usage": "total = 2048.00M  used = 1074.88M  free = 973.12M  (encrypted)"
+      },
+      "prefill_tps": 9.1,
+      "decode_tps": 9.7,
+      "ttft_ms": 7951,
+      "tokens": 77,
+      "text_sha256": "0737f711e27e7244154d3b41ee8cd46b0e6ff9c79304f4ac9b390de65e153266"
+    }
+  ],
+  "summary": {
+    "native": {
+      "prefill_tps": {
+        "median": 4.0,
+        "min": 3.8,
+        "max": 4.2
+      },
+      "decode_tps": {
+        "median": 4.2,
+        "min": 4.2,
+        "max": 4.3
+      },
+      "ttft_ms": {
+        "median": 18218,
+        "min": 17348,
+        "max": 18752
+      },
+      "wall_seconds": {
+        "median": 38.271597833,
+        "min": 36.770999290999995,
+        "max": 38.51406225000002
+      }
+    },
+    "mlx": {
+      "prefill_tps": {
+        "median": 9.1,
+        "min": 8.8,
+        "max": 9.2
+      },
+      "decode_tps": {
+        "median": 9.8,
+        "min": 9.7,
+        "max": 9.9
+      },
+      "ttft_ms": {
+        "median": 7951,
+        "min": 7823,
+        "max": 8186
+      },
+      "wall_seconds": {
+        "median": 17.660084499999982,
+        "min": 17.40904637499999,
+        "max": 17.77502491700001
+      }
+    }
+  },
+  "prompt_tokens": 72,
+  "prompt_token_ids": [
+    248045,
+    8678,
+    198,
+    24342,
+    286,
+    4879,
+    369,
+    716,
+    310,
+    830,
+    11553,
+    13,
+    5044,
+    1683,
+    15060,
+    1472,
+    279,
+    3274,
+    11,
+    9307,
+    1328,
+    30800,
+    11,
+    2814,
+    47675,
+    25605,
+    11,
+    321,
+    60445,
+    55404,
+    11,
+    27224,
+    11,
+    321,
+    30246,
+    303,
+    279,
+    1534,
+    4087,
+    13,
+    248046,
+    198,
+    248045,
+    846,
+    198,
+    34995,
+    3472,
+    3193,
+    220,
+    17,
+    478,
+    220,
+    17,
+    907,
+    48437,
+    3396,
+    82,
+    644,
+    632,
+    197808,
+    13,
+    593,
+    2083,
+    5673,
+    741,
+    248046,
+    198,
+    248045,
+    74455,
+    198,
+    248068,
+    198
+  ],
+  "mlxtag": "0.32.2",
+  "timing_note": "The CLI excludes model load from TTFT. Wall time includes model load and process exit. Each run starts a new process and a new expert cache; macOS file cache is retained."
+}

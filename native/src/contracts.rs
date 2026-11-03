@@ -503,7 +503,12 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
 }
 
 /// Shapes measured on the M5 dense checkpoint, with unchanged per-output sums.
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn dense_decode_nt4(input: i32, output: i32, k: usize, mul1: bool, m5: bool) -> bool {
     m5 && mul1
         && input == 5120
@@ -1234,6 +1239,335 @@ pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
             .checked_mul(16)?
             .checked_mul(k)
     })?
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn compatible_flash_expert(gate: [u32; 2], up: [u32; 2], down: [u32; 2]) -> bool {
+    gate == up && down == [gate[1], gate[0]]
+}
+
+#[test]
+fn flash_expert_rejects_each_incompatible_weight_axis() {
+    assert!(compatible_flash_expert(
+        [2560, 640],
+        [2560, 640],
+        [640, 2560]
+    ));
+    for (up, down) in [
+        ([640, 640], [640, 2560]),
+        ([2560, 128], [640, 2560]),
+        ([2560, 640], [128, 2560]),
+        ([2560, 640], [640, 128]),
+    ] {
+        assert!(!compatible_flash_expert([2560, 640], up, down));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_expert_submissions_share_intermediate_extents() {
+    let gate: [u32; 2] = kani::any();
+    let up: [u32; 2] = kani::any();
+    let down: [u32; 2] = kani::any();
+    let batch: u32 = kani::any();
+    if compatible_flash_expert(gate, up, down) {
+        let ge = projection_extents(batch, gate[0], gate[1], 1);
+        let ue = projection_extents(batch, up[0], up[1], 1);
+        let de = projection_extents(batch, down[0], down[1], 1);
+        assert_eq!(ge, ue);
+        if let (Some([inputs, _, g]), Some([d, _, outputs])) = (ge, de) {
+            assert_eq!(g, d);
+            assert_eq!(inputs, outputs);
+            kani::cover!(batch == 3 && gate == [2560, 640]);
+        }
+    } else {
+        kani::cover!(gate == up && down[0] != gate[1]);
+    }
+}
+
+/// K=7 and the four-stream draft keep their dedicated kernel thread counts.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_threads(k: u32, mtp: bool, groups: u32) -> Option<u32> {
+    if !(1..=8).contains(&k) || !matches!(groups, 4 | 8) || (mtp && k == 7) {
+        return None;
+    }
+    Some(if mtp {
+        64
+    } else if k == 7 {
+        128
+    } else {
+        groups * 32
+    })
+}
+
+#[test]
+fn native_projection_keeps_k7_and_draft_threads_distinct() {
+    for groups in [4, 8] {
+        assert_eq!(projection_threads(7, false, groups), Some(128));
+        assert_eq!(projection_threads(2, true, groups), Some(64));
+        assert_eq!(projection_threads(2, false, groups), Some(groups * 32));
+    }
+    for args in [(0, false, 4), (9, false, 4), (2, false, 3), (7, true, 4)] {
+        assert_eq!(projection_threads(args.0, args.1, args.2), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_projection_thread_count_matches_its_fixed_kernel() {
+    let k: u32 = kani::any();
+    let mtp: bool = kani::any();
+    let groups: u32 = kani::any();
+    let threads = projection_threads(k, mtp, groups);
+    assert_eq!(
+        threads.is_some(),
+        (1..=8).contains(&k) && matches!(groups, 4 | 8) && !(mtp && k == 7)
+    );
+    if let Some(n) = threads {
+        assert_eq!(
+            n,
+            if mtp {
+                64
+            } else if k == 7 {
+                128
+            } else {
+                groups * 32
+            }
+        );
+        kani::cover!(k == 7 && groups == 8);
+        kani::cover!(mtp && k == 2);
+        kani::cover!(!mtp && k == 2 && groups == 8);
+    }
+}
+
+/// The existing dense/MoE decoder balances a power-of-two split against its output tile count.
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
+pub(crate) fn exl3_projection_splits(input: u32, output: u32) -> Option<u32> {
+    if input == 0 || output == 0 || !input.is_multiple_of(128) || !output.is_multiple_of(128) {
+        return None;
+    }
+    let input_tiles = input / 16;
+    let output_tiles = output / 16;
+    let target = if output_tiles <= 64 {
+        (output_tiles / 2).max(32)
+    } else {
+        output_tiles.clamp(32, 256)
+    };
+    let mut splits = 1;
+    while input_tiles / splits / 2 >= target {
+        splits *= 2;
+    }
+    Some(splits)
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn exl3_projection_extents(
+    batch: u32,
+    input: u32,
+    output: u32,
+    splits: u32,
+) -> Option<[u32; 3]> {
+    exl3_projection_splits(input, output)?;
+    if batch == 0 || splits == 0 || !splits.is_power_of_two() || splits > input / 128 {
+        return None;
+    }
+    let count = batch.checked_mul(output)?;
+    Some([batch.checked_mul(input)?, count.checked_mul(splits)?, count])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(32)]
+fn native_projection_plan_has_bounded_power_of_two_splits_and_extents() {
+    let input: u32 = kani::any();
+    let output: u32 = kani::any();
+    let batch: u32 = kani::any();
+    if let Some(splits) = exl3_projection_splits(input, output) {
+        assert!(splits.is_power_of_two() && splits <= input / 128);
+        let expected = u128::from(batch) * u128::from(output) * u128::from(splits);
+        let extent = exl3_projection_extents(batch, input, output, splits);
+        assert_eq!(
+            extent.is_some(),
+            batch > 0
+                && u64::from(batch) * u64::from(input) <= u64::from(u32::MAX)
+                && expected <= u128::from(u32::MAX)
+        );
+        if let Some([inputs, partials, outputs]) = extent {
+            assert_eq!(u64::from(inputs), u64::from(batch) * u64::from(input));
+            assert_eq!(u128::from(partials), expected);
+            assert_eq!(u64::from(outputs), u64::from(batch) * u64::from(output));
+        }
+        kani::cover!(splits == 4 && batch == 1 && extent.is_some());
+        kani::cover!(splits == 1 && batch == 3 && extent.is_some());
+    }
+}
+
+#[test]
+fn native_projection_plan_matches_wide_integer_balance() {
+    for input in [128u32, 512, 2048, 5120, 17408, 32768] {
+        for output in [128u32, 512, 2048, 8192, 248320] {
+            let target = if output / 16 <= 64 {
+                (output / 32).max(32)
+            } else {
+                (output / 16).clamp(32, 256)
+            };
+            let candidates: Vec<_> = (0..26)
+                .map(|p| 1u32 << p)
+                .filter(|s| u64::from(input) / (16 * u64::from(*s)) >= u64::from(target))
+                .collect();
+            assert_eq!(
+                exl3_projection_splits(input, output),
+                Some(candidates.last().copied().unwrap_or(1))
+            );
+        }
+    }
+    assert_eq!(exl3_projection_splits(2048, 512), Some(4));
+    assert_eq!(exl3_projection_extents(u32::MAX, 2048, 512, 4), None);
+    for dims in [(0, 128), (128, 0), (127, 128), (128, 129)] {
+        assert_eq!(exl3_projection_splits(dims.0, dims.1), None);
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_extents(
+    batch: u32,
+    input: u32,
+    output: u32,
+    splits: u32,
+) -> Option<[u32; 3]> {
+    if batch == 0
+        || !(1..=i32::MAX as u32).contains(&input)
+        || !(1..=i32::MAX as u32).contains(&output)
+        || !input.is_multiple_of(128)
+        || !output.is_multiple_of(128)
+        || !matches!(splits, 1 | 2)
+    {
+        return None;
+    }
+    let outputs = batch.checked_mul(output)?;
+    Some([
+        batch.checked_mul(input)?,
+        outputs.checked_mul(splits)?,
+        outputs,
+    ])
+}
+
+#[test]
+fn projection_refuses_partial_rows_unqualified_splits_and_overflow() {
+    for (batch, input, output, splits) in [
+        (0, 128, 128, 1),
+        (1, 128, 0, 1),
+        (1, 127, 128, 1),
+        (1, 128, 129, 1),
+        (1, 128, 128, 4),
+        (u32::MAX, 128, 128, 1),
+        (1, 1 << 31, 128, 1),
+        (2, 128, 1 << 30, 2),
+    ] {
+        assert_eq!(projection_extents(batch, input, output, splits), None);
+    }
+    assert_eq!(
+        projection_extents(3, 4096, 640, 2),
+        Some([12288, 3840, 1920])
+    );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn projection_offsets_fit_submitted_extents() {
+    let batch: u32 = kani::any();
+    let input: u32 = kani::any();
+    let output: u32 = kani::any();
+    let splits: u32 = kani::any();
+    if let Some([x, partial, y]) = projection_extents(batch, input, output, splits) {
+        assert!(batch > 0 && input > 0 && output > 0 && matches!(splits, 1 | 2));
+        assert_eq!(u64::from(x), u64::from(batch) * u64::from(input));
+        assert_eq!(u64::from(y), u64::from(batch) * u64::from(output));
+        assert_eq!(u64::from(partial), u64::from(y) * u64::from(splits));
+        assert_eq!(x % 128, 0);
+        assert_eq!(y % 128, 0);
+        kani::cover!(batch == 3 && input == 4096 && output == 640 && splits == 2);
+        kani::cover!(batch == 1 && input == 128 && output == 128 && splits == 1);
+    }
+}
+
+/// Number of complete H128 blocks in a contiguous FP16 activation matrix.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn prepare128_blocks(elements: usize, width: usize, scales: usize) -> Option<u32> {
+    let width = u32::try_from(width).ok()?;
+    let elements = u32::try_from(elements).ok()?;
+    let blocks = elements / 128;
+    if width == 0
+        || !width.is_multiple_of(128)
+        || !elements.is_multiple_of(128)
+        || !blocks.is_multiple_of(width / 128)
+        || (scales != width as usize && scales != elements as usize)
+    {
+        return None;
+    }
+    Some(blocks)
+}
+
+#[test]
+fn prepare128_checks_row_and_scale_extents_before_upload() {
+    assert_eq!(prepare128_blocks(0, 128, 0), Some(0));
+    assert_eq!(prepare128_blocks(1920, 640, 640), Some(15));
+    assert_eq!(prepare128_blocks(1920, 640, 1920), Some(15));
+    for width in [1, 127, 128, 256, 384, 640, 1280, 2560] {
+        for elements in 0usize..=4096 {
+            for scales in [0, width, elements, elements + 1] {
+                let expected = (width % 128 == 0
+                    && elements.is_multiple_of(width)
+                    && (scales == width || scales == elements))
+                    .then_some((elements / 128) as u32);
+                assert_eq!(prepare128_blocks(elements, width, scales), expected);
+            }
+        }
+    }
+    let largest = u32::MAX as usize & !127;
+    assert_eq!(
+        prepare128_blocks(largest, 128, 128),
+        Some((largest / 128) as u32)
+    );
+    for (elements, width, scales) in [
+        (0, 0, 0),
+        (128, 127, 127),
+        (641, 640, 640),
+        (640, 640, 639),
+        (usize::MAX, 128, 128),
+        (0, usize::MAX, 0),
+    ] {
+        assert_eq!(prepare128_blocks(elements, width, scales), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn prepare128_validates_block_and_scale_indices() {
+    let n: usize = kani::any();
+    let w: usize = kani::any();
+    let s: usize = kani::any();
+    let index: u32 = kani::any();
+    let grid = prepare128_blocks(n, w, s);
+    if let Some(groups) = grid {
+        assert!(w > 0 && w <= u32::MAX as usize && w % 128 == 0);
+        assert!(n <= u32::MAX as usize);
+        assert_eq!(groups as usize * 128, n);
+        if (index as usize) < n {
+            assert!(index / 128 < groups);
+            assert!(s == n || s == w);
+            assert!(s > 0 && s <= u32::MAX as usize);
+        }
+    }
+    kani::cover!(n == 0 && w == 128 && s == 0 && grid == Some(0));
+    kani::cover!(w == 640 && n == 1920 && s == w && grid == Some(15));
+    kani::cover!(w == 640 && n == 1920 && s == n && grid == Some(15));
+    kani::cover!(grid.is_none());
 }
 
 #[cfg(kani)]
@@ -2077,4 +2411,596 @@ fn exl3_lane_order_preserves_shape_and_large_m_fallback() {
     kani::cover!(selected && input == 17408);
     kani::cover!(rows == 3 && enabled && !selected);
     kani::cover!(!enabled && rows == 1 && !selected);
+}
+
+#[cfg(any(
+    all(target_os = "macos", feature = "direct-metal"),
+    feature = "mlx",
+    test,
+    kani
+))]
+pub(crate) fn router_output_len(rows: u32, experts: u32, k: u32) -> Option<u32> {
+    if rows == 0 || !(1..=1024).contains(&experts) || k == 0 || k > experts {
+        return None;
+    }
+    rows.checked_mul(experts)?;
+    rows.checked_mul(k)
+}
+
+#[test]
+fn router_extents_match_wide_products_and_device_bounds() {
+    for rows in [0, 1, 2, 4, 17, u32::MAX / 512, u32::MAX / 512 + 1, u32::MAX] {
+        for experts in [0, 1, 2, 31, 32, 256, 512, 1024, 1025, u32::MAX] {
+            for k in [0, 1, 8, 10, experts, experts.saturating_add(1)] {
+                let legal = rows != 0
+                    && (1..=1024).contains(&experts)
+                    && (1..=experts).contains(&k)
+                    && u64::from(rows) * u64::from(experts) <= u64::from(u32::MAX);
+                assert_eq!(router_output_len(rows, experts, k), legal.then(|| rows * k));
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn router_dispatch_sizes_bound_static_memory_and_output() {
+    let (rows, experts, k): (u32, u32, u32) = kani::any();
+    if let Some(length) = router_output_len(rows, experts, k) {
+        assert!(rows > 0 && k > 0 && k <= experts && experts <= 1024);
+        assert_eq!(u64::from(length), u64::from(rows) * u64::from(k));
+        assert!(rows.checked_mul(experts).is_some());
+        assert!(length > 0);
+        kani::cover!(rows > 1 && experts == 512 && k == 10);
+        kani::cover!(rows > 1 && experts == 256 && k == 8);
+        kani::cover!(experts == 1024 && k == experts);
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_gate_rows(rows: u32, width: u32) -> bool {
+    width == 2560 && router_output_len(rows, 512, 10).is_some()
+}
+
+#[test]
+fn flash_gate_accepts_only_complete_indexable_rows() {
+    assert!(flash_gate_rows(1, 2560) && flash_gate_rows(u32::MAX / 512, 2560));
+    for (rows, width) in [(0, 2560), (1, 2559), (1, 2561), (u32::MAX / 512 + 1, 2560)] {
+        assert!(!flash_gate_rows(rows, width));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_gate_dispatch_bounds_output_and_weight_addresses() {
+    let (rows, width, row): (u32, u32, u32) = kani::any();
+    let expert = u32::from(kani::any::<u16>()) % 512;
+    let thread = u32::from(kani::any::<u8>()) % 128;
+    let col = u32::from(kani::any::<u16>()) % 2560;
+    if flash_gate_rows(rows, width) && row < rows {
+        assert!(row * 512 + expert < rows * 512);
+        assert!(row * 512 + 4 * thread + 3 < rows * 512);
+        assert!(expert * 2560 + col < 512 * 2560);
+        assert!(row * 10 + 9 < rows * 10);
+        kani::cover!(row > 0 && expert == 511 && col == 2559 && thread == 127);
+        kani::cover!(rows == u32::MAX / 512 && row + 1 == rows);
+    }
+}
+
+/// Flash HC GEMV threadgroups and threads per group for the three checkpoint matrices.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_hc_dispatch(input: u32, output: u32) -> Option<(u32, u32)> {
+    match (input, output) {
+        (10240, 320 | 4) => Some((output / 4, 256)),
+        (320, 10240) => Some((output / 32, 256)),
+        _ => None,
+    }
+}
+
+#[test]
+fn hc_dispatch_rejects_inexact_weights_and_covers_all_outputs() {
+    for (k, n, g) in [(10240, 4, 1), (10240, 320, 80), (320, 10240, 320)] {
+        assert_eq!(flash_hc_dispatch(k, n), Some((g, 256)));
+        assert_eq!(flash_hc_dispatch(k - 1, n), None);
+        assert_eq!(flash_hc_dispatch(k, n + 1), None);
+    }
+    assert_eq!(flash_hc_dispatch(0, 0), None);
+    assert_eq!(flash_hc_dispatch(u32::MAX, u32::MAX), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn flash_hc_groups_cover_exactly_the_checked_weight_matrix() {
+    let (input, output): (u32, u32) = kani::any();
+    let group: u32 = kani::any();
+    let inside: u32 = kani::any();
+    let k: u32 = kani::any();
+    let plan = flash_hc_dispatch(input, output);
+    assert_eq!(
+        plan.is_some(),
+        [(10240, 320), (10240, 4), (320, 10240)].contains(&(input, output))
+    );
+    if let Some((groups, threads)) = plan {
+        let per = if input == 320 { 32 } else { 4 };
+        assert!(groups * per == output && threads == 256);
+        if group < groups && inside < per && k < input {
+            let index = (group * per + inside) * input + k;
+            assert!(index < input * output);
+            kani::cover!(index == input * output - 1);
+        }
+        kani::cover!(groups == 1);
+    }
+}
+
+/// Two SIMD groups update sixteen value rows per group, each with 128 state columns.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn packed_gdn_grid(value_heads: u32, value_width: u32) -> Option<(u32, u32)> {
+    if value_heads == 0 || value_width == 0 || !value_width.is_multiple_of(16) {
+        return None;
+    }
+    Some((
+        value_width / 16,
+        value_heads.checked_mul(value_width)?.checked_mul(128)?,
+    ))
+}
+
+#[test]
+fn packed_grid_requires_complete_groups_and_addressable_state() {
+    assert_eq!(packed_gdn_grid(48, 128), Some((8, 786432)));
+    assert_eq!(packed_gdn_grid(1, 16), Some((1, 2048)));
+    for dims in [
+        (0, 128),
+        (1, 0),
+        (1, 8),
+        (1, 127),
+        (u32::MAX, 16),
+        (1, 1 << 25),
+    ] {
+        assert_eq!(packed_gdn_grid(dims.0, dims.1), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(24)]
+fn packed_flash_gdn_groups_partition_state_entries() {
+    let head: u32 = kani::any();
+    let group: u32 = kani::any();
+    let sg: u32 = kani::any();
+    let lane: u32 = kani::any();
+    let element: u32 = kani::any();
+    let (groups, state) = packed_gdn_grid(48, 128).unwrap();
+    if head < 48 && group < groups && sg < 2 && lane < 32 && element < 32 {
+        let row = (group * 2 + sg) * 8 + lane / 4;
+        let col = lane % 4 * 32 + element;
+        let at = (head * 128 + row) * 128 + col;
+        assert!(row < 128 && col < 128 && at < state);
+        assert_eq!(
+            (
+                at / 16384,
+                at / 2048 % 8,
+                at / 1024 % 2,
+                at / 128 % 8 * 4 + at / 32 % 4,
+                at % 32
+            ),
+            (head, group, sg, lane, element)
+        );
+        kani::cover!(at == state - 1);
+        kani::cover!(at == 0);
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn native_qwen_gdn_extents(
+    hidden: u32,
+    key_heads: u32,
+    value_heads: u32,
+    conv_length: u32,
+) -> Option<[u32; 5]> {
+    if hidden == 0
+        || !hidden.is_multiple_of(128)
+        || key_heads == 0
+        || value_heads == 0
+        || !value_heads.is_multiple_of(key_heads)
+        || !value_heads.is_multiple_of(4)
+        || !(2..=16).contains(&conv_length)
+    {
+        return None;
+    }
+    let keys = key_heads.checked_mul(128)?;
+    let values = value_heads.checked_mul(128)?;
+    let channels = keys.checked_mul(2)?.checked_add(values)?;
+    let history = channels.checked_mul(conv_length - 1)?;
+    let state = values.checked_mul(128)?;
+    hidden.checked_mul(value_heads)?;
+    Some([keys, values, channels, history, state])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_qwen_gdn_geometry_bounds_every_addressed_row_and_state() {
+    let hidden: u32 = kani::any();
+    let kh: u32 = kani::any();
+    let vh: u32 = kani::any();
+    let c: u32 = kani::any();
+    let extent = native_qwen_gdn_extents(hidden, kh, vh, c);
+    let max = u128::from(u32::MAX);
+    let k = u128::from(kh) * 128;
+    let v = u128::from(vh) * 128;
+    let channels = k * 2 + v;
+    let basic = hidden > 0
+        && hidden.is_multiple_of(128)
+        && kh > 0
+        && vh > 0
+        && vh.is_multiple_of(kh)
+        && vh.is_multiple_of(4)
+        && (2..=16).contains(&c);
+    let bounded = k <= max
+        && v <= max
+        && channels <= max
+        && channels * u128::from(c.saturating_sub(1)) <= max
+        && v * 128 <= max
+        && u128::from(hidden) * u128::from(vh) <= max;
+    assert_eq!(extent.is_some(), basic && bounded);
+    if let Some(e) = extent {
+        assert_eq!(
+            e.map(u128::from),
+            [k, v, channels, channels * u128::from(c - 1), v * 128]
+        );
+        kani::cover!(hidden == 2048 && kh == 16 && vh == 32 && c == 4);
+        kani::cover!(hidden == 5120 && kh == 16 && vh == 48 && c == 4);
+    }
+    kani::cover!(hidden == 0 && extent.is_none());
+}
+
+#[test]
+fn native_qwen_gdn_shapes_cover_local_and_dense_geometries_and_reject_overflow() {
+    assert_eq!(
+        native_qwen_gdn_extents(2048, 16, 32, 4),
+        Some([2048, 4096, 8192, 24576, 524288])
+    );
+    assert_eq!(
+        native_qwen_gdn_extents(5120, 16, 48, 4),
+        Some([2048, 6144, 10240, 30720, 786432])
+    );
+    for [h, k, v, c] in [
+        [0, 16, 32, 4],
+        [2047, 16, 32, 4],
+        [2048, 0, 32, 4],
+        [2048, 3, 32, 4],
+        [2048, 16, 32, 1],
+        [2048, 16, 32, 17],
+        [2048, u32::MAX, 32, 4],
+        [u32::MAX - 127, 16, 32, 4],
+    ] {
+        assert_eq!(native_qwen_gdn_extents(h, k, v, c), None);
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn mapped_expert_plan(
+    input: u32,
+    output: u32,
+    routes: u32,
+    projections: u32,
+    k: u32,
+    m5: bool,
+) -> Option<[u32; 3]> {
+    if routes == 0
+        || output == 0
+        || !output.is_multiple_of(128)
+        || !(1..=2).contains(&projections)
+        || !(1..=8).contains(&k)
+        || k == 7
+    {
+        return None;
+    }
+    let rows = routes.checked_mul(projections)?;
+    let total_output = rows.checked_mul(output)?;
+    let splits = exl3_projection_splits(input, total_output)?;
+    splits.checked_mul(output)?;
+    let tiles = total_output / 16;
+    let nt = if (m5 && rows >= 64) || tiles < 1024 {
+        4
+    } else {
+        2
+    };
+    let groups = if m5 && k != 2 { 8 } else { 4 };
+    Some([splits, nt, groups])
+}
+
+#[test]
+fn mapped_expert_plans_keep_route_dependent_reduction_and_k2_policy() {
+    assert_eq!(
+        mapped_expert_plan(2048, 512, 8, 2, 2, true),
+        Some([1, 4, 4])
+    );
+    assert_eq!(
+        mapped_expert_plan(512, 2048, 8, 1, 2, true),
+        Some([1, 2, 4])
+    );
+    assert_eq!(
+        mapped_expert_plan(8192, 128, 1, 2, 4, true),
+        Some([16, 4, 8])
+    );
+    assert_eq!(
+        mapped_expert_plan(2048, 2048, 32, 2, 4, true),
+        Some([1, 4, 8])
+    );
+    assert_eq!(
+        mapped_expert_plan(2048, 2048, 32, 2, 4, false),
+        Some([1, 2, 4])
+    );
+    for args in [
+        (0, 128, 1, 1, 2),
+        (128, 0, 1, 1, 2),
+        (128, 128, 0, 1, 2),
+        (128, 128, 1, 0, 2),
+        (128, 128, 1, 3, 2),
+        (128, 128, 1, 1, 7),
+        (128, 128, u32::MAX, 2, 2),
+        (128, u32::MAX - 127, 2, 1, 2),
+    ] {
+        assert_eq!(
+            mapped_expert_plan(args.0, args.1, args.2, args.3, args.4, true),
+            None
+        );
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width() {
+    let input: u32 = kani::any();
+    let output: u32 = kani::any();
+    let routes: u32 = kani::any();
+    let projections: u32 = kani::any();
+    let k: u32 = kani::any();
+    let m5: bool = kani::any();
+    let actual = mapped_expert_plan(input, output, routes, projections, k, m5);
+    let rows = u128::from(routes) * u128::from(projections);
+    let total = rows * u128::from(output);
+    let accepted = input > 0
+        && input.is_multiple_of(128)
+        && output > 0
+        && output.is_multiple_of(128)
+        && routes > 0
+        && (1..=2).contains(&projections)
+        && (1..=8).contains(&k)
+        && k != 7
+        && rows <= u128::from(u32::MAX)
+        && total <= u128::from(u32::MAX);
+    assert!(actual.is_none() || accepted);
+    if let Some([splits, nt, groups]) = actual {
+        assert!(splits.is_power_of_two() && splits <= input / 128);
+        assert_eq!(
+            nt,
+            if (m5 && rows >= 64) || total < 16384 {
+                4
+            } else {
+                2
+            }
+        );
+        assert_eq!(groups, if m5 && k != 2 { 8 } else { 4 });
+        assert_eq!((output / 16) % nt, 0);
+        assert!(u64::from(splits) * u64::from(output) <= u64::from(u32::MAX));
+        kani::cover!(
+            input == 2048 && output == 512 && routes == 8 && projections == 2 && k == 2 && m5
+        );
+        kani::cover!(
+            input == 2048 && output == 2048 && routes == 4 && projections == 2 && k == 4 && m5
+        );
+    }
+    kani::cover!(routes == 0 && actual.is_none());
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn mapped_expert_row_offset(row: u32, width: u32, bank_words: u32) -> Option<u32> {
+    if width == 0 || !width.is_multiple_of(128) {
+        return None;
+    }
+    let offset = row.checked_mul(width)?;
+    let end = offset.checked_add(width)?;
+    (end <= bank_words).then_some(offset)
+}
+
+#[test]
+fn mapped_expert_rows_cover_the_bank_without_wrapping_or_unaligned_offsets() {
+    assert_eq!(mapped_expert_row_offset(0, 2048, 16384), Some(0));
+    assert_eq!(mapped_expert_row_offset(7, 2048, 16384), Some(14336));
+    assert_eq!(mapped_expert_row_offset(0, 128, 129), Some(0));
+    for (row, width, words) in [
+        (8, 2048, 16384),
+        (0, 2047, 16384),
+        (0, 0, 16384),
+        (0, 2048, 0),
+        (u32::MAX, 128, u32::MAX),
+        (u32::MAX / 128, 128, u32::MAX),
+        (0, 128, 127),
+    ] {
+        assert_eq!(mapped_expert_row_offset(row, width, words), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank() {
+    let row: u32 = kani::any();
+    let width: u32 = kani::any();
+    let words: u32 = kani::any();
+    let offset = mapped_expert_row_offset(row, width, words);
+    let start = u64::from(row) * u64::from(width);
+    let end = start + u64::from(width);
+    let accepted = width > 0 && width.is_multiple_of(128) && end <= u64::from(words);
+    assert_eq!(offset.is_some(), accepted);
+    if let Some(offset) = offset {
+        assert_eq!(u64::from(offset), start);
+        assert!(offset.is_multiple_of(128));
+        assert!(u64::from(offset) + u64::from(width) <= u64::from(words));
+        kani::cover!(row == 0);
+        kani::cover!(row == 7 && words == 16384 && width == 2048);
+        kani::cover!(row == 0 && width == 128 && words == 129);
+    }
+    kani::cover!(width == 0 && offset.is_none());
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_bundle_width(widths: &[u32]) -> Option<u32> {
+    if widths.is_empty() {
+        return None;
+    }
+    widths.iter().try_fold(0u32, |total, &width| {
+        if width == 0 || !width.is_multiple_of(128) {
+            None
+        } else {
+            total.checked_add(width)
+        }
+    })
+}
+
+#[test]
+fn projection_bundle_width_covers_unequal_qkv_and_rejects_invalid_or_overflowing_lists() {
+    assert_eq!(projection_bundle_width(&[8192, 512, 512]), Some(9216));
+    assert_eq!(projection_bundle_width(&[2048, 512, 512]), Some(3072));
+    assert_eq!(projection_bundle_width(&[17408, 17408]), Some(34816));
+    assert_eq!(projection_bundle_width(&[128; 64]), Some(8192));
+    for widths in [&[][..], &[0][..], &[127][..], &[u32::MAX - 127, 128][..]] {
+        assert_eq!(projection_bundle_width(widths), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections() {
+    let values: [u32; 3] = kani::any();
+    let len: u8 = kani::any();
+    if len > 3 {
+        return;
+    }
+    let widths = &values[..usize::from(len)];
+    let actual = projection_bundle_width(widths);
+    let mut expected = 0u64;
+    let mut aligned = len > 0;
+    for &width in widths {
+        expected += u64::from(width);
+        aligned &= width > 0 && width.is_multiple_of(128);
+    }
+    assert_eq!(actual.is_some(), aligned && expected <= u64::from(u32::MAX));
+    if let Some(total) = actual {
+        assert_eq!(u64::from(total), expected);
+        assert!(total > 0 && total.is_multiple_of(128));
+    }
+    kani::cover!(values == [8192, 512, 512] && len == 3);
+    kani::cover!(values == [2048, 512, 512] && len == 3);
+    kani::cover!(values[0] == 17408 && values[1] == 17408 && len == 2);
+    kani::cover!(len == 0 && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn ordinary_group_lane_layout_selects_the_original_scalar_operands() {
+    let lane: u32 = kani::any();
+    let item: u32 = kani::any();
+    let lane = lane & 3;
+    let item = item & 3;
+    let original = lane * 2 + (item & 1) + (item / 2) * 8;
+    assert_eq!(exl3_lane_source_index(lane * 4 + item), original);
+    kani::cover!(lane == 0 && item == 0);
+    kani::cover!(lane == 3 && item == 3);
+}
+/// Flattened widths for one-query grouped attention, before buffer allocation.
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn model_gqa_widths(query_heads: u32, kv_heads: u32, head_dim: u32) -> Option<[u32; 2]> {
+    if query_heads == 0
+        || kv_heads == 0
+        || !query_heads.is_multiple_of(kv_heads)
+        || ![64, 128, 256].contains(&head_dim)
+    {
+        return None;
+    }
+    Some([
+        query_heads.checked_mul(head_dim)?,
+        kv_heads.checked_mul(head_dim)?,
+    ])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn model_gqa_widths_reject_invalid_groups_and_overflow() {
+    let q: u32 = kani::any();
+    let k: u32 = kani::any();
+    let d: u32 = kani::any();
+    let result = model_gqa_widths(q, k, d);
+    let q_width = u64::from(q) * u64::from(d);
+    let k_width = u64::from(k) * u64::from(d);
+    let valid = q > 0
+        && k > 0
+        && q % k == 0
+        && (d == 64 || d == 128 || d == 256)
+        && q_width <= u64::from(u32::MAX)
+        && k_width <= u64::from(u32::MAX);
+    assert_eq!(result.is_some(), valid);
+    if let Some([a, b]) = result {
+        assert_eq!(u64::from(a), q_width);
+        assert_eq!(u64::from(b), k_width);
+    }
+    kani::cover!(result == Some([2048, 512]));
+    kani::cover!(q > 0 && k > 0 && result.is_none());
+}
+
+#[test]
+fn model_gqa_shapes_reject_invalid_heads_and_overflow() {
+    assert_eq!(model_gqa_widths(32, 8, 64), Some([2048, 512]));
+    for args in [
+        (0, 1, 64),
+        (1, 0, 64),
+        (3, 2, 64),
+        (4, 2, 63),
+        (u32::MAX, u32::MAX, 256),
+    ] {
+        assert!(model_gqa_widths(args.0, args.1, args.2).is_none());
+    }
+}
+
+#[cfg(any(
+    test,
+    kani,
+    all(target_os = "macos", feature = "direct-metal", feature = "chat")
+))]
+pub(crate) fn draft_dense_extent(rows: usize, cols: usize) -> Option<usize> {
+    if rows == 0 || cols == 0 || rows > i32::MAX as usize || cols > i32::MAX as usize {
+        return None;
+    }
+    let size = rows.checked_mul(cols)?;
+    (size <= isize::MAX as usize / std::mem::size_of::<f32>()).then_some(size)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn draft_blas_extents_reject_overflow_and_truncation() {
+    let rows: usize = kani::any();
+    let cols: usize = kani::any();
+    let result = draft_dense_extent(rows, cols);
+    let product = (rows as u128) * (cols as u128);
+    let valid = rows > 0
+        && cols > 0
+        && rows <= i32::MAX as usize
+        && cols <= i32::MAX as usize
+        && product <= isize::MAX as u128 / 4;
+    assert_eq!(result.is_some(), valid);
+    if let Some(words) = result {
+        assert_eq!(words as u128, product);
+    }
+    kani::cover!(result.is_some() && rows == 8 && cols == 248320);
+    kani::cover!(result.is_none() && rows == usize::MAX);
+}
+
+#[test]
+fn draft_dense_extent_checks_blas_and_allocation_boundaries() {
+    assert_eq!(draft_dense_extent(8, 248320), Some(1986560));
+    for (rows, cols) in [(0, 1), (1, 0), (usize::MAX, 2), (1, i32::MAX as usize + 1)] {
+        assert_eq!(draft_dense_extent(rows, cols), None);
+    }
 }
