@@ -1,5 +1,13 @@
 # PR 72 cloud integration — 2026-11-03
 
+## Hosted bitmap viewport correction
+
+On `1d96f8af`, the focused Swift 6 job passed and the full job compiled and executed the ordinary ResponseUI tests: 786 fade cases/63 drawings, 81 viewport frames, 9 formulas/two styles, inline WebKit lifetime and 63 parser cases. The long bitmap process then failed before its first capture: AppKit constrained the requested 900×700 content to 900×645 on the 1024×768 runner. The window was reported visible; the compound assertion's error was a viewport mismatch, not evidence of a hidden window or an OCR/content failure. The failed log remains archived.
+
+The test window now preserves its requested frame only in native bitmap mode through [NSWindow.constrainFrameRect](https://developer.apple.com/documentation/appkit/nswindow/constrainframerect(_:to:)). Physical `--require-onscreen` keeps normal AppKit constraints and every physical presentation guard. All three exact sizes (900×700, 640×520, 900×700), 30 checkpoints, CPU OCR, marker/ink thresholds and before/after visibility/geometry assertions remain. This does not validate a physical display or change product code. The focused job now compiles and executes the same registered response app as the complete suite, including the ordinary and long tests under the same 90-second supervisor. No full-suite stage is removed.
+
+At 10:34 UTC, both native macOS/Linux jobs, allocator/speculative proofs, Metal/loader, profile and conversion/packing checks had passed on `1d96f8af`. Routes still has two 600-second timeouts matching main; Apple guard still expires at 15 minutes. Flash/core proofs were still running. Zsh syntax, invalid-option exit 2 and diff whitespace checks pass locally for the new harness/script changes. Actual Swift compilation and bitmap execution of this new change remain pending the next exact-head CI. No fusion has occurred and public PR metadata remains unchanged.
+
 Source refs: upstream main `b9d5cbdce50aa98adfee560e06da75614e730bd3`, original PR head `bacee9d99f6fc1251b45a42172d117e3e4a13c54`, common ancestor `8c08c4c45c1f7795f476ca514e7c7d3b8cebce7b`. The initial cloud checkout was clean. No personal Mac, installed app, user configuration or model was accessed.
 
 ## Resolution

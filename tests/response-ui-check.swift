@@ -6,6 +6,16 @@ import SwiftUI
 import Vision
 import WebKit
 
+// Bitmap capture exercises a fixed native viewport even when a hosted VM's
+// screen is smaller. Physical onscreen checks retain AppKit's normal limits.
+@MainActor private final class LongVisibilityWindow: NSWindow {
+  var preservesBitmapViewport = false
+
+  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+    preservesBitmapViewport ? frameRect : super.constrainFrameRect(frameRect, to: screen)
+  }
+}
+
 private struct ReferenceFadeRenderer: TextRenderer {
   let tails: [(Int, Double)]
 
@@ -535,9 +545,10 @@ extension CodeBlockView {
     host.sizingOptions = []
     host.frame = NSRect(x: 0, y: 0, width: 900, height: 700)
     host.autoresizingMask = [.width, .height]
-    let window = NSWindow(
+    let window = LongVisibilityWindow(
       contentRect: NSRect(x: 50, y: 50, width: 900, height: 700),
       styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+    window.preservesBitmapViewport = !requireOnscreen
     window.level = .statusBar
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     window.hidesOnDeactivate = false

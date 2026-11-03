@@ -64,6 +64,24 @@ else
     math_objects=("${binary_dir}/SwiftMath.build"/*.swift.o)
 fi
 
+# Both CI paths compile and run the same registered response app and fixtures.
+check_response_ui() {
+    local -a response_sources
+    response_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
+    local response_app="${test_dir}/MLXL3 Response Check.app"
+    awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
+        tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
+    mkdir -p "${response_app}/Contents/MacOS"
+    cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
+    swiftc "${swiftc_args[@]}" -O \
+        "${response_sources[@]}" "${math_objects[@]}" \
+        "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
+    print "Response UI Swift 6 compilation passed"
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
+    # A fresh process runs the fixed-size native bitmap/OCR checks.
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+}
+
 # The focused PR job and the full suite execute the same production fixtures.
 check_preferences() {
     local -a idle_sources
@@ -86,23 +104,13 @@ check_preferences() {
         tests/logo-appearance-check.swift -o "${test_dir}/logo-appearance-check"
     run_fixture_check "${test_dir}/logo-appearance-check"
     if ${preferences_only}; then
-        # The full suite compiles and executes this fixture in its render phase.
-        # Compile the actual private-access render fixture with the same optimized
-        # Swift 6 flags as the full suite; this is not a bitmap/OCR execution result.
-        local -a response_guard_sources
-        response_guard_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
-        awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
-            tests/response-ui-check.swift > "${test_dir}/ResponseUICompileGuard.swift"
-        swiftc "${swiftc_args[@]}" -O \
-            "${response_guard_sources[@]}" "${math_objects[@]}" \
-            "${test_dir}/ResponseUICompileGuard.swift" -o "${test_dir}/response-compile-guard"
-        print "Response UI Swift 6 compilation passed"
+        check_response_ui
     fi
 }
 
 if ${preferences_only}; then
     check_preferences
-    print "Desktop preferences, notifications and logo checks passed"
+    print "Desktop preferences, notifications, logo and response UI checks passed"
     exit 0
 fi
 
@@ -209,19 +217,7 @@ swiftc "${swiftc_args[@]}" -O \
     -o "${test_dir}/streaming-check"
 "${test_dir}/streaming-check"
 
-awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
-    tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
-response_sources=("${sources[@]}")
-response_sources=("${(@)response_sources:#*/MarkdownResponseView.swift}")
-response_app="${test_dir}/MLXL3 Response Check.app"
-mkdir -p "${response_app}/Contents/MacOS"
-cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
-swiftc "${swiftc_args[@]}" -O \
-    "${response_sources[@]}" "${math_objects[@]}" \
-    "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
-"${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
-# A registered app and a fresh process make physical viewport visibility observable.
-run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+check_response_ui
 
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).
