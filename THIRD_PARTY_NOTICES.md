@@ -241,6 +241,11 @@ independently using the Metal SDK. The reference implementations are in
 [`gemv.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/gemv.h)
 and [`softmax.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/softmax.h).
 
+The scalar shared-expert switch and weighted expert reduction in
+`native/shaders/flash_moe.metal` follow the arithmetic order in Apple's
+[`dot.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/dot.h)
+and [strided reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_col.h).
+
 Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
 <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 

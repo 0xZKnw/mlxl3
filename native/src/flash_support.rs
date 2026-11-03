@@ -32,7 +32,12 @@ fn slot_reads_initialize_exact_disjoint_bank_regions() {
     kani::cover!(slot == 511);
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn expert_slot_destinations(slot: usize) -> [(usize, usize, usize); 12] {
     assert!(slot < 512, "expert slot exceeds bank limit");
     [
@@ -96,7 +101,12 @@ pub(crate) fn multi_token_verifier() -> Result<bool> {
         Err(error) => Err(error.into()),
     }
 }
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -953,13 +963,23 @@ pub struct ExpertCache {
 }
 
 /// Unfilled demand reservations must never survive an error or unwind.
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) struct ExpertFill {
     cache: Rc<RefCell<ExpertCache>>,
     complete: bool,
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 impl ExpertFill {
     pub(crate) fn new(cache: &Rc<RefCell<ExpertCache>>) -> Self {
         Self {
@@ -972,7 +992,12 @@ impl ExpertFill {
     }
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 impl Drop for ExpertFill {
     fn drop(&mut self) {
         if !self.complete {
@@ -2752,4 +2777,55 @@ fn stale_prefetch_completion_preserves_new_reservation() {
     assert_eq!(cache.pending_lease(slot, expert), Some(current));
     kani::cover!(valid && expert == 511);
     kani::cover!(!valid && expert == 0);
+}
+
+/// Byte offsets inside an inspected K2/MUL1 record, ordered down, gate, up.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RecordOffsets {
+    pub suh: u64,
+    pub svh: u64,
+    pub trellis: u64,
+}
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn record_offsets(index: usize) -> Option<RecordOffsets> {
+    let records = expert_slot_destinations(0);
+    let first = index.checked_mul(4)?;
+    let fields = records.get(first..first.checked_add(4)?)?;
+    let suh = records[..first].iter().map(|r| r.2 as u64).sum::<u64>();
+    let svh = suh + fields[0].2 as u64;
+    Some(RecordOffsets {
+        suh,
+        svh,
+        trellis: svh + fields[1].2 as u64 + fields[2].2 as u64,
+    })
+}
+#[test]
+fn immutable_flash_records_match_all_three_packed_intervals() {
+    for (index, input) in [640, 2560, 2560].into_iter().enumerate() {
+        let r = record_offsets(index).unwrap();
+        assert_eq!(
+            (r.suh, r.svh, r.trellis),
+            (
+                index as u64 * 416004,
+                index as u64 * 416004 + input * 2,
+                index as u64 * 416004 + 6404
+            )
+        );
+    }
+    assert!(record_offsets(3).is_none() && record_offsets(usize::MAX).is_none());
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(14)]
+fn flash_record_projection_bindings_fit_the_pinned_read() {
+    let index: usize = kani::any();
+    let r = record_offsets(index);
+    assert_eq!(r.is_some(), index < 3);
+    if let Some(r) = r {
+        assert!(r.suh < r.svh && r.svh < r.trellis && r.trellis + 409600 <= EXPERT_BYTES);
+        assert!(r.suh % 4 == 0 && r.svh % 4 == 0 && r.trellis % 4 == 0);
+        kani::cover!(index == 0);
+        kani::cover!(r.trellis + 409600 == EXPERT_BYTES);
+    }
 }

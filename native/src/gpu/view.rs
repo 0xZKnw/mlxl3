@@ -37,6 +37,19 @@ impl TensorStorage {
 }
 
 impl MatrixView {
+    pub fn row(&self, row: u32) -> Result<Self> {
+        Ok(Self {
+            buffer: self.buffer.clone(),
+            dtype: self.dtype,
+            layout: self
+                .layout
+                .row(row)
+                .context("row outside matrix or offset overflow")?,
+        })
+    }
+    pub fn shape(&self) -> [u32; 2] {
+        self.layout.shape
+    }
     pub(super) fn output(
         gpu: &Metal,
         dtype: FloatType,
@@ -80,9 +93,17 @@ impl MatrixView {
             },
         })
     }
-    pub(super) fn column_scales(buffer: &Buffer, rows: u32, cols: u32) -> Result<Self> {
+    pub(super) fn column_scales(
+        buffer: &Buffer,
+        offset: u64,
+        rows: u32,
+        cols: u32,
+    ) -> Result<Self> {
         ensure!(
-            buffer.length() == 2 * u64::from(cols),
+            offset.is_multiple_of(2)
+                && offset
+                    .checked_add(2 * u64::from(cols))
+                    .is_some_and(|end| end <= buffer.length()),
             "invalid column scale allocation"
         );
         Ok(Self {
@@ -90,7 +111,7 @@ impl MatrixView {
             layout: MatrixLayout {
                 shape: [rows, cols],
                 strides: [0, 1],
-                offset: 0,
+                offset: i64::try_from(offset / 2)?,
             },
             dtype: FloatType::F16,
         })

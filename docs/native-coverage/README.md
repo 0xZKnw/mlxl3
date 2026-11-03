@@ -113,3 +113,15 @@ Le CLI `metal-router` consomme une vue de scores FP16 ou FP32 et rend les indice
 ### Routeur Flash avec les poids du checkpoint
 
 `metal-checkpoint-router` prend le préfixe d’une gate Flash dense [512,2560] sans biais et une vue d’activation FP16/F32. La projection, le softmax précis et les dix scores ordonnés utilisent la même commande Metal. Le diagnostic `return_raw` permet de lire les logits et les probabilités. Trois gates du checkpoint Flash (couches 0 et 23, MTP) et une gate synthétique ont été qualifiées sur entrées imposées. [Comparaison physique](gate/physical.json) · [Divergence de normalisation](gate/widened-denominator.json) · [Provenance et domaine](gate/provenance.json).
+
+### Bloc MoE Flash depuis les poids réels
+
+Le CLI direct exécute les dix experts routés, l’expert partagé et sa gate pour une ligne de 2 560 activations. Pour essayer la couche 0 sur un Mac Apple Silicon, compiler `cargo build --locked --release --features chat`, puis utiliser le chemin du checkpoint Flash et celui du binaire produit. Les deux lignes identiques partagent leur cache d’experts.
+
+```sh
+python3 -c 'import json,sys; print(json.dumps(dict(op="metal-checkpoint-moe",path=sys.argv[1],prefix="model.language_model.layers.0.mlp",slots=10,x_f32=[(i%73-36)/53 for i in range(2560)],x_layout=dict(shape=[2,2560],offset=0,strides=[0,1]))))' "$MODEL" |
+  "$CLI" codec |
+  python3 -c 'import json,sys; print([(len(r["values"]),r["hits"],r["read_bytes"]) for r in json.load(sys.stdin)["data"]])'
+```
+
+Résultat attendu en (coefficients, experts en cache, octets lus) : `[(2560, 0, 12480120), (2560, 10, 0)]`. Cette commande accepte des activations numériques. Le parcours prompt → tokens exige aussi l’embedding, l’attention, les états récurrents, les 48 couches et la tête de sortie. [Comparaison physique](moe/physical.json) · [Erreurs détectées et reproduction](moe/provenance.json).

@@ -1424,6 +1424,9 @@
     "shader mlxl3_test_later_gpu_work": 1,
     "shader mlxl3_test_scheduled_route_ids": 1
   },
+  "native/src/checkpoint.rs": {
+    "mlx": 1
+  },
   "native/src/codec.rs": {
     ".to_f32": 2,
     "mlx": 1,
@@ -1793,9 +1796,16 @@
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/exl3.metal": 1,
     "shader ../shaders/flash_gate.metal": 1,
+    "shader ../shaders/flash_moe.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
     "shader ../shaders/flash_reference_reduction.h": 1,
     "shader ../shaders/router_topk.h": 1
+  },
+  "native/src/gpu/moe.rs": {
+    ".shape": 1,
+    ".take": 1,
+    ".transpose": 1,
+    "config MLXL3_MOE_CHECKPOINT": 1
   },
   "native/src/gpu/projection.rs": {
     ".swiglu": 2,
@@ -2033,7 +2043,7 @@
     ".finish": 5,
     ".log_probs": 2,
     ".retained_bytes": 4,
-    ".shape": 3,
+    ".shape": 4,
     ".slice": 2,
     ".swiglu": 1,
     ".take": 7,
@@ -2583,6 +2593,18 @@
     "Array::zeros_dtype": 1,
     "config MLXL3_FLASH_MODEL": 1,
     "config MLXL3_SSD_ROUTED_INDEX_CACHE": 2
+  },
+  "native/src/ssd_moe/row_oracle.rs": {
+    ".dtype": 2,
+    ".shape": 1,
+    ".sigmoid": 1,
+    ".to_f16_bits": 2,
+    ".to_f32": 2,
+    ".to_u32": 1,
+    "Array::from_f16_bits": 1,
+    "Array::from_f32": 1,
+    "config MLXL3_MOE_CHECKPOINT": 1,
+    "config MLXL3_MOE_FIXTURES": 1
   },
   "native/src/ssd_moe/shared_tests.rs": {
     ".astype": 7,

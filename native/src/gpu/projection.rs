@@ -18,6 +18,7 @@ pub struct FlashProjection<'a> {
     suh: Buffer,
     svh: Buffer,
     bias: Option<Buffer>,
+    offsets: flash_support::RecordOffsets,
     input: u32,
     output: u32,
     k: u32,
@@ -144,6 +145,7 @@ impl<'a> FlashProjection<'a> {
             packed,
             suh: get_scale("suh", "su", input)?,
             svh: get_scale("svh", "sv", output)?,
+            offsets: flash_support::RecordOffsets::default(),
             bias: tensors
                 .get(&format!("{name}.bias"))
                 .map(|t| scale(&metal.device, t, output))
@@ -215,16 +217,17 @@ impl<'a> FlashProjection<'a> {
             Storage::StorageModePrivate,
         )?;
         match x {
-            Activation::Contiguous(x) => Metal::encode(
+            Activation::Contiguous(x) => Metal::encode_bound(
                 cmd,
                 &gpu.prepare128_pipeline,
-                &[x, &self.suh, &prepared],
+                [(x, 0), (&self.suh, self.offsets.suh), (&prepared, 0)].into_iter(),
                 [self.input, 0, 0, 0, 0],
                 MTLSize::new(u64::from(inputs / 128), 1, 1),
                 64,
             ),
             Activation::View(x) => {
-                let scales = MatrixView::column_scales(&self.suh, batch, self.input)?;
+                let scales =
+                    MatrixView::column_scales(&self.suh, self.offsets.suh, batch, self.input)?;
                 gpu.encode_prepare_view(cmd, x, &scales, &prepared)?;
             }
         }
@@ -235,27 +238,40 @@ impl<'a> FlashProjection<'a> {
         )?;
         let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
         let (pipeline, third, groups) = if self.k == 7 {
-            (&gpu.k7_pipeline, &gpu.inverse, self.output)
+            (&gpu.k7_pipeline, (&gpu.inverse, 0), self.output)
         } else {
-            (&gpu.flash_qmv_pipeline, &self.svh, self.output / 16)
+            (
+                &gpu.flash_qmv_pipeline,
+                (&self.svh, self.offsets.svh),
+                self.output / 16,
+            )
         };
-        Metal::encode(
+        Metal::encode_bound(
             cmd,
             pipeline,
-            &[&prepared, &self.packed, third, &partial],
+            [
+                (&prepared, 0),
+                (&self.packed, self.offsets.trellis),
+                third,
+                (&partial, 0),
+            ]
+            .into_iter(),
             [batch, self.k, self.cb as u32, self.input, self.output],
             MTLSize::new(u64::from(groups), u64::from(batch), u64::from(self.splits)),
             128,
         );
-        Metal::encode(
+        Metal::encode_bound(
             cmd,
             &gpu.finish128_pipeline,
-            &[
-                &partial,
-                &self.svh,
-                self.bias.as_ref().unwrap_or(&self.svh),
-                &dest,
-            ],
+            [
+                (&partial, 0),
+                (&self.svh, self.offsets.svh),
+                self.bias
+                    .as_ref()
+                    .map_or((&self.svh, self.offsets.svh), |b| (b, 0)),
+                (&dest, 0),
+            ]
+            .into_iter(),
             [
                 self.splits,
                 0,
@@ -359,17 +375,70 @@ impl<'a> FlashExpert<'a> {
         Ok(Self { gate, up, down })
     }
 
+    pub(super) fn input_hidden(&self) -> [u32; 2] {
+        [self.gate.input, self.gate.output]
+    }
+
+    pub(super) fn from_record(gpu: &'a Metal, record: &TensorInfo) -> Result<Self> {
+        let (file, offset) = record.source()?;
+        let backing = super::read_buffer(&gpu.device, file, offset, flash_support::EXPERT_BYTES)?;
+        let projection = |index, input, output| -> Result<_> {
+            let offsets =
+                flash_support::record_offsets(index).context("invalid Flash record projection")?;
+            let splits = flash_support::reference_splits(input / 16, output / 16);
+            contracts::projection_extents(1, input, output, splits)
+                .context("invalid Flash record shape")?;
+            Ok(FlashProjection {
+                metal: gpu,
+                packed: backing.clone(),
+                suh: backing.clone(),
+                svh: backing.clone(),
+                bias: None,
+                offsets,
+                input,
+                output,
+                k: 2,
+                cb: Codebook::Mul1,
+                splits,
+            })
+        };
+        Ok(Self {
+            down: projection(0, 640, 2560)?,
+            gate: projection(1, 2560, 640)?,
+            up: projection(2, 2560, 640)?,
+        })
+    }
+    pub(super) fn encode_view(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<Buffer> {
+        let extents = self.expert_extents(self.gate.view_extents(x)?)?;
+        self.encode(cmd, Activation::View(x), extents, storage)
+    }
+
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
         let extents = self.expert_extents(self.gate.extents(x.len())?)?;
         submit(self.gate.metal, x, |cmd, x| {
-            self.encode(cmd, Activation::Contiguous(x), extents)
+            self.encode(
+                cmd,
+                Activation::Contiguous(x),
+                extents,
+                Storage::StorageModeShared,
+            )
         })
     }
 
     pub fn submit_fp16_view(&self, x: &MatrixView) -> Result<ProjectionOutput> {
         let extents = self.expert_extents(self.gate.view_extents(x)?)?;
         submit_encoded(self.gate.metal, |cmd| {
-            self.encode(cmd, Activation::View(x), extents)
+            self.encode(
+                cmd,
+                Activation::View(x),
+                extents,
+                Storage::StorageModeShared,
+            )
         })
     }
 
@@ -386,6 +455,7 @@ impl<'a> FlashExpert<'a> {
         cmd: &CommandBufferRef,
         x: Activation<'_>,
         [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
+        storage: Storage,
     ) -> Result<Buffer> {
         let gate = self
             .gate
@@ -401,7 +471,7 @@ impl<'a> FlashExpert<'a> {
             cmd,
             Activation::Contiguous(&activated),
             down_extents,
-            Storage::StorageModeShared,
+            storage,
         )
     }
 }

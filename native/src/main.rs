@@ -189,6 +189,9 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     prefix: String,
+    #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    slots: Option<usize>,
     #[serde(default = "default_k")]
     k: usize,
     #[serde(default)]
@@ -916,12 +919,40 @@ fn codec_loop() -> Result<()> {
                 | "metal-swiglu"
                 | "metal-prepare-view"
                 | "metal-router"
-                | "metal-checkpoint-router" => {
+                | "metal-checkpoint-router"
+                | "metal-checkpoint-moe" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-moe" => {
+                            let input = request.input_view(gpu)?;
+                            let [rows, width] = input.shape();
+                            anyhow::ensure!(
+                                (1..=8).contains(&rows) && width == 2560,
+                                "expected one to eight Flash AR rows"
+                            );
+                            let checkpoint =
+                                checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let mut layer = mlxl3_native::gpu::FlashMoeRow::load(
+                                gpu,
+                                &checkpoint,
+                                &request.prefix,
+                                request.slots.unwrap_or(10),
+                            )?;
+                            let mut results = Vec::new();
+                            for r in 0..rows {
+                                let x = input.row(r)?;
+                                let out = if request.return_raw {
+                                    layer.trace(&x)?
+                                } else {
+                                    layer.submit(&x)?
+                                };
+                                results.push(json!({"indices":out.indices,"hits":out.hits,"read_bytes":out.read_bytes,"values":out.read()?,"switch":out.multiplier_trace()?}));
+                            }
+                            Ok(json!(results))
+                        }
                         "metal-checkpoint-router" => {
                             let input = request.input_view(gpu)?;
                             let checkpoint =

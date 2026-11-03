@@ -79,9 +79,11 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     )
     added = {
         "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
+        "tensor_layout::matrix_row_preserves_backing_and_address",
         "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",
+        "flash_support::flash_record_projection_bindings_fit_the_pinned_read",
         "contracts::flash_gate_dispatch_bounds_output_and_weight_addresses",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",

@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod moe;
+pub use moe::{FlashMoeRow, MoeOutput};
 mod gate;
 pub use gate::{FlashGate, FlashGateTrace};
 mod router;
@@ -41,12 +43,21 @@ fn read_weight(
     tensor: &crate::checkpoint::TensorInfo,
     bytes: u64,
 ) -> Result<Buffer> {
-    use std::os::unix::fs::FileExt;
     ensure!(
         tensor.data_offsets[1].checked_sub(tensor.data_offsets[0]) == Some(bytes),
         "weight byte count mismatch"
     );
     let (file, offset) = tensor.source()?;
+    read_buffer(device, file, offset, bytes)
+}
+
+fn read_buffer(
+    device: &DeviceRef,
+    file: &std::fs::File,
+    offset: u64,
+    bytes: u64,
+) -> Result<Buffer> {
+    use std::os::unix::fs::FileExt;
     let packed = buffer(device, bytes, Storage::StorageModeShared)?;
     // The inspected inode is pinned. No handle is published before read_exact_at succeeds.
     let dest = unsafe {
@@ -77,6 +88,8 @@ pub struct Metal {
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
+    moe_switch: [ComputePipelineState; 2],
+    moe_mix: [ComputePipelineState; 2],
     gate_dot: [ComputePipelineState; 2],
     gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
@@ -110,6 +123,10 @@ impl Metal {
             let source = source.replace(
                 "#include \"flash_gate.metal\"",
                 include_str!("../shaders/flash_gate.metal"),
+            );
+            let source = source.replace(
+                "#include \"flash_moe.metal\"",
+                include_str!("../shaders/flash_moe.metal"),
             );
             let library = device
                 .new_library_with_source(&source, &options)
@@ -147,6 +164,8 @@ impl Metal {
                 pipeline("gate_softmax_half")?,
                 pipeline("gate_softmax_float")?,
             ];
+            let moe_switch = [pipeline("moe_switch_half")?, pipeline("moe_switch_float")?];
+            let moe_mix = [pipeline("moe_mix_half")?, pipeline("moe_mix_float")?];
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let queue = device.new_command_queue();
@@ -163,6 +182,8 @@ impl Metal {
                 prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
+                moe_switch,
+                moe_mix,
                 gate_dot,
                 gate_softmax,
                 route_half,
@@ -220,13 +241,32 @@ impl Metal {
         groups: MTLSize,
         threads: usize,
     ) {
+        Self::encode_bound(
+            command,
+            pipeline,
+            buffers.iter().map(|b| (*b, 0)),
+            params,
+            groups,
+            threads,
+        );
+    }
+
+    fn encode_bound<'a, T: Copy, const N: usize>(
+        command: &CommandBufferRef,
+        pipeline: &ComputePipelineState,
+        buffers: impl ExactSizeIterator<Item = (&'a Buffer, u64)>,
+        params: [T; N],
+        groups: MTLSize,
+        threads: usize,
+    ) {
+        let count = buffers.len();
         let encoder = command.new_compute_command_encoder();
         encoder.set_compute_pipeline_state(pipeline);
-        for (i, buffer) in buffers.iter().enumerate() {
-            encoder.set_buffer(i as u64, Some(buffer), 0);
+        for (i, (buffer, offset)) in buffers.enumerate() {
+            encoder.set_buffer(i as u64, Some(buffer), offset);
         }
         encoder.set_bytes(
-            buffers.len() as u64,
+            count as u64,
             std::mem::size_of_val(&params) as u64,
             params.as_ptr().cast(),
         );
