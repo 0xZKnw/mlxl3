@@ -166,7 +166,7 @@ Le prompt français du rapport se termine par « 4 » après 77 tokens sur les d
 
 La sélection s’active au 513e bloc complet, à la position 2 052. Elle conserve les 512 blocs les mieux classés, les remet dans l’ordre chronologique, puis ajoute les tokens du bloc incomplet. À égalité de score, les blocs les plus récents passent en premier à la coupure. Le cache double de capacité à la demande. Un préfixe restauré conserve ses clés, valeurs, blocs compressés et la queue de l’index.
 
-Sur le M5, une couche a parcouru 4 096 positions, avec comparaison des projections d’index, des scores, des positions, des sorties et du cache complet à la dernière position. La même suite a aussi exercé les variantes Max et Ultra imposées sur ce M5. La CLI a traversé les 48 couches sur une entrée de 2 053 tokens avec 248 320 logits finaux identiques. La limite configurée est de 262 144 tokens. [Détail par tenseur](qsa-long/layer.json), [parcours complet](qsa-long/whole-model-initial.json), [conditions, preuves CPU et tests](qsa-long/provenance.json).
+Sur le M5, une couche a parcouru 4 096 positions, avec comparaison des projections d’index, des scores, des positions, des sorties et du cache complet à la dernière position. La même suite a aussi exercé les variantes Max et Ultra imposées sur ce M5. La CLI a traversé les 48 couches sur une entrée de 2 053 tokens avec 248 320 logits finaux identiques. La limite configurée est de 262 144 tokens. [Détail par tenseur](qsa-long/layer.json), [parcours release complet](qsa-long/whole-model-release.json), [conditions, preuves CPU et tests](qsa-long/provenance.json).
 
 Pour reproduire le parcours complet avec deux exécutables release, lancer la commande suivante sur un Mac Apple Silicon avec le checkpoint Flash.
 

@@ -1,5 +1,14 @@
 # Third-party notices
 
+## Flash attention on Metal
+
+The one- and two-pass attention reductions in `native/shaders/flash_qsa.metal`
+follow Apple MLX 0.32.2. The sparse index kernel dispatch in
+`native/src/gpu/qsa.rs` follows the device and matrix capability selection in
+that version. See the [vector attention source](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/sdpa_vector.h),
+[device capabilities](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp)
+and [MLX license](https://github.com/ml-explore/mlx/blob/v0.32.2/LICENSE).
+
 ## Experimental DEC-ONE arrival and exact dense finish
 
 `native/shaders/flash_dec_one_finish.metal` adapts the device-fence and last-group
