@@ -715,6 +715,12 @@ impl<'a> FlashQsaLayer<'a> {
     pub fn snapshot(&self) -> FlashQsaState {
         self.attention.snapshot()
     }
+    pub(super) fn prefix_position(&self) -> u32 {
+        self.attention.state.offset
+    }
+    pub(super) fn owns_prefix(&self, state: &FlashQsaState) -> bool {
+        Rc::ptr_eq(&self.attention.state.owner, &state.owner)
+    }
     pub fn restore(&mut self, s: &FlashQsaState) -> Result<()> {
         self.attention.restore(s)
     }
@@ -741,6 +747,29 @@ impl<'a> FlashQsaLayer<'a> {
     }
 }
 
+impl FlashQsaState {
+    pub(super) fn record_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+        category: &'static str,
+    ) -> Result<()> {
+        for buffer in [&self.slab.keys, &self.slab.values] {
+            backings.record(category, buffer)?;
+        }
+        if let Some(blocks) = &self.slab.blocks {
+            backings.record(category, blocks)?;
+        }
+        if let Some(tail) = &self.tail {
+            backings.record(category, tail)?;
+        }
+        Ok(())
+    }
+    pub fn retained_bytes(&self) -> Result<u64> {
+        let mut backings = crate::gpu::memory::Backings::default();
+        self.record_memory(&mut backings, "prompt_cache")?;
+        backings.total()
+    }
+}
 impl FlashQsaLayer<'_> {
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
         let q = &self.attention;

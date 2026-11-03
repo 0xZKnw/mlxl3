@@ -185,6 +185,15 @@ pub struct FlashMtpSession {
 }
 
 impl FlashMtpHead<'_> {
+    pub fn snapshot_prefix(&self) -> super::FlashQsaState {
+        self.layer.snapshot()
+    }
+    pub(in crate::gpu) fn owns_prefix(&self, state: &super::FlashQsaState) -> bool {
+        self.layer.owns_prefix(state)
+    }
+    pub fn restore_prefix(&mut self, state: &super::FlashQsaState) -> Result<()> {
+        self.layer.restore(state)
+    }
     fn extend(&mut self, target: &FlashNext, hidden: &MatrixView, token: u32) -> Result<()> {
         self.layer.extend(&self.mixed(target, hidden, token)?)
     }
@@ -211,6 +220,31 @@ impl FlashMtpSession {
         *self = Self::default();
         target.reset();
         head.reset();
+        self.extend_prefill(target, head, tokens, cancelled)
+    }
+    /// Append only a real prompt suffix after restoring the paired target/head prefix.
+    pub fn extend_prefill(
+        &mut self,
+        target: &mut FlashNext,
+        head: &mut FlashMtpHead,
+        tokens: &[u32],
+        cancelled: &std::sync::atomic::AtomicBool,
+    ) -> Result<Vec<u16>> {
+        ensure!(
+            !tokens.is_empty()
+                && tokens.iter().all(|&t| t < 248320)
+                && usize::try_from(target.offset())
+                    .ok()
+                    .and_then(|n| n.checked_add(tokens.len()))
+                    .is_some_and(|end| end <= target.context as usize),
+            "invalid Flash MTP suffix"
+        );
+        ensure!(
+            Rc::ptr_eq(&target.owner, &head.owner)
+                && head.layer.prefix_position() == target.offset().saturating_sub(1),
+            "MTP prefix differs from the target"
+        );
+        *self = Self::default();
         let result = (|| {
             let mut logits = None;
             for &token in tokens {

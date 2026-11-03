@@ -254,3 +254,295 @@ async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Resul
     );
     Ok(())
 }
+
+#[cfg(all(
+    target_os = "macos",
+    feature = "direct-metal",
+    feature = "chat",
+    not(feature = "mlx")
+))]
+#[tokio::test]
+#[ignore = "physical native Flash conversation checkpoints, modes, cancellation and recovery"]
+async fn native_flash_prefix_cache_preserves_bridge_recovery() -> anyhow::Result<()> {
+    use anyhow::{Context, ensure};
+    use serde_json::{Value, json};
+    use std::{process::Stdio, time::Duration};
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+        process::{ChildStdin, ChildStdout, Command},
+        time::timeout,
+    };
+    async fn event(
+        output: &mut tokio::io::Lines<BufReader<ChildStdout>>,
+        id: &str,
+        wanted: &str,
+        cancel_pid: Option<i32>,
+    ) -> anyhow::Result<Value> {
+        timeout(Duration::from_secs(120), async {
+            let mut signalled = false;
+            loop {
+                let line = output.next_line().await?.context("prefix bridge exited")?;
+                let event: Value = serde_json::from_str(&line)?;
+                if !id.is_empty() && event["request_id"] != id {
+                    continue;
+                }
+                if event["type"] == "delta"
+                    && !signalled
+                    && let Some(pid) = cancel_pid
+                {
+                    ensure!(
+                        unsafe { libc::kill(pid, libc::SIGUSR1) } == 0,
+                        "cancel signal failed"
+                    );
+                    signalled = true;
+                }
+                if event["type"] == wanted {
+                    ensure!(
+                        cancel_pid.is_none() || signalled,
+                        "no delta cancellation exercised"
+                    );
+                    return Ok(event);
+                }
+                ensure!(
+                    event["type"] != "error",
+                    "unexpected prefix bridge error {event}"
+                );
+                ensure!(
+                    event["type"] != "complete",
+                    "completed before expected event {wanted}"
+                );
+            }
+        })
+        .await
+        .context("prefix request deadline")?
+    }
+    async fn request(
+        input: &mut ChildStdin,
+        output: &mut tokio::io::Lines<BufReader<ChildStdout>>,
+        value: Value,
+        wanted: &str,
+        cancel_pid: Option<i32>,
+    ) -> anyhow::Result<Value> {
+        input
+            .write_all((value.to_string() + "\n").as_bytes())
+            .await?;
+        event(
+            output,
+            value["request_id"].as_str().context("missing fixture id")?,
+            wanted,
+            cancel_pid,
+        )
+        .await
+    }
+    fn generation(id: &str, model: &str, draft: &str, mode: usize) -> Value {
+        json!({"type":"generate","request_id":id,"conversation_id":"prefix-fixture","messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"temperature":0,"top_k":1,"mtp":mode==1,"mtp_head_path":model,"dflash2":mode==2,"dflash_draft_path":draft,"reuse_prompt_cache":true})
+    }
+    fn check(completed: &Value, warm: bool) -> anyhow::Result<()> {
+        ensure!(
+            completed["stats"]["generated_tokens"] == 2
+                && completed["token_hash"] == "9f850af1cbba074b",
+            "independent bridge token mismatch {completed}"
+        );
+        let stats = &completed["stats"];
+        let prompt = stats["prompt_tokens"]
+            .as_u64()
+            .context("missing prompt count")?;
+        ensure!(
+            prompt > 0 && stats["cached_prompt_tokens"] == if warm { prompt } else { 0 },
+            "wrong cached count {stats}"
+        );
+        ensure!(
+            stats["evaluated_prompt_tokens"] == if warm { 0 } else { prompt },
+            "wrong evaluated count {stats}"
+        );
+        Ok(())
+    }
+    let model = std::env::var("MLXL3_FLASH_MODEL")?;
+    let draft = std::env::var("MLXL3_FLASH_DRAFT_MODEL")?;
+    let cli = std::env::var("MLXL3_FLASH_TEST_CLI")
+        .unwrap_or_else(|_| env!("CARGO_BIN_EXE_mlxl3-rs").into());
+    let dir = tempfile::tempdir()?;
+    let mut process = Command::new(cli)
+        .arg("--registry")
+        .arg(dir.path().join("models.json"))
+        .arg("bridge")
+        .arg(&model)
+        .args(["--context-length", "256"])
+        .env_remove("MLXL3_FLASH_REQUEST_MIB")
+        .env("MLXL3_PROMPT_CACHE_MIB", "256")
+        .env("MLXL3_SSD_CACHE_GIB", "0.6")
+        .env("MLXL3_SSD_LOOKAHEAD_DEPTH", "0")
+        .env("MLXL3_FLASH_DRAFT_ADAPTIVE", "1")
+        .env("MLXL3_FLASH_DRAFT_PRECAP", "0")
+        .env_remove("MLXL3_FLASH_DRAFT_WIDTH")
+        .env("MLXL3_FLASH_DRAFT_Q4", "1")
+        .env("MLXL3_FLASH_DRAFT_RING", "1")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .process_group(0)
+        .kill_on_drop(true)
+        .spawn()?;
+    let pid = i32::try_from(process.id().context("missing prefix bridge pid")?)?;
+    let mut input = process.stdin.take().context("missing prefix input")?;
+    let mut output =
+        BufReader::new(process.stdout.take().context("missing prefix output")?).lines();
+    let result = timeout(Duration::from_secs(420), async {
+        let ready = event(&mut output, "", "ready", None).await?;
+        ensure!(ready["mtp_supported"] == true && ready["dflash_supported"] == true);
+        for mode in 0..3 {
+            let cold = request(
+                &mut input,
+                &mut output,
+                generation(&format!("cold-{mode}"), &model, &draft, mode),
+                "complete",
+                None,
+            )
+            .await?;
+            check(&cold, false)?;
+            let warm = request(
+                &mut input,
+                &mut output,
+                generation(&format!("warm-{mode}"), &model, &draft, mode),
+                "complete",
+                None,
+            )
+            .await?;
+            check(&warm, true)?;
+            let ledger = request(
+                &mut input,
+                &mut output,
+                json!({"type":"flash_memory","request_id":format!("ledger-{mode}")}),
+                "flash_memory",
+                None,
+            )
+            .await?;
+            ensure!(
+                ledger["ledger"]["prompt_cache"]["checkpoint_tokens"]
+                    == cold["stats"]["prompt_tokens"]
+            );
+            ensure!(
+                ledger["ledger"]["state_backing_bytes"]["prompt_cache"]
+                    .as_u64()
+                    .is_some_and(|n| n > 0)
+            );
+            if mode == 2 {
+                ensure!(
+                    ledger["ledger"]["draft_host_payload"]["weights_bytes"]
+                        .as_u64()
+                        .is_some_and(|n| n > 0)
+                );
+            }
+        }
+        let switched = request(
+            &mut input,
+            &mut output,
+            generation("switch-ar", &model, &draft, 0),
+            "complete",
+            None,
+        )
+        .await?;
+        check(&switched, false)?;
+        input.write_all(b"{\n").await?;
+        event(&mut output, "", "error", None).await?;
+        let recovered = request(
+            &mut input,
+            &mut output,
+            generation("after-malformed", &model, &draft, 0),
+            "complete",
+            None,
+        )
+        .await?;
+        check(&recovered, false)?;
+        let mut disabled = generation("disabled", &model, &draft, 0);
+        disabled["reuse_prompt_cache"] = false.into();
+        check(
+            &request(&mut input, &mut output, disabled, "complete", None).await?,
+            false,
+        )?;
+        let ledger = request(
+            &mut input,
+            &mut output,
+            json!({"type":"flash_memory","request_id":"disabled-ledger"}),
+            "flash_memory",
+            None,
+        )
+        .await?;
+        ensure!(ledger["ledger"]["prompt_cache"].is_null());
+        let mut saver = generation("saver", &model, &draft, 0);
+        saver["memory_saver"] = true.into();
+        check(
+            &request(&mut input, &mut output, saver, "complete", None).await?,
+            false,
+        )?;
+        let ledger = request(
+            &mut input,
+            &mut output,
+            json!({"type":"flash_memory","request_id":"saver-ledger"}),
+            "flash_memory",
+            None,
+        )
+        .await?;
+        ensure!(
+            ledger["ledger"]["prompt_cache"].is_null()
+                && ledger["ledger"]["state_backing_bytes"].get("gdn").is_none()
+        );
+        let mut cancel = generation("cancel", &model, &draft, 0);
+        cancel["max_tokens"] = 64.into();
+        request(&mut input, &mut output, cancel, "cancelled", Some(pid)).await?;
+        let ledger = request(
+            &mut input,
+            &mut output,
+            json!({"type":"flash_memory","request_id":"cancel-ledger"}),
+            "flash_memory",
+            None,
+        )
+        .await?;
+        ensure!(ledger["ledger"]["prompt_cache"].is_null());
+        check(
+            &request(
+                &mut input,
+                &mut output,
+                generation("after-cancel", &model, &draft, 0),
+                "complete",
+                None,
+            )
+            .await?,
+            false,
+        )?;
+        let mut invalid = generation("invalid", &model, &draft, 0);
+        invalid["messages"] = json!([]);
+        request(&mut input, &mut output, invalid, "error", None).await?;
+        check(
+            &request(
+                &mut input,
+                &mut output,
+                generation("after-error", &model, &draft, 0),
+                "complete",
+                None,
+            )
+            .await?,
+            false,
+        )?;
+        Ok::<_, anyhow::Error>(())
+    })
+    .await
+    .context("prefix bridge campaign deadline");
+    let _ = input.write_all(b"{\"type\":\"shutdown\"}\n").await;
+    let status = match timeout(Duration::from_secs(12), process.wait()).await {
+        Ok(status) => status?,
+        Err(_) => {
+            unsafe {
+                libc::killpg(pid, libc::SIGKILL);
+            }
+            timeout(Duration::from_secs(3), process.wait())
+                .await
+                .context("prefix cleanup deadline")??
+        }
+    };
+    result??;
+    ensure!(status.success(), "prefix shutdown failed {status}");
+    eprintln!(
+        "Native prefix bridge: three modes, exact independent token hashes, warm counters, owner ledger and error/cancel recovery pass"
+    );
+    Ok(())
+}

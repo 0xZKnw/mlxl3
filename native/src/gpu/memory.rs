@@ -16,6 +16,12 @@ pub(super) struct Backings {
     pub ple_rows: usize,
 }
 impl Backings {
+    pub(super) fn total(&self) -> Result<u64> {
+        self.bytes
+            .values()
+            .try_fold(0u64, |sum, &bytes| sum.checked_add(bytes))
+            .context("native backing total overflow")
+    }
     pub(super) fn record(&mut self, category: &'static str, buffer: &Buffer) -> Result<()> {
         if self.seen.insert(buffer.as_ptr() as usize) {
             let total = self.bytes.entry(category).or_default();
@@ -100,6 +106,14 @@ impl FlashNext<'_> {
         self.request_limit
     }
     pub fn memory_ledger(&self, mtp: Option<&FlashMtpHead>) -> Result<MemoryLedger> {
+        self.memory_ledger_with_prefix(mtp, None, None)
+    }
+    pub fn memory_ledger_with_prefix(
+        &self,
+        mtp: Option<&FlashMtpHead>,
+        prefix: Option<&crate::gpu::FlashSnapshot>,
+        mtp_prefix: Option<&crate::gpu::FlashQsaState>,
+    ) -> Result<MemoryLedger> {
         let mut backings = Backings::default();
         self.head.record_memory(&mut backings)?;
         self.mixer.record_memory(&mut backings)?;
@@ -111,6 +125,20 @@ impl FlashNext<'_> {
         }
         if let Some(head) = mtp {
             head.record_memory(self, &mut backings)?;
+        }
+        if let Some(prefix) = prefix {
+            ensure!(
+                self.owns_snapshot(prefix),
+                "prompt cache belongs to a different Flash session"
+            );
+            prefix.record_memory(&mut backings)?;
+        }
+        if let Some(prefix) = mtp_prefix {
+            ensure!(
+                mtp.is_some_and(|head| head.owns_prefix(prefix)),
+                "cached MTP state belongs to another head"
+            );
+            prefix.record_memory(&mut backings, "prompt_cache")?;
         }
         let owned = backings
             .bytes

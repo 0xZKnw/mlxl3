@@ -1,0 +1,27 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0)
+error: this `if` statement can be collapsed
+   --> tests/openai_transport.rs:289:17
+    |
+289 | /                 if event["type"] == "delta" && !signalled {
+290 | |                     if let Some(pid) = cancel_pid {
+291 | |                         ensure!(
+292 | |                             unsafe { libc::kill(pid, libc::SIGUSR1) } == 0,
+...   |
+297 | |                 }
+    | |_________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+289 ~                 if event["type"] == "delta" && !signalled
+290 ~                     && let Some(pid) = cancel_pid {
+291 |                         ensure!(
+...
+295 |                         signalled = true;
+296 ~                     }
+    |
+
+error: could not compile `mlxl3-native` (test "openai_transport") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
