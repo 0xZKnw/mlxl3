@@ -65,12 +65,9 @@ kernel void exl3_codebook(device half* values [[buffer(0)]],
 
 // Conservative serialized QMV, matching the existing _qmv_inner_kernel.
 // No dense weight matrix is allocated. Tiled/split-K dispatch is a separate port.
-kernel void exl3_qmv(const device half* x [[buffer(0)]],
-    const device ushort* packed [[buffer(1)]], const device ushort* inv [[buffer(2)]],
-    device half* y [[buffer(3)]], constant Params& p [[buffer(4)]],
-    uint tid [[thread_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]],
-    uint simd [[simdgroup_index_in_threadgroup]], uint n [[threadgroup_position_in_grid]]) {
-    threadgroup float partials[4];
+inline float qmv_column(const device half* x, const device ushort* packed,
+    const device ushort* inv, constant Params& p, threadgroup float* partials,
+    uint tid, uint lane, uint simd, uint n) {
     float acc = 0;
     for (uint row = tid; row < p.rows; row += 128u) {
         uint tile = (row >> 4) * (p.cols >> 4) + (n >> 4);
@@ -81,19 +78,32 @@ kernel void exl3_qmv(const device half* x [[buffer(0)]],
     if (lane == 0) partials[simd] = acc;
     threadgroup_barrier(mem_flags::mem_threadgroup);
     float total = simd_sum(tid < 4 ? partials[tid] : 0.0f);
+    return total;
+}
+
+kernel void exl3_qmv(const device half* x [[buffer(0)]],
+    const device ushort* packed [[buffer(1)]], const device ushort* inv [[buffer(2)]],
+    device half* y [[buffer(3)]], constant Params& p [[buffer(4)]],
+    uint tid [[thread_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]],
+    uint simd [[simdgroup_index_in_threadgroup]], uint n [[threadgroup_position_in_grid]]) {
+    threadgroup float partials[4];
+    float total = qmv_column(x, packed, inv, p, partials, tid, lane, simd, n);
     if (tid == 0) y[n] = half(total);
+}
+
+kernel void flash_k7_qmv(const device half* x [[buffer(0)]],
+    const device ushort* packed [[buffer(1)]], const device ushort* inv [[buffer(2)]],
+    device float* y [[buffer(3)]], constant Params& p [[buffer(4)]],
+    uint tid [[thread_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]],
+    uint simd [[simdgroup_index_in_threadgroup]], uint2 group [[threadgroup_position_in_grid]]) {
+    threadgroup float partials[4];
+    float total = qmv_column(x+group.y*p.rows, packed, inv, p, partials, tid, lane, simd, group.x);
+    if (tid == 0) y[group.y*p.cols + group.x] = total;
 }
 
 // One thread owns both elements of its butterfly. Each stage completes before
 // the next can read it. The two FP16 boundaries reproduce radix-16 then radix-8.
-kernel void exl3_prepare128(const device half* x [[buffer(0)]],
-    const device half* suh [[buffer(1)]], device half* output [[buffer(2)]],
-    constant uint& scale_count [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
-    uint block [[threadgroup_position_in_grid]]) {
-    threadgroup float values[128];
-    uint base = block * 128;
-    for (uint i = lane; i < 128; i += 64)
-        values[i] = float(half(x[base + i] * suh[(base + i) % scale_count]));
+inline void hadamard128(threadgroup float* values, uint lane) {
     threadgroup_barrier(mem_flags::mem_threadgroup);
     for (uint stride = 1; stride <= 64; stride <<= 1) {
         uint low = 2 * (lane & ~(stride - 1)) + (lane & (stride - 1));
@@ -107,7 +117,107 @@ kernel void exl3_prepare128(const device half* x [[buffer(0)]],
         values[low + stride] = minus;
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
+}
+
+kernel void exl3_prepare128(const device half* x [[buffer(0)]],
+    const device half* suh [[buffer(1)]], device half* output [[buffer(2)]],
+    constant uint& scale_count [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    uint base = block * 128;
+    for (uint i = lane; i < 128; i += 64)
+        values[i] = float(half(x[base + i] * suh[(base + i) % scale_count]));
+    hadamard128(values, lane);
     const float normalization = as_type<float>(0x3db504f3u);
     for (uint i = lane; i < 128; i += 64)
         output[base + i] = half(values[i] * normalization);
 }
+
+kernel void flash_finish128(const device float* partials [[buffer(0)]],
+    const device half* svh [[buffer(1)]], const device half* bias [[buffer(2)]],
+    device half* output [[buffer(3)]], constant Params& p [[buffer(4)]],
+    uint lane [[thread_index_in_threadgroup]], uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    uint base = block * 128, col = base % p.cols;
+    uint first = (base / p.cols * p.count) * p.cols + col;
+    for (uint i = lane; i < 128; i += 64) {
+        float sum = partials[first+i];
+        if (p.count == 2u) sum = (partials[first+p.cols+i] + 0.0f) + (sum + 0.0f);
+        values[i] = float(half(sum));
+    }
+    hadamard128(values, lane);
+    for (uint i = lane; i < 128; i += 64) {
+        half y = half(values[i] * as_type<float>(0x3db504f3u)) * svh[col+i];
+        output[base+i] = p.cb ? half(y + bias[col+i]) : y;
+    }
+}
+
+#include "flash_projection.metal"
+
+kernel void flash_swiglu(const device half* gate [[buffer(0)]],
+    const device half* up [[buffer(1)]], device half* dest [[buffer(2)]],
+    constant uint& count [[buffer(3)]], uint i [[thread_position_in_grid]]) {
+    if (i >= count) return;
+    half g = gate[i];
+    half tail = half(1) / (half(1) + metal::exp(metal::abs(g)));
+    half sigmoid = g < half(0) ? tail : half(1) - tail;
+    dest[i] = (g * sigmoid) * up[i];
+}
+
+kernel void flash_prepare_view(const device uchar* input [[buffer(0)]],
+    const device half* scales [[buffer(1)]], device half* output [[buffer(2)]],
+    constant long* p [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    long start = long(block) * 128, row = start / p[0], col = start % p[0];
+    for (uint i=lane; i<128; i+=64) {
+        long xi = p[1] + row*p[2] + (col+i)*p[3];
+        long si = p[4] + row*p[5] + (col+i)*p[6];
+        half x = p[7] ? half(reinterpret_cast<const device float*>(input)[xi])
+                      : reinterpret_cast<const device half*>(input)[xi];
+        values[i]=float(x * scales[si]);
+    }
+    hadamard128(values,lane);
+    for (uint i=lane; i<128; i+=64)
+        output[start+i]=half(values[i]*as_type<float>(0x3db504f3u));
+}
+
+#include "router_topk.h"
+
+template <typename T>
+kernel void route_matrix(const device T* values [[buffer(0)]], device uint* indices [[buffer(1)]],
+    device T* scores [[buffer(2)]], constant long* p [[buffer(3)]],
+    uint tid [[thread_index_in_threadgroup]], uint row [[threadgroup_position_in_grid]]) {
+    threadgroup ulong keys[1024];
+    threadgroup float selected[1024];
+    uint k = uint(p[1]);
+    long address = p[3] + long(row)*p[4] + long(tid)*p[5];
+    mlxl3_rank_row(values[address], tid, uint(p[0]), k, bool(p[2]), keys, selected,
+                   indices + row*k, scores + row*k);
+}
+
+#define ROUTE_KERNEL(TYPE, NAME) template [[host_name(NAME)]] kernel void route_matrix<TYPE>( \
+    const device TYPE*, device uint*, device TYPE*, constant long*, uint, uint);
+ROUTE_KERNEL(half, "route_half")
+ROUTE_KERNEL(float, "route_float")
+#undef ROUTE_KERNEL
+
+#include "flash_gate.metal"
+
+#include "flash_moe.metal"
+
+#include "flash_hc.metal"
+
+#include "flash_gdn.metal"
+
+#include "flash_ple.metal"
+
+#include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
+
+#include "flash_mtp.metal"
+
+#include "dense_projection.metal"
+
+#include "mapped_expert.metal"
+#include "model_ops.metal"

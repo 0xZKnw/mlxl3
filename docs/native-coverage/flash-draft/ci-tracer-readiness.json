@@ -1,0 +1,22 @@
+{
+  "status": "validated_fixture_fix",
+  "affected_pr": 101,
+  "original_head": "6894a9f869170186af04da4e995c9f2dc0b9a9d7",
+  "original_ci_job": 126076610847,
+  "original_ci_failure": "disposable tracer receives SIGINT before its handler is installed",
+  "reproducer": "test_tracer_startup_does_not_race_the_first_trace_stop adds400ms interpreter startup delay",
+  "before_exit": 1,
+  "after": "107 passed in54.11s",
+  "production_code_changed": false,
+  "fixture_change": "the synthetic workload waits for the existing tracer ready marker before emitting its first trace stop,with a2s bound",
+  "verifier": "CrossHair first import lacks pytest,then installed pytest path loads the actual file but finds no checkable functions;unverified",
+  "hosted_ci": "pending exact updated head",
+  "artifacts": {
+    "ci-tracer-before.log": "9ff2d3921b07e1ad08be1300831c018c355d4b1ffc129a259bb215aa7c48e5ab",
+    "ci-tracer-before-exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "ci-tracer-after.log": "280b44c527b2691bba0e8b8ad17b9580713df0f4443ae6e6f409623279ce1b96",
+    "ci-tracer-crosshair.log": "b455e5d16f88d0e6817e924c18eaf325991369c1dd06c1b79dfe74806c779bf0",
+    "ci-tracer-crosshair-2.log": "2a2a263c19c8a43d66e1956a8f78212db851c23add6d8a1b2ac929fe1343dbfe",
+    "ci-tracer-original-job.log": "61eac01e96ee68b86e7bf9a592e58e474e2b3d9e8292c6b235efffe302b654ac"
+  }
+}

@@ -3,7 +3,7 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::{Checkpoint, TensorInfo},
-    codec::{self, Codebook},
+    flash_ngrams::{EOS, Ngrams},
     flash_support, gated_delta,
     lfm2::{Projection, half_weight},
     linear::checkpoint_array,
@@ -17,7 +17,6 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, VecDeque},
     fs::File,
-    os::unix::fs::FileExt,
     path::PathBuf,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -26,7 +25,6 @@ use std::{
 const H: i32 = 2560;
 const HC: i32 = 4;
 const WIDTH: i32 = H * HC;
-const EOS: u32 = 248044;
 
 #[cfg(feature = "chat")]
 #[path = "flash_draft.rs"]
@@ -41,19 +39,7 @@ mod mtp_prefill_tests;
 
 /// Inclusive host timings; verification includes its existing GPU completion waits.
 #[cfg(feature = "chat")]
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
-pub struct FlashDraftProfile {
-    pub draft_seconds: f64,
-    pub verification_seconds: f64,
-    pub commit_cache_seconds: f64,
-    pub verified_rows: usize,
-    pub drafted_rows: usize,
-    pub drafted_widths: [usize; 8],
-    pub verified_widths: [usize; 8],
-    pub expert_demand_bytes: u64,
-    /// Submitted, completed, used, reused, timeouts, wait ns, read bytes, late demands.
-    pub ssd_prefetch: [u64; 8],
-}
+pub use crate::runtime_stats::FlashDraftProfile;
 
 struct Norm {
     gain: Array,
@@ -545,6 +531,8 @@ struct QsaWeights {
 struct Qsa {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
+    #[cfg(test)]
+    sparse_trace: Option<BTreeMap<&'static str, Array>>,
     weights: QsaWeights,
     state: QsaState,
 }
@@ -593,6 +581,8 @@ impl Qsa {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
+            #[cfg(test)]
+            sparse_trace: None,
             weights: QsaWeights {
                 q: proj("q_proj", 12288)?,
                 k: proj("k_proj", 512)?,
@@ -735,6 +725,11 @@ impl Qsa {
             }
             tokens.extend((count * 4..offset + 1).map(|i| i as u32));
             let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
+            #[cfg(test)]
+            if let Some(t) = &mut self.sparse_trace {
+                t.insert("index_scores", reduced.try_clone()?);
+                t.insert("selected_positions", selected.try_clone()?);
+            }
             (keys.take(&selected, 2)?, values.take(&selected, 2)?)
         } else {
             (keys.try_clone()?, values.try_clone()?)
@@ -765,6 +760,10 @@ impl Qsa {
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 5, 128])?;
+        #[cfg(test)]
+        if let Some(t) = &mut self.sparse_trace {
+            t.insert("index_qk", qk.try_clone()?);
+        }
         let raw = qk.slice(2, 4, 5)?.reshape(&[1, 1, 128])?;
         let tail = Self::append(&self.state.index_tail, &raw, 1)?;
         if (self.state.offset + 1) % 4 == 0 {
@@ -820,154 +819,6 @@ impl Qsa {
     }
 }
 
-struct NgramsWeights {
-    shards: Vec<TensorInfo>,
-    sizes: [u64; 16],
-    offsets: [u64; 16],
-    multipliers: [u64; 3],
-    bias: Vec<f16>,
-}
-struct Ngrams {
-    weights: NgramsWeights,
-    cache: BTreeMap<u64, Vec<u16>>,
-    queue: VecDeque<u64>,
-    previous: [u32; 2],
-    read_bytes: u64,
-}
-impl Ngrams {
-    fn load(c: &Checkpoint, p: &str) -> Result<Self> {
-        let integers = |name: &str, n: usize| -> Result<Vec<u64>> {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.{name}"))
-                .context("missing PLE hash metadata")?;
-            ensure!(
-                tensor.dtype == "I64" && tensor.shape == [n],
-                "invalid PLE hash metadata"
-            );
-            Ok(tensor
-                .read_bytes()?
-                .as_chunks::<8>()
-                .0
-                .iter()
-                .map(|b| u64::from_le_bytes(*b))
-                .collect())
-        };
-        let sizes: [u64; 16] = integers("head_vocab_sizes", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE heads"))?;
-        let offsets: [u64; 16] = integers("head_offsets", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE offsets"))?;
-        let multipliers: [u64; 3] = integers("layer_multipliers", 3)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE multipliers"))?;
-        let mut end = 0;
-        for head in 0..16 {
-            ensure!(
-                offsets[head] == end && sizes[head] > 0 && sizes[head] <= i64::MAX as u64,
-                "invalid PLE head range"
-            );
-            end = end
-                .checked_add(sizes[head])
-                .context("PLE row count overflow")?;
-        }
-        ensure!(
-            end <= 320001536 && end > 320001408,
-            "unsupported PLE row count"
-        );
-        let bias = checkpoint_array(c, &format!("{p}.head_bias"))?;
-        ensure!(
-            bias.shape() == [16, 160] && bias.dtype() == Dtype::Float16,
-            "invalid PLE head bias"
-        );
-        let bias = bias
-            .to_f16_bits()?
-            .into_iter()
-            .map(f16::from_bits)
-            .collect();
-        let mut shards = Vec::with_capacity(128);
-        for index in 0..128 {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.shard_{index}.trellis"))
-                .context("missing PLE trellis shard")?;
-            ensure!(
-                tensor.dtype == "I16" && tensor.shape == [2500012, 41],
-                "unsupported PLE row format"
-            );
-            shards.push(tensor.clone());
-        }
-        Ok(Self {
-            weights: NgramsWeights {
-                shards,
-                sizes,
-                offsets,
-                multipliers,
-                bias,
-            },
-            cache: BTreeMap::new(),
-            queue: VecDeque::new(),
-            previous: [EOS; 2],
-            read_bytes: 0,
-        })
-    }
-    fn forward(&mut self, token: u32) -> Result<Array> {
-        let history = flash_support::segment_tokens(token, self.previous, EOS);
-        let mut output = Vec::with_capacity(2560);
-        for head in 0..16 {
-            let row = flash_support::ngram_row(
-                history,
-                self.weights.multipliers,
-                2 + head / 8,
-                self.weights.offsets[head],
-                self.weights.sizes[head],
-            )
-            .context("invalid PLE row")?;
-            if !self.cache.contains_key(&row) {
-                let shard = &self.weights.shards[(row / 2500012) as usize];
-                let (file, base) = shard.source()?;
-                let offset = flash_support::row_offset(base, row % 2500012, 2500012, 82)
-                    .context("PLE offset overflow")?;
-                let mut raw = [0u8; 82];
-                file.read_exact_at(&mut raw, offset)?;
-                let words = raw
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|b| u16::from_le_bytes(*b))
-                    .collect();
-                if self.cache.len() == 16384
-                    && let Some(old) = self.queue.pop_front()
-                {
-                    self.cache.remove(&old);
-                }
-                self.cache.insert(row, words);
-                self.queue.push_back(row);
-                self.read_bytes += 82;
-            }
-            let words = &self.cache[&row];
-            let scale = f16::from_bits(words[0]).to_f32();
-            ensure!(scale.is_finite(), "nonfinite PLE row scale");
-            for i in 0..160 {
-                let mut state = 0u16;
-                for j in 0..4 {
-                    let symbol = (i + 160 - j) % 160;
-                    state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
-                }
-                let value = f16::from_f32(
-                    codec::decode_codeword(state, Codebook::Mul1).to_f32() * scale
-                        + self.weights.bias[head * 160 + i].to_f32(),
-                );
-                ensure!(value.is_finite(), "nonfinite PLE embedding");
-                output.push(value.to_bits());
-            }
-        }
-        self.previous = [token, self.previous[0]];
-        Array::from_f16_bits(&output, &[1, H])
-    }
-}
-
 struct Ple {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
@@ -1012,7 +863,7 @@ impl Ple {
                 }
             };
         }
-        let embedding = self.rows.forward(token)?;
+        let embedding = Array::from_f16_bits(&self.rows.read(token)?, &[1, H])?;
         stage!("embedding", embedding);
         let key = self
             .nk
@@ -1401,104 +1252,9 @@ impl FlashNext {
             lookahead_depth <= 10,
             "SSD lookahead depth must be in 0..=10"
         );
-        let root: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
-        let t = &root["text_config"];
-        for (key, value) in [
-            ("hidden_size", 2560),
-            ("hc_count", 4),
-            ("hc_lowrank", 320),
-            ("num_hidden_layers", 48),
-            ("num_experts", 512),
-            ("num_experts_per_tok", 10),
-            ("moe_intermediate_size", 640),
-            ("head_dim", 256),
-            ("num_attention_heads", 24),
-            ("num_key_value_heads", 2),
-            ("linear_key_head_dim", 128),
-            ("linear_value_head_dim", 128),
-            ("linear_num_key_heads", 16),
-            ("linear_num_value_heads", 48),
-            ("linear_conv_kernel_dim", 4),
-            ("indexer_n_heads", 4),
-            ("indexer_kv_heads", 1),
-            ("indexer_head_dim", 128),
-            ("indexer_compress_ratio", 4),
-            ("indexer_budget", 2048),
-            ("eos_token_id", 248044),
-            ("vocab_size", 248320),
-            ("ple_embed_dim", 2560),
-            ("ngram_size", 3),
-            ("heads_per_ngram", 8),
-            ("ple_conv_kernel_size", 4),
-        ] {
-            ensure!(
-                t[key].as_i64() == Some(value),
-                "unsupported Flash Next {key}"
-            );
-        }
-        ensure!(
-            t["output_gate_type"] == "sigmoid" && t["ple_layer_ids"] == serde_json::json!([2]),
-            "unsupported Flash PLE/gate configuration"
-        );
-        let eps = t["rms_norm_eps"]
-            .as_f64()
-            .context("missing Flash epsilon")? as f32;
-        let rope = t["rope_parameters"]["rope_theta"]
-            .as_f64()
-            .context("missing Flash RoPE")? as f32;
-        let context = i32::try_from(
-            t["max_position_embeddings"]
-                .as_u64()
-                .context("missing context limit")?,
-        )?;
-        ensure!(
-            eps.is_finite()
-                && eps > 0.
-                && rope.is_finite()
-                && rope > 0.
-                && context > 0
-                && t["rope_parameters"]["partial_rotary_factor"] == 0.25,
-            "invalid Flash numerical configuration"
-        );
-        let budget = match std::env::var("MLXL3_SSD_CACHE_GIB") {
-            Ok(value) => Some(
-                value
-                    .parse::<f64>()
-                    .context("invalid MLXL3_SSD_CACHE_GIB")?,
-            ),
-            Err(std::env::VarError::NotPresent) => None,
-            Err(error) => return Err(error.into()),
-        };
-        let slots = if let Some(budget) = budget {
-            ensure!(
-                budget.is_finite() && (0.6..=12.).contains(&budget),
-                "SSD expert cache budget must be 0.6..12 GiB"
-            );
-            ((budget * (1u64 << 30) as f64 / (48. * flash_support::EXPERT_BYTES as f64)).floor()
-                as usize)
-                .clamp(10, 512)
-        } else {
-            #[cfg(target_os = "macos")]
-            let available = flash_support::available_memory_bytes()?;
-            #[cfg(not(target_os = "macos"))]
-            let available = 14 << 30;
-            let slots = flash_support::automatic_cache_slots(available).context(
-                "not enough system memory for Flash's minimum SSD cache and memory reserve",
-            )?;
-            eprintln!(
-                "Flash Next: auto cache {:.2} GiB ({slots} slots/layer), estimated available {:.2} GiB",
-                slots as f64 * 48. * flash_support::EXPERT_BYTES as f64 / (1u64 << 30) as f64,
-                available as f64 / (1u64 << 30) as f64
-            );
-            slots
-        };
-        let layer_slots = match std::env::var("MLXL3_SSD_LAYER_SLOTS") {
-            Ok(value) => flash_support::parse_layer_slots(&value, slots).context(
-                "MLXL3_SSD_LAYER_SLOTS requires 48 capacities in 20..512 with exactly the current total cache budget",
-            )?,
-            Err(std::env::VarError::NotPresent) => [slots; 48],
-            Err(error) => return Err(error.into()),
-        };
+        let crate::flash_config::FlashConfig { eps, rope, context } =
+            crate::flash_config::FlashConfig::load(c)?;
+        let layer_slots = crate::flash_config::layer_slots()?;
         let request_limit = memory::request_limit()?;
         memory::admit_load(request_limit, layer_slots.iter().sum())?;
         crate::array::set_default_cache_limit(512 << 20)?;
@@ -1520,27 +1276,16 @@ impl FlashNext {
             embed.dtype == "BF16" && embed.shape == [248320, 2560],
             "unsupported token embedding"
         );
-        let types = t["layer_types"].as_array().context("missing layer types")?;
-        ensure!(types.len() == 48, "invalid layer count");
         let policy = crate::ssd_moe::ResolvedPolicy::resolve(true, overlap)?;
         let mut layers = Vec::with_capacity(48);
-        for (i, kind) in types.iter().enumerate() {
+        for (i, &slots) in layer_slots.iter().enumerate() {
             let linear = i % 4 != 3;
-            ensure!(
-                *kind
-                    == if linear {
-                        "linear_attention"
-                    } else {
-                        "full_attention"
-                    },
-                "invalid Flash layer type"
-            );
             eprintln!(
                 "Flash Next: loading layer {}/48, {} exact expert slots",
                 i + 1,
-                layer_slots[i]
+                slots
             );
-            memory::admit_load(request_limit, layer_slots[i])?;
+            memory::admit_load(request_limit, slots)?;
             layers.push(Layer::load(
                 c,
                 &format!("model.language_model.layers.{i}"),
@@ -1548,7 +1293,7 @@ impl FlashNext {
                 i == 1,
                 eps,
                 rope,
-                layer_slots[i],
+                slots,
                 policy,
             )?);
             #[cfg(test)]
@@ -3309,7 +3054,7 @@ mod tests {
                 "session head state differs, budget={budget}"
             );
             println!(
-                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}",
+                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}, tokens={golden:?}",
                 session.proposed, session.accepted, session.blocks
             );
             proposed += session.proposed;
@@ -4444,3 +4189,9 @@ mod tests {
 
 #[cfg(all(test, feature = "chat"))]
 mod profile;
+
+#[cfg(test)]
+mod hc_row_oracle;
+
+#[cfg(test)]
+mod direct_gdn_oracle;

@@ -1,0 +1,96 @@
+{
+  "status": "failed",
+  "parity": false,
+  "cases": [
+    {
+      "path": "product-00.npz",
+      "shape": [
+        16,
+        16,
+        128
+      ],
+      "words": 2048,
+      "unequal": 2048,
+      "max_abs": 3.4332275390625e-05
+    },
+    {
+      "path": "product-01.npz",
+      "shape": [
+        96,
+        32,
+        128
+      ],
+      "words": 12288,
+      "unequal": 12288,
+      "max_abs": 5.794316530227661e-05
+    },
+    {
+      "path": "product-02.npz",
+      "shape": [
+        16,
+        16,
+        128
+      ],
+      "words": 2048,
+      "unequal": 2048,
+      "max_abs": 5.456805229187012e-05
+    },
+    {
+      "path": "product-03.npz",
+      "shape": [
+        64,
+        32,
+        128
+      ],
+      "words": 8192,
+      "unequal": 8192,
+      "max_abs": 5.253404378890991e-05
+    },
+    {
+      "path": "product-04.npz",
+      "shape": [
+        16,
+        16,
+        128
+      ],
+      "words": 2048,
+      "unequal": 2048,
+      "max_abs": 5.457177758216858e-05
+    },
+    {
+      "path": "product-05.npz",
+      "shape": [
+        32,
+        32,
+        128
+      ],
+      "words": 4096,
+      "unequal": 4096,
+      "max_abs": 6.781518459320068e-05
+    },
+    {
+      "path": "product-06.npz",
+      "shape": [
+        16,
+        16,
+        128
+      ],
+      "words": 2048,
+      "unequal": 2048,
+      "max_abs": 5.7540833950042725e-05
+    }
+  ],
+  "engine_sha256": "de99c59824a5710a0351bcce54791a145a0e0abd17037dc0423ed3cd9432c74a",
+  "runtime_info": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "395f9aad567d-dirty",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "observer_baseline_words": 4096,
+  "error": "ValueError: native FP32 product diverged"
+}

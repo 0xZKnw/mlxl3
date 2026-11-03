@@ -149,3 +149,111 @@ fn portable_exl3_prefill_matches_independent_single_rows() -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[test]
+#[ignore = "physical GPU; launched by tests/physical_flash_projection.py"]
+fn flash_projection_stock_oracle() -> Result<()> {
+    use mlxl3_native::{
+        checkpoint,
+        gpu::{FlashExpert, FlashProjection, Metal},
+    };
+    use serde::Deserialize;
+    use std::{fs, path::PathBuf};
+    #[derive(Deserialize)]
+    struct Case {
+        op: String,
+        path: PathBuf,
+        prefix: String,
+        x: Vec<u16>,
+    }
+    let dir = PathBuf::from(
+        std::env::var_os("MLXL3_PROJECTION_FIXTURES").context("fixture directory required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(dir.join("cases.json"))?)?;
+    ensure!(!cases.is_empty());
+    let mut expected = Vec::new();
+    let mut last = None;
+    let mut expert_lifetime_checked = false;
+    let mut generic_lifetime_checked = false;
+    for case in cases {
+        if last.as_ref().is_none_or(|(path, _)| path != &case.path) {
+            last = Some((case.path.clone(), checkpoint::inspect(&case.path)?));
+        }
+        let checkpoint = &last.as_ref().unwrap().1;
+        let expert = case.op == "metal-checkpoint-expert";
+        let load = |name: &str| Exl3Linear::from_checkpoint(checkpoint, name);
+        let (stock, tail) = if expert {
+            (
+                load(&format!("{}.gate_proj", case.prefix))?,
+                Some((
+                    load(&format!("{}.up_proj", case.prefix))?,
+                    load(&format!("{}.down_proj", case.prefix))?,
+                )),
+            )
+        } else {
+            (load(&case.prefix)?, None)
+        };
+        let cols = tail
+            .as_ref()
+            .map_or(stock.output_dims(), |(_, down)| down.output_dims());
+        let width = stock.input_dims() as usize;
+        ensure!(!case.x.is_empty() && case.x.len().is_multiple_of(width));
+        let mut bits = Vec::new();
+        for row in case.x.chunks_exact(width) {
+            let x = Array::from_f16_bits(row, &[1, width as i32])?;
+            let mut output = stock.forward(&x)?;
+            if let Some((up, down)) = &tail {
+                output = down.forward(&output.swiglu(&up.forward(&x)?)?)?;
+            }
+            ensure!(output.shape() == [1, cols]);
+            bits.extend(output.to_f16_bits()?);
+        }
+        ensure!(
+            bits.len() == case.x.len() / width * cols as usize
+                && bits.iter().all(|&v| f16::from_bits(v).is_finite())
+        );
+        if expert && !expert_lifetime_checked {
+            let (first, second) = {
+                let gpu = Metal::new()?;
+                let layer = FlashExpert::load(&gpu, checkpoint, &case.prefix)?;
+                let first = layer.submit(&case.x)?;
+                ensure!(layer.submit(&[]).is_err());
+                let second = layer.submit(&case.x)?;
+                drop(layer.submit(&case.x)?);
+                (first, second)
+            };
+            ensure!(
+                second.read()? == bits && first.read()? == bits,
+                "early expert drop or reverse read changed output"
+            );
+            expert_lifetime_checked = true;
+        } else if (expected.is_empty()
+            || case.op == "metal-exl3-linear" && !generic_lifetime_checked)
+            && !expert
+        {
+            let (first, second) = {
+                let device = Metal::new()?;
+                let load = if case.op == "metal-exl3-linear" {
+                    FlashProjection::load_exl3
+                } else {
+                    FlashProjection::load
+                };
+                let layer = load(&device, checkpoint, &case.prefix)?;
+                let first = layer.submit(&case.x)?;
+                ensure!(layer.submit(&[]).is_err() && layer.submit(&case.x[1..]).is_err());
+                let second = layer.submit(&case.x)?;
+                drop(layer.submit(&case.x)?);
+                (first, second)
+            };
+            ensure!(
+                second.read()? == bits && first.read()? == bits,
+                "early drop or reverse read changed output"
+            );
+            generic_lifetime_checked |= case.op == "metal-exl3-linear";
+        }
+        expected.push(bits);
+    }
+    serde_json::to_writer(fs::File::create_new(dir.join("stock.json"))?, &expected)?;
+    Ok(())
+}

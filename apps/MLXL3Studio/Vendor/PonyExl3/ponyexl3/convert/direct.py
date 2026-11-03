@@ -235,6 +235,22 @@ def _oracle_or_identity_basis(
 ) -> LayerQuantizationBasis:
     suh, suh_zero_count = scale_full_for_mode(ref_layer.suh, ref_layer.in_features, scale_mode)
     svh, svh_zero_count = scale_full_for_mode(ref_layer.svh, ref_layer.out_features, scale_mode)
+    if scale_mode != "identity" and search_backend == "native":
+        from mlxl3_quantizer.transforms import public_matrix_to_inner_native
+
+        return LayerQuantizationBasis(
+            source_public=source_public,
+            target_inner=public_matrix_to_inner_native(source_public, suh=suh, svh=svh),
+            suh=suh,
+            svh=svh,
+            stats={
+                "suh_zero_replacements": float(suh_zero_count),
+                "svh_zero_replacements": float(svh_zero_count),
+                "regularize_computed_scales": False,
+                "basis_mlx_hadamard": False,
+                "basis_native_hadamard": True,
+            },
+        )
     if scale_mode != "identity" and search_backend == "metal":
         try:
             target_inner = _oracle_basis_mlx_hadamard(source_public, suh=suh, svh=svh)
@@ -516,6 +532,10 @@ def quantize_inner_matrix_direct(
             decoded_rows.append(decoded)
         states_flat = np.stack(state_rows, axis=0).astype(np.uint16, copy=False)
         decoded_tiles = np.stack(decoded_rows, axis=0).astype(np.float32, copy=False)
+    elif search_backend == "native":
+        from mlxl3_quantizer.native import converter_tiles
+
+        decoded_tiles, states_flat = converter_tiles(kernel_tiles, k=k, cb=cb)
     elif search_backend == "metal":
         if return_states or verify_roundtrip:
             from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
