@@ -70,6 +70,13 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
 "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
 
 awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/response-text-size-check.swift > "${test_dir}/ResponseTextSizeCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/ResponseTextSizeCombined.swift" -o "${test_dir}/text-size-check"
+"${test_dir}/text-size-check"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
     tests/mtp-panel-layout-check.swift > "${test_dir}/MTPPanelLayoutCombined.swift"
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \

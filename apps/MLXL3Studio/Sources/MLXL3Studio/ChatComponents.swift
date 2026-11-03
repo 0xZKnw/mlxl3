@@ -101,6 +101,7 @@ private struct StreamingScrollFollower: View {
 }
 
 private struct MessageView: View {
+    @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
 
     var body: some View {
@@ -118,9 +119,9 @@ private struct MessageView: View {
                 }
                 if !message.content.isEmpty {
                   Text(message.content)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 15 * textScale, weight: .medium))
                     .foregroundStyle(StudioTheme.ink)
-                    .lineSpacing(5)
+                    .lineSpacing(5 * textScale)
                     .textSelection(.enabled)
                     .padding(.horizontal, 17)
                     .padding(.vertical, 13)
@@ -138,6 +139,7 @@ private struct MessageView: View {
 }
 
 private struct AssistantMessageView: View {
+    @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
 
     var body: some View {
@@ -161,10 +163,10 @@ private struct AssistantMessageView: View {
                     let live = message.isStreaming && message.parts.last?.id == part.id
                     switch part.kind {
                     case .thinking:
-                        ThinkingBlock(text: part.text, streaming: live)
+                        ThinkingBlock(text: part.text, streaming: live, textScale: textScale)
                             .equatable()
                     case .answer:
-                        MarkdownResponseView(part.text, streaming: live)
+                        MarkdownResponseView(part.text, streaming: live, textScale: textScale)
                             .equatable()
                     case .tool:
                         if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
@@ -230,6 +232,7 @@ private struct PrefillActivityRow: View {
 }
 
 private struct MCPToolActivityRow: View {
+    @Environment(\.conversationTextScale) private var textScale
     let activity: ToolActivity
     @State private var expanded = false
 
@@ -237,7 +240,7 @@ private struct MCPToolActivityRow: View {
         DisclosureGroup(isExpanded: $expanded) {
             if let result = activity.result, !result.isEmpty {
                 Text(result)
-                    .font(.system(size: 10.5, weight: .regular, design: .monospaced))
+                    .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
                     .foregroundStyle(StudioTheme.contrast.opacity(0.58))
                     .lineLimit(10)
                     .textSelection(.enabled)
@@ -342,11 +345,12 @@ private struct ThinkingPlaceholder: View {
 private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
+    let textScale: CGFloat
     @State private var expanded = true
     @State private var chunkCache = StreamingTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.text == rhs.text && lhs.streaming == rhs.streaming
+        lhs.text == rhs.text && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
@@ -357,7 +361,8 @@ private struct ThinkingBlock: View, Equatable {
                     ForEach(chunks) { chunk in
                         ThinkingTextChunk(
                             source: chunk.source,
-                            streaming: streaming && chunk.id == chunks.last?.id
+                            streaming: streaming && chunk.id == chunks.last?.id,
+                            textScale: textScale
                         )
                         .equatable()
                     }
@@ -388,16 +393,17 @@ private struct ThinkingBlock: View, Equatable {
 private struct ThinkingTextChunk: View, Equatable {
     let source: String
     let streaming: Bool
+    let textScale: CGFloat
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
         SmoothTokenText(content: Text(source), source: source, streaming: streaming)
-            .font(.system(size: 11.5, weight: .regular, design: .monospaced))
+            .font(.system(size: 11.5 * textScale, weight: .regular, design: .monospaced))
             .foregroundStyle(StudioTheme.secondary)
-            .lineSpacing(3)
+            .lineSpacing(3 * textScale)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

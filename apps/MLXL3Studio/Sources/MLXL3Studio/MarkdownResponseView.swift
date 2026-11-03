@@ -506,15 +506,17 @@ private actor MarkdownPreparation {
 struct MarkdownResponseView: View, Equatable {
     private let source: String
     private let streaming: Bool
+    private let textScale: CGFloat
     @StateObject private var renderer = MarkdownRenderModel()
 
-    init(_ source: String, streaming: Bool = false) {
+    init(_ source: String, streaming: Bool = false, textScale: CGFloat = 1) {
         self.source = source
         self.streaming = streaming
+        self.textScale = textScale
     }
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
@@ -522,7 +524,8 @@ struct MarkdownResponseView: View, Equatable {
             ForEach(renderer.chunks) { chunk in
                 MarkdownChunkView(
                     prepared: chunk,
-                    streaming: streaming && chunk.id == renderer.chunks.last?.id
+                    streaming: streaming && chunk.id == renderer.chunks.last?.id,
+                    textScale: textScale
                 )
                 .equatable()
             }
@@ -538,9 +541,10 @@ struct MarkdownResponseView: View, Equatable {
 private struct MarkdownChunkView: View, Equatable {
     let prepared: PreparedMarkdownChunk
     let streaming: Bool
+    let textScale: CGFloat
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming
+        lhs.prepared.chunk.source == rhs.prepared.chunk.source && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
@@ -557,7 +561,7 @@ private struct MarkdownChunkView: View, Equatable {
         switch block {
         case let .paragraph(text):
             animatedText(text, size: 15, weight: .regular)
-                .lineSpacing(5)
+                .lineSpacing(5 * textScale)
         case let .heading(level, text):
             animatedText(
                 text,
@@ -572,17 +576,17 @@ private struct MarkdownChunkView: View, Equatable {
                     .fill(StudioTheme.contrast.opacity(indent == 0 ? 0.72 : 0.42))
                     .frame(width: indent == 0 ? 4.5 : 3.5, height: indent == 0 ? 4.5 : 3.5)
                 animatedText(text, size: 15, weight: .regular)
-                    .lineSpacing(4)
+                    .lineSpacing(4 * textScale)
             }
             .padding(.leading, CGFloat(indent) * 18 + 3)
         case let .ordered(indent, number, text):
             HStack(alignment: .firstTextBaseline, spacing: 9) {
                 Text(number + ".")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .font(.system(size: 12 * textScale, weight: .bold, design: .rounded))
                     .foregroundStyle(StudioTheme.contrast.opacity(0.48))
                     .frame(minWidth: 18, alignment: .trailing)
                 animatedText(text, size: 15, weight: .regular)
-                    .lineSpacing(4)
+                    .lineSpacing(4 * textScale)
             }
             .padding(.leading, CGFloat(indent) * 18)
         case let .quote(text):
@@ -596,16 +600,17 @@ private struct MarkdownChunkView: View, Equatable {
             }
             .padding(.vertical, 2)
         case let .code(language, text):
-            CodeBlockView(language: language, source: text, streaming: streaming)
+            CodeBlockView(language: language, source: text, streaming: streaming, textScale: textScale)
                 .equatable()
         case let .math(latex):
-            LatexBlockView(latex: latex, streaming: streaming)
+            LatexBlockView(latex: latex, streaming: streaming, textScale: textScale)
         case let .table(header, alignments, rows):
             MarkdownTableView(
                 header: header,
                 alignments: alignments,
                 rows: rows,
-                streaming: streaming
+                streaming: streaming,
+                textScale: textScale
             )
         case .rule:
             Rectangle()
@@ -627,11 +632,11 @@ private struct MarkdownChunkView: View, Equatable {
         weight: Font.Weight
     ) -> some View {
         SmoothTokenText(
-            content: InlineLatexText.render(source, mathSize: size),
+            content: InlineLatexText.render(source, mathSize: size * textScale),
             source: source,
             streaming: streaming
         )
-        .font(.system(size: size, weight: weight))
+        .font(.system(size: size * textScale, weight: weight))
         .foregroundStyle(StudioTheme.contrast.opacity(0.92))
     }
 
@@ -1009,12 +1014,13 @@ private struct CodeBlockView: View, Equatable {
     let language: String?
     let source: String
     let streaming: Bool
+    let textScale: CGFloat
     @State private var copied = false
     @State private var followsBottom = true
     @State private var chunkCache = CodeTextChunker.Cache()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
@@ -1042,7 +1048,7 @@ private struct CodeBlockView: View, Equatable {
                         LazyVStack(alignment: .leading, spacing: 0) {
                             ForEach(chunks) { chunk in
                                 CodeTextChunkView(source: chunk.source, language: language, prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                                                  streaming: streaming && chunk.id == chunks.last?.id).equatable()
+                                                  streaming: streaming && chunk.id == chunks.last?.id, textScale: textScale).equatable()
                             }
                             Color.clear.frame(height: 1).id("code-bottom")
                         }
@@ -1062,7 +1068,8 @@ private struct CodeBlockView: View, Equatable {
                         source: chunk.source,
                         language: language,
                         prefix: chunk.lexicalPrefix, suffix: chunk.lexicalSuffix,
-                        streaming: streaming && chunk.id == chunks.last?.id
+                        streaming: streaming && chunk.id == chunks.last?.id,
+                        textScale: textScale
                     )
                     .equatable()
                 }
@@ -1095,14 +1102,15 @@ private struct CodeTextChunkView: View, Equatable {
     let prefix: String
     let suffix: String
     let streaming: Bool
+    let textScale: CGFloat
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming
+        lhs.source == rhs.source && lhs.language == rhs.language && lhs.prefix == rhs.prefix && lhs.suffix == rhs.suffix && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
     }
 
     var body: some View {
         SmoothTokenText(content: Text(SyntaxHighlighter.highlight(source, language: language, prefix: prefix, suffix: suffix)), source: source, streaming: streaming)
-            .font(.system(size: 12, weight: .regular, design: .monospaced))
+            .font(.system(size: 12 * textScale, weight: .regular, design: .monospaced))
             .opacity(streaming ? 0.94 : 1)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1114,6 +1122,7 @@ private struct MarkdownTableView: View {
     let alignments: [MarkdownTableAlignment]
     let rows: [[String]]
     let streaming: Bool
+    let textScale: CGFloat
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -1143,13 +1152,13 @@ private struct MarkdownTableView: View {
 
     private func cell(_ source: String, column: Int, header isHeader: Bool) -> some View {
         SmoothTokenText(
-            content: InlineLatexText.render(source, mathSize: 12.5),
+            content: InlineLatexText.render(source, mathSize: 12.5 * textScale),
             source: source,
             streaming: streaming
         )
-        .font(.system(size: 12.5, weight: isHeader ? .semibold : .regular, design: .rounded))
+        .font(.system(size: 12.5 * textScale, weight: isHeader ? .semibold : .regular, design: .rounded))
         .foregroundStyle(StudioTheme.contrast.opacity(isHeader ? 0.92 : 0.76))
-        .frame(minWidth: 112, maxWidth: 260, alignment: frameAlignment(column))
+        .frame(minWidth: 112 * textScale, maxWidth: 260 * textScale, alignment: frameAlignment(column))
         .padding(.horizontal, 12)
         .padding(.vertical, isHeader ? 10 : 9)
         .background(isHeader ? StudioTheme.contrast.opacity(0.055) : Color.clear)
@@ -1412,13 +1421,14 @@ private enum LatexImageCache {
 private struct LatexBlockView: View {
     let latex: String
     let streaming: Bool
+    let textScale: CGFloat
     @State private var visible = false
 
     var body: some View {
         Group {
             if let image = LatexImageCache.image(
                 latex: latex,
-                fontSize: 18,
+                fontSize: 18 * textScale,
                 mode: .display
             ) {
                 ScrollView(.horizontal) {
@@ -1432,7 +1442,7 @@ private struct LatexBlockView: View {
                 .scrollIndicators(.never)
             } else {
                 Text("$$\n\(latex)\n$$")
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: 12 * textScale, design: .monospaced))
                     .foregroundStyle(StudioTheme.contrast.opacity(0.68))
             }
         }

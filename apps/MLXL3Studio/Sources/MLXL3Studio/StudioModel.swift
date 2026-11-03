@@ -87,6 +87,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
     @Published private(set) var readingWidth: ConversationReadingWidth = .centered
+    @Published private(set) var responseTextSize = ResponseTextSize.defaultValue
     @Published private(set) var mtpRememberedEnabled = false
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
@@ -151,6 +152,7 @@ final class StudioModel: ObservableObject {
         self.startupModelPath = preferences.string(forKey: "studio.startupModelPath") ?? ""
         self.completionNotificationsEnabled = preferences.bool(forKey: "studio.completionNotificationsEnabled")
         self.readingWidth = ConversationReadingWidth.load(from: preferences)
+        self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
@@ -251,6 +253,11 @@ final class StudioModel: ObservableObject {
     func setReadingWidth(_ value: ConversationReadingWidth) {
         readingWidth = value
         preferences.set(value.rawValue, forKey: ConversationReadingWidth.preferenceKey)
+    }
+
+    func setResponseTextSize(_ value: Double) {
+        responseTextSize = ResponseTextSize.normalized(value)
+        preferences.set(responseTextSize, forKey: ResponseTextSize.preferenceKey)
     }
 
     func setConversationPinned(_ id: UUID, _ pinned: Bool) {

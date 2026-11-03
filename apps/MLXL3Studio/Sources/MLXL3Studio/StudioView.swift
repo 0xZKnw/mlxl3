@@ -48,6 +48,7 @@ struct StudioView: View {
             }
         }
         .environment(\.conversationReadingWidth, studio.readingWidth)
+        .environment(\.conversationTextScale, CGFloat(studio.responseTextSize / ResponseTextSize.defaultValue))
         .id(studio.language)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .background(StudioTheme.sidebar(for: appTheme))
@@ -352,22 +353,7 @@ private struct WorkspaceHeader: View {
             .help(L("Éjecter le modèle et libérer la mémoire Metal", "Eject the model and free Metal memory"))
             .accessibilityLabel(L("Éjecter le modèle", "Eject model"))
 
-            Menu {
-                Picker(L("Largeur des réponses", "Response width"), selection: Binding(
-                    get: { studio.readingWidth }, set: { studio.setReadingWidth($0) }
-                )) {
-                    ForEach(ConversationReadingWidth.allCases, id: \.self) { width in
-                        Text(width.title).tag(width)
-                    }
-                }
-            } label: {
-                Image(systemName: studio.readingWidth == .wide ? "arrow.left.and.right" : "text.alignleft")
-                    .frame(width: 30, height: 30)
-            }
-            .menuIndicator(.hidden)
-            .buttonStyle(StudioControlStyle())
-            .accessibilityLabel(L("Largeur des réponses", "Response width"))
-            .help(L("Largeur des réponses : ", "Response width: ") + studio.readingWidth.title)
+            ConversationDisplayControl()
 
             MTPToolbarControl()
 

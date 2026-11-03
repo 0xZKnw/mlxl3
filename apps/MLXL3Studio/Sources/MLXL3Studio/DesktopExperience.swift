@@ -21,6 +21,31 @@ extension EnvironmentValues {
         get { self[ConversationReadingWidthKey.self] }
         set { self[ConversationReadingWidthKey.self] = newValue }
     }
+    var conversationTextScale: CGFloat {
+        get { self[ConversationTextScaleKey.self] }
+        set { self[ConversationTextScaleKey.self] = newValue }
+    }
+}
+
+private struct ConversationTextScaleKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+enum ResponseTextSize {
+    static let preferenceKey = "studio.responseTextSize"
+    static let defaultValue: Double = 15
+    static let range: ClosedRange<Double> = 12...24
+
+    static func normalized(_ value: Double) -> Double {
+        guard value.isFinite else { return defaultValue }
+        return min(range.upperBound, max(range.lowerBound, value.rounded()))
+    }
+
+    static func load(from preferences: UserDefaults) -> Double {
+        guard let number = preferences.object(forKey: preferenceKey) as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else { return defaultValue }
+        return normalized(number.doubleValue)
+    }
 }
 
 /// ON/OFF is model intent; calibration remains scoped to head revision and runtime.

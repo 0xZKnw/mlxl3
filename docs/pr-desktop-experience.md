@@ -4,6 +4,11 @@ The Desktop now offers Centered/Wide conversation layouts without changing
 font size or losing drafts, and pinned chats that stay above recent chats
 across restarts and history exports.
 
+The same appearance button groups the width selector with a persisted
+12–24pt text-size slider, immediate preview and reset. Existing messages,
+code, tables and math update in place, including a return to the default size.
+Validation is recorded in `desktop-text-size-20261103.md`.
+
 MTP has a toolbar control and a shared settings panel. New models default to
 OFF; opting in persists for that model across reloads and automatic startup.
 Errors preserve the user's intent and expose retry, while opting out stops
