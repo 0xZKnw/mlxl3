@@ -213,3 +213,12 @@ Le chemin natif réserve les dix routes de la ligne, déduplique les lectures et
 Sur le M5 local, les seize lignes FP16/FP32 du checkpoint et de la tête MTP concordent sur 40 960 coefficients. Les 496 640 logits de deux pas du modèle complet sont également identiques à la CLI indépendante. Les erreurs de métadonnées se reprennent sur le même objet. Les tests CPU couvrent le timeout d’un vrai worker bloqué, le refus de réemploi avant drainage, le refus d’allocation, EOF, les générations et le descripteur du premier tenseur d’un record. [Comparaisons MoE](ssd/rows.json), [continuation complète](ssd/full-model.json).
 
 La copie hôte vers le backing Metal est incluse dans cette implémentation. Le préfetch prédictif, les cohortes multi-lignes et le redimensionnement entre requêtes restent des gates N4 à qualifier. Le débit de ce port est non mesuré.
+
+### Budget et ledger natifs de Flash
+
+Le bridge Metal répond à `flash_memory` et publie les backings uniques, les slots et records résidents, les états, les lectures en vol et les compteurs réels de processus/device. Les objets des pipelines Metal restent décrits comme non mesurés. `MLXL3_FLASH_REQUEST_MIB` conserve le mode AR du backend de référence. Le contrôle réserve les futurs experts encore non chargés, la capacité géométrique de QSA et ses forks, puis peut réduire les caches entre deux requêtes. `memory_saver` libère les états actifs après le tour. Un snapshot détenu par l’appelant conserve son backing et reste rejouable. [Mesures, contrôles et limites](flash-memory/physical.json).
+
+```sh
+MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_SSD_CACHE_GIB=1.2 cargo test --locked --lib --features chat gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay -- --exact --ignored --nocapture
+MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_FLASH_TEST_CLI=DIRECT cargo test --locked --test openai_transport --features chat native_flash_memory_budget_preserves_bridge_recovery -- --exact --ignored --nocapture
+```
