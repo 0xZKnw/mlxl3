@@ -1,5 +1,58 @@
 //! Exact target-side acceptance for speculative decoding.
 
+/// Select the first maximum after model-dtype normalization. Negative infinity masks a token.
+pub fn greedy_log_prob_id(probabilities: &[f32]) -> Option<u32> {
+    let mut best = None;
+    for (index, &value) in probabilities.iter().enumerate() {
+        if value.is_nan() || value == f32::INFINITY {
+            return None;
+        }
+        if value.is_finite() && best.is_none_or(|(_, prior)| value > prior) {
+            best = Some((u32::try_from(index).ok()?, value));
+        }
+    }
+    best.map(|(index, _)| index)
+}
+
+#[test]
+fn greedy_probabilities_require_a_finite_winner_and_keep_first_tie() {
+    assert_eq!(
+        greedy_log_prob_id(&[f32::NEG_INFINITY, -0.0, 0.0, -1.0]),
+        Some(1)
+    );
+    for row in [
+        &[][..],
+        &[f32::NEG_INFINITY],
+        &[0., f32::NAN],
+        &[f32::INFINITY, 0.],
+    ] {
+        assert_eq!(greedy_log_prob_id(row), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(6)]
+fn normalized_greedy_retains_first_finite_maximum() {
+    let p: [f32; 3] = kani::any();
+    let n = usize::from(kani::any::<u8>() % 4);
+    let row = &p[..n];
+    let result = greedy_log_prob_id(row);
+    assert_eq!(
+        result.is_some(),
+        row.iter().all(|v| !v.is_nan() && *v != f32::INFINITY) && row.iter().any(|v| v.is_finite())
+    );
+    if let Some(index) = result {
+        let i = index as usize;
+        assert!(i < n && row[i].is_finite());
+        for (j, &x) in row.iter().enumerate() {
+            assert!(if j < i { x < row[i] } else { x <= row[i] });
+        }
+        kani::cover!(n == 3 && i == 1 && row[1] == row[2]);
+        kani::cover!(n == 3 && i == 2 && row[0] == f32::NEG_INFINITY);
+    }
+}
+
 /// The accepted draft prefix plus the target token that ends the cycle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct GreedyAcceptance {

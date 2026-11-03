@@ -1,5 +1,5 @@
 use super::{MatrixView, Metal, buffer, view::FloatType};
-use crate::{contracts, tensor_layout::MatrixLayout};
+use crate::contracts;
 use anyhow::{Context, Result, ensure};
 use metal::{
     Buffer, CommandBuffer, MTLCommandBufferStatus, MTLResourceOptions as Storage, MTLSize,
@@ -9,7 +9,7 @@ use metal::{
 pub struct RouteOutput {
     command: CommandBuffer,
     indices: Buffer,
-    scores: MatrixView,
+    pub(super) scores: MatrixView,
     count: usize,
 }
 
@@ -28,30 +28,36 @@ impl RouteOutput {
     /// SSD planning needs the expert IDs on the host while scores remain on the GPU.
     pub fn indices(&self) -> Result<Vec<u32>> {
         self.completed_scores()?;
-        Ok(self.words(&self.indices))
-    }
-
-    fn words(&self, buf: &Buffer) -> Vec<u32> {
-        // Both four-byte outputs are shared, aligned and completely initialized on success.
-        unsafe { std::slice::from_raw_parts(buf.contents().cast::<u32>(), self.count).to_vec() }
+        // The shared index buffer has exactly count aligned u32s after completion.
+        Ok(unsafe {
+            std::slice::from_raw_parts(self.indices.contents().cast::<u32>(), self.count).to_vec()
+        })
     }
 
     /// Return indices and raw FP16/FP32 words (zero-extended for FP16).
     pub fn read(self) -> Result<(Vec<u32>, Vec<u32>)> {
         let indices = self.indices()?;
-        let scores = match self.scores.dtype {
-            FloatType::F32 => self.words(&self.scores.buffer),
-            FloatType::F16 => Metal::read(&self.scores.buffer, self.count)
-                .into_iter()
-                .map(u32::from)
-                .collect(),
-        };
+        let scores = self.scores.read_output()?;
         Ok((indices, scores))
     }
 }
 
 impl Metal {
     pub fn route(&self, values: &MatrixView, k: u32, normalize: bool) -> Result<RouteOutput> {
+        objc::rc::autoreleasepool(|| {
+            let cmd = self.queue.new_command_buffer();
+            let result = self.encode_route(cmd, values, k, normalize)?;
+            cmd.commit();
+            Ok(result)
+        })
+    }
+    pub(super) fn encode_route(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        values: &MatrixView,
+        k: u32,
+        normalize: bool,
+    ) -> Result<RouteOutput> {
         let [rows, experts] = values.layout.shape;
         let count = contracts::router_output_len(rows, experts, k)
             .context("invalid router geometry or index overflow")?;
@@ -59,9 +65,9 @@ impl Metal {
             values.buffer.device().registry_id() == self.device.registry_id(),
             "router input belongs to another device"
         );
-        let (pipeline, size) = match values.dtype {
-            FloatType::F16 => (&self.route_half, 2),
-            FloatType::F32 => (&self.route_float, 4),
+        let pipeline = match values.dtype {
+            FloatType::F16 => &self.route_half,
+            FloatType::F32 => &self.route_float,
         };
         ensure!(
             u64::from(experts) <= pipeline.max_total_threads_per_threadgroup(),
@@ -72,43 +78,27 @@ impl Metal {
             u64::from(count) * 4,
             Storage::StorageModeShared,
         )?;
-        let scores = MatrixView {
-            buffer: buffer(
-                &self.device,
-                u64::from(count) * size,
-                Storage::StorageModeShared,
-            )?,
-            layout: MatrixLayout {
-                shape: [rows, k],
-                offset: 0,
-                strides: [i64::from(k), 1],
-            },
-            dtype: values.dtype,
-        };
-        objc::rc::autoreleasepool(|| {
-            let cmd = self.queue.new_command_buffer();
-            Self::encode(
-                cmd,
-                pipeline,
-                &[&values.buffer, &indices, &scores.buffer],
-                [
-                    i64::from(experts),
-                    i64::from(k),
-                    i64::from(normalize),
-                    values.layout.offset,
-                    values.layout.strides[0],
-                    values.layout.strides[1],
-                ],
-                MTLSize::new(u64::from(rows), 1, 1),
-                experts as usize,
-            );
-            cmd.commit();
-            Ok(RouteOutput {
-                command: cmd.to_owned(),
-                indices,
-                scores,
-                count: count as usize,
-            })
+        let scores = MatrixView::output(self, values.dtype, rows, k, Storage::StorageModeShared)?;
+        Self::encode(
+            cmd,
+            pipeline,
+            &[&values.buffer, &indices, &scores.buffer],
+            [
+                i64::from(experts),
+                i64::from(k),
+                i64::from(normalize),
+                values.layout.offset,
+                values.layout.strides[0],
+                values.layout.strides[1],
+            ],
+            MTLSize::new(u64::from(rows), 1, 1),
+            experts as usize,
+        );
+        Ok(RouteOutput {
+            command: cmd.to_owned(),
+            indices,
+            scores,
+            count: count as usize,
         })
     }
 }
@@ -116,6 +106,7 @@ impl Metal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tensor_layout::MatrixLayout;
 
     #[test]
     #[ignore = "physical Metal: retain router outputs and consume on a different queue"]

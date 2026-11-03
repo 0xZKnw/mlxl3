@@ -4,8 +4,11 @@
     "array::tests": 1,
     "mlx": 5
   },
+  ".github/workflows/check.yml": {
+    "mlx": 1
+  },
   ".github/workflows/quantization.yml": {
-    "ponyexl3": 1
+    "ponyexl3": 3
   },
   ".github/workflows/rust.yml": {
     "MLXL3_MLX_ROOT": 8,
@@ -16,9 +19,9 @@
     "mlx": 1
   },
   "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": {
-    "libjaccl.dylib": 2,
-    "libmlx.dylib": 2,
-    "mlx.metallib": 2,
+    "libjaccl.dylib": 1,
+    "libmlx.dylib": 1,
+    "mlx.metallib": 4,
     "mlx_enabled": 1
   },
   "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/__init__.py": {
@@ -1139,6 +1142,12 @@
     "mlx": 3,
     "mlx::core": 1
   },
+  "native/ffi/process_memory.h": {
+    "mlxl3_read_process_stats": 1
+  },
+  "native/ffi/process_stats.cpp": {
+    "mlxl3_read_process_stats": 1
+  },
   "native/shaders/_expert_qmm_tensor_kernel.metal": {
     "mlxl3_decode_codeword": 1
   },
@@ -1153,6 +1162,15 @@
   },
   "native/shaders/_qmv_tile_kernel.metal": {
     "mlxl3_decode_codeword": 4
+  },
+  "native/shaders/convert_matmul.metal": {
+    "mlxl3_convert_matmul": 1
+  },
+  "native/shaders/convert_matmul_nax.metal": {
+    "mlxl3_convert_matmul_nax": 1
+  },
+  "native/shaders/dense_projection.metal": {
+    "mlxl3_decode_codeword": 1
   },
   "native/shaders/exl3.metal": {
     "mlxl3_rank_row": 1
@@ -1170,6 +1188,14 @@
   "native/shaders/gated_delta_prepare.metal": {
     "mlxl3_gdn_conv_silu": 3,
     "mlxl3_gdn_input": 3
+  },
+  "native/shaders/quantize_tiles.metal": {
+    "mlxl3_quantize_codeword": 4,
+    "mlxl3_quantize_tiles": 1
+  },
+  "native/shaders/qwen_gdn.metal": {
+    "mlxl3_gdn_conv_silu": 1,
+    "mlxl3_gdn_input": 1
   },
   "native/shaders/router_topk.h": {
     "mlxl3_rank_row": 1
@@ -1424,13 +1450,20 @@
     "shader mlxl3_test_later_gpu_work": 1,
     "shader mlxl3_test_scheduled_route_ids": 1
   },
+  "native/src/checkpoint.rs": {
+    ".finish": 1,
+    "mlx": 1
+  },
   "native/src/codec.rs": {
     ".to_f32": 2,
     "mlx": 1,
     "shader ../shaders/flash_reference_reduction.h": 1
   },
   "native/src/contracts.rs": {
-    "mlx": 31
+    "mlx": 32
+  },
+  "native/src/convert_matmul.rs": {
+    ".take": 1
   },
   "native/src/dec_one.rs": {
     ".dtype": 3,
@@ -1505,6 +1538,12 @@
     "shader mlxl3_dflash_select_top16_p{positions}_v2": 1,
     "shader mlxl3_dflash_target_argmax_v1": 1
   },
+  "native/src/direct_bridge.rs": {
+    ".log_probs": 1,
+    ".memory_stats": 4,
+    "config MLXL3_BUILD_PROFILE": 1,
+    "config MLXL3_BUILD_REVISION": 1
+  },
   "native/src/embedding.rs": {
     ".dtype": 1,
     ".pack_embedding": 1,
@@ -1540,6 +1579,10 @@
     "array::from_fn": 10,
     "config MLXL3_CURRENT_POOL_CAPTURE": 2,
     "config MLXL3_CURRENT_POOL_REPORT": 2
+  },
+  "native/src/flash_config.rs": {
+    "config MLXL3_SSD_CACHE_GIB": 1,
+    "config MLXL3_SSD_LAYER_SLOTS": 1
   },
   "native/src/flash_draft.rs": {
     ".add": 9,
@@ -1622,6 +1665,13 @@
     "config MLXL3_FLASH_DRAFT_PATH": 1,
     "mlx": 5
   },
+  "native/src/flash_draft_options.rs": {
+    "config MLXL3_FLASH_DRAFT_ADAPTIVE": 1,
+    "config MLXL3_FLASH_DRAFT_PRECAP": 1,
+    "config MLXL3_FLASH_DRAFT_Q4": 1,
+    "config MLXL3_FLASH_DRAFT_RING": 1,
+    "config MLXL3_FLASH_DRAFT_WIDTH": 1
+  },
   "native/src/flash_draft_runtime.rs": {
     ".astype": 1,
     ".chat_greedy_ids": 6,
@@ -1638,11 +1688,6 @@
     "config MLXL3_EXPECTED_MODE": 1,
     "config MLXL3_EXPECTED_PRECAP": 1,
     "config MLXL3_FLASH_DRAFT": 3,
-    "config MLXL3_FLASH_DRAFT_ADAPTIVE": 1,
-    "config MLXL3_FLASH_DRAFT_PRECAP": 1,
-    "config MLXL3_FLASH_DRAFT_Q4": 1,
-    "config MLXL3_FLASH_DRAFT_RING": 1,
-    "config MLXL3_FLASH_DRAFT_WIDTH": 1,
     "config MLXL3_FLASH_MODEL": 4,
     "config MLXL3_FLASH_MULTI_TOKEN": 1,
     "config MLXL3_PREFILL_TEST_LENGTHS": 1,
@@ -1674,6 +1719,15 @@
     "array::synchronize": 1,
     "config MLXL3_FLASH_DRAFT": 1
   },
+  "native/src/flash_memory.rs": {
+    "config MLXL3_FLASH_REQUEST_MIB": 1,
+    "mlx": 1
+  },
+  "native/src/flash_ngrams.rs": {
+    ".to_f32": 3,
+    "array::from_fn": 1,
+    "config MLXL3_PLE_MODEL": 1
+  },
   "native/src/flash_profile.rs": {
     ".dtype": 1,
     ".eval": 1,
@@ -1688,7 +1742,7 @@
     ".take": 2,
     "array::from_fn": 2,
     "config MLXL3_FLASH_MULTI_TOKEN": 1,
-    "mlx": 27
+    "mlx": 29
   },
   "native/src/gated_delta.rs": {
     ".add": 1,
@@ -1790,16 +1844,128 @@
     "array::Array": 1
   },
   "native/src/gpu.rs": {
+    ".to_f32": 2,
+    "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
+    "shader ../shaders/dense_projection.metal": 1,
     "shader ../shaders/exl3.metal": 1,
+    "shader ../shaders/flash_gate.metal": 1,
+    "shader ../shaders/flash_gdn.metal": 1,
+    "shader ../shaders/flash_gdn_epilogue.metal": 1,
+    "shader ../shaders/flash_gdn_prepare.metal": 1,
+    "shader ../shaders/flash_hc.metal": 1,
+    "shader ../shaders/flash_hc_gemv.metal": 1,
+    "shader ../shaders/flash_logsumexp.metal": 1,
+    "shader ../shaders/flash_moe.metal": 1,
+    "shader ../shaders/flash_mtp.metal": 1,
+    "shader ../shaders/flash_ple.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
+    "shader ../shaders/flash_qsa.metal": 1,
     "shader ../shaders/flash_reference_reduction.h": 1,
+    "shader ../shaders/flash_rope.metal": 1,
+    "shader ../shaders/gated_delta_packed.metal": 1,
+    "shader ../shaders/mapped_expert.metal": 1,
+    "shader ../shaders/model_ops.metal": 1,
     "shader ../shaders/router_topk.h": 1
   },
+  "native/src/gpu/convert_matmul.rs": {
+    ".shape": 3,
+    "config MLX_ENABLE_TF32": 1,
+    "shader ../../shaders/convert_matmul.metal": 1,
+    "shader ../../shaders/convert_matmul_nax.metal": 1,
+    "shader mlxl3_convert_matmul": 1,
+    "shader mlxl3_convert_matmul_nax": 1
+  },
+  "native/src/gpu/flash.rs": {
+    ".exp": 1,
+    ".memory_stats": 1,
+    ".shape": 1,
+    ".sum": 1,
+    ".to_f32": 11,
+    ".transpose": 1,
+    "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
+  },
+  "native/src/gpu/gdn.rs": {
+    ".shape": 1,
+    ".transpose": 1,
+    "config MLXL3_GDN_MODEL": 1
+  },
+  "native/src/gpu/hc.rs": {
+    ".shape": 4,
+    ".transpose": 3,
+    "config MLXL3_HC_FROZEN": 1,
+    "config MLXL3_HC_MODEL": 1,
+    "mlx": 2
+  },
+  "native/src/gpu/memory.rs": {
+    ".memory_stats": 2,
+    "config MLXL3_FLASH_MODEL": 1,
+    "mlxl3_read_process_stats": 2
+  },
+  "native/src/gpu/model_ops.rs": {
+    ".shape": 13,
+    ".transpose": 3,
+    ".view": 4,
+    "config MLXL3_MODEL_OPS_FIXTURE": 1
+  },
+  "native/src/gpu/moe.rs": {
+    ".ready": 2,
+    ".shape": 1,
+    ".take": 1,
+    ".to_f32": 1,
+    ".transpose": 2,
+    "config MLXL3_MOE_CHECKPOINT": 2,
+    "config MLXL3_SSD_CACHE_POLICY": 1,
+    "config MLXL3_SSD_PREDICTOR_DTYPE": 1
+  },
+  "native/src/gpu/mtp.rs": {
+    ".shape": 1,
+    ".to_f32": 3,
+    "config MLXL3_FLASH_MODEL": 2,
+    "config MLXL3_FLASH_MTP_DIRECT_PARTS": 1,
+    "config MLXL3_FLASH_MTP_REFERENCE": 1,
+    "config MLXL3_FLASH_MTP_SESSION_ORACLE": 1
+  },
+  "native/src/gpu/ple.rs": {
+    ".shape": 1,
+    ".transpose": 1,
+    "config MLXL3_PLE_MODEL": 1
+  },
+  "native/src/gpu/prefetch.rs": {
+    ".ready": 1
+  },
   "native/src/gpu/projection.rs": {
+    ".shape": 5,
     ".swiglu": 2,
     ".to_f32": 1,
-    ".transpose": 1
+    ".transpose": 1,
+    "config MLXL3_DENSE_DECODE_NT4": 1,
+    "config MLXL3_DISABLE_TENSOR_OPS": 2,
+    "config MLXL3_QWEN_NATIVE_MODEL": 2
+  },
+  "native/src/gpu/qsa.rs": {
+    ".shape": 1,
+    ".transpose": 5,
+    "config MLXL3_QSA_MODEL": 2,
+    "config MLXL3_QSA_ORACLE_DIR": 1,
+    "config MLXL3_QSA_REPORT": 1,
+    "config MLXL3_QSA_TEST_CLASS": 1,
+    "config MLXL3_QSA_TEST_CLASSIC": 1,
+    "shader ../../shaders/flash_qsa_nax.metal": 1
+  },
+  "native/src/gpu/quantize.rs": {
+    "shader ../../shaders/quantize_tiles.metal": 1,
+    "shader mlxl3_quantize_tiles": 1
+  },
+  "native/src/gpu/qwen_gdn.rs": {
+    ".shape": 1,
+    ".transpose": 1,
+    "config MLXL3_QWEN_NATIVE_MODEL": 1,
+    "shader ../../shaders/flash_hc_gemv.metal": 1,
+    "shader ../../shaders/gated_delta_packed.metal": 1,
+    "shader ../../shaders/gated_delta_prepare.metal": 1,
+    "shader ../../shaders/qwen_gdn.metal": 1
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -1862,7 +2028,7 @@
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
   "native/src/lib.rs": {
-    "mlx": 22
+    "mlx": 25
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2027,28 +2193,29 @@
   "native/src/main.rs": {
     ".chat_greedy_ids": 12,
     ".compact_for_cache": 5,
-    ".eval": 9,
+    ".eval": 12,
     ".exp": 1,
     ".finish": 5,
     ".log_probs": 2,
+    ".memory_stats": 1,
     ".retained_bytes": 4,
-    ".shape": 3,
+    ".shape": 8,
     ".slice": 2,
     ".swiglu": 1,
     ".take": 7,
     ".to_bytes": 5,
-    ".to_f16_bits": 30,
+    ".to_f16_bits": 32,
     ".to_f32": 12,
     ".to_u32": 3,
-    ".transpose": 18,
+    ".transpose": 19,
     ".try_clone": 7,
-    "Array::from_f16_bits": 38,
+    "Array::concatenate": 1,
+    "Array::from_f16_bits": 42,
     "Array::from_f32": 11,
     "Array::from_u16": 5,
-    "Array::from_u32": 3,
+    "Array::from_u32": 4,
     "Array::to_f16_bits": 2,
-    "array::Array": 28,
-    "array::MemoryStats": 1,
+    "array::Array": 29,
     "array::capture_for_request": 1,
     "array::clear_cache": 8,
     "array::memory_stats": 9,
@@ -2069,7 +2236,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 123,
+    "mlx": 185,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2142,7 +2309,6 @@
   },
   "native/src/mtp_tune.rs": {
     ".chat_greedy_ids": 2,
-    ".finish": 1,
     ".transpose": 1,
     "array::from_fn": 1,
     "config MLXL3_ALLOCATOR_CACHE_MIB": 1,
@@ -2157,6 +2323,18 @@
     "config MLXL3_MTP_LOOKUP": 2,
     "config MLXL3_QWEN_PIPELINE": 1
   },
+  "native/src/native_bf16.rs": {
+    ".to_f32": 2
+  },
+  "native/src/native_draft.rs": {
+    ".exp": 4,
+    ".log_probs": 2,
+    ".rope": 4,
+    "config MLXL3_FLASH_DRAFT_KIND": 1,
+    "config MLXL3_FLASH_DRAFT_MODEL": 2,
+    "config MLXL3_FLASH_DRAFT_ORACLE": 1,
+    "config MLXL3_FLASH_MODEL": 1
+  },
   "native/src/openai.rs": {
     ".take": 11,
     ".transpose": 1,
@@ -2166,6 +2344,9 @@
     ".finish": 22,
     ".take": 7,
     "config MLXL3_API_SIGNAL_FIXTURE": 1
+  },
+  "native/src/quantize.rs": {
+    ".take": 1
   },
   "native/src/qwen35.rs": {
     ".add": 9,
@@ -2243,7 +2424,7 @@
     ".compiled_silu": 1,
     ".conv1d": 1,
     ".div": 2,
-    ".dtype": 9,
+    ".dtype": 8,
     ".eval": 25,
     ".finish": 1,
     ".matmul": 1,
@@ -2259,7 +2440,7 @@
     ".rope": 8,
     ".rsqrt": 1,
     ".scalar_mul": 2,
-    ".shape": 34,
+    ".shape": 33,
     ".sigmoid": 3,
     ".silu": 1,
     ".slice": 23,
@@ -2268,11 +2449,10 @@
     ".synchronize": 1,
     ".take": 4,
     ".to_bytes": 48,
-    ".to_f16_bits": 1,
-    ".to_f32": 19,
+    ".to_f32": 16,
     ".to_u32": 4,
     ".transpose": 18,
-    ".try_clone": 32,
+    ".try_clone": 35,
     "Array::concatenate": 12,
     "Array::from_bytes": 1,
     "Array::from_f16_bits": 3,
@@ -2304,10 +2484,10 @@
     "config MLXL3_FLASH_REFERENCE": 3,
     "config MLXL3_FLASH_VARIANCE_REFERENCE": 1,
     "config MLXL3_FLASH_VARIANCE_TRACE": 1,
-    "config MLXL3_SSD_CACHE_GIB": 3,
+    "config MLXL3_SSD_CACHE_GIB": 2,
     "config MLXL3_SSD_CACHE_POLICY": 2,
     "config MLXL3_SSD_COLD_READY": 1,
-    "config MLXL3_SSD_LAYER_SLOTS": 3,
+    "config MLXL3_SSD_LAYER_SLOTS": 2,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1,
     "config MLXL3_SSD_OVERLAP": 1,
     "config MLXL3_SSD_RESIDENT_GATES": 1,
@@ -2315,6 +2495,47 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader mlxl3_flash_mrope_r{dimensions}_h{heads}_w{width}": 1,
     "shader mlxl3_flash_qsa_scores_{count}": 1
+  },
+  "native/src/qwen4/direct_gdn_oracle.rs": {
+    ".add": 2,
+    ".astype": 4,
+    ".dtype": 7,
+    ".eval": 3,
+    ".finish": 1,
+    ".reshape": 3,
+    ".shape": 6,
+    ".slice": 1,
+    ".take": 1,
+    ".to_bytes": 9,
+    ".transpose": 1,
+    "Array::from_f32": 5,
+    "array::MetalCapture": 1,
+    "array::synchronize": 2,
+    "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_FLASH_MTP_REFERENCE": 1,
+    "config MLXL3_FLASH_MTP_STOCK_PARTS": 1,
+    "config MLXL3_GDN_FROZEN": 1,
+    "config MLXL3_GDN_MODEL": 1,
+    "config MLXL3_GDN_ORACLE_DIR": 1,
+    "config MLXL3_MTP_NORM_CAPTURE": 1,
+    "config MLXL3_PLE_FROZEN": 1,
+    "config MLXL3_PLE_MODEL": 1,
+    "config MLXL3_PLE_ORACLE_DIR": 1,
+    "config MLXL3_QSA_MODEL": 2,
+    "config MLXL3_QSA_ORACLE_DIR": 2
+  },
+  "native/src/qwen4/hc_row_oracle.rs": {
+    ".dtype": 1,
+    ".qwen4_hc_activate": 1,
+    ".reshape": 1,
+    ".to_f16_bits": 1,
+    ".to_f32": 1,
+    ".to_u32": 1,
+    ".transpose": 1,
+    "Array::from_f16_bits": 1,
+    "Array::from_f32": 1,
+    "config MLXL3_HC_FIXTURES": 1,
+    "config MLXL3_HC_MODEL": 1
   },
   "native/src/qwen4/memory.rs": {
     ".backing": 1,
@@ -2327,8 +2548,7 @@
     "array::flash_program_cache": 2,
     "array::memory_stats": 5,
     "array::synchronize": 2,
-    "config MLXL3_FLASH_MODEL": 1,
-    "config MLXL3_FLASH_REQUEST_MIB": 1
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/qwen4/mtp_prefill_tests.rs": {
     ".chat_greedy_ids": 1,
@@ -2410,6 +2630,9 @@
     "shader mlxl3_rs_router_e256_k8_simd_n{}": 1,
     "shader mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v4": 1,
     "shader mlxl3_rs_topk_biased_e{experts}_k{top_k}_v3": 1
+  },
+  "native/src/runtime_stats.rs": {
+    "mlx": 1
   },
   "native/src/ssd_moe.rs": {
     ".add": 1,
@@ -2583,6 +2806,18 @@
     "config MLXL3_FLASH_MODEL": 1,
     "config MLXL3_SSD_ROUTED_INDEX_CACHE": 2
   },
+  "native/src/ssd_moe/row_oracle.rs": {
+    ".dtype": 2,
+    ".shape": 1,
+    ".sigmoid": 1,
+    ".to_f16_bits": 2,
+    ".to_f32": 2,
+    ".to_u32": 1,
+    "Array::from_f16_bits": 1,
+    "Array::from_f32": 1,
+    "config MLXL3_MOE_CHECKPOINT": 1,
+    "config MLXL3_MOE_FIXTURES": 1
+  },
   "native/src/ssd_moe/shared_tests.rs": {
     ".astype": 7,
     ".eval": 3,
@@ -2614,7 +2849,14 @@
     "Array::zeros_dtype": 5,
     "array::PreparedRead": 3,
     "array::memory_stats": 2,
-    "mlx": 4
+    "mlx": 5
+  },
+  "native/src/ssd_reads.rs": {
+    ".ready": 11,
+    ".run": 1,
+    ".start": 8,
+    ".take": 1,
+    ".try_clone": 10
   },
   "native/src/streaming.rs": {
     ".finish": 5
@@ -2689,6 +2931,9 @@
     "mx::reshape": 1,
     "mx::transpose": 1
   },
+  "native/tests/process_memory.cpp": {
+    "mlxl3_read_process_stats": 3
+  },
   "native/tests/runtime_gpu.rs": {
     "Array::concatenate": 1,
     "Array::from_f16_bits": 6,
@@ -2709,12 +2954,13 @@
     "mlx": 1,
     "mlx-lm": 2
   },
-  "scripts/build-macos-app.sh": {
+  "scripts/build-engine.sh": {
     "MLXL3_MLX_ROOT": 3,
     "libjaccl.dylib": 3,
     "libmlx.dylib": 4,
-    "mlx": 2,
-    "mlx.metallib": 3
+    "mlx": 6,
+    "mlx.metallib": 4,
+    "mlx_enabled": 1
   },
   "scripts/build-quantizer.sh": {
     "mlx": 1,
@@ -2771,6 +3017,7 @@
   "scripts/package_engine.py": {
     "libjaccl.dylib": 1,
     "libmlx.dylib": 1,
+    "mlx": 5,
     "mlx.metallib": 2
   },
   "scripts/patches/ponyexl3-bounded-conversion-cache.patch": {
@@ -2789,9 +3036,9 @@
     "ponyexl3": 12
   },
   "scripts/patches/ponyexl3-mlxl3-conversion.patch": {
-    "mlx": 12,
+    "mlx": 14,
     "mlx_lm": 3,
-    "ponyexl3": 66
+    "ponyexl3": 74
   },
   "scripts/patches/ponyexl3-single-file-index.patch": {
     "ponyexl3": 2
@@ -2861,6 +3108,10 @@
     "mlx_lm": 4,
     "ponyexl3": 7
   },
+  "src/mlxl3_quantizer/feedback.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 2,
+    "ponyexl3": 1
+  },
   "src/mlxl3_quantizer/metal.py": {
     "call mlx.core.array": 4,
     "call mlx.core.async_eval": 1,
@@ -2876,6 +3127,10 @@
     "call ponyexl3.ref.codebook.CodebookMode": 1,
     "mlx": 4,
     "ponyexl3": 7
+  },
+  "src/mlxl3_quantizer/native.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 1,
+    "ponyexl3": 1
   },
   "src/mlxl3_quantizer/pack_trellis.metal": {
     "mlxl3_pack_word": 1

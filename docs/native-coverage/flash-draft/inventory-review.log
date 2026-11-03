@@ -1,0 +1,22 @@
+native/src/flash_draft_options.rs: config MLXL3_FLASH_DRAFT_ADAPTIVE 0 -> 1
+native/src/flash_draft_options.rs: config MLXL3_FLASH_DRAFT_PRECAP 0 -> 1
+native/src/flash_draft_options.rs: config MLXL3_FLASH_DRAFT_Q4 0 -> 1
+native/src/flash_draft_options.rs: config MLXL3_FLASH_DRAFT_RING 0 -> 1
+native/src/flash_draft_options.rs: config MLXL3_FLASH_DRAFT_WIDTH 0 -> 1
+native/src/flash_draft_runtime.rs: config MLXL3_FLASH_DRAFT_ADAPTIVE 1 -> 0
+native/src/flash_draft_runtime.rs: config MLXL3_FLASH_DRAFT_PRECAP 1 -> 0
+native/src/flash_draft_runtime.rs: config MLXL3_FLASH_DRAFT_Q4 1 -> 0
+native/src/flash_draft_runtime.rs: config MLXL3_FLASH_DRAFT_RING 1 -> 0
+native/src/flash_draft_runtime.rs: config MLXL3_FLASH_DRAFT_WIDTH 1 -> 0
+native/src/gpu/flash.rs: .shape 0 -> 1
+native/src/gpu/flash.rs: .to_f32 9 -> 11
+native/src/lib.rs: mlx 24 -> 25
+native/src/main.rs: mlx 171 -> 176
+native/src/native_bf16.rs: .to_f32 0 -> 2
+native/src/native_draft.rs: .exp 0 -> 4
+native/src/native_draft.rs: .log_probs 0 -> 2
+native/src/native_draft.rs: .rope 0 -> 4
+native/src/native_draft.rs: config MLXL3_FLASH_DRAFT_KIND 0 -> 1
+native/src/native_draft.rs: config MLXL3_FLASH_DRAFT_MODEL 0 -> 2
+native/src/native_draft.rs: config MLXL3_FLASH_DRAFT_ORACLE 0 -> 1
+native/src/native_draft.rs: config MLXL3_FLASH_MODEL 0 -> 1

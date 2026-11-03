@@ -201,3 +201,23 @@ kernel void route_matrix(const device T* values [[buffer(0)]], device uint* indi
 ROUTE_KERNEL(half, "route_half")
 ROUTE_KERNEL(float, "route_float")
 #undef ROUTE_KERNEL
+
+#include "flash_gate.metal"
+
+#include "flash_moe.metal"
+
+#include "flash_hc.metal"
+
+#include "flash_gdn.metal"
+
+#include "flash_ple.metal"
+
+#include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
+
+#include "flash_mtp.metal"
+
+#include "dense_projection.metal"
+
+#include "mapped_expert.metal"
+#include "model_ops.metal"

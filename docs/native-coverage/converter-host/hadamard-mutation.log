@@ -1,0 +1,36 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_signed_subnormal_rows_flush_before_the_butterfly_can_amplify_them ____
+
+    def test_signed_subnormal_rows_flush_before_the_butterfly_can_amplify_them():
+        values = np.empty((4, 128), dtype=np.float32)
+        values[0] = np.nextafter(np.float32(0), np.float32(1))
+        values[1] = -values[0]
+        values[2] = np.finfo(np.float32).tiny / 4
+        values[3] = -values[2]
+        actual = hadamard128(values)
+        expected = np.zeros((4, 128), dtype=np.float32)
+        expected[[1, 3], 0] = np.float32(-0.0)
+>       np.testing.assert_array_equal(actual.view(np.uint32), expected.view(np.uint32))
+E       AssertionError: 
+E       Arrays are not equal
+E       
+E       Mismatched elements: 4 / 512 (0.781%)
+E       Mismatch at indices:
+E        [0, 0]: 11 (ACTUAL), 0 (DESIRED)
+E        [1, 0]: 2147483659 (ACTUAL), 2147483648 (DESIRED)
+E        [2, 0]: 20251891 (ACTUAL), 0 (DESIRED)
+E        [3, 0]: 2167735539 (ACTUAL), 2147483648 (DESIRED)
+E       Max absolute difference among violations: 20251891
+E       Max relative difference among violations: 0.00943052
+E        ACTUAL: array([[        11,          0,          0,          0,          0,
+E                        0,          0,          0,          0,          0,
+E                        0,          0,          0,          0,          0,...
+E        DESIRED: array([[         0,          0,          0,          0,          0,
+E                        0,          0,          0,          0,          0,
+E                        0,          0,          0,          0,          0,...
+
+tests/test_native_transforms.py:79: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_native_transforms.py::test_signed_subnormal_rows_flush_before_the_butterfly_can_amplify_them
+1 failed in 0.05s

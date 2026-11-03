@@ -16,6 +16,7 @@ pub struct TensorStorage {
     dtype: FloatType,
 }
 
+#[derive(Clone)]
 pub struct MatrixView {
     pub(super) buffer: Buffer,
     pub(super) layout: MatrixLayout,
@@ -37,9 +38,104 @@ impl TensorStorage {
 }
 
 impl MatrixView {
-    pub(super) fn column_scales(buffer: &Buffer, rows: u32, cols: u32) -> Result<Self> {
+    #[cfg(feature = "chat")]
+    pub(crate) fn shares_storage(&self, other: &Self) -> bool {
+        std::ptr::eq::<metal::BufferRef>(self.buffer.as_ref(), other.buffer.as_ref())
+    }
+
+    pub fn row(&self, row: u32) -> Result<Self> {
+        Ok(Self {
+            buffer: self.buffer.clone(),
+            dtype: self.dtype,
+            layout: self
+                .layout
+                .row(row)
+                .context("row outside matrix or offset overflow")?,
+        })
+    }
+    pub fn shape(&self) -> [u32; 2] {
+        self.layout.shape
+    }
+    pub(super) fn output(
+        gpu: &Metal,
+        dtype: FloatType,
+        rows: u32,
+        cols: u32,
+        storage: Storage,
+    ) -> Result<Self> {
+        let count = rows.checked_mul(cols).context("matrix size overflow")?;
+        let size = if dtype == FloatType::F16 { 2 } else { 4 };
+        Ok(Self {
+            buffer: buffer(&gpu.device, u64::from(count) * size, storage)?,
+            layout: MatrixLayout {
+                shape: [rows, cols],
+                offset: 0,
+                strides: [i64::from(cols), 1],
+            },
+            dtype,
+        })
+    }
+
+    /// Only for contiguous shared outputs, after a successful command completion.
+    pub fn read_output(&self) -> Result<Vec<u32>> {
+        let [rows, cols] = self.layout.shape;
+        let count = rows.checked_mul(cols).context("matrix size overflow")? as usize;
+        let size = if self.dtype == FloatType::F16 { 2 } else { 4 };
         ensure!(
-            buffer.length() == 2 * u64::from(cols),
+            self.buffer.storage_mode() == metal::MTLStorageMode::Shared
+                && self.layout.offset == 0
+                && self.layout.strides == [i64::from(cols), 1]
+                && self.buffer.length() == count as u64 * size,
+            "invalid host read of Metal output"
+        );
+        Ok(match self.dtype {
+            FloatType::F16 => Metal::read(&self.buffer, count)
+                .into_iter()
+                .map(u32::from)
+                .collect(),
+            // The exact extent, storage mode and contiguous layout have been checked.
+            FloatType::F32 => unsafe {
+                std::slice::from_raw_parts(self.buffer.contents().cast::<u32>(), count).to_vec()
+            },
+        })
+    }
+    /// Export an initialized contiguous result after its producer has completed.
+    pub(crate) fn export_bytes(&self, gpu: &Metal) -> Result<Vec<u8>> {
+        let item = if self.dtype == FloatType::F16 { 2 } else { 4 };
+        let n = self
+            .layout
+            .trace_byte_extent(item, self.buffer.length())
+            .context("invalid trace extent")?;
+        ensure!(
+            self.buffer.device().registry_id() == gpu.device.registry_id(),
+            "trace belongs to a different Metal device"
+        );
+        let readable = if self.buffer.storage_mode() == metal::MTLStorageMode::Shared {
+            self.buffer.clone()
+        } else {
+            let copy = buffer(&gpu.device, n as u64, Storage::StorageModeShared)?;
+            gpu.command(|cmd| {
+                let blit = cmd.new_blit_command_encoder();
+                blit.copy_from_buffer(&self.buffer, 0, &copy, 0, n as u64);
+                blit.end_encoding();
+                Ok(())
+            })?;
+            copy
+        };
+        // The checked byte extent covers the entire owned, CPU-visible buffer.
+        Ok(unsafe { std::slice::from_raw_parts(readable.contents().cast::<u8>(), n) }.to_vec())
+    }
+    pub(super) fn column_scales(
+        buffer: &Buffer,
+        offset: u64,
+        rows: u32,
+        cols: u32,
+    ) -> Result<Self> {
+        ensure!(
+            offset.is_multiple_of(2)
+                && offset
+                    .checked_add(2 * u64::from(cols))
+                    .is_some_and(|end| end <= buffer.length()),
             "invalid column scale allocation"
         );
         Ok(Self {
@@ -47,7 +143,7 @@ impl MatrixView {
             layout: MatrixLayout {
                 shape: [rows, cols],
                 strides: [0, 1],
-                offset: 0,
+                offset: i64::try_from(offset / 2)?,
             },
             dtype: FloatType::F16,
         })

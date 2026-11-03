@@ -1,0 +1,88 @@
+{
+  "base": "445e2d3da6813e1dbd9ee2f6c0f4a0402b337ca5",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "upstream": "mlx-vlm 0.7.3 eval and PonyExl3 8e7fa6b, five imposed layer-2 inputs and twelve captured outputs per step",
+  "upstream_manifest": "40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec",
+  "stock": "production qwen4::Gdn::forward and Layer::forward, MLX 0.32.2, two three-step layer-0 input sequences with FP16/FP32 streams",
+  "source_sha256": {
+    "native/src/gpu.rs": "4a5ba757cb5a0a186e5bb2d38e673587047ca3570d438399e208d183ced532ea",
+    "native/src/gpu/gdn.rs": "66d88415d3db6426bddc5a2c32bf8475919fca2cb610af67a8480c3c873ebebc",
+    "native/src/gpu/hc.rs": "787b1364f0189531d06a2306bb9554a89c9e60738bf52f6c44fc30d9cecdd4ab",
+    "native/src/gpu/projection.rs": "7ebce526f6258689078f034e2903d87b01741c3967997405429151ef478e6e0f",
+    "native/src/contracts.rs": "bb6554a5b059d84b51df47e89c90c51de592d98bee8a5be3a4d906f5e6a54de6",
+    "native/src/main.rs": "59d199904bd23238c07e7c6f0bbdc033ac17aa9745da40bcd055487dabb8f404",
+    "native/shaders/flash_gdn.metal": "eda971935fdc600bc8a1ee27a07281223451171e1a61db59d71374309f88b6ed",
+    "native/shaders/flash_gdn_prepare.metal": "8a278a6d6cecfd68bbf8792f92a32201f9d877ad71ee4d1fc49d7281d3aad7e4",
+    "native/shaders/gated_delta_packed.metal": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+    "native/shaders/flash_gdn_epilogue.metal": "1fa5b6ae214104186021ff2aa43a5e7b083e838fb0a410cf886326aaf8f9ca44",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/src/qwen4/direct_gdn_oracle.rs": "b8cb523c9156a33d936004ef40f82bdbebc8f3730f8e9719702fe66177b33775",
+    "tests/physical_flash_gdn.py": "5b016f548c9d66eb292e8d36970d2f288647a67ca76dfa52d6dd8a0181eb8de0"
+  },
+  "mutation": {
+    "change": "copy history[t] instead of history[t+1] in sliding convolution",
+    "cli_sha256": "452f0133b11793d71ac1afa898aadeefc30c5c5f51952cf43eba17ebe3e7341f",
+    "status": "failed",
+    "compared": 4375520,
+    "mismatches": 2553911,
+    "by_step": [
+      {},
+      {
+        "history": 10237
+      },
+      {
+        "conv": 10165,
+        "q": 2044,
+        "k": 2046,
+        "v": 6103,
+        "delta": 6131,
+        "normed": 6141,
+        "gated": 6136,
+        "out": 2554,
+        "history": 20477,
+        "state": 786048
+      },
+      {
+        "conv": 10214,
+        "q": 2046,
+        "k": 2043,
+        "v": 6128,
+        "delta": 6133,
+        "normed": 6141,
+        "gated": 6135,
+        "out": 2559,
+        "history": 20479,
+        "state": 786048
+      },
+      {
+        "conv": 10203,
+        "q": 2045,
+        "k": 2046,
+        "v": 6117,
+        "delta": 6136,
+        "normed": 6141,
+        "gated": 6136,
+        "out": 2554,
+        "history": 20477,
+        "state": 786048
+      }
+    ]
+  },
+  "first_run": {
+    "status": "components_match_states_unchecked",
+    "compared": 289760
+  },
+  "kani": {
+    "version": "0.68",
+    "harness": "contracts::packed_flash_gdn_groups_partition_state_entries",
+    "checks": 61,
+    "covers": 2,
+    "unwind": 24,
+    "domain": "all u32 head, group, SIMD group, lane and component indices. For all valid threads of the production 48\u00d7128\u00d7128 state, within allocation and unique inverse to thread and component."
+  },
+  "reproduce": "python tests/physical_flash_gdn.py DIRECT STOCK_LIBTEST CHECKPOINT UPSTREAM_FROZEN_DIR NEW_REPORT",
+  "rollback": "gpu::gdn::tests::downstream_failure_does_not_advance_recurrent_state",
+  "scope": "One GDN row, its cache and a complete non-PLE GDN layer. No full decoder throughput."
+}
