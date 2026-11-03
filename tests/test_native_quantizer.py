@@ -32,6 +32,8 @@ if fault=='nonfinite':(out/'decoded.f32').write_bytes(bytes.fromhex('0000c07f')+
 if fault=='symlink':(out/'decoded.f32').unlink();(out/'decoded.f32').symlink_to(a.input)
 if fault=='extra':(out/'unexpected').write_bytes(b'x')
 if fault!='missing-report':(out/'report.json').write_text(json.dumps(r))
+if fault=='directory-symlink':
+    moved=out.with_name('foreign-result');out.rename(moved);out.symlink_to(moved,target_is_directory=True)
 print(json.dumps(r))
 """
 
@@ -65,6 +67,7 @@ def test_public_native_tile_entry_preserves_binary_order_shape_and_types(engine)
         "partial",
         "nonfinite",
         "symlink",
+        "directory-symlink",
         "extra",
         "missing-report",
         "flood",
@@ -77,7 +80,7 @@ def test_native_failures_never_return_a_partial_conversion(engine, monkeypatch, 
 
 
 def test_silent_child_is_reaped_before_timeout_returns(engine, tmp_path, monkeypatch):
-    from mlxl3_quantizer import native
+    from mlxl3_quantizer import process as native_process
 
     launched = []
     original = subprocess.Popen
@@ -87,7 +90,7 @@ def test_silent_child_is_reaped_before_timeout_returns(engine, tmp_path, monkeyp
         launched.append(process.pid)
         return process
 
-    monkeypatch.setattr(native.subprocess, "Popen", remember_child)
+    monkeypatch.setattr(native_process.subprocess, "Popen", remember_child)
     monkeypatch.setenv("TILE_FAULT", "silent")
     with pytest.raises(TimeoutError):
         quantize_tiles_native(np.zeros((1, 256)), 4, engine=engine, timeout=0.15)

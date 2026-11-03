@@ -20,7 +20,7 @@ VENDOR = ROOT / "apps/MLXL3Studio/Vendor/PonyExl3"
 KEY = "model.layers.0.mlp.gate_proj"
 
 
-def compare_checkpoints(oracle: Path, candidate: Path):
+def compare_checkpoints(oracle: Path, candidate: Path, *, k=4):
     arrays = []
     for folder in [oracle, candidate]:
         files = sorted(folder.glob("*.safetensors"))
@@ -38,7 +38,7 @@ def compare_checkpoints(oracle: Path, candidate: Path):
         raise ValueError("incomplete converted module")
     for tensors in arrays:
         trellis = tensors[KEY + ".trellis"]
-        if trellis.shape != (8, 8, 64) or trellis.dtype != np.dtype("uint16"):
+        if trellis.shape != (8, 8, 16 * k) or trellis.dtype != np.dtype("uint16"):
             raise ValueError("invalid converted EXL3 trellis")
     configs = [
         json.loads((path / "quantization_config.json").read_text()) for path in [oracle, candidate]
@@ -69,8 +69,16 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--oracle-python", type=Path, default=Path(sys.executable))
     parser.add_argument(
-        "--include-ldlq", action="store_true", help="also diagnose the pending LDLQ path"
+        "--include-ldlq", action="store_true", help="also validate the LDLQ conversion path"
     )
+    parser.add_argument("--buffer-rows", type=int, default=32)
+    parser.add_argument("--k", type=int, choices=range(2, 9), default=4)
+    parser.add_argument(
+        "--matrix-budget-values",
+        type=int,
+        help="force transport chunk boundaries in the native production entry",
+    )
+    parser.add_argument("--scale-mode", choices=["identity", "computed"], default="identity")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     report_file = args.output / "report.json"
@@ -80,6 +88,11 @@ def main():
         "engine": str(args.engine.absolute()),
         "engine_sha256": hashlib.sha256(args.engine.read_bytes()).hexdigest(),
         "cases": [],
+        "buffer_rows": args.buffer_rows,
+        "k": args.k,
+        "matrix_budget_values": args.matrix_budget_values,
+        "scale_mode": args.scale_mode,
+        "tf32_environment": os.environ.get("MLX_ENABLE_TF32", "default-enabled"),
     }
     report_file.write_text(json.dumps(report, indent=2) + "\n")
     source = args.output / "source"
@@ -137,17 +150,35 @@ def main():
                     "--only-module",
                     KEY,
                     "--scale-mode",
-                    "identity",
+                    args.scale_mode,
                     "--search-backend",
                     backend,
                     "--codebook",
                     "mcg",
+                    "--bits",
+                    str(args.k),
+                    "--head-bits",
+                    str(args.k),
                     "--buf-size-rows",
-                    "32",
+                    str(args.buffer_rows),
                     "--calibration-activations",
                     str((args.output / "activations.npy").absolute()),
                     "--json",
                 ]
+                if backend == "native" and args.matrix_budget_values is not None:
+                    # Execute the identical public module with only its transport
+                    # budget narrowed. No alternate quantizer/math is substituted.
+                    command = [
+                        sys.executable,
+                        "-c",
+                        (
+                            "import runpy,sys; from mlxl3_quantizer import feedback; "
+                            "feedback._CONVERTER_MATRIX_VALUES=int(sys.argv.pop(1)); "
+                            "runpy.run_module('ponyexl3.cli.convert_advanced',run_name='__main__')"
+                        ),
+                        str(args.matrix_budget_values),
+                        *command[3:],
+                    ]
                 child_env = dict(env)
                 if backend == "native":
                     child_env["PYTHONPATH"] = str(guard.absolute()) + os.pathsep + env["PYTHONPATH"]
@@ -167,13 +198,13 @@ def main():
                 if (
                     summary.get("shape") != [128, 128]
                     or summary.get("search_backend") != backend
-                    or summary.get("k") != 4
+                    or summary.get("k") != args.k
                     or (guard / "forbidden").exists()
                 ):
                     raise ValueError("incomplete or foreign public converter result")
                 print(f"completed {mode}/{backend}", flush=True)
             words = compare_checkpoints(
-                args.output / f"{mode}-metal", args.output / f"{mode}-native"
+                args.output / f"{mode}-metal", args.output / f"{mode}-native", k=args.k
             )
             report["cases"].append({"mode": mode, "words": words, "unequal": 0})
             report_file.write_text(json.dumps(report, indent=2) + "\n")

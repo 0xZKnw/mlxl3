@@ -348,14 +348,45 @@ def test_unsupported_native_k_cannot_be_relabelled_as_a_skipped_module(monkeypat
         native.converter_tiles(np.zeros((1, 256)), 1)
 
 
-def test_unqualified_native_ldlq_stops_before_any_service_call(monkeypatch):
-    from ponyexl3.convert.hessian import ldlq_inner_matrix, ldlq_quantize_layer
+def test_native_ldlq_routes_all_products_and_preserves_reverse_feedback_groups(monkeypatch):
+    from ponyexl3.convert import hessian
 
-    def forbidden(*args, **kwargs):
-        pytest.fail("unqualified LDLQ must not invoke a GPU service")
+    from mlxl3_quantizer import feedback
 
-    monkeypatch.setattr(native, "converter_tiles", forbidden)
-    with pytest.raises(RuntimeError, match="FP32 compensation"):
-        ldlq_inner_matrix(np.zeros((16, 16)), np.eye(16), k=4, cb=1, search_backend="native")
-    with pytest.raises(RuntimeError, match="FP32 compensation"):
-        ldlq_quantize_layer("missing", "missing", "missing", search_backend="native")
+    weight = (np.arange(64 * 16).reshape(64, 16) % 15 - 7).astype(np.float32)
+    lower = np.zeros((64, 64), dtype=np.float32)
+    for row in range(64):
+        for col in range(64):
+            if row // 16 > col // 16:
+                lower[row, col] = np.float32(0.125)
+    products, searched = [], []
+
+    def product(left, right):
+        products.append((left.copy(), right.copy()))
+        return left @ right
+
+    def zero_search(rows, *, k, cb, search_backend, **kwargs):
+        # Isolate feedback flow with a deterministic zero quantizer. The actual
+        # trellis/packing is independently checked by the physical CLI tests.
+        assert search_backend == "native"
+        searched.append(rows.copy())
+        return (
+            np.zeros((rows.shape[0] // 16, rows.shape[1] // 16, 16 * k), dtype=np.uint16),
+            np.zeros((rows.shape[0] // 16, rows.shape[1] // 16, 256), dtype=np.uint16),
+            np.zeros_like(rows),
+        )
+
+    monkeypatch.setattr(feedback, "converter_matmul", product)
+    monkeypatch.setattr(hessian, "quantize_inner_matrix_direct", zero_search)
+    result = hessian.ldlq_inner_matrix(
+        weight, lower, k=4, cb=1, search_backend="native", buf_size_rows=32
+    )
+    assert len(products) == 3 and len(searched) == 4
+    for actual, start in zip(searched, [48, 32, 16, 0], strict=True):
+        end = start + 16
+        expected = weight[start:end].astype(np.float64)
+        expected += lower[end:, start:end].astype(np.float64).T @ weight[end:].astype(np.float64)
+        # These integer/power-of-two values have exact FP32 sums, so this oracle
+        # does not share the production product's floating reduction choices.
+        np.testing.assert_array_equal(actual, expected.astype(np.float32))
+    np.testing.assert_array_equal(result.reconstructed, np.zeros_like(weight))

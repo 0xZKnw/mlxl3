@@ -3,10 +3,8 @@
 import json
 import math
 import os
-import subprocess
 import tempfile
 import threading
-import time
 from operator import index
 from pathlib import Path
 
@@ -74,56 +72,31 @@ def quantize_tiles_native(
         root = Path(directory)
         source, output = root / "tiles.f32", root / "result"
         source.write_bytes(np.asarray(values, dtype="<f4").tobytes())
-        with (root / "stdout").open("w+b") as stdout, (root / "stderr").open("w+b") as stderr:
-            process = subprocess.Popen(
-                [
-                    str(executable),
-                    "quantize-tiles",
-                    str(source),
-                    str(output),
-                    "--k",
-                    str(k),
-                    "--codebook",
-                    str(cb),
-                    "--max-scratch-bytes",
-                    str(scratch),
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=stdout,
-                stderr=stderr,
-            )
-            try:
-                deadline = time.monotonic() + timeout
-                while process.poll() is None:
-                    if (
-                        max(os.fstat(stdout.fileno()).st_size, os.fstat(stderr.fileno()).st_size)
-                        > 65536
-                    ):
-                        raise ValueError("oversized native conversion output")
-                    if cancel_check is not None:
-                        cancel_check()
-                    if time.monotonic() >= deadline:
-                        raise TimeoutError("native tile conversion timed out")
-                    time.sleep(0.01)
-                stdout.seek(0)
-                response = stdout.read(65537)
-                stderr.seek(0)
-                error = stderr.read(4096).decode("utf-8", errors="replace")
-                if process.returncode != 0:
-                    raise RuntimeError(f"native tile conversion failed: {error}")
-                if len(response) > 65536:
-                    raise ValueError("oversized native tile response")
-            finally:
-                if process.poll() is None:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=5)
+        from .process import run_native
+
+        response = run_native(
+            [
+                str(executable),
+                "quantize-tiles",
+                str(source),
+                str(output),
+                "--k",
+                str(k),
+                "--codebook",
+                str(cb),
+                "--max-scratch-bytes",
+                str(scratch),
+            ],
+            root=root,
+            timeout=timeout,
+            cancel_check=cancel_check,
+            label="tile conversion",
+        )
         report_file = output / "report.json"
         if (
-            report_file.is_symlink()
+            output.is_symlink()
+            or not output.is_dir()
+            or report_file.is_symlink()
             or not report_file.is_file()
             or report_file.stat().st_size > 65536
         ):

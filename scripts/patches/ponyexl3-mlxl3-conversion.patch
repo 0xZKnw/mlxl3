@@ -139,7 +139,7 @@ index c216fd2..d2be062 100644
          _write_json_atomic(measurement_plan_path, measurement_plan)
          _stage(
 diff --git a/ponyexl3/cli/convert_advanced.py b/ponyexl3/cli/convert_advanced.py
-index aaca26e..ac7711b 100644
+index aaca26e..d948e89 100644
 --- a/ponyexl3/cli/convert_advanced.py
 +++ b/ponyexl3/cli/convert_advanced.py
 @@ -578,9 +578,10 @@ def main() -> int:
@@ -150,8 +150,8 @@ index aaca26e..ac7711b 100644
 +        choices=("auto", "cpu", "metal", "native"),
          default="auto",
 -        help="trellis search backend: 'auto' (default) uses the Metal GPU search on "
-+        help="trellis search backend: 'native' runs direct conversion via MLXL3_NATIVE_ENGINE "
-+        "(LDLQ pending); 'auto' (default) uses the Metal GPU search on "
++        help="trellis search backend: 'native' runs direct/LDLQ conversion via MLXL3_NATIVE_ENGINE; "
++        " 'auto' (default) uses the Metal GPU search on "
          "Apple Silicon and falls back to the CPU reference search only when Metal is "
          "unavailable; the CPU search is ~10000x slower per tile and is a reference path",
      )
@@ -683,7 +683,7 @@ index 84dd204..52f7eb3 100644
          decoded_tiles, state_tiles = quantize_tiles_mlx_np(
              target_kernel.reshape(1, 256).astype(np.float32),
 diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
-index d79e192..a9b80d4 100644
+index d79e192..e25a73b 100644
 --- a/ponyexl3/convert/hessian.py
 +++ b/ponyexl3/convert/hessian.py
 @@ -4,14 +4,17 @@ from __future__ import annotations
@@ -761,16 +761,37 @@ index d79e192..a9b80d4 100644
      if (
          suh is not None
          and search_backend == "metal"
-@@ -424,6 +444,8 @@ def ldlq_inner_matrix(
- ) -> LDLQResult:
-     """Reverse 16-row LDLQ over an EXL3 inner-domain matrix."""
+@@ -450,6 +470,11 @@ def ldlq_inner_matrix(
+             compute_proxy=compute_proxy,
+         )
  
 +    if search_backend == "native":
-+        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
-     if inner.ndim != 2 or inner.shape[0] % 16 != 0 or inner.shape[1] % 16 != 0:
-         raise ValueError(f"expected inner matrix with 16-multiple dims, got {inner.shape}")
-     rows, cols = inner.shape
-@@ -615,11 +637,13 @@ def _ldlq_inner_matrix_mlx(
++        from mlxl3_quantizer.feedback import converter_matmul as product
++    else:
++        product = np.matmul
++
+     weight = inner.astype(np.float32, copy=True)
+     l = l_factor.astype(np.float32, copy=True)
+     l[np.diag_indices_from(l)] = np.float32(0.0)
+@@ -481,7 +506,7 @@ def ldlq_inner_matrix(
+             bb_l = b_l[bj:, i + bi : i + bj]
+             compensation = b_prod_cache[bi:bj].copy()
+             if bb_err.size:
+-                compensation += bb_l.T @ bb_err
++                compensation += product(bb_l.T, bb_err)
+             rows_to_quantize = b_weight[bi:bj] + compensation
+             block_packed, block_states, block_reconstructed = quantize_inner_matrix_direct(
+                 rows_to_quantize,
+@@ -500,7 +525,7 @@ def ldlq_inner_matrix(
+ 
+         b_err = b_weight - b_reconstructed
+         if i > 0:
+-            prod_cache[:i] += b_l[:, :i].T @ b_err
++            prod_cache[:i] += product(b_l[:, :i].T, b_err)
+         j = i
+ 
+     delta = reconstructed - weight
+@@ -615,11 +640,13 @@ def _ldlq_inner_matrix_mlx(
                  start_indices=mx.array([0, 0], dtype=mx.int32),
                  axes=(0, 1),
              )
@@ -788,7 +809,7 @@ index d79e192..a9b80d4 100644
          j = i
  
      mx.eval(reconstructed, packed_mx)
-@@ -673,11 +697,15 @@ def ldlq_quantize_layer(
+@@ -673,11 +700,13 @@ def ldlq_quantize_layer(
      quant_bits: int | None = None,
      compare_oracle: bool = True,
      fast_metrics: bool = False,
@@ -796,15 +817,13 @@ index d79e192..a9b80d4 100644
  ) -> DirectLayerResult:
      """Quantize one full linear module with activation-aware LDLQ."""
  
-+    if search_backend == "native":
-+        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
      if fast_metrics and compare_oracle:
          raise ValueError("fast_metrics requires compare_oracle=False")
 +    compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)
  
      reuse_key = None
      if reuse.active() and calibration_activations is not None:
-@@ -697,7 +725,12 @@ def ldlq_quantize_layer(
+@@ -697,7 +726,12 @@ def ldlq_quantize_layer(
              search_backend=search_backend,
              acts_fp=reuse.activations_fingerprint(calibration_activations),
          )
@@ -818,7 +837,7 @@ index d79e192..a9b80d4 100644
          if cached is not None:
              return cached
  
-@@ -761,7 +794,7 @@ def ldlq_quantize_layer(
+@@ -761,7 +795,7 @@ def ldlq_quantize_layer(
              feedback_rows=feedback_rows,
              max_pins=max_pins,
              collect_states=False,
@@ -827,7 +846,7 @@ index d79e192..a9b80d4 100644
          )
  
      out_layer = EXL3Layer(
-@@ -902,8 +935,6 @@ def _group_prep_worker_count(
+@@ -902,8 +936,6 @@ def _group_prep_worker_count(
      # paths serial so worker threads do not compete for the same GPU queue.
      if search_backend == "metal" and scale_mode in ("oracle", "oracle_safe"):
          return 1
@@ -836,7 +855,7 @@ index d79e192..a9b80d4 100644
      return min(group_size, 4)
  
  
-@@ -970,6 +1001,111 @@ def _prepare_ldlq_group_member(
+@@ -970,6 +1002,111 @@ def _prepare_ldlq_group_member(
      )
  
  
@@ -948,7 +967,7 @@ index d79e192..a9b80d4 100644
  def ldlq_quantize_group(
      source_dir: str | Path,
      oracle_dir: str | Path,
-@@ -1047,6 +1183,32 @@ def ldlq_quantize_group(
+@@ -1047,6 +1184,32 @@ def ldlq_quantize_group(
          planned_k = None if quant_bits_by_module is None else quant_bits_by_module.get(key)
          prep_inputs.append((key, acts, planned_k))
  
@@ -981,7 +1000,7 @@ index d79e192..a9b80d4 100644
      prep_workers = _group_prep_worker_count(
          len(keys),
          search_backend=search_backend,
-@@ -1054,48 +1216,29 @@ def ldlq_quantize_group(
+@@ -1054,48 +1217,29 @@ def ldlq_quantize_group(
          skip_g_scale=skip_g_scale,
      )
      if prep_workers <= 1:
@@ -1047,7 +1066,7 @@ index d79e192..a9b80d4 100644
      states: list[_LDLQGroupState] = []
      first_cb: CodebookMode | None = None
      first_rows: int | None = None
-@@ -1142,88 +1285,178 @@ def ldlq_quantize_group(
+@@ -1142,88 +1286,178 @@ def ldlq_quantize_group(
          raise LDLQGroupIncompatible("empty grouped LDLQ request")
      if first_cb is None or first_rows is None or first_k is None:
          raise LDLQGroupIncompatible("invalid grouped LDLQ request")
@@ -1295,7 +1314,7 @@ index d79e192..a9b80d4 100644
      mx.eval(*[state.reconstructed for state in states], *[state.packed for state in states])
      out: list[DirectLayerResult] = []
      for state in states:
-@@ -1252,6 +1485,10 @@ def ldlq_quantize_group(
+@@ -1252,6 +1486,10 @@ def ldlq_quantize_group(
                  "batched_search_group_size": float(len(keys)),
                  "batched_search_group_out_features": float(total_out),
                  "batched_prep_workers": float(prep_workers),
