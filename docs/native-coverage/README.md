@@ -212,7 +212,9 @@ Le chemin natif réserve les dix routes de la ligne, déduplique les lectures et
 
 Sur le M5 local, les seize lignes FP16/FP32 du checkpoint et de la tête MTP concordent sur 40 960 coefficients. Les 496 640 logits de deux pas du modèle complet sont également identiques à la CLI indépendante. Les erreurs de métadonnées se reprennent sur le même objet. Les tests CPU couvrent le timeout d’un vrai worker bloqué, le refus de réemploi avant drainage, le refus d’allocation, EOF, les générations et le descripteur du premier tenseur d’un record. [Comparaisons MoE](ssd/rows.json), [continuation complète](ssd/full-model.json).
 
-La copie hôte vers le backing Metal est incluse dans cette implémentation. Le préfetch prédictif, les cohortes multi-lignes et le redimensionnement entre requêtes restent des gates N4 à qualifier. Le débit de ce port est non mesuré.
+La copie hôte vers le backing Metal est incluse dans cette implémentation. Le [port mémoire](flash-memory/physical.json) qualifie le ledger et le redimensionnement entre requêtes. Le [port prédictif](prefetch/validation.json) conserve le prochain gate sur le vrai mixed MLP courant, les seize prédictions dans leur ordre et les options de précision/cache. Les travailleurs conservent leurs fichiers et octets ; le thread d’inférence publie uniquement un bail encore courant. Le défaut de prélecture reste désactivé (`MLXL3_SSD_LOOKAHEAD_DEPTH=0`), avec profondeur 0..10 et quatre lectures au plus. Les capacités 10/19/20/24, les erreurs tardives, la récupération et le drainage au shrink sont exercés. La continuation et les 84 états indépendants sont exacts, ainsi que le bridge sous budget.
+
+La [revue des cohortes archivées](prefetch/cohorts.json) identifie deux requêtes de quatre lignes avec vingt experts uniques pour dix slots. Le parcours de production les sérialise et reste exact ; les kernels groupés constituent un travail de performance distinct. Le débit du port N4 reste non mesuré. Les deux adoptions explicites de baux en attente et leurs hits passent également. Les résultats physiques et les limites Kani/CI sont conservés dans les rapports.
 
 ### Budget et ledger natifs de Flash
 

@@ -1,0 +1,139 @@
+{
+  "status": "verified_local",
+  "scope": "native Flash generation-owned predictive reads, request-boundary draining and logical cross-capacity fallback",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "base_pr": 100,
+  "physical": {
+    "status": "verified",
+    "identities": {
+      "source_commit": "b19f455384f0bb2583393ce4ff69f022f92c1b40",
+      "binaries": {
+        "native-cli-final": "2a689f3146240634b08bc7a709a9903556cb33655c9e9b4519637ea65a3a13bb",
+        "physical-mlxl3_native": "a8c5c2946fc2cb13f93992356c236d180518f1913fe9579eaa5ab42243d25f7f",
+        "physical-openai_transport": "a8087e796504576a08648324d040bcee33aeed18088756f20e296e787410d9d6"
+      },
+      "source_files": {
+        "native/src/gpu/prefetch.rs": "7e11a74cc0b6bb6584fe15440ede2c8564b1d5532007e49237627b080c269fd9",
+        "native/src/gpu/moe.rs": "22059491d548620ac3b234cd782391233c3ddf040eafa9c2a08a8da50429738b",
+        "native/src/ssd_reads.rs": "dff9f367f16a2d3d0707618d4ee08c72c6cad2cdc947405c02409a4e4d45b6c7",
+        "native/src/gpu/flash.rs": "05cc40901525828f93b6b4b2e1e0ccb676a13bce6d6d2714c517442392de6935",
+        "native/src/gpu/gate.rs": "c835f6aa99482d8185829b9f65f4857bb693fb0f762e8b7a3be623ef7849261d",
+        "native/src/flash_support.rs": "628fcb6dd1b422b6bf77b3c8c29b2d5fbab855034856567fb107023b2ca675f6",
+        "tests/openai_transport.rs": "dcee764e959d16bd89a01a24ef561047295c83d4f4284411f9c537c429ddbd49"
+      }
+    },
+    "lookahead_depth": 4,
+    "cache_GiB": 1.5,
+    "tests": [
+      {
+        "name": "gpu::moe::tests::native_lookahead_preserves_routes_and_drains_generation_owned_reads",
+        "label": "rows",
+        "status": "passed",
+        "log": "build/issue75prefetch/physical-rows.log",
+        "exit_code": 0,
+        "seconds": 1.018208333000075
+      },
+      {
+        "name": "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "label": "model",
+        "status": "passed",
+        "log": "build/issue75prefetch/physical-model.log",
+        "exit_code": 0,
+        "seconds": 3.6902635830047075
+      },
+      {
+        "name": "native_flash_memory_budget_preserves_bridge_recovery",
+        "label": "bridge",
+        "status": "passed",
+        "log": "build/issue75prefetch/physical-bridge.log",
+        "exit_code": 0,
+        "seconds": 26.873319624981377,
+        "dyld_images": 1409
+      }
+    ]
+  },
+  "suites": {
+    "cpu": {
+      "flags": "--no-default-features",
+      "passed": 311,
+      "failed": 0,
+      "ignored": 8
+    },
+    "direct": {
+      "flags": "--features chat",
+      "passed": 318,
+      "failed": 0,
+      "ignored": 29
+    },
+    "stock": {
+      "flags": "--features mlx,chat",
+      "passed": 354,
+      "failed": 0,
+      "ignored": 249
+    }
+  },
+  "kani": {
+    "version": "0.68.0",
+    "harness": "flash_support::native_prefetch_room_bounds_owned_and_running_records",
+    "domain": "all usize pending and active counts, no assumptions",
+    "obligations": 28,
+    "covers": 4,
+    "unreachable_status": 0,
+    "global": "corrected -Z stubbing invocation reproduces inherited compiler ICE at kani-compiler/src/intrinsics.rs:243 in 1.66 seconds",
+    "scope": "bounded owned/running read count arithmetic, not a proof of concurrency, Metal or complete generation"
+  },
+  "mutation": "returning all four slots despite existing owners fails the focused regression; original source restored and checks rerun",
+  "python": {
+    "passed": 7,
+    "Linux_only_skipped": 44,
+    "ruff": "passed"
+  },
+  "cohort_review": "cohorts.json",
+  "link_audit": "native release links Metal and no libmlx/libjaccl; physical budget bridge additionally audits 1409 DYLD image events",
+  "retained_diagnostics": [
+    "first check found module/cfg/lifetime wiring errors",
+    "first lint found unavailable test hash dependency and a test-only enumeration index",
+    "unqualified global Kani invocation requires -Z stubbing; corrected run hits inherited ICE",
+    "first trace unittest invocation lacked tests module search path; corrected discovery passes"
+  ],
+  "remaining_controls": [
+    "exact published-head CI review"
+  ],
+  "performance": "not measured",
+  "integration": "validated branch stacked on #100; no installed app change",
+  "pending_adoption_replay": {
+    "status": "verified",
+    "identity": {
+      "source_commit": "cefdb194",
+      "binary_sha256": "107ae7a994eeb29cbf8aedae5054bf48a18c0626e376e3ab8cf03652994ee161",
+      "production_change_from_b19f4553": false
+    },
+    "name": "gpu::moe::tests::native_lookahead_preserves_routes_and_drains_generation_owned_reads",
+    "exit_code": 0,
+    "seconds": 1.0371290000039153,
+    "observations": {
+      "capacity_boundaries": [
+        10,
+        19,
+        20,
+        24
+      ],
+      "cases": 16,
+      "explicit_pending_demand_reuse_cases": 2,
+      "oracle": "CPU stable ascending gate-logit sort, then last sixteen",
+      "outputs_compared": 40960
+    }
+  },
+  "CI_context": {
+    "memory_PR_100_head": "add697ac9b9cdd12154a28a6b0fb198f06c40861",
+    "native_ubuntu": "success",
+    "native_coverage": "success",
+    "allocator_Kani": "success",
+    "desktop_and_protocol": "failure in unchanged Swift response-ui-check.swift snapshot actor transfer",
+    "Apple_compatibility": "cancelled",
+    "other_checks": "pending/running at inspection; no full-green claim"
+  },
+  "source_review": "Independent sibling agent reviewed byte/file ownership, Rc cache/slot owners, lease publication, worker drain and shrink; no concrete concern. This is source review, not a proof.",
+  "raw_logs": "build/issue75prefetch/ retains initial check/lint failures, mutation, proof logs, full suites, source/binary identities, four selected physical invocations and commands represented by the committed test names"
+}
