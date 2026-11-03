@@ -53,7 +53,7 @@ is unchanged at 6,608,617,472 bytes. Process footprint/peak and logical compress
 are reported separately. There is no 64-token confirmation, long-context or
 combined-port timing, and no universal or sustained boost claim.
 
-Retain default1 for the qualified elimination of unused work, with0 as rollback.
+Retain default 1 for the qualified elimination of unused work, with 0 as rollback.
 The user then prioritized AR only: no further DFlash/MTP experiment is planned.
 This PR publishes the already qualified slice; it does not install an app, merge
 or release a product.
