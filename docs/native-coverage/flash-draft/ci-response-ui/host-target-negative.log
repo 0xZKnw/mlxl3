@@ -1,0 +1,9 @@
+apps/MLXL3Studio/Sources/MLXL3Studio/VoiceController.swift:42:15: error: 'installTap(onBus:bufferSize:format:block:)' was deprecated in macOS 27.0 [#DeprecatedDeclaration]
+40 |         let format = input.outputFormat(forBus: 0)
+41 |         guard format.sampleRate > 0, format.channelCount > 0 else { stop(); error = L("Microphone indisponible.", "Microphone unavailable."); return }
+42 |         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }
+   |               `- error: 'installTap(onBus:bufferSize:format:block:)' was deprecated in macOS 27.0 [#DeprecatedDeclaration]
+43 |         hasTap = true
+44 |         recognition = recognizer.recognitionTask(with: request) { [weak self] result, failure in
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>

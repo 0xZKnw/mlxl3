@@ -38,6 +38,11 @@ impl TensorStorage {
 }
 
 impl MatrixView {
+    #[cfg(feature = "chat")]
+    pub(crate) fn shares_storage(&self, other: &Self) -> bool {
+        std::ptr::eq::<metal::BufferRef>(self.buffer.as_ref(), other.buffer.as_ref())
+    }
+
     pub fn row(&self, row: u32) -> Result<Self> {
         Ok(Self {
             buffer: self.buffer.clone(),
@@ -95,7 +100,7 @@ impl MatrixView {
         })
     }
     /// Export an initialized contiguous result after its producer has completed.
-    pub(super) fn export_bytes(&self, gpu: &Metal) -> Result<Vec<u8>> {
+    pub(crate) fn export_bytes(&self, gpu: &Metal) -> Result<Vec<u8>> {
         let item = if self.dtype == FloatType::F16 { 2 } else { 4 };
         let n = self
             .layout

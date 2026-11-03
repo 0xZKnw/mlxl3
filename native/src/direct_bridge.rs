@@ -66,6 +66,10 @@ fn prepare_head<'a>(
     head: &mut Option<(String, FlashMtpHead<'a>)>,
 ) -> Result<bool> {
     anyhow::ensure!(
+        mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
+        "Flash request memory budget supports AR only"
+    );
+    anyhow::ensure!(
         !requested.trim().is_empty(),
         "MTP head folder is not configured"
     );
@@ -77,6 +81,32 @@ fn prepare_head<'a>(
     }
     *head = None;
     *head = Some((revision, FlashMtpHead::load(c, model)?));
+    Ok(true)
+}
+
+fn prepare_draft(
+    request: &BridgeRequest,
+    model: &NativeChatModel,
+    slot: &mut Option<(String, usize, RoundDraft)>,
+) -> Result<bool> {
+    anyhow::ensure!(
+        mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit()),
+        "Flash request memory budget supports AR only"
+    );
+    let path = registry::expand_home(Path::new(&request.dflash_draft_path))?.canonicalize()?;
+    let revision = checkpoint::artifact_key(&path)?;
+    if slot
+        .as_ref()
+        .is_some_and(|(key, mode, _)| *key == revision && *mode == request.dflash_mode)
+    {
+        return Ok(false);
+    }
+    *slot = None;
+    *slot = Some((
+        revision,
+        request.dflash_mode,
+        RoundDraft::load(&path, request.dflash_mode, model)?,
+    ));
     Ok(true)
 }
 
@@ -93,7 +123,8 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let gpu = Metal::new()?;
     let mut model = FlashNext::load(&gpu, &c, 0)?;
     let limit = model.context_limit();
-    let speculative = model.request_memory_limit().is_none();
+    let speculative =
+        mlxl3_native::flash_memory::native_speculation_permitted(model.request_memory_limit());
     anyhow::ensure!(
         requested >= 0 && requested as u32 <= limit,
         "invalid requested context length"
@@ -105,6 +136,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     } as usize;
     let size = c.size_bytes as f64 / 1e9;
     let mut head: Option<(String, FlashMtpHead)> = None;
+    let mut draft: Option<(String, usize, RoundDraft)> = None;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
@@ -114,7 +146,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .as_nanos() as u64
         | 1;
     emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":false,"dflash_tune_supported":false,"dflash_configure_supported":false,"mtp_configure_supported":true,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":1,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"flash":{"backend":"direct-metal","memory":model.memory_ledger(None)?}}),
+        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":speculative,"mtp_auto_download_supported":false,"mtp_supported":speculative,"mtp_max_depth":1,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"flash":{"backend":"direct-metal","memory":model.memory_ledger(None)?}}),
     )?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -151,6 +183,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                 "set_mtp" => {
                     model.reset();
                     if request.enabled {
+                        draft = None;
                         prepare_head(&request.mtp_head_path, &c, &model, &mut head)?;
                     } else {
                         head = None;
@@ -159,10 +192,21 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         json!({"type":"mtp_status","request_id":id,"mtp_active":head.is_some(),"mtp_head_path":head.as_ref().map(|_|&path),"memory":model.memory_stats()?}),
                     )
                 }
-                "set_dflash" if !request.enabled => emit_event(
-                    json!({"type":"dflash_status","request_id":id,"dflash_active":false,"memory":model.memory_stats()?}),
-                ),
-                "set_dflash" | "tune_dflash" => bail!("Flash DFlash2 is unavailable in this build"),
+                "set_dflash" => {
+                    model.reset();
+                    if request.enabled {
+                        head = None;
+                        prepare_draft(&request, &model, &mut draft)?;
+                    } else {
+                        draft = None;
+                    }
+                    emit_event(
+                        json!({"type":"dflash_status","request_id":id,"dflash_active":draft.is_some(),"memory":model.memory_stats()?}),
+                    )
+                }
+                "tune_dflash" => {
+                    bail!("Flash DFlash2 learns its verify budget online; Tune is not supported")
+                }
                 "tune_mtp" => bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets"),
                 "generate" => {
                     cancelled.store(false, Ordering::Relaxed);
@@ -177,10 +221,6 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     if let Some(schema) = &request.response_schema {
                         mlxl3_native::structured::Schema::parse(schema)?;
                     }
-                    anyhow::ensure!(
-                        !request.dflash2,
-                        "native Flash DFlash2 is unavailable in this build"
-                    );
                     let started = Instant::now();
                     let active = request.mtp && request.greedy_unpenalized();
                     let draft_seconds = if active {
@@ -194,8 +234,29 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         head = None;
                         0.
                     };
+                    let draft_seconds = if request.dflash2 {
+                        anyhow::ensure!(
+                            request.greedy_unpenalized(),
+                            "DFlash2 requires greedy sampling and repetition penalty 1.0"
+                        );
+                        head = None;
+                        if prepare_draft(&request, &model, &mut draft)? {
+                            started.elapsed().as_secs_f64()
+                        } else {
+                            0.
+                        }
+                    } else {
+                        draft = None;
+                        draft_seconds
+                    };
                     mcp.set_enabled(&registry_path, request.mcp_enabled, false);
-                    emit_generation_mode(&request, active, false, 0, None)?;
+                    emit_generation_mode(
+                        &request,
+                        active,
+                        draft.is_some(),
+                        draft.as_ref().map_or(0, |(_, _, d)| d.width()),
+                        draft.as_ref().map(|_| request.dflash_draft_path.clone()),
+                    )?;
                     let result = bridge_generate(
                         &mut model,
                         &tokenizer,
@@ -210,7 +271,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         &cancelled,
                         &mut random,
                         &mut mcp,
-                        None,
+                        draft.as_ref().map(|(_, _, d)| d),
                         head.as_mut().map(|(_, h)| h),
                         request.mtp_depth,
                         request.dflash_mode,
@@ -233,6 +294,9 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     } else {
                         model.reset();
                     }
+                    if let Some((_, _, d)) = &draft {
+                        d.reset();
+                    }
                     if let Some((_, h)) = &mut head {
                         h.reset();
                     }
@@ -244,10 +308,13 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         if let Err(e) = result {
             model.reset();
             head = None;
+            draft = None;
             if cancelled.swap(false, Ordering::Relaxed) {
                 emit_event(json!({"type":"cancelled","request_id":id}))?;
             } else {
-                emit_event(json!({"type":"error","request_id":id,"message":e.to_string()}))?;
+                emit_event(
+                    json!({"type":"error","request_id":id,"message":e.to_string(),"mtp_active":false,"dflash_active":false}),
+                )?;
             }
         }
     }

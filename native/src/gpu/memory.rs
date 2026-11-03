@@ -332,17 +332,55 @@ mod tests {
             .and_then(|n| n.checked_add(64 << 20))
             .context("invalid budget fixture")?;
         target.request_limit = Some(limit);
-        ensure!(target.admit_request(64)?.is_some());
+        let warm_admission = target.admit_request(64);
+        let warm_shrunk = target.memory_ledger(None)?;
+        eprintln!(
+            "native memory warm admission {}",
+            serde_json::json!({"limit":limit,"plan_extra":plan.extra_bytes(),"before":before,"after":warm_shrunk,"measured_after":gpu.observed_memory()?,"error":warm_admission.as_ref().err().map(|e|format!("{e:#}"))})
+        );
+        ensure!(warm_shrunk.expert_bank_backing_bytes < before.expert_bank_backing_bytes);
+        if let Err(error) = warm_admission {
+            ensure!(
+                error
+                    .to_string()
+                    .contains("Flash request exceeds measured memory budget"),
+                "unexpected warm-bank refusal: {error:#}"
+            );
+        }
+        // A logical bank byte need not reduce process footprint by one byte. Use
+        // unpopulated reservations for the guaranteed successful admission case.
+        drop(target);
+        let mut target = FlashNext::load(&gpu, &c, 4096)?;
+        let before_fresh = target.memory_ledger(None)?;
+        ensure!(
+            before_fresh.expert_bank_backing_bytes == 0
+                && before_fresh.expert_bank_capacity_bytes > minimum_cache
+        );
+        let limit_fresh = gpu
+            .observed_memory()?
+            .checked_add(plan.extra_bytes())
+            .and_then(|n| n.checked_add(minimum_cache))
+            .and_then(|n| {
+                n.checked_add((before_fresh.expert_bank_capacity_bytes - minimum_cache) / 2)
+            })
+            .context("fresh reservation budget overflow")?;
+        target.request_limit = Some(limit_fresh);
+        let admitted = target.admit_request(64)?;
+        ensure!(admitted.is_some());
+        eprintln!(
+            "native memory fresh admission {}",
+            serde_json::json!({"limit":limit_fresh,"plan_extra":plan.extra_bytes(),"before":before_fresh,"after":target.memory_ledger(None)?})
+        );
         let shrunk = target.memory_ledger(None)?;
         ensure!(
             shrunk
                 .expert_slots_by_layer
                 .iter()
-                .zip(&before.expert_slots_by_layer)
+                .zip(&before_fresh.expert_slots_by_layer)
                 .all(|(&a, &b)| a >= 10 && a <= b)
         );
         ensure!(
-            shrunk.expert_slots_by_layer != before.expert_slots_by_layer,
+            shrunk.expert_slots_by_layer != before_fresh.expert_slots_by_layer,
             "budget never exercised shrink"
         );
         let capacities = shrunk.expert_slots_by_layer.clone();
@@ -357,6 +395,17 @@ mod tests {
             FlashMtpHead::load(&c, &target).is_err(),
             "budget admitted speculative head"
         );
+        #[cfg(feature = "chat")]
+        ensure!(
+            crate::native_draft::Session::load(
+                std::path::Path::new("/a/nonexistent/draft/that/must/not/be/opened"),
+                1,
+                &target
+            )
+            .err()
+            .is_some_and(|error| error.to_string().contains("AR only")),
+            "budget reached native draft materialization"
+        );
         target.request_limit = None;
         target.reset();
         ensure!(
@@ -368,7 +417,7 @@ mod tests {
         same_states(&before_states, &after_states)?;
         eprintln!(
             "native memory ledger {}",
-            serde_json::json!({"initial":initial,"active":active,"idle":idle,"before_shrink":before,"after_shrink":shrunk})
+            serde_json::json!({"initial":initial,"active":active,"idle":idle,"warm_before":before,"warm_after":warm_shrunk,"before_shrink":before_fresh,"after_shrink":shrunk,"success_uses_fresh_unpopulated_reservations":true})
         );
         Ok(())
     }
