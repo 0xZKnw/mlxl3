@@ -271,11 +271,12 @@
   "publication": {
     "PR": 109,
     "url": "https://github.com/0xZKnw/mlxl3/pull/109",
-    "base_PR": 108,
+    "base_PR": "main",
     "initial_head": "9bcfae93a6369f3020f418b2e795264a825b767e",
     "mergeable": true,
     "CI_initial_head": "five queued workflows; not green",
-    "installed_app_changed": false
+    "installed_app_changed": false,
+    "exact_base": "599628120c95df45b00a2076ffe466331a9c94f2"
   },
   "integration_review": {
     "parent_PR": 108,
@@ -283,5 +284,19 @@
     "recorded_executable_source_hashes_unchanged": true,
     "single_full_file_hash_delta": "gpu/memory.rs imports previously qualified fresh-reservation fixture; prefix before cfg(test) identical",
     "physical_candidate": "cb93d1b3 remains the qualified cache runtime"
+  },
+  "main_integration": {
+    "base": "599628120c95df45b00a2076ffe466331a9c94f2",
+    "merge_candidate": "320015d6",
+    "native_Clippy": "passed",
+    "native_suite": {
+      "passed": 338,
+      "failed": 0,
+      "ignored": 37
+    },
+    "native_release": "passed",
+    "inventory": "regenerated and passed",
+    "numeric_scope": "original physical evidence remains cb93d1b3; main generic/operator additions were separately qualified by their owners, and common-main product qualification follows at root",
+    "agent_merged_to_main": false
   }
 }
