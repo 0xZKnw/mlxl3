@@ -503,7 +503,12 @@ pub(crate) fn use_tensor_ops(rows: i32, capable: bool) -> bool {
 }
 
 /// Shapes measured on the M5 dense checkpoint, with unchanged per-output sums.
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn dense_decode_nt4(input: i32, output: i32, k: usize, mul1: bool, m5: bool) -> bool {
     m5 && mul1
         && input == 5120
@@ -2838,4 +2843,70 @@ fn mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank() {
         kani::cover!(row == 0 && width == 128 && words == 129);
     }
     kani::cover!(width == 0 && offset.is_none());
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_bundle_width(widths: &[u32]) -> Option<u32> {
+    if widths.is_empty() {
+        return None;
+    }
+    widths.iter().try_fold(0u32, |total, &width| {
+        if width == 0 || !width.is_multiple_of(128) {
+            None
+        } else {
+            total.checked_add(width)
+        }
+    })
+}
+
+#[test]
+fn projection_bundle_width_covers_unequal_qkv_and_rejects_invalid_or_overflowing_lists() {
+    assert_eq!(projection_bundle_width(&[8192, 512, 512]), Some(9216));
+    assert_eq!(projection_bundle_width(&[2048, 512, 512]), Some(3072));
+    assert_eq!(projection_bundle_width(&[17408, 17408]), Some(34816));
+    assert_eq!(projection_bundle_width(&[128; 64]), Some(8192));
+    for widths in [&[][..], &[0][..], &[127][..], &[u32::MAX - 127, 128][..]] {
+        assert_eq!(projection_bundle_width(widths), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections() {
+    let values: [u32; 3] = kani::any();
+    let len: u8 = kani::any();
+    if len > 3 {
+        return;
+    }
+    let widths = &values[..usize::from(len)];
+    let actual = projection_bundle_width(widths);
+    let mut expected = 0u64;
+    let mut aligned = len > 0;
+    for &width in widths {
+        expected += u64::from(width);
+        aligned &= width > 0 && width.is_multiple_of(128);
+    }
+    assert_eq!(actual.is_some(), aligned && expected <= u64::from(u32::MAX));
+    if let Some(total) = actual {
+        assert_eq!(u64::from(total), expected);
+        assert!(total > 0 && total.is_multiple_of(128));
+    }
+    kani::cover!(values == [8192, 512, 512] && len == 3);
+    kani::cover!(values == [2048, 512, 512] && len == 3);
+    kani::cover!(values[0] == 17408 && values[1] == 17408 && len == 2);
+    kani::cover!(len == 0 && actual.is_none());
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn ordinary_group_lane_layout_selects_the_original_scalar_operands() {
+    let lane: u32 = kani::any();
+    let item: u32 = kani::any();
+    let lane = lane & 3;
+    let item = item & 3;
+    let original = lane * 2 + (item & 1) + (item / 2) * 8;
+    assert_eq!(exl3_lane_source_index(lane * 4 + item), original);
+    kani::cover!(lane == 0 && item == 0);
+    kani::cover!(lane == 3 && item == 3);
 }

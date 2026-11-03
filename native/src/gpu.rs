@@ -37,7 +37,9 @@ pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
 mod projection;
-pub use projection::{FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionOutput};
+pub use projection::{
+    FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
+};
 
 #[allow(
     unexpected_cfgs,

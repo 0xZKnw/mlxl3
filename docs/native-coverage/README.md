@@ -242,3 +242,14 @@ Les deux parcours M5 et quatre groupes forcés passent chacun **26 cas et 82 816
 python tests/physical_mapped_expert.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL
 MLXL3_QWEN_NATIVE_MODEL=QWEN_MODEL DIRECT_LIBTEST gpu::projection::mapped_expert_rejections_recover_and_outputs_outlive_the_bank --exact --ignored
 ```
+
+
+### Projections ordinaires groupées
+
+`ProjectionGroup` reçoit une liste de préfixes et conserve leur ordre. Quand les matrices sont compatibles, leurs largeurs cumulées fixent le plan de réduction partagé ; K7 et les K/codebooks incompatibles conservent les projections séparées. Le chemin accepte une ligne FP16 et rend des vues FP16 possédées. Qwen et LFM peuvent ainsi réutiliser les mêmes groupes Q/K/V et gate/up.
+
+Chaque mode M5/quatre groupes forcés compare 38 cas et **164 352 mots FP16 finis sans écart**, dont huit groupes de vrais checkpoints, des largeurs inégales, les dispositions denses 5120, les biais/gains F16/BF16/F32, les préfixes répétés et les strides négatifs. Le contrôle d’ownership passe après libération du propriétaire. Les deux harnais CPU passent 132 obligations et six couvertures ; le pliage des largeurs est vérifié sur des listes de 0 à 3 éléments, pas sur toutes les longueurs possibles. Aucun shader n’a changé depuis #103. [M5](projection-groups/m5.json), [quatre groupes](projection-groups/portable.json), [sources, échecs et limites](projection-groups/provenance.json).
+
+```sh
+python tests/physical_projection_group.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL --previous PREVIOUS_103_DIRECT
+```
