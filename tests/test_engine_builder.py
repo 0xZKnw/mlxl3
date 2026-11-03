@@ -20,6 +20,7 @@ def project(tmp_path):
         "Cargo.toml",
         "LICENSES/MTPLX-NOTICE.txt",
         "LICENSES/Apache-2.0.txt",
+        "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
     ]:
         destination = tmp_path / name
         destination.parent.mkdir(parents=True, exist_ok=True)

@@ -171,6 +171,7 @@ pub fn run_tiles(
             serde_json::to_vec(&report)?,
         )?;
         publish_directory(stage.path(), destination)?;
+        let _ = stage.keep();
         println!("{report}");
         Ok(())
     })();

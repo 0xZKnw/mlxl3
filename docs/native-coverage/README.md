@@ -212,3 +212,17 @@ Le format de manifeste 2 identifie explicitement le backend `metal`. Les shaders
 `MLXL3_ENGINE_BACKEND=metal scripts/build-engine.sh` construit et signe le moteur autonome, inspecte les dépendances Mach-O et les images chargées puis produit son archive. `scripts/build-macos-app.sh` réutilise le même constructeur de moteur. Le sous-bundle de conversion utilise encore MLX à ce stade. La migration complète de l’app dépend de son remplacement.
 
 Le test local de l’archive signée a installé le véritable binaire parent 9e7e37ec dans un répertoire jetable, exécuté `runtime-info` et `list`, activé puis rejeté la version. Le protocole de build a réutilisé ce binaire déjà compilé, puis a réellement signé, inspecté et empaqueté l’artefact. Le job `native-engine-archive` reconstruit la source sans paquet MLX installé. [Empreintes et limites](engine-archive/local.json).
+
+### Recherche de quantification sans MLX
+
+`quantize-tiles` exécute le Viterbi Metal natif pour K2–8 et les trois codebooks. Il lit des tuiles en ordre de kernel, conserve les coûts FP16, les deux passes tail-biting et le premier prédécesseur en cas d’égalité. Le dossier de sortie atomique contient les poids décodés FP32, les états uint16, le packing EXL3 et un reçu complet. La destination existante est protégée. Les demandes invalides et annulées publient une erreur.
+
+```sh
+mlxl3-rs quantize-tiles tiles.f32 résultat --k 4 --codebook 0 --max-scratch-bytes 268435456
+PYTHONPATH=src python tests/physical_native_quantizer.py --cli /chemin/absolu/mlxl3-rs --output nouveau-résultat
+cargo test --locked --no-default-features --test quantize_fixtures
+```
+
+Le fichier d’entrée contient des FP32 little-endian finis, au plus 256 Mio, avec 256 valeurs par tuile. Le scratch doit contenir au moins une tuile. L’API publique `mlxl3_quantizer.quantize_tiles_native(tiles, k, cb, engine=...)` emploie le même exécutable et reprend la forme `(N,256)`. Les délais, annulations et erreurs de protocole rejoignent le processus avant de nettoyer ses fichiers.
+
+Les 21 variantes concordent sur 49 728 mots avec le processus indépendant MLX 0.32.2. Le rejeu final lit un corpus haché sans importer MLX. Le codec CPU réel retrouve aussi chaque poids décodé, état et mot du packing. Les rotations, la calibration et les adapters de conversion de modèle restent à migrer. [Résultats finaux](quantizer/final.json), [provenance, suites et limites](quantizer/provenance.json).

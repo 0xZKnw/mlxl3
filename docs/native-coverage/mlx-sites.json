@@ -1180,6 +1180,10 @@
     "mlxl3_gdn_conv_silu": 3,
     "mlxl3_gdn_input": 3
   },
+  "native/shaders/quantize_tiles.metal": {
+    "mlxl3_quantize_codeword": 4,
+    "mlxl3_quantize_tiles": 1
+  },
   "native/shaders/router_topk.h": {
     "mlxl3_rank_row": 1
   },
@@ -1893,6 +1897,10 @@
     "config MLXL3_QSA_TEST_CLASSIC": 1,
     "shader ../../shaders/flash_qsa_nax.metal": 1
   },
+  "native/src/gpu/quantize.rs": {
+    "shader ../../shaders/quantize_tiles.metal": 1,
+    "shader mlxl3_quantize_tiles": 1
+  },
   "native/src/hub.rs": {
     ".sum": 3,
     ".take": 6,
@@ -2257,6 +2265,9 @@
     ".finish": 22,
     ".take": 7,
     "config MLXL3_API_SIGNAL_FIXTURE": 1
+  },
+  "native/src/quantize.rs": {
+    ".take": 1
   },
   "native/src/qwen35.rs": {
     ".add": 9,
