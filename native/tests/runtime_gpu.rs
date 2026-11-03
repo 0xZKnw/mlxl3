@@ -175,6 +175,7 @@ fn flash_projection_stock_oracle() -> Result<()> {
     let mut expected = Vec::new();
     let mut last = None;
     let mut expert_lifetime_checked = false;
+    let mut generic_lifetime_checked = false;
     for case in cases {
         if last.as_ref().is_none_or(|(path, _)| path != &case.path) {
             last = Some((case.path.clone(), checkpoint::inspect(&case.path)?));
@@ -227,10 +228,18 @@ fn flash_projection_stock_oracle() -> Result<()> {
                 "early expert drop or reverse read changed output"
             );
             expert_lifetime_checked = true;
-        } else if expected.is_empty() && !expert {
+        } else if (expected.is_empty()
+            || case.op == "metal-exl3-linear" && !generic_lifetime_checked)
+            && !expert
+        {
             let (first, second) = {
                 let device = Metal::new()?;
-                let layer = FlashProjection::load(&device, checkpoint, &case.prefix)?;
+                let load = if case.op == "metal-exl3-linear" {
+                    FlashProjection::load_exl3
+                } else {
+                    FlashProjection::load
+                };
+                let layer = load(&device, checkpoint, &case.prefix)?;
                 let first = layer.submit(&case.x)?;
                 ensure!(layer.submit(&[]).is_err() && layer.submit(&case.x[1..]).is_err());
                 let second = layer.submit(&case.x)?;
@@ -241,6 +250,7 @@ fn flash_projection_stock_oracle() -> Result<()> {
                 second.read()? == bits && first.read()? == bits,
                 "early drop or reverse read changed output"
             );
+            generic_lifetime_checked |= case.op == "metal-exl3-linear";
         }
         expected.push(bits);
     }

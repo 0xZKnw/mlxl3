@@ -1,0 +1,360 @@
+{
+  "status": "validated_component",
+  "scope": "Native Flash DFlash2 BF16 CPU draft, direct Metal target verification and production JSONL bridge",
+  "source_commit": "98c194f7a0f0566144af1fa2273d87e2c9c54764",
+  "base_commit": "b9e1dd6c52f91cb9758e347d9847e40ef591b764",
+  "base_pr": 94,
+  "hardware": "Apple M5,24 GiB,macOS26B123",
+  "ssd_cache_gib": 0.6,
+  "cli_sha256": "898b4fa762f90d89280d3df983f1ed242d5d042f759cdaeff69863244514606f",
+  "physical_test_sha256": "d1d6cb3c96f214b17dbce5a7e9718006477a04e34e81c52ed6b72e5bb7444a1c",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "draft": "Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "backbone_oracle": {
+    "source": "independent NumPy opt44,numpy-dflash2-3",
+    "residual_norm": "sglang-3c560089-fp32-variance-bf16-residual",
+    "hidden_relative_rmse": 0.015652356195477404,
+    "layer_max_relative_rmse": 0.01720482013385893,
+    "kv_max_relative_rmse": 0.004610426834497939,
+    "hidden_layer_limit": 0.02,
+    "kv_limit": 0.01,
+    "bitwise_equal": false,
+    "checked_outputs": [
+      {
+        "name": "hidden",
+        "words": 10240,
+        "relative_rmse": 0.015652356195477404
+      },
+      {
+        "name": "layer-0",
+        "words": 10240,
+        "relative_rmse": 0.0025473708309684574
+      },
+      {
+        "name": "layer-1",
+        "words": 10240,
+        "relative_rmse": 0.004751828072187015
+      },
+      {
+        "name": "layer-2",
+        "words": 10240,
+        "relative_rmse": 0.0080003295982005
+      },
+      {
+        "name": "layer-3",
+        "words": 10240,
+        "relative_rmse": 0.007789863584684054
+      },
+      {
+        "name": "layer-4",
+        "words": 10240,
+        "relative_rmse": 0.01720482013385893
+      },
+      {
+        "name": "keys-0",
+        "words": 5120,
+        "relative_rmse": 0.003721609776942969
+      },
+      {
+        "name": "values-0",
+        "words": 5120,
+        "relative_rmse": 0.0036253252938148986
+      },
+      {
+        "name": "keys-1",
+        "words": 5120,
+        "relative_rmse": 0.0036976866806466353
+      },
+      {
+        "name": "values-1",
+        "words": 5120,
+        "relative_rmse": 0.004044684400159004
+      },
+      {
+        "name": "keys-2",
+        "words": 5120,
+        "relative_rmse": 0.0037343706141615154
+      },
+      {
+        "name": "values-2",
+        "words": 5120,
+        "relative_rmse": 0.003750269897631616
+      },
+      {
+        "name": "keys-3",
+        "words": 5120,
+        "relative_rmse": 0.0034614007274135347
+      },
+      {
+        "name": "values-3",
+        "words": 5120,
+        "relative_rmse": 0.0037623872253781986
+      },
+      {
+        "name": "keys-4",
+        "words": 5120,
+        "relative_rmse": 0.0038311736722433528
+      },
+      {
+        "name": "values-4",
+        "words": 5120,
+        "relative_rmse": 0.004610426834497939
+      }
+    ]
+  },
+  "ordinary_rms": {
+    "source": "actual MLX0.32.2 frozen oracle",
+    "widths": [
+      128,
+      2560,
+      10240
+    ],
+    "words": 12928,
+    "equality": "FP32 bit pattern after BF16 expansion",
+    "mutation_remove_pre_gain_round_caught": true
+  },
+  "physical_session": {
+    "budgets": [
+      1,
+      2,
+      3,
+      17
+    ],
+    "token_and_hidden_equality": true,
+    "continuation_finite_logits_per_case": 248320,
+    "continuation_bitwise_equal": true,
+    "budget17": {
+      "proposed": 25,
+      "accepted": 7,
+      "blocks": 9
+    },
+    "failures": [
+      "wrong pending anchor",
+      "zero tail budget",
+      "cancelled prefill",
+      "CPU append failure after target mutation",
+      "foreign/reset prefix"
+    ],
+    "rollback_retry": true
+  },
+  "bridge": {
+    "entry": "scripts/check-mtp-bridge.py --mode dflash",
+    "budgets": [
+      2,
+      17
+    ],
+    "ar_hashes": [
+      "9f850af1cbba074b",
+      "ee342eb4d5115c41"
+    ],
+    "invalid_requests": 6,
+    "cancel_phases": [
+      "context_usage",
+      "delta"
+    ],
+    "recovery_equality": true,
+    "mlx_loaded": false,
+    "loaded_library_capture_source": "e98e530ae1ff4bcbdae84869ecb9fec232106fc1",
+    "final_runtime_info": {
+      "architecture": "aarch64",
+      "backend": "metal",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "98c194f7a0f0",
+      "mlx_enabled": false,
+      "profile": "release",
+      "version": "2.0.2"
+    }
+  },
+  "proof": {
+    "tool": "Kani0.68.0/CBMC6.11.0",
+    "command": "cargo kani --lib --no-default-features --harness draft_blas_extents_reject_overflow_and_truncation",
+    "property": "Actual BLAS extent helper accepts exactly positive i32 row/column dimensions whose product fits the 64-bit isize FP32 storage boundary",
+    "domain": "Two arbitrary 64-bit usize inputs,no assumptions,no loops",
+    "obligations": 19,
+    "covers_satisfied": 2,
+    "failed": 0,
+    "unreachable": 0,
+    "solver_seconds": 6.1704674,
+    "earlier_attempt": "same domain with64-bit division/remainder timed out at90s,children killed and joined",
+    "full_library": "macOS compiler ICE at intrinsics.rs243,unverified"
+  },
+  "python_verifier": {
+    "tool": "CrossHair",
+    "result": "No checkable functions in process orchestrator,no proof claim"
+  },
+  "performance": {
+    "status": "not_measured",
+    "note": "Protocol transcripts contain normal telemetry but this is correctness qualification,without an alternating throughput campaign or speed claim"
+  },
+  "limits": [
+    "Mode1 default q4/ring/adaptive is physically qualified; mode2/3 and all environment option combinations require their own numerical coverage",
+    "CPU draft uses expanded FP32 storage and system Accelerate SGEMM with explicit BF16 operator rounding; memory and speed optimizations deferred",
+    "DSpark backbone test support is not a production DSpark session",
+    "This branch does not yet integrate PR100 AR-only request memory admission with draft loading",
+    "No installed app or release artifact replaced",
+    "Hosted CI remains pending until the pushed exact head finishes"
+  ],
+  "artifacts": {
+    "rms-oracle.log": "6a773acf0880534c36f64c8a3e363178fe4fd15e95d30f31c9b4f23ab76ba2d7",
+    "oracle-raw.log": "ba93a396765f89119f02a8a299937374f7845c5b1c2cd34a7f82c334a54aed4d",
+    "oracle-44.log": "e014c42fa6fbaaaae9d24ff88afdcdbd07a97b88ec2d58064d6dc40c705e921b",
+    "rms-physical-session.log": "e966051c33e15da95bb101001e17fef6ed859eba90a837118b69a746d1150260",
+    "final-error-bridge.jsonl": "2636ca53acd3876c707ef830a2c9aab72ee6b00da78ed9069ab2e312b820619b",
+    "final-error-bridge.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rms-mutation.json": "d1ceff375d633cd81120475bccbb322c6ad1ddac9f33ba24d5d98e6423a0af6e",
+    "rms-mutation.log": "ba4222ca90a9852e33364da90d486a4d512beca2dcf984f91c73801d5f8a55ad",
+    "rms-regressions.log": "c878f53e4da0854925e103cb3282841fac5602840d4222e5259e168a3a59bd37",
+    "kani-extent.json": "04aed5f15ec4b4c173625470fd377cbecd5c0a60e21148cf68dc4566d1e50c57",
+    "kani-extent.log": "63c93f942e7c927a4ea94bb1ca76324d9a6a93ac0900004e1fc9755171a544f0",
+    "kani-wide.json": "0a2e2047694c301d397b5d92f1a5fe8016f4eafcc62af73cab71ca1ae93a01ad",
+    "kani-wide.log": "19c396b4adc1d93848347a14810dd9d3630336dfbb3a777634d64e99f3fc868e",
+    "kani-full.log": "a754a2acbab188fcad5371740bae66c9eb73411ae81e4618d470e5c9e631a332",
+    "checker-crosshair.log": "2a2a263c19c8a43d66e1956a8f78212db851c23add6d8a1b2ac929fe1343dbfe",
+    "bridge.jsonl": "eb0130e8a49df33feda79fe87ae937021c3aa45d4a15ab5857ec40b47c2485c8",
+    "bridge-receipt.json": "8d1f7cf848cca12644aa6241e6cfe2ebd61e60ca187d6caf959bceb885bf115e",
+    "final-physical-mtp-head.log": "ea65933323dbdc7c915bcd469bda8414f16cebe426d6a83b0a94b11bc796c13f",
+    "final-physical-mtp-session.log": "67f03d5022179ceacfa623fbc1b84625d05daebd2a02fd19f1cae7a8a8ceda9d",
+    "final-suite-cpu.log": "9e6546a9c1e54d8d2fbbd5739315f6cd0b3bca03d6870d590e30559900c1d3ed",
+    "publish-suite-direct.log": "d9fedaddcb396b398ffccdc5ea78352329c168de3b2aa4c57d123320716b4b82",
+    "publish-suite-stock.log": "59b66d14d13fcfd20721e78680a6e95670aa2b85c076b7e06b068d7142a887e8",
+    "publish-clippy-direct.log": "b6f1b21bf7818d439df7be5c102a69e13857a4bb0d02fecac2c71887fe2c0f79",
+    "publish-clippy-stock.log": "e16a174202b8d0901c5ca80f57fada83f9a9c516f9e25b3b553a9c311b5022bb",
+    "publish-format.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "publish-release-stock.log": "22b255e8c6cdfc35ed01bb1e0302e15a58ae024d5adb2935da24eed290050942",
+    "publish-python.log": "5e156b00c8e82c86884d81f2f9281365b649ef79b066311d0a818759c3d8ccdf",
+    "publish-inventory-tests.log": "44091516c6f7d278c9900d796163d45f95d1ad1819370ffeeaf887bc704f2e38",
+    "inventory-review.log": "d68c5314d23906ebfc70ac0eedfa61c904aeba0e37dee6f560a06773761b2304",
+    "runtime-info.json": "b0c5a46b14afeba933d02c232d1d0e5ce3cd51fdfe3505ea367f367c1a127fff",
+    "runtime-dyld.log": "66374dc0d18fffa7448e200d0cb608d7348895a7104836bb5dc620f37eff5751",
+    "otool.log": "fb3c67857d69243572bbfebdc0cde74d288e71c5bce390a975ed5077a5f31977",
+    "bridge.log": "038eddc9fc89975a298de8b94a6584dad1e51a7a28f1be7ad25bf57f0d0a4661"
+  },
+  "rust_suites": {
+    "cpu": {
+      "passed": 308,
+      "ignored": 9,
+      "groups": [
+        [
+          221,
+          0,
+          9
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "direct": {
+      "passed": 312,
+      "ignored": 27,
+      "groups": [
+        [
+          225,
+          0,
+          26
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "mlx_compatibility": {
+      "passed": 348,
+      "ignored": 248,
+      "groups": [
+        [
+          252,
+          0,
+          236
+        ],
+        [
+          44,
+          0,
+          9
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "checks": {
+    "format": true,
+    "strict_clippy": [
+      "cpu",
+      "direct",
+      "mlx_compatibility"
+    ],
+    "release_builds": [
+      "direct",
+      "mlx_compatibility"
+    ],
+    "python_process_boundaries": 35,
+    "python_linux_only_skips": 44,
+    "inventory_regressions": 4,
+    "inventory_files": 225
+  }
+}

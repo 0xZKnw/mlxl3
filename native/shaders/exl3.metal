@@ -211,3 +211,13 @@ ROUTE_KERNEL(float, "route_float")
 #include "flash_gdn.metal"
 
 #include "flash_ple.metal"
+
+#include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
+
+#include "flash_mtp.metal"
+
+#include "dense_projection.metal"
+
+#include "mapped_expert.metal"
+#include "model_ops.metal"

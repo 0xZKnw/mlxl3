@@ -1,0 +1,22 @@
+{
+  "status": "failed",
+  "identity": {
+    "source_commit": "c531257d",
+    "binaries": {
+      "openai_transport": "6a99ddd3529ace94431810f42fba513c05780bdf7085039c148b50edd2c8dd1d",
+      "mlxl3_native": "f60383040cc4a70959d12043f980b5dd812d17e863477c8f0f7d5be0033fa1dc",
+      "native-cli-guard": "4844e292ab7bd1226e197eb40d9335e305d9d37bac4090aabaf585fdca9adf5a"
+    }
+  },
+  "tests": [
+    {
+      "name": "gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay",
+      "status": "failed",
+      "exit_code": 101,
+      "seconds": 2.6139705830137245,
+      "log": "build/issue75product/guard-physical-ledger.log",
+      "error": "AssertionError('\\nrunning 1 test\\ntest gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay ... Error: Flash request exceeds measured memory budget\\nFAILED\\n\\nfailures:\\n\\nfailures:\\n    gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay\\n\\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 263 filtered out; finished in 2.55s\\n\\n')"
+    }
+  ],
+  "error": "AssertionError('\\nrunning 1 test\\ntest gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay ... Error: Flash request exceeds measured memory budget\\nFAILED\\n\\nfailures:\\n\\nfailures:\\n    gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay\\n\\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 263 filtered out; finished in 2.55s\\n\\n')"
+}

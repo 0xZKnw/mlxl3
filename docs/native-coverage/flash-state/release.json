@@ -1,0 +1,59 @@
+{
+  "status": "verified",
+  "dependency_code": "2333f2df",
+  "source_base_pr": 91,
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "hardware": "Apple M5, 24 GiB, macOS build 26B123",
+  "direct_cli_sha256": "013fba76c9aa1b118ccc529af1da3512aefe3f7c428e8ca00210b0aede2b4c65",
+  "stock_cli_sha256": "bc1de8fff6f7dc2dd06cff744f0a3c842c54940142e02b717375c3e2f026a30f",
+  "MLXL3_SSD_CACHE_GIB": "0.6",
+  "per_tensor_digests": "initial.json#step_tensors",
+  "step_finite_f32": 28803072,
+  "step_tensor_count": 84,
+  "step_logits_sha256": "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445",
+  "batch_logits_sha256": "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445",
+  "logits_per_mode": 248320,
+  "batch_states": [],
+  "direct_dyld_images": {
+    "step": 706,
+    "batch": 706
+  },
+  "kani": {
+    "version": "0.68",
+    "harness": "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+    "checks": 49,
+    "covers": 2,
+    "scope": "arbitrary u32 rows and columns, i64 strides/offset, u64 item and allocation, checked against independent byte divisibility and slice limit",
+    "global": "compiler ICE intrinsics.rs:243"
+  },
+  "suites": {
+    "cpu": {
+      "passed": 306,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 307,
+      "failed": 0,
+      "ignored": 22
+    },
+    "stock": {
+      "passed": 343,
+      "failed": 0,
+      "ignored": 243
+    }
+  },
+  "physical_tests": [
+    "retained_snapshots_restore_hidden_logits_and_empty_session",
+    "partial_prompt_io_failure_rolls_back_every_layer"
+  ],
+  "python": "7 passed, 6 subtests, 44 Linux-only skips; CrossHair inconclusive on FP32 digest",
+  "sources": {
+    "native/src/gpu/flash.rs": "dd2ab7ad9a66a60dd459866745836ff57315c95c8558a56b06163c2cb75cb0d4",
+    "native/src/gpu/view.rs": "3be8e7345f7e21db8d193aaf696e7eadcde80e855fa85da7f1967af870dbcfad",
+    "native/src/tensor_layout.rs": "7997898ec593d4c3b41e3d973bd894de18abaa65deee825c9479fd0af1456675",
+    "native/src/main.rs": "e242db21f8f0f644e5cdc91d6a2f3895a641e15b3359a949526c3eb9d9c659b9",
+    "tests/physical_flash_trace.py": "6e67ef7273ae7e2295682cd777690a161fb6a8982d19900a98ff41a9c6aa482c"
+  }
+}

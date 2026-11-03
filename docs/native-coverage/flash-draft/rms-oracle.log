@@ -1,0 +1,27 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-draft/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.72s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/issue75draft/cargo-target/debug/deps/mlxl3_native-0abbe8b89444eaa3)
+
+running 1 test
+native draft hidden 10240 values, max_abs=1, relative_rmse=0.015652356195477404
+native draft layer-0 10240 values, max_abs=32, relative_rmse=0.0025473708309684574
+native draft layer-1 10240 values, max_abs=128, relative_rmse=0.004751828072187015
+native draft layer-2 10240 values, max_abs=256, relative_rmse=0.0080003295982005
+native draft layer-3 10240 values, max_abs=1024, relative_rmse=0.007789863584684054
+native draft layer-4 10240 values, max_abs=1536, relative_rmse=0.01720482013385893
+native draft keys-0 5120 values, max_abs=0.03125, relative_rmse=0.003721609776942969
+native draft values-0 5120 values, max_abs=0.0625, relative_rmse=0.0036253252938148986
+native draft keys-1 5120 values, max_abs=0.0625, relative_rmse=0.0036976866806466353
+native draft values-1 5120 values, max_abs=0.0625, relative_rmse=0.004044684400159004
+native draft keys-2 5120 values, max_abs=0.0625, relative_rmse=0.0037343706141615154
+native draft values-2 5120 values, max_abs=0.125, relative_rmse=0.003750269897631616
+native draft keys-3 5120 values, max_abs=0.0625, relative_rmse=0.0034614007274135347
+native draft values-3 5120 values, max_abs=0.125, relative_rmse=0.0037623872253781986
+native draft keys-4 5120 values, max_abs=0.0625, relative_rmse=0.0038311736722433528
+native draft values-4 5120 values, max_abs=0.06762695, relative_rmse=0.004610426834497939
+test native_draft::native_backbone_matches_independent_numpy_layers_and_kv ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 249 filtered out; finished in 10.66s
+
