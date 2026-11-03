@@ -1,0 +1,67 @@
+{
+  "status": "cpu_verified_physical_pending",
+  "base": "be43ee15ea1aedab0cc4dde68a666b3259069df6",
+  "working_diff_sha256": "2db833d54731df31f037bc577096da08e75f1be0dd076b25567ea88a0ec2efdf",
+  "artifacts": [
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+      "size": 10083760,
+      "sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/deps/mlxl3_native-4fcc6c8116a33ded",
+      "size": 9000784,
+      "sha256": "44307b1d7ec4ade55a554d8510fcaac89214f1fd3d100b69c4904cdc6fb996b2"
+    }
+  ],
+  "source_sha256": {
+    "native/src/gpu/flash.rs": "e4dc8fc0d479308e4f304e1f0939ceaeb4f22d98eb2a9f514d6eb030ceff96ae",
+    "native/src/native_draft.rs": "8e5d35afc11d83bf8b64b02fd2b08c1f7de1a3a77e2f0a6acc6909a8c7af4813",
+    "native/src/flash_support.rs": "e179d51248ce313bb81a90568047f4f9e57dd221cddd6da61ab2004ed03f3e54"
+  },
+  "runtime_info": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "be43ee15ea1a-dirty",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "checks": {
+    "full_cpu_chat": {
+      "passed": 330,
+      "ignored": 9
+    },
+    "full_direct_chat": {
+      "passed": 339,
+      "ignored": 38
+    },
+    "strict_clippy": [
+      "no-default-features+chat",
+      "direct-metal+chat",
+      "direct-metal without chat",
+      "default direct-metal+mlx+chat"
+    ],
+    "rustfmt": "passed",
+    "inventory": "245 files matched after reviewed configuration-count update",
+    "kani": {
+      "harness": "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
+      "checks": 61,
+      "failed": 0,
+      "covers_satisfied": 5,
+      "covers_total": 5,
+      "domain": "arbitrary usize row/rows and bool headonly, no assumptions or loops",
+      "scope": "CPU selection policy, not Metal/state/complete generation"
+    },
+    "mutation": "Disposable actual-source copy reactivating eager intermediate heads fails intended functional assertion; normal source never mutated and restored proof passed.",
+    "python_kani_ci": {
+      "skipped": 44,
+      "reason": "Linux prlimit unavailable on macOS",
+      "direct_exact_registry_function": "passed; not a Linux orchestration run"
+    },
+    "ruff": "passed"
+  },
+  "raw_logs": "build/issue75headonly (local retained files, not a hosted CI claim)"
+}

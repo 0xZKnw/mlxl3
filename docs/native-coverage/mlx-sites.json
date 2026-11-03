@@ -1885,6 +1885,7 @@
     ".to_f32": 11,
     ".transpose": 1,
     "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_FLASH_PREFILL_HEADS": 1,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/gdn.rs": {
@@ -2332,9 +2333,9 @@
     ".log_probs": 2,
     ".rope": 4,
     "config MLXL3_FLASH_DRAFT_KIND": 1,
-    "config MLXL3_FLASH_DRAFT_MODEL": 2,
+    "config MLXL3_FLASH_DRAFT_MODEL": 3,
     "config MLXL3_FLASH_DRAFT_ORACLE": 1,
-    "config MLXL3_FLASH_MODEL": 1
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/native_prompt_cache.rs": {
     ".retained_bytes": 4,

@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "status": "preregistered_not_run",
+  "date": "2026-11-03",
+  "id": "ISSUE75-NATIVE-HEADONLY-01",
+  "base": "be43ee15",
+  "prior": "PREFILL-2026-10-27-HEADONLY",
+  "prior_report": "docs/measurements/issue54-prefill-20261027/headonly/pooled.json",
+  "prior_limits": "Pooled TTFT MAIN/HOLD/LONG reductions 4.210/3.827/5.074%; confirmation strict global gate was false; no native or decode gain inferred.",
+  "hypothesis": "Eager native DFlash suffix prefill needlessly computes and reads 248320 target logits for each intermediate row. Skip only these unused heads, preserving every token-major trunk, capture, append, state transition and final real logits.",
+  "flag": "MLXL3_FLASH_PREFILL_HEADS",
+  "control": "0",
+  "candidate": "1",
+  "default": "1",
+  "semantics": "1 computes a target head only on the final row of each nonempty DFlash prefill/extend_prefill call; 0 computes every row. AR, MTP and speculative verification remain unchanged.",
+  "cache_contract": "native_prompt_cache stores real logits returned by each completed whole suffix; empty-suffix hits reuse genuine saved logits. Never skip the final head of any extend_prefill call or publish missing/stale logits.",
+  "quality": [
+    "Strict full-width 248320 finite half logits, hidden, every 84 continuation tensors, draft captures/KV and offsets versus HEADS0; nonempty shapes and bytes.",
+    "Actual test-only counter at real target head submission: N to 1 per nonempty call, one per split suffix call, no release counter.",
+    "Lengths 1/2/3/9, split prefill and saved prefix restore, continuation, invalid token/empty/context errors, cancellation/reset/recovery.",
+    "Real production bridge DFlash1 reuse off and cache on hit/extended suffix; identical output hashes/modes/counters before timing. Existing AR/MTP independent controls remain required."
+  ],
+  "verification": [
+    "Rust format/strict Clippy, CPU and direct/chat and compatibility suites; release build.",
+    "Kani on real CPU head-selection helper across all usize positions/lengths and both flags; record unsupported compiler/timeouts. Test-only mutation restoring eager heads must fail counter regression.",
+    "No GPU concurrent with compilers/provers/other models; exclusive slot granted by root."
+  ],
+  "timing": {
+    "executor": "root",
+    "common_protocol": "docs/measurements/issue75-native-reuse-20261103/protocol.json",
+    "harness": "scripts/benchmark-flash-bridge.py",
+    "mode": "DFlash2 mode1",
+    "cache_gib": 3,
+    "readers": 4,
+    "lookahead": 0,
+    "reuse_prompt_cache": false,
+    "context": 4096,
+    "tokens": 32,
+    "prompts": [
+      "MAIN",
+      "HOLD"
+    ],
+    "order": [
+      "0",
+      "1",
+      "1",
+      "0"
+    ],
+    "warmups_per_prompt_per_process": 1,
+    "measured_per_prompt_per_process": 1,
+    "metrics": [
+      "prefill_seconds",
+      "ttft_seconds",
+      "decode_tps",
+      "elapsed_seconds",
+      "memory"
+    ],
+    "retain_all_samples": true,
+    "claim": "Native gain unmeasured. Decode is an unchanged control; do not transfer historic percentages."
+  },
+  "integration": "isolated worktree; no installed app replacement/merge/release; MTP follow-up separate"
+}
