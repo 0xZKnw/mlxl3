@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use half::{bf16, f16};
-use std::os::unix::fs::FileExt;
+use std::{os::unix::fs::FileExt, rc::Rc};
 
 enum Layer<'a> {
     Gdn(FlashGdnLayer<'a>),
@@ -47,6 +47,13 @@ impl Layer<'_> {
             _ => anyhow::bail!("invalid Flash layer snapshot"),
         }
     }
+    fn recurrent(&self) -> Option<&MatrixView> {
+        match self {
+            Self::Gdn(l) => l.recurrent(),
+            Self::Ple(l) => l.recurrent(),
+            Self::Qsa(_) => None,
+        }
+    }
     fn reset(&mut self) {
         match self {
             Self::Gdn(a) => a.reset(),
@@ -56,7 +63,23 @@ impl Layer<'_> {
     }
 }
 
+#[derive(Clone)]
+pub struct FlashSnapshot {
+    owner: Rc<()>,
+    offset: u32,
+    layers: Vec<State>,
+    hidden: Option<MatrixView>,
+}
+
+#[derive(serde::Serialize)]
+pub struct FlashTraceTensor {
+    pub name: String,
+    pub shape: Vec<u32>,
+    pub data: Vec<u8>,
+}
 pub struct FlashNext<'a> {
+    owner: Rc<()>,
+    hidden: Option<MatrixView>,
     gpu: &'a Metal,
     embed: TensorInfo,
     layers: Vec<Layer<'a>>,
@@ -129,6 +152,8 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         Ok(Self {
+            owner: Rc::new(()),
+            hidden: None,
             gpu,
             embed,
             layers,
@@ -138,11 +163,37 @@ impl<'a> FlashNext<'a> {
             offset: 0,
         })
     }
+    pub fn snapshot(&self) -> FlashSnapshot {
+        FlashSnapshot {
+            owner: self.owner.clone(),
+            offset: self.offset,
+            hidden: self.hidden.clone(),
+            layers: self.layers.iter().map(Layer::snapshot).collect(),
+        }
+    }
+    pub fn restore(&mut self, s: &FlashSnapshot) -> Result<()> {
+        ensure!(
+            Rc::ptr_eq(&self.owner, &s.owner)
+                && s.layers.len() == self.layers.len()
+                && s.offset <= self.context,
+            "snapshot belongs to a different Flash session"
+        );
+        for (l, state) in self.layers.iter_mut().zip(&s.layers) {
+            l.restore(state)?;
+        }
+        self.offset = s.offset;
+        self.hidden = s.hidden.clone();
+        Ok(())
+    }
+    pub fn last_hidden(&self) -> Option<&MatrixView> {
+        self.hidden.as_ref()
+    }
     pub fn reset(&mut self) {
         for l in &mut self.layers {
             l.reset();
         }
         self.offset = 0;
+        self.hidden = None;
     }
     pub fn context_limit(&self) -> u32 {
         self.context
@@ -173,17 +224,47 @@ impl<'a> FlashNext<'a> {
         self.prefill(&[token])
     }
 
-    fn hidden(&mut self, token: u32) -> Result<MatrixView> {
+    fn hidden(
+        &mut self,
+        token: u32,
+        mut trace: Option<&mut Vec<FlashTraceTensor>>,
+    ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
         for (i, layer) in self.layers.iter_mut().enumerate() {
             streams = layer
                 .forward(&streams, token)
                 .with_context(|| format!("running Flash layer {i}"))?;
+            if let Some(t) = &mut trace {
+                t.push(FlashTraceTensor {
+                    name: format!("layer_{i}"),
+                    shape: vec![1, 10240],
+                    data: streams.export_bytes(self.gpu)?,
+                });
+                if let Some(r) = layer.recurrent() {
+                    t.push(FlashTraceTensor {
+                        name: format!("gdn_state_{i}"),
+                        shape: vec![1, 48, 128, 128],
+                        data: r.export_bytes(self.gpu)?,
+                    });
+                }
+            }
         }
         Ok(streams)
     }
 
+    pub fn forward_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
+        let mut trace = Vec::with_capacity(84);
+        let logits = self.prefill_inner(&[token], Some(&mut trace))?;
+        Ok((logits, trace))
+    }
     pub fn prefill(&mut self, tokens: &[u32]) -> Result<Vec<u16>> {
+        self.prefill_inner(tokens, None)
+    }
+    fn prefill_inner(
+        &mut self,
+        tokens: &[u32],
+        trace: Option<&mut Vec<FlashTraceTensor>>,
+    ) -> Result<Vec<u16>> {
         let end = crate::flash_support::flash_prompt_end(self.offset, tokens.len(), self.context)
             .context("empty prompt or Flash context exhausted")?;
         ensure!(
@@ -191,19 +272,19 @@ impl<'a> FlashNext<'a> {
             "token outside Flash vocabulary"
         );
         let (&last, prefix) = tokens.split_last().context("empty Flash prompt")?;
-        let before = self.layers.iter().map(Layer::snapshot).collect::<Vec<_>>();
+        let before = self.snapshot();
         let result = (|| {
             for &token in prefix {
-                self.hidden(token)?;
+                self.hidden(token, None)?;
             }
-            let streams = self.hidden(last)?;
+            let streams = self.hidden(last, trace)?;
             let mixed = self.mixer.read(&streams, false)?.mixed;
-            self.head.submit_fp16_view(&mixed)?.read()
+            let logits = self.head.submit_fp16_view(&mixed)?.read()?;
+            self.hidden = Some(streams);
+            Ok(logits)
         })();
         if result.is_err() {
-            for (l, s) in self.layers.iter_mut().zip(&before) {
-                l.restore(s)?;
-            }
+            self.restore(&before)?;
         } else {
             self.offset = end;
         }
@@ -274,6 +355,45 @@ mod tests {
         logits.fill(0);
         logits[2] = f16::NAN.to_bits();
         ensure!(gpu.flash_log_probs(&logits).is_err());
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical whole-model Flash snapshot ownership, fork and replay"]
+    fn retained_snapshots_restore_hidden_logits_and_empty_session() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 4)?;
+        let empty = model.snapshot();
+        ensure!(model.last_hidden().is_none());
+        let first = model.forward(248044)?;
+        let prefix = model.snapshot();
+        let hidden = model
+            .last_hidden()
+            .context("missing hidden row")?
+            .export_bytes(&gpu)?;
+        let left = model.forward(42)?;
+        let left_state = model.snapshot();
+        let left_end = model.forward(7)?;
+        model.restore(&prefix)?;
+        ensure!(model.offset == 1 && model.last_hidden().unwrap().export_bytes(&gpu)? == hidden);
+        let right = model.forward(7)?;
+        let right_state = model.snapshot();
+        let right_end = model.forward(42)?;
+        ensure!(left != right && left_end != right_end);
+        let mut foreign = prefix.clone();
+        foreign.owner = Rc::new(());
+        ensure!(model.restore(&foreign).is_err() && model.offset == 3);
+        model.restore(&left_state)?;
+        ensure!(model.forward(7)? == left_end);
+        model.reset();
+        model.restore(&right_state)?;
+        ensure!(model.forward(42)? == right_end);
+        model.restore(&empty)?;
+        ensure!(
+            model.last_hidden().is_none() && model.offset == 0 && model.forward(248044)? == first
+        );
         Ok(())
     }
 

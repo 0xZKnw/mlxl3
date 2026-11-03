@@ -361,6 +361,9 @@ impl<'a> FlashGdnLayer<'a> {
             residual: LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
     }
+    pub(super) fn recurrent(&self) -> Option<&MatrixView> {
+        self.attention.state.frame.as_ref().map(|f| &f.recurrent)
+    }
     pub fn snapshot(&self) -> FlashGdnState {
         self.attention.snapshot()
     }

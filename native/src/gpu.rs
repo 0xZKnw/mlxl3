@@ -19,7 +19,7 @@ pub struct FlashAttentionOutput {
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
-pub use flash::FlashNext;
+pub use flash::{FlashNext, FlashSnapshot, FlashTraceTensor};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod gdn;

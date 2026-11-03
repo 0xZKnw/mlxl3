@@ -275,6 +275,9 @@ impl<'a> FlashPleLayer<'a> {
             body: super::FlashGdnLayer::load_body(gpu, c, prefix, eps, slots)?,
         })
     }
+    pub(super) fn recurrent(&self) -> Option<&MatrixView> {
+        self.body.recurrent()
+    }
     pub fn snapshot(&self) -> FlashPleLayerState {
         FlashPleLayerState(self.ple.snapshot(), self.body.snapshot())
     }

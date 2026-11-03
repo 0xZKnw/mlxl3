@@ -10,6 +10,17 @@ pub struct MatrixLayout {
 }
 
 impl MatrixLayout {
+    /// Exact, nonempty extent of a contiguous allocation safe to expose as a byte slice.
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    pub(crate) fn trace_byte_extent(&self, item: u64, allocation: u64) -> Option<usize> {
+        let [rows, cols] = self.shape;
+        if !matches!(item, 2 | 4) || self.offset != 0 || self.strides != [i64::from(cols), 1] {
+            return None;
+        }
+        let bytes = (u64::from(rows) * u64::from(cols)).checked_mul(item)?;
+        (bytes > 0 && bytes == allocation && bytes <= isize::MAX as u64).then_some(bytes as usize)
+    }
+
     /// A row of an already checked view stays on the same backing.
     pub fn row(self, row: u32) -> Option<Self> {
         let [rows, cols] = self.shape;
@@ -203,4 +214,64 @@ fn selecting_a_row_checks_index_and_signed_offset() {
         .row(1)
         .is_none()
     );
+}
+
+#[test]
+fn trace_extent_requires_whole_contiguous_byte_allocation() {
+    let l = MatrixLayout {
+        shape: [2, 3],
+        strides: [3, 1],
+        offset: 0,
+    };
+    assert_eq!(l.trace_byte_extent(4, 24), Some(24));
+    assert_eq!(l.trace_byte_extent(2, 12), Some(12));
+    for (item, n) in [(1, 6), (4, 23), (4, 25)] {
+        assert_eq!(l.trace_byte_extent(item, n), None);
+    }
+    for invalid in [
+        MatrixLayout { offset: 1, ..l },
+        MatrixLayout {
+            strides: [-3, 1],
+            ..l
+        },
+        MatrixLayout { shape: [0, 3], ..l },
+    ] {
+        assert_eq!(invalid.trace_byte_extent(4, 24), None);
+    }
+    let huge = MatrixLayout {
+        shape: [u32::MAX; 2],
+        strides: [i64::from(u32::MAX), 1],
+        offset: 0,
+    };
+    assert_eq!(huge.trace_byte_extent(4, 4), None);
+}
+#[cfg(kani)]
+#[kani::proof]
+fn trace_extent_checks_bytes_and_slice_bound() {
+    let rows = u32::from(kani::any::<u8>());
+    let cols = u32::from(kani::any::<u8>());
+    let l = MatrixLayout {
+        shape: [rows, cols],
+        strides: [kani::any(), kani::any()],
+        offset: kani::any(),
+    };
+    let allocation: u64 = kani::any();
+    let item = u64::from(kani::any::<u8>());
+    let bytes = u64::from(rows) * u64::from(cols) * item;
+    let result = l.trace_byte_extent(item, allocation);
+    assert_eq!(
+        result.is_some(),
+        matches!(item, 2 | 4)
+            && rows > 0
+            && cols > 0
+            && l.offset == 0
+            && l.strides == [i64::from(cols), 1]
+            && allocation == bytes
+    );
+    if let Some(n) = result {
+        assert_eq!(n as u64, bytes);
+        assert!(n <= isize::MAX as usize);
+        kani::cover!(item == 4 && rows > 1);
+        kani::cover!(item == 2 && rows == 1);
+    }
 }

@@ -1349,10 +1349,6 @@ fn run(cli: Cli) -> Result<()> {
             batch,
         } => {
             anyhow::ensure!(
-                !states,
-                "direct Flash state export is not available for this build"
-            );
-            anyhow::ensure!(
                 !tokens.is_empty()
                     && tokens.len() <= mlxl3_native::flash_support::FLASH_MAX_CONTEXT as usize
                     && tokens.iter().all(|&t| t < 248320),
@@ -1362,23 +1358,36 @@ fn run(cli: Cli) -> Result<()> {
             let c = checkpoint::inspect(&model)?;
             let mut target = mlxl3_native::gpu::FlashNext::load(&gpu, &c, tokens.len() as u32)?;
             let mut out = io::stdout().lock();
-            let mut emit = |token: u32, logits: Vec<u16>| -> Result<()> {
-                serde_json::to_writer(
-                    &mut out,
-                    &json!({"token":token,"logits":logits,"states":[]}),
-                )?;
+            #[derive(serde::Serialize)]
+            struct Row {
+                token: u32,
+                logits: Vec<u16>,
+                states: Vec<mlxl3_native::gpu::FlashTraceTensor>,
+            }
+            let mut emit = |row: Row| -> Result<()> {
+                serde_json::to_writer(&mut out, &row)?;
                 writeln!(out)?;
                 out.flush()?;
                 Ok(())
             };
             if batch {
-                emit(
-                    *tokens.last().context("empty Flash input")?,
-                    target.prefill(&tokens)?,
-                )?;
+                emit(Row {
+                    token: *tokens.last().context("empty Flash input")?,
+                    logits: target.prefill(&tokens)?,
+                    states: Vec::new(),
+                })?;
             } else {
                 for token in tokens {
-                    emit(token, target.forward(token)?)?;
+                    let (logits, trace) = if states {
+                        target.forward_trace(token)?
+                    } else {
+                        (target.forward(token)?, Vec::new())
+                    };
+                    emit(Row {
+                        token,
+                        logits,
+                        states: trace,
+                    })?;
                 }
             }
         }
