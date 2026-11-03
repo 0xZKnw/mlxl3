@@ -81,3 +81,5 @@ Les fixtures de composant conservent les mots compactés d’une projection par 
 | Qwen dense | couche 0, gate | 1 | Mul1 |
 | Qwen MoE | couche 0, expert 0, gate | 3 | Mcg |
 | LFM MoE | couche 10, expert 0, w1 | 4 | Mcg |
+
+Sur le M5 physique, le CLI compilé avec Metal direct a reproduit les mêmes 3 072 états et 3 072 poids FP16. Les 192 projections sur vecteurs de base 16×16 ont rendu les 3 072 coefficients attendus après permutation, bit à bit. Une requête invalide en début de flux a été rejetée et les 204 requêtes suivantes ont abouti dans le même processus. Le binaire charge Metal et aucune des 706 images signalées par dyld ne correspond à MLX. Cette comparaison couvre le décodeur et la projection interne EXL3 sur ces tuiles. Le Hadamard, les échelles externes et l’inférence du modèle complet restent à qualifier séparément. [Résultat physique](baselines/exl3/physical-metal.json) · [Rejeu CLI](baselines/exl3/check-metal-tiles.py.txt).
