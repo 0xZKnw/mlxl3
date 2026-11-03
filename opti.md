@@ -1,5 +1,27 @@
 # MLXL3 — journal des optimisations
 
+## I75-N5-RATE-20261103 — débit réellement atteint par le nouveau moteur Flash
+
+Avant mesure (à la demande de l’utilisateur). Source 74a7aa144c141794a8426dddf6c08c4a83cb0d4f, M5 24 Gio, macOS 26B123, batterie à 89 % au relevé initial. Comparer le binaire Metal avec la feature chat `7790b348937eefe117ac42fcac100314d98538c081a2d1ed305b381ab5efaa3c` et le binaire mlx,chat du même source `49b812579dd5b137f46150db8209bec10359a94157a57e7b38052a23a58e2561`. Baseline de correction : I75-N5-RUN (77 tokens et réponse « 4 »). Même checkpoint Flash-Next EXL3 2.05, même CLI `run CHECKPOINT --prompt 'Combien font 2 + 2 ? Réponds en un chiffre. /no_think' --max-tokens 256`, greedy, `MLXL3_SSD_CACHE_GIB=0.6` (dix slots par couche), réglages AR stock en dehors de ce budget. Un processus/modèle à la fois, aucun build/preuve pendant la campagne. Chauffe de chaque binaire exclue, puis trois paires natif/MLX, MLX/natif, natif/MLX. Chaque lancement recharge une session ; cache fichiers macOS non purgé. Enregistrer préfill/décodage de la CLI, TTFT après chargement, temps processus complet, token count, égalité texte/hash, état thermique et batterie. Rapporter médiane et étendue de chaque moteur, y compris une éventuelle variation supérieure à 3 %. Les anciens AR-QUICK emploient d’autres protocoles.
+
+- warmup native : préfill 4.2 tok/s, décodage 4.2 tok/s, TTFT 17147 ms, 77 tokens et texte identiques.
+
+- warmup mlx : préfill 8.8 tok/s, décodage 9.8 tok/s, TTFT 8158 ms, 77 tokens et texte identiques.
+
+- 1 native : préfill 4.2 tok/s, décodage 4.3 tok/s, TTFT 17348 ms, 77 tokens et texte identiques.
+
+- 1 mlx : préfill 9.2 tok/s, décodage 9.9 tok/s, TTFT 7823 ms, 77 tokens et texte identiques.
+
+- 2 mlx : préfill 8.8 tok/s, décodage 9.8 tok/s, TTFT 8186 ms, 77 tokens et texte identiques.
+
+- 2 native : préfill 4.0 tok/s, décodage 4.2 tok/s, TTFT 18218 ms, 77 tokens et texte identiques.
+
+- 3 native : préfill 3.8 tok/s, décodage 4.2 tok/s, TTFT 18752 ms, 77 tokens et texte identiques.
+
+- 3 mlx : préfill 9.1 tok/s, décodage 9.7 tok/s, TTFT 7951 ms, 77 tokens et texte identiques.
+
+- **Mesure terminée, référence de débit avant optimisation.** Préremplissage de 72 tokens et génération de 77 tokens sous greedy. Médianes sur trois passages : Metal direct 4,0 tok/s en préfill (3,8–4,2), 4,2 tok/s en decode (4,2–4,3), TTFT 18,218 s ; MLX 9,1 tok/s en préfill (8,8–9,2), 9,8 tok/s en decode (9,7–9,9), TTFT 7,951 s. La ligne de chrono commence après chargement, temps processus médian 38,27 s et 17,66 s. Même texte, même nombre de tokens sur les huit exécutions, aucun seuil de dispersion éliminatoire. L’alimentation reste sur batterie (89 à 87 %), aucun avertissement thermique observé. Le premier lien autonome du lecteur de tokenizer demandait thin LTO ; une fois relié avec le même profil que la release, le tokenizer Rust confirme 72 IDs de prompt. [Mesures, conditions et empreintes](docs/measurements/issue75-flash-ar-rate/report.json).
+
 ## I75-N5-RUN-20261103 — first complete Flash short-context AR prompt
 
 Before implementation. Assemble the short-context QSA, PLE and GDN layers with four-stream token embeddings, all 48 real decoder layers, the final mixer, and the existing EXL3 vocabulary projection. Use the packaged tokenizer/chat template, EOS, normalized greedy choice, and the regular run and forward commands. Target 1–512 positions; exercise the original checkpoint and compare every logit on imposed tokens to a separately built Rust/MLX executable before comparing generated tokens and text on a real prompt. Verify no MLX dylib is loaded; test invalid tokens, exhausted context and model-level rollback/replay. Previous [attention fixtures](docs/native-coverage/README.md) cover individual layers; [AR-QUICK](docs/measurements/issue75-migration-20261103/decisions.md) is a historical performance experiment. No speed measurement in this campaign. Keep long context, sparse indexing, drafts and the other architectures open.
