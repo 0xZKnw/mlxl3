@@ -361,7 +361,10 @@ def test_parser_cli_checks_discovery_and_keeps_conversion_companions_required(
 def test_speculative_cli_avoids_kani_068_verbose_statistics_crash(fake_cargo):
     assert ci.main(["--shard", "speculative", "--report-dir", "results"]) == 0
     report = json.loads(Path("results/report.json").read_text())
-    assert len(report["proofs"]) == 198
+    names = ci.inventory_names(json.loads(os.environ["FAKE_INVENTORY"]))
+    expected = ci.select_names(names, "speculative")
+    assert expected
+    assert sorted(record["name"] for record in report["proofs"]) == sorted(expected)
     assert all(r["status"] == "success" for r in report["proofs"])
 
 
