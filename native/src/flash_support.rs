@@ -3,6 +3,49 @@ use anyhow::Result;
 
 pub const PREFILL_CHUNK: usize = 8;
 
+#[cfg(any(
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
+pub(crate) fn prefill_head_required(row: usize, rows: usize, headonly: bool) -> Option<bool> {
+    (row < rows).then(|| !headonly || row == rows - 1)
+}
+
+#[test]
+fn prefill_heads_keep_the_final_row_of_every_call() {
+    for rows in [0, 1, 2, 3, 9, usize::MAX] {
+        for row in [0, 1, 2, 8, usize::MAX - 1, usize::MAX] {
+            for headonly in [false, true] {
+                let expected = if row >= rows {
+                    None
+                } else {
+                    Some(!headonly || row as u128 + 1 == rows as u128)
+                };
+                assert_eq!(prefill_head_required(row, rows, headonly), expected);
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row() {
+    let (row, rows, headonly): (usize, usize, bool) = kani::any();
+    let result = prefill_head_required(row, rows, headonly);
+    if row >= rows {
+        assert_eq!(result, None);
+    } else {
+        let final_row = row as u128 + 1 == rows as u128;
+        assert_eq!(result, Some(!headonly || final_row));
+        kani::cover!(rows == 1 && headonly && result == Some(true));
+        kani::cover!(rows > 1 && headonly && result == Some(false));
+        kani::cover!(row > 0 && !headonly && !final_row && result == Some(true));
+        kani::cover!(rows == usize::MAX && final_row);
+    }
+    kani::cover!(rows == 0 && result.is_none());
+}
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(14)]

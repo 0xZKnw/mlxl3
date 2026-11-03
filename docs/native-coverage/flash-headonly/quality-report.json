@@ -1,0 +1,37 @@
+{
+  "status": "validated",
+  "parity": true,
+  "command": [
+    "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/deps/mlxl3_native-4fcc6c8116a33ded",
+    "--exact",
+    "native_draft::headonly_prefill_keeps_every_capture_and_real_final_logits",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_FLASH_PREFILL_HEADS": "1",
+    "MLXL3_FLASH_DRAFT_Q4": "1",
+    "MLXL3_FLASH_DRAFT_RING": "1",
+    "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+    "MLXL3_FLASH_DRAFT_PRECAP": "0"
+  },
+  "source_commit": "3a044f39fdad9569aa88177641069253570ba12e",
+  "binary_sha256": "44307b1d7ec4ade55a554d8510fcaac89214f1fd3d100b69c4904cdc6fb996b2",
+  "started_utc": "2026-11-03T20:41:08.543587+00:00",
+  "cpu_exclusive": "all3 agent drains confirmed",
+  "exit_code": 0,
+  "elapsed_seconds": 13.57096158299828,
+  "joined": true,
+  "cases": 4,
+  "finite_state_words": 115212288,
+  "raw_log": "quality-native.log.gz",
+  "raw_log_sha256": "dd15e791bfd1bab15753cfe82f1851d2eaa5f033a47f5a5c6c8b64d28a9638fe",
+  "scope": "Functional head-elimination/state equivalence; actual bridge and short timing reports are recorded separately.",
+  "raw_log_encoding": "gzip"
+}

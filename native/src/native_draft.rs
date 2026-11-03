@@ -798,16 +798,20 @@ impl Session {
         state.blocks = 0;
         let operation = (|| {
             let mut last = None;
-            for &token in tokens {
+            for (row, &token) in tokens.iter().enumerate() {
                 ensure!(
                     !cancelled.load(std::sync::atomic::Ordering::Relaxed),
                     "generation cancelled"
                 );
-                let (logits, captured) =
-                    target.forward_captured(token, &state.draft.kind.captures())?;
+                let (logits, captured) = target.prefill_captured(
+                    token,
+                    &state.draft.kind.captures(),
+                    row,
+                    tokens.len(),
+                )?;
                 let offset = state.draft.offset;
                 state.draft.append(&captured, offset)?;
-                last = Some(logits);
+                last = logits;
             }
             last.context("empty native draft prefill")
         })();
@@ -1097,6 +1101,165 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
     ensure!(resumed < 248320);
     target.reset();
     ensure!(draft.advance(&mut target, resumed, 64, 1).is_err());
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash target/draft: headonly prefill, suffix ownership and exact continuation states"]
+fn headonly_prefill_keeps_every_capture_and_real_final_logits() -> Result<()> {
+    use crate::gpu::{FlashNext, Metal};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let gpu = Metal::new()?;
+    let mut target = FlashNext::load(&gpu, &checkpoint, 64)?;
+    let draft = Session::load(
+        Path::new(&std::env::var("MLXL3_FLASH_DRAFT_MODEL")?),
+        1,
+        &target,
+    )?;
+    let prompt = [248044, 78768, 11, 7, 19, 31, 13, 29, 17];
+    let cancelled = AtomicBool::new(false);
+    for rows in [1, 2, 3, 9] {
+        target.prefill_heads = false;
+        let before = target.target_head_calls;
+        let expected = draft.prefill(&mut target, &prompt[..rows], &cancelled)?;
+        ensure!(target.target_head_calls - before == rows);
+        ensure!(
+            expected.len() == 248320
+                && expected
+                    .iter()
+                    .all(|&v| half::f16::from_bits(v).is_finite())
+        );
+        let hidden = target
+            .last_hidden()
+            .context("missing prefill row")?
+            .export_bytes(&gpu)?;
+        let caches = draft.state.borrow().draft.cache.clone();
+        ensure!(caches.len() == 5);
+        let (continuation, trace) = target.forward_trace(11)?;
+        ensure!(trace.len() == 84);
+
+        target.prefill_heads = true;
+        let before = target.target_head_calls;
+        let actual = draft.prefill(&mut target, &prompt[..rows], &cancelled)?;
+        ensure!(
+            target.target_head_calls - before == 1,
+            "headonly still submitted an intermediate target head at rows={rows}"
+        );
+        ensure!(actual == expected && target.offset() as usize == rows);
+        ensure!(
+            target
+                .last_hidden()
+                .context("missing headonly row")?
+                .export_bytes(&gpu)?
+                == hidden
+        );
+        {
+            let state = draft.state.borrow();
+            ensure!(state.draft.offset == rows && state.draft.cache.len() == caches.len());
+            for ((k, v), (ek, ev)) in state.draft.cache.iter().zip(&caches) {
+                for (a, b) in [(k, ek), (v, ev)] {
+                    ensure!(
+                        a.rows > 0
+                            && a.cols > 0
+                            && a.rows == b.rows
+                            && a.cols == b.cols
+                            && a.values.len() == a.rows * a.cols
+                            && a.values.iter().all(|v| v.is_finite())
+                            && a.values == b.values,
+                        "headonly changed draft captures/KV at rows={rows}"
+                    );
+                }
+            }
+        }
+        let (actual_continuation, actual_trace) = target.forward_trace(11)?;
+        ensure!(actual_continuation == continuation && actual_trace.len() == trace.len());
+        let mut words = 0;
+        for (a, b) in actual_trace.iter().zip(&trace) {
+            let count = a
+                .shape
+                .iter()
+                .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                .context("trace size overflow")?;
+            ensure!(
+                count > 0
+                    && a.name == b.name
+                    && a.shape == b.shape
+                    && a.data == b.data
+                    && a.data.len() == count * 4
+                    && a.data
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite()),
+                "headonly changed continuation state {} at rows={rows}",
+                a.name
+            );
+            words += count;
+        }
+        ensure!(words == 28_803_072);
+        eprintln!(
+            "headonly rows={rows}: heads={rows}->1, logits=248320, state_words={words}, draft_KV=exact"
+        );
+
+        if rows == 3 {
+            let before = target.target_head_calls;
+            draft.prefill(&mut target, &prompt[..1], &cancelled)?;
+            let target_prefix = target.snapshot();
+            let draft_prefix = draft.snapshot_prefix(&target)?;
+            ensure!(draft.extend_prefill(&mut target, &prompt[1..rows], &cancelled)? == expected);
+            ensure!(
+                target.target_head_calls - before == 2,
+                "each suffix needs its own final head"
+            );
+            target.restore(&target_prefix)?;
+            draft.restore_prefix(&target, &draft_prefix)?;
+            let before = target.target_head_calls;
+            ensure!(draft.extend_prefill(&mut target, &prompt[1..rows], &cancelled)? == expected);
+            ensure!(target.target_head_calls - before == 1);
+            ensure!(target.forward(11)? == continuation);
+        }
+    }
+    cancelled.store(true, Ordering::Relaxed);
+    let before = target.target_head_calls;
+    ensure!(
+        draft
+            .prefill(&mut target, &prompt[..3], &cancelled)
+            .is_err()
+    );
+    ensure!(target.offset() == 0 && draft.state.borrow().draft.offset == 0);
+    ensure!(target.target_head_calls == before);
+    cancelled.store(false, Ordering::Relaxed);
+    for invalid in [&[][..], &[248320][..], &[0; 64][..]] {
+        ensure!(draft.prefill(&mut target, invalid, &cancelled).is_err());
+        ensure!(target.offset() == 0 && draft.state.borrow().draft.offset == 0);
+    }
+    let weight = draft
+        .state
+        .borrow_mut()
+        .draft
+        .weights
+        .remove("fc.weight")
+        .context("missing FC test weight")?;
+    ensure!(
+        draft
+            .prefill(&mut target, &prompt[..3], &cancelled)
+            .is_err()
+    );
+    ensure!(target.offset() == 0 && draft.state.borrow().draft.offset == 0);
+    ensure!(
+        target.target_head_calls == before,
+        "failed first headless append submitted a head"
+    );
+    draft
+        .state
+        .borrow_mut()
+        .draft
+        .weights
+        .insert("fc.weight".into(), weight);
+    let recovered = draft.prefill(&mut target, &prompt[..2], &cancelled)?;
+    ensure!(recovered.len() == 248320 && target.offset() == 2);
     Ok(())
 }
 

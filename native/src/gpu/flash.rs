@@ -143,6 +143,10 @@ pub struct FlashTraceTensor {
 pub struct FlashNext<'a> {
     checkpoint_path: std::path::PathBuf,
     lookahead_depth: usize,
+    #[cfg(feature = "chat")]
+    pub(crate) prefill_heads: bool,
+    #[cfg(test)]
+    pub(crate) target_head_calls: usize,
     pub(super) prefetcher: Option<Rc<RefCell<super::moe::PrefetchPool<'a>>>>,
     owner: Rc<()>,
     pub(super) hidden: Option<MatrixView>,
@@ -158,6 +162,13 @@ pub struct FlashNext<'a> {
 impl<'a> FlashNext<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
+        #[cfg(feature = "chat")]
+        let prefill_heads = match std::env::var("MLXL3_FLASH_PREFILL_HEADS") {
+            Ok(v) if v == "0" => false,
+            Ok(v) if v == "1" => true,
+            Err(std::env::VarError::NotPresent) => true,
+            _ => anyhow::bail!("MLXL3_FLASH_PREFILL_HEADS must be 0 or 1"),
+        };
         let context = if context == 0 {
             u32::try_from(config.context)?
         } else {
@@ -242,6 +253,10 @@ impl<'a> FlashNext<'a> {
         Ok(Self {
             checkpoint_path: c.path.clone(),
             lookahead_depth,
+            #[cfg(feature = "chat")]
+            prefill_heads,
+            #[cfg(test)]
+            target_head_calls: 0,
             prefetcher,
             owner: Rc::new(()),
             hidden: None,
@@ -383,10 +398,34 @@ impl<'a> FlashNext<'a> {
         token: u32,
         ids: &[usize; 5],
     ) -> Result<(Vec<u16>, crate::native_bf16::Matrix)> {
+        let (logits, captured) = self.forward_captured_inner(token, ids, true)?;
+        Ok((logits.context("missing target head")?, captured))
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn prefill_captured(
+        &mut self,
+        token: u32,
+        ids: &[usize; 5],
+        row: usize,
+        rows: usize,
+    ) -> Result<(Option<Vec<u16>>, crate::native_bf16::Matrix)> {
+        let head = crate::flash_support::prefill_head_required(row, rows, self.prefill_heads)
+            .context("invalid native draft prefill row")?;
+        self.forward_captured_inner(token, ids, head)
+    }
+
+    #[cfg(feature = "chat")]
+    fn forward_captured_inner(
+        &mut self,
+        token: u32,
+        ids: &[usize; 5],
+        head: bool,
+    ) -> Result<(Option<Vec<u16>>, crate::native_bf16::Matrix)> {
         let before = self.snapshot();
         let operation = (|| {
             let mut rows = Vec::with_capacity(5);
-            let logits = self.prefill_inner(&[token], None, Some((ids, &mut rows)))?;
+            let logits = self.prefill_inner(&[token], None, Some((ids, &mut rows)), head)?;
             ensure!(rows.len() == 5, "incomplete native draft captures");
             let mut captured = Vec::with_capacity(12800);
             for row in rows {
@@ -450,18 +489,22 @@ impl<'a> FlashNext<'a> {
 
     pub fn forward_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
         let mut trace = Vec::with_capacity(84);
-        let logits = self.prefill_inner(&[token], Some(&mut trace), None)?;
+        let logits = self
+            .prefill_inner(&[token], Some(&mut trace), None, true)?
+            .context("missing target trace head")?;
         Ok((logits, trace))
     }
     pub fn prefill(&mut self, tokens: &[u32]) -> Result<Vec<u16>> {
-        self.prefill_inner(tokens, None, None)
+        self.prefill_inner(tokens, None, None, true)?
+            .context("missing target prefill head")
     }
     fn prefill_inner(
         &mut self,
         tokens: &[u32],
         trace: Option<&mut Vec<FlashTraceTensor>>,
         captures: Option<(&[usize], &mut Vec<MatrixView>)>,
-    ) -> Result<Vec<u16>> {
+        head: bool,
+    ) -> Result<Option<Vec<u16>>> {
         let end = crate::flash_support::flash_prompt_end(self.offset, tokens.len(), self.context)
             .context("empty prompt or Flash context exhausted")?;
         ensure!(
@@ -475,8 +518,16 @@ impl<'a> FlashNext<'a> {
                 self.hidden(token, None, None)?;
             }
             let streams = self.hidden(last, trace, captures)?;
-            let mixed = self.mixer.read(&streams, false)?.mixed;
-            let logits = self.head.submit_fp16_view(&mixed)?.read()?;
+            let logits = if head {
+                let mixed = self.mixer.read(&streams, false)?.mixed;
+                #[cfg(test)]
+                {
+                    self.target_head_calls += 1;
+                }
+                Some(self.head.submit_fp16_view(&mixed)?.read()?)
+            } else {
+                None
+            };
             self.hidden = Some(streams);
             Ok(logits)
         })();
