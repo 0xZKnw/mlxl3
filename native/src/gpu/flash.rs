@@ -110,6 +110,30 @@ pub struct FlashSnapshot {
     hidden: Option<MatrixView>,
 }
 
+impl FlashSnapshot {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        if let Some(hidden) = &self.hidden {
+            backings.record("prompt_cache", &hidden.buffer)?;
+        }
+        for layer in &self.layers {
+            match layer {
+                State::Gdn(state) => state.record_memory(backings, "prompt_cache")?,
+                State::Ple(state) => state.record_memory(backings, "prompt_cache")?,
+                State::Qsa(state) => state.record_memory(backings, "prompt_cache")?,
+            }
+        }
+        Ok(())
+    }
+    pub fn retained_bytes(&self) -> Result<u64> {
+        let mut backings = crate::gpu::memory::Backings::default();
+        self.record_memory(&mut backings)?;
+        backings.total()
+    }
+    pub fn position(&self) -> u32 {
+        self.offset
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct FlashTraceTensor {
     pub name: String,
@@ -238,6 +262,9 @@ impl<'a> FlashNext<'a> {
             hidden: self.hidden.clone(),
             layers: self.layers.iter().map(Layer::snapshot).collect(),
         }
+    }
+    pub(super) fn owns_snapshot(&self, snapshot: &FlashSnapshot) -> bool {
+        Rc::ptr_eq(&self.owner, &snapshot.owner)
     }
     pub fn restore(&mut self, s: &FlashSnapshot) -> Result<()> {
         ensure!(

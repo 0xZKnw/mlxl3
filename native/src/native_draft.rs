@@ -566,8 +566,42 @@ struct State {
 
 /// Owns the native draft and commits only tokens verified by the target model.
 pub struct Session {
+    owner: std::rc::Rc<()>,
     checkpoint: std::path::PathBuf,
     state: std::cell::RefCell<State>,
+}
+#[derive(serde::Serialize)]
+pub struct MemoryPayload {
+    pub weights_bytes: usize,
+    pub state_bytes: usize,
+    pub pending_tokens_bytes: usize,
+}
+/// A prompt checkpoint contains draft state only, never the draft weight matrices.
+#[derive(Clone)]
+pub struct Prefix {
+    owner: std::rc::Rc<()>,
+    cache: Vec<(Matrix, Matrix)>,
+    offset: usize,
+    target_row: crate::gpu::MatrixView,
+    target_offset: u32,
+}
+impl Prefix {
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.cache.iter().try_fold(
+            self.cache
+                .capacity()
+                .checked_mul(std::mem::size_of::<(Matrix, Matrix)>())
+                .context("draft prefix size overflow")?,
+            |sum, (k, v)| {
+                k.values
+                    .capacity()
+                    .checked_add(v.values.capacity())
+                    .and_then(|n| n.checked_mul(4))
+                    .and_then(|n| sum.checked_add(n))
+                    .context("draft prefix size overflow")
+            },
+        )
+    }
 }
 impl Session {
     pub fn load(path: &Path, mode: usize, target: &crate::gpu::FlashNext) -> Result<Self> {
@@ -585,6 +619,7 @@ impl Session {
             draft.cache_capacity = 2048;
         }
         Ok(Self {
+            owner: std::rc::Rc::new(()),
             checkpoint: target.checkpoint_path().to_path_buf(),
             state: std::cell::RefCell::new(State {
                 draft,
@@ -602,6 +637,84 @@ impl Session {
             }),
         })
     }
+    /// Payload capacity only; process footprint also includes container and framework overhead.
+    pub fn memory_payload(&self) -> Result<MemoryPayload> {
+        let state = self.state.borrow();
+        let payload = |values: &[&Matrix]| -> Result<usize> {
+            values.iter().try_fold(0usize, |sum, value| {
+                value
+                    .values
+                    .capacity()
+                    .checked_mul(4)
+                    .and_then(|bytes| sum.checked_add(bytes))
+                    .context("draft host payload overflow")
+            })
+        };
+        let weights_bytes = payload(&state.draft.weights.values().collect::<Vec<_>>())?;
+        let state_bytes = payload(
+            &state
+                .draft
+                .cache
+                .iter()
+                .flat_map(|(k, v)| [k, v])
+                .collect::<Vec<_>>(),
+        )?;
+        Ok(MemoryPayload {
+            weights_bytes,
+            state_bytes,
+            pending_tokens_bytes: state
+                .pending
+                .capacity()
+                .checked_mul(4)
+                .context("draft pending size overflow")?,
+        })
+    }
+    pub fn snapshot_prefix(&self, target: &crate::gpu::FlashNext) -> Result<Prefix> {
+        let state = self.state.borrow();
+        ensure!(
+            state.pending.is_empty()
+                && state.pending_anchor.is_none()
+                && state.pending_offset == target.offset()
+                && state.draft.offset == target.offset() as usize,
+            "only a complete draft prefill can be cached"
+        );
+        let row = state
+            .pending_row
+            .as_ref()
+            .context("missing draft prefix row")?;
+        ensure!(
+            target.last_hidden().is_some_and(|r| row.shares_storage(r)),
+            "draft prefix belongs to another target state"
+        );
+        Ok(Prefix {
+            owner: self.owner.clone(),
+            cache: state.draft.cache.clone(),
+            offset: state.draft.offset,
+            target_row: row.clone(),
+            target_offset: target.offset(),
+        })
+    }
+    pub fn restore_prefix(&self, target: &crate::gpu::FlashNext, prefix: &Prefix) -> Result<()> {
+        ensure!(
+            std::rc::Rc::ptr_eq(&self.owner, &prefix.owner)
+                && prefix.target_offset == target.offset()
+                && target
+                    .last_hidden()
+                    .is_some_and(|r| prefix.target_row.shares_storage(r)),
+            "draft prefix belongs to another session or target state"
+        );
+        self.reset();
+        let mut state = self.state.borrow_mut();
+        state.draft.cache = prefix.cache.clone();
+        state.draft.offset = prefix.offset;
+        state.pending_row = Some(prefix.target_row.clone());
+        state.pending_offset = prefix.target_offset;
+        state.stats = Default::default();
+        state.proposed = 0;
+        state.accepted = 0;
+        state.blocks = 0;
+        Ok(())
+    }
     pub fn reset(&self) {
         let mut state = self.state.borrow_mut();
         state.draft.cache.clear();
@@ -609,6 +722,17 @@ impl Session {
         state.pending.clear();
         state.pending_anchor = None;
         state.pending_row = None;
+        state.pending_offset = 0;
+        state.stats = Default::default();
+        state.proposed = 0;
+        state.accepted = 0;
+        state.blocks = 0;
+        let State {
+            verify_budget,
+            pre_budget,
+            ..
+        } = &mut *state;
+        crate::flash_draft_budget::reset_request_budgets(verify_budget, pre_budget);
     }
     pub fn stats(&self) -> (usize, usize, usize) {
         let s = self.state.borrow();
@@ -635,7 +759,39 @@ impl Session {
         );
         target.reset();
         self.reset();
+        self.extend_prefill(target, tokens, cancelled)
+    }
+    pub fn extend_prefill(
+        &self,
+        target: &mut crate::gpu::FlashNext,
+        tokens: &[u32],
+        cancelled: &std::sync::atomic::AtomicBool,
+    ) -> Result<Vec<u16>> {
+        ensure!(
+            target.checkpoint_path() == self.checkpoint
+                && !tokens.is_empty()
+                && tokens.iter().all(|&t| t < 248320)
+                && (target.offset() as usize)
+                    .checked_add(tokens.len())
+                    .is_some_and(|end| end < target.context_limit() as usize),
+            "invalid native draft suffix"
+        );
         let mut state = self.state.borrow_mut();
+        ensure!(
+            state.draft.offset == target.offset() as usize
+                && state.pending.is_empty()
+                && state.pending_anchor.is_none(),
+            "draft suffix requires a restored prefill state"
+        );
+        ensure!(
+            (target.offset() == 0 && state.pending_row.is_none())
+                || state
+                    .pending_row
+                    .as_ref()
+                    .zip(target.last_hidden())
+                    .is_some_and(|(a, b)| a.shares_storage(b)),
+            "draft suffix belongs to another target prefix"
+        );
         state.stats = Default::default();
         state.proposed = 0;
         state.accepted = 0;
@@ -941,5 +1097,74 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
     ensure!(resumed < 248320);
     target.reset();
     ensure!(draft.advance(&mut target, resumed, 64, 1).is_err());
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn request_reset_discards_adaptation_counters_and_pending_prefix() -> Result<()> {
+    let mut verify_budget = crate::flash_draft_budget::VerifyBudget::default();
+    ensure!(verify_budget.observe(&[0.9, 0.8], 1, 0.1).is_some());
+    ensure!(verify_budget.has_request_observations());
+    let mut pre_budget = crate::flash_draft_budget::PreDraftBudget::default();
+    ensure!(pre_budget.observe(1, 1, 100).is_some() && pre_budget.choose(3) == 2);
+    let session = Session {
+        owner: std::rc::Rc::new(()),
+        checkpoint: Default::default(),
+        state: std::cell::RefCell::new(State {
+            draft: Draft {
+                kind: Kind::Dflash2,
+                weights: Default::default(),
+                cache: Vec::new(),
+                offset: 7,
+                cache_capacity: 2048,
+            },
+            options: crate::flash_draft_options::Options {
+                q4: true,
+                ring: true,
+                adaptive: true,
+                precap: true,
+                width: 3,
+            },
+            pending: [1, 2].into(),
+            pending_anchor: Some(1),
+            pending_row: None,
+            pending_offset: 7,
+            stats: crate::runtime_stats::FlashDraftProfile {
+                draft_seconds: 1.,
+                drafted_rows: 3,
+                ..Default::default()
+            },
+            proposed: 7,
+            accepted: 3,
+            blocks: 2,
+            verify_budget,
+            pre_budget,
+        }),
+    };
+    session.reset();
+    let state = session.state.borrow();
+    ensure!(
+        !state.verify_budget.has_request_observations(),
+        "request reset retained verify observations"
+    );
+    ensure!(
+        state.pre_budget.choose(3) == 1,
+        "request reset retained pre-draft observations"
+    );
+    ensure!(
+        state.proposed == 0
+            && state.accepted == 0
+            && state.blocks == 0
+            && state.stats.drafted_rows == 0
+            && state.stats.draft_seconds == 0.
+    );
+    ensure!(
+        state.pending.is_empty()
+            && state.pending_anchor.is_none()
+            && state.pending_row.is_none()
+            && state.pending_offset == 0
+            && state.draft.offset == 0
+    );
     Ok(())
 }

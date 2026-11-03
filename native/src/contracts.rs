@@ -2479,3 +2479,69 @@ fn draft_dense_extent_checks_blas_and_allocation_boundaries() {
         assert_eq!(draft_dense_extent(rows, cols), None);
     }
 }
+
+/// A whole native prefix has no batch-shape restriction because every target dispatch is one row.
+pub fn native_prompt_reuse(
+    saved: &[u32],
+    next: &[u32],
+    same_conversation: bool,
+    same_mode: bool,
+    enabled: bool,
+) -> usize {
+    if enabled && same_conversation && same_mode {
+        reusable_prefix_len(saved, next, 1)
+    } else {
+        0
+    }
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(17)]
+fn native_prompt_reuse_requires_the_whole_prefix_and_matching_owners() {
+    let saved: [u32; 3] = kani::any();
+    let next: [u32; 4] = kani::any();
+    let n: usize = kani::any();
+    let m: usize = kani::any();
+    kani::assume(n <= 3 && m <= 4);
+    let conversation: bool = kani::any();
+    let mode: bool = kani::any();
+    let enabled: bool = kani::any();
+    let actual = native_prompt_reuse(&saved[..n], &next[..m], conversation, mode, enabled);
+    let matching = n > 0 && n <= m && (0..n).all(|i| saved[i] == next[i]);
+    assert_eq!(
+        actual,
+        if matching && conversation && mode && enabled {
+            n
+        } else {
+            0
+        }
+    );
+    kani::cover!(actual == 3 && m == 4);
+    kani::cover!(n == m && actual == n && n > 0);
+    kani::cover!(!mode && actual == 0);
+    kani::cover!(!conversation && actual == 0);
+    kani::cover!(n > 0 && !matching && actual == 0);
+}
+
+#[cfg(test)]
+#[test]
+fn native_prompt_reuse_rejects_partial_states_and_mismatched_requests() {
+    assert_eq!(
+        native_prompt_reuse(&[5, 7], &[5, 7, 11], true, true, true),
+        2
+    );
+    assert_eq!(native_prompt_reuse(&[5, 7], &[5, 7], true, true, true), 2);
+    for (saved, next, conversation, mode, enabled) in [
+        (&[][..], &[5, 7][..], true, true, true),
+        (&[5, 7][..], &[5][..], true, true, true),
+        (&[5, 7][..], &[5, 9][..], true, true, true),
+        (&[5, 7][..], &[5, 7][..], false, true, true),
+        (&[5, 7][..], &[5, 7][..], true, false, true),
+        (&[5, 7][..], &[5, 7][..], true, true, false),
+    ] {
+        assert_eq!(
+            native_prompt_reuse(saved, next, conversation, mode, enabled),
+            0
+        );
+    }
+}

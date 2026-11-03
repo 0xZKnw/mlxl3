@@ -2198,7 +2198,10 @@ struct PromptCache {
     mtp: Option<mlxl3_native::mtp::Cache>,
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn prompt_cache_budget() -> Result<usize> {
     Ok(match std::env::var("MLXL3_PROMPT_CACHE_MIB") {
         Ok(value) => value
@@ -2992,7 +2995,7 @@ fn bridge_generate_round(
         )?;
     }
     #[cfg(not(feature = "mlx"))]
-    if let Some(plan) = model.admit_request(tokens.len() + budget)? {
+    if let Some(plan) = direct_bridge::admit_request(model, tokens.len() + budget, cache, reuse)? {
         emit_event(
             json!({"type":"flash_memory_plan","request_id":request_id,"ar":plan,"memory":model.memory_ledger(None)?}),
         )?;
@@ -3034,12 +3037,18 @@ fn bridge_generate_round(
     };
     #[cfg(not(feature = "mlx"))]
     let (mut logits, cached, mut mtp_session) = {
-        let _ = (dflash_mode, cache, conversation, reuse);
-        if let Some(draft) = draft {
-            (draft.prefill(model, &tokens, cancelled)?, 0, None)
-        } else {
-            direct_bridge::prefill(model, mtp.as_deref_mut(), &tokens, mtp_depth, cancelled)?
-        }
+        let _ = dflash_mode;
+        direct_bridge::prefill(
+            model,
+            mtp.as_deref_mut(),
+            draft,
+            &tokens,
+            mtp_depth,
+            cache,
+            conversation,
+            reuse,
+            cancelled,
+        )?
     };
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     #[cfg(feature = "mlx")]

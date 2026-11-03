@@ -109,6 +109,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_memory::admission_and_shrink_respect_memory_bounds",
         "flash_memory::native_admission_covers_the_complete_geometric_slab",
         "flash_memory::native_request_budget_keeps_every_configured_limit_ar_only",
+        "contracts::native_prompt_reuse_requires_the_whole_prefix_and_matching_owners",
+        "flash_draft_budget::request_budget_reset_discards_all_observations",
         "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
         "flash_support::stale_prefetch_completion_preserves_new_reservation",
     }

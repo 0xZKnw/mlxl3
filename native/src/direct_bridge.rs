@@ -1,37 +1,16 @@
 //! Resident Flash bridge over the native Metal session.
 use super::*;
 use mlxl3_native::{
-    gpu::{FlashMtpHead, FlashMtpSession, FlashNext, Metal},
+    gpu::{FlashMtpHead, FlashNext, Metal},
     tokenizer::ChatTokenizer,
 };
 use std::path::Path;
 
 pub(super) type NativeChatModel<'a> = FlashNext<'a>;
 pub(super) type ChatMtpHead<'a> = FlashMtpHead<'a>;
-// Flash re-prefills each request, as does the stock Flash bridge.
-pub(super) type PromptCache = std::convert::Infallible;
-
-pub(super) fn prefill(
-    model: &mut NativeChatModel,
-    head: Option<&mut ChatMtpHead>,
-    tokens: &[u32],
-    depth: usize,
-    cancelled: &AtomicBool,
-) -> Result<(Vec<u16>, usize, Option<FlashMtpSession>)> {
-    if let Some(head) = head {
-        anyhow::ensure!(depth == 1, "Flash MTP supports depth 1");
-        let mut session = FlashMtpSession::default();
-        let logits = session.prefill(model, head, tokens, cancelled)?;
-        return Ok((logits, 0, Some(session)));
-    }
-    model.reset();
-    let mut last = None;
-    for chunk in tokens.chunks(mlxl3_native::flash_support::PREFILL_CHUNK) {
-        anyhow::ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
-        last = Some(model.prefill(chunk)?);
-    }
-    Ok((last.context("empty Flash prompt")?, 0, None))
-}
+#[path = "native_prompt_cache.rs"]
+mod prefix;
+pub(super) use prefix::{PromptCache, admit_request, prefill};
 
 pub(super) fn select(
     model: &NativeChatModel,
@@ -137,6 +116,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     let size = c.size_bytes as f64 / 1e9;
     let mut head: Option<(String, FlashMtpHead)> = None;
     let mut draft: Option<(String, usize, RoundDraft)> = None;
+    let mut prompt_cache: Option<PromptCache> = None;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
@@ -156,6 +136,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         let request: BridgeRequest = match serde_json::from_str(&line) {
             Ok(r) => r,
             Err(e) => {
+                prompt_cache = None;
                 emit_event(
                     json!({"type":"error","request_id":"","message":format!("invalid bridge request: {e}")}),
                 )?;
@@ -169,7 +150,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         let result = (|| -> Result<()> {
             match request.kind.as_str() {
                 "flash_memory" => emit_event(
-                    json!({"type":"flash_memory","request_id":id,"ledger":model.memory_ledger(head.as_ref().map(|(_,head)|head))?}),
+                    json!({"type":"flash_memory","request_id":id,"ledger":prefix::ledger(&model,head.as_ref().map(|(_,head)|head),draft.as_ref().map(|(_,_,draft)|draft),prompt_cache.as_ref())?}),
                 ),
                 "ping" => emit_event(
                     json!({"type":"pong","request_id":id,"memory":model.memory_stats()?}),
@@ -181,6 +162,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     )
                 }
                 "set_mtp" => {
+                    prompt_cache = None;
                     model.reset();
                     if request.enabled {
                         draft = None;
@@ -193,6 +175,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     )
                 }
                 "set_dflash" => {
+                    prompt_cache = None;
                     model.reset();
                     if request.enabled {
                         head = None;
@@ -226,6 +209,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                     let draft_seconds = if active {
                         anyhow::ensure!(request.mtp_depth == 1, "Flash MTP supports depth 1");
                         if prepare_head(&request.mtp_head_path, &c, &model, &mut head)? {
+                            prompt_cache = None;
                             started.elapsed().as_secs_f64()
                         } else {
                             0.
@@ -241,6 +225,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         );
                         head = None;
                         if prepare_draft(&request, &model, &mut draft)? {
+                            prompt_cache = None;
                             started.elapsed().as_secs_f64()
                         } else {
                             0.
@@ -277,7 +262,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         request.dflash_mode,
                         started,
                         draft_seconds,
-                        &mut None,
+                        &mut prompt_cache,
                         if request.conversation_id.is_empty() {
                             &id
                         } else {
@@ -287,6 +272,10 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         request.allowed_tools.as_deref(),
                         request.response_schema.as_deref(),
                     );
+                    if result.is_err() || cancelled.load(Ordering::Relaxed) || request.memory_saver
+                    {
+                        prompt_cache = None;
+                    }
                     if request.memory_saver {
                         if let Err(error) = model.release_idle_state() {
                             eprintln!("Idle memory cleanup failed: {error:#}");
@@ -306,6 +295,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
             }
         })();
         if let Err(e) = result {
+            prompt_cache = None;
             model.reset();
             head = None;
             draft = None;
