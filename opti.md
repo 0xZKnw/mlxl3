@@ -1,5 +1,17 @@
 # MLXL3 — journal des optimisations
 
+
+## I75-N7-FLASH-PACKAGE-20261103 — explicit native build and artifact metadata
+
+Before implementation. User prioritizes Flash Next on the native engine. Base 98c68cdf integrates the qualified Flash product and #95 archive/client acceptance. Source audit found that native packaging relies on Cargo default features and build-info labels the engine from an environment flag instead of the actual packaged artifact. Keep the explicit compatibility backend, make native feature selection self-contained, and derive runtime/backend/version/hash from the verified bundled engine manifest. The quantizer still bundles MLX and must remain labeled separately; no whole-app zero-MLX claim.
+
+Repeat the relevant #95 build/archive controls to verify these two changed properties: isolated production-script tests with fake tools, native/legacy/default/stale-environment metadata, wrong schema/hash/missing/foreign files and nonempty success. Check zsh syntax, Python format/lint and source contracts with CrossHair when practical, then produce a real signed native engine-only archive from this integrated source using a private Cargo target. Inspect runtime-info, linked and loaded libraries, payload hashes and relocation; root owns actual Swift client/archive install and native Flash generation. No installed app replacement, merge, release or throughput experiment. Builds/proofs stay in the coordinated CPU window; physical inference stays in exclusive GPU slots.
+
+
+- Initial integrated-base result: 88 package/builder/metadata tests pass, including unset/stale flags and malformed artifacts. The previous actual script labels a native artifact “Rust + MLX0.32.2”; the same disposable fixture labels “Rust + Metal” after the fix and records its exact executable hash. CrossHair confirms two classifier postconditions in symbolic counterexample search; no filesystem/process proof is claimed. Format/lint, zsh syntax and reviewed inventory pass. A real clean-venv build (no MLX/mlx-lm, nonexistent MLX root) succeeds in40.53s; signed archive3,634,621 bytes SHA62bfb6dc, engine9,818,224 bytes SHA7080c966, source98c68cdf-dirty. Relocation/runtime-info and linked/loaded audits pass. Raw initial evidence is retained in docs/native-coverage/flash-package.
+
+- User merged the published stack into main599628120c95. Carry only this packaging delta onto that source, then rebuild because the integrated native module set changed. The earlier98c68cdf artifact remains a distinct initial result; it does not qualify the new main binary. Future PR targets main. No GPU/model jobs run here, no installed app replaced, no whole-app zero-MLX claim.
+
 ## I75-N8-FEEDBACK-20261103 — native FP32 LDLQ compensation
 
 Avant implémentation. Le candidat hôte #102 conserve son échec LDLQ :446/4096 mots diffèrent, les deux dernières rangées de tuiles concordent et le premier écart suit le produit inter-buffer de réduction32. Le treillis direct et les transformations H128 sont qualifiés séparément. Hypothèse : les produits NumPy FP32 ne reproduisent pas l’ordre d’accumulation du GEMM Metal de MLX0.32.2. Le [matmul officiel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/matmul.cpp) et [steel/mma.h](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/steel/gemm/mma.h) utilisent des fragments8x8 en ordre croissant ; le kernel index QSA natif utilise déjà cette primitive. Porter un produit FP32 borné et autonome, puis le raccorder aux deux compensations LDLQ sans remplacer les erreurs par une validation.
