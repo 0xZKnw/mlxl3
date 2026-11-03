@@ -15,6 +15,8 @@ Planned validation: same/extended/divergent prompts and conversations, cache bud
 
 
 
+- First full strict cache CPU lint finds reset_request_budgets unused in the headless test-only module. Gate the helper to its real native/reference callers and Kani, preserving the headless budget tests without a dead-code suppression. No model campaign has started. Retain clippy-cpu-initial.log before the corrected batch.
+
 - Corrected reset regression passes1 selected test; eligibility passes1 selected test. The real reset helper Kani checks794 obligations with2covers in2.90s at unwind17, symbolic scalar/float contents and0..2 queued labels;18 unreachable statuses are standard formatting/allocation/ZST branches, not the reset assertions. It does not prove larger queues, concurrency or Metal. Source review found no concrete reset correctness issue. The initial native reset failure remains in reset-before.log.
 
 - Before the production-bridge cache qualification, add one explicitly selected native integration journey: same-conversation cold/repeat requests in AR, MTP and DFlash mode 1; exact independent two-token hash and cached/evaluated token counters; mode switch, disabled reuse, malformed/error cleanup, memory-saver release, delta cancellation and cold recovery. Use a disposable registry, one owned child process group, bounded startup/request/cleanup waits and no request memory budget. The existing no-model eligibility/Kani and full state fixture remain separate controls. This is functional validation, with no throughput claim.

@@ -49,6 +49,11 @@ impl PreDraftBudget {
     }
 }
 /// Learning is request-local in both reference and native Flash sessions.
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    kani
+))]
 pub(crate) fn reset_request_budgets(verify: &mut VerifyBudget, pre: &mut PreDraftBudget) {
     *verify = VerifyBudget::default();
     *pre = PreDraftBudget::default();
