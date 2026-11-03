@@ -1,0 +1,42 @@
+{
+  "status": "verified",
+  "parity": true,
+  "source_head": "42465d1f8ea1",
+  "main_base": "599628120c95df45b00a2076ffe466331a9c94f2",
+  "archive": "/Users/justin/.codex/worktrees/issue75-native-flash-packaging/mix-stq1_0/dist/MLXL3-Engine-v2.0.2-arm64.tar.gz",
+  "archive_sha256": "21ce5f0194f4ee99f9fdea09c11d739bbdf817c52b8fdd6d97ad77c536364227",
+  "archive_bytes": 3701364,
+  "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-packaging/mix-stq1_0/build/rust-runtime/mlxl3",
+  "engine_sha256": "8e4cfbc405e90dce61c3910c59d370959e543ede5f340060150f7319d5fc9f2a",
+  "engine_bytes": 10002080,
+  "runtime_info": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "42465d1f8ea1",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "members": [
+    "engine.json",
+    "mlxl3"
+  ],
+  "build_info": {
+    "version": "2.0.0",
+    "build": "37",
+    "commit": "42465d1f8ea14b83ec67c8adb151195b9fbf8af7",
+    "tracked_changes": false,
+    "runtime": "Rust + Metal",
+    "engine": {
+      "backend": "metal",
+      "version": "2.0.2",
+      "sha256": "8e4cfbc405e90dce61c3910c59d370959e543ede5f340060150f7319d5fc9f2a"
+    },
+    "quantizer_runtime": "PonyExl3 + MLX",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+  },
+  "relocation": "signed extracted engine runs and truthful metadata emits with stale mlx build flag"
+}
