@@ -646,38 +646,49 @@ extension CodeBlockView {
       }
       try await ensurePresented(label)
       try await Task.sleep(for: .milliseconds(350))
-      var snapshot = try capture()
-      let firstImage = snapshot.image
-      var text = try await Task.detached(priority: .utility) { try Self.recognizedCPU(firstImage) }
-        .value
-      var found = normalized(text).contains(normalized(marker))
+      // AppKit captures stay immutable on MainActor. Only scalar Sendable
+      // values enter the short-circuit autoclosures; they must not capture a
+      // mutable tuple that also owns an NSBitmapImageRep.
+      let firstSnapshot = try capture()
+      let firstInk = firstSnapshot.ink
+      let firstImage = firstSnapshot.image
+      let firstText = try await Task.detached(priority: .utility) {
+        try Self.recognizedCPU(firstImage)
+      }.value
+      let firstFound = normalized(firstText).contains(normalized(marker))
       report(
-        "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+        "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(firstInk) marker=\(firstFound) onscreen=\(firstSnapshot.onscreen) documentHeight=\(firstSnapshot.height) offset=\(firstSnapshot.offset)"
       )
-      if !found || snapshot.ink < 40 {
+      if !firstFound || firstInk < 40 {
         firstMisses += 1
-        report("FIRST MISS \(label): expected=\(marker); OCR=\(text)")
-        try saveBitmap(snapshot.bitmap, suffix: "first-miss")
+        report("FIRST MISS \(label): expected=\(marker); OCR=\(firstText)")
+        try saveBitmap(firstSnapshot.bitmap, suffix: "first-miss")
         // Let native layout and scroll animations run without the OCR observer blocking the main actor.
         try await Task.sleep(for: .seconds(2))
-        snapshot = try capture()
-        let settledImage = snapshot.image
-        text = try await Task.detached(priority: .utility) { try Self.recognizedCPU(settledImage) }
-          .value
-        found = normalized(text).contains(normalized(marker))
+        let settledSnapshot = try capture()
+        let settledInk = settledSnapshot.ink
+        let settledImage = settledSnapshot.image
+        let settledText = try await Task.detached(priority: .utility) {
+          try Self.recognizedCPU(settledImage)
+        }.value
+        let settledFound = normalized(settledText).contains(normalized(marker))
+        let recovered = settledFound && settledInk >= 40
         report(
-          "\(label) settled ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
+          "\(label) settled ink=\(settledInk) marker=\(settledFound) onscreen=\(settledSnapshot.onscreen) documentHeight=\(settledSnapshot.height) offset=\(settledSnapshot.offset)"
         )
         try saveBitmap(
-          snapshot.bitmap,
-          suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
-      } else if save {
-        try saveBitmap(snapshot.bitmap, suffix: "first")
+          settledSnapshot.bitmap, suffix: recovered ? "settled-recovery" : "settled-failure")
+        try require(
+          recovered,
+          "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(settledText); ink=\(settledInk), height=\(settledSnapshot.height), offset=\(settledSnapshot.offset)"
+        )
+      } else {
+        if save { try saveBitmap(firstSnapshot.bitmap, suffix: "first") }
+        try require(
+          firstInk >= 40 && firstFound,
+          "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(firstText); ink=\(firstInk), height=\(firstSnapshot.height), offset=\(firstSnapshot.offset)"
+        )
       }
-      try require(
-        snapshot.ink >= 40 && found,
-        "Visible tail persistently missing at \(label): expected=\(marker); OCR=\(text); ink=\(snapshot.ink), height=\(snapshot.height), offset=\(snapshot.offset)"
-      )
       frames += 1
     }
     let checkpoints = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"]

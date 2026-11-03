@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### PR72-2026-11-03-SWIFT-CAPTURE — correction du harnais autorisée, préenregistré
+
+- Nouvelle autorisation : corriger l’échecSwift, pousser, vérifier les contrôles applicables et fusionner si conditions remplies, sans contourner les protections. Tête6d828f31 et mainb9d5cbdc relus, arbrepropre ; aucun changement Macpersonnel/app/moteur prévu.
+- Contre-exemple6d confirmé : job125832698375 échoue encore à2316 sur `!found || snapshot.ink < 40`, après62/17/25/240réussis. Les annotationsMainActor seules n’ont pas suffi ; trace `desktop-6d828f31-compile-failure.log` conservée, ancien correctif non requalifié en succès.
+- Mécanisme visé avant édition : tuplemutable contenant NSBitmap capturé en bloc par l’autoclosure de ||, puis réutilisé/muté après suspension. Conserver deux capturesUI immuables (initiale/settled), extraire ink en IntSendable avant les opérateurs logiques. Garder OCRCPU détaché sur le même CGImage, l’attente2s, les mêmes marqueurs/seuils40 et deux chemins d’échec. Aucun uncheckedSendable, PNG intermédiaire, assertion supprimée ou changement numérique.
+- Vérification : syntaxe locale, compilationoptimisée réelle via le jobciblé déjà ajouté, puis suiteDesktop complète et jobsnatifs pertinents du SHA exact ; baseline6d fournit le contrôle négatif de compilation. Aucun gain ni essaiGPU. Les timeoutsKani du code inchangé de main restent séparés des défauts de compilation. SkillformelSwift toujours indisponible ; compilation et tests ne sont pas une preuve formelle.
+
 ### PR72-2026-11-03-FINAL-CI — derniers blocages identifiés, correctif de harnais préparé
 
 - Sur8b03ca93, jobs ciblé62/17/25/240, natifLinux etmacOS, Metal/loader, profils etconversion passent. Desktopcomplet avance au-delà de l’ancien timeout : chunking141cas, code1194fragments etMarkdown4845fragments passent ; compilationResponseUI échoue sur `sending snapshot risks causing data races`. Ce test est hérité de main, aucun défaut de génération/GPU établi par cette erreur de compilation. Trace `desktop-8b03ca93-compile-failure.log` conservée ; suitecomplète non validée.
