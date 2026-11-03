@@ -1,5 +1,5 @@
 {
-  "status": "physical_verified_final_CPU_checks_pending",
+  "status": "verified_local",
   "scope": "owned native Flash single-conversation prefill checkpoint for AR, MTP and DFlash; target plus auxiliary state, logit reuse, ledger ownership, mode/error/cancel/cleanup recovery",
   "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
   "base_PR": 108,
@@ -203,9 +203,15 @@
   "local_checks": {
     "strict_Clippy": "all three modes passed",
     "native_release": "passed35.53s",
-    "compatibility_release": "pending",
+    "compatibility_release": "passed44.93s",
     "reset_regression": "old native reset fails; corrected real Session reset passes1 test",
-    "eligibility_test": "1 passed"
+    "eligibility_test": "1 passed",
+    "final_direct_Clippy": "passed after parent fixture merge",
+    "final_direct_suite": "324 passed,33 ignored",
+    "format": "passed",
+    "inventory": "230 reviewed files, checker and4 unit tests pass",
+    "kani_CI_tests": "44 Linux-only skips on macOS",
+    "ruff": "passed"
   },
   "kani": {
     "eligibility": {
@@ -226,8 +232,28 @@
       "unreachable_scope": "inspected standard formatting/allocator/ZST branches; reset assertions reachable",
       "scope": "does not establish arbitrary queue lengths or full Session/Metal behavior"
     },
-    "mutation": "pending",
-    "global": "pending actual full-library attempt; preceding common stack has macOS compiler ICE",
+    "mutation": "Dropping the required mode match fails the actual eligibility harness with Status: FAILURE; restored source passes150 obligations/5covers.",
+    "global": {
+      "status": "macOS compiler ICE before complete package verification",
+      "diagnostic": "kani-compiler/src/intrinsics.rs:243",
+      "command": {
+        "status": "failed",
+        "exit_code": 1,
+        "seconds": 1.814508,
+        "command": [
+          "cargo",
+          "kani",
+          "--lib",
+          "--no-default-features",
+          "-Z",
+          "stubbing",
+          "--jobs",
+          "1",
+          "--output-format",
+          "terse"
+        ]
+      }
+    },
     "claim": "bounded model checking of real CPU contracts; not a proof of cache ownership, GPU, concurrency or full generation"
   },
   "retained_failures": [
@@ -238,13 +264,11 @@
     "physical driver launch PermissionError before any model started; chmod only, hashes unchanged; original report preserves failed partial setup"
   ],
   "remaining": [
-    "final proof mutation and compatibility release",
-    "merge current #108 metadata/guard fixture and review changed hashes",
     "exact published-head CI",
     "remaining DFlash mode/option and ring matrix in separate branch"
   ],
   "performance": "not measured; no speed improvement claimed",
-  "publication": "not yet pushed; no installed app or release replacement",
+  "publication": "validated local chunk, stacked on#108; push/PR creation follows",
   "integration_review": {
     "parent_PR": 108,
     "parent_head": "39dbd411254e0c9b94173782a719f314aa9a8e7a",
