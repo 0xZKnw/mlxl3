@@ -332,7 +332,12 @@ mod tests {
             .and_then(|n| n.checked_add(64 << 20))
             .context("invalid budget fixture")?;
         target.request_limit = Some(limit);
-        ensure!(target.admit_request(64)?.is_some());
+        let admission = target.admit_request(64);
+        eprintln!(
+            "native memory admission diagnostic {}",
+            serde_json::json!({"limit":limit,"plan_extra":plan.extra_bytes(),"before":before,"after":target.memory_ledger(None)?,"measured_after":gpu.observed_memory()?,"error":admission.as_ref().err().map(|e|format!("{e:#}"))})
+        );
+        ensure!(admission?.is_some());
         let shrunk = target.memory_ledger(None)?;
         ensure!(
             shrunk
