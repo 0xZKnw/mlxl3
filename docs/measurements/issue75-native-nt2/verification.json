@@ -1,0 +1,52 @@
+{
+  "method": "Kani bounded model checking of the actual Rust host helpers",
+  "source_commit": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+  "domain": "arbitrary u32 output/K/codebook/grid indices and arbitrary bool gates; no assumptions; no loops in production helpers",
+  "targeted": [
+    {
+      "helper": "selector",
+      "obligations": 8,
+      "covers": 4,
+      "log": "kani-selector.log",
+      "sha256": "ac6bdb59fb3f0543fb3b7b65bd32a0ee35ed696ad275409cd6a4f520bdc0fb55"
+    },
+    {
+      "helper": "grid",
+      "obligations": 32,
+      "covers": 4,
+      "log": "kani-grid.log",
+      "sha256": "06d0047467a4416119366b13ad6dece111493721d7bc1318daae7a76b0bc2466"
+    }
+  ],
+  "package": "nonverified: inherited Kani0.68 compiler ICE intrinsics.rs243",
+  "python": "CrossHair PEP316 accepted count/value postconditions Not confirmed at10s",
+  "not_proved": [
+    "Metal execution/numerical arithmetic",
+    "GPU allocator",
+    "thread interleavings",
+    "whole application"
+  ],
+  "cpu_suites": {
+    "no_features": {
+      "passed": 323,
+      "ignored": 8
+    },
+    "direct_chat": {
+      "passed": 337,
+      "ignored": 36
+    },
+    "mlx_direct_chat": {
+      "passed": 373,
+      "ignored": 256
+    }
+  },
+  "checks": {
+    "strict_clippy_modes": 3,
+    "offline_metal": "pass,6 canonical unused-scratch warnings",
+    "python_checker_process_report_tests": 4,
+    "inventory_regressions": 4,
+    "reviewed_inventory_files": 244,
+    "mutation": "inverted actual enabled gate causes regression failure; restored helper passes",
+    "CI": "not run: local experiment not pushed"
+  }
+}
