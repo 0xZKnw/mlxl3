@@ -690,7 +690,7 @@ impl<'a> FlashQsaLayer<'a> {
                 let interleaved = read(buf, n * 512)?;
                 let mut ordered = Vec::with_capacity(n * 512);
                 for h in 0..2 {
-                    for row in interleaved.chunks_exact(512) {
+                    for row in interleaved.as_chunks::<512>().0 {
                         ordered.extend_from_slice(&row[h * 256..(h + 1) * 256]);
                     }
                 }
