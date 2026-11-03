@@ -62,7 +62,12 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/CompletionNotificationsCombined.swift" -o "${test_dir}/notification-check"
 "${test_dir}/notification-check" "$PWD/tests/fake-desktop-engine.py"
 
-
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/desktop-experience-check.swift > "${test_dir}/DesktopExperienceCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/DesktopExperienceCombined.swift" -o "${test_dir}/experience-check"
+"${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
 
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \

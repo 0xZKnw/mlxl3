@@ -86,6 +86,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var modelContextLimit: Int?
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
+    @Published private(set) var readingWidth: ConversationReadingWidth = .centered
+    @Published private(set) var mtpRememberedEnabled = false
+    private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
     @Published private(set) var loadModelOnStartup = true
     @Published private(set) var startupModelPath = ""
@@ -147,6 +150,7 @@ final class StudioModel: ObservableObject {
         self.applicationIsActive = applicationIsActive
         self.startupModelPath = preferences.string(forKey: "studio.startupModelPath") ?? ""
         self.completionNotificationsEnabled = preferences.bool(forKey: "studio.completionNotificationsEnabled")
+        self.readingWidth = ConversationReadingWidth.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
@@ -158,7 +162,7 @@ final class StudioModel: ObservableObject {
         preferences.set(false, forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
-        self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+        self.mtpEnabled = false // Restored for the selected target when its metadata is available.
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
         do {
@@ -180,9 +184,6 @@ final class StudioModel: ObservableObject {
             persistenceBlocked = true
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
             selectedConversationID = conversations.first?.id
-        }
-        if mtpEnabled {
-            temperature = 0; topK = 1; repetitionPenalty = 1
         }
         if dflash2Enabled {
             if dflashDraftPath.isEmpty {
@@ -245,6 +246,51 @@ final class StudioModel: ObservableObject {
     var savedContextLength: Int {
         guard let name = selectedModelName else { return 0 }
         return (preferences.dictionary(forKey: "studio.contextLengths")?[name] as? Int) ?? 0
+    }
+
+    func setReadingWidth(_ value: ConversationReadingWidth) {
+        readingWidth = value
+        preferences.set(value.rawValue, forKey: ConversationReadingWidth.preferenceKey)
+    }
+
+    func setConversationPinned(_ id: UUID, _ pinned: Bool) {
+        guard let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[index].isPinned = pinned
+        schedulePersistence()
+    }
+
+    func sidebarConversations(matching query: String) -> [Conversation] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return conversations.enumerated().filter {
+            query.isEmpty || $0.element.title.localizedCaseInsensitiveContains(query)
+                || $0.element.messages.contains { $0.content.localizedCaseInsensitiveContains(query) }
+        }.sorted {
+            if $0.element.isPinned != $1.element.isPinned { return $0.element.isPinned }
+            return $0.offset < $1.offset
+        }.map(\.element)
+    }
+
+    var mtpUsesModelCheckpoint: Bool { selectedModel?.modelType == "qwen4_exp" && mtpConfigureSupported }
+
+    private func rememberMTP(_ enabled: Bool) {
+        mtpRememberedEnabled = enabled
+        preferences.set(enabled, forKey: "studio.mtpEnabled") // legacy compatibility only
+        if let model = selectedModel {
+            ModelMTPPreference.save(enabled, modelPath: model.path, preferences: preferences)
+        }
+    }
+
+    private func restoreMTPPreference() {
+        guard let model = selectedModel else { mtpEnabled = false; mtpRememberedEnabled = false; return }
+        let saved = ModelMTPPreference.load(modelPath: model.path, preferences: preferences)
+        let legacy = preferences.object(forKey: ModelMTPPreference.key) == nil
+            && !mtpLegacyPreferenceClaimed
+            && (mtpLegacyModelName == nil || mtpLegacyModelName == selectedModelName)
+            && preferences.bool(forKey: "studio.mtpEnabled")
+        mtpLegacyPreferenceClaimed = true
+        mtpRememberedEnabled = saved ?? legacy
+        mtpEnabled = mtpRememberedEnabled
+        ModelMTPPreference.save(mtpRememberedEnabled, modelPath: model.path, preferences: preferences)
     }
 
     func setTheme(_ value: AppTheme) {
@@ -915,7 +961,7 @@ final class StudioModel: ObservableObject {
         if !enabled {
             cancelMTPPreparation()
             mtpEnabled = false
-            preferences.set(false, forKey: "studio.mtpEnabled")
+            rememberMTP(false)
             saveMTPSelection()
             if mtpConfigureSupported && bridge.isRunning {
                 do { try configureMTP(requestID: mtpOperationID.uuidString, enabled: false, headPath: "") }
@@ -926,7 +972,7 @@ final class StudioModel: ObservableObject {
         guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
         cancelMTPPreparation()
         let operation = mtpOperationID
-        preferences.set(true, forKey: "studio.mtpEnabled")
+        rememberMTP(true)
         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
         mtpDownloading = true
         mtpDownloadTask = Task { [weak self] in
@@ -934,7 +980,10 @@ final class StudioModel: ObservableObject {
             do {
                 var data: Data?
                 let target = mtpConfigureSupported ? ["--target", model.path] : []
-                if !mtpHeadPath.isEmpty {
+                if mtpUsesModelCheckpoint {
+                    data = try JSONSerialization.data(withJSONObject: ["type": "installed", "path": model.path])
+                }
+                if data == nil && !mtpHeadPath.isEmpty {
                     do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
                     catch is CancellationError { throw CancellationError() }
                     catch { if !mtpAutomaticDownloadAvailable { throw error } }
@@ -960,7 +1009,7 @@ final class StudioModel: ObservableObject {
                 dflash2Enabled = false
                 mtpEnabled = true
                 temperature = 0; topK = 1; repetitionPenalty = 1
-                preferences.set(true, forKey: "studio.mtpEnabled")
+                rememberMTP(true)
                 saveMTPSelection()
                 schedulePersistence()
                 if mtpConfigureSupported {
@@ -991,7 +1040,7 @@ final class StudioModel: ObservableObject {
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
         guard picker.runModal() == .OK, let path = picker.url?.path else { return }
-        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+        mtpEnabled = false
         mtpHeadPath = path; preferences.set(path, forKey: "studio.mtpHeadPath")
         mtpDepth = 1; mtpTuneRows = []; mtpTunedAt = nil
         setMTPEnabled(true)
@@ -1077,7 +1126,7 @@ final class StudioModel: ObservableObject {
             mtpTunedAt = Date(); mtpTuneProgress = 1
             // Baseline is also measured in greedy mode, keeping the comparison valid.
             temperature = 0; topK = 1; repetitionPenalty = 1
-            preferences.set(mtpEnabled, forKey: "studio.mtpEnabled")
+            rememberMTP(mtpEnabled)
             saveMTPSelection(); schedulePersistence(); finishMTPTuning(error: nil)
         case "cancelled":
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
@@ -1203,7 +1252,7 @@ final class StudioModel: ObservableObject {
         mtpAutoDownloadSupported = nil
         cancelMTPPreparation()
         mtpConfigureSupported = false
-        mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
+        restoreMTPPreference()
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -1327,7 +1376,8 @@ final class StudioModel: ObservableObject {
                 residentGB: info.residentGB
             )
             if mcpEnabled { updateMCPConnection() }
-            if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
+            if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
+            else if !mtpAvailable { mtpEnabled = false }
         case "mcp_status":
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0

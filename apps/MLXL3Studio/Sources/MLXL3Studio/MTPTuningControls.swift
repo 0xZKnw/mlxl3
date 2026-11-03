@@ -10,7 +10,7 @@ struct MTPTuningControls: View {
                     get: { studio.mtpDepth }, set: { studio.setMTPDepth($0) }
                 )) {
                     ForEach(1...studio.mtpMaxDepth, id: \.self) { depth in
-                        Text("MTP\(depth)").tag(depth)
+                        Text(depth == 1 ? L("1 token", "1 token") : L("\(depth) tokens", "\(depth) tokens")).tag(depth)
                     }
                 }
                 .pickerStyle(.segmented).disabled(studio.isGenerating)
@@ -67,7 +67,7 @@ struct MTPTuningControls: View {
                  ? studio.mtpHeadPath.isEmpty
                     ? L("Active MTP une fois pour préparer la tête, puis lance le test.", "Enable MTP once to prepare the head, then run the test.")
                     : L("Deux prompts locaux, sans outils. Le meilleur mode est enregistré pour ce modèle et ce Mac. Baseline si le gain ne dépasse pas 3 %.", "Two local prompts, without tools. The best mode is saved for this model and Mac. Baseline if the gain is within 3%.")
-                 : L("MTP2/MTP3 et Tune MTP nécessitent le moteur 1.3.0. Mets-le à jour puis recharge le modèle.", "MTP2/MTP3 and Tune MTP require engine 1.3.0. Update it, then reload the model."))
+                 : L("MTP est disponible sans optimisation automatique pour ce modèle.", "MTP is available without automatic tuning for this model."))
                 .font(.system(size: 9.5)).foregroundStyle(StudioTheme.quiet)
         }
     }

@@ -104,12 +104,16 @@ enum MCPPreferenceCheck {
         try check(!instance().dflash2Enabled, "Legacy DFlash2 must remain disabled on relaunch in v1.2")
         first.setDFlash2Enabled(false)
         try check(!instance().dflash2Enabled, "DFlash2 disabled state was not persisted")
+        let samplingBeforeMTP = instance()
         preferences.set(true, forKey: "studio.mtpEnabled")
         preferences.set("/local/mtp", forKey: "studio.mtpHeadPath")
-        try check(instance().mtpEnabled && instance().mtpHeadPath == "/local/mtp", "MTP preference was not restored")
         let mtpRelaunch = instance()
-        try check(mtpRelaunch.temperature == 0 && mtpRelaunch.topK == 1 && mtpRelaunch.repetitionPenalty == 1,
-                  "MTP greedy settings were not restored")
+        try check(!mtpRelaunch.mtpEnabled && !mtpRelaunch.mtpRememberedEnabled && mtpRelaunch.mtpHeadPath == "/local/mtp",
+                  "MTP must wait for a selected target before restoring activation")
+        try check(mtpRelaunch.temperature == samplingBeforeMTP.temperature
+                  && mtpRelaunch.topK == samplingBeforeMTP.topK
+                  && mtpRelaunch.repetitionPenalty == samplingBeforeMTP.repetitionPenalty,
+                  "Global legacy MTP changed sampling before selecting a target")
         preferences.set(false, forKey: "studio.mtpEnabled")
         first.models = [LocalModel(name: "qwen3.6-35b-a3b", path: "/models/Qwen3.6-35B-A3B-EXL3",
                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,

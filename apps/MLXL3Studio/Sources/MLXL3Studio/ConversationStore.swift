@@ -38,6 +38,7 @@ struct ConversationSnapshot: Codable, Sendable {
     let messages: [ChatMessageSnapshot]
     let createdAt: Date
     var contextUsage: ContextUsage? = nil
+    var isPinned: Bool? = nil
 }
 
 struct ChatMessageSnapshot: Codable, Sendable {

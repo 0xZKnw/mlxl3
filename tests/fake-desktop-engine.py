@@ -83,6 +83,9 @@ if len(sys.argv) > 1 and sys.argv[1] == 'dflash-draft':
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
     target = sys.argv[sys.argv.index('--target') + 1] if '--target' in sys.argv else ''
+    if target.endswith('flash-native'):
+        print('fixture external installer does not support Flash Next', file=sys.stderr)
+        sys.exit(2)
     if '/auto-' in target:
         with open(os.path.join(os.environ['MLXL3_HOME'], 'mtp-operations.jsonl'), 'a') as log:
             log.write(json.dumps({'args': sys.argv[1:], 'pid': os.getpid()}) + '\n')
@@ -107,11 +110,14 @@ def cancel(*_):
 signal.signal(signal.SIGUSR1, cancel)
 def emit(kind, **values):
     print(json.dumps({'type': kind, **values}), flush=True)
-mtp_capable = model == 'renamed' or model.startswith(('mtp-', 'auto-'))
+mtp_capable = model in ('renamed', 'flash-native') or model.startswith(('mtp-', 'auto-'))
 tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 3, 'mtp_tune_supported': mtp_capable, 'mtp_tuning_key': tuning_key}
-if model.startswith('auto-'):
+if model.startswith('auto-') or model == 'flash-native':
     capabilities['mtp_configure_supported'] = True
+if model == 'flash-native':
+    capabilities['mtp_max_depth'] = 1
+    capabilities['mtp_tune_supported'] = False
 if model == 'first-load-fails':
     marker = os.path.join(os.environ['MLXL3_HOME'], 'first-load-attempt')
     if not os.path.exists(marker):
@@ -121,7 +127,7 @@ if model == 'first-load-fails':
         sys.stdin.read()
         sys.exit(0)
 emit('ready', model=model, modules=1, resident_gb=0.01, context_limit=2048, model_context_limit=2048,
-     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable,
+     dflash_supported=model == 'renamed', mtp_supported=mtp_capable, mtp_auto_download_supported=mtp_capable and model != 'flash-native',
      **capabilities, memory_saver_supported=model == 'mtp-memory-saver',
      bridge_protocol=1, runtime_commit='fixture', runtime_profile='release', mlx_version='0.32.2')
 for line in sys.stdin:
@@ -142,7 +148,7 @@ for line in sys.stdin:
                 continue
             if model == 'auto-idle-silent':
                 continue
-        expected = '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
+        expected = os.environ['MLXL3_FIXTURE_FLASH_PATH'] if model == 'flash-native' else '/tmp/mlxl3-fixture-mtp-' + ('dense' if model in ('auto-dense', 'auto-slow') else 'moe')
         if request['enabled'] and request['mtp_head_path'] != expected:
             emit('error', request_id=request['request_id'], message='foreign head reached bridge')
         else:

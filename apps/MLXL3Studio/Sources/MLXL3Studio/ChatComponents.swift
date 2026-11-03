@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MessagesView: View {
+    @Environment(\.conversationReadingWidth) private var readingWidth
     let messages: [ChatMessage]
     @State private var followsBottom = true
     @State private var userIsScrolling = false
@@ -20,7 +21,7 @@ struct MessagesView: View {
                 .padding(.horizontal, 28)
                 .padding(.top, 38)
                 .padding(.bottom, 26)
-                .frame(maxWidth: 820)
+                .frame(maxWidth: readingWidth.messageMaximum)
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.never)
@@ -509,6 +510,7 @@ struct ChatAttachmentView: View {
 }
 
 struct ComposerView: View {
+    @Environment(\.conversationReadingWidth) private var readingWidth
     @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
@@ -623,7 +625,7 @@ struct ComposerView: View {
             Task { await studio.importChatFiles(urls) }
             return true
         } isTargeted: { dropTargeted = $0 }
-        .frame(maxWidth: 790)
+        .frame(maxWidth: readingWidth.composerMaximum)
         .frame(maxWidth: .infinity)
         .onAppear { focused = true }
         .onChange(of: studio.draft) {
