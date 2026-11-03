@@ -5,6 +5,7 @@ import math
 import os
 import subprocess
 import tempfile
+import threading
 import time
 from operator import index
 from pathlib import Path
@@ -168,3 +169,48 @@ def quantize_tiles_native(
         if not np.isfinite(decoded).all():
             raise ValueError("nonfinite native tile output")
         return decoded, states
+
+
+_CONVERTER_LOCK = threading.Lock()
+# Keep each file well below the native command's 256 MiB protocol ceiling.
+_CONVERTER_TILE_BATCH = 65536
+
+
+def converter_tiles(tiles, k, cb=0):
+    """Run the explicit native converter backend, without an MLX fallback.
+
+    Measurement workers share one bounded native process at a time. The
+    converter's existing cancellation flag also interrupts an active child.
+    """
+    from ponyexl3.convert.cancel import raise_if_requested
+
+    engine = os.environ.get("MLXL3_NATIVE_ENGINE")
+    if not engine:
+        raise RuntimeError("native conversion requires MLXL3_NATIVE_ENGINE")
+    raise_if_requested()
+    k, cb = index(k), index(cb)
+    values = np.asarray(tiles, dtype=np.float32)
+    if values.ndim != 2 or values.shape[0] == 0 or values.shape[1] != 256:
+        raise ValueError("native conversion requires nonempty 256-value tiles")
+    try:
+        batch = launch_tiles(
+            min(values.shape[0], _CONVERTER_TILE_BATCH) * 256, k, cb, 256 * 1024 * 1024
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"unsupported native converter configuration: {exc}") from exc
+    decoded = np.empty_like(values)
+    states = np.empty(values.shape, dtype=np.uint16)
+    with _CONVERTER_LOCK:
+        for start in range(0, values.shape[0], batch):
+            stop = min(start + batch, values.shape[0])
+            try:
+                block, state = quantize_tiles_native(
+                    values[start:stop], k, cb, engine=engine, cancel_check=raise_if_requested
+                )
+            except (OSError, ValueError) as exc:
+                # The driver treats ValueError/FileNotFoundError as an unsupported
+                # source module and may skip it. A failed native child is fatal.
+                raise RuntimeError(f"native converter service failed: {exc}") from exc
+            decoded[start:stop] = block
+            states[start:stop] = state
+    return decoded, states

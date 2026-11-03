@@ -319,6 +319,14 @@ def _public_activations_to_inner_for_backend(
 ) -> tuple[np.ndarray, bool]:
     if (
         suh is not None
+        and search_backend == "native"
+        and activations.shape[0] >= _MLX_ACTIVATION_HADAMARD_MIN_ROWS
+    ):
+        from mlxl3_quantizer.transforms import public_activations_to_inner_native
+
+        return public_activations_to_inner_native(activations, suh), False
+    if (
+        suh is not None
         and search_backend == "metal"
         and activations.shape[0] >= _MLX_ACTIVATION_HADAMARD_MIN_ROWS
     ):
@@ -436,6 +444,8 @@ def ldlq_inner_matrix(
 ) -> LDLQResult:
     """Reverse 16-row LDLQ over an EXL3 inner-domain matrix."""
 
+    if search_backend == "native":
+        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
     if inner.ndim != 2 or inner.shape[0] % 16 != 0 or inner.shape[1] % 16 != 0:
         raise ValueError(f"expected inner matrix with 16-multiple dims, got {inner.shape}")
     rows, cols = inner.shape
@@ -691,6 +701,8 @@ def ldlq_quantize_layer(
 ) -> DirectLayerResult:
     """Quantize one full linear module with activation-aware LDLQ."""
 
+    if search_backend == "native":
+        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
     if fast_metrics and compare_oracle:
         raise ValueError("fast_metrics requires compare_oracle=False")
     compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)

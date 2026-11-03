@@ -8,7 +8,7 @@
     "mlx": 1
   },
   ".github/workflows/quantization.yml": {
-    "ponyexl3": 1
+    "ponyexl3": 3
   },
   ".github/workflows/rust.yml": {
     "MLXL3_MLX_ROOT": 8,
@@ -2951,9 +2951,9 @@
     "ponyexl3": 12
   },
   "scripts/patches/ponyexl3-mlxl3-conversion.patch": {
-    "mlx": 12,
+    "mlx": 14,
     "mlx_lm": 3,
-    "ponyexl3": 66
+    "ponyexl3": 74
   },
   "scripts/patches/ponyexl3-single-file-index.patch": {
     "ponyexl3": 2
@@ -3038,6 +3038,10 @@
     "call ponyexl3.ref.codebook.CodebookMode": 1,
     "mlx": 4,
     "ponyexl3": 7
+  },
+  "src/mlxl3_quantizer/native.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 1,
+    "ponyexl3": 1
   },
   "src/mlxl3_quantizer/pack_trellis.metal": {
     "mlxl3_pack_word": 1

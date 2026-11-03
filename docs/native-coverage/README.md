@@ -226,3 +226,10 @@ cargo test --locked --no-default-features --test quantize_fixtures
 Le fichier d’entrée contient des FP32 little-endian finis, au plus 256 Mio, avec 256 valeurs par tuile. Le scratch doit contenir au moins une tuile. L’API publique `mlxl3_quantizer.quantize_tiles_native(tiles, k, cb, engine=...)` emploie le même exécutable et reprend la forme `(N,256)`. Les délais, annulations et erreurs de protocole rejoignent le processus avant de nettoyer ses fichiers.
 
 Les 21 variantes concordent sur 49 728 mots avec le processus indépendant MLX 0.32.2. Le rejeu final lit un corpus haché sans importer MLX. Le codec CPU réel retrouve aussi chaque poids décodé, état et mot du packing. Les rotations, la calibration et les adapters de conversion de modèle restent à migrer. [Résultats finaux](quantizer/final.json), [provenance, suites et limites](quantizer/provenance.json).
+
+
+## Conversion directe native et consommateur de captures
+
+`MLXL3_NATIVE_ENGINE=/chemin/vers/mlxl3 python -m ponyexl3.cli.convert_advanced --search-backend native ... --direct-layer` raccorde le lecteur source, les transformations hôtes et le writer EXL3 au service Metal autonome. Le vrai CLI sur une projection FP16 128x128, K4/MCG et base identité a produit les mêmes4096 mots de packing que la référence MLX indépendante, avec imports MLX interdits. Les huit fixtures de transformations FP32 totalisent197888 mots exacts après traitement des sous-normaux.
+
+Le premier LDLQ NumPy+treillis natif a divergé sur446 mots après une compensation inter-buffer à32 termes. Ce candidat n’est pas exposé comme validé : le mode natif LDLQ s’arrête explicitement avant recherche, en attendant un opérateur de compensation FP32 qualifié. Le protocole de lecture de captures natives est prêt et vérifie identités, caps, segments, types, hashes et logits, mais son producteur source brut et les adapters restent à relier. La politique d’échelle des groupes d’experts, le Studio et le package convertisseur sans MLX restent ouverts. [Résultats et limites](converter-host/report.json), [périmètre de vérification](converter-host/verification.md), [protocole capture](converter-host/capture-protocol.md).

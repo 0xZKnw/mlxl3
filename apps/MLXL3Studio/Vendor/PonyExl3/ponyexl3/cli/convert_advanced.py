@@ -578,9 +578,10 @@ def main() -> int:
     )
     parser.add_argument(
         "--search-backend",
-        choices=("auto", "cpu", "metal"),
+        choices=("auto", "cpu", "metal", "native"),
         default="auto",
-        help="trellis search backend: 'auto' (default) uses the Metal GPU search on "
+        help="trellis search backend: 'native' runs direct conversion via MLXL3_NATIVE_ENGINE "
+        "(LDLQ pending); 'auto' (default) uses the Metal GPU search on "
         "Apple Silicon and falls back to the CPU reference search only when Metal is "
         "unavailable; the CPU search is ~10000x slower per tile and is a reference path",
     )

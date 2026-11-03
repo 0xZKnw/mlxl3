@@ -138,6 +138,23 @@ index c216fd2..d2be062 100644
          )
          _write_json_atomic(measurement_plan_path, measurement_plan)
          _stage(
+diff --git a/ponyexl3/cli/convert_advanced.py b/ponyexl3/cli/convert_advanced.py
+index aaca26e..ac7711b 100644
+--- a/ponyexl3/cli/convert_advanced.py
++++ b/ponyexl3/cli/convert_advanced.py
+@@ -578,9 +578,10 @@ def main() -> int:
+     )
+     parser.add_argument(
+         "--search-backend",
+-        choices=("auto", "cpu", "metal"),
++        choices=("auto", "cpu", "metal", "native"),
+         default="auto",
+-        help="trellis search backend: 'auto' (default) uses the Metal GPU search on "
++        help="trellis search backend: 'native' runs direct conversion via MLXL3_NATIVE_ENGINE "
++        "(LDLQ pending); 'auto' (default) uses the Metal GPU search on "
+         "Apple Silicon and falls back to the CPU reference search only when Metal is "
+         "unavailable; the CPU search is ~10000x slower per tile and is a reference path",
+     )
 diff --git a/ponyexl3/convert/capture.py b/ponyexl3/convert/capture.py
 index 7acf70c..66e0932 100644
 --- a/ponyexl3/convert/capture.py
@@ -340,10 +357,33 @@ index 7acf70c..66e0932 100644
 +        expert_fallback=sorted(expert_fallback),
      )
 diff --git a/ponyexl3/convert/direct.py b/ponyexl3/convert/direct.py
-index 4c272ec..9699e91 100644
+index 4c272ec..7417412 100644
 --- a/ponyexl3/convert/direct.py
 +++ b/ponyexl3/convert/direct.py
-@@ -368,6 +368,7 @@ def prepare_layer_quantization_basis(
+@@ -235,6 +235,22 @@ def _oracle_or_identity_basis(
+ ) -> LayerQuantizationBasis:
+     suh, suh_zero_count = scale_full_for_mode(ref_layer.suh, ref_layer.in_features, scale_mode)
+     svh, svh_zero_count = scale_full_for_mode(ref_layer.svh, ref_layer.out_features, scale_mode)
++    if scale_mode != "identity" and search_backend == "native":
++        from mlxl3_quantizer.transforms import public_matrix_to_inner_native
++
++        return LayerQuantizationBasis(
++            source_public=source_public,
++            target_inner=public_matrix_to_inner_native(source_public, suh=suh, svh=svh),
++            suh=suh,
++            svh=svh,
++            stats={
++                "suh_zero_replacements": float(suh_zero_count),
++                "svh_zero_replacements": float(svh_zero_count),
++                "regularize_computed_scales": False,
++                "basis_mlx_hadamard": False,
++                "basis_native_hadamard": True,
++            },
++        )
+     if scale_mode != "identity" and search_backend == "metal":
+         try:
+             target_inner = _oracle_basis_mlx_hadamard(source_public, suh=suh, svh=svh)
+@@ -368,6 +384,7 @@ def prepare_layer_quantization_basis(
                  search_backend=search_backend,
                  max_pins=max_pins,
                  return_states=False,
@@ -351,7 +391,7 @@ index 4c272ec..9699e91 100644
              )
              delta = reconstructed / np.float32(scale) - sample
              return float(np.mean(delta * delta, dtype=np.float64))
-@@ -501,7 +502,8 @@ def quantize_inner_matrix_direct(
+@@ -501,7 +518,8 @@ def quantize_inner_matrix_direct(
      max_pins: int = 4,
      verify_roundtrip: bool = False,
      return_states: bool = True,
@@ -361,7 +401,18 @@ index 4c272ec..9699e91 100644
      """Quantize an inner-domain matrix tilewise, without LDL error feedback."""
  
      kernel_tiles = _inner_to_kernel_tiles(inner.astype(np.float32, copy=False))
-@@ -528,13 +530,17 @@ def quantize_inner_matrix_direct(
+@@ -514,6 +532,10 @@ def quantize_inner_matrix_direct(
+             decoded_rows.append(decoded)
+         states_flat = np.stack(state_rows, axis=0).astype(np.uint16, copy=False)
+         decoded_tiles = np.stack(decoded_rows, axis=0).astype(np.float32, copy=False)
++    elif search_backend == "native":
++        from mlxl3_quantizer.native import converter_tiles
++
++        decoded_tiles, states_flat = converter_tiles(kernel_tiles, k=k, cb=cb)
+     elif search_backend == "metal":
+         if return_states or verify_roundtrip:
+             from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
+@@ -528,13 +550,17 @@ def quantize_inner_matrix_direct(
              decoded_mx, states_mx = quantize_tiles_mlx(kernel_tiles, k=k, cb=cb)
              in_tiles = inner.shape[0] // 16
              out_tiles = inner.shape[1] // 16
@@ -385,7 +436,7 @@ index 4c272ec..9699e91 100644
              reconstructed_inner = _kernel_tiles_to_inner(
                  decoded_tiles,
                  inner.shape[0],
-@@ -547,13 +553,15 @@ def quantize_inner_matrix_direct(
+@@ -547,13 +573,15 @@ def quantize_inner_matrix_direct(
      in_tiles = inner.shape[0] // 16
      out_tiles = inner.shape[1] // 16
      states = states_flat.reshape(in_tiles, out_tiles, 256)
@@ -435,10 +486,26 @@ index 4118a42..c9b05ae 100644
  
  def _natural_key(key: str) -> tuple[Any, ...]:
 diff --git a/ponyexl3/convert/driver.py b/ponyexl3/convert/driver.py
-index 6305152..e530b3d 100644
+index 6305152..9c68855 100644
 --- a/ponyexl3/convert/driver.py
 +++ b/ponyexl3/convert/driver.py
-@@ -346,7 +346,24 @@ def _candidate_sibling_group(
+@@ -44,12 +44,14 @@ LayerQuantizer = Literal["direct", "ldlq"]
+ ProgressCallback = Callable[[str, dict[str, Any]], None]
+ 
+ 
+-def _release_gpu_cache() -> None:
++def _release_gpu_cache(search_backend: SearchBackend = "metal") -> None:
+     """Return MLX's reclaimable Metal buffer pool to the OS between modules.
+ 
+     MLX never shrinks its buffer pool on its own, so per-module scratch otherwise
+     accumulates as wired memory across a long full-model conversion.
+     """
++    if search_backend != "metal":
++        return
+     try:
+         import mlx.core as mx
+ 
+@@ -346,7 +348,24 @@ def _candidate_sibling_group(
      processed: set[str],
      existing: dict[str, EXL3Layer],
  ) -> list[str]:
@@ -464,7 +531,7 @@ index 6305152..e530b3d 100644
      if signature is None:
          return [key]
      group = [
-@@ -354,9 +371,9 @@ def _candidate_sibling_group(
+@@ -354,9 +373,9 @@ def _candidate_sibling_group(
          for item in requested
          if item not in processed
          and item not in existing
@@ -476,8 +543,26 @@ index 6305152..e530b3d 100644
  
  
  def _grouping_enabled(
+@@ -612,7 +631,7 @@ def convert_module_set(
+                             },
+                         )
+                 persist_incremental([result.layer for result in grouped_results])
+-                _release_gpu_cache()
++                _release_gpu_cache(search_backend)
+                 continue
+         try:
+             result = _convert_one(
+@@ -657,7 +676,7 @@ def convert_module_set(
+         item = _summary(quantizer, result)
+         completed.append(item)
+         persist_incremental([result.layer])
+-        _release_gpu_cache()
++        _release_gpu_cache(search_backend)
+         if progress is not None:
+             stats = item.get("stats", {})
+             progress(
 diff --git a/ponyexl3/convert/fixtures.py b/ponyexl3/convert/fixtures.py
-index 84dd204..d8ec745 100644
+index 84dd204..52f7eb3 100644
 --- a/ponyexl3/convert/fixtures.py
 +++ b/ponyexl3/convert/fixtures.py
 @@ -9,6 +9,7 @@ existing CPU Viterbi search and compares against the oracle tile.
@@ -488,6 +573,15 @@ index 84dd204..d8ec745 100644
  import json
  from pathlib import Path
  import re
+@@ -30,7 +31,7 @@ from ponyexl3.ref.trellis import pack_trellis_tile, unpack_trellis_tile
+ 
+ 
+ LayoutKind = Literal["linear_t", "qwen_gate", "qwen_up", "qwen_down"]
+-SearchBackend = Literal["cpu", "metal"]
++SearchBackend = Literal["cpu", "metal", "native"]
+ 
+ _QWEN_EXPERT_RE = re.compile(
+     r"^(?P<prefix>.*\.mlp)\.experts\.(?P<expert>\d+)\."
 @@ -38,6 +39,21 @@ _QWEN_EXPERT_RE = re.compile(
  )
  
@@ -510,14 +604,23 @@ index 84dd204..d8ec745 100644
  @dataclass(frozen=True)
  class TensorInfo:
      """Safetensors metadata for one tensor."""
-@@ -154,19 +170,14 @@ class SafetensorIndex:
+@@ -154,19 +170,23 @@ class SafetensorIndex:
      def __init__(self, model_dir: str | Path):
          self.model_dir = Path(model_dir)
          index_path = self.model_dir / "model.safetensors.index.json"
 -        with index_path.open(encoding="utf-8") as f:
 -            weight_map = json.load(f)["weight_map"]
 -        self.weight_map = {str(k): str(v) for k, v in weight_map.items()}
-+        self.weight_map = _cached_weight_map(str(index_path.resolve()))
++        if index_path.is_file():
++            self.weight_map = _cached_weight_map(str(index_path.resolve()))
++        else:
++            shards = sorted(self.model_dir.glob("*.safetensors"))
++            if len(shards) != 1:
++                raise ValueError("Multiple Safetensors shards require a shard index")
++            _, header = _cached_safetensors_header(str(shards[0].resolve()))
++            self.weight_map = {
++                key: shards[0].name for key in header if key != "__metadata__"
++            }
          self._headers: dict[Path, tuple[int, dict[str, Any]]] = {}
  
      def _header(self, shard: Path) -> tuple[int, dict[str, Any]]:
@@ -532,7 +635,7 @@ index 84dd204..d8ec745 100644
          self._headers[shard] = out
          return out
  
-@@ -243,6 +254,24 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
+@@ -243,6 +263,24 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
      """Resolve a supported HF source tensor for an EXL3 module key."""
  
      index = SafetensorIndex(model_dir)
@@ -557,7 +660,7 @@ index 84dd204..d8ec745 100644
      expert_match = _QWEN_EXPERT_RE.match(module_key)
      if expert_match is not None:
          prefix = expert_match.group("prefix")
-@@ -276,7 +305,6 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
+@@ -276,7 +314,6 @@ def resolve_source_linear(model_dir: str | Path, module_key: str) -> SourceLinea
              expert=expert,
          )
  
@@ -565,8 +668,22 @@ index 84dd204..d8ec745 100644
      info = index.tensor_info(source_key)
      if len(info.shape) != 2:
          raise ValueError(f"{source_key} must be 2D, got {info.shape}")
+@@ -493,8 +530,11 @@ def run_tile_pilot(
+             cb=oracle.cb,
+             max_pins=max_pins,
+         )
+-    elif search_backend == "metal":
+-        from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
++    elif search_backend in ("metal", "native"):
++        if search_backend == "native":
++            from mlxl3_quantizer.native import converter_tiles as quantize_tiles_mlx_np
++        else:
++            from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
+ 
+         decoded_tiles, state_tiles = quantize_tiles_mlx_np(
+             target_kernel.reshape(1, 256).astype(np.float32),
 diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
-index d79e192..dbbbffa 100644
+index d79e192..a9b80d4 100644
 --- a/ponyexl3/convert/hessian.py
 +++ b/ponyexl3/convert/hessian.py
 @@ -4,14 +4,17 @@ from __future__ import annotations
@@ -629,7 +746,31 @@ index d79e192..dbbbffa 100644
      for i in range(m):
          c0 = i * block_size
          c1 = c0 + block_size
-@@ -615,11 +627,13 @@ def _ldlq_inner_matrix_mlx(
+@@ -305,6 +317,14 @@ def _public_activations_to_inner_for_backend(
+     *,
+     search_backend: SearchBackend,
+ ) -> tuple[np.ndarray, bool]:
++    if (
++        suh is not None
++        and search_backend == "native"
++        and activations.shape[0] >= _MLX_ACTIVATION_HADAMARD_MIN_ROWS
++    ):
++        from mlxl3_quantizer.transforms import public_activations_to_inner_native
++
++        return public_activations_to_inner_native(activations, suh), False
+     if (
+         suh is not None
+         and search_backend == "metal"
+@@ -424,6 +444,8 @@ def ldlq_inner_matrix(
+ ) -> LDLQResult:
+     """Reverse 16-row LDLQ over an EXL3 inner-domain matrix."""
+ 
++    if search_backend == "native":
++        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
+     if inner.ndim != 2 or inner.shape[0] % 16 != 0 or inner.shape[1] % 16 != 0:
+         raise ValueError(f"expected inner matrix with 16-multiple dims, got {inner.shape}")
+     rows, cols = inner.shape
+@@ -615,11 +637,13 @@ def _ldlq_inner_matrix_mlx(
                  start_indices=mx.array([0, 0], dtype=mx.int32),
                  axes=(0, 1),
              )
@@ -647,7 +788,7 @@ index d79e192..dbbbffa 100644
          j = i
  
      mx.eval(reconstructed, packed_mx)
-@@ -673,11 +687,13 @@ def ldlq_quantize_layer(
+@@ -673,11 +697,15 @@ def ldlq_quantize_layer(
      quant_bits: int | None = None,
      compare_oracle: bool = True,
      fast_metrics: bool = False,
@@ -655,13 +796,15 @@ index d79e192..dbbbffa 100644
  ) -> DirectLayerResult:
      """Quantize one full linear module with activation-aware LDLQ."""
  
++    if search_backend == "native":
++        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
      if fast_metrics and compare_oracle:
          raise ValueError("fast_metrics requires compare_oracle=False")
 +    compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)
  
      reuse_key = None
      if reuse.active() and calibration_activations is not None:
-@@ -697,7 +713,12 @@ def ldlq_quantize_layer(
+@@ -697,7 +725,12 @@ def ldlq_quantize_layer(
              search_backend=search_backend,
              acts_fp=reuse.activations_fingerprint(calibration_activations),
          )
@@ -675,7 +818,7 @@ index d79e192..dbbbffa 100644
          if cached is not None:
              return cached
  
-@@ -761,7 +782,7 @@ def ldlq_quantize_layer(
+@@ -761,7 +794,7 @@ def ldlq_quantize_layer(
              feedback_rows=feedback_rows,
              max_pins=max_pins,
              collect_states=False,
@@ -684,7 +827,7 @@ index d79e192..dbbbffa 100644
          )
  
      out_layer = EXL3Layer(
-@@ -902,8 +923,6 @@ def _group_prep_worker_count(
+@@ -902,8 +935,6 @@ def _group_prep_worker_count(
      # paths serial so worker threads do not compete for the same GPU queue.
      if search_backend == "metal" and scale_mode in ("oracle", "oracle_safe"):
          return 1
@@ -693,7 +836,7 @@ index d79e192..dbbbffa 100644
      return min(group_size, 4)
  
  
-@@ -970,6 +989,111 @@ def _prepare_ldlq_group_member(
+@@ -970,6 +1001,111 @@ def _prepare_ldlq_group_member(
      )
  
  
@@ -805,7 +948,7 @@ index d79e192..dbbbffa 100644
  def ldlq_quantize_group(
      source_dir: str | Path,
      oracle_dir: str | Path,
-@@ -1047,6 +1171,32 @@ def ldlq_quantize_group(
+@@ -1047,6 +1183,32 @@ def ldlq_quantize_group(
          planned_k = None if quant_bits_by_module is None else quant_bits_by_module.get(key)
          prep_inputs.append((key, acts, planned_k))
  
@@ -838,7 +981,7 @@ index d79e192..dbbbffa 100644
      prep_workers = _group_prep_worker_count(
          len(keys),
          search_backend=search_backend,
-@@ -1054,48 +1204,29 @@ def ldlq_quantize_group(
+@@ -1054,48 +1216,29 @@ def ldlq_quantize_group(
          skip_g_scale=skip_g_scale,
      )
      if prep_workers <= 1:
@@ -904,7 +1047,7 @@ index d79e192..dbbbffa 100644
      states: list[_LDLQGroupState] = []
      first_cb: CodebookMode | None = None
      first_rows: int | None = None
-@@ -1142,88 +1273,178 @@ def ldlq_quantize_group(
+@@ -1142,88 +1285,178 @@ def ldlq_quantize_group(
          raise LDLQGroupIncompatible("empty grouped LDLQ request")
      if first_cb is None or first_rows is None or first_k is None:
          raise LDLQGroupIncompatible("invalid grouped LDLQ request")
@@ -992,16 +1135,16 @@ index d79e192..dbbbffa 100644
 +                feedback = bj - bi
 +                search_input = rows_to_quantize.transpose(1, 0, 2).reshape(
 +                    feedback, batch * out_features
++                )
++                block_packed_mx, block_reconstructed_cat = quantize_inner_matrix_direct_mlx(
++                    search_input,
++                    k=first_k,
++                    cb=first_cb,
                  )
 -                state.packed = mx.slice_update(
 -                    state.packed,
 -                    block_packed_mx[:, tile_col : tile_col + out_tiles],
 -                    start_indices=mx.array([tk, 0, 0], dtype=mx.int32),
-+                block_packed_mx, block_reconstructed_cat = quantize_inner_matrix_direct_mlx(
-+                    search_input,
-+                    k=first_k,
-+                    cb=first_cb,
-+                )
 +                block_reconstructed = block_reconstructed_cat.reshape(
 +                    feedback, batch, out_features
 +                ).transpose(1, 0, 2)
@@ -1152,7 +1295,7 @@ index d79e192..dbbbffa 100644
      mx.eval(*[state.reconstructed for state in states], *[state.packed for state in states])
      out: list[DirectLayerResult] = []
      for state in states:
-@@ -1252,6 +1473,10 @@ def ldlq_quantize_group(
+@@ -1252,6 +1485,10 @@ def ldlq_quantize_group(
                  "batched_search_group_size": float(len(keys)),
                  "batched_search_group_out_features": float(total_out),
                  "batched_prep_workers": float(prep_workers),
@@ -1164,7 +1307,7 @@ index d79e192..dbbbffa 100644
                  "public_mse": float("nan"),
                  "public_rel_rms": float("nan"),
 diff --git a/ponyexl3/convert/measure.py b/ponyexl3/convert/measure.py
-index db1c546..df51c7c 100644
+index db1c546..1f2505f 100644
 --- a/ponyexl3/convert/measure.py
 +++ b/ponyexl3/convert/measure.py
 @@ -98,6 +98,11 @@ def _candidate_from_record(record: Mapping[str, Any], *, score_metric: str) -> _
@@ -1179,7 +1322,25 @@ index db1c546..df51c7c 100644
          score = _as_score(record.get("score"))
      return _MeasuredCandidate(
          module=module,
-@@ -574,6 +579,7 @@ def measure_ldlq_candidates(
+@@ -509,7 +514,7 @@ def _resolve_measure_workers(max_workers: int, n_items: int) -> int:
+     return max(1, min(int(max_workers), n_items, 32))
+ 
+ 
+-def _release_gpu_cache() -> None:
++def _release_gpu_cache(search_backend: SearchBackend = "metal") -> None:
+     """Return MLX's reclaimable Metal buffer pool to the OS.
+ 
+     MLX keeps freed buffers in a pool sized to the largest working set seen and
+@@ -518,6 +523,8 @@ def _release_gpu_cache() -> None:
+     this after each candidate bounds steady-state memory to the live working set;
+     only active buffers stay, so it is safe to call while other workers run.
+     """
++    if search_backend != "metal":
++        return
+     try:
+         import mlx.core as mx
+ 
+@@ -574,6 +581,7 @@ def measure_ldlq_candidates(
      regularization_seed: int = 0,
      compare_oracle: bool = False,
      score_metric: str = _DEFAULT_SCORE_METRIC,
@@ -1187,7 +1348,7 @@ index db1c546..df51c7c 100644
      checkpoint_path: str | Path | None = None,
      resume: bool = False,
      max_workers: int = 2,
-@@ -581,6 +587,9 @@ def measure_ldlq_candidates(
+@@ -581,6 +589,9 @@ def measure_ldlq_candidates(
  ) -> dict[str, Any]:
      """Quantize selected modules over candidate K/shrinkage grids and rank them.
  
@@ -1197,7 +1358,7 @@ index db1c546..df51c7c 100644
      ``max_workers`` (default 2) sets how many per-candidate quantizations run at
      once on a thread pool, so each module's CPU-bound basis/Hessian work overlaps
      another module's GPU search and fills GPU idle time. Threads share the model
-@@ -591,6 +600,7 @@ def measure_ldlq_candidates(
+@@ -591,6 +602,7 @@ def measure_ldlq_candidates(
      """
  
      cancel.clear()
@@ -1205,7 +1366,7 @@ index db1c546..df51c7c 100644
      modules = list(module_keys)
      shrinkages = [float(item) for item in hessian_shrinkages]
      if not modules:
-@@ -636,6 +646,13 @@ def measure_ldlq_candidates(
+@@ -636,6 +648,13 @@ def measure_ldlq_candidates(
          )
          if ident not in planned or ident in seen:
              continue
@@ -1219,7 +1380,7 @@ index db1c546..df51c7c 100644
          records.append(record)
          seen.add(ident)
      start = time.perf_counter()
-@@ -728,8 +745,15 @@ def measure_ldlq_candidates(
+@@ -728,8 +747,15 @@ def measure_ldlq_candidates(
              quant_bits=item["bits"],
              compare_oracle=compare_oracle,
              fast_metrics=False,
@@ -1235,6 +1396,24 @@ index db1c546..df51c7c 100644
          score = candidate_score(item_summary["stats"], score_metric)
          return {
              "index": item["index"],
+@@ -780,7 +806,7 @@ def measure_ldlq_candidates(
+             record = _measure_candidate(item)
+             _store(record)
+             _emit(record)
+-            _release_gpu_cache()
++            _release_gpu_cache(search_backend)
+     else:
+         # Threads share the model; the gate caps concurrent transient working
+         # sets (Hessian/scratch/etc.) to a fraction of free RAM, so a wide layer
+@@ -826,7 +852,7 @@ def measure_ldlq_candidates(
+                     if ready is not None:
+                         _emit(ready)
+                     next_pos += 1
+-                _release_gpu_cache()
++                _release_gpu_cache(search_backend)
+         except BaseException:
+             # Stop new candidates (stop flag), cancel the queue, and ask in-flight
+             # GPU work to abort at its next launch so Ctrl-C is near-instant rather
 diff --git a/ponyexl3/convert/reuse.py b/ponyexl3/convert/reuse.py
 index 3ae0033..1218b6f 100644
 --- a/ponyexl3/convert/reuse.py

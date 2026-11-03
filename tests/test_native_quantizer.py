@@ -1,6 +1,7 @@
 """Native conversion process/data boundaries, independent of a physical GPU."""
 
 import os
+import subprocess
 
 import numpy as np
 import pytest
@@ -76,13 +77,23 @@ def test_native_failures_never_return_a_partial_conversion(engine, monkeypatch, 
 
 
 def test_silent_child_is_reaped_before_timeout_returns(engine, tmp_path, monkeypatch):
-    marker = tmp_path / "pid"
+    from mlxl3_quantizer import native
+
+    launched = []
+    original = subprocess.Popen
+
+    def remember_child(*args, **kwargs):
+        process = original(*args, **kwargs)
+        launched.append(process.pid)
+        return process
+
+    monkeypatch.setattr(native.subprocess, "Popen", remember_child)
     monkeypatch.setenv("TILE_FAULT", "silent")
-    monkeypatch.setenv("TILE_PID", str(marker))
     with pytest.raises(TimeoutError):
         quantize_tiles_native(np.zeros((1, 256)), 4, engine=engine, timeout=0.15)
+    assert len(launched) == 1
     with pytest.raises(ProcessLookupError):
-        os.kill(int(marker.read_text()), 0)
+        os.kill(launched[0], 0)
 
 
 def test_existing_converter_cancellation_exception_reaps_native_child(
