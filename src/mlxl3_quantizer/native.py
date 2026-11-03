@@ -135,6 +135,7 @@ def quantize_tiles_native(
             or any(
                 type(report.get(field)) is not int
                 for field in [
+                    "schema",
                     "tiles",
                     "values",
                     "k",

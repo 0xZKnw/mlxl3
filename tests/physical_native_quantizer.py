@@ -5,6 +5,7 @@ import hashlib
 import importlib.metadata
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -65,7 +66,7 @@ def capture(root):
     )
 
 
-def verify(cli, python, root):
+def verify(cli, python, root, reference=None):
     root.mkdir(parents=True, exist_ok=False)
     report_path = root / "verification.json"
     report = {"status": "in_progress", "cases": [], "cli_sha256": digest(cli)}
@@ -77,9 +78,24 @@ def verify(cli, python, root):
         ).astype("<f4")
         source = root / "tiles.f32"
         source.write_bytes(values.tobytes())
-        env = dict(os.environ, PYTHONPATH=str(REPO / "apps/MLXL3Studio/Vendor/PonyExl3"))
-        run([str(python), str(Path(__file__).resolve()), "--capture", str(root)], env=env)
-        report["oracle"] = json.loads((root / "oracle.json").read_text())
+        if reference is None:
+            env = dict(os.environ, PYTHONPATH=str(REPO / "apps/MLXL3Studio/Vendor/PonyExl3"))
+            run([str(python), str(Path(__file__).resolve()), "--capture", str(root)], env=env)
+            report["oracle"] = json.loads((root / "oracle.json").read_text())
+        else:
+            frozen = json.loads((reference / "reference.json").read_text())
+            assert (
+                frozen["status"] == "complete"
+                and frozen["tile_shape"] == [4, 256]
+                and len(frozen["cases"]) == 21
+            )
+            assert digest(source) == frozen["files"]["tiles.f32"]
+            for name, expected in frozen["files"].items():
+                assert Path(name).name == name and digest(reference / name) == expected
+                if name != "tiles.f32":
+                    shutil.copy2(reference / name, root / name)
+            report["oracle"] = frozen["oracle"]
+            report["reference_sha256"] = digest(reference / "reference.json")
         for k in range(2, 9):
             for cb in range(3):
                 output = root / f"native-{k}-{cb}"
@@ -188,10 +204,16 @@ if __name__ == "__main__":
     parser.add_argument("--python", type=Path, default=Path(sys.executable))
     parser.add_argument("--output", type=Path)
     parser.add_argument("--capture", type=Path)
+    parser.add_argument("--reference", type=Path, default=REPO / "tests/fixtures/native-quantizer")
     args = parser.parse_args()
     if args.capture:
         capture(args.capture.resolve())
     elif args.cli and args.output:
-        verify(args.cli.resolve(), args.python.resolve(), args.output.resolve())
+        verify(
+            args.cli.resolve(),
+            args.python.absolute(),
+            args.output.resolve(),
+            args.reference.resolve(),
+        )
     else:
         parser.error("provide --cli and --output")
