@@ -1,0 +1,19 @@
+import json,os,signal,subprocess,time
+from pathlib import Path
+out=Path('build/desktop-followup-20261102')
+command=[str((out/'local-startup-check').resolve()),str(Path('dist/MLXL3 Desktop Test.app/Contents/Resources/runtime/mlxl3').resolve()),'Qwen3.8-Flash-Next-exl3-84147e95','/Users/henko/.config/mlxl3/models.json']
+r={'status':'in_progress','command':command,'timeout_seconds':240};p=None
+try:
+ with (out/'gui-flash-startup.log').open('w') as log:
+  p=subprocess.Popen(command,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+  try:code=p.wait(timeout=240)
+  except subprocess.TimeoutExpired:
+   os.killpg(p.pid,signal.SIGTERM)
+   try:p.wait(timeout=5)
+   except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
+   raise
+ text=(out/'gui-flash-startup.log').read_text()
+ r.update(exit_code=code,reaped=p.poll() is not None,status='passed' if code==0 and 'Real Desktop startup passed:' in text and 'engine stopped and reaped' in text else 'failed')
+except BaseException as error:r.update(status='failed',error=repr(error),reaped=p is None or p.poll() is not None)
+finally:(out/'gui-flash-startup.json').write_text(json.dumps(r,indent=2)+'\n')
+print(json.dumps(r),flush=True)

@@ -34,7 +34,7 @@ struct DownloadProgressCard: View {
                     .font(.system(size: 20, weight: .light))
                     .foregroundStyle(status == .failed ? .orange : StudioTheme.accent)
                     .frame(width: 46, height: 46)
-                    .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+                    .background(StudioTheme.contrast.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
                     .overlay { RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 0.5) }
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title).font(.system(size: 8, weight: .medium)).tracking(1.4)
@@ -63,7 +63,7 @@ struct DownloadProgressCard: View {
             if let fraction = progress.fraction {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(Color.white.opacity(0.07))
+                        Capsule().fill(StudioTheme.contrast.opacity(0.07))
                         Capsule().fill(LinearGradient(colors: [StudioTheme.accent.opacity(0.6), StudioTheme.accent],
                                                       startPoint: .leading, endPoint: .trailing))
                             .frame(width: geometry.size.width * fraction)

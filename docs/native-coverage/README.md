@@ -192,6 +192,7 @@ Pour rejouer, définir `MLXL3_FLASH_MODEL` et `MLXL3_FLASH_MTP_REFERENCE` (répe
 cargo test --locked --lib --features chat gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary -- --exact --ignored
 cargo test --locked --lib --features mlx,chat qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --exact --ignored --nocapture
 cargo test --locked --lib --features chat gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state -- --exact --ignored
+```
 
 ### Bridge Studio et API HTTP Flash sans MLX
 
@@ -205,6 +206,34 @@ mlxl3-rs serve CHECKPOINT --host 127.0.0.1 --port 8000
 python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --context 256
 MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```
+### Archive de moteur Metal autonome
+
+Le format de manifeste 2 identifie explicitement le backend `metal`. Les shaders étant embarqués dans l’exécutable, son archive contient `engine.json` et `mlxl3`. Le packager refuse les fichiers MLX ou autres membres supplémentaires. L’updater vérifie le format, les empreintes, l’architecture, la signature et le `runtime-info` du programme avant activation. Le format historique 1 reste accepté pour les archives d’anciennes versions. Une installation native exige une app au moins 2.0.0.
+
+`MLXL3_ENGINE_BACKEND=metal scripts/build-engine.sh` construit et signe le moteur autonome, inspecte les dépendances Mach-O et les images chargées puis produit son archive. `scripts/build-macos-app.sh` réutilise le même constructeur de moteur. Le sous-bundle de conversion utilise encore MLX à ce stade. La migration complète de l’app dépend de son remplacement.
+
+Le test local de l’archive signée a installé le véritable binaire parent 9e7e37ec dans un répertoire jetable, exécuté `runtime-info` et `list`, activé puis rejeté la version. Le protocole de build a réutilisé ce binaire déjà compilé, puis a réellement signé, inspecté et empaqueté l’artefact. Le job `native-engine-archive` reconstruit la source sans paquet MLX installé. [Empreintes et limites](engine-archive/local.json).
+
+### Recherche de quantification sans MLX
+
+`quantize-tiles` exécute le Viterbi Metal natif pour K2–8 et les trois codebooks. Il lit des tuiles en ordre de kernel, conserve les coûts FP16, les deux passes tail-biting et le premier prédécesseur en cas d’égalité. Le dossier de sortie atomique contient les poids décodés FP32, les états uint16, le packing EXL3 et un reçu complet. La destination existante est protégée. Les demandes invalides et annulées publient une erreur.
+
+```sh
+mlxl3-rs quantize-tiles tiles.f32 résultat --k 4 --codebook 0 --max-scratch-bytes 268435456
+PYTHONPATH=src python tests/physical_native_quantizer.py --cli /chemin/absolu/mlxl3-rs --output nouveau-résultat
+cargo test --locked --no-default-features --test quantize_fixtures
+```
+
+Le fichier d’entrée contient des FP32 little-endian finis, au plus 256 Mio, avec 256 valeurs par tuile. Le scratch doit contenir au moins une tuile. L’API publique `mlxl3_quantizer.quantize_tiles_native(tiles, k, cb, engine=...)` emploie le même exécutable et reprend la forme `(N,256)`. Les délais, annulations et erreurs de protocole rejoignent le processus avant de nettoyer ses fichiers.
+
+Les 21 variantes concordent sur 49 728 mots avec le processus indépendant MLX 0.32.2. Le rejeu final lit un corpus haché sans importer MLX. Le codec CPU réel retrouve aussi chaque poids décodé, état et mot du packing. Les rotations, la calibration et les adapters de conversion de modèle restent à migrer. [Résultats finaux](quantizer/final.json), [provenance, suites et limites](quantizer/provenance.json).
+
+
+## Conversion directe native et consommateur de captures
+
+`MLXL3_NATIVE_ENGINE=/chemin/vers/mlxl3 python -m ponyexl3.cli.convert_advanced --search-backend native ... --direct-layer` raccorde le lecteur source, les transformations hôtes et le writer EXL3 au service Metal autonome. Le vrai CLI sur une projection FP16 128x128, K4/MCG et base identité a produit les mêmes4096 mots de packing que la référence MLX indépendante, avec imports MLX interdits. Les huit fixtures de transformations FP32 totalisent197888 mots exacts après traitement des sous-normaux.
+
+Le premier LDLQ NumPy+treillis natif a divergé sur446 mots après une compensation inter-buffer à32 termes. Ce candidat n’est pas exposé comme validé : le mode natif LDLQ s’arrête explicitement avant recherche, en attendant un opérateur de compensation FP32 qualifié. Le protocole de lecture de captures natives est prêt et vérifie identités, caps, segments, types, hashes et logits, mais son producteur source brut et les adapters restent à relier. La politique d’échelle des groupes d’experts, le Studio et le package convertisseur sans MLX restent ouverts. [Résultats et limites](converter-host/report.json), [périmètre de vérification](converter-host/verification.md), [protocole capture](converter-host/capture-protocol.md).
 
 ### Lectures SSD Flash et trois vagues Metal
 
@@ -227,4 +256,51 @@ Le [port du cache de conversation](prefix-cache/validation.json) qualifie ensuit
 ```sh
 MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_SSD_CACHE_GIB=1.2 cargo test --locked --lib --features chat gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay -- --exact --ignored --nocapture
 MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_FLASH_TEST_CLI=DIRECT cargo test --locked --test openai_transport --features chat native_flash_memory_budget_preserves_bridge_recovery -- --exact --ignored --nocapture
+```
+
+### Projections natives Qwen
+
+Le chargeur `FlashProjection::load_exl3` et l’opération `codec` `metal-exl3-linear` exécutent les matrices EXL3 des autres familles. La préparation H128 et les codebooks réutilisent les primitives qualifiées. Le nombre de groupes SIMD, les tuiles de sortie et les divisions de la réduction suivent le chemin dense/MoE existant. Le noyau K=7 conserve ses 128 threads et la tête MTP ses 64 threads.
+
+Sur ce M5, chacun des deux parcours vérifie 104 cas et 429 952 mots FP16 finis sans écart face au Rust/MLX indépendant. Parmi eux, 58 cas génériques comparent 359 040 valeurs, avec les matrices Qwen réelles et les 248 320 logits de sa tête. Les cas synthétiques couvrent les huit taux du treillis, les trois codebooks, biais, anciens noms de gains, entrées à strides et seize divisions. Les fixtures Flash et la durée de vie des soumissions sont rejouées dans la même campagne. Le second parcours force les quatre groupes sur le M5. [M5](qwen-projection/m5.json), [quatre groupes forcés](qwen-projection/portable.json), [sources et limites](qwen-projection/provenance.json).
+
+```sh
+python tests/physical_flash_projection.py DIRECT_CLI STOCK_LIBTEST NEW_REPORT --checkpoint FLASH_CHECKPOINT --qwen-checkpoint QWEN35B_CHECKPOINT
+```
+
+Ajouter `--portable` pour le parcours à quatre groupes. Utiliser un Python disposant de MLX pour construire les fixtures et lancer l’oracle. Le processus du moteur direct vérifie lui-même l’absence de MLX dans ses bibliothèques chargées. Cette tranche qualifie les projections et leur entrée CLI. La génération Qwen complète est suivie séparément.
+
+
+### Qwen Gated DeltaNet sans MLX
+
+`QwenGdn` et le codec `metal-qwen-gdn` exécutent les projections, la convolution causale, la récurrence FP32, la normalisation et la porte Qwen. Les instantanés conservent les buffers précédents et refusent les états d’une autre couche. La publication n’a lieu qu’après le succès de la commande.
+
+Sur le Qwen3.6 MoE local, les couches 0 et 36 et les préfixes de 1, 2 et 4 positions comparent **3 321 856 valeurs finies bit à bit**, sans écart : sorties, historique de convolution et récurrence. Un premier essai avait trouvé un arrondi FP16 manquant avant le gain RMS ; son [rapport d’échec](qwen-gdn/initial.json) reste conservé. Le [rejeu corrigé](qwen-gdn/physical.json), le [contrôle des projections et experts Flash](qwen-gdn/expert-regression.json) et la [provenance](qwen-gdn/provenance.json) sont archivés. Cette tranche qualifie le composant récurrent ; la session Qwen complète reste à assembler.
+
+```sh
+python tests/physical_qwen_gdn.py DIRECT_CLI STOCK_CLI QWEN35B_CHECKPOINT NEW_REPORT
+MLXL3_QWEN_NATIVE_MODEL=QWEN35B_CHECKPOINT cargo test --locked --lib --features chat gpu::qwen_gdn::retained_states_replay_after_branch_and_rejected_input -- --exact --ignored
+```
+
+
+### Experts routés Qwen/LFM sans MLX
+
+`MappedSwitchGlu` charge une banque EXL3 et reçoit une ligne FP16, les IDs imposés et leurs scores FP16. Le chemin conserve les divisions liées au nombre de routes, les quatre groupes M5 pour K2, les papillons et SiLU FP32 du GLU fusionné, puis les arrondis et la réduction FP16 des experts. Il accepte les noms Qwen `gate_proj/up_proj/down_proj` et LFM `w1/w3/w2`. Les gains doivent être FP16 et les projections sans biais.
+
+Les deux parcours M5 et quatre groupes forcés passent chacun **26 cas et 82 816 mots FP16 finis, sans écart** : sept largeurs de codebook, trois modes, IDs répétés, seize divisions, entrée nulle et quatre couches réelles Qwen/LFM. Le contrôle des projections Flash compare aussi 429 952 mots inchangés. Le garde de placement vérifie la fin de chaque ligne contre la longueur réelle du buffer. Ses 22 obligations et quatre couvertures complètent les 100 obligations et trois couvertures du plan de dispatch. L’ancienne propriété fondée sur un nombre de lignes reste archivée comme non vérifiée après trois tentatives sans verdict. [M5](mapped-glu/m5.json), [quatre groupes](mapped-glu/portable.json), [provenance et limites](mapped-glu/provenance.json).
+
+```sh
+python tests/physical_mapped_expert.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL
+MLXL3_QWEN_NATIVE_MODEL=QWEN_MODEL DIRECT_LIBTEST gpu::projection::mapped_expert_rejections_recover_and_outputs_outlive_the_bank --exact --ignored
+```
+
+
+### Projections ordinaires groupées
+
+`ProjectionGroup` reçoit une liste de préfixes et conserve leur ordre. Quand les matrices sont compatibles, leurs largeurs cumulées fixent le plan de réduction partagé ; K7 et les K/codebooks incompatibles conservent les projections séparées. Le chemin accepte une ligne FP16 et rend des vues FP16 possédées. Qwen et LFM peuvent ainsi réutiliser les mêmes groupes Q/K/V et gate/up.
+
+Chaque mode M5/quatre groupes forcés compare 38 cas et **164 352 mots FP16 finis sans écart**, dont huit groupes de vrais checkpoints, des largeurs inégales, les dispositions denses 5120, les biais/gains F16/BF16/F32, les préfixes répétés et les strides négatifs. Le contrôle d’ownership passe après libération du propriétaire. Les deux harnais CPU passent 132 obligations et six couvertures ; le pliage des largeurs est vérifié sur des listes de 0 à 3 éléments, pas sur toutes les longueurs possibles. Aucun shader n’a changé depuis #103. [M5](projection-groups/m5.json), [quatre groupes](projection-groups/portable.json), [sources, échecs et limites](projection-groups/provenance.json).
+
+```sh
+python tests/physical_projection_group.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL --previous PREVIOUS_103_DIRECT
 ```

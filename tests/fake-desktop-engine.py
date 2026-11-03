@@ -51,7 +51,9 @@ if len(sys.argv) > 1 and sys.argv[1] == 'hub':
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'list':
-    print('[]', flush=True)
+    if os.environ.get('MLXL3_FIXTURE_LIST_DELAY') == '1':
+        time.sleep(0.2)
+    print(os.environ.get('MLXL3_FIXTURE_MODELS', '[]'), flush=True)
     sys.exit(0)
 
 if len(sys.argv) > 1 and sys.argv[1] == 'mcp-fixture':
@@ -162,6 +164,14 @@ tuning_key = 'fixture-runtime:' + model
 capabilities = {} if model == 'mtp-old' else {'mtp_max_depth': 1 if model.startswith('flash') else 3, 'mtp_tune_supported': mtp_capable and not model.startswith('flash'), 'mtp_tuning_key': tuning_key}
 if model.startswith('auto-') or model == 'flash-config':
     capabilities['mtp_configure_supported'] = True
+if model == 'first-load-fails':
+    marker = os.path.join(os.environ['MLXL3_HOME'], 'first-load-attempt')
+    if not os.path.exists(marker):
+        with open(marker, 'w', encoding='utf-8') as handle:
+            handle.write('attempted')
+        emit('error', message='fixture first load failed')
+        sys.stdin.read()
+        sys.exit(0)
 if dflash_capable:
     capabilities.update(dflash_configure_supported=True, dflash_tune_supported=True,
                         dflash_tuning_key=tuning_key+':dflash-v2', dflash_family='qwen38_dense' if model == 'dflash-dense' else 'qwen36_moe')

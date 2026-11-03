@@ -132,9 +132,11 @@ final class MLXL3Bridge: @unchecked Sendable {
     }
 
     func start(model: String, contextLength: Int = 0, registry: URL? = nil) async throws {
+        try Task.checkCancellation()
         stop()
         let ticket = generationID.withLock { $0 }
         await waitForRetiringProcesses()
+        try Task.checkCancellation()
         guard generationID.withLock({ $0 == ticket }) else { throw CancellationError() }
         guard let executable = CLIResolver.executable() else {
             throw MLXL3BridgeError.executableNotFound

@@ -1,0 +1,27 @@
+{
+  "order": "AB",
+  "status": "running",
+  "command": [
+    "/Users/henko/Documents/Codex/2026-10-05/chec/work/post-smallm-ci-venv/bin/python",
+    "benchmarks/benchmark_idle_memory.py",
+    "--baseline",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/control-rs",
+    "--candidate",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/optimized-rs",
+    "--model",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--head",
+    "/Users/henko/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--short-only",
+    "--order",
+    "AB",
+    "--output",
+    "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/qwen27-ram-impl-20261016/memory-ab.json"
+  ],
+  "conditions_before": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36241507)\t80%; AC attached; not charging present: true",
+    "swap": "vm.swapusage: total = 4096.00M  used = 2406.62M  free = 1689.38M  (encrypted)"
+  },
+  "memory_saver": false,
+  "allocator_cache": "MLX default"
+}

@@ -1,0 +1,104 @@
+Building for debugging...
+[Planning deferred tasks]
+[5 / 20]
+[6 / 21] SwiftMath
+[18 / 132]
+[28 / 132]
+[31 / 132]
+[37 / 132]
+[40 / 132]
+[47 / 132]
+[52 / 132]
+[53 / 132]
+[63 / 132]
+[64 / 132]
+[68 / 132]
+[69 / 132]
+[76 / 132]
+[77 / 132]
+[83 / 132]
+[84 / 132]
+[86 / 132]
+[88 / 132]
+[89 / 132]
+[96 / 132]
+[97 / 132]
+[101 / 132]
+[104 / 132]
+[105 / 132]
+[106 / 132]
+[117 / 132] SwiftMath
+[121 / 128] SwiftMath
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[131 / 247]
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[137 / 247]
+[145 / 247]
+[148 / 247]
+[155 / 247]
+[159 / 247]
+[164 / 247]
+[169 / 247]
+[170 / 247]
+[182 / 247]
+[183 / 247]
+[187 / 247]
+[190 / 247]
+[197 / 247]
+[199 / 247]
+[205 / 247]
+[206 / 247]
+[209 / 247]
+[211 / 247]
+[221 / 247]
+[225 / 247]
+[228 / 247]
+[229 / 247]
+[231 / 247]
+[242 / 247] MLXL3Studio-product
+[243 / 247] MLXL3Studio-product
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[245 / 247] MLXL3Studio-product
+Build complete! (37,53 s)
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Desktop preference checks passed: 55 assertions, isolated persistence, appearance, actual startup/manual loading and errors
+Completion notification checks passed: 14 assertions; permission, persistence, background/foreground, cancellation, errors, duplicates
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 55.229 ms; independent UUID 0.096 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Response UI checks passed: complete copy, native control/clipboard action, 56 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport

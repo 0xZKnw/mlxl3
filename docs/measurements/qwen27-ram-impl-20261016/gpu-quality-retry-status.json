@@ -1,0 +1,33 @@
+{
+  "status": "failed",
+  "validated": false,
+  "cases": [
+    {
+      "name": "mtp-rollback-retry",
+      "status": "timeout",
+      "command": [
+        "/Users/henko/Documents/Code/mlxl3-post-smallm/build/qwen27-ram-impl-20261016/candidate-tests",
+        "qwen35::tests::mtp_prefill_verification_and_rollback_match_target",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 600,
+      "expected_negative": false,
+      "reaped": true,
+      "exit_code": -15
+    }
+  ],
+  "conditions": {
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36241507)\t52%; discharging; 1:50 remaining present: true",
+    "swap": "vm.swapusage: total = 5120.00M  used = 3485.00M  free = 1635.00M  (encrypted)",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B5101f"
+  },
+  "binary_sha256": "b1ef5f4987e327bb1b6123f8d8b374a344d59b2a8ecb4dbe854a3aac9474ddb7",
+  "planned_cases": [
+    "mtp-rollback-retry",
+    "mtp-sessions"
+  ],
+  "error": "TimeoutError('mtp-rollback-retry')"
+}

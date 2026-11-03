@@ -1,0 +1,51 @@
+{
+  "source": "local config.json and actual native F16 KV/FP32 GDN state shapes",
+  "layer_counts": {
+    "linear_attention": 48,
+    "full_attention": 16
+  },
+  "target_kv_bytes_per_token": 65536,
+  "mtp_kv_bytes_per_token": 4096,
+  "gdn_recurrent_bytes": 150994944,
+  "gdn_logical_conv_bytes": 2949120,
+  "gdn_fixed_bytes": 153944064,
+  "embedding_dense_bytes": 2542796800,
+  "contexts": [
+    {
+      "tokens": 4096,
+      "target_kv_bytes": 268435456,
+      "mtp_kv_bytes": 16777216,
+      "target_kv_MiB": 256.0,
+      "target_plus_mtp_kv_MiB": 272.0
+    },
+    {
+      "tokens": 8192,
+      "target_kv_bytes": 536870912,
+      "mtp_kv_bytes": 33554432,
+      "target_kv_MiB": 512.0,
+      "target_plus_mtp_kv_MiB": 544.0
+    },
+    {
+      "tokens": 16384,
+      "target_kv_bytes": 1073741824,
+      "mtp_kv_bytes": 67108864,
+      "target_kv_MiB": 1024.0,
+      "target_plus_mtp_kv_MiB": 1088.0
+    },
+    {
+      "tokens": 32768,
+      "target_kv_bytes": 2147483648,
+      "mtp_kv_bytes": 134217728,
+      "target_kv_MiB": 2048.0,
+      "target_plus_mtp_kv_MiB": 2176.0
+    },
+    {
+      "tokens": 65536,
+      "target_kv_bytes": 4294967296,
+      "mtp_kv_bytes": 268435456,
+      "target_kv_MiB": 4096.0,
+      "target_plus_mtp_kv_MiB": 4352.0
+    }
+  ],
+  "limits": "Logical live payload, no snapshots, backing retention, allocator buffers, activations or process overhead. Full context includes prompt and generated tokens."
+}

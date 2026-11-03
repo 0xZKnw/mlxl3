@@ -122,6 +122,15 @@ final class StudioModel: ObservableObject {
     @Published private(set) var modelContextLimit: Int?
     @Published private(set) var contextMemory: ContextMemoryProfile?
     @Published private(set) var modelResidentBytes: Double?
+    @Published private(set) var theme: AppTheme = .dark
+    @Published private(set) var loadModelOnStartup = true
+    @Published private(set) var startupModelPath = ""
+    @Published private(set) var completionNotificationsEnabled = false
+    @Published private(set) var notificationStatus: String?
+    private var notificationPermissionID = UUID()
+    private var cancelledGenerationID: String?
+    private let notificationClient: CompletionNotificationClient
+    private let applicationIsActive: () -> Bool
     @Published private(set) var language: AppLanguage = .fr
     @Published private(set) var modelIdleUnloadDelay = ModelIdleUnloadDelay.defaultValue
     @Published private(set) var memorySaverEnabled = false
@@ -140,6 +149,8 @@ final class StudioModel: ObservableObject {
     private var mtpConfigureSupported = false
     private var mtpLegacyModelName: String?
     private var didStart = false
+    private var modelLoadTask: Task<Void, Never>?
+    private var modelLoadID = UUID()
     private var activeRequestID: String? {
         didSet {
             if activeRequestID == nil {
@@ -175,13 +186,21 @@ final class StudioModel: ObservableObject {
         updateManager: UpdateManager = UpdateManager(),
         isPreview: Bool = false,
         preferences: UserDefaults = .standard,
-        idleUnloadNow: @escaping () -> ContinuousClock.Instant = { .now }
+        idleUnloadNow: @escaping () -> ContinuousClock.Instant = { .now },
+        notificationClient: CompletionNotificationClient = .system,
+        applicationIsActive: @escaping () -> Bool = { NSApplication.shared.isActive }
     ) {
         self.conversationFileURL = conversationFileURL
         self.updateManager = updateManager
         self.isPreview = isPreview
         self.preferences = preferences
         self.idleUnloadNow = idleUnloadNow
+        self.notificationClient = notificationClient
+        self.applicationIsActive = applicationIsActive
+        self.startupModelPath = preferences.string(forKey: "studio.startupModelPath") ?? ""
+        self.completionNotificationsEnabled = preferences.bool(forKey: "studio.completionNotificationsEnabled")
+        self.theme = AppTheme.load(from: preferences)
+        self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
@@ -294,6 +313,60 @@ final class StudioModel: ObservableObject {
     var savedContextLength: Int {
         guard let name = selectedModelName else { return 0 }
         return (preferences.dictionary(forKey: "studio.contextLengths")?[name] as? Int) ?? 0
+    }
+
+    func setTheme(_ value: AppTheme) {
+        theme = value
+        preferences.set(value.rawValue, forKey: AppTheme.preferenceKey)
+    }
+
+    func setLoadModelOnStartup(_ value: Bool) {
+        loadModelOnStartup = value
+        preferences.set(value, forKey: StartupModelPreference.key)
+    }
+
+    func setStartupModelPath(_ path: String) {
+        startupModelPath = path
+        preferences.set(path, forKey: "studio.startupModelPath")
+    }
+
+    func setCompletionNotificationsEnabled(_ enabled: Bool) {
+        let ticket = UUID()
+        notificationPermissionID = ticket
+        notificationStatus = nil
+        if !enabled {
+            completionNotificationsEnabled = false
+            preferences.set(false, forKey: "studio.completionNotificationsEnabled")
+            return
+        }
+        guard !isPreview else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let allowed = try await notificationClient.requestAuthorization()
+                guard notificationPermissionID == ticket else { return }
+                completionNotificationsEnabled = allowed
+                preferences.set(allowed, forKey: "studio.completionNotificationsEnabled")
+                if !allowed {
+                    notificationStatus = L("Autorise les notifications de MLXL3 dans les Réglages Système de macOS.", "Allow MLXL3 notifications in macOS System Settings.")
+                }
+            } catch {
+                guard notificationPermissionID == ticket else { return }
+                completionNotificationsEnabled = false
+                preferences.set(false, forKey: "studio.completionNotificationsEnabled")
+                notificationStatus = error.localizedDescription
+            }
+        }
+    }
+
+    private func notifyGenerationFinished(requestID: String) {
+        guard completionNotificationsEnabled, !isPreview, !applicationIsActive(),
+              cancelledGenerationID != requestID else { return }
+        Task { [weak self] in
+            guard let self, completionNotificationsEnabled else { return }
+            do { try await notificationClient.deliver(requestID) }
+            catch { notificationStatus = error.localizedDescription }
+        }
     }
 
     func setLanguage(_ value: AppLanguage) {
@@ -501,10 +574,10 @@ final class StudioModel: ObservableObject {
         guard !didStart else { return }
         didStart = true
         updateManager.startAutomaticCheck()
-        refreshModels()
+        refreshModels(autoLoad: loadModelOnStartup, isStartup: true)
     }
 
-    func refreshModels(autoLoad: Bool = true) {
+    func refreshModels(autoLoad: Bool = true, isStartup: Bool = false) {
         guard !isPreview else { return }
         MLXL3Bridge.listModels { [weak self] result in
             guard let self else { return }
@@ -517,11 +590,21 @@ final class StudioModel: ObservableObject {
                     self.engineState = .idle
                     return
                 }
+                if isStartup, !self.startupModelPath.isEmpty {
+                    guard let preferred = models.first(where: { $0.path == self.startupModelPath }) else {
+                        // Never silently load a different large model when the chosen one is missing.
+                        self.engineState = .idle
+                        return
+                    }
+                    self.selectedModelName = preferred.name
+                }
                 if !models.contains(where: { $0.name == self.selectedModelName }) {
                     self.ejectModel()
                     self.selectedModelName = models[0].name
                 }
-                if autoLoad && !self.isGenerating { self.loadSelectedModel() }
+                if autoLoad && (!isStartup || self.loadModelOnStartup) && !self.isGenerating {
+                    self.loadSelectedModel()
+                }
             case let .failure(error):
                 self.engineState = .failed(error.localizedDescription)
             }
@@ -644,14 +727,26 @@ final class StudioModel: ObservableObject {
 
     func selectModel(_ name: String) {
         guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
-        if name == selectedModelName, bridge.isRunning { return }
+        if name == selectedModelName, bridge.isRunning {
+            switch engineState {
+            case .loading, .ready, .generating: return
+            case .idle, .failed: break
+            }
+        }
         selectedModelName = name
         schedulePersistence()
         loadSelectedModel()
     }
 
+    func retrySelectedModel() {
+        guard let name = selectedModelName else { return }
+        selectModel(name)
+    }
+
     func ejectModel() {
-        guard canEject else { return }
+        guard canEject || bridge.isRunning || modelLoadTask != nil else { return }
+        modelLoadID = UUID()
+        modelLoadTask?.cancel(); modelLoadTask = nil
         modelIdleUnloader.cancel()
         cancelDFlashPreparation()
         activeMessage()?.fail(L("Modèle éjecté", "Model unloaded"))
@@ -759,6 +854,7 @@ final class StudioModel: ObservableObject {
 
         let requestID = UUID().uuidString
         activeRequestID = requestID
+        cancelledGenerationID = nil
         activeResponseID = assistant.id
         if selectedMode == .agent {
             generationStartedAt = .now
@@ -834,6 +930,7 @@ final class StudioModel: ObservableObject {
 
     private func requestGenerationStop(_ reason: String) {
         guard let request = activeRequestID else { return }
+        cancelledGenerationID = request
         cancellationReason = reason
         guard cancellationFallback == nil, bridge.cancelGeneration() else {
             forceStopGeneration(reason); return
@@ -1425,6 +1522,9 @@ final class StudioModel: ObservableObject {
 
     private func loadSelectedModel() {
         guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
+        modelLoadTask?.cancel()
+        let operation = UUID()
+        modelLoadID = operation
         modelIdleUnloader.cancel()
         cancelDFlashPreparation()
         dflashTuneSupported = false; dflashTuningKey = nil; dflashConfigureSupported = false
@@ -1467,13 +1567,16 @@ final class StudioModel: ObservableObject {
         activeResponseID = nil
         let agentMode = selectedMode == .agent
         let contextLength = savedContextLength
-        Task {
+        modelLoadTask = Task { [weak self] in
+            guard let self, modelLoadID == operation, !Task.isCancelled else { return }
+            defer { if modelLoadID == operation { modelLoadTask = nil } }
             do {
                 let registry = try agentMode ? prepareAgentRegistry() : nil
                 bridgeUsesAgentRegistry = agentMode
                 try await bridge.start(model: selectedModelName, contextLength: contextLength, registry: registry)
             } catch is CancellationError { }
             catch {
+                guard modelLoadID == operation, !Task.isCancelled else { return }
                 engineState = .failed(error.localizedDescription)
             }
         }
@@ -1643,7 +1746,7 @@ final class StudioModel: ObservableObject {
             )
             schedulePersistence()
         case "complete":
-            guard event.requestID == activeRequestID else { return }
+            guard let requestID = activeRequestID, event.requestID == requestID else { return }
             if event.contextFull != true, let stats = event.stats, let sample = labConfiguration?(stats), sample.valid {
                 labSamples.append(sample)
                 labSamples = Array(labSamples.suffix(1000))
@@ -1666,6 +1769,9 @@ final class StudioModel: ObservableObject {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
                 message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
+            }
+            if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
+                notifyGenerationFinished(requestID: requestID)
             }
             finishAgentTurn()
             activeRequestID = nil
@@ -1892,6 +1998,8 @@ extension StudioModel {
     }
 
     func stopServices() {
+        modelLoadID = UUID()
+        modelLoadTask?.cancel(); modelLoadTask = nil
         quantizer.cancel()
         generationWatchdog?.cancel(); generationWatchdog = nil
         cancellationFallback?.cancel(); cancellationFallback = nil

@@ -1,0 +1,33 @@
+import sys,json,time,tempfile,os,hashlib,subprocess
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()/'scripts'))
+from native_json_process import JsonProcess
+out=Path('build/desktop-followup-20261102'); engine=Path('/Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v2.0.2/mlxl3')
+report={'status':'in_progress','context':0,'engine_sha256':hashlib.sha256(engine.read_bytes()).hexdigest(),'events':[],'reaped':False}
+def save(): (out/'cold-flash-auto.json').write_text(json.dumps(report,indent=2)+'\n')
+save();child=None
+try:
+ with tempfile.TemporaryDirectory(prefix='flash-start-') as tmp, (out/'cold-flash-auto.stderr').open('w') as err:
+  registry=Path(tmp)/'models.json'; registry.write_bytes(Path('/Users/henko/.config/mlxl3/models.json').read_bytes())
+  command=[str(engine),'--registry',str(registry),'bridge','Qwen3.8-Flash-Next-exl3-84147e95','--context-length','0']
+  report['command']=command;report['power']=subprocess.check_output(['pmset','-g','batt'],text=True)
+  with JsonProcess(command,stderr=err) as child:
+   deadline=time.monotonic()+180
+   while True:
+    e=child.receive(deadline);report['events'].append(e);save();print(e.get('type'),e.get('message',''),flush=True)
+    if e.get('type')=='error':raise RuntimeError(e)
+    if e.get('type')=='ready':break
+   request={'type':'generate','request_id':'cold-flash-auto','conversation_id':'isolated-cold-flash-auto','messages':[{'role':'user','content':'Réponds simplement bonjour.'}],'max_tokens':8,'temperature':0,'top_k':1,'repetition_penalty':1,'memory_saver':False,'mtp':False}
+   child.send(request,time.monotonic()+10);deadline=time.monotonic()+180
+   while True:
+    e=child.receive(deadline);report['events'].append(e);save()
+    if e.get('type') in ('error','cancelled'):raise RuntimeError(e)
+    if e.get('type')=='complete':
+     assert 0<e.get('stats',{}).get('generated_tokens',0)<=8
+     assert e.get('token_hash') and (e.get('text') or e.get('assistant_context') or e.get('cache_context'))
+     break
+  report.update(status='passed',reaped=child.process.poll() is not None)
+except BaseException as e:
+ report.update(status='failed',error=repr(e),reaped=child is None or child.process.poll() is not None)
+finally:save()
+print(json.dumps({'status':report['status'],'error':report.get('error'),'reaped':report['reaped']}),flush=True)
