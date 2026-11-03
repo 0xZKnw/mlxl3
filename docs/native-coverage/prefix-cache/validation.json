@@ -1,0 +1,248 @@
+{
+  "status": "physical_verified_final_CPU_checks_pending",
+  "scope": "owned native Flash single-conversation prefill checkpoint for AR, MTP and DFlash; target plus auxiliary state, logit reuse, ledger ownership, mode/error/cancel/cleanup recovery",
+  "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+  "base_PR": 108,
+  "hardware": "Apple M5,24GiB,macOS build26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "draft": "Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "identity": {
+    "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+    "binaries": {
+      "physical-openai_transport": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+      "physical-mlxl3-rs": "ae55cf1d3cdd38db04799576373c43f9a83154143d75a8e72e07945168b2273f",
+      "native-cli-cache": "50b1cc9174bd9a5b6ac6ebe46e67b980c4e5c8989ceee3ca0b1ed9a41b46b4c3",
+      "physical-mlxl3_native": "30a9ff365ad35eec1e0b84b9412b9444a0ee835878242407fd04adfe5df0c0a0"
+    },
+    "source_files": {
+      "native/src/native_prompt_cache.rs": "ccf3b756a9ddd1b38567978c4d02c469489d427e4b2321bcf6f8c66a28534a45",
+      "native/src/native_draft.rs": "94f97e57141234134f68ec988b46139ba29492860de49e5b0dbecd3a62611d86",
+      "native/src/direct_bridge.rs": "22c85e9bd3c71cb20c8887886c0d2ef3aec3750467b737c087b70d7ef4221d3d",
+      "native/src/main.rs": "99f67a258a9d6bee8b056635bc664f7dbc16c0c76f783a694e7a530aadbe4442",
+      "native/src/flash_draft_budget.rs": "de9ba6834ee3a2771275eb884962d5940eb4b8f48f7561794ddd3c53f8dc194d",
+      "native/src/flash_draft_runtime.rs": "1b551e15b8cb9f31817c4342dca5b9a867165d6a7abd9ca1677f18de63ff341c",
+      "native/src/gpu/memory.rs": "58817e47114bde4b226fae50fa53c03e6b79a08edf307c62a5682ac26755bf3b",
+      "tests/openai_transport.rs": "3d20c56161588dab55f5c988575216811ca09dc9b56ace0e3fae85ee29a6bb93"
+    }
+  },
+  "physical": {
+    "status": "verified",
+    "identity": {
+      "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+      "binaries": {
+        "physical-openai_transport": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+        "physical-mlxl3-rs": "ae55cf1d3cdd38db04799576373c43f9a83154143d75a8e72e07945168b2273f",
+        "native-cli-cache": "50b1cc9174bd9a5b6ac6ebe46e67b980c4e5c8989ceee3ca0b1ed9a41b46b4c3",
+        "physical-mlxl3_native": "30a9ff365ad35eec1e0b84b9412b9444a0ee835878242407fd04adfe5df0c0a0"
+      },
+      "source_files": {
+        "native/src/native_prompt_cache.rs": "ccf3b756a9ddd1b38567978c4d02c469489d427e4b2321bcf6f8c66a28534a45",
+        "native/src/native_draft.rs": "94f97e57141234134f68ec988b46139ba29492860de49e5b0dbecd3a62611d86",
+        "native/src/direct_bridge.rs": "22c85e9bd3c71cb20c8887886c0d2ef3aec3750467b737c087b70d7ef4221d3d",
+        "native/src/main.rs": "99f67a258a9d6bee8b056635bc664f7dbc16c0c76f783a694e7a530aadbe4442",
+        "native/src/flash_draft_budget.rs": "de9ba6834ee3a2771275eb884962d5940eb4b8f48f7561794ddd3c53f8dc194d",
+        "native/src/flash_draft_runtime.rs": "1b551e15b8cb9f31817c4342dca5b9a867165d6a7abd9ca1677f18de63ff341c",
+        "native/src/gpu/memory.rs": "58817e47114bde4b226fae50fa53c03e6b79a08edf307c62a5682ac26755bf3b",
+        "tests/openai_transport.rs": "3d20c56161588dab55f5c988575216811ca09dc9b56ace0e3fae85ee29a6bb93"
+      }
+    },
+    "cases": [
+      {
+        "label": "prefix-256",
+        "test": "direct_bridge::prefix::tests::native_prefix_reuse_restores_states_and_releases_owned_checkpoints",
+        "status": "passed",
+        "environment_overrides": {
+          "MLXL3_PROMPT_CACHE_MIB": "256",
+          "MLXL3_EXPECT_PREFIX_CACHE": "1"
+        },
+        "log": "build/issue75cache/prefix-256.log",
+        "exit_code": 0,
+        "seconds": 16.714457917,
+        "observations": {
+          "cache_permitted": true,
+          "finite_state_word_comparisons": 172818432,
+          "modes": 3,
+          "reused_checkpoints": 9
+        }
+      },
+      {
+        "label": "prefix-0",
+        "test": "direct_bridge::prefix::tests::native_prefix_reuse_restores_states_and_releases_owned_checkpoints",
+        "status": "passed",
+        "environment_overrides": {
+          "MLXL3_PROMPT_CACHE_MIB": "0",
+          "MLXL3_EXPECT_PREFIX_CACHE": "0"
+        },
+        "log": "build/issue75cache/prefix-0.log",
+        "exit_code": 0,
+        "seconds": 9.188347292,
+        "observations": {
+          "cache_permitted": false,
+          "finite_state_word_comparisons": 57606144,
+          "modes": 1,
+          "reused_checkpoints": 0
+        }
+      },
+      {
+        "label": "prefix-1",
+        "test": "direct_bridge::prefix::tests::native_prefix_reuse_restores_states_and_releases_owned_checkpoints",
+        "status": "passed",
+        "environment_overrides": {
+          "MLXL3_PROMPT_CACHE_MIB": "1",
+          "MLXL3_EXPECT_PREFIX_CACHE": "0"
+        },
+        "log": "build/issue75cache/prefix-1.log",
+        "exit_code": 0,
+        "seconds": 9.672837082999997,
+        "observations": {
+          "cache_permitted": false,
+          "finite_state_word_comparisons": 57606144,
+          "modes": 1,
+          "reused_checkpoints": 0
+        }
+      },
+      {
+        "label": "session",
+        "test": "native_draft::speculative_session_preserves_ordinary_tokens_states_and_failure_recovery",
+        "status": "passed",
+        "environment_overrides": {},
+        "log": "build/issue75cache/session.log",
+        "exit_code": 0,
+        "seconds": 19.971174958000006
+      },
+      {
+        "label": "bridge",
+        "test": "native_flash_prefix_cache_preserves_bridge_recovery",
+        "status": "passed",
+        "environment_overrides": {},
+        "log": "build/issue75cache/bridge.log",
+        "exit_code": 0,
+        "seconds": 148.398257041
+      }
+    ]
+  },
+  "budget_bridge": {
+    "status": "verified",
+    "identity": {
+      "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+      "binaries": {
+        "physical-openai_transport": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+        "physical-mlxl3-rs": "ae55cf1d3cdd38db04799576373c43f9a83154143d75a8e72e07945168b2273f",
+        "native-cli-cache": "50b1cc9174bd9a5b6ac6ebe46e67b980c4e5c8989ceee3ca0b1ed9a41b46b4c3",
+        "physical-mlxl3_native": "30a9ff365ad35eec1e0b84b9412b9444a0ee835878242407fd04adfe5df0c0a0"
+      },
+      "source_files": {
+        "native/src/native_prompt_cache.rs": "ccf3b756a9ddd1b38567978c4d02c469489d427e4b2321bcf6f8c66a28534a45",
+        "native/src/native_draft.rs": "94f97e57141234134f68ec988b46139ba29492860de49e5b0dbecd3a62611d86",
+        "native/src/direct_bridge.rs": "22c85e9bd3c71cb20c8887886c0d2ef3aec3750467b737c087b70d7ef4221d3d",
+        "native/src/main.rs": "99f67a258a9d6bee8b056635bc664f7dbc16c0c76f783a694e7a530aadbe4442",
+        "native/src/flash_draft_budget.rs": "de9ba6834ee3a2771275eb884962d5940eb4b8f48f7561794ddd3c53f8dc194d",
+        "native/src/flash_draft_runtime.rs": "1b551e15b8cb9f31817c4342dca5b9a867165d6a7abd9ca1677f18de63ff341c",
+        "native/src/gpu/memory.rs": "58817e47114bde4b226fae50fa53c03e6b79a08edf307c62a5682ac26755bf3b",
+        "tests/openai_transport.rs": "3d20c56161588dab55f5c988575216811ca09dc9b56ace0e3fae85ee29a6bb93"
+      }
+    },
+    "cases": [
+      {
+        "label": "budget-bridge",
+        "test": "native_flash_memory_budget_preserves_bridge_recovery",
+        "status": "passed",
+        "environment_overrides": {},
+        "log": "build/issue75cache/budget-bridge.log",
+        "exit_code": 0,
+        "seconds": 31.508080041
+      }
+    ],
+    "dyld_images": 1409,
+    "no_MLX_or_JACCL_loaded": true
+  },
+  "numerical_scope": {
+    "state_tensors_per_replay": 84,
+    "finite_FP32_state_words_per_replay": 28803072,
+    "state_words_compared_total": 288030720,
+    "state_tolerance": "exact replay of qualified target AR continuation; no approximate state tolerance",
+    "independent_bridge_token_hash": "9f850af1cbba074b",
+    "bridge_reuse": "complete prompt checkpoint restored in AR/MTP/DFlash mode1; cold and warm counters checked",
+    "default_draft_session": "existing budgets1/2/3/17 tokens/hidden/continuation, accepted/rejected proposals and rollback/cancel rerun after reset correction"
+  },
+  "policy": {
+    "single_conversation": true,
+    "cache_default_MiB": 256,
+    "allowed_MiB": "0..4096",
+    "native_reuse": "entire stored token sequence must prefix new request, same conversation/mode/owner; target dispatches one row",
+    "checkpoint": "prefill only, never speculative pending decode state",
+    "ownership": "Metal aliases deduplicated against active backings; CPU draft snapshot owns deep KV clones and shares no draft weights",
+    "accounting": "backing/host payload capacities; process footprint separate, not a total object/RSS proof",
+    "budget_controls": "0 disables and1MiB declines before CPU draft clone, both0hits; optional checkpoint discarded before a failed admission retry",
+    "invalidation": [
+      "mode/head/draft changes",
+      "malformed input",
+      "generation errors",
+      "cancellation",
+      "memory_saver",
+      "reuse disabled"
+    ]
+  },
+  "suites": {
+    "cpu": {
+      "flags": "--no-default-features",
+      "passed": 313,
+      "ignored": 8
+    },
+    "direct": {
+      "flags": "--features chat",
+      "passed": 324,
+      "ignored": 33
+    },
+    "compatibility": {
+      "flags": "--features mlx,chat",
+      "passed": 360,
+      "ignored": 251
+    }
+  },
+  "local_checks": {
+    "strict_Clippy": "all three modes passed",
+    "native_release": "passed35.53s",
+    "compatibility_release": "pending",
+    "reset_regression": "old native reset fails; corrected real Session reset passes1 test",
+    "eligibility_test": "1 passed"
+  },
+  "kani": {
+    "eligibility": {
+      "harness": "contracts::native_prompt_reuse_requires_the_whole_prefix_and_matching_owners",
+      "obligations": 150,
+      "covers": 5,
+      "unreachable": 1,
+      "domain": "arbitraryu32 tokens; saved length0..3, next0..4, all owner/mode/enabled booleans; unwind17",
+      "unreachable_scope": "standard formatting panic, not business assertion",
+      "retained_failure": "unwind6 was insufficient for memcmp byte loop; stronger17 passes same domain"
+    },
+    "reset": {
+      "harness": "flash_draft_budget::request_budget_reset_discards_all_observations",
+      "obligations": 794,
+      "covers": 2,
+      "unreachable": 18,
+      "domain": "arbitrary scalar/float fields and0..2 queued labels; unwind17",
+      "unreachable_scope": "inspected standard formatting/allocator/ZST branches; reset assertions reachable",
+      "scope": "does not establish arbitrary queue lengths or full Session/Metal behavior"
+    },
+    "mutation": "pending",
+    "global": "pending actual full-library attempt; preceding common stack has macOS compiler ICE",
+    "claim": "bounded model checking of real CPU contracts; not a proof of cache ownership, GPU, concurrency or full generation"
+  },
+  "retained_failures": [
+    "three module/export/visibility compile diagnostics before corrected check",
+    "strict headless helper cfg lint and direct test cancellation conditional lint",
+    "unwind6 eligibility failure before17",
+    "actual old native reset retained verify observations",
+    "physical driver launch PermissionError before any model started; chmod only, hashes unchanged; original report preserves failed partial setup"
+  ],
+  "remaining": [
+    "final proof mutation and compatibility release",
+    "merge current #108 metadata/guard fixture and review changed hashes",
+    "exact published-head CI",
+    "remaining DFlash mode/option and ring matrix in separate branch"
+  ],
+  "performance": "not measured; no speed improvement claimed",
+  "publication": "not yet pushed; no installed app or release replacement"
+}

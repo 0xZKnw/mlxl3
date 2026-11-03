@@ -1,0 +1,16 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0)
+error[E0624]: method `owns_prefix` is private
+   --> native/src/gpu/memory.rs:138:45
+    |
+138 |                 mtp.is_some_and(|head| head.owns_prefix(prefix)),
+    |                                             ^^^^^^^^^^^ private method
+    |
+   ::: native/src/gpu/mtp.rs:191:5
+    |
+191 |     pub(super) fn owns_prefix(&self, state: &super::FlashQsaState) -> bool {
+    |     ---------------------------------------------------------------------- private method defined here
+
+For more information about this error, try `rustc --explain E0624`.
+error: could not compile `mlxl3-native` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

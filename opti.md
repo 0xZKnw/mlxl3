@@ -2,6 +2,18 @@
 
 ## I75-N6-NATIVE-PREFIX-20261103 — native conversation checkpoint ownership and reuse
 
+- The affected8GiB budget bridge also passes31.51s through the new cache admission wrapper: independent AR hashes, pre-filesystem MTP/DFlash refusal and memory-saver recovery, with no MLX/JACCL in the DYLD audit. All six selected physical invocations pass and all children exit. Prefix-state comparisons total288030720 finite FP32 words. Final compatibility release, proof mutation, source merge onto published#108 and exact-head CI review still precede cache publication. No throughput result.
+
+
+- All five frozen physical invocations now pass; the real production prefix bridge completes148.40s with AR/MTP/DFlash cold/warm counters, independent two-token hashes, ledger ownership, disabled reuse, malformed/error cleanup, memory-saver release, delta cancellation and cold recovery. Before the next launch, repeat the existing #108 8GiB budget bridge through the new cache admission wiring, using this same frozen CLI and independent hash. Check pre-load AR-only guards and memory-saver recovery, plus DYLD no-MLX audit. This is an affected-path validation, not a new optimization trial.
+
+
+- Frozen cb93d1b3 physical first four selected invocations pass: 256MiB checkpoint fixture restores AR/MTP/DFlash with9 hits and172818432 finite FP32 state-word comparisons; cache budgets0 and1MiB each produce0 hits and57606144 exact words. The affected existing default native draft transaction test passes budgets1/2/3/17 with cancellation, acceptance/rejection, foreign-prefix refusal and injected append rollback. Real production bridge is currently running; no complete bridge/cache publication claim yet.
+
+
+- First physical driver launch fails before any model starts: copied release-test files lacked executable permissions (PermissionError). Preserve physical-launch-failure.json and the empty launch log; fix file permissions only, keep binary hashes unchanged, then rerun the same frozen five-case campaign. No numerical outcome or throughput result from that launch.
+
+
 Before implementation. The common Flash product branch c531257d contains #104/#101 and the pre-load memory guard. Its direct bridge still declares an Infallible cache and discards reuse requests. Port the maintained single-conversation snapshot/token/logit cache and its 0..4096 MiB control, retaining exact rendered-token and mode/session ownership checks. Native Flash always evaluates individual target rows, so every complete token boundary is eligible (chunk size one); do not import the MLX chunk-shape restriction or cache speculative pending/decode state. Retain only a prefill checkpoint. Cache target state and, for MTP/DFlash, the matching auxiliary prefix state without copying draft weights. Count unique Metal backings with the existing ledger visitor and separately count owned host cache payloads; preserve global admission and release cache ownership for memory saver, errors/cancellation, reload and mode switches.
 
 Planned validation: same/extended/divergent prompts and conversations, cache budget zero/refusal/exact bytes, foreign snapshots and auxiliary-owner mismatch, mode switches, schema/MCP rounds where applicable, context/tail/stop/cancel/error/recovery. Compare logits, 84 target state tensors, continuation and actual bridge token hashes/cached/evaluated counts against cold independent controls. The test must record nonzero prefix reuse, never infer it from token equality. Kani checks real eligibility/budget/position helpers; Metal/host ownership remains physically tested. No throughput campaign. State: source work only; the preceding guard block is validated/published separately.
