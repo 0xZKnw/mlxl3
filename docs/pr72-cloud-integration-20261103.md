@@ -19,6 +19,12 @@ Linux x86_64, Python 3.12.14. Commands use an isolated `/tmp/pr72-venv`; no prod
 - Swift Tree-sitter 0.7.4 / Python bindings 0.25.2: 18 changed Swift files parsed against main. No new diagnostics; existing parser limitations in MLXL3Bridge (1) and MarkdownResponseView (13) remain. This is a syntax aid, **not Swift type checking or an AppKit execution result**. Bindings 0.26.0 crashed initially; that attempt is not counted as a pass.
 - `crosshair check scripts/copy-test-runtime.py --analysis_kind=asserts --per_condition_timeout=10`: no checkable functions, **no property verified**. The required `formal-proof-skill` was unavailable after checking repository/local skills and executor/cloud catalogs; it was not silently replaced or claimed as loaded. No Swift/Metal/concurrency proof claimed.
 
+A second CrossHair PEP316 check calls the real `version` function from `version_contract.py` with symbolic strings of length ≤32, accepting ValueError or a three-element nonnegative tuple. The 15-second condition budget returned **Not confirmed**; no property proved and no counterexample established. The harness and diagnostic are preserved beside the local test logs.
+
 The Desktop test script includes the existing preferences/retry tests and new deterministic service-shutdown, watchdog/completion-race and context-full notification regressions. The new processes run under the existing 90-second process-group supervisor. Linux has no Swift/AppKit toolchain, so these tests require the macOS PR CI. Real Apple-GPU model startup and numeric/performance validation were not run.
 
-Remote publication, exact-head CI and final results will be reported after the branch update. The PR must remain open and unmerged.
+## Publication and CI
+
+Code commit `1775c093de17bec727f08d606789bf6a54467f47` was pushed to `HENK0O/mlxl3:codex/desktop-theme-startup`. The remote ref was read back exactly; GitHub reports PR72 open, unmerged and mergeable=true. Main was rechecked unchanged at the baseline SHA. The initial exact-code CI snapshot is preserved in `docs/measurements/pr72-cloud-20261103/initial-ci-snapshot.json`: profile compatibility and EXL3 conversion/packing proof passed, while Desktop/Native/Apple guard proofs were still in progress.
+
+The following documentation-only commit closes the local verification record and preserves the additional bounded-verifier attempt. It does not change the product source tested in `1775c093`. Its remote ref and CI must also be checked; the final handoff reports their observed status without presenting a pending job as successful. No local experiment or benchmark remains active. The PR remains open and unmerged.
