@@ -1,0 +1,733 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-quantizer/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:961:17
+    |
+961 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1114:17
+     |
+1114 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3070:15
+     |
+3070 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3137:15
+     |
+3137 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.83s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-quantizer/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 23`
+Checking harness quantize::native_tile_search_launch_stays_inside_input_and_scratch...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-quantizer/mix-stq1_0/build/issue75quant/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/9e8a335f6f8e6ccf/out/mlxl3_native-9e8a335f6f8e6ccf__RNvNtCskjkzMwJII5G_12mlxl3_native8quantize56native_tile_search_launch_stays_inside_input_and_scratch.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file native/src/quantize.rs line 36 column 1 function quantize::native_tile_search_launch_stays_inside_input_and_scratch thread 0
+Runtime Symex: 0.0243324s
+size of program expression: 1939 steps
+slicing removed 1238 assignments
+Generated 173 VCC(s), 39 remaining after simplification
+Runtime Postprocess Equation: 0.000345625s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0128629s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.875e-06s
+Solving with CaDiCaL 3.0.0
+26716 variables, 109970 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00147225s
+Runtime decision procedure: 0.0145167s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+26717 variables, 109971 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00093025s
+Runtime decision procedure: 0.00108421s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+26718 variables, 109972 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00139163s
+Runtime decision procedure: 0.00152321s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+26719 variables, 109973 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00140825s
+Runtime decision procedure: 0.00151317s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+26720 variables, 109974 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 33.0782s
+Runtime decision procedure: 33.0783s
+
+RESULTS:
+Check 1: quantize::tile_search_plan.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/quantize.rs:12:35 in function quantize::tile_search_plan
+
+Check 2: quantize::tile_search_plan.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to shift left with overflow"
+	 - Location: native/src/quantize.rs:12:26 in function quantize::tile_search_plan
+
+Check 3: quantize::tile_search_plan.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/quantize.rs:12:20 in function quantize::tile_search_plan
+
+Check 4: quantize::tile_search_plan.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:13:31 in function quantize::tile_search_plan
+
+Check 5: quantize::tile_search_plan.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:13:31 in function quantize::tile_search_plan
+
+Check 6: quantize::tile_search_plan.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:15:14 in function quantize::tile_search_plan
+
+Check 7: quantize::tile_search_plan.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:15:14 in function quantize::tile_search_plan
+
+Check 8: quantize::tile_search_plan.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function quantize::tile_search_plan
+
+Check 9: std::result::Result::<usize, std::num::TryFromIntError>::ok.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:714:15 in function std::result::Result::<usize, std::num::TryFromIntError>::ok
+
+Check 10: core::num::<impl usize>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 11: core::num::<impl usize>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 12: quantize::native_tile_search_launch_stays_inside_input_and_scratch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/quantize.rs:36:1 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 13: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (2..=8).contains(&k) && values > 0 && values <= u32::MAX as usize"
+	 - Location: native/src/quantize.rs:42:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 14: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:43:69 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 15: quantize::native_tile_search_launch_stays_inside_input_and_scratch.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:43:69 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 16: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: values.is_multiple_of(256) && tiles > 0 && tiles <= values / 256"
+	 - Location: native/src/quantize.rs:43:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 17: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to shift left with overflow"
+	 - Location: native/src/quantize.rs:44:28 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 18: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to shift right with overflow"
+	 - Location: native/src/quantize.rs:44:27 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 19: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/quantize.rs:44:50 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 20: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/quantize.rs:44:60 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 21: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/quantize.rs:44:49 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 22: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/quantize.rs:44:27 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 23: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: bytes == ((1u64 << 16) >> k) * (256 * 2 + 2 * 2)"
+	 - Location: native/src/quantize.rs:44:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 24: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:45:33 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 25: quantize::native_tile_search_launch_stays_inside_input_and_scratch.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/quantize.rs:45:33 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 26: quantize::native_tile_search_launch_stays_inside_input_and_scratch.assertion.12
+	 - Status: SUCCESS
+	 - Description: "assertion failed: tiles as u64 <= budget / bytes"
+	 - Location: native/src/quantize.rs:45:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 27: quantize::native_tile_search_launch_stays_inside_input_and_scratch.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: k == 2 && values == 768 && tiles == 2"
+	 - Location: native/src/quantize.rs:46:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 28: quantize::native_tile_search_launch_stays_inside_input_and_scratch.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: k == 8 && tiles == 1"
+	 - Location: native/src/quantize.rs:47:9 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 29: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>
+
+Check 30: std::result::Result::<u64, std::num::TryFromIntError>::ok.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:714:15 in function std::result::Result::<u64, std::num::TryFromIntError>::ok
+
+Check 31: <std::option::Option<u64> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<u64> as std::ops::Try>::branch
+
+Check 32: <std::option::Option<usize> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<usize> as std::ops::Try>::branch
+
+Check 33: <std::option::Option<(usize, u64)> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<(usize, u64)> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 34: core::num::<impl usize>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl usize>::is_multiple_of
+
+Check 35: quantize::tile_search_plan.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/quantize.rs:15:14 in function quantize::tile_search_plan
+
+Check 36: quantize::native_tile_search_launch_stays_inside_input_and_scratch.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/quantize.rs:45:33 in function quantize::native_tile_search_launch_stays_inside_input_and_scratch
+
+Check 37: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 38: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 39: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 40: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 41: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 42: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 43: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 44: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 45: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 46: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 47: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 48: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 49: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 50: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 51: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 52: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 53: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 54: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 55: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 56: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 57: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 58: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 59: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 60: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 61: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 62: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 63: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 64: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 65: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 66: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 67: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 68: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 69: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 70: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 71: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 72: std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u64>::lt
+
+Check 73: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 74: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 75: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 76: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 77: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 78: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 79: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 80: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 81: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 82: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 83: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 84: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 85: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 86: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 87: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 88: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 89: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 90: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 91: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 92: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 93: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 94: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 95: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 96: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 97: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 98: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 99: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 100: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 101: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 102: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+
+SUMMARY:
+ ** 0 of 100 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 33.254646s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

@@ -282,7 +282,7 @@ impl<'a> FlashGdn<'a> {
 pub(super) struct LayerResidual<'a> {
     attn_hc: super::FlashHc<'a>,
     mlp_hc: super::FlashHc<'a>,
-    moe: super::FlashMoeRow<'a>,
+    pub(super) moe: super::FlashMoeRow<'a>,
 }
 impl<'a> LayerResidual<'a> {
     pub(super) fn load(
@@ -310,10 +310,15 @@ impl<'a> LayerResidual<'a> {
             moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
         })
     }
+    pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
+        Ok(self.attn_hc.read(streams, false)?.mixed)
+    }
     pub(super) fn forward(
         &mut self,
         streams: &MatrixView,
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
     ) -> Result<MatrixView> {
         let read = self.attn_hc.read(streams, false)?;
         let gate = read
@@ -322,13 +327,16 @@ impl<'a> LayerResidual<'a> {
             .context("missing attention injection gate")?;
         let attention = attend(&read.mixed)?;
         let written = self.attn_hc.write(streams, &attention.values, gate)?;
-        Ok(self.mlp_hc.forward_moe(&written, &mut self.moe, false)?.0)
+        Ok(self
+            .mlp_hc
+            .forward_moe_lookahead(&written, &mut self.moe, false, next, depth)?
+            .0)
     }
 }
 
 /// A complete non-PLE Flash layer with recurrent attention.
 pub struct FlashGdnLayer<'a> {
-    residual: LayerResidual<'a>,
+    pub(super) residual: LayerResidual<'a>,
     attention: FlashGdn<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
@@ -361,6 +369,9 @@ impl<'a> FlashGdnLayer<'a> {
             residual: LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
     }
+    pub(super) fn recurrent(&self) -> Option<&MatrixView> {
+        self.attention.state.frame.as_ref().map(|f| &f.recurrent)
+    }
     pub fn snapshot(&self) -> FlashGdnState {
         self.attention.snapshot()
     }
@@ -371,14 +382,71 @@ impl<'a> FlashGdnLayer<'a> {
         self.attention.reset()
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
-        let residual = self
-            .residual
-            .forward(streams, |x| self.attention.forward(x, false));
+        let residual =
+            self.residual
+                .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if residual.is_err() {
             self.restore(&before)?;
         }
         residual
+    }
+}
+
+impl FlashGdn<'_> {
+    fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for projection in [&self.qkv, &self.z, &self.out] {
+            projection.record_memory(backings)?;
+        }
+        for buffer in [
+            &self.a,
+            &self.b,
+            &self.conv,
+            &self.a_log,
+            &self.dt_bias,
+            &self.gain,
+        ] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(frame) = &self.state.frame {
+            backings.record("gdn", &frame.history.buffer)?;
+            backings.record("gdn", &frame.recurrent.buffer)?;
+        }
+        Ok(())
+    }
+}
+impl LayerResidual<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attn_hc.record_memory(backings)?;
+        self.mlp_hc.record_memory(backings)?;
+        self.moe.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.moe.drain()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.moe.shrink(slots)
+    }
+}
+impl FlashGdnLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attention.record_memory(backings)?;
+        self.residual.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.reset();
+        self.residual.release_idle_state()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.residual.shrink(slots)
     }
 }
 

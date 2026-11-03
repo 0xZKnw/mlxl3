@@ -80,6 +80,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     added = {
         "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
         "tensor_layout::matrix_row_preserves_backing_and_address",
+        "contracts::draft_blas_extents_reject_overflow_and_truncation",
         "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",
@@ -92,6 +93,21 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::qsa_append_preserves_all_published_rows",
         "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
         "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
+        "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+        "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
+        "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
+        "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
+        "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
+        "flash_support::native_prefetch_room_bounds_owned_and_running_records",
+        "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+        "contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
+        "contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
+        "contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections",
+        "contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands",
+        "contracts::native_projection_thread_count_matches_its_fixed_kernel",
+        "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
+        "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
+        "speculative::normalized_greedy_retains_first_finite_maximum",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",
         "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
@@ -101,6 +117,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::flash_reference_mb34_role_parser_preserves_default_and_named_choices",
         "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
         "flash_memory::admission_and_shrink_respect_memory_bounds",
+        "flash_memory::native_admission_covers_the_complete_geometric_slab",
+        "flash_memory::native_request_budget_keeps_every_configured_limit_ar_only",
         "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
         "flash_support::stale_prefetch_completion_preserves_new_reservation",
     }
@@ -358,7 +376,10 @@ def test_parser_cli_checks_discovery_and_keeps_conversion_companions_required(
 def test_speculative_cli_avoids_kani_068_verbose_statistics_crash(fake_cargo):
     assert ci.main(["--shard", "speculative", "--report-dir", "results"]) == 0
     report = json.loads(Path("results/report.json").read_text())
-    assert len(report["proofs"]) == 198
+    names = ci.inventory_names(json.loads(os.environ["FAKE_INVENTORY"]))
+    expected = ci.select_names(names, "speculative")
+    assert expected
+    assert sorted(record["name"] for record in report["proofs"]) == sorted(expected)
     assert all(r["status"] == "success" for r in report["proofs"])
 
 

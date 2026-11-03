@@ -319,6 +319,14 @@ def _public_activations_to_inner_for_backend(
 ) -> tuple[np.ndarray, bool]:
     if (
         suh is not None
+        and search_backend == "native"
+        and activations.shape[0] >= _MLX_ACTIVATION_HADAMARD_MIN_ROWS
+    ):
+        from mlxl3_quantizer.transforms import public_activations_to_inner_native
+
+        return public_activations_to_inner_native(activations, suh), False
+    if (
+        suh is not None
         and search_backend == "metal"
         and activations.shape[0] >= _MLX_ACTIVATION_HADAMARD_MIN_ROWS
     ):
@@ -462,6 +470,11 @@ def ldlq_inner_matrix(
             compute_proxy=compute_proxy,
         )
 
+    if search_backend == "native":
+        from mlxl3_quantizer.feedback import converter_matmul as product
+    else:
+        product = np.matmul
+
     weight = inner.astype(np.float32, copy=True)
     l = l_factor.astype(np.float32, copy=True)
     l[np.diag_indices_from(l)] = np.float32(0.0)
@@ -493,7 +506,7 @@ def ldlq_inner_matrix(
             bb_l = b_l[bj:, i + bi : i + bj]
             compensation = b_prod_cache[bi:bj].copy()
             if bb_err.size:
-                compensation += bb_l.T @ bb_err
+                compensation += product(bb_l.T, bb_err)
             rows_to_quantize = b_weight[bi:bj] + compensation
             block_packed, block_states, block_reconstructed = quantize_inner_matrix_direct(
                 rows_to_quantize,
@@ -512,7 +525,7 @@ def ldlq_inner_matrix(
 
         b_err = b_weight - b_reconstructed
         if i > 0:
-            prod_cache[:i] += b_l[:, :i].T @ b_err
+            prod_cache[:i] += product(b_l[:, :i].T, b_err)
         j = i
 
     delta = reconstructed - weight

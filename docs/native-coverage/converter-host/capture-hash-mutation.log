@@ -1,0 +1,85 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_foreign_incomplete_or_corrupt_captures_are_rejected[hash] ________
+
+sample = (PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-84/test_foreign_incomplet...cccccccccccc', 'max_rows': 3, 'capture_dtype': 'float16', ...}, 'features': {'layer.a': 4}, 'segment_lengths': [2, 2]})
+fault = 'hash'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "schema",
+            "status",
+            "source",
+            "request",
+            "coverage",
+            "width",
+            "rows",
+            "count",
+            "dtype",
+            "storage",
+            "path",
+            "absolute",
+            "hash",
+            "truncated",
+            "nonfinite",
+            "rounding",
+            "symlink",
+            "segments",
+            "emptysegments",
+            "unrequested_logits",
+        ],
+    )
+    def test_foreign_incomplete_or_corrupt_captures_are_rejected(sample, fault):
+        root, manifest, args = sample
+        record = manifest["projections"]["layer.a"]
+        if fault == "schema":
+            manifest["schema"] = True
+        elif fault == "status":
+            manifest["status"] = "in_progress"
+        elif fault == "source":
+            manifest["source"] = {"path": "/other"}
+        elif fault == "request":
+            manifest["request"] = {**args["request"], "max_rows": 99}
+        elif fault == "coverage":
+            manifest["projections"]["extra"] = dict(record)
+        elif fault == "width":
+            record["shape"] = [3, 3]
+        elif fault == "rows":
+            record["shape"] = [0, 4]
+        elif fault == "count":
+            record["observed_rows"] = True
+        elif fault == "dtype":
+            record["original_dtype"] = "float64"
+        elif fault == "storage":
+            record["storage_dtype"] = "float16"
+        elif fault == "path":
+            record["path"] = "../a.f32"
+        elif fault == "absolute":
+            record["path"] = str((root / "a.f32").absolute())
+        elif fault == "hash":
+            record["sha256"] = "d" * 64
+        elif fault == "truncated":
+            (root / "a.f32").write_bytes(b"")
+        elif fault in {"nonfinite", "rounding"}:
+            data = np.arange(12, dtype="<f4")
+            data[0] = np.inf if fault == "nonfinite" else np.float32(1.0001)
+            (root / "a.f32").write_bytes(data.tobytes())
+            record["sha256"] = hashlib.sha256(data.tobytes()).hexdigest()
+        elif fault == "symlink":
+            (root / "a.f32").rename(root / "other.f32")
+            (root / "a.f32").symlink_to("other.f32")
+        elif fault == "segments":
+            manifest["processed_segment_lengths"] = [1, 2]
+        elif fault == "emptysegments":
+            manifest["processed_segment_lengths"] = []
+        elif fault == "unrequested_logits":
+            manifest["logits"] = record
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_native_capture.py:142: Failed
+=========================== short test summary info ============================
+FAILED tests/test_native_capture.py::test_foreign_incomplete_or_corrupt_captures_are_rejected[hash]
+1 failed in 0.08s

@@ -31,6 +31,12 @@ if fault != "missing_started":
 for index, summary in enumerate(data["summaries"]):
     time.sleep(0.12)
     phase = summary["phase"]
+    if phase == "trace_1":
+        # Wait for the disposable tracer's handler, independent of Python startup speed.
+        ready = pathlib.Path(os.environ["TRACER_READY_PATH"])
+        deadline = time.monotonic() + 2
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
     if fault == "missing_phase" and index == 2:
         continue
     if fault != "missing_file" or index != 1:
@@ -62,6 +68,8 @@ if fault == "late_exit":
 TRACER = r"""
 import pathlib, signal, sys, time
 out, fault = pathlib.Path(sys.argv[1]), sys.argv[2]
+if fault == "startup_delay":
+    time.sleep(0.4)
 if fault == "early":
     sys.exit(4)
 if fault in ("ignore_term", "ignore_all"):
@@ -220,6 +228,7 @@ def setup(tmp_path, monkeypatch):
             "MLXL3_FLASH_PROFILE_PROMPT": "MAIN",
             "MLXL3_FLASH_PROFILE_MTP": "0",
             "FIXTURE": str(fixture),
+            "TRACER_READY_PATH": str(tmp_path / "plan-capture-1.ready"),
         },
         "profile_directory": str(profile),
         "golden": str(golden_path),
@@ -299,6 +308,14 @@ def test_six_phases_complete_and_all_owned_processes_joined(setup, kind):
     with pytest.raises(FileExistsError):
         execute()
     assert path.with_name("plan-result.json").read_bytes() == original
+
+
+def test_tracer_startup_does_not_race_the_first_trace_stop(setup):
+    execute, _, _, _, tracer_fault, _, _ = setup
+    tracer_fault[0] = "startup_delay"
+    result = execute()
+    assert result["parity"] is True
+    assert result["target_reaped"] and all(c["reaped"] for c in result["captures"])
 
 
 @pytest.mark.parametrize(
