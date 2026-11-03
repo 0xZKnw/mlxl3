@@ -4,8 +4,11 @@
     "array::tests": 1,
     "mlx": 5
   },
+  ".github/workflows/check.yml": {
+    "mlx": 1
+  },
   ".github/workflows/quantization.yml": {
-    "ponyexl3": 1
+    "ponyexl3": 3
   },
   ".github/workflows/rust.yml": {
     "MLXL3_MLX_ROOT": 8,
@@ -16,9 +19,9 @@
     "mlx": 1
   },
   "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": {
-    "libjaccl.dylib": 2,
-    "libmlx.dylib": 2,
-    "mlx.metallib": 2,
+    "libjaccl.dylib": 1,
+    "libmlx.dylib": 1,
+    "mlx.metallib": 4,
     "mlx_enabled": 1
   },
   "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/__init__.py": {
@@ -1160,6 +1163,12 @@
   "native/shaders/_qmv_tile_kernel.metal": {
     "mlxl3_decode_codeword": 4
   },
+  "native/shaders/convert_matmul.metal": {
+    "mlxl3_convert_matmul": 1
+  },
+  "native/shaders/convert_matmul_nax.metal": {
+    "mlxl3_convert_matmul_nax": 1
+  },
   "native/shaders/dense_projection.metal": {
     "mlxl3_decode_codeword": 1
   },
@@ -1179,6 +1188,10 @@
   "native/shaders/gated_delta_prepare.metal": {
     "mlxl3_gdn_conv_silu": 3,
     "mlxl3_gdn_input": 3
+  },
+  "native/shaders/quantize_tiles.metal": {
+    "mlxl3_quantize_codeword": 4,
+    "mlxl3_quantize_tiles": 1
   },
   "native/shaders/qwen_gdn.metal": {
     "mlxl3_gdn_conv_silu": 1,
@@ -1448,6 +1461,9 @@
   },
   "native/src/contracts.rs": {
     "mlx": 32
+  },
+  "native/src/convert_matmul.rs": {
+    ".take": 1
   },
   "native/src/dec_one.rs": {
     ".dtype": 3,
@@ -1852,6 +1868,14 @@
     "shader ../shaders/model_ops.metal": 1,
     "shader ../shaders/router_topk.h": 1
   },
+  "native/src/gpu/convert_matmul.rs": {
+    ".shape": 3,
+    "config MLX_ENABLE_TF32": 1,
+    "shader ../../shaders/convert_matmul.metal": 1,
+    "shader ../../shaders/convert_matmul_nax.metal": 1,
+    "shader mlxl3_convert_matmul": 1,
+    "shader mlxl3_convert_matmul_nax": 1
+  },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
     ".memory_stats": 1,
@@ -1929,6 +1953,10 @@
     "config MLXL3_QSA_TEST_CLASS": 1,
     "config MLXL3_QSA_TEST_CLASSIC": 1,
     "shader ../../shaders/flash_qsa_nax.metal": 1
+  },
+  "native/src/gpu/quantize.rs": {
+    "shader ../../shaders/quantize_tiles.metal": 1,
+    "shader mlxl3_quantize_tiles": 1
   },
   "native/src/gpu/qwen_gdn.rs": {
     ".shape": 1,
@@ -2316,6 +2344,9 @@
     ".finish": 22,
     ".take": 7,
     "config MLXL3_API_SIGNAL_FIXTURE": 1
+  },
+  "native/src/quantize.rs": {
+    ".take": 1
   },
   "native/src/qwen35.rs": {
     ".add": 9,
@@ -2923,12 +2954,13 @@
     "mlx": 1,
     "mlx-lm": 2
   },
-  "scripts/build-macos-app.sh": {
+  "scripts/build-engine.sh": {
     "MLXL3_MLX_ROOT": 3,
     "libjaccl.dylib": 3,
     "libmlx.dylib": 4,
-    "mlx": 2,
-    "mlx.metallib": 3
+    "mlx": 6,
+    "mlx.metallib": 4,
+    "mlx_enabled": 1
   },
   "scripts/build-quantizer.sh": {
     "mlx": 1,
@@ -2985,6 +3017,7 @@
   "scripts/package_engine.py": {
     "libjaccl.dylib": 1,
     "libmlx.dylib": 1,
+    "mlx": 5,
     "mlx.metallib": 2
   },
   "scripts/patches/ponyexl3-bounded-conversion-cache.patch": {
@@ -3003,9 +3036,9 @@
     "ponyexl3": 12
   },
   "scripts/patches/ponyexl3-mlxl3-conversion.patch": {
-    "mlx": 12,
+    "mlx": 14,
     "mlx_lm": 3,
-    "ponyexl3": 66
+    "ponyexl3": 74
   },
   "scripts/patches/ponyexl3-single-file-index.patch": {
     "ponyexl3": 2
@@ -3075,6 +3108,10 @@
     "mlx_lm": 4,
     "ponyexl3": 7
   },
+  "src/mlxl3_quantizer/feedback.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 2,
+    "ponyexl3": 1
+  },
   "src/mlxl3_quantizer/metal.py": {
     "call mlx.core.array": 4,
     "call mlx.core.async_eval": 1,
@@ -3090,6 +3127,10 @@
     "call ponyexl3.ref.codebook.CodebookMode": 1,
     "mlx": 4,
     "ponyexl3": 7
+  },
+  "src/mlxl3_quantizer/native.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 1,
+    "ponyexl3": 1
   },
   "src/mlxl3_quantizer/pack_trellis.metal": {
     "mlxl3_pack_word": 1

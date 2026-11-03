@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_native_matrix_never_accepts_bad_or_incomplete_child_results[directory-symlink] _
+
+engine = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-112/test_native_matrix_never_accep0/engine')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bcbe0c0>
+fault = 'directory-symlink'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "exit",
+            "invalid",
+            "foreign",
+            "bool",
+            "partial",
+            "nonfinite",
+            "symlink",
+            "directory-symlink",
+            "extra",
+            "missing-report",
+            "stdout-flood",
+            "stderr-flood",
+        ],
+    )
+    def test_native_matrix_never_accepts_bad_or_incomplete_child_results(engine, monkeypatch, fault):
+        monkeypatch.setenv("MATRIX_FAULT", fault)
+>       with pytest.raises((RuntimeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (RuntimeError, ValueError)
+
+tests/test_native_feedback.py:81: Failed
+=========================== short test summary info ============================
+FAILED tests/test_native_feedback.py::test_native_matrix_never_accepts_bad_or_incomplete_child_results[directory-symlink]
+1 failed, 26 deselected in 0.22s
+
+RESTORED
+..                                                                       [100%]
+2 passed, 46 deselected in 0.36s

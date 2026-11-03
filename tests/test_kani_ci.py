@@ -94,6 +94,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
         "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
         "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+        "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
+        "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
         "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
         "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
         "flash_support::native_prefetch_room_bounds_owned_and_running_records",

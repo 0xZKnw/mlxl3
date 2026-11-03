@@ -39,7 +39,9 @@ mod router;
 pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
+pub mod convert_matmul;
 mod projection;
+pub mod quantize;
 pub use projection::{
     FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
 };
