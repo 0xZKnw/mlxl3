@@ -1,0 +1,44 @@
+Building for production...
+[2 / 5] SwiftMath
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[4 / 6] SwiftMath
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[9 / 10] MLXL3Studio-product
+[10 / 52]
+[16 / 52]
+[18 / 52]
+[24 / 52]
+[25 / 52]
+[27 / 52]
+[29 / 52]
+[30 / 52]
+[40 / 52]
+[44 / 52]
+[47 / 52]
+[48 / 52]
+[50 / 52]
+[51 / 52] MLXL3Studio-product
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[54 / 56] MLXL3Studio-product
+[55 / 56] MLXL3Studio-product
+Build complete! (33,09 s)
+Verified test runtime: 2.0.2 from /Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v2.0.2
+/Users/henko/Documents/Code/mlxl3-post-smallm/build/desktop-test.D9wTMx/MLXL3 Desktop Test.app: replacing existing signature
+Version de test créée : /Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop Test.app

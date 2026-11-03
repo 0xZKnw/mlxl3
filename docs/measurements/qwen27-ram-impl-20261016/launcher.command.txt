@@ -1,0 +1,22 @@
+#!/bin/zsh
+set -euo pipefail
+launch_dir="${0:A:h}"
+app="${launch_dir}/MLXL3 Desktop.app"
+engine="${app}/Contents/Resources/runtime/mlxl3"
+gui="${app}/Contents/MacOS/MLXL3Studio"
+if /usr/bin/pgrep -x MLXL3Studio >/dev/null; then
+    print -u2 "Ferme MLXL3 Desktop, puis relance ce fichier pour tester la copie optimisée."
+    exit 1
+fi
+if /usr/bin/pgrep -x 'mlxl3|mlxl3-rs' >/dev/null; then
+    print -u2 "Un moteur MLXL3 est encore actif. Arrête-le avant de lancer cette copie."
+    exit 1
+fi
+if [[ ! -x "${engine}" || ! -x "${gui}" ]]; then
+    print -u2 "La copie locale de MLXL3 Desktop est introuvable à côté de ce fichier."
+    exit 2
+fi
+# Use this bundle, preserving the installed engine and persistent preferences.
+# NSArgumentDomain disables Memory saving for this launch only.
+exec env MLXL3_EXECUTABLE="${engine}" MLXL3_LOSSLESS_EMBEDDING=1 MLXL3_CACHE_COMPACTION=1 \
+    "${gui}" -studio.memorySaverEnabled NO

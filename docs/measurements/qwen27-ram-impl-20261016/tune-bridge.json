@@ -1,0 +1,167 @@
+{
+  "status": "complete",
+  "parity": true,
+  "reaped": true,
+  "memory_saver": false,
+  "requests": [
+    {
+      "name": "golden",
+      "quality": {
+        "token_hash": "9debbd20f2ecb016",
+        "text_sha256": "b608ab6aa9daaa5e1758e3af1d98ccac9bc445612527a98e7e407d73a50787ae",
+        "stats": {
+          "generated_tokens": 8,
+          "prompt_tokens": 68,
+          "cached_prompt_tokens": 0,
+          "evaluated_prompt_tokens": 68,
+          "context_used": 76,
+          "context_limit": 4096,
+          "mtp_proposed_tokens": null,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null
+        }
+      }
+    },
+    {
+      "name": "after-cancel",
+      "quality": {
+        "token_hash": "9debbd20f2ecb016",
+        "text_sha256": "b608ab6aa9daaa5e1758e3af1d98ccac9bc445612527a98e7e407d73a50787ae",
+        "stats": {
+          "generated_tokens": 8,
+          "prompt_tokens": 68,
+          "cached_prompt_tokens": 0,
+          "evaluated_prompt_tokens": 68,
+          "context_used": 76,
+          "context_limit": 4096,
+          "mtp_proposed_tokens": null,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null
+        }
+      }
+    },
+    {
+      "name": "after-tune",
+      "quality": {
+        "token_hash": "9debbd20f2ecb016",
+        "text_sha256": "b608ab6aa9daaa5e1758e3af1d98ccac9bc445612527a98e7e407d73a50787ae",
+        "stats": {
+          "generated_tokens": 8,
+          "prompt_tokens": 68,
+          "cached_prompt_tokens": 0,
+          "evaluated_prompt_tokens": 68,
+          "context_used": 76,
+          "context_limit": 4096,
+          "mtp_proposed_tokens": null,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null
+        }
+      }
+    }
+  ],
+  "conditions": {
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36241507)\t80%; AC attached; not charging present: true",
+    "swap": "vm.swapusage: total = 4096.00M  used = 2374.62M  free = 1721.38M  (encrypted)"
+  },
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "dflash_supported": false,
+    "load_seconds": 3.526381208,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "model_context_limit": 262144,
+    "modules": 401,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "82434097046fd932:1.4.2:8c08c4c45c1f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0:smallm-v1=0:embedding-storage-v1=1",
+    "resident_gb": 9.696705133,
+    "runtime_commit": "8c08c4c45c1f-dirty",
+    "runtime_executable": "/Users/henko/Documents/Code/mlxl3-post-smallm/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.2",
+    "type": "ready"
+  },
+  "tune_cancelled": true,
+  "tune": {
+    "best_depth": 0,
+    "noise_margin_percent": 3,
+    "request_id": "full-tune",
+    "rows": [
+      {
+        "accepted_tokens": 0,
+        "decode_seconds": 57.186674709,
+        "decode_tokens": 190,
+        "decode_tps": 3.322452318950763,
+        "depth": 0,
+        "eligible": true,
+        "proposed_tokens": 0,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 81,
+        "decode_seconds": 62.262441708,
+        "decode_tokens": 190,
+        "decode_tps": 3.0515989220446396,
+        "depth": 1,
+        "eligible": true,
+        "proposed_tokens": 108,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 105,
+        "decode_seconds": 75.024631501,
+        "decode_tokens": 190,
+        "decode_tps": 2.5325016091210992,
+        "depth": 2,
+        "eligible": true,
+        "proposed_tokens": 169,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      },
+      {
+        "accepted_tokens": 114,
+        "decode_seconds": 84.043678959,
+        "decode_tokens": 190,
+        "decode_tps": 2.2607292107320753,
+        "depth": 3,
+        "eligible": true,
+        "proposed_tokens": 224,
+        "reason": null,
+        "token_hashes": [
+          "dfe39515ddae5901",
+          "7641f57bf401306b"
+        ]
+      }
+    ],
+    "sample_tokens": 96,
+    "samples": 2,
+    "tuning_key": "82434097046fd932:1.4.2:8c08c4c45c1f-dirty:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:lookup=0:smallm-v1=0:embedding-storage-v1=1",
+    "type": "mtp_tune_complete"
+  },
+  "idle_after_tune": {
+    "mlx_active_bytes": 8825536380,
+    "mlx_cache_bytes": 0,
+    "mlx_peak_bytes": 9338516234,
+    "process_footprint_bytes": 9161005800,
+    "process_lifetime_peak_bytes": 11399143440
+  }
+}

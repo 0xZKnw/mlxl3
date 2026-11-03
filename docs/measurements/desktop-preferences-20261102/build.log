@@ -1,0 +1,81 @@
+Building for debugging...
+[Planning deferred tasks]
+[23 / 38]
+[24 / 39] SwiftMath
+[36 / 150]
+[46 / 150]
+[49 / 150]
+[55 / 150]
+[58 / 150]
+[65 / 150]
+[67 / 150]
+[70 / 150]
+[71 / 150]
+[81 / 150]
+[82 / 150]
+[86 / 150]
+[87 / 150]
+[94 / 150]
+[95 / 150]
+[101 / 150]
+[102 / 150]
+[104 / 150]
+[105 / 150]
+[107 / 150]
+[115 / 150]
+[119 / 150]
+[122 / 150]
+[123 / 150]
+[124 / 150]
+[135 / 150] SwiftMath
+[144 / 151] MLXL3Studio-product
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[151 / 269]
+[158 / 269] SwiftMath
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[168 / 269]
+[171 / 269]
+[177 / 269]
+[180 / 269]
+[187 / 269]
+[189 / 269]
+[192 / 269]
+[193 / 269]
+[203 / 269]
+[205 / 269]
+[209 / 269]
+[212 / 269]
+[219 / 269]
+[221 / 269]
+[227 / 269]
+[228 / 269]
+[230 / 269]
+[231 / 269]
+[233 / 269]
+[243 / 269]
+[247 / 269]
+[250 / 269]
+[251 / 269]
+[253 / 269]
+[264 / 269] MLXL3Studio-product
+[265 / 269] MLXL3Studio-product
+[267 / 269] MLXL3Studio-product
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/henko/Documents/Code/mlxl3-post-smallm/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+Build complete! (39,54 s)

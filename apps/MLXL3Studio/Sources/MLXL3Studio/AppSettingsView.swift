@@ -28,11 +28,62 @@ struct AppSettingsView: View {
             .padding(.bottom, 20)
 
             Rectangle()
-                .fill(Color.white.opacity(0.075))
+                .fill(StudioTheme.contrast.opacity(0.075))
                 .frame(height: 1)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    Label(L("Apparence", "Appearance"), systemImage: "paintpalette")
+                        .font(.system(size: 13, weight: .semibold))
+                    Picker(L("Thème", "Theme"), selection: Binding(
+                        get: { studio.theme }, set: { studio.setTheme($0) }
+                    )) {
+                        ForEach(AppTheme.allCases, id: \.self) { theme in
+                            Text(theme.title).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel(L("Thème de l’interface", "Interface theme"))
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Charger le modèle au démarrage", "Load model on startup"), isOn: Binding(
+                            get: { studio.loadModelOnStartup },
+                            set: { studio.setLoadModelOnStartup($0) }
+                        ))
+                        Picker(L("Modèle de démarrage", "Startup model"), selection: Binding(
+                            get: { studio.startupModelPath }, set: { studio.setStartupModelPath($0) }
+                        )) {
+                            Text(L("Dernier modèle sélectionné", "Last selected model")).tag("")
+                            ForEach(studio.models) { model in
+                                Text(model.name).tag(model.path)
+                            }
+                            if !studio.startupModelPath.isEmpty && !studio.models.contains(where: { $0.path == studio.startupModelPath }) {
+                                Text(L("Modèle indisponible", "Model unavailable")).tag(studio.startupModelPath)
+                            }
+                        }
+                        .disabled(!studio.loadModelOnStartup)
+                        if !studio.startupModelPath.isEmpty && !studio.models.contains(where: { $0.path == studio.startupModelPath }) {
+                            Text(L("Le modèle choisi n’est plus disponible. Choisis un autre modèle pour le prochain démarrage.", "The selected model is no longer available. Choose another model for the next launch."))
+                                .font(.caption).foregroundStyle(StudioTheme.secondary)
+                        }
+                        Text(L("À l’ouverture de MLXL3, charge le modèle choisi ci-dessus. Sinon, sélectionne un modèle pour le charger. Le changement s’applique au prochain démarrage.", "When MLXL3 opens, loads the model chosen above. Otherwise, select a model to load it. Changes apply on the next launch."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle(L("Notification de fin de génération", "Generation completion notification"), isOn: Binding(
+                            get: { studio.completionNotificationsEnabled },
+                            set: { studio.setCompletionNotificationsEnabled($0) }
+                        ))
+                        Text(L("Préviens-moi lorsque la réponse est terminée et que MLXL3 est en arrière-plan. Le contenu de la conversation n’apparaît pas dans la notification.", "Notify me when the response is complete and MLXL3 is in the background. Conversation content is not included in the notification."))
+                            .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                        if let status = studio.notificationStatus {
+                            Text(status).font(.caption).foregroundStyle(StudioTheme.secondary)
+                        }
+                    }
+                    Divider()
                     Label(L("Langue de l’app", "App language"), systemImage: "globe")
                         .font(.system(size: 13, weight: .semibold))
                     Picker(L("Langue de l’app", "App language"), selection: Binding(
@@ -111,10 +162,10 @@ struct AppSettingsView: View {
                             .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(16)
-                    .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
+                    .background(StudioTheme.contrast.opacity(0.035), in: RoundedRectangle(cornerRadius: 14))
                     .overlay {
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                            .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
                     }
                     Divider()
                     UpdateSettingsCard(
@@ -145,8 +196,8 @@ struct AppSettingsView: View {
         }
         .id(studio.language)
         .frame(width: 650, height: 560)
-        .background(StudioTheme.canvas)
-        .preferredColorScheme(.dark)
+        .background(StudioTheme.canvas(for: studio.theme))
+        .studioAppearance(studio.theme)
     }
 
     private func dataFlowRow(_ title: String, _ detail: String, _ icon: String) -> some View {
@@ -193,7 +244,7 @@ private struct UpdateSettingsCard: View {
             HStack(alignment: .top, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(Color.white.opacity(0.07))
+                        .fill(StudioTheme.contrast.opacity(0.07))
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(StudioTheme.accent)
@@ -241,7 +292,7 @@ private struct UpdateSettingsCard: View {
             .background(Color.black.opacity(0.20), in: RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                    .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
             }
 
             HStack(spacing: 10) {
@@ -421,6 +472,7 @@ struct UpdateTransferView: View {
 }
 
 struct UpdateStatusButton: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @ObservedObject var updater: UpdateManager
     let action: () -> Void
 
@@ -434,7 +486,7 @@ struct UpdateStatusButton: View {
                     Circle()
                         .fill(StudioTheme.accent)
                         .frame(width: 7, height: 7)
-                        .overlay(Circle().stroke(StudioTheme.sidebar, lineWidth: 1.5))
+                        .overlay(Circle().stroke(StudioTheme.sidebar(for: appTheme), lineWidth: 1.5))
                         .offset(x: 1, y: -1)
                 }
             }

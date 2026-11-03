@@ -3,6 +3,7 @@ import SwiftUI
 /// Window composition. The transcript owns its scroll state; chrome never
 /// observes token-by-token text updates.
 struct StudioView: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
@@ -13,7 +14,7 @@ struct StudioView: View {
                     SidebarView().frame(width: 232)
                 }
                 ChatWorkspaceView(sidebarVisible: $sidebarVisible)
-                    .background(StudioTheme.canvas)
+                    .background(StudioTheme.canvas(for: appTheme))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12)
@@ -59,7 +60,7 @@ struct StudioView: View {
             }
         }
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
-        .background(StudioTheme.sidebar)
+        .background(StudioTheme.sidebar(for: appTheme))
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .sheet(isPresented: $studio.showModelManager) {
@@ -249,7 +250,7 @@ private struct ConversationRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
-        .background(Color.white.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
+        .background(StudioTheme.contrast.opacity(selected ? 0.055 : (hovered ? 0.03 : 0)),
                     in: RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
@@ -265,6 +266,19 @@ private struct ChatWorkspaceView: View {
     var body: some View {
         VStack(spacing: 0) {
             WorkspaceHeader(sidebarVisible: $sidebarVisible)
+            if case let .failed(message) = studio.engineState {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                    Text(message).font(.caption).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(L("Réessayer", "Retry"), action: studio.retrySelectedModel)
+                        .disabled(studio.selectedModel == nil)
+                }
+                .foregroundStyle(StudioTheme.ink)
+                .padding(12)
+                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+                .padding(.horizontal, 24)
+            }
             if studio.selectedMode == .server {
                 ServerWorkspaceView(server: studio.localServer)
             } else if studio.selectedMode == .lab {

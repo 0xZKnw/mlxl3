@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GenerationInspector: View {
+    @Environment(\.studioAppTheme) private var appTheme
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
@@ -58,7 +59,7 @@ struct GenerationInspector: View {
                                     }
                                 }
                                 .padding(10)
-                                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                                .background(StudioTheme.contrast.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                             } else {
                                 Text(L("Estimation mémoire indisponible", "Memory estimate unavailable"))
                                     .font(.caption).foregroundStyle(StudioTheme.quiet)
@@ -104,7 +105,7 @@ struct GenerationInspector: View {
                                 range: 0...1.5,
                                 format: "%.2f"
                             )
-                            Divider().overlay(Color.white.opacity(0.08))
+                            Divider().overlay(StudioTheme.contrast.opacity(0.08))
                             VStack(spacing: 9) {
                                 HStack {
                                     Text("Top K")
@@ -121,9 +122,9 @@ struct GenerationInspector: View {
                                     in: 0...200,
                                     step: 1
                                 )
-                                .tint(Color.white.opacity(0.88))
+                                .tint(StudioTheme.contrast.opacity(0.88))
                             }
-                            Divider().overlay(Color.white.opacity(0.08))
+                            Divider().overlay(StudioTheme.contrast.opacity(0.08))
                             SliderSetting(
                                 label: L("Répétition", "Repetition"),
                                 value: Binding(get: { studio.samplingRepetitionPenalty }, set: { studio.repetitionPenalty = $0 }),
@@ -255,7 +256,7 @@ struct GenerationInspector: View {
                                 .background(Color.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 10))
                                 .overlay {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.white.opacity(0.07), lineWidth: 0.7)
+                                        .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
                                 }
                                 .overlay(alignment: .topLeading) {
                                     if studio.systemPrompt.isEmpty {
@@ -344,7 +345,7 @@ struct GenerationInspector: View {
                 }
             }
         }
-        .background(StudioTheme.sidebar)
+        .background(StudioTheme.sidebar(for: appTheme))
         .onChange(of: studio.temperature) { studio.settingsDidChange() }
         .onChange(of: studio.topK) { studio.settingsDidChange() }
         .onChange(of: studio.repetitionPenalty) { studio.settingsDidChange() }
@@ -395,7 +396,7 @@ private struct SliderSetting: View {
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(StudioTheme.secondary)
             Slider(value: $value, in: range)
-                .tint(Color.white.opacity(0.88))
+                .tint(StudioTheme.contrast.opacity(0.88))
         }
     }
 }
@@ -410,7 +411,7 @@ private struct InspectorValue: View {
                 .foregroundStyle(StudioTheme.quiet)
             Spacer()
             Text(value)
-                .foregroundStyle(Color.white.opacity(0.78))
+                .foregroundStyle(StudioTheme.contrast.opacity(0.78))
                 .multilineTextAlignment(.trailing)
         }
         .font(.system(size: 10, weight: .medium))

@@ -1,0 +1,95 @@
+{
+  "status": "complete",
+  "runtime_integration": false,
+  "gpu_used": false,
+  "numpy": "2.0.2",
+  "python": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "new_process_ram_saving": "not_measured",
+  "new_model_parity": "not_verified",
+  "speed": "not_measured",
+  "tensor": "model.language_model.embed_tokens.weight",
+  "file": "/Users/henko/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0/model-00001-of-00002.safetensors",
+  "file_size": 8574469488,
+  "file_mtime_ns": 1791215488037610153,
+  "header_sha256": "1442bc04366ae9ec06132145e1ff19e1d274cfe7d4dc1533576839845c6fd6d1",
+  "payload_sha256": "a158f24c6ad72736067768b4255e70a384e2e931f601b12f853e98ce83ec6bbe",
+  "shape": [
+    248320,
+    5120
+  ],
+  "dtype": "BF16",
+  "values": 1271398400,
+  "blocks": 9932800,
+  "chunk_values": 1048576,
+  "exponent_min": 0,
+  "exponent_max": 126,
+  "width_histogram": {
+    "0": 79,
+    "1": 8,
+    "2": 25,
+    "3": 1909833,
+    "4": 7952875,
+    "5": 65980,
+    "6": 0,
+    "7": 4000,
+    "8": 0
+  },
+  "metadata_bytes_per_packed_block": 8,
+  "raw_fallback_bytes_per_block": 256,
+  "dense_bytes": 2542796800,
+  "theoretical_variable_exponent_bytes": 1957244112,
+  "theoretical_saving_vs_dense_bytes": 585552688,
+  "historical_packed_bytes": 2241331200,
+  "theoretical_saving_vs_historical_packed_bytes": 284087088,
+  "all_values_logically_reconstructed": true,
+  "representative_packed_roundtrips": [
+    {
+      "exponent_width": 0,
+      "values": 128,
+      "bitstream_bytes": 0,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 1,
+      "values": 128,
+      "bitstream_bytes": 16,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 2,
+      "values": 128,
+      "bitstream_bytes": 32,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 3,
+      "values": 128,
+      "bitstream_bytes": 48,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 4,
+      "values": 128,
+      "bitstream_bytes": 64,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 5,
+      "values": 128,
+      "bitstream_bytes": 80,
+      "roundtrip": true
+    },
+    {
+      "exponent_width": 7,
+      "values": 128,
+      "bitstream_bytes": 112,
+      "roundtrip": true
+    }
+  ],
+  "limits": [
+    "No runtime format or kernel implemented",
+    "BF16 packing analysis, not F16 model equivalence test",
+    "Metadata budget includes 32-bit byte offset, base exponent, width and 2 spare bytes per packed block; requires size below 2^32",
+    "Does not include allocator granularity or loading transients"
+  ]
+}

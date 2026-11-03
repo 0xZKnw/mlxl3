@@ -1,0 +1,254 @@
+[
+  {
+    "source_commit": "0f53d2cadc9f5a556340abdc4d86763400a3f4a4",
+    "path": "docs/measurements/adaptive-memory-20261009/compact-packed-summary.json",
+    "sha256": "98f4b83e5a1c448fa11afa4d1245563b8491f15dadf9e6cc04fadd0f25c5b3ba",
+    "data": {
+      "status": "complete",
+      "parity": true,
+      "cases": 32,
+      "completions": 24,
+      "expected_errors": 4,
+      "cancellations": 4,
+      "engines_reaped": 4,
+      "prefix_tokens": 687,
+      "cached_tokens": 512,
+      "prefix_budget_mib": 1024,
+      "allocator_cache_mib": 0,
+      "candidate": "cache compaction + packed embeddings",
+      "speed": "not_measured_battery_conditions",
+      "rows": [
+        {
+          "order": "AB",
+          "case": "short-normal",
+          "baseline_footprint": 9471628256,
+          "candidate_footprint": 9179945440,
+          "footprint_reduction": 291682816,
+          "baseline_mlx_active": 9171871676,
+          "candidate_mlx_active": 8870406076,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "AB",
+          "case": "short-mtp",
+          "baseline_footprint": 9641022552,
+          "candidate_footprint": 9432996488,
+          "footprint_reduction": 208026064,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "AB",
+          "case": "cache-cold",
+          "baseline_footprint": 10082653272,
+          "candidate_footprint": 9619331720,
+          "footprint_reduction": 463321552,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "AB",
+          "case": "cache-warm",
+          "baseline_footprint": 10100479064,
+          "candidate_footprint": 9446365832,
+          "footprint_reduction": 654113232,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "AB",
+          "case": "invalid-depth",
+          "baseline_footprint": 10037564504,
+          "candidate_footprint": 9446365832,
+          "footprint_reduction": 591198672,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "AB",
+          "case": "cache-after-error",
+          "baseline_footprint": 10102838360,
+          "candidate_footprint": 9539033736,
+          "footprint_reduction": 563804624,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "AB",
+          "case": "cancel",
+          "baseline_footprint": 9693566040,
+          "candidate_footprint": 9379977864,
+          "footprint_reduction": 313588176,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "AB",
+          "case": "recovery",
+          "baseline_footprint": 9664222320,
+          "candidate_footprint": 9361283720,
+          "footprint_reduction": 302938600,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "BA",
+          "case": "short-normal",
+          "baseline_footprint": 9486340968,
+          "candidate_footprint": 9180764592,
+          "footprint_reduction": 305576376,
+          "baseline_mlx_active": 9171871676,
+          "candidate_mlx_active": 8870406076,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "BA",
+          "case": "short-mtp",
+          "baseline_footprint": 9627096056,
+          "candidate_footprint": 9343801920,
+          "footprint_reduction": 283294136,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "BA",
+          "case": "cache-cold",
+          "baseline_footprint": 10100839416,
+          "candidate_footprint": 9530350144,
+          "footprint_reduction": 570489272,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "BA",
+          "case": "cache-warm",
+          "baseline_footprint": 10100888568,
+          "candidate_footprint": 9534708312,
+          "footprint_reduction": 566180256,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "BA",
+          "case": "invalid-depth",
+          "baseline_footprint": 10037974008,
+          "candidate_footprint": 9456065112,
+          "footprint_reduction": 581908896,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "BA",
+          "case": "cache-after-error",
+          "baseline_footprint": 10100888592,
+          "candidate_footprint": 9548618328,
+          "footprint_reduction": 552270264,
+          "baseline_mlx_active": 9855382460,
+          "candidate_mlx_active": 9299647420,
+          "mlx_active_reduction": 555735040
+        },
+        {
+          "order": "BA",
+          "case": "cancel",
+          "baseline_footprint": 9709179920,
+          "candidate_footprint": 9383893592,
+          "footprint_reduction": 325286328,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        },
+        {
+          "order": "BA",
+          "case": "recovery",
+          "baseline_footprint": 9653589008,
+          "candidate_footprint": 9355254360,
+          "footprint_reduction": 298334648,
+          "baseline_mlx_active": 9410802620,
+          "candidate_mlx_active": 9109337020,
+          "mlx_active_reduction": 301465600
+        }
+      ]
+    }
+  },
+  {
+    "source_commit": "0f53d2cadc9f5a556340abdc4d86763400a3f4a4",
+    "path": "docs/measurements/adaptive-memory-20261009/cache-compact-model.json",
+    "sha256": "ded84084d158c4cb52890aadac0eb5fdad08cdbc5d9159a981589b3d3eb696d4",
+    "data": {
+      "budget_bytes": 268435456,
+      "logical_bytes": 170731520,
+      "logits": 248320,
+      "prefix_tokens": 256,
+      "retained_after": 170928128,
+      "retained_before": 425197568,
+      "speed": "not_measured",
+      "state_arrays": 128,
+      "status": "complete"
+    }
+  },
+  {
+    "source_commit": "0f53d2cadc9f5a556340abdc4d86763400a3f4a4",
+    "path": "docs/measurements/adaptive-memory-20261009/embedding-model-conserved.json",
+    "sha256": "9054161485a5a23864cbf187c22edbe53e0ec9b425bd0aefbb93c43b18b07aa8",
+    "data": {
+      "after": {
+        "mlx_active_bytes": 8870687612,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 12434325070,
+        "process_footprint_bytes": 9207864208,
+        "process_lifetime_peak_bytes": 16087002056
+      },
+      "before": {
+        "mlx_active_bytes": 9172153212,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 12434325070,
+        "process_footprint_bytes": 11789968048,
+        "process_lifetime_peak_bytes": 16087002056
+      },
+      "bitexact_positions": 8,
+      "dense_embedding_bytes": 2542796800,
+      "logits_per_position": 248320,
+      "packed_embedding_bytes": 2241331200,
+      "speed": "not_measured",
+      "state_arrays": 128,
+      "status": "complete"
+    }
+  },
+  {
+    "source_commit": "0f53d2cadc9f5a556340abdc4d86763400a3f4a4",
+    "path": "docs/measurements/adaptive-memory-20261009/kv8-long-repair-status.json",
+    "sha256": "a0c0280a702d7bcb685d4b4a03d4cd5b6825eec9a052798150835a00ab8a7249",
+    "data": [
+      {
+        "label": "kv8-long-quality-repair",
+        "command": [
+          "/Users/henko/Documents/Code/mlxl3-post-smallm/target/release/deps/mlxl3_native-005a77db66dfe685",
+          "--exact",
+          "qwen35::memory_feature_tests::kv8_model_quality_against_f16_teacher_forcing",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "options": {
+          "MLXL3_KV8_QUALITY_LONG": "1",
+          "MLXL3_KV8_REPORT": "/Users/henko/Documents/Code/mlxl3-post-smallm/docs/measurements/adaptive-memory-20261009/kv8-long-model-repair.json"
+        },
+        "status": "failed",
+        "exit_code": 101,
+        "one_nonempty_test": false,
+        "elapsed": 163.36880016326904
+      }
+    ]
+  }
+]
