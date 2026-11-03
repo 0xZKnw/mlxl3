@@ -408,7 +408,7 @@ jobs:
       - name: Check process-memory encoding against the Apple SDK without a GPU
         if: matrix.os == 'macos-26'
         run: |
-          c++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined native/tests/process_memory.cpp -o build/ci/process-memory
+          c++ -std=c++20 -Wall -Wextra -Werror -fsanitize=address,undefined native/tests/process_memory.cpp native/ffi/process_stats.cpp -o build/ci/process-memory
           build/ci/process-memory
       - name: Compile and lint the shipped MLX bridge
         if: matrix.os == 'macos-26'

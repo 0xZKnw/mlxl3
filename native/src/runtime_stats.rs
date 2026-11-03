@@ -33,7 +33,11 @@ pub struct FlashDraftProfile {
     pub ssd_prefetch: [u64; 8],
 }
 
-#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+#[cfg(any(
+    kani,
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal")
+))]
 impl MemoryStats {
     pub(crate) fn from_raw(values: [u64; 12], process_id: u32) -> Self {
         let field = |index: usize, mask: u64| (values[11] & mask != 0).then_some(values[index]);
@@ -53,4 +57,54 @@ impl MemoryStats {
             process_ledger_swapins_logical_bytes: field(9, 8),
         }
     }
+}
+
+#[cfg(any(kani, all(target_os = "macos", feature = "direct-metal")))]
+impl MemoryStats {
+    pub(crate) fn native(host: [u64; 9], metal_bytes: u64, pid: u32) -> Self {
+        let mut raw = [0; 12];
+        raw[3..].copy_from_slice(&host);
+        Self {
+            native_metal_allocated_bytes: Some(metal_bytes),
+            ..Self::from_raw(raw, pid)
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(13)]
+fn native_memory_stats_separate_metal_and_process_validity() {
+    let host: [u64; 9] = kani::any();
+    let bytes: u64 = kani::any();
+    let pid: u32 = kani::any();
+    let stats = MemoryStats::native(host, bytes, pid);
+    assert_eq!(stats.native_metal_allocated_bytes, Some(bytes));
+    assert_eq!(
+        (
+            stats.mlx_active_bytes,
+            stats.mlx_cache_bytes,
+            stats.mlx_peak_bytes
+        ),
+        (0, 0, 0)
+    );
+    assert_eq!(stats.process_id, pid);
+    assert_eq!(
+        stats.process_footprint_bytes,
+        (host[8] & 1 != 0).then_some(host[0])
+    );
+    assert_eq!(
+        stats.process_compressed_logical_bytes,
+        (host[8] & 2 != 0).then_some(host[2])
+    );
+    assert_eq!(
+        stats.process_decompressions,
+        (host[8] & 4 != 0).then_some(host[5])
+    );
+    assert_eq!(
+        stats.process_ledger_swapins_logical_bytes,
+        (host[8] & 8 != 0).then_some(host[6])
+    );
+    kani::cover!(bytes != 0 && host[8] == 0);
+    kani::cover!(bytes != 0 && host[8] == 15);
 }

@@ -208,16 +208,16 @@ impl<'a> FlashNext<'a> {
         unsafe extern "C" {
             fn mlxl3_read_process_stats(values: *mut u64, count: usize) -> i32;
         }
-        let mut raw = [0u64; 12];
-        // The shim fills nine host fields. The MLX allocator counters are zero on the native path.
-        let process = &mut raw[3..];
+        let mut host = [0u64; 9];
         ensure!(
-            unsafe { mlxl3_read_process_stats(process.as_mut_ptr(), process.len()) } == 0,
+            unsafe { mlxl3_read_process_stats(host.as_mut_ptr(), host.len()) } == 0,
             "invalid native process statistics extent"
         );
-        let mut stats = crate::runtime_stats::MemoryStats::from_raw(raw, std::process::id());
-        stats.native_metal_allocated_bytes = Some(self.gpu.device.current_allocated_size());
-        Ok(stats)
+        Ok(crate::runtime_stats::MemoryStats::native(
+            host,
+            self.gpu.device.current_allocated_size(),
+            std::process::id(),
+        ))
     }
     pub fn context_limit(&self) -> u32 {
         self.context

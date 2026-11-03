@@ -1301,6 +1301,7 @@ fn run(cli: Cli) -> Result<()> {
                     "bridge_protocol": 1,
                     "architecture": std::env::consts::ARCH,
                     "mlx_enabled": cfg!(feature = "mlx"),
+                    "backend": if cfg!(feature = "mlx") { "mlx" } else if cfg!(all(target_os = "macos", feature = "direct-metal")) { "metal" } else { "cpu" },
                     "chat_enabled": cfg!(feature = "chat"),
                     "commit": env!("MLXL3_BUILD_REVISION"),
                     "profile": env!("MLXL3_BUILD_PROFILE")
@@ -2016,6 +2017,7 @@ struct BridgeRequest {
     response_schema: Option<String>,
     #[serde(default)]
     dflash2: bool,
+    #[cfg(feature = "mlx")]
     #[serde(default)]
     dflash_draft_path: String,
     #[serde(default = "default_mtp_depth")]
@@ -3989,6 +3991,7 @@ fn native_bridge(
                 }
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
+                let memory_saver = request.memory_saver;
                 let result = (|| -> Result<()> {
                     let mut draft_load_seconds = 0.;
                     anyhow::ensure!(
@@ -4123,7 +4126,7 @@ fn native_bridge(
                 if let Err(error) = release_bridge_idle_state(
                     &mut model,
                     mtp_head.as_mut().map(|(_, head)| head),
-                    request.memory_saver,
+                    memory_saver,
                 ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }

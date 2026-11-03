@@ -52,3 +52,5 @@ inline std::array<uint64_t, 9> current_process_memory() {
   return process_memory_values(usage, ok, vm, vm_count, vm_ok);
 }
 }  // namespace mlxl3
+
+extern "C" int mlxl3_read_process_stats(uint64_t* out, size_t count) noexcept;
