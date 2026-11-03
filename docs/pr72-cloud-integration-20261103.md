@@ -1,6 +1,6 @@
 # PR 72 cloud integration — 2026-11-03
 
-Source refs: upstream main `b9d5cbdce50aa98adfee560e06da75614e730bd3`, original PR head `bacee9d99f6fc1251b45a42172d117e3e4a13c54`, common ancestor `8c08c4c45c1f7795f476ca514e7c7d3b8cebce7b`. The initial cloud checkout was clean. No Mac, installed app, user configuration or model was accessed.
+Source refs: upstream main `b9d5cbdce50aa98adfee560e06da75614e730bd3`, original PR head `bacee9d99f6fc1251b45a42172d117e3e4a13c54`, common ancestor `8c08c4c45c1f7795f476ca514e7c7d3b8cebce7b`. The initial cloud checkout was clean. No personal Mac, installed app, user configuration or model was accessed.
 
 ## Resolution
 
@@ -37,3 +37,14 @@ The exact-head Desktop run [41600416935](https://github.com/0xZKnw/mlxl3/actions
 The previous pixel oracle assumed a dark background and required a channel to exceed the background by 0.3; that is impossible on the new light canvas. The light artwork also needs a darker tint for the left half of the mark. MonogramMark now uses the existing masked artwork as a template tinted with the adaptive ink in light appearance; dark and Midnight Blue preserve the original artwork. No asset or mask is changed. The historical oracle is explicitly dark; a new production-view bitmap test checks light/dark/blue, both halves of the mark, transparent corners, missing-mark negatives and the original untinted light rendering as a negative control.
 
 `check-desktop.sh --preferences-only` executes the same preference/notification fixtures plus the logo bitmap check under a dedicated macOS CI job. The complete suite still runs them too. This gives an independently visible result even if a later existing Desktop test fails. Zsh argument validation runs before compilation; invalid options exit 2. Swift formal verification remains unavailable; no physical model or benchmark is run. The correction requires new exact-head CI validation and is not validated by the earlier failed run.
+
+
+The focused [Desktop preferences job](https://github.com/0xZKnw/mlxl3/actions/runs/41602738499/job/125805101079) **passed on `43308c84d7e3889fa5b0147bdfad87a9ba8e23f8`**: 62 preference assertions, 17 notification/retry/shutdown assertions, 25 logo bitmap/negative-control assertions and 240 context-memory oracle cases. Actual Swift 6 compilation and the production subprocess boundary are exercised in the hosted macOS environment. Light/dark/blue left/right logo counts were 226/308, 248/317 and 248/309 respectively. The failure on `492ad7c7` remains a failure; it is not relabeled as successful. The raw success excerpt is preserved in `desktop-43308c84-focused.log`. Full-suite and native-proof statuses are reported separately at handoff.
+
+
+The Apple `guard-proofs` job [125805101681](https://github.com/0xZKnw/mlxl3/actions/runs/41602738669/job/125805101681) was cancelled at its configured 15-minute job limit. The optional-Metal-API harness passed its 2 obligations and 4 covers, then `qwen_gated_delta_widths_match_wide_arithmetic_or_reject` did not finish before cancellation. This is **unverified**, not a counterexample or a success; the attention-width harness was not subsequently qualified. Native sources and the Apple workflow are unchanged from main. No bound was reduced and no blind rerun was requested to obtain green. The Metal/loader job in the same workflow passed. The diagnostic excerpt is preserved in `apple-guard-timeout.log`.
+
+
+The complete Desktop job on `43308c84` reached its 25-minute job timeout while compiling the rendering fixture (`swift-frontend`), after successful 1,179 Studio-mode checks, 114 idle-unload checks, the 62/17/25 new assertions, 965 speculative-sampling checks, updater, HTML, file-import, workspace and bridge checks. No functional assertion failed in those completed stages; rendering and later checks were not completed. The timeout excerpt is retained in `desktop-43308c84-timeout.log`.
+
+The full Desktop job budget is therefore increased from 25 to 35 minutes to include the additional real-source fixture compilations. All test cases, assertions and individual 90-second process limits are unchanged. The focused job remains at 15 minutes. This is a bounded CI-time allowance, not a benchmark or a relaxation of the correctness oracle. The next run must be inspected separately; the timeout does not count as a full-suite pass. The source of the product remains identical to the qualified `43308c84` implementation.
