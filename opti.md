@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+## I75-N6-NATIVE-PRODUCT-20261103 — Flash common draft admission, prefix reuse and remaining modes
+
+Before implementation. Integrate the validated native SSD/memory/prefetch stack #104 (42a7e41b) and native DFlash #101 (66ea658c, production 98c194f7) in a new isolated branch. Preserve numerical kernels, AR/MTP defaults and the reference AR-only memory-budget policy; reject draft materialization before loading when a request budget is set. Validate real native DFlash modes 2/3 and admitted width/Q4/ring/adaptive/pre-cap options against AR token/state/hidden/continuation oracles, including tails, stops, cancellation, rejected requests and rollback. Audit the native Flash product entry surfaces and implement the maintained single-conversation prefix/snapshot/logit cache, with precise owner/byte accounting and cache invalidation across modes/errors/cleanup. Reuse the established cache policy and source-level helpers; no throughput experiment or new tuning. Each validated block is published separately. Source reads and CPU builds/proofs remain separate from exclusive one-model physical tests.
+
+Planned controls: trace library and production bridge callers, deterministic boundary/negative regressions, meaningful integration and bridge recovery, targeted real-source Kani plus the known global attempt limits, strict CPU/direct/compatibility checks and the relevant full suites. Preregister any refinement before its physical test; retain every failed/interrupted outcome. State: source integration in progress, no new physical result.
+
+
 ## I75-N4-NATIVE-PREFETCH-20261103 — predictive reads and cross-capacity correctness
 
 Before implementation. Continue #96 demand waves and #100 request-boundary admission, based on 04301809. This is a functional port, with no throughput campaign or new tuning. Read the existing LES/prefetch source and the S4 early-prediction history: preserve the default next-gate prediction on the current layer's real mixed MLP input, top-sixteen strongest-first order, configured predictor dtype, predictive LRU, four-read cap, generation leases and demand headroom. The newer HC/early tap is an optimization and is not part of this port. Native workers keep owned file handles and byte destinations; only the inference thread uploads immutable records and publishes a still-current lease. Poll completed reads across layers, reuse demanded pending reads, and drain safely before resize/idle. Failed/late reads must never publish a cache hit or modify replacement storage.
