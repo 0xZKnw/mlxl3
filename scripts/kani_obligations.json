@@ -1,6 +1,7 @@
 {
   "baseline_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
   "required_harnesses": [
+    "flash_memory::admission_and_shrink_respect_memory_bounds",
     "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
     "cold_ready::two_job_priority_keeps_records_and_stable_order",
     "dec_one::dec_one_storage_contract",
@@ -82,6 +83,8 @@
     "flash_support::grouped_route_verification::grouped_expert_routes_cover_eight_symbolic_origins_exactly",
     "flash_support::grouped_route_verification::grouped_expert_routes_eighty_symbolic_inputs_are_bounded",
     "flash_support::slot_reads_initialize_exact_disjoint_bank_regions",
+    "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
+    "flash_support::stale_prefetch_completion_preserves_new_reservation",
     "flash_support::verification::automatic_cache_cannot_spend_reserved_memory",
     "flash_support::verification::automatic_cache_is_monotone",
     "flash_support::verification::cpu_slot_validation_preserves_bounds_for_real_route_widths",

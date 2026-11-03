@@ -42,12 +42,12 @@ fn pair(checkpoint: &Checkpoint) -> Result<(Gdn, Gdn)> {
     let mut off = Gdn::load(checkpoint, PREFIX, 1e-6)?;
     let mut on = Gdn::load(checkpoint, PREFIX, 1e-6)?;
     ensure!(
-        off.prepared_conv.is_some() && on.prepared_conv.is_some(),
+        off.weights.prepared_conv.is_some() && on.weights.prepared_conv.is_some(),
         "loader lost ON flag"
     );
-    off.prepared_conv = None;
-    off.gdn_epilogue = false;
-    on.gdn_epilogue = false;
+    off.weights.prepared_conv = None;
+    off.weights.gdn_epilogue = false;
+    on.weights.gdn_epilogue = false;
     Ok((off, on))
 }
 
@@ -176,11 +176,12 @@ fn prepared_conv_matches_stock_coefficients_trajectory_and_prefixes() -> Result<
         let b = on.forward(&inputs[0])?;
         ensure!(outputs(&[a])? == outputs(&[b])? && state(&off)? == state(&on)?);
         on.reset();
-        ensure!(on.prepared_conv.is_some() && on.history.is_none() && on.state.is_none());
+        ensure!(on.weights.prepared_conv.is_some() && on.history.is_none() && on.state.is_none());
         ensure!(on.forward(&inputs[0])?.to_bytes()? == references[0].to_bytes()?);
     }
     on.reset();
     let original = on
+        .weights
         .prepared_conv
         .take()
         .context("missing prepared coefficient")?;
@@ -194,11 +195,11 @@ fn prepared_conv_matches_stock_coefficients_trajectory_and_prefixes() -> Result<
                 .map(|v| v.to_bits())
                 .collect::<Vec<_>>()
     );
-    on.prepared_conv = Some(Array::from_f32(&shifted, &[1, 4, 10240])?);
+    on.weights.prepared_conv = Some(Array::from_f32(&shifted, &[1, 4, 10240])?);
     let negative = (|| -> Result<bool> {
         Ok(on.forward(&inputs[0])?.to_bytes()? != references[0].to_bytes()?)
     })();
-    on.prepared_conv = Some(original);
+    on.weights.prepared_conv = Some(original);
     on.reset();
     ensure!(
         negative?,

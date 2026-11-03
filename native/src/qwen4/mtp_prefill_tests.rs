@@ -109,7 +109,7 @@ fn mtp_final_prefill_head_matches_old_bridge_states_and_errors() -> Result<()> {
         (vec![EOS, 7], true, 4096),
         (vec![EOS, 7, 8], false, 2),
     ] {
-        target.context = context;
+        target.assets.context = context;
         let cancelled = AtomicBool::new(cancelled);
         let error = reference(&mut target, &mut head, &tokens, &cancelled).unwrap_err();
         let expected = snapshot(&target, &head)?;

@@ -53,8 +53,8 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
     for maximum in [2, 4] {
         for priority in [false, true] {
             let mut moe = load(&checkpoint, 53)?;
-            moe.cold_ready_rows = maximum;
-            moe.cold_priority = priority;
+            moe.policy.cold_ready_rows = maximum;
+            moe.policy.cold_priority = priority;
             for &pattern in patterns {
                 reset(&mut moe)?;
                 let x = rows(&inputs, pattern)?;
@@ -101,7 +101,7 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
     }
     // An empty resident map uses the stock all-Cold path even with the wide option.
     let mut moe = load(&checkpoint, 53)?;
-    moe.cold_ready_rows = 4;
+    moe.policy.cold_ready_rows = 4;
     for pattern in [&[0, 1, 2][..], &[2, 1, 0, 2]] {
         reset(&mut moe)?;
         let before = moe.cold_ready_waves.len();
@@ -115,8 +115,8 @@ fn wide_cold_matches_external_rows_and_fallbacks() -> Result<()> {
     moe.drain()?;
     // A small cache must preserve every row through cohort splitting and slot reuse.
     let mut small = load(&checkpoint, 10)?;
-    small.cold_ready_rows = 4;
-    small.unique_cohorts = true;
+    small.policy.cold_ready_rows = 4;
+    small.policy.unique_cohorts = true;
     small.cold_ready_verify_overlap = false;
     for pattern in [&[0, 1, 2][..], &[2, 1, 0, 2]] {
         let x = rows(&inputs, pattern)?;
@@ -148,7 +148,7 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
     crate::array::set_default_cache_limit(64 << 20)?;
     let (checkpoint, inputs, expected) = fixture()?;
     let mut moe = load(&checkpoint, 53)?;
-    moe.cold_ready_rows = 4;
+    moe.policy.cold_ready_rows = 4;
     let ids = moe.route(&inputs[0])?.0.to_u32()?;
     for count in [3, 4] {
         let pattern = vec![0; count];
@@ -169,12 +169,13 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
                 "injected Cold wave failure"
             };
             ensure!(error.chain().any(|e| e.to_string().contains(message)));
-            ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
+            ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
             ensure!(
-                moe.last
+                moe.store
+                    .last
                     .as_ref()
                     .context("missing Hot lease")?
-                    .is_available_for_test()?
+                    .is_available()?
             );
             moe.cold_ready_fail_after_wave = false;
             moe.cold_ready_fail_after_prepare = false;
@@ -199,7 +200,7 @@ fn wide_cold_failures_invalidate_and_recover() -> Result<()> {
 fn cold_priority_batches_preserve_outputs_and_report_launch_order() -> Result<()> {
     let (checkpoint, inputs, expected) = fixture()?;
     let mut moe = load(&checkpoint, 53)?;
-    moe.cold_priority = true;
+    moe.policy.cold_priority = true;
     let pattern = [0, 1];
     let x = rows(&inputs, &pattern)?;
     let ids = selected(&moe, &x)?;

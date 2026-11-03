@@ -20,7 +20,7 @@ pub(super) fn delay(value: &Array) -> Result<Array> {
 fn prime_half(moe: &mut SsdMoe, input: &Array) -> Result<Vec<u32>> {
     let ids = moe.route(input)?.0.to_u32()?;
     ensure!(ids.len() == 10 && ids.iter().copied().collect::<BTreeSet<_>>().len() == 10);
-    let routes = moe.cache.borrow_mut().reserve(&ids[..5])?;
+    let routes = moe.store.cache.borrow_mut().reserve(&ids[..5])?;
     let jobs = ids[..5]
         .iter()
         .zip(routes)
@@ -40,10 +40,10 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
     ensure!(
-        moe.weighted_epilogue,
+        moe.policy.weighted_epilogue,
         "weighted epilogue flag was not loaded"
     );
-    moe.gpu_hot = true;
+    moe.policy.gpu_hot = true;
     prime_half(&mut moe, &input)?;
     crate::weighted_epilogue::reset_kernel_requests_for_test();
     let actual = moe.forward(&input)?;
@@ -67,10 +67,10 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
     moe.drain()?;
     let mut cold = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
     ensure!(
-        cold.weighted_epilogue,
+        cold.policy.weighted_epilogue,
         "Cold control lost the configured flag"
     );
-    cold.gpu_hot = false;
+    cold.policy.gpu_hot = false;
     ensure!(
         cold.forward(&input)?.to_bytes()? == expected
             && crate::weighted_epilogue::kernel_requests_for_test() == 1,
@@ -86,7 +86,7 @@ fn weighted_epilogue_runs_on_real_mixed_hot_cold_with_physical_hot_rows() -> Res
 fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
-    moe.gpu_hot = true;
+    moe.policy.gpu_hot = true;
     prime_half(&mut moe, &input)?;
     moe.slow_hot_for_test = true;
     let actual = moe.forward(&input)?;
@@ -118,15 +118,15 @@ fn demanded_reads_start_while_gpu_resident_experts_are_pending() -> Result<()> {
 fn early_hot_failure_preserves_ready_keys_and_recovers() -> Result<()> {
     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
     let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 24, true)?;
-    moe.gpu_hot = true;
+    moe.policy.gpu_hot = true;
     let ids = prime_half(&mut moe, &input)?;
-    let invalid = moe.banks[0].reshape(&[24, -1])?;
-    let bank = std::mem::replace(&mut moe.banks[0], invalid);
+    let invalid = moe.store.banks[0].reshape(&[24, -1])?;
+    let bank = std::mem::replace(&mut moe.store.banks[0], invalid);
     let error = moe
         .forward(&input)
         .err()
         .context("invalid hot bank succeeded")?;
-    moe.banks[0] = bank;
+    moe.store.banks[0] = bank;
     ensure!(
         error
             .to_string()
@@ -134,8 +134,16 @@ fn early_hot_failure_preserves_ready_keys_and_recovers() -> Result<()> {
         "{error:#}"
     );
     ensure!(moe.read_bytes == 5 * EXPERT_BYTES && moe.misses == 0 && moe.hits == 0);
-    ensure!(ids[..5].iter().all(|&id| moe.cache.borrow().contains(id)));
-    ensure!(ids[5..].iter().all(|&id| !moe.cache.borrow().contains(id)));
+    ensure!(
+        ids[..5]
+            .iter()
+            .all(|&id| moe.store.cache.borrow().contains(id))
+    );
+    ensure!(
+        ids[5..]
+            .iter()
+            .all(|&id| !moe.store.cache.borrow().contains(id))
+    );
     moe.drain()?;
     let actual = moe.forward(&input)?;
     ensure!(actual.shape() == [1, H] && actual.to_bytes()? == expected);
@@ -152,8 +160,8 @@ fn wide_hot_is_opt_in_and_overlaps_routes_for_three_to_eight_rows() -> Result<()
     for wide in [false, true] {
         for rows in 3..=8 {
             let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 80, true)?;
-            moe.gpu_hot = true;
-            moe.gpu_hot_wide = wide;
+            moe.policy.gpu_hot = true;
+            moe.policy.gpu_hot_wide = wide;
             prime_half(&mut moe, &input)?;
             moe.slow_hot_for_test = true;
             let x = Array::concatenate(&vec![&input; rows], 0)?;
@@ -190,11 +198,11 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
             for rows in [6, 7, 8] {
                 let mut moe = SsdMoe::load(&checkpoint, prefix, capacity, true)?;
                 ensure!(
-                    moe.unique_cohorts,
+                    moe.policy.unique_cohorts,
                     "test requires UNIQUE_COHORT=1 through the real loader"
                 );
-                moe.gpu_hot = true;
-                moe.gpu_hot_wide = true;
+                moe.policy.gpu_hot = true;
+                moe.policy.gpu_hot_wide = true;
                 let ids = prime_half(&mut moe, &input)?;
                 moe.slow_hot_for_test = capacity == 53 && pending == 4 && rows == 8;
                 let mut claims = Vec::new();
@@ -202,7 +210,10 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
                     if claims.len() == pending {
                         break;
                     }
-                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
+                    claims.push((
+                        moe.store.cache.borrow_mut().claim_prefetch(id)?.unwrap(),
+                        id,
+                    ));
                 }
                 let x = Array::concatenate(&vec![&input; rows], 0)?;
                 let output = moe.forward_draft_rows(&x)?;
@@ -216,20 +227,23 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
                     "window Hot was not submitted before the CPU readback"
                 );
                 ensure!(moe.hybrid_submissions == 1 && moe.read_bytes == 10 * EXPERT_BYTES);
-                ensure!(moe.cache.borrow().available_slots() == capacity - pending);
+                ensure!(moe.store.cache.borrow().available_slots() == capacity - pending);
                 if moe.slow_hot_for_test {
                     ensure!(
                         moe.hot_ready_at_demand == Some(false),
                         "demand waited for Hot"
                     );
                 }
-                let map = moe.cache.borrow().resident_slot_map()?;
+                let map = moe.store.cache.borrow().resident_slot_map()?;
                 ensure!(
                     map.iter()
                         .all(|&s| claims.iter().all(|&(busy, _)| s != busy as u32))
                 );
                 for (slot, id) in claims {
-                    moe.cache.borrow_mut().publish_prefetch(slot, id, false);
+                    moe.store
+                        .cache
+                        .borrow_mut()
+                        .publish_prefetch(slot, id, false);
                 }
                 moe.drain()?;
                 cases += 1;
@@ -253,8 +267,8 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
     }
     let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
     moe.resident_gate = Some(Array::from_f32(&gate, &[H, 512])?);
-    moe.gpu_hot = true;
-    moe.gpu_hot_wide = true;
+    moe.policy.gpu_hot = true;
+    moe.policy.gpu_hot_wide = true;
     for (dtype, prime_row) in [
         (Dtype::Float32, 0),
         (Dtype::Float32, 6),
@@ -267,7 +281,7 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
             .collect::<Result<Vec<_>>>()?
             .concat();
         // F16 deliberately uses the original projection, bypassing the F32 resident gate.
-        moe.unique_cohorts = false;
+        moe.policy.unique_cohorts = false;
         let expected = (0..8)
             .map(|row| moe.forward(&x.slice(0, row, row + 1)?)?.to_bytes())
             .collect::<Result<Vec<_>>>()?
@@ -299,8 +313,8 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
                 .map(|begin| (available / 10).min(8 - begin))
                 .collect::<Vec<_>>();
             for (unique, sizes, reads) in [(false, old, 2), (true, maximal, 1)] {
-                *moe.cache.borrow_mut() = ExpertCache::new(53)?;
-                moe.unique_cohorts = unique;
+                *moe.store.cache.borrow_mut() = ExpertCache::new(53)?;
+                moe.policy.unique_cohorts = unique;
                 let prime = if prime_row == 8 {
                     Array::from_f32(&unrelated, &[1, H])?
                 } else {
@@ -312,7 +326,10 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
                     if claims.len() == pending {
                         break;
                     }
-                    claims.push((moe.cache.borrow_mut().claim_prefetch(id)?.unwrap(), id));
+                    claims.push((
+                        moe.store.cache.borrow_mut().claim_prefetch(id)?.unwrap(),
+                        id,
+                    ));
                 }
                 moe.cohort_sizes.clear();
                 moe.route_readbacks = 0;
@@ -337,44 +354,55 @@ fn unique_windows_preserve_outputs_pending_slots_and_greedy_fallback() -> Result
                         );
                         if prime_row == 0 {
                             ensure!(
-                                half[..5].iter().all(|&id| moe.cache.borrow().contains(id)),
+                                half[..5]
+                                    .iter()
+                                    .all(|&id| moe.store.cache.borrow().contains(id)),
                                 "reused Hot demand was not counted before choosing cold victims"
                             );
                         } else if prime_row == 8 {
                             ensure!(
-                                half[..5].iter().all(|&id| !moe.cache.borrow().contains(id)),
+                                half[..5]
+                                    .iter()
+                                    .all(|&id| !moe.store.cache.borrow().contains(id)),
                                 "unselected residents must not be counted as Hot demand"
                             );
                         } else if pending == 0 {
                             ensure!(
-                                half[..5].iter().any(|&id| !moe.cache.borrow().contains(id)),
+                                half[..5]
+                                    .iter()
+                                    .any(|&id| !moe.store.cache.borrow().contains(id)),
                                 "the full Cold prefix must force eviction of captured Hot"
                             );
                         }
                     }
                 }
                 moe.drain()?;
-                ensure!(moe.cache.borrow().available_slots() == available);
+                ensure!(moe.store.cache.borrow().available_slots() == available);
                 for (slot, id) in claims {
-                    ensure!(!moe.cache.borrow_mut().publish_prefetch(slot, id, false));
+                    ensure!(
+                        !moe.store
+                            .cache
+                            .borrow_mut()
+                            .publish_prefetch(slot, id, false)
+                    );
                 }
-                ensure!(moe.cache.borrow().available_slots() == 53);
+                ensure!(moe.store.cache.borrow().available_slots() == 53);
                 cases += 1;
             }
         }
     }
     let mut moe = SsdMoe::load(&checkpoint, prefix, 53, true)?;
-    moe.gpu_hot = true;
-    moe.gpu_hot_wide = true;
+    moe.policy.gpu_hot = true;
+    moe.policy.gpu_hot_wide = true;
     let ids = prime_half(&mut moe, &input)?;
     let bad = ids[5] as usize;
-    let saved = moe.records[bad].data_offsets;
-    moe.records[bad].data_offsets[0] = u64::MAX;
+    let saved = moe.store.records[bad].data_offsets;
+    moe.store.records[bad].data_offsets[0] = u64::MAX;
     let x = Array::concatenate(&[&input; 8], 0)?;
     ensure!(moe.forward_draft_rows(&x).is_err());
     moe.drain()?;
-    ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
-    moe.records[bad].data_offsets = saved;
+    ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
+    moe.store.records[bad].data_offsets = saved;
     ensure!(moe.forward_draft_rows(&x)?.to_bytes()? == captured.repeat(8));
     moe.drain()?;
     println!(
@@ -408,20 +436,22 @@ fn wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership() -
                 capacity,
                 true,
             )?;
-            moe.gpu_hot = true;
-            moe.gpu_hot_wide = true;
-            moe.unique_cohorts = unique;
+            moe.policy.gpu_hot = true;
+            moe.policy.gpu_hot_wide = true;
+            moe.policy.unique_cohorts = unique;
             prime_half(&mut moe, &input)?;
             let mut pending = Vec::new();
             for id in 0..512 {
-                if let Some(slot) = moe.cache.borrow_mut().claim_prefetch(id)? {
+                if let Some(slot) = moe.store.cache.borrow_mut().claim_prefetch(id)? {
                     pending.push((slot, id));
                     if pending.len() == 4 {
                         break;
                     }
                 }
             }
-            ensure!(pending.len() == 4 && moe.cache.borrow().available_slots() == capacity - 4);
+            ensure!(
+                pending.len() == 4 && moe.store.cache.borrow().available_slots() == capacity - 4
+            );
             let x = Array::concatenate(&vec![&input; rows], 0)?;
             let output = moe.forward_draft_rows(&x)?;
             ensure!(
@@ -432,16 +462,19 @@ fn wide_rows_exclude_unpublished_prefetch_slots_and_preserve_their_ownership() -
                 "unexpected Hot submissions for unique={unique}"
             );
             ensure!(moe.route_readbacks == if unique { 1 } else { 2 });
-            let map = moe.cache.borrow().resident_slot_map()?;
+            let map = moe.store.cache.borrow().resident_slot_map()?;
             ensure!(
                 map.iter()
                     .all(|&slot| pending.iter().all(|&(busy, _)| slot != busy as u32))
             );
-            ensure!(moe.cache.borrow().available_slots() == capacity - 4);
+            ensure!(moe.store.cache.borrow().available_slots() == capacity - 4);
             for (slot, id) in pending {
-                moe.cache.borrow_mut().publish_prefetch(slot, id, false);
+                moe.store
+                    .cache
+                    .borrow_mut()
+                    .publish_prefetch(slot, id, false);
             }
-            ensure!(moe.cache.borrow().available_slots() == capacity);
+            ensure!(moe.store.cache.borrow().available_slots() == capacity);
             moe.drain()?;
         }
     }

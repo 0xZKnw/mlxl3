@@ -269,6 +269,10 @@ pub struct RecurrentTape {
 }
 
 impl RecurrentTape {
+    pub(crate) fn buffers(&self) -> [&Array; 4] {
+        [&self.initial, &self.keys, &self.delta, &self.decay]
+    }
+
     pub fn replay(&self, retained: i32) -> Result<Array> {
         let retained = crate::contracts::gdn_tape_prefix(self.time, retained)
             .context("invalid GDN tape commit prefix")?;

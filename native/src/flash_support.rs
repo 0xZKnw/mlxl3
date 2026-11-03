@@ -118,6 +118,38 @@ impl std::fmt::Display for CacheError {
 }
 impl std::error::Error for CacheError {}
 
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn native_prepare_shape(rows: i32, width: i32) -> bool {
+    (1..=20).contains(&rows) && matches!(width, 640 | 2560)
+}
+
+#[test]
+fn native_prepare_only_accepts_qualified_slot_layouts() {
+    for rows in [-1, 0, 1, 2, 19, 20, 21] {
+        for width in [128, 639, 640, 641, 2559, 2560, 2561] {
+            assert_eq!(
+                native_prepare_shape(rows, width),
+                rows > 0 && rows <= 20 && [640, 2560].contains(&width)
+            );
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_prepare_grid_contains_complete_hadamard_groups() {
+    let rows: i32 = kani::any();
+    let width: i32 = kani::any();
+    if native_prepare_shape(rows, width) {
+        let elements = rows * width;
+        assert!(elements > 0 && elements <= 51200 && elements % 128 == 0);
+        kani::cover!(rows == 20 && width == 2560);
+        kani::cover!(rows == 1 && width == 640);
+    } else {
+        kani::cover!(rows == 21);
+    }
+}
+
 pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
@@ -897,11 +929,20 @@ pub fn segment_tokens(current: u32, previous: [u32; 2], eos: u32) -> [u32; 3] {
     ]
 }
 
+/// Identifies one outstanding write, even when the same slot and expert recur.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SlotLease {
+    pub(crate) slot: usize,
+    pub(crate) expert: u32,
+    generation: u64,
+}
+
 /// Reservation is atomic: every routed expert gets a distinct protected slot.
 /// A failed read must invalidate its reservation before it can become a hit.
 pub struct ExpertCache {
     keys: Vec<Option<u32>>,
     pending: Vec<Option<u32>>,
+    generations: Vec<u64>,
     prefetched: Vec<bool>,
     predicted: [bool; 512],
     predictive_lru: bool,
@@ -948,6 +989,7 @@ impl ExpertCache {
         Ok(Self {
             keys: vec![None; slots],
             pending: vec![None; slots],
+            generations: vec![0; slots],
             prefetched: vec![false; slots],
             predicted: [false; 512],
             predictive_lru: false,
@@ -1078,17 +1120,50 @@ impl ExpertCache {
             return Ok(None);
         }
         let slot = self.victim(&[]).ok_or(CacheError::NoSlot)?;
+        self.generations[slot] = self.generations[slot]
+            .checked_add(1)
+            .ok_or(CacheError::Clock)?;
         self.keys[slot] = None;
         self.prefetched[slot] = false;
         self.pending[slot] = Some(id);
         Ok(Some(slot))
     }
 
-    /// Only the inference thread publishes a completed write. Demand may have won.
-    pub fn publish_prefetch(&mut self, slot: usize, id: u32, valid: bool) -> bool {
-        if self.pending.get(slot) != Some(&Some(id)) {
+    #[cfg(feature = "mlx")]
+    pub(crate) fn claim_lease(&mut self, expert: u32) -> Result<Option<SlotLease>, CacheError> {
+        Ok(self
+            .claim_prefetch(expert)?
+            .and_then(|slot| self.pending_lease(slot, expert)))
+    }
+
+    pub(crate) fn pending_lease(&self, slot: usize, expert: u32) -> Option<SlotLease> {
+        if self.pending.get(slot) != Some(&Some(expert)) {
+            return None;
+        }
+        Some(SlotLease {
+            slot,
+            expert,
+            generation: self.generations[slot],
+        })
+    }
+
+    pub(crate) fn finish_lease(&mut self, lease: SlotLease, valid: bool) -> bool {
+        if self.pending_lease(lease.slot, lease.expert) != Some(lease) {
             return false;
         }
+        self.publish_current(lease.slot, lease.expert, valid)
+    }
+
+    /// Synchronous compatibility entry point. An asynchronous reader must keep
+    /// its original lease across the I/O and finish that generation instead.
+    pub fn publish_prefetch(&mut self, slot: usize, id: u32, valid: bool) -> bool {
+        let Some(lease) = self.pending_lease(slot, id) else {
+            return false;
+        };
+        self.finish_lease(lease, valid)
+    }
+
+    fn publish_current(&mut self, slot: usize, id: u32, valid: bool) -> bool {
         self.pending[slot] = None;
         if !valid || self.contains(id) {
             return false;
@@ -1119,6 +1194,23 @@ impl ExpertCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn delayed_completion_cannot_publish_a_recycled_expert_slot() -> Result<()> {
+        let mut cache = ExpertCache::new(11)?;
+        let slot = cache.claim_prefetch(17)?.unwrap();
+        let old = cache.pending_lease(slot, 17).unwrap();
+        assert!(!cache.finish_lease(old, false));
+        assert_eq!(cache.claim_prefetch(17)?, Some(slot));
+        let current = cache.pending_lease(slot, 17).unwrap();
+        assert_ne!(old, current);
+        assert!(!cache.finish_lease(old, true));
+        assert!(!cache.contains(17));
+        assert!(cache.finish_lease(current, true));
+        assert!(cache.contains(17));
+        assert!(!cache.finish_lease(current, true));
+        Ok(())
+    }
+
     #[test]
     fn layer_slot_proof_fixture_matches_original_for_every_suffix() {
         let prefix = "53,".repeat(47).into_bytes();
@@ -2642,4 +2734,22 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
             }
         }
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(14)]
+fn stale_prefetch_completion_preserves_new_reservation() {
+    let mut cache = ExpertCache::new(11).unwrap();
+    let expert = u32::from(kani::any::<u8>()) * 2 + u32::from(kani::any::<bool>());
+    let slot = cache.claim_prefetch(expert).unwrap().unwrap();
+    let old = cache.pending_lease(slot, expert).unwrap();
+    assert!(!cache.finish_lease(old, false));
+    assert_eq!(cache.claim_prefetch(expert).unwrap(), Some(slot));
+    let current = cache.pending_lease(slot, expert).unwrap();
+    let valid: bool = kani::any();
+    assert!(!cache.finish_lease(old, valid));
+    assert_eq!(cache.pending_lease(slot, expert), Some(current));
+    kani::cover!(valid && expert == 511);
+    kani::cover!(!valid && expert == 0);
 }

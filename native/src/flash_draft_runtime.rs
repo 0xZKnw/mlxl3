@@ -79,6 +79,25 @@ pub(in crate::qwen4) struct Session {
     profile: FlashDraftProfile,
 }
 impl Session {
+    pub(in crate::qwen4) fn record_memory(
+        &self,
+        ledger: &mut crate::qwen4::memory::Backings,
+    ) -> Result<()> {
+        for array in self.draft.weights.values() {
+            ledger.record("draft_weights", array)?;
+        }
+        for (w, s, b) in self.draft.quantized.values() {
+            for array in [w, s, b] {
+                ledger.record("draft_weights", array)?;
+            }
+        }
+        for (k, v) in self.draft.cache.iter().flatten() {
+            ledger.record("draft_kv", k)?;
+            ledger.record("draft_kv", v)?;
+        }
+        Ok(())
+    }
+
     pub(in crate::qwen4) fn reset(&mut self) {
         self.draft.reset();
         self.budget = VerifyBudget::default();
@@ -101,14 +120,16 @@ impl Session {
             return Ok(token);
         }
         ensure!(
-            remaining > 0 && target.offset == self.draft.offset && target.offset < target.context,
+            remaining > 0
+                && target.offset == self.draft.offset
+                && target.offset < target.assets.context,
             "DFlash target and cache positions differ"
         );
         let mut count = self
             .options
             .width
             .min(remaining - 1)
-            .min((target.context - target.offset - 1) as usize);
+            .min((target.assets.context - target.offset - 1) as usize);
         if self.options.precap {
             count = self.pre_budget.choose(count);
         }
@@ -132,7 +153,8 @@ impl Session {
         ensure!(input.shape() == [count as i32 + 1, H]);
         let (hidden, _) = self.draft.forward(&input, count)?;
         let (mut proposals, confidence) =
-            self.draft.select(&target.head, &hidden, count, anchor)?;
+            self.draft
+                .select(&target.assets.head, &hidden, count, anchor)?;
         ensure!(
             proposals.len() == count && confidence.len() == count,
             "incomplete DFlash selection"
@@ -233,6 +255,10 @@ impl FlashNext {
             self.dflash = None;
             return Ok(());
         };
+        ensure!(
+            self.request_limit.is_none(),
+            "Flash request memory budget supports AR only"
+        );
         let options = Options::read(mode)?;
         let path = path.canonicalize()?;
         let identify = |name: &str| -> Result<_> {
@@ -315,7 +341,7 @@ impl FlashNext {
             .context("DFlash draft is not configured")?;
         let result = (|| {
             ensure!(
-                !tokens.is_empty() && tokens.len() < self.context as usize,
+                !tokens.is_empty() && tokens.len() < self.assets.context as usize,
                 "invalid DFlash prompt"
             );
             let mut last = None;
@@ -506,7 +532,7 @@ mod tests {
         ensure!(target.offset == 0);
         ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
         target.reset();
-        target.context = 4;
+        target.assets.context = 4;
         ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
         ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
         ensure!(target.forward_tokens(&[7]).is_err());

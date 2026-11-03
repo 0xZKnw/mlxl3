@@ -2444,6 +2444,20 @@ fn bridge_generate_round(
         "type":"context_usage", "request_id":request_id,
         "used_tokens":tokens.len(), "context_limit":context_limit
     }))?;
+    let available = context_limit - tokens.len();
+    let budget = if max_tokens == -1 {
+        available
+    } else {
+        usize::try_from(max_tokens)?.min(available)
+    };
+    if let NativeChatModel::Flash(target) = &mut *model
+        && let Some(plan) = target.admit_request(tokens.len() + budget)?
+    {
+        emit_event(
+            json!({"type":"flash_memory_plan", "request_id":request_id, "ar":plan,
+            "memory":target.memory_ledger(None)?}),
+        )?;
+    }
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
     let (mut logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
@@ -2475,12 +2489,6 @@ fn bridge_generate_round(
     }
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
-    let available = context_limit - tokens.len();
-    let budget = if max_tokens == -1 {
-        available
-    } else {
-        usize::try_from(max_tokens)?.min(available)
-    };
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
     let mut filter = (!tools.is_empty()).then(StreamFilter::new);
@@ -2632,6 +2640,12 @@ fn bridge_generate_round(
         capture.finish()?;
     }
     let elapsed = started.elapsed().as_secs_f64();
+    if let NativeChatModel::Flash(target) = &*model
+        && target.request_memory_limit().is_some()
+    {
+        emit_event(json!({"type":"flash_memory_end","request_id":request_id,
+            "positions":target.offset(),"ledger":target.memory_ledger(None)?}))?;
+    }
     let ttft = first_token.unwrap_or(elapsed);
     let stats = NativeStats {
         ttft_seconds: ttft,
@@ -3039,7 +3053,11 @@ fn release_bridge_idle_state(
     let reset = head.map_or(Ok(()), ChatMtpHead::reset);
     let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
-    released
+    released?;
+    if memory_saver && let NativeChatModel::Flash(target) = model {
+        target.clear_idle_program_cache()?;
+    }
+    Ok(())
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -3082,9 +3100,11 @@ fn native_bridge(
         NativeChatModel::Qwen(target) => target.dflash_family(),
         _ => None,
     };
+    let flash_speculative =
+        matches!(&model, NativeChatModel::Flash(target) if target.request_memory_limit().is_none());
     let dflash_supported = (dflash_family.is_some()
         && mlxl3_native::array::supports_packed_dflash_q4()?)
-        || matches!(&model, NativeChatModel::Flash(_));
+        || flash_speculative;
     let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
         && mlxl3_native::mtp::target_layout(&path)
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
@@ -3092,10 +3112,12 @@ fn native_bridge(
     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
     let dflash_tuning_key =
         dflash_runtime_key(&tuning_key, dflash_context_copy_enabled(dflash_family));
+    let memory = mlxl3_native::array::memory_stats(false)?;
     emit_event(json!({
+        "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
-        "memory":mlxl3_native::array::memory_stats(false)?,
+        "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
         "runtime_profile":env!("MLXL3_BUILD_PROFILE"),
         "mlx_version":env!("MLXL3_MLX_VERSION"),
@@ -3103,7 +3125,7 @@ fn native_bridge(
         "dflash_supported":dflash_supported, "dflash_family":dflash_family,
         "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
         "dflash_tuning_key":dflash_tuning_key,
-        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
+        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
         "mtp_max_depth":if matches!(&model, NativeChatModel::Flash(_)) { 1 } else { 3 }, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
@@ -3146,6 +3168,20 @@ fn native_bridge(
         };
         match request.kind.as_str() {
             "shutdown" => break,
+            "flash_memory" => {
+                let result = match &model {
+                    NativeChatModel::Flash(target) => target.memory_ledger(match mtp_head.as_ref() {
+                        Some((_, ChatMtpHead::Flash(head))) => Some(head),
+                        _ => None,
+                    }).map(|ledger|
+                        json!({"type":"flash_memory","request_id":request.request_id,"ledger":ledger})),
+                    _ => Err(anyhow::anyhow!("flash_memory requires Flash Next")),
+                };
+                emit_event(result.unwrap_or_else(|e| {
+                    json!({"type":"error",
+                    "request_id":request.request_id,"message":e.to_string()})
+                }))?;
+            }
             "ping" => emit_event(json!({"type":"pong", "request_id":request.request_id,
                 "memory":mlxl3_native::array::memory_stats(false)?}))?,
             "set_mcp" => {
@@ -3562,6 +3598,9 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         } else {
             max_tokens.min(available)
         };
+        if let NativeChatModel::Flash(target) = &mut model {
+            target.admit_request(tokens.len() + budget)?;
+        }
         // Replay keeps conversation contents exact. Qwen uses bounded QMM chunks;
         // other architectures retain their established token path.
         model.reset();

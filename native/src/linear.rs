@@ -238,6 +238,13 @@ pub struct Exl3Linear {
 }
 
 impl Exl3Linear {
+    pub(crate) fn weight_arrays(&self) -> impl Iterator<Item = &Array> {
+        [&self.trellis, &self.suh, &self.svh]
+            .into_iter()
+            .chain(&self.bias)
+            .chain(&self.lane_indices)
+    }
+
     pub fn from_checkpoint(checkpoint: &Checkpoint, prefix: &str) -> Result<Self> {
         let dense_epilogue = if checkpoint.model_type == "qwen4_exp" {
             let setting = match std::env::var("MLXL3_FLASH_DENSE_EPILOGUE") {
@@ -1343,6 +1350,7 @@ pub fn expert_mapped(
         false,
         None,
         false,
+        false,
     )
 }
 
@@ -1484,6 +1492,7 @@ pub(crate) fn expert_slots(
     k: usize,
     cb: Codebook,
     stable_shapes: bool,
+    native_prepare: bool,
 ) -> Result<Array> {
     ensure!(
         trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
@@ -1506,6 +1515,7 @@ pub(crate) fn expert_slots(
         selected.masked,
         selected.groups.as_ref(),
         stable_shapes,
+        native_prepare,
     )
 }
 
@@ -1527,6 +1537,7 @@ fn expert_mapped_layout(
     masked: bool,
     groups: Option<&GroupedRoutes>,
     stable_shapes: bool,
+    native_prepare: bool,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -1576,6 +1587,12 @@ fn expert_mapped_layout(
     );
     let xhat = if input_pretransformed {
         x.astype(Dtype::Float16)?.reshape(&[-1])?
+    } else if native_prepare
+        && crate::flash_support::native_prepare_shape(rows, input_dims)
+        && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32)
+        && suh.is_some_and(|scale| scale.dtype() == Dtype::Float16)
+    {
+        x.flash_prepare128(suh.expect("validated input scales"))?
     } else {
         x.astype(Dtype::Float16)?
             .mul(
@@ -1992,6 +2009,7 @@ mod tests {
                                 2,
                                 Codebook::Mul1,
                                 stable_shapes,
+                                false,
                             )?;
                             assert_eq!(Array::host_readbacks_for_test(), before);
                             assert_eq!(actual.shape(), [rows as i32, output as i32]);
@@ -2012,6 +2030,7 @@ mod tests {
                                 2,
                                 Codebook::Mul1,
                                 stable_shapes,
+                                false,
                             )?;
                             assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
                             assert_eq!(grouped.shape(), actual.shape());
@@ -2042,6 +2061,7 @@ mod tests {
                                     2,
                                     Codebook::Mul1,
                                     stable_shapes,
+                                    false,
                                 )?;
                                 assert_ne!(
                                     changed.to_bytes()?,
@@ -2111,6 +2131,7 @@ mod tests {
                                     2,
                                     Codebook::Mul1,
                                     stable_shapes,
+                                    false,
                                 )?;
                                 assert_eq!(masked.shape(), actual.shape());
                                 let values = masked.to_f32()?;
@@ -2146,6 +2167,7 @@ mod tests {
                                     2,
                                     Codebook::Mul1,
                                     stable_shapes,
+                                    false,
                                 )?;
                                 assert_ne!(
                                     actual.to_bytes()?,
@@ -2340,6 +2362,7 @@ mod tests {
                 k,
                 Codebook::Mul1,
                 false,
+                false,
             )?;
             assert_eq!(
                 Array::host_readbacks_for_test(),
@@ -2395,6 +2418,7 @@ mod tests {
                 2,
                 k,
                 Codebook::Mul1,
+                false,
                 false,
             )
             .is_err()

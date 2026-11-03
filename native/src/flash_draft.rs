@@ -933,7 +933,7 @@ impl FlashNext {
         head: bool,
     ) -> Result<(Option<Array>, Array)> {
         ensure!(
-            self.verification.is_none() && self.offset < self.context && token < 248320,
+            self.verification.is_none() && self.offset < self.assets.context && token < 248320,
             "invalid captured Flash forward"
         );
         let result = (|| -> Result<_> {
@@ -975,7 +975,7 @@ impl FlashNext {
     fn draft_input(&self, anchor: u32, kind: Kind, proposals: usize) -> Result<Array> {
         ensure!(anchor < 248320, "invalid Flash draft anchor");
         let rows = kind.rows(proposals)?;
-        let (file, base) = self.embed.source()?;
+        let (file, base) = self.assets.embed.source()?;
         let mut embeddings = Vec::new();
         for row in 0..rows {
             let token = if row == 0 { anchor } else { kind.mask() };
@@ -996,7 +996,7 @@ impl FlashNext {
         ensure!(
             self.verification.is_none()
                 && (1..=8).contains(&tokens.len())
-                && tokens.len() <= usize::try_from(self.context - self.offset)?
+                && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
                 && tokens.iter().all(|&t| t < 248320),
             "invalid Flash draft verification"
         );
@@ -1047,19 +1047,19 @@ impl FlashNext {
             let mixed = streams
                 .iter()
                 .map(|x| -> Result<Array> {
-                    let (mixed, _) = self.mixer.read(x)?;
+                    let (mixed, _) = self.assets.mixer.read(x)?;
                     mixed.astype(Dtype::Float16)
                 })
                 .collect::<Result<Vec<_>>>()?;
             let logits = if self.multi_token {
                 verification_projection(
-                    &self.head,
+                    &self.assets.head,
                     &Array::concatenate(&mixed.iter().collect::<Vec<_>>(), 0)?,
                 )?
             } else {
                 let heads = mixed
                     .iter()
-                    .map(|x| self.head.forward(x))
+                    .map(|x| self.assets.head.forward(x))
                     .collect::<Result<Vec<_>>>()?;
                 Array::concatenate(&heads.iter().collect::<Vec<_>>(), 0)?
             };
@@ -1132,7 +1132,7 @@ fn generate(
             && prompt
                 .len()
                 .checked_add(budget - 1)
-                .is_some_and(|n| n <= target.context as usize),
+                .is_some_and(|n| n <= target.assets.context as usize),
         "invalid draft generation budget or state"
     );
     if let PrefixPolicy::Adaptive(plan) = &draft.policy {
@@ -1186,7 +1186,7 @@ fn generate(
                 continue;
             }
             let remaining = budget - result.tokens.len();
-            let context = usize::try_from(target.context - target.offset)?;
+            let context = usize::try_from(target.assets.context - target.offset)?;
             ensure!(context > 0, "Flash draft context exhausted");
             let count = width.min(context - 1).min(remaining - 1);
             let anchor = *result.tokens.last().context("missing anchor")?;
@@ -1211,7 +1211,8 @@ fn generate(
             phases[0] = lap();
             let (hidden, _) = draft.forward(&input, count)?;
             phases[1] = lap();
-            let (mut proposals, confidence) = draft.select(&target.head, &hidden, count, anchor)?;
+            let (mut proposals, confidence) =
+                draft.select(&target.assets.head, &hidden, count, anchor)?;
             ensure!(proposals.len() == count, "incomplete proposal block");
             let selected = draft.policy.choose(&confidence, count)?;
             ensure!(
@@ -1795,7 +1796,7 @@ fn flash_draft_captures_and_all_prefix_commits_match_serial() -> Result<()> {
                 .sum::<u64>();
             let verification = target.verify_draft(&serial[2..2 + width], kind)?;
             if verification.target.lookahead_depth > 0
-                && verification.target.layers[0].moe.prefetch_pipeline
+                && verification.target.layers[0].moe.policy.prefetch_pipeline
             {
                 let predictions_after = verification
                     .target
@@ -1980,7 +1981,7 @@ fn flash_draft_greedy_generation_matches_tokens_and_states() -> Result<()> {
         .unwrap_or_else(|_| "3".into())
         .parse::<usize>()?;
     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
-    target.context = 4096;
+    target.assets.context = 4096;
     let mut draft = Draft::load(Path::new(&path), kind)?;
     configure_policy(&mut draft, target_path)?;
     let tokens = prompt(target_path)?;
@@ -2037,7 +2038,7 @@ fn flash_draft_speed_arm() -> Result<()> {
         .parse::<usize>()?;
     ensure!((1..=7).contains(&width));
     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
-    target.context = 4096;
+    target.assets.context = 4096;
     let mut head = if mode == "mtp" {
         Some(FlashMtpHead::load(&checkpoint, &target)?)
     } else {
@@ -2192,7 +2193,7 @@ fn flash_prefix_policies_preserve_real_tokens_and_states() -> Result<()> {
     let root = std::env::var("MLXL3_FLASH_MODEL")?;
     let checkpoint = crate::checkpoint::inspect(Path::new(&root))?;
     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
-    target.context = 4096;
+    target.assets.context = 4096;
     let mut draft = Draft::load(
         Path::new(&std::env::var("MLXL3_FLASH_DRAFT_MODEL")?),
         Kind::Dspark,
@@ -2253,7 +2254,7 @@ fn flash_draft_calibration_arm() -> Result<()> {
     ensure!(prefix <= 3 && std::env::var_os("MLXL3_FLASH_PREFIX_PROFILE").is_none());
     let checkpoint = crate::checkpoint::inspect(root)?;
     let mut target = FlashNext::from_checkpoint(&checkpoint)?;
-    target.context = 4096;
+    target.assets.context = 4096;
     let kind =
         Kind::parse(&std::env::var("MLXL3_FLASH_DRAFT_KIND").unwrap_or_else(|_| "dspark".into()))?;
     let mut draft = Draft::load(Path::new(&draft_path), kind)?;

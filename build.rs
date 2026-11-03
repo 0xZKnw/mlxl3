@@ -61,6 +61,7 @@ fn main() {
     );
     println!("cargo:rerun-if-env-changed=MLXL3_MLX_ROOT");
     println!("cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp");
+    println!("cargo:rerun-if-changed=native/ffi/flash_prepare.h");
     if env::var_os("CARGO_FEATURE_MLX").is_none() {
         return;
     }
