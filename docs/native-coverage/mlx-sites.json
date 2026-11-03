@@ -1843,6 +1843,7 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
     "shader ../shaders/mapped_expert.metal": 1,
+    "shader ../shaders/model_ops.metal": 1,
     "shader ../shaders/router_topk.h": 1
   },
   "native/src/gpu/flash.rs": {
@@ -1863,6 +1864,12 @@
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2
+  },
+  "native/src/gpu/model_ops.rs": {
+    ".shape": 13,
+    ".transpose": 3,
+    ".view": 4,
+    "config MLXL3_MODEL_OPS_FIXTURE": 1
   },
   "native/src/gpu/moe.rs": {
     ".shape": 1,

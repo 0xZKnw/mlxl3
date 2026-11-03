@@ -220,3 +220,5 @@ ROUTE_KERNEL(float, "route_float")
 #include "dense_projection.metal"
 
 #include "mapped_expert.metal"
+
+#include "model_ops.metal"
