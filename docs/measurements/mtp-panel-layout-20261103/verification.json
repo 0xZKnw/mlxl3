@@ -1,0 +1,50 @@
+{
+  "base": "2b5a2df93666990487eaed5dcbbc9e69849286a2",
+  "source_sha256": {
+    "apps/MLXL3Studio/Sources/MLXL3Studio/MTPTuningControls.swift": "072826123be806ac6f7042ae27808ba637fe95dc6b10af76464e2c35740a5f65",
+    "tests/mtp-panel-layout-check.swift": "ef6025dd22cf09656a944f465142a58c7a3f279b5b239ec706c1c4e5700cfa88",
+    "scripts/check-desktop.sh": "19ef7629090b67244787215d9d00cd7b2e913b8fc0b71f2b145f2f81f630e75c"
+  },
+  "old_control_sha256": "4c19d9b531d25408de2ac92df3e36fc8aa58594b015e488d54a19e65e29175c2",
+  "test_bundle_sha256": "dba790e1f7eb4da48c5f42654fe0792444a2419cf509f8337a5375536d79d4dc",
+  "runtime_manifest_verified": true,
+  "runtime_version": "2.0.2",
+  "checks": {
+    "render_cases": 16,
+    "widths_points": [
+      200,
+      244,
+      280,
+      320
+    ],
+    "languages": [
+      "fr",
+      "en"
+    ],
+    "states": [
+      "no results",
+      "four synthetic results"
+    ],
+    "height_bounds_points": [
+      130,
+      370
+    ],
+    "observed_height_points": {
+      "no_results": [
+        78,
+        102
+      ],
+      "results": [
+        246,
+        270
+      ]
+    },
+    "before": "failed two FR200 cases, exit133",
+    "hardening": "passed including MTP inspector success/cancel/errors/malformed replies",
+    "experience_assertions": 35,
+    "bundle": "release / strict codesign verified",
+    "formal": "Swift source not formally verified; tests only",
+    "physical": "not rerun; no numerical code changes",
+    "ci": "not yet inspected for the new commit"
+  }
+}

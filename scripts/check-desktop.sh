@@ -69,6 +69,13 @@ swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${test_dir}/DesktopExperienceCombined.swift" -o "${test_dir}/experience-check"
 "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/mtp-panel-layout-check.swift > "${test_dir}/MTPPanelLayoutCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/MTPPanelLayoutCombined.swift" -o "${test_dir}/mtp-layout-check"
+"${test_dir}/mtp-layout-check"
+
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
