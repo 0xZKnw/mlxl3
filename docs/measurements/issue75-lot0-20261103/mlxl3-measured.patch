@@ -1,0 +1,1485 @@
+diff --git a/native/shaders/flash_top10.metal b/native/shaders/flash_top10.metal
+new file mode 100644
+index 0000000000000000000000000000000000000000..bca039bea0e21c661e17dea562fd2cfefbb43851
+--- /dev/null
++++ b/native/shaders/flash_top10.metal
+@@ -0,0 +1,57 @@
++uint row = threadgroup_position_in_grid.y;
++uint sg = simdgroup_index_in_threadgroup;
++uint lane = thread_index_in_simdgroup;
++uint index = sg * 32u + lane;
++float value = float(values[row * 512u + index]);
++uint bits = value == 0.0f ? 0u : as_type<uint>(value);
++uint key = isnan(value) ? 0xffffffffu
++    : bits ^ uint((int(bits) >> 31) | int(0x80000000u));
++threadgroup uint local_keys[160];
++threadgroup uint local_ids[160];
++threadgroup uint selected[10];
++threadgroup float top_values[10];
++for (uint rank = 0u; rank < 10u; ++rank) {
++    uint best = simd_max(key);
++    uint winner = simd_max(key == best ? index : 0u);
++    if (lane == 0u) {
++        local_keys[sg * 10u + rank] = best;
++        local_ids[sg * 10u + rank] = winner;
++    }
++    if (index == winner) key = 0u;
++}
++threadgroup_barrier(mem_flags::mem_threadgroup);
++if (sg == 0u) {
++    uint keys[5], ids[5];
++    for (uint i = 0u; i < 5u; ++i) {
++        keys[i] = local_keys[lane + i * 32u];
++        ids[i] = local_ids[lane + i * 32u];
++    }
++    for (uint rank = 0u; rank < 10u; ++rank) {
++        uint candidate = 0u, id = 0u;
++        for (uint i = 0u; i < 5u; ++i) {
++            if (keys[i] > candidate || (keys[i] == candidate && ids[i] > id)) {
++                candidate = keys[i]; id = ids[i];
++            }
++        }
++        uint best = simd_max(candidate);
++        uint winner = simd_max(candidate == best ? id : 0u);
++        if (lane == 0u) {
++            selected[9u - rank] = winner;
++            top_values[9u - rank] = float(values[row * 512u + winner]);
++        }
++        for (uint i = 0u; i < 5u; ++i) {
++            if (ids[i] == winner) keys[i] = 0u;
++        }
++    }
++    if (lane == 0u) {
++        ARITH sum = ARITH(0);
++        for (uint slot = 0u; slot < 10u; ++slot) {
++            sum = ARITH(top_values[slot]) + sum;
++        }
++        for (uint slot = 0u; slot < 10u; ++slot) {
++            ARITH score = ARITH(top_values[slot]);
++            indices[row * 10u + slot] = selected[slot];
++            scores[row * 10u + slot] = NORMALIZE ? score / sum : score;
++        }
++    }
++}
+diff --git a/native/src/contracts.rs b/native/src/contracts.rs
+index 254eb0c1f83366d687bf9491fcb2f59bc1b4df5e..8797dee4cc403438fd524d5e365418653c3eb35f 100644
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -1,5 +1,58 @@
+ //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
+ 
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_top10_simd_domain(
++    rows: i32,
++    experts: i32,
++    top_k: usize,
++    floating: bool,
++) -> bool {
++    rows == 1 && experts == 512 && top_k == 10 && floating
++}
++
++#[test]
++fn flash_top10_simd_domain_checks_every_boundary() {
++    for rows in [i32::MIN, -1, 0, 1, 2, 4, 8, 9, i32::MAX] {
++        for experts in [0, 256, 511, 512, 513, i32::MAX] {
++            for top_k in [0, 8, 9, 10, 11, usize::MAX] {
++                for floating in [false, true] {
++                    assert_eq!(
++                        flash_top10_simd_domain(rows, experts, top_k, floating),
++                        rows == 1 && experts == 512 && top_k == 10 && floating
++                    );
++                }
++            }
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn flash_top10_simd_domain_bounds_all_shader_indices() {
++    let rows: i32 = kani::any();
++    let experts: i32 = kani::any();
++    let top_k: usize = kani::any();
++    let floating: bool = kani::any();
++    let valid = flash_top10_simd_domain(rows, experts, top_k, floating);
++    assert!(valid == (rows == 1 && experts == 512 && top_k == 10 && floating));
++    if valid {
++        let row: u32 = kani::any();
++        let thread: u32 = kani::any();
++        let rank: u32 = kani::any();
++        let local: u32 = kani::any();
++        if row < rows as u32 && thread < 512 && rank < 10 && local < 5 {
++            let sg = thread / 32;
++            let lane = thread % 32;
++            assert!(sg * 10 + rank < 160 && lane + local * 32 < 160);
++            assert!(row * 512 + thread < (rows as u32) * 512);
++            assert!(row * 10 + 9 - rank < (rows as u32) * 10);
++        }
++    }
++    kani::cover!(valid && rows == 1);
++    kani::cover!(!valid && rows == 2);
++    kani::cover!(!valid && experts == 512 && rows == 9);
++}
++
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+     rows > 0
+diff --git a/native/src/flash_draft_default_tests.rs b/native/src/flash_draft_default_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..f467120bc241b3033a5def61510f641396262dcc
+--- /dev/null
++++ b/native/src/flash_draft_default_tests.rs
+@@ -0,0 +1,133 @@
++use super::*;
++
++fn check_settings(target: &FlashNext, active: bool) -> Result<()> {
++    ensure!(target.multi_token == active);
++    ensure!(target.head.settings_for_test() == (active, false));
++    for layer in &target.layers {
++        ensure!(
++            layer.moe.execution_settings_for_test()
++                == (
++                    active,
++                    active,
++                    active,
++                    if active { 4 } else { 2 },
++                    active,
++                    active
++                )
++        );
++        if let Attention::Gdn(gdn) = &layer.attention {
++            for projection in [&gdn.qkv, &gdn.z, &gdn.out] {
++                ensure!(projection.settings_for_test() == (active, active));
++            }
++        }
++    }
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU, target/draft fixtures; optimization controls absent; select alone"]
++fn default_dflash_configuration_restores_modes_errors_and_exact_states() -> Result<()> {
++    for name in [
++        "MLXL3_FLASH_MULTI_TOKEN",
++        "MLXL3_FLASH_REFERENCE_MB34",
++        "MLXL3_FLASH_REFERENCE_MB34_ROLES",
++        "MLXL3_FLASH_DRAFT_WIDTH",
++        "MLXL3_FLASH_DRAFT_ADAPTIVE",
++        "MLXL3_FLASH_DRAFT_PRECAP",
++        "MLXL3_SSD_GPU_HOT",
++        "MLXL3_SSD_GPU_HOT_WIDE",
++        "MLXL3_SSD_UNIQUE_COHORT",
++        "MLXL3_SSD_COLD_READY_ROWS",
++        "MLXL3_SSD_COLD_PRIORITY",
++        "MLXL3_SSD_ROUTED_INDEX_CACHE",
++    ] {
++        ensure!(
++            std::env::var_os(name).is_none(),
++            "test requires {name} absent"
++        );
++    }
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
++    let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++    check_settings(&target, false)?;
++    let serial = [EOS, 7, 19, 5, 11, 13, 17];
++    let saved = tempfile::tempdir()?;
++    let mut logits = Vec::new();
++    for (i, &token) in serial.iter().enumerate() {
++        let value = target.forward(token)?;
++        let finite = value.to_f32()?;
++        ensure!(value.shape() == [1, 248320]);
++        ensure!(finite.len() == 248320 && finite.iter().all(|v| v.is_finite()));
++        logits.push(value.to_bytes()?);
++        disk_state(&target, saved.path(), &format!("s{i}"), true)?;
++    }
++    for (mode, width) in [(1, 1), (2, 2), (3, 7), (1, 1)] {
++        target.configure_dflash2(Some(&draft), mode)?;
++        ensure!(target.dflash2_proposals() == Some(width));
++        check_settings(&target, true)?;
++    }
++    target.prefill_dflash2(&serial[..2], &AtomicBool::new(false))?;
++    let offset = target.offset();
++    target.configure_dflash2(Some(&draft), 1)?;
++    ensure!(
++        target.offset() == offset,
++        "unchanged configuration reset the session"
++    );
++    for retained in 1..=4 {
++        target.prefill_dflash2(&serial[..2], &AtomicBool::new(false))?;
++        let verification = target.verify_draft(&serial[2..6], Kind::Dflash2)?;
++        ensure!(verification.parts.logits.shape() == [4, 248320]);
++        ensure!(verification.parts.logits.to_bytes()? == logits[2..6].concat());
++        verification.commit(retained)?;
++        ensure!(disk_state(&target, saved.path(), &format!("s{}", 1 + retained), false)? == 136);
++        ensure!(target.forward(serial[2 + retained])?.to_bytes()? == logits[2 + retained]);
++        disk_state(&target, saved.path(), &format!("s{}", 2 + retained), false)?;
++    }
++    target.configure_dflash2(None, 1)?;
++    check_settings(&target, false)?;
++    target.reset();
++    for (i, &token) in serial[..3].iter().enumerate() {
++        ensure!(target.forward(token)?.to_bytes()? == logits[i]);
++    }
++    disk_state(&target, saved.path(), "s2", false)?;
++    for mode in [0, 4, usize::MAX] {
++        target.configure_dflash2(Some(&draft), 1)?;
++        ensure!(target.configure_dflash2(Some(&draft), mode).is_err());
++        ensure!(!target.dflash2_active() && target.offset() == 0);
++        check_settings(&target, false)?;
++    }
++    target.configure_dflash2(Some(&draft), 1)?;
++    ensure!(
++        target
++            .configure_dflash2(Some(&saved.path().join("missing")), 1)
++            .is_err()
++    );
++    ensure!(!target.dflash2_active() && target.offset() == 0);
++    check_settings(&target, false)?;
++    target.configure_dflash2(Some(&draft), 1)?;
++    ensure!(
++        target
++            .prefill_dflash2(&serial[..2], &AtomicBool::new(true))
++            .is_err()
++    );
++    ensure!(target.dflash2_active() && target.offset() == 0);
++    check_settings(&target, true)?;
++    ensure!(
++        target
++            .prefill_dflash2(&serial[..2], &AtomicBool::new(false))?
++            .to_bytes()?
++            == logits[1]
++    );
++    target.configure_dflash2(None, 1)?;
++    check_settings(&target, false)?;
++    println!(
++        "FLASH_DEFAULT_B2 proposals=1 modes=4 prefixes=4 logits_per_row=248320 states=136 overrides=absent restore=true errors=5 parity=byte_exact"
++    );
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn actual_default_dflash_profile_switch_and_verify_entry() {
++    default_dflash_configuration_restores_modes_errors_and_exact_states().unwrap();
++}
+diff --git a/native/src/flash_draft_runtime.rs b/native/src/flash_draft_runtime.rs
+index da56301a856fe18dd2b0098b866c8301df0b8d0b..450523f0eea3d9a0437c2d5e15e1d011b45d1d40 100644
+--- a/native/src/flash_draft_runtime.rs
++++ b/native/src/flash_draft_runtime.rs
+@@ -21,32 +21,26 @@ impl Options {
+                 _ => anyhow::bail!("{name} must be 0 or 1"),
+             }
+         };
+-        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE", true)?;
+         let precap_requested = flag("MLXL3_FLASH_DRAFT_PRECAP", false)?;
++        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE", precap_requested || mode != 1)?;
+         ensure!(
+             !precap_requested || adaptive_requested,
+             "MLXL3_FLASH_DRAFT_PRECAP requires MLXL3_FLASH_DRAFT_ADAPTIVE=1"
+         );
+         let adaptive = adaptive_requested && mode == 1;
+         let precap = precap_requested && adaptive;
+-        let width = match std::env::var("MLXL3_FLASH_DRAFT_WIDTH") {
+-            Ok(value) => crate::flash_support::fixed_draft_width(&value, adaptive_requested)
+-                .context(
++        let fixed = match std::env::var("MLXL3_FLASH_DRAFT_WIDTH") {
++            Ok(value) => Some(
++                crate::flash_support::fixed_draft_width(&value, adaptive_requested).context(
+                     "MLXL3_FLASH_DRAFT_WIDTH requires 1..7 and MLXL3_FLASH_DRAFT_ADAPTIVE=0",
+                 )?,
+-            Err(std::env::VarError::NotPresent) => {
+-                if precap {
+-                    3
+-                } else if adaptive || mode == 3 {
+-                    7
+-                } else if mode == 2 {
+-                    2
+-                } else {
+-                    3
+-                }
+-            }
++            ),
++            Err(std::env::VarError::NotPresent) => None,
+             Err(_) => anyhow::bail!("MLXL3_FLASH_DRAFT_WIDTH must be valid Unicode"),
+         };
++        let width =
++            crate::flash_support::dflash_width(mode, adaptive_requested, precap_requested, fixed)
++                .context("invalid DFlash width policy")?;
+         Ok(Self {
+             q4: flag("MLXL3_FLASH_DRAFT_Q4", true)?,
+             ring: flag("MLXL3_FLASH_DRAFT_RING", true)?,
+@@ -228,9 +222,53 @@ impl Session {
+     }
+ }
+ impl FlashNext {
++    fn set_dflash_defaults(&mut self, enabled: bool) {
++        self.multi_token =
++            flash_support::dflash_default(self.multi_token, self.multi_token_has_override, enabled);
++        self.head.set_flash_dflash_defaults(enabled);
++        for layer in &mut self.layers {
++            layer.moe.set_dflash_defaults(enabled);
++            match &mut layer.attention {
++                Attention::Gdn(gdn) => {
++                    for projection in [
++                        &mut gdn.qkv,
++                        &mut gdn.z,
++                        &mut gdn.a,
++                        &mut gdn.b,
++                        &mut gdn.out,
++                    ] {
++                        projection.set_flash_dflash_defaults(enabled);
++                    }
++                }
++                Attention::Qsa(qsa) => {
++                    for projection in [
++                        &mut qsa.q,
++                        &mut qsa.k,
++                        &mut qsa.v,
++                        &mut qsa.out,
++                        &mut qsa.index,
++                    ] {
++                        projection.set_flash_dflash_defaults(enabled);
++                    }
++                }
++            }
++        }
++    }
++
+     pub fn configure_dflash2(&mut self, path: Option<&Path>, mode: usize) -> Result<()> {
++        let result = self.configure_dflash2_inner(path, mode);
++        if result.is_err() {
++            self.dflash = None;
++            self.set_dflash_defaults(false);
++            self.reset();
++        }
++        result
++    }
++
++    fn configure_dflash2_inner(&mut self, path: Option<&Path>, mode: usize) -> Result<()> {
+         let Some(path) = path else {
+             self.dflash = None;
++            self.set_dflash_defaults(false);
+             return Ok(());
+         };
+         let options = Options::read(mode)?;
+@@ -249,9 +287,11 @@ impl FlashNext {
+         }
+         self.reset();
+         self.dflash = None;
++        self.set_dflash_defaults(false);
+         array::synchronize()?;
+         array::clear_cache()?;
+         let draft = Draft::load_options(&path, Kind::Dflash2, options.q4, options.ring)?;
++        self.set_dflash_defaults(true);
+         self.dflash = Some(Box::new(Session {
+             draft,
+             path,
+@@ -354,6 +394,10 @@ impl FlashNext {
+     }
+ }
+ 
++#[cfg(test)]
++#[path = "flash_draft_default_tests.rs"]
++mod default_tests;
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -590,6 +634,30 @@ mod tests {
+         Ok(())
+     }
+     #[test]
++    #[ignore = "isolated process environment; production options only, no checkpoint or GPU"]
++    fn option_environment_reaches_real_defaults_and_overrides() -> Result<()> {
++        let mode = std::env::var("MLXL3_EXPECTED_MODE")?.parse()?;
++        let expected = std::env::var("MLXL3_EXPECTED_OPTIONS")?;
++        let actual = Options::read(mode);
++        if expected == "error" {
++            ensure!(actual.is_err(), "invalid DFlash options accepted");
++        } else {
++            let actual = actual?;
++            ensure!(
++                format!(
++                    "{},{},{},{},{}",
++                    actual.width,
++                    u8::from(actual.adaptive),
++                    u8::from(actual.precap),
++                    u8::from(actual.q4),
++                    u8::from(actual.ring)
++                ) == expected,
++                "DFlash options do not match the requested production policy"
++            );
++        }
++        Ok(())
++    }
++    #[test]
+     #[ignore = "isolated environment; production pre-draft option parser"]
+     fn pre_draft_environment_reaches_real_options() -> Result<()> {
+         let expected = std::env::var("MLXL3_EXPECTED_PRECAP")?;
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index 4d33cfb5eca3d370a9f93dfdd6d791fc171430cf..d0c39bb0eea4d0255e21339d7fcdb28fc34de3b5 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -384,6 +384,35 @@ pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
+     }
+ }
+ 
++#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
++pub(crate) fn dflash_width(
++    mode: usize,
++    adaptive: bool,
++    precap: bool,
++    fixed: Option<usize>,
++) -> Option<usize> {
++    if !(1..=3).contains(&mode) || (precap && !adaptive) {
++        return None;
++    }
++    if let Some(width) = fixed {
++        return (!adaptive && (1..=7).contains(&width)).then_some(width);
++    }
++    Some(if mode == 1 && precap {
++        3
++    } else if mode == 3 || (mode == 1 && adaptive) {
++        7
++    } else if mode == 2 {
++        2
++    } else {
++        1
++    })
++}
++
++#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
++pub(crate) fn dflash_default(current: bool, has_override: bool, enabled: bool) -> bool {
++    if has_override { current } else { enabled }
++}
++
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn expert_output_stride(routes: u32, projections: u32, width: u32) -> Option<u32> {
+     if routes == 0 || projections == 0 || width == 0 {
+@@ -637,6 +666,35 @@ mod draft_contract_tests {
+         }
+     }
+ 
++    #[test]
++    fn dflash_defaults_preserve_modes_explicit_controls_and_bounds() {
++        for (mode, expected) in [(1, 1), (2, 2), (3, 7)] {
++            assert_eq!(dflash_width(mode, false, false, None), Some(expected));
++            for width in 1..=7 {
++                assert_eq!(dflash_width(mode, false, false, Some(width)), Some(width));
++                assert_eq!(dflash_width(mode, true, false, Some(width)), None);
++            }
++            for width in [0, 8, usize::MAX] {
++                assert_eq!(dflash_width(mode, false, false, Some(width)), None);
++            }
++            assert_eq!(dflash_width(mode, false, true, None), None);
++        }
++        assert_eq!(dflash_width(1, true, false, None), Some(7));
++        assert_eq!(dflash_width(1, true, true, None), Some(3));
++        assert_eq!(dflash_width(2, true, true, None), Some(2));
++        assert_eq!(dflash_width(3, true, true, None), Some(7));
++        for mode in [0, 4, usize::MAX] {
++            assert_eq!(dflash_width(mode, false, false, None), None);
++            assert_eq!(dflash_width(mode, false, false, Some(3)), None);
++        }
++        for current in [false, true] {
++            for enabled in [false, true] {
++                assert_eq!(dflash_default(current, false, enabled), enabled);
++                assert_eq!(dflash_default(current, true, enabled), current);
++            }
++        }
++    }
++
+     #[test]
+     fn draft_commits_match_independent_wide_arithmetic_and_reject_stale_tapes() {
+         for base in [-1, 0, 1, 4096, i32::MAX - 8, i32::MAX - 1, i32::MAX] {
+@@ -707,6 +765,56 @@ mod draft_contract_proofs {
+         }
+     }
+ 
++    #[kani::proof]
++    fn dflash_width_preserves_defaults_overrides_and_valid_modes() {
++        let mode: usize = kani::any();
++        let adaptive: bool = kani::any();
++        let precap: bool = kani::any();
++        let fixed: Option<usize> = kani::any();
++        let actual = dflash_width(mode, adaptive, precap, fixed);
++        let valid = (1..=3).contains(&mode)
++            && (!precap || adaptive)
++            && fixed.is_none_or(|width| !adaptive && (1..=7).contains(&width));
++        assert_eq!(actual.is_some(), valid);
++        if let Some(width) = actual {
++            assert!((1..=7).contains(&width));
++            if let Some(requested) = fixed {
++                assert_eq!(width, requested);
++            } else {
++                assert_eq!(
++                    width,
++                    match mode {
++                        1 if precap => 3,
++                        1 if !adaptive => 1,
++                        2 => 2,
++                        _ => 7,
++                    }
++                );
++            }
++        }
++        kani::cover!(mode == 1 && !adaptive && !precap && fixed.is_none() && actual == Some(1));
++        kani::cover!(mode == 2 && actual == Some(2));
++        kani::cover!(mode == 3 && actual == Some(7));
++        kani::cover!(precap && adaptive && actual == Some(3));
++        kani::cover!(fixed == Some(1) && actual == Some(1));
++        kani::cover!(mode == usize::MAX && actual.is_none());
++    }
++
++    #[kani::proof]
++    fn dflash_defaults_preserve_explicit_overrides_and_restore_the_inherited_policy() {
++        let current: bool = kani::any();
++        let has_override: bool = kani::any();
++        let enabled: bool = kani::any();
++        let actual = dflash_default(current, has_override, enabled);
++        assert_eq!(
++            actual,
++            (has_override && current) || (!has_override && enabled)
++        );
++        kani::cover!(has_override && !current && enabled && !actual);
++        kani::cover!(!has_override && !current && enabled && actual);
++        kani::cover!(!has_override && current && !enabled && !actual);
++    }
++
+     #[kani::proof]
+     #[kani::unwind(5)]
+     fn draft_scheduler_cannot_exceed_available_prefix_or_accept_invalid_costs() {
+diff --git a/native/src/lfm2.rs b/native/src/lfm2.rs
+index 178d05f0810fa01a3b1f2097edcf22be0916a5af..d76f5520ff63328f7689c884b3db636103339022 100644
+--- a/native/src/lfm2.rs
++++ b/native/src/lfm2.rs
+@@ -159,6 +159,20 @@ impl Projection {
+         matches!(self.weights, ProjectionWeights::Exl3(_))
+     }
+ 
++    pub(crate) fn set_flash_dflash_defaults(&mut self, enabled: bool) {
++        if let ProjectionWeights::Exl3(linear) = &mut self.weights {
++            linear.set_flash_dflash_defaults(enabled);
++        }
++    }
++
++    #[cfg(test)]
++    pub(crate) fn settings_for_test(&self) -> (bool, bool) {
++        match &self.weights {
++            ProjectionWeights::Exl3(linear) => linear.settings_for_test(),
++            _ => (false, false),
++        }
++    }
++
+     pub(crate) fn load(
+         checkpoint: &Checkpoint,
+         prefix: &str,
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 2ba26966e4865b1eff942b0d77564a2e84d44133..bf7b475dfc79d68407c0f3b909181b4240c3d58e 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -232,6 +232,10 @@ pub struct Exl3Linear {
+     mtp_hidden_batch: bool,
+     flash_batch: bool,
+     reference_mb34: bool,
++    flash_batch_baseline: bool,
++    flash_batch_dflash: bool,
++    reference_mb34_baseline: bool,
++    reference_mb34_dflash: bool,
+     dense_epilogue: bool,
+     dec_one: bool,
+     lane_indices: Option<Array>,
+@@ -250,27 +254,52 @@ impl Exl3Linear {
+         } else {
+             false
+         };
+-        let reference_mb34 = if checkpoint.model_type == "qwen4_exp" {
++        let (reference_mb34, dflash_reference_mb34) = if checkpoint.model_type == "qwen4_exp" {
+             let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34") {
+                 Ok(value) => Some(value),
+                 Err(std::env::VarError::NotPresent) => None,
+                 Err(error) => return Err(error.into()),
+             };
+-            crate::dense_epilogue::enabled_setting(setting.as_deref())
+-                .context("MLXL3_FLASH_REFERENCE_MB34 must be 0 or 1")?
++            let baseline = crate::dense_epilogue::enabled_setting(setting.as_deref())
++                .context("MLXL3_FLASH_REFERENCE_MB34 must be 0 or 1")?;
++            (baseline, setting.is_none() || baseline)
+         } else {
+-            false
++            (false, false)
+         };
+-        let reference_mb34_roles = if checkpoint.model_type == "qwen4_exp" {
+-            let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34_ROLES") {
++        let (reference_mb34_roles, dflash_reference_mb34_roles) =
++            if checkpoint.model_type == "qwen4_exp" {
++                let setting = match std::env::var("MLXL3_FLASH_REFERENCE_MB34_ROLES") {
++                    Ok(value) => Some(value),
++                    Err(std::env::VarError::NotPresent) => None,
++                    Err(error) => return Err(error.into()),
++                };
++                let baseline = crate::contracts::flash_reference_mb34_roles(setting.as_deref())
++                    .context("MLXL3_FLASH_REFERENCE_MB34_ROLES must be qkv, z, out or all")?;
++                (
++                    baseline,
++                    if setting.is_none() {
++                        crate::contracts::FlashReferenceMb34Roles::All
++                    } else {
++                        baseline
++                    },
++                )
++            } else {
++                (
++                    crate::contracts::FlashReferenceMb34Roles::Qkv,
++                    crate::contracts::FlashReferenceMb34Roles::Qkv,
++                )
++            };
++        let (flash_batch, dflash_batch) = if checkpoint.model_type == "qwen4_exp" {
++            let setting = match std::env::var("MLXL3_FLASH_MULTI_TOKEN") {
+                 Ok(value) => Some(value),
+                 Err(std::env::VarError::NotPresent) => None,
+                 Err(error) => return Err(error.into()),
+             };
+-            crate::contracts::flash_reference_mb34_roles(setting.as_deref())
+-                .context("MLXL3_FLASH_REFERENCE_MB34_ROLES must be qkv, z, out or all")?
++            let baseline = crate::dense_epilogue::enabled_setting(setting.as_deref())
++                .context("MLXL3_FLASH_MULTI_TOKEN must be 0 or 1")?;
++            (baseline, setting.is_none() || baseline)
+         } else {
+-            crate::contracts::FlashReferenceMb34Roles::Qkv
++            (false, false)
+         };
+         let trellis = checkpoint_array(checkpoint, &format!("{prefix}.trellis"))?;
+         let dec_one = if checkpoint.model_type == "qwen4_exp" {
+@@ -329,7 +358,7 @@ impl Exl3Linear {
+             linear.reference_accumulation = true;
+             // Flash keeps its reference layout; lane order was qualified on other models.
+             linear.lane_indices = None;
+-            linear.flash_batch = crate::flash_support::multi_token_verifier()?;
++            linear.flash_batch = flash_batch;
+             linear.reference_mb34 = reference_mb34
+                 && if reference_mb34_roles == crate::contracts::FlashReferenceMb34Roles::Qkv {
+                     crate::contracts::flash_reference_mb34_scope(prefix, linear.rows, linear.cols)
+@@ -341,6 +370,16 @@ impl Exl3Linear {
+                         reference_mb34_roles,
+                     )
+                 };
++            linear.flash_batch_baseline = linear.flash_batch;
++            linear.flash_batch_dflash = dflash_batch;
++            linear.reference_mb34_baseline = linear.reference_mb34;
++            linear.reference_mb34_dflash = dflash_reference_mb34
++                && crate::contracts::flash_reference_mb34_role_scope(
++                    prefix,
++                    linear.rows,
++                    linear.cols,
++                    dflash_reference_mb34_roles,
++                );
+             linear.mtp_hidden_batch = prefix == "mtp.fc_hidden";
+             if linear.mtp_hidden_batch {
+                 ensure!(
+@@ -409,6 +448,10 @@ impl Exl3Linear {
+             mtp_hidden_batch: false,
+             flash_batch: false,
+             reference_mb34: false,
++            flash_batch_baseline: false,
++            flash_batch_dflash: false,
++            reference_mb34_baseline: false,
++            reference_mb34_dflash: false,
+             dense_epilogue: false,
+             dec_one: false,
+             lane_indices: lane_order_indices(rows, cols, k, cb, false)?,
+@@ -422,6 +465,26 @@ impl Exl3Linear {
+         self.cols
+     }
+ 
++    pub(crate) fn set_flash_dflash_defaults(&mut self, enabled: bool) {
++        if self.reference_accumulation {
++            self.flash_batch = if enabled {
++                self.flash_batch_dflash
++            } else {
++                self.flash_batch_baseline
++            };
++            self.reference_mb34 = if enabled {
++                self.reference_mb34_dflash
++            } else {
++                self.reference_mb34_baseline
++            };
++        }
++    }
++
++    #[cfg(test)]
++    pub(crate) fn settings_for_test(&self) -> (bool, bool) {
++        (self.flash_batch, self.reference_mb34)
++    }
++
+     fn splits(&self, input_tiles: i32, output_tiles: i32) -> i32 {
+         if self.reference_accumulation {
+             crate::flash_support::reference_splits(input_tiles as u32, output_tiles as u32) as i32
+diff --git a/native/src/linear/reference_mb34_tests.rs b/native/src/linear/reference_mb34_tests.rs
+index 506bc8e0cdfdc1d103c7343e59c3b5ac1220c566..720de4cc6ca72e55803b43158849a986d025c881 100644
+--- a/native/src/linear/reference_mb34_tests.rs
++++ b/native/src/linear/reference_mb34_tests.rs
+@@ -245,3 +245,88 @@ fn flash_reference_mb34_loader_excludes_head_and_other_projections() -> Result<(
+ fn actual_flash_reference_mb34_forward_entry() {
+     assert!(flash_reference_mb34_matches_single_rows_and_mb2().is_ok());
+ }
++
++#[test]
++#[ignore = "physical Apple GPU and Flash checkpoint; isolated defaults or explicit overrides; run alone"]
++fn flash_dflash_projection_defaults_restore_loaded_overrides() -> Result<()> {
++    let checkpoint =
++        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let batch = std::env::var("MLXL3_FLASH_MULTI_TOKEN").ok();
++    let mb34 = std::env::var("MLXL3_FLASH_REFERENCE_MB34").ok();
++    let roles = std::env::var("MLXL3_FLASH_REFERENCE_MB34_ROLES").ok();
++    let mut cases = 0;
++    for (name, role) in [
++        (
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            Some("qkv"),
++        ),
++        (
++            "model.language_model.layers.0.linear_attn.in_proj_z",
++            Some("z"),
++        ),
++        (
++            "model.language_model.layers.46.linear_attn.out_proj",
++            Some("out"),
++        ),
++        ("model.language_model.layers.3.self_attn.o_proj", None),
++        ("mtp.layers.0.self_attn.o_proj", None),
++        ("lm_head", None),
++    ] {
++        let selected =
++            |selection: &str| role.is_some_and(|role| selection == "all" || selection == role);
++        let baseline = (
++            batch.as_deref() == Some("1"),
++            mb34.as_deref() == Some("1") && selected(roles.as_deref().unwrap_or("qkv")),
++        );
++        let dflash = (
++            batch.as_deref() != Some("0"),
++            mb34.as_deref() != Some("0") && selected(roles.as_deref().unwrap_or("all")),
++        );
++        let mut linear = Exl3Linear::from_checkpoint(&checkpoint, name)?;
++        ensure!(
++            linear.settings_for_test() == baseline,
++            "load defaults differ: {name}"
++        );
++        let readbacks = Array::host_readbacks_for_test();
++        for enabled in [true, true, false, false, true, false] {
++            linear.set_flash_dflash_defaults(enabled);
++            ensure!(
++                linear.settings_for_test() == if enabled { dflash } else { baseline },
++                "projection defaults transition differs: {name}/{enabled}"
++            );
++        }
++        ensure!(Array::host_readbacks_for_test() == readbacks);
++        if cases == 0 {
++            let mut plain = Exl3Linear::new(
++                linear.trellis.try_clone()?,
++                linear.suh.try_clone()?,
++                linear.svh.try_clone()?,
++                None,
++                linear.k,
++                linear.cb,
++            )?;
++            for enabled in [true, false] {
++                plain.set_flash_dflash_defaults(enabled);
++                ensure!(plain.settings_for_test() == (false, false));
++            }
++            let mut projection =
++                crate::lfm2::Projection::load(&checkpoint, name, linear.rows, linear.cols, false)?;
++            for enabled in [true, false] {
++                projection.set_flash_dflash_defaults(enabled);
++                ensure!(projection.settings_for_test() == if enabled { dflash } else { baseline });
++            }
++        }
++        cases += 1;
++    }
++    ensure!(cases == 6);
++    println!(
++        "FLASH_DFLASH_PROJECTION_DEFAULTS projections=6 load_overrides=true restore=true no_readback=true plain_unchanged=true wrapper=true"
++    );
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn actual_flash_dflash_projection_defaults_entry() {
++    assert!(flash_dflash_projection_defaults_restore_loaded_overrides().is_ok());
++}
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 26404fdcd91ebf2426e1678d707cac5fe768e57c..c3d78696077fcd91c7f41b67361f72c6ca415667 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -1331,6 +1331,8 @@ pub struct FlashNext {
+     pub last_hidden: Option<Array>,
+     verification: Option<PairState>,
+     multi_token: bool,
++    #[cfg(feature = "chat")]
++    multi_token_has_override: bool,
+     prefill_heads: bool,
+     lookahead_depth: usize,
+     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
+@@ -1534,6 +1536,8 @@ impl FlashNext {
+             last_hidden: None,
+             verification: None,
+             multi_token,
++            #[cfg(feature = "chat")]
++            multi_token_has_override: std::env::var_os("MLXL3_FLASH_MULTI_TOKEN").is_some(),
+             prefill_heads,
+             lookahead_depth,
+             lookahead_pool,
+diff --git a/native/src/qwen4/profile.rs b/native/src/qwen4/profile.rs
+index 6234a85d32b8895b9cf6bca2ac4c9fe9de14545f..5d5c9f0d3ae2450b0262cb1c306d38baac4ea291 100644
+--- a/native/src/qwen4/profile.rs
++++ b/native/src/qwen4/profile.rs
+@@ -105,6 +105,7 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
+         _ => anyhow::bail!("invalid prompt"),
+     };
+     let (budget, phases): (usize, &[(&str, bool, bool)]) = match kind.as_str() {
++        "quick-ar" => (32, &[("warmup", false, false), ("trace_1", true, false)]),
+         "verifier" => (
+             64,
+             &[
+@@ -147,6 +148,10 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
+         ),
+         _ => anyhow::bail!("invalid profile kind"),
+     };
++    ensure!(
++        kind != "quick-ar" || (!mtp && !dflash),
++        "quick diagnostic is AR only"
++    );
+     ensure!(directory.is_dir(), "output directory required");
+     save(
+         &directory.join("started.json"),
+@@ -173,7 +178,7 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
+     let mut expected_draft = None;
+     let mut summaries = Vec::new();
+     for &(phase, traced, fenced) in phases {
+-        let natural = matches!(kind.as_str(), "natural" | "context");
++        let natural = matches!(kind.as_str(), "natural" | "context" | "quick-ar");
+         let _stage_policy = natural.then(|| profile::StageRetention::new(phase == "warmup"));
+         let test_stage_retention = profile::retain_test_stages();
+         target.reset();
+diff --git a/native/src/router.rs b/native/src/router.rs
+index ab642c93f320f5e815f2a9ff6f5b0069ca92e2b0..085d5f284f2e262fbb708959d3acd0dfb5d32842 100644
+--- a/native/src/router.rs
++++ b/native/src/router.rs
+@@ -43,6 +43,28 @@ pub fn topk(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, Arr
+     {
+         return top8_simd(values, normalize);
+     }
++    if values.shape().len() == 2
++        && crate::contracts::flash_top10_simd_domain(
++            values.shape()[0],
++            values.shape()[1],
++            top_k,
++            matches!(values.dtype(), Dtype::Float16 | Dtype::Float32),
++        )
++    {
++        static ENABLED: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
++        let enabled = ENABLED
++            .get_or_init(
++                || match std::env::var("MLXL3_FLASH_TOP10_SIMD").as_deref() {
++                    Err(std::env::VarError::NotPresent) | Ok("0") => Some(false),
++                    Ok("1") => Some(true),
++                    _ => None,
++                },
++            )
++            .context("MLXL3_FLASH_TOP10_SIMD must be 0 or 1")?;
++        if enabled {
++            return top10_simd(values, normalize);
++        }
++    }
+     topk_legacy(values, top_k, normalize)
+ }
+ 
+@@ -456,8 +478,214 @@ pub fn grouped_topk_biased(
+     Ok((indices, scores))
+ }
+ 
++// Same selection contract as the legacy rank kernel, with bounded SIMD merges.
++fn top10_simd(values: &Array, normalize: bool) -> Result<(Array, Array)> {
++    ensure!(
++        values.shape().len() == 2
++            && crate::contracts::flash_top10_simd_domain(
++                values.shape()[0],
++                values.shape()[1],
++                10,
++                matches!(values.dtype(), Dtype::Float16 | Dtype::Float32),
++            ),
++        "SIMD top10 requires one floating-point row of 512 experts"
++    );
++    #[cfg(test)]
++    let _build = crate::flash_profile::span("flash_top10_simd_build");
++    let rows = values.shape()[0];
++    let arithmetic = if values.dtype() == Dtype::Float32 {
++        "float"
++    } else {
++        "half"
++    };
++    let mut out = array::metal_kernel(
++        &format!(
++            "mlxl3_flash_top10_simd_{arithmetic}_n{}",
++            u8::from(normalize)
++        ),
++        &["values"],
++        &["indices", "scores"],
++        &format!(
++            "#define ARITH {arithmetic}\n#define NORMALIZE {}\n",
++            u8::from(normalize)
++        ),
++        include_str!("../shaders/flash_top10.metal"),
++        &[values],
++        &[vec![rows, 10], vec![rows, 10]],
++        &[Dtype::UInt32, values.dtype()],
++        [512, rows, 1],
++        [512, 1, 1],
++    )?;
++    ensure!(out.len() == 2, "invalid top10 output count");
++    let scores = out.pop().context("missing top10 scores")?;
++    let indices = out.pop().context("missing top10 indices")?;
++    Ok((indices, scores))
++}
++
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "physical Apple GPU; Flash top10/512 exact selection and score order"]
++    fn flash_top10_matches_legacy_cpu_and_boundaries() -> Result<()> {
++        let mut comparisons = 0;
++        for rows in [1] {
++            for dtype in [Dtype::Float16, Dtype::Float32] {
++                for fixture in 0..12 {
++                    let values = (0..rows * 512)
++                        .map(|i| match fixture {
++                            0 => 1.0,
++                            1 => {
++                                if i % 2 == 0 {
++                                    0.0
++                                } else {
++                                    -0.0
++                                }
++                            }
++                            2 => [
++                                f32::INFINITY,
++                                f32::NEG_INFINITY,
++                                f32::from_bits(0x7fc12345),
++                                f32::from_bits(0xffc12345),
++                                1.0,
++                                -1.0,
++                                0.0,
++                                -0.0,
++                            ][i as usize % 8],
++                            3 => 0.2 + ((i * 7) % 127) as f32 * 0.000001,
++                            4 => [
++                                f32::from_bits(1),
++                                f32::from_bits(0x80000001),
++                                0.0,
++                                -0.0,
++                                1.0e-5,
++                                -1.0e-5,
++                            ][i as usize % 6],
++                            5 => -1.0 - (i % 101) as f32,
++                            6 => 65504.0,
++                            _ => {
++                                (((i as u32)
++                                    .wrapping_mul(1664525)
++                                    .wrapping_add(fixture * 1013904223u32.wrapping_div(12)))
++                                    % 8192) as f32
++                                    / 4096.0
++                                    - 1.0
++                            }
++                        })
++                        .collect::<Vec<_>>();
++                    let input = Array::from_f32(&values, &[rows, 512])?.astype(dtype)?;
++                    let host = input.to_f32()?;
++                    let mut cpu_ids = Vec::new();
++                    for row in host.as_chunks::<512>().0 {
++                        let mut ids = (0..512u32).collect::<Vec<_>>();
++                        ids.sort_by(|&a, &b| {
++                            let (x, y) = (row[a as usize], row[b as usize]);
++                            match (x.is_nan(), y.is_nan()) {
++                                (true, true) => std::cmp::Ordering::Equal,
++                                (true, false) => std::cmp::Ordering::Greater,
++                                (false, true) => std::cmp::Ordering::Less,
++                                (false, false) => x.partial_cmp(&y).unwrap(),
++                            }
++                            .then(a.cmp(&b))
++                        });
++                        cpu_ids.extend_from_slice(&ids[502..]);
++                    }
++                    let transposed = input.transpose(&[1, 0])?;
++                    let copy = Array::from_bytes(&transposed.to_bytes()?, &[512, rows], dtype)?;
++                    let strided = copy.transpose(&[1, 0])?;
++                    for normalize in [false, true] {
++                        let old = topk_legacy(&input, 10, normalize)?;
++                        for x in [&input, &strided] {
++                            crate::flash_profile::start(false)?;
++                            let before = Array::host_readbacks_for_test();
++                            let built = topk(x, 10, normalize);
++                            let events = crate::flash_profile::finish()?;
++                            let new = built?;
++                            ensure!(
++                                Array::host_readbacks_for_test() == before,
++                                "router build performed host readback"
++                            );
++                            let events = serde_json::to_value(events)?;
++                            ensure!(
++                                events
++                                    .as_array()
++                                    .unwrap()
++                                    .iter()
++                                    .filter(|e| e["name"] == "flash_top10_simd_build")
++                                    .count()
++                                    == 1,
++                                "production dispatcher skipped SIMD top10"
++                            );
++                            assert_eq!(new.0.shape(), [rows, 10]);
++                            assert_eq!(new.1.shape(), [rows, 10]);
++                            assert_eq!(new.1.dtype(), dtype);
++                            assert_eq!(
++                                new.0.to_u32()?,
++                                cpu_ids,
++                                "CPU IDs {rows}/{dtype:?}/{fixture}"
++                            );
++                            assert_eq!(new.0.to_bytes()?, old.0.to_bytes()?);
++                            assert_eq!(
++                                new.1.to_bytes()?,
++                                old.1.to_bytes()?,
++                                "scores {rows}/{dtype:?}/{fixture}/{normalize}"
++                            );
++                            let scores = new.1.to_f32()?;
++                            assert_eq!(scores.len(), rows as usize * 10);
++                            if fixture != 1 && fixture != 2 {
++                                assert!(scores.iter().all(|v| v.is_finite()));
++                            }
++                            if !normalize && fixture != 2 {
++                                for (index, (&id, score)) in cpu_ids.iter().zip(&scores).enumerate()
++                                {
++                                    assert_eq!(
++                                        score.to_bits(),
++                                        host[index / 10 * 512 + id as usize].to_bits()
++                                    );
++                                }
++                            }
++                        }
++                        comparisons += 1;
++                    }
++                }
++            }
++        }
++        assert_eq!(comparisons, 48);
++        for (rows, experts, k) in [(2, 512, 10), (1, 512, 9), (1, 256, 10)] {
++            let x = Array::from_f32(&vec![1.0; rows * experts], &[rows as i32, experts as i32])?;
++            assert_eq!(
++                topk(&x, k, true)?.0.to_bytes()?,
++                topk_legacy(&x, k, true)?.0.to_bytes()?
++            );
++        }
++        for shape in [vec![512], vec![0, 512], vec![1, 513]] {
++            assert!(top10_simd(&Array::zeros(&shape)?, true).is_err());
++        }
++        let x = Array::zeros_dtype(&[1, 512], Dtype::UInt32)?;
++        assert!(topk(&x, 10, true).is_err());
++        let x = Array::zeros(&[1, 512])?;
++        assert!(topk(&x, 0, false).is_err());
++        assert!(topk(&x, 513, false).is_err());
++        eprintln!(
++            "Flash top10: 48 combinations, 96 contiguous/strided comparisons, CPU IDs and legacy score bits exact"
++        );
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_top10_matches_legacy() {
++        let value = f32::from(kani::any::<i8>()) / 128.0;
++        let normalize = kani::any::<bool>();
++        let x = Array::from_f32(&[value; 512], &[1, 512]).unwrap();
++        let a = top10_simd(&x, normalize).unwrap();
++        let b = topk_legacy(&x, 10, normalize).unwrap();
++        kani::cover!(normalize);
++        kani::cover!(!normalize);
++        assert_eq!(a.0.to_u32().unwrap().len(), 10);
++        assert_eq!(a.0.to_bytes().unwrap(), b.0.to_bytes().unwrap());
++        assert_eq!(a.1.to_bytes().unwrap(), b.1.to_bytes().unwrap());
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU; Flash router must preserve FP32 rank differences"]
+     fn float_router_preserves_precision_ties_and_boundaries() -> Result<()> {
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a9f9ba7cb0775093be59f1a4ce506fa70cd86513..591bf15c8ae5e04791f2ca10c83cffc89286e509 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -79,6 +79,10 @@ pub struct SsdMoe {
+     cold_shared: bool,
+     routed_index_cache: bool,
+     routed_indices: [Option<Array>; 8],
++    #[cfg(feature = "chat")]
++    dflash_overrides: u8,
++    #[cfg(feature = "chat")]
++    target_hot_scope: bool,
+     #[cfg(test)]
+     routed_index_builds: usize,
+     #[cfg(test)]
+@@ -160,9 +164,10 @@ impl SsdMoe {
+             "1" => true,
+             _ => anyhow::bail!("MLXL3_SSD_RESIDENT_GATES must be 0 or 1"),
+         };
++        let target_hot_scope = prefix.starts_with("model.language_model.layers.");
+         let gpu_hot = match control("MLXL3_SSD_GPU_HOT", "0")?.as_str() {
+             "0" => false,
+-            "1" => prefix.starts_with("model.language_model.layers."),
++            "1" => target_hot_scope,
+             _ => anyhow::bail!("MLXL3_SSD_GPU_HOT must be 0 or 1"),
+         };
+         let gpu_hot_wide =
+@@ -202,6 +207,20 @@ impl SsdMoe {
+             "0",
+         )?)
+         .context("MLXL3_SSD_ROUTED_INDEX_CACHE must be 0 or 1")?;
++        #[cfg(feature = "chat")]
++        let dflash_overrides = [
++            "MLXL3_SSD_GPU_HOT",
++            "MLXL3_SSD_GPU_HOT_WIDE",
++            "MLXL3_SSD_UNIQUE_COHORT",
++            "MLXL3_SSD_COLD_READY_ROWS",
++            "MLXL3_SSD_COLD_PRIORITY",
++            "MLXL3_SSD_ROUTED_INDEX_CACHE",
++        ]
++        .iter()
++        .enumerate()
++        .fold(0u8, |mask, (index, name)| {
++            mask | (u8::from(std::env::var_os(name).is_some()) << index)
++        });
+         crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "1")?)
+             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
+         let prefetch_pipeline =
+@@ -314,6 +333,10 @@ impl SsdMoe {
+             cold_shared,
+             routed_index_cache,
+             routed_indices: std::array::from_fn(|_| None),
++            #[cfg(feature = "chat")]
++            dflash_overrides,
++            #[cfg(feature = "chat")]
++            target_hot_scope,
+             #[cfg(test)]
+             routed_index_builds: 0,
+             #[cfg(test)]
+@@ -389,6 +412,40 @@ impl SsdMoe {
+         })
+     }
+ 
++    #[cfg(feature = "chat")]
++    pub(crate) fn set_dflash_defaults(&mut self, enabled: bool) {
++        let mask = self.dflash_overrides;
++        let overridden = |index: u32| (mask & (1u8 << index)) != 0u8;
++        self.gpu_hot = crate::flash_support::dflash_default(
++            self.gpu_hot,
++            overridden(0),
++            enabled && self.target_hot_scope,
++        );
++        self.gpu_hot_wide =
++            crate::flash_support::dflash_default(self.gpu_hot_wide, overridden(1), enabled);
++        self.unique_cohorts =
++            crate::flash_support::dflash_default(self.unique_cohorts, overridden(2), enabled);
++        if !overridden(3) {
++            self.cold_ready_rows = if enabled { 4 } else { 2 };
++        }
++        self.cold_priority =
++            crate::flash_support::dflash_default(self.cold_priority, overridden(4), enabled);
++        self.routed_index_cache =
++            crate::flash_support::dflash_default(self.routed_index_cache, overridden(5), enabled);
++    }
++
++    #[cfg(all(test, feature = "chat"))]
++    pub(crate) fn execution_settings_for_test(&self) -> (bool, bool, bool, i32, bool, bool) {
++        (
++            self.gpu_hot,
++            self.gpu_hot_wide,
++            self.unique_cohorts,
++            self.cold_ready_rows,
++            self.cold_priority,
++            self.routed_index_cache,
++        )
++    }
++
+     fn fill_many(&mut self, jobs: &[(u32, usize)]) -> Result<()> {
+         if jobs.is_empty() {
+             return Ok(());
+@@ -1658,6 +1715,10 @@ mod hybrid_tests;
+ #[path = "ssd_moe/routed_index_tests.rs"]
+ mod routed_index_tests;
+ 
++#[cfg(all(test, feature = "chat"))]
++#[path = "ssd_moe/dflash_defaults_tests.rs"]
++mod dflash_defaults_tests;
++
+ #[cfg(test)]
+ #[path = "ssd_moe/shared_tests.rs"]
+ mod shared_tests;
+diff --git a/native/src/ssd_moe/dflash_defaults_tests.rs b/native/src/ssd_moe/dflash_defaults_tests.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..626e47bc5a550d170693135c3ce8ee9bd1aa86af
+--- /dev/null
++++ b/native/src/ssd_moe/dflash_defaults_tests.rs
+@@ -0,0 +1,82 @@
++use super::*;
++
++#[test]
++#[ignore = "isolated environment, Flash checkpoint and physical Apple GPU; select alone"]
++fn dflash_defaults_preserve_load_time_overrides_and_restore() -> Result<()> {
++    let names = [
++        "MLXL3_SSD_GPU_HOT",
++        "MLXL3_SSD_GPU_HOT_WIDE",
++        "MLXL3_SSD_UNIQUE_COHORT",
++        "MLXL3_SSD_COLD_READY_ROWS",
++        "MLXL3_SSD_COLD_PRIORITY",
++        "MLXL3_SSD_ROUTED_INDEX_CACHE",
++    ];
++    let scenario = std::env::var("MLXL3_EXPECT_SSD_DEFAULTS")?;
++    let (requested, mask, initial, active) = match scenario.as_str() {
++        "unset" => (
++            [None; 6],
++            0u8,
++            (false, false, false, 2, false, false),
++            (true, true, true, 4, true, true),
++        ),
++        "off" => (
++            [
++                Some("0"),
++                Some("0"),
++                Some("0"),
++                Some("2"),
++                Some("0"),
++                Some("0"),
++            ],
++            63,
++            (false, false, false, 2, false, false),
++            (false, false, false, 2, false, false),
++        ),
++        "on" => (
++            [
++                Some("1"),
++                Some("1"),
++                Some("1"),
++                Some("4"),
++                Some("1"),
++                Some("1"),
++            ],
++            63,
++            (true, true, true, 4, true, true),
++            (true, true, true, 4, true, true),
++        ),
++        "mixed" => (
++            [Some("0"), None, Some("1"), Some("2"), None, Some("0")],
++            45,
++            (false, false, true, 2, false, false),
++            (false, true, true, 2, true, false),
++        ),
++        _ => anyhow::bail!("unknown SSD defaults fixture"),
++    };
++    for (name, expected) in names.into_iter().zip(requested) {
++        ensure!(
++            std::env::var_os(name).as_deref() == expected.map(std::ffi::OsStr::new),
++            "unexpected {name} fixture"
++        );
++    }
++    let checkpoint =
++        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let mut moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
++    ensure!(moe.dflash_overrides == mask && moe.target_hot_scope);
++    ensure!(moe.execution_settings_for_test() == initial);
++    let readbacks = Array::host_readbacks_for_test();
++    for enabled in [true, true, false, false, true, false] {
++        moe.set_dflash_defaults(enabled);
++        ensure!(
++            moe.execution_settings_for_test() == if enabled { active } else { initial },
++            "SSD defaults differ for {scenario}, enabled={enabled}"
++        );
++        ensure!(moe.dflash_overrides == mask);
++        ensure!(moe.routed_indices.iter().all(Option::is_none));
++        ensure!(Array::host_readbacks_for_test() == readbacks);
++    }
++    println!(
++        "DFLASH_SSD_DEFAULTS scenario={scenario} transitions=6 loaded={initial:?} enabled={active:?} restored=true no_host_readbacks=true"
++    );
++    Ok(())
++}
+diff --git a/scripts/benchmark_flash_modes.py b/scripts/benchmark_flash_modes.py
+index c300f6add399f8319b145b7e4a41e90409c7fab6..53473f922ad17d10b61ea251b41cc513a56223c7 100644
+--- a/scripts/benchmark_flash_modes.py
++++ b/scripts/benchmark_flash_modes.py
+@@ -15,6 +15,7 @@ bridge = runpy.run_path(str(Path(__file__).with_name("benchmark-flash-bridge.py"
+ PROFILES = (
+     "shipped-off",
+     "shipped-mtp1",
++    "shipped-b2",
+     "shipped-auto",
+     "shipped-precap",
+     "tuned-auto",
+@@ -42,6 +43,8 @@ def configuration(name):
+     width = {"tuned-b2": 1, "tuned-b3": 2, "tuned-b4": 3}.get(name)
+     if width is not None:
+         env.update(MLXL3_FLASH_DRAFT_ADAPTIVE="0", MLXL3_FLASH_DRAFT_WIDTH=str(width))
++    if name.endswith("-auto"):
++        env["MLXL3_FLASH_DRAFT_ADAPTIVE"] = "1"
+     if name.endswith("-precap"):
+         env["MLXL3_FLASH_DRAFT_PRECAP"] = "1"
+     return env, {
+@@ -126,6 +129,7 @@ def entry_metrics(entry, name, tokens):
+         "tuned-b4": 3,
+         "tuned-precap": 3,
+         "shipped-precap": 3,
++        "shipped-b2": 1,
+     }.get(name, 7)
+     if counter(entry["generation_mode"].get("dflash_proposals")) != width:
+         raise ValueError("requested draft width was not used")
+@@ -145,7 +149,7 @@ def entry_metrics(entry, name, tokens):
+         raise ValueError("verification counters disagree")
+     if profile["drafted_rows"] < profile["verified_rows"]:
+         raise ValueError("more verified rows than computed rows")
+-    if name in ("tuned-b2", "tuned-b3", "tuned-b4") and (
++    if name in ("shipped-b2", "tuned-b2", "tuned-b3", "tuned-b4") and (
+         profile["drafted_widths"] != profile["verified_widths"]
+         or not profile["drafted_widths"][width]
+         or not width * blocks - width * (width - 1) // 2 <= proposed <= width * blocks
+diff --git a/scripts/check_flash_options.py b/scripts/check_flash_options.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0e74ff9916f311bc4cd5679945b4e16aa1c864f9
+--- /dev/null
++++ b/scripts/check_flash_options.py
+@@ -0,0 +1,108 @@
++"""Check the production Flash option reader in isolated CPU-only libtest processes."""
++
++import argparse
++import json
++import os
++import subprocess
++import sys
++from pathlib import Path
++
++TEST = "qwen4::draft::runtime::tests::option_environment_reaches_real_defaults_and_overrides"
++
++
++def cases():
++    checks = [
++        (1, {}, "1,0,0,1,1"),
++        (2, {}, "2,0,0,1,1"),
++        (3, {}, "7,0,0,1,1"),
++        (1, {"Q4": "0", "RING": "0"}, "1,0,0,0,0"),
++        (1, {"ADAPTIVE": "1"}, "7,1,0,1,1"),
++        (2, {"ADAPTIVE": "1"}, "2,0,0,1,1"),
++        (3, {"ADAPTIVE": "0"}, "7,0,0,1,1"),
++        (1, {"PRECAP": "1"}, "3,1,1,1,1"),
++        (2, {"PRECAP": "1"}, "2,0,0,1,1"),
++        (3, {"PRECAP": "1"}, "7,0,0,1,1"),
++        (1, {"WIDTH": "1"}, "1,0,0,1,1"),
++        (1, {"WIDTH": "3"}, "3,0,0,1,1"),
++        (1, {"WIDTH": "7"}, "7,0,0,1,1"),
++        (2, {"WIDTH": "1", "ADAPTIVE": "0"}, "1,0,0,1,1"),
++        (3, {"WIDTH": "3", "ADAPTIVE": "0"}, "3,0,0,1,1"),
++        (2, {"WIDTH": "1"}, "error"),
++        (3, {"WIDTH": "3"}, "error"),
++        (1, {"WIDTH": "3", "ADAPTIVE": "1"}, "error"),
++    ]
++    checks += [(mode, {"PRECAP": "1", "ADAPTIVE": "0"}, "error") for mode in (1, 2, 3)]
++    checks += [(mode, {}, "error") for mode in (0, 4, 2 * sys.maxsize + 1)]
++    for name in ("Q4", "RING", "ADAPTIVE", "PRECAP", "WIDTH"):
++        checks += [
++            (1, {name: value}, "error")
++            for value in ("", "8", "01", "+1", " 1", "1\n", "１", os.fsdecode(b"\xff"))
++        ]
++    checks += [(1, {"WIDTH": "0"}, "error")]
++    return checks
++
++
++def run(binary: Path, output: Path, timeout=15):
++    binary = binary.resolve(strict=True)
++    if not binary.is_file():
++        raise ValueError("test binary must be a file")
++    base = {k: v for k, v in os.environ.items() if not k.startswith("MLXL3_")}
++    report = {"status": "incomplete", "test_binary": str(binary), "checks": []}
++    output.parent.mkdir(parents=True, exist_ok=True)
++
++    def save():
++        output.write_text(json.dumps(report, indent=2) + "\n")
++
++    save()
++    try:
++        checks = cases()
++        if not checks:
++            raise ValueError("empty option matrix")
++        for mode, options, expected in checks:
++            env = base | {f"MLXL3_FLASH_DRAFT_{key}": value for key, value in options.items()}
++            env.update(MLXL3_EXPECTED_MODE=str(mode), MLXL3_EXPECTED_OPTIONS=expected)
++            record = {"mode": mode, "overrides": options, "expected": expected, "status": "running"}
++            report["checks"].append(record)
++            save()
++            # This test only reads options; subprocess.run kills and joins it on timeout.
++            child = subprocess.run(
++                [str(binary), TEST, "--exact", "--ignored", "--test-threads=1", "--nocapture"],
++                env=env,
++                capture_output=True,
++                text=True,
++                timeout=timeout,
++                check=False,
++            )
++            record.update(
++                returncode=child.returncode, output=child.stdout + child.stderr, joined=True
++            )
++            if (
++                child.returncode
++                or "test result: ok. 1 passed; 0 failed; 0 ignored;" not in record["output"]
++            ):
++                raise AssertionError("production option check failed or selected zero tests")
++            record["status"] = "passed"
++            save()
++        report["status"] = "passed"
++        save()
++        return report
++    except BaseException as error:
++        report["status"] = "interrupted" if isinstance(error, KeyboardInterrupt) else "failed"
++        report["error"] = f"{type(error).__name__}: {error}"
++        if report["checks"] and report["checks"][-1]["status"] == "running":
++            report["checks"][-1]["status"] = (
++                "timeout" if isinstance(error, subprocess.TimeoutExpired) else "failed"
++            )
++            if isinstance(error, (subprocess.TimeoutExpired, KeyboardInterrupt)):
++                report["checks"][-1]["joined"] = True
++        save()
++        raise
++
++
++if __name__ == "__main__":
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--test-binary", type=Path, required=True)
++    parser.add_argument("--output", type=Path, required=True)
++    args = parser.parse_args()
++    result = run(args.test_binary, args.output)
++    print(f"Flash option reader: {len(result['checks'])} isolated CPU checks passed")
+diff --git a/scripts/kani_obligations.json b/scripts/kani_obligations.json
+index 6ac796891202453b435ecc0cb237f87c3b60623b..e2f9b982334702438e0a2c3c6437103047fff1bd 100644
+--- a/scripts/kani_obligations.json
++++ b/scripts/kani_obligations.json
+@@ -1,6 +1,8 @@
+ {
+   "baseline_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
+   "required_harnesses": [
++    "flash_support::draft_contract_proofs::dflash_width_preserves_defaults_overrides_and_valid_modes",
++    "flash_support::draft_contract_proofs::dflash_defaults_preserve_explicit_overrides_and_restore_the_inherited_policy",
+     "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
+     "cold_ready::two_job_priority_keeps_records_and_stable_order",
+     "dec_one::dec_one_storage_contract",
+@@ -10,6 +12,7 @@
+     "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+     "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+     "contracts::biased_router_domain_bounds_dispatch",
++    "contracts::flash_top10_simd_domain_bounds_all_shader_indices",
+     "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+     "contracts::dense_mlp_batch_stays_within_supported_domain",
+     "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",

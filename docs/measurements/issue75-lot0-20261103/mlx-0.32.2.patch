@@ -1,0 +1,96 @@
+diff --git a/mlx/backend/metal/device.cpp b/mlx/backend/metal/device.cpp
+index 2f25f89..a937ff8 100644
+--- a/mlx/backend/metal/device.cpp
++++ b/mlx/backend/metal/device.cpp
+@@ -521,6 +521,7 @@ void CommandEncoder::commit(std::function<void()> completion) {
+       [&error_ = error_,
+        wait_events = std::move(wait_events_),
+        signal_events = std::move(signal_events_),
++       keepalive = std::move(keepalive_),
+        completion = std::move(completion)](MTL::CommandBuffer* cbuf) mutable {
+         if (completion) {
+           completion();
+diff --git a/mlx/backend/metal/device.h b/mlx/backend/metal/device.h
+index 2d22283..15575df 100644
+--- a/mlx/backend/metal/device.h
++++ b/mlx/backend/metal/device.h
+@@ -49,6 +49,10 @@ class MLX_API CommandEncoder {
+   void set_output_array(array& a, int idx, int64_t offset = 0);
+   void register_output_array(const array& a);
+ 
++  void keep_alive(std::unordered_set<std::shared_ptr<array::Data>> buffers) {
++    keepalive_.push_back(std::move(buffers));
++  }
++
+   void add_temporary(array arr);
+   void add_temporaries(std::vector<array> arrays);
+ 
+@@ -116,6 +120,9 @@ class MLX_API CommandEncoder {
+   ResidencySets& residency_sets_;
+   uint64_t sets_attached_{0};
+ 
++  // Preserve the per-operation references until this command buffer completes.
++  std::vector<std::unordered_set<std::shared_ptr<array::Data>>> keepalive_;
++
+   // The events hooked to current command buffer.
+   std::vector<Event> wait_events_;
+   std::vector<std::tuple<Event, uint64_t>> signal_events_;
+diff --git a/mlx/backend/metal/eval.cpp b/mlx/backend/metal/eval.cpp
+index 43a6fb9..7140ffd 100644
+--- a/mlx/backend/metal/eval.cpp
++++ b/mlx/backend/metal/eval.cpp
+@@ -1,5 +1,9 @@
+ // Copyright © 2023-2024 Apple Inc.
+ #include <memory>
++#include <cstdlib>
++#include <cstring>
++#include <cstdio>
++#include <stdexcept>
+ 
+ #include "mlx/backend/gpu/eval.h"
+ #include "mlx/backend/metal/device.h"
+@@ -27,6 +31,14 @@ void new_thread_unsafe_stream(Stream s) {
+ }
+ 
+ void eval(array& arr) {
++  static const bool grouped = [] {
++    const char* value = std::getenv("MLXL3_MLX_KEEPALIVE_BATCH");
++    if (!value || std::strcmp(value, "0") == 0) return false;
++    if (std::strcmp(value, "1") != 0)
++      throw std::invalid_argument("MLXL3_MLX_KEEPALIVE_BATCH must be 0 or 1");
++    std::fprintf(stderr, "MLXL3_MLX_KEEPALIVE_BATCH active\n");
++    return true;
++  }();
+   auto pool = metal::new_scoped_memory_pool();
+   auto s = arr.primitive().stream();
+   auto& encoder = metal::get_command_encoder(s);
+@@ -56,13 +68,15 @@ void eval(array& arr) {
+     buffers.erase(it);
+   }
+ 
++  if (grouped) encoder.keep_alive(std::move(buffers));
++
+   if (encoder.needs_commit()) {
+     encoder.end_encoding();
+     scheduler::notify_new_task(s);
+     encoder.commit([s, buffers = std::move(buffers)]() {
+       scheduler::notify_task_completion(s);
+     });
+-  } else {
++  } else if (!grouped) {
+     command_buffer->addCompletedHandler(
+         [buffers = std::move(buffers)](MTL::CommandBuffer* cbuf) {});
+   }
+diff --git a/mlx/backend/metal/kernels/CMakeLists.txt b/mlx/backend/metal/kernels/CMakeLists.txt
+index ecabbda..89a1030 100644
+--- a/mlx/backend/metal/kernels/CMakeLists.txt
++++ b/mlx/backend/metal/kernels/CMakeLists.txt
+@@ -201,7 +201,7 @@ add_custom_command(
+ 
+ add_custom_target(mlx-metallib DEPENDS ${MLX_METAL_PATH}/mlx.metallib)
+ 
+-add_dependencies(mlx mlx-metallib)
++# Isolated host-only experiment: use the unchanged installed metallib.
+ 
+ # Install metallib
+ include(GNUInstallDirs)
