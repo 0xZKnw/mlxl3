@@ -966,6 +966,7 @@ fn codec_loop() -> Result<()> {
                 | "metal-qmv"
                 | "metal-prepare128"
                 | "metal-checkpoint-linear"
+                | "metal-exl3-linear"
                 | "metal-checkpoint-expert"
                 | "metal-swiglu"
                 | "metal-prepare-view"
@@ -1218,7 +1219,9 @@ fn codec_loop() -> Result<()> {
                             Ok(json!(gpu.prepare_view(&x, &scales)?))
                         }
                         "metal-swiglu" => Ok(json!(gpu.swiglu(&request.x, &request.data)?.read()?)),
-                        "metal-checkpoint-linear" | "metal-checkpoint-expert" => {
+                        "metal-checkpoint-linear"
+                        | "metal-checkpoint-expert"
+                        | "metal-exl3-linear" => {
                             let checkpoint =
                                 checkpoint::inspect(std::path::Path::new(&request.path))?;
                             let view = if request.x_layout.is_some() || request.x_f32.is_some() {
@@ -1237,11 +1240,12 @@ fn codec_loop() -> Result<()> {
                                     None => expert.submit(&request.x)?,
                                 }
                             } else {
-                                let layer = mlxl3_native::gpu::FlashProjection::load(
-                                    gpu,
-                                    &checkpoint,
-                                    &request.prefix,
-                                )?;
+                                let load = if request.op == "metal-exl3-linear" {
+                                    mlxl3_native::gpu::FlashProjection::load_exl3
+                                } else {
+                                    mlxl3_native::gpu::FlashProjection::load
+                                };
+                                let layer = load(gpu, &checkpoint, &request.prefix)?;
                                 match &view {
                                     Some(x) => layer.submit_fp16_view(x)?,
                                     None => layer.submit(&request.x)?,

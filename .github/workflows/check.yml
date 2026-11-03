@@ -21,6 +21,7 @@ jobs:
       - run: python -m unittest discover -s tests -p test_native_coverage.py
       - run: python -m unittest discover -s tests -p test_flash_run_report.py
       - run: python -m unittest discover -s tests -p test_flash_trace_report.py
+      - run: python -m py_compile tests/physical_flash_projection.py
       - run: python scripts/check_native_coverage.py
 
   desktop-and-protocol:

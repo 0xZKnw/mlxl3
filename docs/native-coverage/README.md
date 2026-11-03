@@ -205,3 +205,15 @@ mlxl3-rs serve CHECKPOINT --host 127.0.0.1 --port 8000
 python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --context 256
 MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```
+
+### Projections natives Qwen
+
+Le chargeur `FlashProjection::load_exl3` et l’opération `codec` `metal-exl3-linear` exécutent les matrices EXL3 des autres familles. La préparation H128 et les codebooks réutilisent les primitives qualifiées. Le nombre de groupes SIMD, les tuiles de sortie et les divisions de la réduction suivent le chemin dense/MoE existant. Le noyau K=7 conserve ses 128 threads et la tête MTP ses 64 threads.
+
+Sur ce M5, chacun des deux parcours vérifie 104 cas et 429 952 mots FP16 finis sans écart face au Rust/MLX indépendant. Parmi eux, 58 cas génériques comparent 359 040 valeurs, avec les matrices Qwen réelles et les 248 320 logits de sa tête. Les cas synthétiques couvrent les huit taux du treillis, les trois codebooks, biais, anciens noms de gains, entrées à strides et seize divisions. Les fixtures Flash et la durée de vie des soumissions sont rejouées dans la même campagne. Le second parcours force les quatre groupes sur le M5. [M5](qwen-projection/m5.json), [quatre groupes forcés](qwen-projection/portable.json), [sources et limites](qwen-projection/provenance.json).
+
+```sh
+python tests/physical_flash_projection.py DIRECT_CLI STOCK_LIBTEST NEW_REPORT --checkpoint FLASH_CHECKPOINT --qwen-checkpoint QWEN35B_CHECKPOINT
+```
+
+Ajouter `--portable` pour le parcours à quatre groupes. Utiliser un Python disposant de MLX pour construire les fixtures et lancer l’oracle. Le processus du moteur direct vérifie lui-même l’absence de MLX dans ses bibliothèques chargées. Cette tranche qualifie les projections et leur entrée CLI. La génération Qwen complète est suivie séparément.

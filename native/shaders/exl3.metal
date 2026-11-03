@@ -216,3 +216,5 @@ ROUTE_KERNEL(float, "route_float")
 #include "flash_logsumexp.metal"
 
 #include "flash_mtp.metal"
+
+#include "dense_projection.metal"

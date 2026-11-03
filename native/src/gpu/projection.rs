@@ -25,6 +25,9 @@ pub struct FlashProjection<'a> {
     cb: Codebook,
     splits: u32,
     mtp_hidden: bool,
+    generic: bool,
+    simdgroups: u32,
+    nt: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -88,6 +91,24 @@ impl<'a> FlashProjection<'a> {
             checkpoint.model_type == "qwen4_exp",
             "requires a Flash reference checkpoint"
         );
+        Self::load_impl(metal, checkpoint, name, false)
+    }
+
+    pub fn load_exl3(metal: &'a Metal, checkpoint: &Checkpoint, name: &str) -> Result<Self> {
+        Self::load_impl(
+            metal,
+            checkpoint,
+            name,
+            checkpoint.model_type != "qwen4_exp",
+        )
+    }
+
+    fn load_impl(
+        metal: &'a Metal,
+        checkpoint: &Checkpoint,
+        name: &str,
+        generic: bool,
+    ) -> Result<Self> {
         let tensors = &checkpoint.tensors;
         let t = tensors
             .get(&format!("{name}.trellis"))
@@ -105,7 +126,7 @@ impl<'a> FlashProjection<'a> {
         let count = contracts::qmv_words(input as usize, output as usize, k as usize)
             .and_then(|v| u32::try_from(v).ok())
             .context("invalid packed geometry or index overflow")?;
-        let mtp_hidden = name == "mtp.fc_hidden";
+        let mtp_hidden = !generic && name == "mtp.fc_hidden";
         if mtp_hidden {
             ensure!(
                 input == 2560 && output == 2560 && k != 7,
@@ -116,11 +137,17 @@ impl<'a> FlashProjection<'a> {
             2
         } else if k == 7 {
             1
+        } else if generic {
+            contracts::exl3_projection_splits(input, output).context("invalid EXL3 dimensions")?
         } else {
             flash_support::reference_splits(input / 16, output / 16)
         };
-        contracts::projection_extents(1, input, output, splits)
-            .context("unsupported projection geometry/split count")?;
+        (if generic {
+            contracts::exl3_projection_extents
+        } else {
+            contracts::projection_extents
+        })(1, input, output, splits)
+        .context("unsupported projection geometry/split count")?;
         ensure!(
             metal.flash_qmv_pipeline.thread_execution_width() == 32
                 && metal.flash_qmv_pipeline.max_total_threads_per_threadgroup() >= 128
@@ -133,6 +160,29 @@ impl<'a> FlashProjection<'a> {
                 && metal.finish128_pipeline.max_total_threads_per_threadgroup() >= 64,
             "unsupported Flash projection threadgroup"
         );
+        let simdgroups = if generic
+            && (metal.device_name() == "Apple M5" || metal.device_name().starts_with("Apple M5 "))
+            && std::env::var_os("MLXL3_DISABLE_TENSOR_OPS").is_none()
+        {
+            8
+        } else {
+            4
+        };
+        let nt: u32 = if generic {
+            if output / 16 >= 1024 { 2 } else { 4 }
+        } else {
+            1
+        };
+        if generic {
+            let pipeline =
+                &metal.dense_qmv[usize::from(simdgroups == 8)][nt.trailing_zeros() as usize];
+            ensure!(
+                pipeline.thread_execution_width() == 32
+                    && pipeline.max_total_threads_per_threadgroup() >= u64::from(simdgroups * 32)
+                    && metal.dense_finish.max_total_threads_per_threadgroup() >= 64,
+                "unsupported EXL3 projection threadgroup"
+            );
+        }
         let bytes = u64::from(count) * 2;
         let packed =
             super::read_weight(&metal.device, t, bytes).context("reading projection trellis")?;
@@ -166,6 +216,9 @@ impl<'a> FlashProjection<'a> {
             cb,
             splits,
             mtp_hidden,
+            generic,
+            simdgroups,
+            nt,
         })
     }
 
@@ -189,15 +242,23 @@ impl<'a> FlashProjection<'a> {
             "input is not a complete row"
         );
         let batch = u32::try_from(elements / self.input as usize)?;
-        contracts::projection_extents(batch, self.input, self.output, self.splits)
-            .context("invalid Flash projection batch or index overflow")
+        (if self.generic {
+            contracts::exl3_projection_extents
+        } else {
+            contracts::projection_extents
+        })(batch, self.input, self.output, self.splits)
+        .context("invalid Flash projection batch or index overflow")
     }
 
     fn view_extents(&self, x: &MatrixView) -> Result<[u32; 3]> {
         let [rows, cols] = x.layout.shape;
         ensure!(cols == self.input, "invalid projection view width");
-        contracts::projection_extents(rows, self.input, self.output, self.splits)
-            .context("invalid Flash projection view batch or index overflow")
+        (if self.generic {
+            contracts::exl3_projection_extents
+        } else {
+            contracts::projection_extents
+        })(rows, self.input, self.output, self.splits)
+        .context("invalid Flash projection view batch or index overflow")
     }
 
     /// Cast the source to FP16 in the preparation kernel.
@@ -289,11 +350,14 @@ impl<'a> FlashProjection<'a> {
             (
                 if self.mtp_hidden {
                     &gpu.mtp_hidden_qmv
+                } else if self.generic {
+                    &gpu.dense_qmv[usize::from(self.simdgroups == 8)]
+                        [self.nt.trailing_zeros() as usize]
                 } else {
                     &gpu.flash_qmv_pipeline
                 },
                 (&self.svh, self.offsets.svh),
-                self.output / 16,
+                self.output / 16 / self.nt,
             )
         };
         Metal::encode_bound(
@@ -312,11 +376,16 @@ impl<'a> FlashProjection<'a> {
                 if self.mtp_hidden { 1 } else { u64::from(batch) },
                 u64::from(self.splits),
             ),
-            if self.mtp_hidden { 64 } else { 128 },
+            contracts::projection_threads(self.k, self.mtp_hidden, self.simdgroups)
+                .context("invalid projection kernel thread count")? as usize,
         );
         Metal::encode_bound(
             cmd,
-            &gpu.finish128_pipeline,
+            if self.generic {
+                &gpu.dense_finish
+            } else {
+                &gpu.finish128_pipeline
+            },
             [
                 (&partial, 0),
                 (&self.svh, self.offsets.svh),
@@ -455,6 +524,9 @@ impl<'a> FlashExpert<'a> {
                 cb: Codebook::Mul1,
                 splits,
                 mtp_hidden: false,
+                generic: false,
+                simdgroups: 4,
+                nt: 1,
             })
         };
         Ok(Self {

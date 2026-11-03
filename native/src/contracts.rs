@@ -1280,7 +1280,154 @@ fn flash_expert_submissions_share_intermediate_extents() {
     }
 }
 
-/// Counts addressed by the projection shaders in 32-bit element indices.
+/// K=7 and the four-stream draft keep their dedicated kernel thread counts.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_threads(k: u32, mtp: bool, groups: u32) -> Option<u32> {
+    if !(1..=8).contains(&k) || !matches!(groups, 4 | 8) || (mtp && k == 7) {
+        return None;
+    }
+    Some(if mtp {
+        64
+    } else if k == 7 {
+        128
+    } else {
+        groups * 32
+    })
+}
+
+#[test]
+fn native_projection_keeps_k7_and_draft_threads_distinct() {
+    for groups in [4, 8] {
+        assert_eq!(projection_threads(7, false, groups), Some(128));
+        assert_eq!(projection_threads(2, true, groups), Some(64));
+        assert_eq!(projection_threads(2, false, groups), Some(groups * 32));
+    }
+    for args in [(0, false, 4), (9, false, 4), (2, false, 3), (7, true, 4)] {
+        assert_eq!(projection_threads(args.0, args.1, args.2), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_projection_thread_count_matches_its_fixed_kernel() {
+    let k: u32 = kani::any();
+    let mtp: bool = kani::any();
+    let groups: u32 = kani::any();
+    let threads = projection_threads(k, mtp, groups);
+    assert_eq!(
+        threads.is_some(),
+        (1..=8).contains(&k) && matches!(groups, 4 | 8) && !(mtp && k == 7)
+    );
+    if let Some(n) = threads {
+        assert_eq!(
+            n,
+            if mtp {
+                64
+            } else if k == 7 {
+                128
+            } else {
+                groups * 32
+            }
+        );
+        kani::cover!(k == 7 && groups == 8);
+        kani::cover!(mtp && k == 2);
+        kani::cover!(!mtp && k == 2 && groups == 8);
+    }
+}
+
+/// The existing dense/MoE decoder balances a power-of-two split against its output tile count.
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
+pub(crate) fn exl3_projection_splits(input: u32, output: u32) -> Option<u32> {
+    if input == 0 || output == 0 || !input.is_multiple_of(128) || !output.is_multiple_of(128) {
+        return None;
+    }
+    let input_tiles = input / 16;
+    let output_tiles = output / 16;
+    let target = if output_tiles <= 64 {
+        (output_tiles / 2).max(32)
+    } else {
+        output_tiles.clamp(32, 256)
+    };
+    let mut splits = 1;
+    while input_tiles / splits / 2 >= target {
+        splits *= 2;
+    }
+    Some(splits)
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn exl3_projection_extents(
+    batch: u32,
+    input: u32,
+    output: u32,
+    splits: u32,
+) -> Option<[u32; 3]> {
+    exl3_projection_splits(input, output)?;
+    if batch == 0 || splits == 0 || !splits.is_power_of_two() || splits > input / 128 {
+        return None;
+    }
+    let count = batch.checked_mul(output)?;
+    Some([batch.checked_mul(input)?, count.checked_mul(splits)?, count])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(32)]
+fn native_projection_plan_has_bounded_power_of_two_splits_and_extents() {
+    let input: u32 = kani::any();
+    let output: u32 = kani::any();
+    let batch: u32 = kani::any();
+    if let Some(splits) = exl3_projection_splits(input, output) {
+        assert!(splits.is_power_of_two() && splits <= input / 128);
+        let expected = u128::from(batch) * u128::from(output) * u128::from(splits);
+        let extent = exl3_projection_extents(batch, input, output, splits);
+        assert_eq!(
+            extent.is_some(),
+            batch > 0
+                && u64::from(batch) * u64::from(input) <= u64::from(u32::MAX)
+                && expected <= u128::from(u32::MAX)
+        );
+        if let Some([inputs, partials, outputs]) = extent {
+            assert_eq!(u64::from(inputs), u64::from(batch) * u64::from(input));
+            assert_eq!(u128::from(partials), expected);
+            assert_eq!(u64::from(outputs), u64::from(batch) * u64::from(output));
+        }
+        kani::cover!(splits == 4 && batch == 1 && extent.is_some());
+        kani::cover!(splits == 1 && batch == 3 && extent.is_some());
+    }
+}
+
+#[test]
+fn native_projection_plan_matches_wide_integer_balance() {
+    for input in [128u32, 512, 2048, 5120, 17408, 32768] {
+        for output in [128u32, 512, 2048, 8192, 248320] {
+            let target = if output / 16 <= 64 {
+                (output / 32).max(32)
+            } else {
+                (output / 16).clamp(32, 256)
+            };
+            let candidates: Vec<_> = (0..26)
+                .map(|p| 1u32 << p)
+                .filter(|s| u64::from(input) / (16 * u64::from(*s)) >= u64::from(target))
+                .collect();
+            assert_eq!(
+                exl3_projection_splits(input, output),
+                Some(candidates.last().copied().unwrap_or(1))
+            );
+        }
+    }
+    assert_eq!(exl3_projection_splits(2048, 512), Some(4));
+    assert_eq!(exl3_projection_extents(u32::MAX, 2048, 512, 4), None);
+    for dims in [(0, 128), (128, 0), (127, 128), (128, 129)] {
+        assert_eq!(exl3_projection_splits(dims.0, dims.1), None);
+    }
+}
+
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn projection_extents(
     batch: u32,

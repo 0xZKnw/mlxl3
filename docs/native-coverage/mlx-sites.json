@@ -1160,6 +1160,9 @@
   "native/shaders/_qmv_tile_kernel.metal": {
     "mlxl3_decode_codeword": 4
   },
+  "native/shaders/dense_projection.metal": {
+    "mlxl3_decode_codeword": 1
+  },
   "native/shaders/exl3.metal": {
     "mlxl3_rank_row": 1
   },
@@ -1440,7 +1443,7 @@
     "shader ../shaders/flash_reference_reduction.h": 1
   },
   "native/src/contracts.rs": {
-    "mlx": 31
+    "mlx": 32
   },
   "native/src/dec_one.rs": {
     ".dtype": 3,
@@ -1818,6 +1821,7 @@
   "native/src/gpu.rs": {
     ".to_f32": 2,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
+    "shader ../shaders/dense_projection.metal": 1,
     "shader ../shaders/exl3.metal": 1,
     "shader ../shaders/flash_gate.metal": 1,
     "shader ../shaders/flash_gdn.metal": 1,
@@ -1878,7 +1882,8 @@
     ".shape": 2,
     ".swiglu": 2,
     ".to_f32": 1,
-    ".transpose": 1
+    ".transpose": 1,
+    "config MLXL3_DISABLE_TENSOR_OPS": 1
   },
   "native/src/gpu/qsa.rs": {
     ".shape": 1,
