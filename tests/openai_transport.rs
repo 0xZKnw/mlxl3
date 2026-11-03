@@ -218,6 +218,11 @@ async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Resul
         ensure!(first["ledger"]["expert_slots_by_layer"].as_array().is_some_and(|v|v.len()==48));
         let refused = request(&mut input,&mut output,json!({"type":"set_mtp","request_id":"head","enabled":true,"mtp_head_path":model}),"error").await?;
         ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        ensure!(ready["dflash_supported"]==false && ready["dflash_configure_supported"]==false && ready["mtp_configure_supported"]==false);
+        let refused = request(&mut input,&mut output,json!({"type":"set_dflash","request_id":"draft","enabled":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","dflash_mode":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        let refused = request(&mut input,&mut output,json!({"type":"generate","request_id":"draft-generate","messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"dflash2":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","temperature":0,"top_k":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
         for id in ["first","repeat"] {
             let completed = request(&mut input,&mut output,json!({"type":"generate","request_id":id,"messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"temperature":0,"top_k":1,"memory_saver":true}),"complete").await?;
             ensure!(completed["stats"]["generated_tokens"]==2 && completed["token_hash"]=="9f850af1cbba074b");

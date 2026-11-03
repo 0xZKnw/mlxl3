@@ -61,6 +61,23 @@ impl ResourcePlan {
     }
 }
 
+/// Budget mode preserves the reference policy: reject speculation before loading its weights.
+pub fn native_speculation_permitted(limit: Option<u64>) -> bool {
+    limit.is_none()
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_request_budget_keeps_every_configured_limit_ar_only() {
+    let configured: bool = kani::any();
+    let bytes: u64 = kani::any();
+    let limit = configured.then_some(bytes);
+    assert_eq!(native_speculation_permitted(limit), !configured);
+    kani::cover!(!configured && native_speculation_permitted(limit));
+    kani::cover!(configured && bytes == 0 && !native_speculation_permitted(limit));
+    kani::cover!(configured && bytes == u64::MAX && !native_speculation_permitted(limit));
+}
+
 /// The default cache may be non-uniform. Only take slots above the floor,
 /// and compare the *observed* process memory again after actually releasing banks.
 pub fn shrink_slots(capacity: usize, excess: u64) -> usize {

@@ -357,6 +357,17 @@ mod tests {
             FlashMtpHead::load(&c, &target).is_err(),
             "budget admitted speculative head"
         );
+        #[cfg(feature = "chat")]
+        ensure!(
+            crate::native_draft::Session::load(
+                std::path::Path::new("/a/nonexistent/draft/that/must/not/be/opened"),
+                1,
+                &target
+            )
+            .err()
+            .is_some_and(|error| error.to_string().contains("AR only")),
+            "budget reached native draft materialization"
+        );
         target.request_limit = None;
         target.reset();
         ensure!(

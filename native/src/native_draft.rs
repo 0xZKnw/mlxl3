@@ -571,6 +571,10 @@ pub struct Session {
 }
 impl Session {
     pub fn load(path: &Path, mode: usize, target: &crate::gpu::FlashNext) -> Result<Self> {
+        ensure!(
+            crate::flash_memory::native_speculation_permitted(target.request_memory_limit()),
+            "Flash request memory budget supports AR only"
+        );
         let options = crate::flash_draft_options::Options::read(mode)?;
         let mut draft = Draft::load(path, Kind::Dflash2)?;
         if options.q4 {
