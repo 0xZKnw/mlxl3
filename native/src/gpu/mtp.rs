@@ -22,7 +22,7 @@ pub struct FlashMtpHead<'a> {
 impl<'a> FlashMtpHead<'a> {
     pub fn load(c: &Checkpoint, target: &FlashNext<'a>) -> Result<Self> {
         ensure!(
-            target.request_memory_limit().is_none(),
+            crate::flash_memory::native_speculation_permitted(target.request_memory_limit()),
             "Flash request memory budget supports AR only"
         );
         ensure!(

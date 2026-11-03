@@ -80,6 +80,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     added = {
         "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
         "tensor_layout::matrix_row_preserves_backing_and_address",
+        "contracts::draft_blas_extents_reject_overflow_and_truncation",
         "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",
@@ -95,6 +96,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
         "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
         "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
+        "flash_support::native_prefetch_room_bounds_owned_and_running_records",
         "speculative::normalized_greedy_retains_first_finite_maximum",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",
@@ -106,6 +108,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
         "flash_memory::admission_and_shrink_respect_memory_bounds",
         "flash_memory::native_admission_covers_the_complete_geometric_slab",
+        "flash_memory::native_request_budget_keeps_every_configured_limit_ar_only",
         "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
         "flash_support::stale_prefetch_completion_preserves_new_reservation",
     }

@@ -194,7 +194,10 @@ async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Resul
         .arg(&model)
         .args(["--context-length", "256"])
         .env("MLXL3_FLASH_REQUEST_MIB", "8192")
-        .env("MLXL3_SSD_CACHE_GIB", "0.6")
+        .env(
+            "MLXL3_SSD_CACHE_GIB",
+            std::env::var("MLXL3_FLASH_TEST_CACHE_GIB").unwrap_or_else(|_| "0.6".into()),
+        )
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .kill_on_drop(true)
@@ -215,6 +218,11 @@ async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Resul
         ensure!(first["ledger"]["expert_slots_by_layer"].as_array().is_some_and(|v|v.len()==48));
         let refused = request(&mut input,&mut output,json!({"type":"set_mtp","request_id":"head","enabled":true,"mtp_head_path":model}),"error").await?;
         ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        ensure!(ready["dflash_supported"]==false && ready["dflash_configure_supported"]==false && ready["mtp_configure_supported"]==false);
+        let refused = request(&mut input,&mut output,json!({"type":"set_dflash","request_id":"draft","enabled":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","dflash_mode":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        let refused = request(&mut input,&mut output,json!({"type":"generate","request_id":"draft-generate","messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"dflash2":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","temperature":0,"top_k":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
         for id in ["first","repeat"] {
             let completed = request(&mut input,&mut output,json!({"type":"generate","request_id":id,"messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"temperature":0,"top_k":1,"memory_saver":true}),"complete").await?;
             ensure!(completed["stats"]["generated_tokens"]==2 && completed["token_hash"]=="9f850af1cbba074b");
@@ -222,6 +230,9 @@ async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Resul
         let after = request(&mut input,&mut output,json!({"type":"flash_memory","request_id":"after"}),"flash_memory").await?;
         let ledger = &after["ledger"];
         ensure!(ledger["reads_in_flight"]==0 && ledger["memory"]["mlx_active_bytes"]==0);
+        if std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH").ok().is_some_and(|v| v != "0") {
+            ensure!(ledger["prefetch"]["submitted"].as_u64().is_some_and(|n| n > 0), "lookahead bridge did not prefetch");
+        }
         ensure!(ledger["memory"]["native_metal_allocated_bytes"].as_u64().is_some_and(|n|n>0));
         ensure!(ledger["state_backing_bytes"].get("gdn").is_none() && ledger["state_backing_bytes"].get("last_hidden").is_none());
         Ok::<_,anyhow::Error>(())
