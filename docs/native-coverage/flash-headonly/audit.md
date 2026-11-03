@@ -7,7 +7,7 @@ This is a source audit, not a performance measurement.
 | Mechanism | Native state at cache base be43ee15 | Decision |
 | --- | --- | --- |
 | Prepared MLX source/header and generated-kernel cache (T01) | Native Metal owns pipelines and checkpoint projections; there is no MLX source/header generation in its inference loop. | No wrapper port. |
-| DFlash prefill HEADONLY | `Session::extend_prefill` eagerly calls the target head and reads248320 half logits for every row, retaining only the last. | Port only the unused-head elimination; keep token-major trunk/capture/append order. |
+| DFlash prefill HEADONLY | `Session::extend_prefill` eagerly calls the target head and reads 248,320 half logits for every row, retaining only the last. | Port only the unused-head elimination; keep token-major trunk/capture/append order. |
 | AR HEADONLY | `FlashNext::prefill_inner` already runs hidden-only prefix rows and one final head per chunk. | Preserve AR behavior. |
 | MTP last-two prefill heads | Native `FlashMtpSession::extend_prefill` still calls target forward for each row. | Separate follow-up after DFlash qualification; no MTP change here. |
 | Device greedy selection | Native reads full logits, computes normalized probabilities and selects on the host; stock retains normalized FP16 tie semantics. | Defer; no old isolated host-readback gain established, and raw-logit argmax is not equivalent. |
