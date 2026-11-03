@@ -192,4 +192,16 @@ Pour rejouer, définir `MLXL3_FLASH_MODEL` et `MLXL3_FLASH_MTP_REFERENCE` (répe
 cargo test --locked --lib --features chat gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary -- --exact --ignored
 cargo test --locked --lib --features mlx,chat qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --exact --ignored --nocapture
 cargo test --locked --lib --features chat gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state -- --exact --ignored
+
+### Bridge Studio et API HTTP Flash sans MLX
+
+La commande `bridge` utilise le même rendu des messages, streaming de raisonnement et réponse, filtre d’outils, orchestration MCP et validation de schéma que le chemin de référence. Le modèle Flash, l’AR et la tête MTP sont exécutés par le moteur natif. Les capacités annoncées suivent les modes réellement disponibles. `runtime-info` identifie explicitement les backends `metal`, `mlx` et `cpu`.
+
+Les dialogues AR/MTP/MTP/AR sur deux limites de sortie produisent les mêmes hashes de tokens que le bridge MLX indépendant. Les changements de tête, requêtes invalides, pénalités et annulations à deux phases retrouvent une génération identique après reprise. Le serveur HTTP réel vérifie aussi l’authentification, les erreurs, la parité JSON/SSE, les compteurs et l’arrêt des processus. Le relevé de mémoire sépare les allocations Metal du footprint processus. [Résultats et limites](flash-bridge/checks.json), [événements natifs](flash-bridge/native.jsonl), [événements de référence](flash-bridge/stock.jsonl).
+
+```sh
+mlxl3-rs bridge CHECKPOINT --context-length 4096
+mlxl3-rs serve CHECKPOINT --host 127.0.0.1 --port 8000
+python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --context 256
+MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```

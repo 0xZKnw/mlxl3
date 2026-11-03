@@ -1139,6 +1139,12 @@
     "mlx": 3,
     "mlx::core": 1
   },
+  "native/ffi/process_memory.h": {
+    "mlxl3_read_process_stats": 1
+  },
+  "native/ffi/process_stats.cpp": {
+    "mlxl3_read_process_stats": 1
+  },
   "native/shaders/_expert_qmm_tensor_kernel.metal": {
     "mlxl3_decode_codeword": 1
   },
@@ -1425,6 +1431,7 @@
     "shader mlxl3_test_scheduled_route_ids": 1
   },
   "native/src/checkpoint.rs": {
+    ".finish": 1,
     "mlx": 1
   },
   "native/src/codec.rs": {
@@ -1507,6 +1514,12 @@
     "shader mlxl3_dflash_select_greedy_p{positions}_v2": 1,
     "shader mlxl3_dflash_select_top16_p{positions}_v2": 1,
     "shader mlxl3_dflash_target_argmax_v1": 1
+  },
+  "native/src/direct_bridge.rs": {
+    ".log_probs": 1,
+    ".memory_stats": 4,
+    "config MLXL3_BUILD_PROFILE": 1,
+    "config MLXL3_BUILD_REVISION": 1
   },
   "native/src/embedding.rs": {
     ".dtype": 1,
@@ -1827,7 +1840,8 @@
     ".exp": 1,
     ".to_f32": 9,
     "config MLXL3_FLASH_MODEL": 2,
-    "config MLXL3_FLASH_REQUEST_MIB": 1
+    "config MLXL3_FLASH_REQUEST_MIB": 1,
+    "mlxl3_read_process_stats": 2
   },
   "native/src/gpu/gdn.rs": {
     ".shape": 1,
@@ -2106,6 +2120,7 @@
     ".exp": 1,
     ".finish": 5,
     ".log_probs": 2,
+    ".memory_stats": 1,
     ".retained_bytes": 4,
     ".shape": 8,
     ".slice": 2,
@@ -2123,7 +2138,6 @@
     "Array::from_u32": 3,
     "Array::to_f16_bits": 2,
     "array::Array": 27,
-    "array::MemoryStats": 1,
     "array::capture_for_request": 1,
     "array::clear_cache": 8,
     "array::memory_stats": 9,
@@ -2144,7 +2158,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 134,
+    "mlx": 171,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2217,7 +2231,6 @@
   },
   "native/src/mtp_tune.rs": {
     ".chat_greedy_ids": 2,
-    ".finish": 1,
     ".transpose": 1,
     "array::from_fn": 1,
     "config MLXL3_ALLOCATOR_CACHE_MIB": 1,
@@ -2526,6 +2539,9 @@
     "shader mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v4": 1,
     "shader mlxl3_rs_topk_biased_e{experts}_k{top_k}_v3": 1
   },
+  "native/src/runtime_stats.rs": {
+    "mlx": 1
+  },
   "native/src/ssd_moe.rs": {
     ".add": 1,
     ".argsort": 2,
@@ -2815,6 +2831,9 @@
     "mx::float32": 7,
     "mx::reshape": 1,
     "mx::transpose": 1
+  },
+  "native/tests/process_memory.cpp": {
+    "mlxl3_read_process_stats": 3
   },
   "native/tests/runtime_gpu.rs": {
     "Array::concatenate": 1,
