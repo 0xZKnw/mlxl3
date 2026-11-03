@@ -1,5 +1,10 @@
 # MLXL3 — journal des optimisations
 
+### PR72-2026-11-03-SWIFT-CAPTURE-RESULT — compilation réelle réussie, suite complète à terminer
+
+- c007bcde54274668a60b7b951cf4d6cce891fa6f poussé et ref relue ; job125842496684/run41613899886 réussi : contexte240, préférences62, notifications17, logo25 puis `Response UI Swift 6 compilation passed` à09:56:28UTC. Le contre-exemple6d reste conservé. La capture mutable était bien évitable sans supprimer d’assertion ; aucune preuve formelle Swift ni résultat d’exécution du long rendu n’est revendiqué par la seule compilation.
+- Audit du pilote CI avant suite : le contrôle de compilation accéléré est aussi compilé une seconde fois dans le parcours complet, qui compile/exécute déjà le même ResponseUI plus bas. Préenregistrement : exécuter cette seule compilation-diagnostic uniquement dans --preferences-only ; conserver son exécution réelle dans la suite complète, tous les autres tests et attentes90s. Porter le plafond global35→45min pour les étapes rendu/Studios restantes après les31min déjà observées avant le rendu. Aucun test/cas supprimé et aucune source produit modifiée ; la qualification runtime doit encore terminer sur le SHA exact.
+
 ### PR72-2026-11-03-SWIFT-CAPTURE — correction du harnais autorisée, préenregistré
 
 - Nouvelle autorisation : corriger l’échecSwift, pousser, vérifier les contrôles applicables et fusionner si conditions remplies, sans contourner les protections. Tête6d828f31 et mainb9d5cbdc relus, arbrepropre ; aucun changement Macpersonnel/app/moteur prévu.

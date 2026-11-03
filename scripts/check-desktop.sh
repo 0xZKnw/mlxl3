@@ -85,16 +85,19 @@ check_preferences() {
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
         tests/logo-appearance-check.swift -o "${test_dir}/logo-appearance-check"
     run_fixture_check "${test_dir}/logo-appearance-check"
-    # Compile the actual private-access render fixture with the same optimized
-    # Swift 6 flags as the full suite; this is not a bitmap/OCR execution result.
-    local -a response_guard_sources
-    response_guard_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
-    awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
-        tests/response-ui-check.swift > "${test_dir}/ResponseUICompileGuard.swift"
-    swiftc "${swiftc_args[@]}" -O \
-        "${response_guard_sources[@]}" "${math_objects[@]}" \
-        "${test_dir}/ResponseUICompileGuard.swift" -o "${test_dir}/response-compile-guard"
-    print "Response UI Swift 6 compilation passed"
+    if ${preferences_only}; then
+        # The full suite compiles and executes this fixture in its render phase.
+        # Compile the actual private-access render fixture with the same optimized
+        # Swift 6 flags as the full suite; this is not a bitmap/OCR execution result.
+        local -a response_guard_sources
+        response_guard_sources=("${(@)sources:#*/MarkdownResponseView.swift}")
+        awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift \
+            tests/response-ui-check.swift > "${test_dir}/ResponseUICompileGuard.swift"
+        swiftc "${swiftc_args[@]}" -O \
+            "${response_guard_sources[@]}" "${math_objects[@]}" \
+            "${test_dir}/ResponseUICompileGuard.swift" -o "${test_dir}/response-compile-guard"
+        print "Response UI Swift 6 compilation passed"
+    fi
 }
 
 if ${preferences_only}; then

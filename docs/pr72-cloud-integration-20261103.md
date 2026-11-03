@@ -64,3 +64,10 @@ The native `routes` Kani shard on `8b03ca93` failed because two grouped-route ha
 The focused job on `6d828f31` reproduced the same Swift 6 diagnostic. Explicit MainActor annotations alone were insufficient. The next correction removes the mutable tuple captured by short-circuit autoclosures: first and settled AppKit snapshots are separate immutable values, with `ink` projected into plain Int values before the logical operators. CPU OCR receives the same immutable CGImage in the detached task. Both original failure paths, the two-second retry, the threshold of 40, the marker matching and the bitmap evidence remain. No unchecked Sendable conformance or alternative image encoding is introduced. The failed source/log remain preserved as a compiler-negative control.
 
 This test-only correction is authorized for the requested fix-and-merge operation. Remote optimized compilation and the complete Desktop checks must confirm it before fusion; no protection or essential check may be bypassed. No product or native source is changed by this correction.
+
+
+### Confirmed Swift correction
+
+The [focused job on c007bcde](https://github.com/0xZKnw/mlxl3/actions/runs/41613899886/job/125842496684) passed on `c007bcde54274668a60b7b951cf4d6cce891fa6f`: 240 context cases, 62 preferences, 17 notifications/retry, 25 logo checks, followed by **Response UI Swift 6 compilation passed** at 09:56:28 UTC. This confirms the immutable/scalar capture correction against the real optimized compiler; the old 6d828f31 failure remains archived. It does not by itself qualify runtime bitmap/OCR checks.
+
+The diagnostic compile is now exclusive to the focused mode because the full suite already compiles and executes the same ResponseUI fixture later. All actual test cases remain in the complete suite. Its hard job limit is raised to 45 minutes to include rendering and Studios after the approximately 31 minutes observed before the response-render phase. Individual 90-second process limits are unchanged. Product and native source remain unchanged; final runtime results and merge eligibility still require the exact-head CI.
