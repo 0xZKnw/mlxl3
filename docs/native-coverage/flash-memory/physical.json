@@ -518,8 +518,7 @@
     "direct": {
       "passed": 316,
       "failed": 0,
-      "ignored": 26,
-      "subsequent_added_ignored_bridge_test": 1
+      "ignored": 27
     },
     "stock": {
       "passed": 352,
@@ -527,7 +526,7 @@
       "ignored": 247
     }
   },
-  "remaining_controls": "post-physical direct suite and updated compatibility release to run in the next CPU window",
+  "remaining_controls": "hosted CI exact-head review",
   "retained_diagnostics": [
     "first all-target check rejected an extra visitor argument; corrected",
     "first strict lint rejected helper impls after test modules; moved without changing bodies"
@@ -556,7 +555,10 @@
     "current_native_release": "passed at 3b59cc4a",
     "three_mode_full_suites": "passed before final physical-test-only strengthening",
     "final_direct_all_target_clippy": "passed at 3b59cc4a",
-    "updated_compatibility_release": "pending next CPU window",
-    "hosted_CI": "not yet started"
+    "updated_compatibility_release": "passed, 40.16s",
+    "hosted_CI": "inspected separately on each exact published head",
+    "postphysical_direct_suite": "316 passed, 27 ignored, no failures",
+    "compatibility_all_target_clippy": "passed after the final physical tests",
+    "python": "four inventory unittest cases passed; Kani orchestration pytest result in build/issue75memory/pytest-kani-final.log"
   }
 }
