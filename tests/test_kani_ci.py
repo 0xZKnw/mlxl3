@@ -97,6 +97,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
         "contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
         "contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
+        "contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections",
+        "contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands",
         "contracts::native_projection_thread_count_matches_its_fixed_kernel",
         "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
         "speculative::normalized_greedy_retains_first_finite_maximum",

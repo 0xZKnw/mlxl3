@@ -615,6 +615,132 @@ impl<'a> FlashExpert<'a> {
     }
 }
 
+/// Ordinary projection bundles preserve the combined output-width plan.
+pub struct ProjectionGroup<'a> {
+    gpu: &'a Metal,
+    layers: Vec<FlashProjection<'a>>,
+    input: u32,
+    plan: Option<[u32; 3]>,
+}
+impl<'a> ProjectionGroup<'a> {
+    pub fn load<S: AsRef<str>>(gpu: &'a Metal, c: &Checkpoint, prefixes: &[S]) -> Result<Self> {
+        Self::from_projections(
+            prefixes
+                .iter()
+                .map(|p| FlashProjection::load_exl3(gpu, c, p.as_ref()))
+                .collect::<Result<Vec<_>>>()?,
+        )
+    }
+    pub fn from_projections(layers: Vec<FlashProjection<'a>>) -> Result<Self> {
+        let first = layers.first().context("empty projection bundle")?;
+        let gpu = first.metal;
+        let input = first.input;
+        ensure!(
+            layers
+                .iter()
+                .all(|p| std::ptr::eq(p.metal, gpu) && p.input == input),
+            "projection bundle requires one input width and Metal context"
+        );
+        let compatible = layers.len() >= 2
+            && first.k != 7
+            && layers
+                .iter()
+                .all(|p| p.generic && p.k == first.k && p.cb == first.cb);
+        let plan = if compatible {
+            let widths = layers.iter().map(|p| p.output).collect::<Vec<_>>();
+            let total = contracts::projection_bundle_width(&widths)
+                .context("projection bundle width overflow")?;
+            let m5 = first.simdgroups == 8;
+            let mut plan = contracts::mapped_expert_plan(input, total, 1, 1, first.k, m5)
+                .context("invalid grouped projection plan")?;
+            if std::env::var("MLXL3_DENSE_DECODE_NT4").as_deref() != Ok("0")
+                && i32::try_from(input)
+                    .ok()
+                    .zip(i32::try_from(total).ok())
+                    .is_some_and(|(i, o)| {
+                        contracts::dense_decode_nt4(
+                            i,
+                            o,
+                            first.k as usize,
+                            first.cb == Codebook::Mul1,
+                            m5,
+                        )
+                    })
+            {
+                plan[1] = 4;
+            }
+            Some(plan)
+        } else {
+            None
+        };
+        Ok(Self {
+            gpu,
+            layers,
+            input,
+            plan,
+        })
+    }
+    pub fn input_width(&self) -> u32 {
+        self.input
+    }
+    pub fn output_widths(&self) -> Vec<u32> {
+        self.layers.iter().map(|p| p.output).collect()
+    }
+    pub fn is_grouped(&self) -> bool {
+        self.plan.is_some()
+    }
+    pub fn forward(&self, x: &MatrixView) -> Result<Vec<MatrixView>> {
+        self.gpu
+            .command(|cmd| self.encode_row(cmd, x, Storage::StorageModeShared))
+    }
+    pub(super) fn encode_row(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<Vec<MatrixView>> {
+        use super::view::FloatType;
+        ensure!(
+            x.shape() == [1, self.input]
+                && x.dtype == FloatType::F16
+                && x.buffer.device().registry_id() == self.gpu.device.registry_id(),
+            "invalid ordinary projection bundle input"
+        );
+        self.layers
+            .iter()
+            .map(|p| {
+                let Some(plan) = self.plan else {
+                    return p.encode_row(cmd, x, storage);
+                };
+                let prepared = buffer(
+                    &self.gpu.device,
+                    u64::from(self.input) * 2,
+                    Storage::StorageModePrivate,
+                )?;
+                let scales = MatrixView::column_scales(&p.suh, p.offsets.suh, 1, self.input)?;
+                self.gpu.encode_prepare_view(cmd, x, &scales, &prepared)?;
+                let raw = p.encode_mapped_raw(cmd, &prepared, plan)?;
+                let output = MatrixView::output(self.gpu, FloatType::F16, 1, p.output, storage)?;
+                Metal::encode_bound(
+                    cmd,
+                    &self.gpu.dense_finish,
+                    [
+                        (&raw, 0),
+                        (&p.svh, p.offsets.svh),
+                        p.bias.as_ref().map_or((&p.svh, p.offsets.svh), |b| (b, 0)),
+                        (&output.buffer, 0),
+                    ]
+                    .into_iter(),
+                    [plan[0], 0, u32::from(p.bias.is_some()), 0, p.output],
+                    MTLSize::new(u64::from(p.output / 128), 1, 1),
+                    64,
+                );
+                Ok(output)
+            })
+            .collect()
+    }
+}
+
 /// Routed EXL3 experts retain their distinct fused float SwiGLU contract.
 /// Ordinary dense/shared MLPs use `FlashExpert` instead.
 pub struct MappedSwitchGlu<'a> {
@@ -979,5 +1105,73 @@ fn mapped_expert_rejections_recover_and_outputs_outlive_the_bank() -> Result<()>
     drop(x);
     drop(gpu);
     ensure!(result.read_output()? == expected);
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Qwen ordinary bundle: rejected inputs and outputs retained after owner release"]
+fn ordinary_projection_group_preserves_owners_and_rejects_wrong_inputs() -> Result<()> {
+    use crate::tensor_layout::MatrixLayout;
+    let c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_NATIVE_MODEL",
+    )?))?;
+    let gpu = Metal::new()?;
+    let prefixes = ["q_proj", "k_proj", "v_proj"]
+        .map(|p| format!("model.language_model.layers.3.self_attn.{p}"));
+    let layer = ProjectionGroup::load(&gpu, &c, &prefixes)?;
+    ensure!(layer.is_grouped() && layer.output_widths() == [8192, 512, 512]);
+    ensure!(ProjectionGroup::load::<&str>(&gpu, &c, &[]).is_err());
+    let mixed = [
+        prefixes[0].as_str(),
+        "model.language_model.layers.0.mlp.shared_expert.down_proj",
+    ];
+    ensure!(ProjectionGroup::load(&gpu, &c, &mixed).is_err());
+    let width = layer.input_width();
+    let x = gpu
+        .f16_storage(
+            &(0..width)
+                .map(|i| f16::from_f32(((i * 37) % 199) as f32 / 233. - 99. / 233.).to_bits())
+                .collect::<Vec<_>>(),
+        )?
+        .matrix(MatrixLayout {
+            shape: [1, width],
+            strides: [i64::from(width), 1],
+            offset: 0,
+        })?;
+    let bad = gpu.f16_storage(&[0])?.matrix(MatrixLayout {
+        shape: [1, 1],
+        strides: [1, 1],
+        offset: 0,
+    })?;
+    ensure!(layer.forward(&bad).is_err());
+    let wrong = gpu
+        .f32_storage(&vec![0.; width as usize])?
+        .matrix(MatrixLayout {
+            shape: [1, width],
+            strides: [i64::from(width), 1],
+            offset: 0,
+        })?;
+    ensure!(layer.forward(&wrong).is_err());
+    let expected = layer
+        .forward(&x)?
+        .iter()
+        .map(|v| v.read_output())
+        .collect::<Result<Vec<_>>>()?;
+    ensure!(expected.iter().all(|a| !a.is_empty()
+        && a.iter().any(|&v| v != 0)
+        && a.iter().all(|&v| f16::from_bits(v as u16).is_finite())));
+    let outputs = layer.forward(&x)?;
+    drop(layer);
+    drop(c);
+    drop(x);
+    drop(gpu);
+    ensure!(
+        outputs
+            .iter()
+            .map(|v| v.read_output())
+            .collect::<Result<Vec<_>>>()?
+            == expected
+    );
     Ok(())
 }
