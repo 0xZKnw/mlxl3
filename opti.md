@@ -8,6 +8,8 @@ Validation protocol: deterministic CPU read errors, timeout/drain, duplicate/sta
 
 - Initial CPU batch passed after the retained wiring/lint diagnostics: three strict Clippy modes, seven owned-reader regressions, one ownership-boundary regression and the real-source ownership harness (28 obligations, all four covers, no unreachable status). Release and the two isolated physical binaries built. Physical tests and the final full suites are pending; no speed claim.
 
+- All three isolated physical tests passed on b19f4553: the sixteen predictor/capacity cases include real late EOF and recovery, wrong/duplicate/stale predictions and shrink. The full model matches all 84 archived states (28 803 072 finite F32 words) and both imposed-token logit hashes; it publishes 745 prefetch records. The real budgeted bridge matches both two-token oracle hashes and its DYLD audit sees 1 409 image events with no MLX/JACCL. Inspection finds the fast full-model run did not wait on a demanded pending lease (counter zero). Add a deterministic direct pool adoption regression before claiming that transition covered, then rerun only the affected row test; no production change or speed measurement.
+
 - Archived #96 cross-capacity evidence reviewed before new GPU work: both FP16 target/MTP four-row requests have 20 unique experts for 10 cache slots, preserve the A,A,B,A route sequence, and match every independent output. FP32 cases have 20 unique experts for 20 slots and are boundary controls. This qualifies the serial production fallback, not a multirow wave optimization. Exact IDs/hits and the qualified binary hash are in [cohorts.json](docs/native-coverage/prefetch/cohorts.json).
 
 

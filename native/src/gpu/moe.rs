@@ -425,6 +425,7 @@ mod tests {
             .map(|i| ((i % 73) as f32 - 36.) / 53.)
             .collect::<Vec<_>>();
         let mut cases = 0;
+        let mut reused_cases = 0;
         for capacity in [10, 19, 20, 24] {
             for fp32 in [false, true] {
                 let layout = MatrixLayout {
@@ -507,6 +508,15 @@ mod tests {
                 }
                 if capacity == 24 {
                     let actual = next.gate.submit(&x)?.indices()?;
+                    next.cache.borrow_mut().invalidate();
+                    next.prefetch(&actual[..1], 1)?;
+                    ensure!(pool.borrow().pending_count() == 1);
+                    let reused = pool.borrow().stats.demand_reused;
+                    pool.borrow_mut().poll(Some(&next.cache), &actual, false)?;
+                    ensure!(pool.borrow().stats.demand_reused == reused + 1);
+                    let adopted = next.submit(&x)?;
+                    ensure!(adopted.hits > 0 && adopted.read()? == expected);
+                    reused_cases += 1;
                     let cold = (0..512)
                         .filter(|id| !next.cache.borrow().contains(*id) && !actual.contains(id))
                         .take(4)
@@ -569,10 +579,10 @@ mod tests {
                 }
             }
         }
-        ensure!(cases == 16);
+        ensure!(cases == 16 && reused_cases == 2);
         eprintln!(
             "native prefetch: {}",
-            serde_json::json!({"cases":cases,"oracle":"CPU stable ascending gate-logit sort, then last sixteen","outputs_compared":cases*2560,"capacity_boundaries":[10,19,20,24]})
+            serde_json::json!({"cases":cases,"explicit_pending_demand_reuse_cases":reused_cases,"oracle":"CPU stable ascending gate-logit sort, then last sixteen","outputs_compared":cases*2560,"capacity_boundaries":[10,19,20,24]})
         );
         Ok(())
     }
