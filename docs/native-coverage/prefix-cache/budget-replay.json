@@ -1,0 +1,35 @@
+{
+  "status": "verified",
+  "identity": {
+    "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+    "binaries": {
+      "physical-openai_transport": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+      "physical-mlxl3-rs": "ae55cf1d3cdd38db04799576373c43f9a83154143d75a8e72e07945168b2273f",
+      "native-cli-cache": "50b1cc9174bd9a5b6ac6ebe46e67b980c4e5c8989ceee3ca0b1ed9a41b46b4c3",
+      "physical-mlxl3_native": "30a9ff365ad35eec1e0b84b9412b9444a0ee835878242407fd04adfe5df0c0a0"
+    },
+    "source_files": {
+      "native/src/native_prompt_cache.rs": "ccf3b756a9ddd1b38567978c4d02c469489d427e4b2321bcf6f8c66a28534a45",
+      "native/src/native_draft.rs": "94f97e57141234134f68ec988b46139ba29492860de49e5b0dbecd3a62611d86",
+      "native/src/direct_bridge.rs": "22c85e9bd3c71cb20c8887886c0d2ef3aec3750467b737c087b70d7ef4221d3d",
+      "native/src/main.rs": "99f67a258a9d6bee8b056635bc664f7dbc16c0c76f783a694e7a530aadbe4442",
+      "native/src/flash_draft_budget.rs": "de9ba6834ee3a2771275eb884962d5940eb4b8f48f7561794ddd3c53f8dc194d",
+      "native/src/flash_draft_runtime.rs": "1b551e15b8cb9f31817c4342dca5b9a867165d6a7abd9ca1677f18de63ff341c",
+      "native/src/gpu/memory.rs": "58817e47114bde4b226fae50fa53c03e6b79a08edf307c62a5682ac26755bf3b",
+      "tests/openai_transport.rs": "3d20c56161588dab55f5c988575216811ca09dc9b56ace0e3fae85ee29a6bb93"
+    }
+  },
+  "cases": [
+    {
+      "label": "budget-bridge",
+      "test": "native_flash_memory_budget_preserves_bridge_recovery",
+      "status": "passed",
+      "environment_overrides": {},
+      "log": "build/issue75cache/budget-bridge.log",
+      "exit_code": 0,
+      "seconds": 31.508080041
+    }
+  ],
+  "dyld_images": 1409,
+  "no_MLX_or_JACCL_loaded": true
+}

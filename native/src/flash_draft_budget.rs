@@ -48,6 +48,61 @@ impl PreDraftBudget {
         Some(())
     }
 }
+/// Learning is request-local in both reference and native Flash sessions.
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    kani
+))]
+pub(crate) fn reset_request_budgets(verify: &mut VerifyBudget, pre: &mut PreDraftBudget) {
+    *verify = VerifyBudget::default();
+    *pre = PreDraftBudget::default();
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(17)]
+fn request_budget_reset_discards_all_observations() {
+    let theta: [f64; 8] = kani::any();
+    let sums: [f64; 5] = kani::any();
+    let cycles: u64 = kani::any();
+    let totals: [[u64; 2]; 3] = kani::any();
+    let pre_cycles: u64 = kani::any();
+    let count: usize = kani::any();
+    kani::assume(count <= 2);
+    let mut labels = VecDeque::new();
+    for _ in 0..count {
+        labels.push_back(Label {
+            position: kani::any(),
+            feature: kani::any(),
+            accepted: kani::any(),
+        });
+    }
+    let mut verify = VerifyBudget {
+        theta,
+        labels,
+        sums,
+        cycles,
+    };
+    let mut pre = PreDraftBudget {
+        totals,
+        cycles: pre_cycles,
+    };
+    reset_request_budgets(&mut verify, &mut pre);
+    assert!(verify.labels.is_empty() && verify.cycles == 0 && pre.cycles == 0);
+    for (value, expected) in verify.theta.iter().zip(PRIOR) {
+        assert_eq!(value.to_bits(), expected.to_bits());
+    }
+    for value in verify.sums {
+        assert_eq!(value.to_bits(), 0f64.to_bits());
+    }
+    for row in pre.totals {
+        assert_eq!(row[0], 0);
+        assert_eq!(row[1], 0);
+    }
+    kani::cover!(count == 0 && cycles == 0 && pre_cycles == 0);
+    kani::cover!(count == 2 && cycles == u64::MAX && pre_cycles == u64::MAX);
+}
+
 #[derive(Clone, Copy, Debug)]
 struct Label {
     position: usize,
@@ -128,6 +183,10 @@ pub(crate) fn ring_writes(start: i32, rows: i32) -> Option<[(i32, i32, i32); 2]>
 }
 
 impl VerifyBudget {
+    #[cfg(all(test, target_os = "macos", feature = "direct-metal", feature = "chat"))]
+    pub(crate) fn has_request_observations(&self) -> bool {
+        self.cycles != 0 || !self.labels.is_empty() || self.sums != [0.; 5] || self.theta != PRIOR
+    }
     fn line(&self) -> Option<(f64, f64)> {
         let [w, r, rr, t, rt] = self.sums;
         if w <= 0. {

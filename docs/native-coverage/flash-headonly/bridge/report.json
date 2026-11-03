@@ -1,0 +1,34 @@
+{
+  "status": "validated",
+  "parity": true,
+  "started_utc": "2026-11-03T20:48:11.053836+00:00",
+  "command": [
+    "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+    "native_flash_prefix_cache_preserves_bridge_recovery",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+    "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+    "MLXL3_FLASH_PREFILL_HEADS": "1",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_NATIVE_FLASH_NT2": "0",
+    "MLXL3_SSD_DYNAMIC_READERS": "0"
+  },
+  "source_commit": "3a044f39fdad9569aa88177641069253570ba12e",
+  "runner_sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+  "binary_sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473",
+  "deadline_seconds": 465,
+  "cache_gib_internal": 0.6,
+  "scope": "affected real production bridge cold/full-prefix replay for AR/MTP/DFlash; malformed/error/cancel recovery exercised in AR; DFlash suffix/cancel rollback separately in headonly-quality-01",
+  "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+  "pid": 32466,
+  "exit_code": 0,
+  "joined": true,
+  "elapsed_seconds": 135.8203516670037,
+  "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+}

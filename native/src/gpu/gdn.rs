@@ -401,6 +401,19 @@ impl<'a> FlashGdnLayer<'a> {
     }
 }
 
+impl FlashGdnState {
+    pub(super) fn record_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+        category: &'static str,
+    ) -> Result<()> {
+        if let Some(frame) = &self.frame {
+            backings.record(category, &frame.history.buffer)?;
+            backings.record(category, &frame.recurrent.buffer)?;
+        }
+        Ok(())
+    }
+}
 impl FlashGdn<'_> {
     fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
         for projection in [&self.qkv, &self.z, &self.out] {

@@ -12,8 +12,8 @@ pub mod convert_matmul;
 pub mod quantize;
 pub mod tensor_layout;
 pub use contracts::{
-    GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
-    smallm_kernel_key,
+    GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, native_prompt_reuse,
+    reusable_prefix_len, smallm_kernel_key,
 };
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod dec_one;
