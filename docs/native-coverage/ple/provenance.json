@@ -1,0 +1,70 @@
+{
+  "base": "62e2161c8a53a7d654ffcb714cfb788c0260898a",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "upstream_manifest": "40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec",
+  "stock": "MLX 0.32.2: stock Layer::forward, independent upstream five-step PLE probes (mlx-vlm eval), and repeated imposed rows with EOS from the same capture for extended sequences.",
+  "source_sha256": {
+    "native/src/flash_ngrams.rs": "b0da0f3da744b68a9b3eb12b804353f7656deb0a1a0cbda629166785a181e1b0",
+    "native/src/flash_support.rs": "7a8122bbd4ac368145734e477c6b1f6588ba71924171951b11a4e6c9116e9c22",
+    "native/src/gpu.rs": "48224a938c5a1f78d14f5ae691a4d27cc1684a2727da5e16061ff75d981e5e7a",
+    "native/src/gpu/gdn.rs": "f5a85fb9284907c0dea443e5712e8077e1cb56f4f0ccda6ab0b99b7500335943",
+    "native/src/gpu/hc.rs": "2e1e1507bc5b9849fe1d0b8e01293356a7c817b7cb44acf64dc451ec701683db",
+    "native/src/gpu/ple.rs": "0d556fff895e45feba029d4b1cedb36cccaa143cb935f39429f47093071e4c1b",
+    "native/src/qwen4.rs": "ea3a26cdfa4a74d80d19998039e2cd82e12eec2bb20f73bd810baba26efaeabd",
+    "native/src/qwen4/memory.rs": "fd3377d15d33e164275ad91de6c3f10c810759bd2a040255540d8f105feb0238",
+    "native/src/main.rs": "101651dec3fa6291f9f81a2f6281eca7e41f69556cab4633f7cb8e3f5dc1fb76",
+    "native/shaders/flash_ple.metal": "d452d4d1410ea9ab4e5ac943becf3f4aa95eaff8903953e22a64a8c818cbd8e8",
+    "native/src/qwen4/direct_gdn_oracle.rs": "fe63e0fccca12917259542656bf79f419d48450a827d7b767e04d91a68e9160e",
+    "tests/physical_flash_ple.py": "c3cf665610ce78f83f9710e3bda9766bc05a0cd70a96d95bed558514502ae042"
+  },
+  "test": "python tests/physical_flash_ple.py DIRECT STOCK_LIBTEST CHECKPOINT UPSTREAM_FROZEN_DIR NEW_REPORT",
+  "negative": {
+    "remove_dilation": {
+      "status": "failed",
+      "cli_sha256": "6db8bba033a8959705c1284ee3312d0760b4cb3aa1ff7602fd8b4b00ef75effc",
+      "compared": 832040,
+      "mismatches": 61440,
+      "by_step": [
+        {},
+        {},
+        {},
+        {
+          "conv_raw": 10240,
+          "convolution": 10240,
+          "out": 10240
+        },
+        {
+          "conv_raw": 10240,
+          "convolution": 10240,
+          "out": 10240
+        }
+      ]
+    },
+    "fault_test_initial_expectation": "Pinned tensor length validation rejected the out-of-file span before pread. The corrected test checks this rejection and verifies recovery."
+  },
+  "recovery": [
+    "flash_ngrams::tests::a_failed_tail_read_preserves_token_history_and_reuses_valid_heads",
+    "gpu::ple::tests::expert_io_failure_rolls_back_both_ple_histories"
+  ],
+  "kani": {
+    "version": "0.68",
+    "harnesses": [
+      {
+        "name": "ple_codewords_select_the_wrapped_nibbles",
+        "checks": 74,
+        "unreachable": 1,
+        "covers": 2,
+        "domain": "all 41 u16 record words, usize component positions, u8 nibble indices; exact four input symbols across the circular boundary; unwind 5"
+      },
+      {
+        "name": "disk_row_offsets_are_bounded_and_do_not_wrap",
+        "checks": 12,
+        "covers": 2,
+        "domain": "symbolic u64 offsets, row indices, sizes and bounds"
+      }
+    ]
+  },
+  "scope": "PLE branch and full recurrent layer 1, one checkpoint. End-to-end prompt generation and throughput still open."
+}

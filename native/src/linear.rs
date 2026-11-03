@@ -1799,16 +1799,8 @@ fn expert_mapped_layout(
 }
 
 fn split_count(input_tiles: i32, output_tiles: i32) -> i32 {
-    let target = if output_tiles <= 64 {
-        (output_tiles / 2).max(32)
-    } else {
-        output_tiles.clamp(32, 256)
-    };
-    let mut splits = 1;
-    while input_tiles / (splits * 2) >= target {
-        splits *= 2;
-    }
-    splits
+    crate::contracts::exl3_projection_splits((input_tiles as u32) * 16, (output_tiles as u32) * 16)
+        .expect("validated EXL3 widths") as i32
 }
 
 pub(crate) fn codebook_header(cb: Codebook) -> String {

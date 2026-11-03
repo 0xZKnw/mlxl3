@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -40,6 +41,19 @@ def synthetic(root, rng):
                 tensors[prefix + ".bias"] = rng.normal(0, 0.17, cols).astype(np.float16)
             storage[prefix] = {"quant_format": "exl3"}
             cases.append(make_case(rng, root, prefix, width, 1 if k % 2 else 3))
+    for expert, down in (("synthetic_expert", "layer_k8_cb0"), ("bad_expert", "layer_k1_cb0")):
+        for projection, src in (
+            ("gate_proj", "layer_k4_cb0"),
+            ("up_proj", "layer_k3_cb1"),
+            ("down_proj", down),
+        ):
+            dest = expert + "." + projection
+            storage[dest] = {"quant_format": "exl3"}
+            for name, val in list(tensors.items()):
+                if name.startswith(src + "."):
+                    tensors[dest + name[len(src) :]] = val
+    for batch in (1, 3):
+        cases.append(make_case(rng, root, "synthetic_expert", 128, batch, expert=True))
     tensors["four.trellis"] = np.zeros((512, 8, 16), dtype=np.uint16)
     tensors["four.suh"] = np.ones(8192, dtype=np.float16)
     tensors["four.svh"] = np.ones(128, dtype=np.float16)
@@ -57,10 +71,10 @@ def synthetic(root, rng):
     return cases
 
 
-def make_case(rng, root, prefix, width, batch):
+def make_case(rng, root, prefix, width, batch, *, expert=False):
     x = rng.normal(0, 0.125, (batch, width)).astype(np.float16)
     return {
-        "op": "metal-checkpoint-linear",
+        "op": "metal-checkpoint-expert" if expert else "metal-checkpoint-linear",
         "path": str(root),
         "prefix": prefix,
         "x": x.view(np.uint16).ravel().tolist(),
@@ -75,9 +89,80 @@ def verify(args, root, report):
         for label, width in (("gate_proj", 2560), ("down_proj", 640)):
             prefix = "model.language_model.layers.0.mlp.experts.0." + label
             cases.append(make_case(rng, ckpt, prefix, width, 3))
-    (root / "cases.json").write_text(json.dumps(cases))
+        for suffix in ("experts.0", "shared_expert"):
+            for batch in (1, 3):
+                cases.append(
+                    make_case(
+                        rng,
+                        ckpt,
+                        "model.language_model.layers.0.mlp." + suffix,
+                        2560,
+                        batch,
+                        expert=True,
+                    )
+                )
+    if args.qwen_checkpoint:
+        generic = root / "generic"
+        shutil.copytree(root / "synthetic", generic)
+        (generic / "config.json").write_text(json.dumps({"model_type": "qwen3_5_moe"}))
+        cases.extend(
+            {**case, "path": str(generic), "op": "metal-exl3-linear"}
+            for case in list(cases)
+            if case["path"] == str(root / "synthetic") and case["op"] == "metal-checkpoint-linear"
+        )
+        cases.append(make_case(rng, generic, "four", 8192, 1) | {"op": "metal-exl3-linear"})
+        checkpoint = args.qwen_checkpoint.resolve()
+        for suffix, width in [
+            ("linear_attn.in_proj_qkv", 2048),
+            ("linear_attn.in_proj_z", 2048),
+            ("linear_attn.out_proj", 4096),
+            ("mlp.shared_expert.gate_proj", 2048),
+            ("mlp.shared_expert.up_proj", 2048),
+            ("mlp.shared_expert.down_proj", 512),
+            ("mlp.experts.0.gate_proj", 2048),
+            ("mlp.experts.0.down_proj", 512),
+        ]:
+            for batch in (1, 3):
+                cases.append(
+                    make_case(
+                        rng, checkpoint, "model.language_model.layers.0." + suffix, width, batch
+                    )
+                    | {"op": "metal-exl3-linear"}
+                )
+        cases.append(make_case(rng, checkpoint, "lm_head", 2048, 1) | {"op": "metal-exl3-linear"})
+    # The stock projection receives ordinary contiguous FP16 rows. Feed the same
+    # values through a reversed, padded backing on the direct path.
+    stock_cases = list(cases)
+    for case in list(cases):
+        if not (
+            case["prefix"].endswith(("cb1", "experts.0", "shared_expert", "gate_proj", "down_proj"))
+        ):
+            continue
+        x = np.asarray(case["x"], dtype=np.uint16).view(np.float16)
+        rows = 3 if len(x) % 3 == 0 else 1
+        width = len(x) // rows
+        strided = x.reshape(rows, width)[::-1, ::-1]
+        storage = np.pad(strided, ((0, 0), (1, 2)), constant_values=7)
+        use_f32 = len(cases) % 2 == 0
+        if use_f32:
+            # Force the GPU to round the FP32 source before multiplication.
+            storage = np.nextafter(storage.astype(np.float32), np.float32(1.0))
+        gathered = storage[::-1, -3:0:-1].astype(np.float16)
+        assert np.array_equal(gathered.view(np.uint16).ravel(), x.view(np.uint16))
+        layout = {"shape": [rows, width], "strides": [-width - 3, -1], "offset": storage.size - 3}
+        packet = {**case, "x_layout": layout}
+        if use_f32:
+            del packet["x"]
+            packet["x_f32"] = storage.ravel().tolist()
+        else:
+            packet["x"] = storage.view(np.uint16).ravel().tolist()
+        cases.append(packet)
+        stock_cases.append(case)
+    (root / "cases.json").write_text(json.dumps(stock_cases))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
     env["MLXL3_PROJECTION_FIXTURES"] = str(root)
+    if args.portable:
+        env["MLXL3_DISABLE_TENSOR_OPS"] = "1"
     stock = subprocess.run(
         [args.stock, "flash_projection_stock_oracle", "--exact", "--ignored", "--test-threads=1"],
         env=env,
@@ -102,6 +187,8 @@ def verify(args, root, report):
         "unsupported projection geometry/split count",
         "input is not a complete row",
     ]
+    invalid.append({**cases[0], "op": "metal-checkpoint-expert", "prefix": "bad_expert"})
+    errors.append("incompatible Flash expert projection geometry")
     stream = [*invalid, *cases]
     run = subprocess.run(
         [args.cli, "codec"],
@@ -146,7 +233,13 @@ def verify(args, root, report):
         report["cases"].append(
             {
                 "projection": case["prefix"],
+                "op": case["op"],
                 "outputs": len(ref),
+                "input": "view-f32"
+                if "x_f32" in case
+                else "view-f16"
+                if "x_layout" in case
+                else "contiguous",
                 "f16le_sha256": hashlib.sha256(np.asarray(ref, dtype="<u2").tobytes()).hexdigest(),
             }
         )
@@ -159,12 +252,15 @@ if __name__ == "__main__":
     parser.add_argument("stock", type=Path)
     parser.add_argument("report", type=Path)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--qwen-checkpoint", type=Path)
+    parser.add_argument("--portable", action="store_true")
     args = parser.parse_args()
     state = {
         "status": "started",
         "seed": 7503,
         "cli_sha256": hashlib.sha256(args.cli.read_bytes()).hexdigest(),
         "stock_test_sha256": hashlib.sha256(args.stock.read_bytes()).hexdigest(),
+        "portable_projection": args.portable,
     }
     with args.report.open("x") as output, tempfile.TemporaryDirectory() as directory:
         try:

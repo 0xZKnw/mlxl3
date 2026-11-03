@@ -1,0 +1,78 @@
+{
+  "status": "verified",
+  "scope": "Standalone native Metal trellis CLI and exported Python tile conversion API; model conversion adapters remain pending",
+  "source_commit": "66da918bb2a860020457998b237340f9704c95d2",
+  "local_changes": "Final TempDir ownership release and conversion notice/packaging changes, source hashes retained below",
+  "source_sha256": {
+    "native/shaders/quantize_tiles.metal": "053b6af8f7265a792f7f7770f9d25be8e61683eea8d2a2de23b0184199e27b50",
+    "native/src/quantize.rs": "419bc1fbc3d15a95a0153ea4e8d7ace28d8d77c6797ef7a7ee95450a668a98b0",
+    "native/src/gpu/quantize.rs": "d83669244232025f7d1c1917199c2549607b3fb44e89bf8e61d3183ce302810a",
+    "native/src/main.rs": "093b504bfb67531e8dbad90826bdaf3eed995820b09be728869caf10fd9051f6",
+    "native/src/gpu.rs": "5bbdeb936759ecfa622aaf8041b92e90039ef28c8052bf381fe1585dd0d5fb4a",
+    "native/src/lib.rs": "2febe0c379b9bda3e90b771eeb0d8a1e9d193d366e9807da19a00ef967a161a0",
+    "src/mlxl3_quantizer/native.py": "ccc4b66099c975b55521e9863172b2e76ae3d47453eb2c57b539441940f14735",
+    "tests/physical_native_quantizer.py": "7fe046c89ef57bdf58a7be9015a0dac660fdcdedd9a32af67ba72beba1e2b147",
+    "tests/quantize_fixtures.rs": "e11b25c00c09c02659d7e9edf21e330e93fe22cde44dab0232dd9855d2f9ac60",
+    "tests/test_native_quantizer.py": "31040f5f2f3a727a8a3bcc7c5147b72551cd403cccebefb228ca40711b6c34dd"
+  },
+  "direct_cli_sha256": "45467437686cd966fa8f607c8fcc34a6eff5de9cc04b81cc81e88f7e8d43d210",
+  "stock_cli_before_final_owner_release_sha256": "73a98e005876794deb1bd90ae087d1bdc6e5b01028cc27a7506fadbd9b0d4eef",
+  "direct_runtime_info": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "66da918bb2a8-dirty",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "input": "Four synthetic kernel-order tiles, zeros/ties, deterministic signed values, +/-0.5, extreme finite distances",
+  "physical_words": 49728,
+  "physical_unequal": 0,
+  "frozen_reference_sha256": "f1f40be6a5f5cb0d1956d9780a186cf91f9cf127ddbb845d1d36701792082b66",
+  "suites": {
+    "cpu": {
+      "passed": 309,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 313,
+      "failed": 0,
+      "ignored": 25
+    },
+    "stock": {
+      "passed": 349,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "followup": "After releasing the moved staging owner, three native focused tests, strict native Clippy, direct release and the final 21-case physical/CLI/Python/cancellation driver passed. Production math is unchanged.",
+  "python_tests": {
+    "passed": 85,
+    "failed": 0
+  },
+  "kani": {
+    "version": "0.68.0",
+    "harness": "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
+    "inputs": "arbitrary usize value count, u32 K and u64 scratch budget; no assumptions",
+    "obligations": 100,
+    "failed": 0,
+    "covers": 2,
+    "global": "Compiler ICE intrinsics.rs:243, no global verdict"
+  },
+  "crosshair": {
+    "kind": "symbolic counterexample search",
+    "function": "mlxl3_quantizer.native.launch_tiles",
+    "conditions": 3,
+    "result": "all three confirmed over explored paths; not a deductive proof"
+  },
+  "metal_source_verification": "Physical exact comparisons and compile-specialization CI; no complete source-level Metal proof",
+  "limits": [
+    "256MiB input per native service request, all finite FP32 complete256-value tiles",
+    "at least one complete tile scratch is required",
+    "full-model rotations/calibration/conversion adapters not yet ported",
+    "stock compatibility release predates final staging owner followup, no throughput comparison"
+  ]
+}

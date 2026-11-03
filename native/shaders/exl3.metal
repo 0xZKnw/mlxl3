@@ -153,3 +153,71 @@ kernel void flash_finish128(const device float* partials [[buffer(0)]],
 }
 
 #include "flash_projection.metal"
+
+kernel void flash_swiglu(const device half* gate [[buffer(0)]],
+    const device half* up [[buffer(1)]], device half* dest [[buffer(2)]],
+    constant uint& count [[buffer(3)]], uint i [[thread_position_in_grid]]) {
+    if (i >= count) return;
+    half g = gate[i];
+    half tail = half(1) / (half(1) + metal::exp(metal::abs(g)));
+    half sigmoid = g < half(0) ? tail : half(1) - tail;
+    dest[i] = (g * sigmoid) * up[i];
+}
+
+kernel void flash_prepare_view(const device uchar* input [[buffer(0)]],
+    const device half* scales [[buffer(1)]], device half* output [[buffer(2)]],
+    constant long* p [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    long start = long(block) * 128, row = start / p[0], col = start % p[0];
+    for (uint i=lane; i<128; i+=64) {
+        long xi = p[1] + row*p[2] + (col+i)*p[3];
+        long si = p[4] + row*p[5] + (col+i)*p[6];
+        half x = p[7] ? half(reinterpret_cast<const device float*>(input)[xi])
+                      : reinterpret_cast<const device half*>(input)[xi];
+        values[i]=float(x * scales[si]);
+    }
+    hadamard128(values,lane);
+    for (uint i=lane; i<128; i+=64)
+        output[start+i]=half(values[i]*as_type<float>(0x3db504f3u));
+}
+
+#include "router_topk.h"
+
+template <typename T>
+kernel void route_matrix(const device T* values [[buffer(0)]], device uint* indices [[buffer(1)]],
+    device T* scores [[buffer(2)]], constant long* p [[buffer(3)]],
+    uint tid [[thread_index_in_threadgroup]], uint row [[threadgroup_position_in_grid]]) {
+    threadgroup ulong keys[1024];
+    threadgroup float selected[1024];
+    uint k = uint(p[1]);
+    long address = p[3] + long(row)*p[4] + long(tid)*p[5];
+    mlxl3_rank_row(values[address], tid, uint(p[0]), k, bool(p[2]), keys, selected,
+                   indices + row*k, scores + row*k);
+}
+
+#define ROUTE_KERNEL(TYPE, NAME) template [[host_name(NAME)]] kernel void route_matrix<TYPE>( \
+    const device TYPE*, device uint*, device TYPE*, constant long*, uint, uint);
+ROUTE_KERNEL(half, "route_half")
+ROUTE_KERNEL(float, "route_float")
+#undef ROUTE_KERNEL
+
+#include "flash_gate.metal"
+
+#include "flash_moe.metal"
+
+#include "flash_hc.metal"
+
+#include "flash_gdn.metal"
+
+#include "flash_ple.metal"
+
+#include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
+
+#include "flash_mtp.metal"
+
+#include "dense_projection.metal"
+
+#include "mapped_expert.metal"
+#include "model_ops.metal"

@@ -371,43 +371,7 @@ fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
 
 const MEMORY_STATS_VALUES: usize = 12;
 
-#[derive(Clone, Copy, Debug, serde::Serialize)]
-pub struct MemoryStats {
-    pub mlx_active_bytes: u64,
-    pub mlx_cache_bytes: u64,
-    pub mlx_peak_bytes: u64,
-    pub process_footprint_bytes: Option<u64>,
-    pub process_lifetime_peak_bytes: Option<u64>,
-    pub process_id: u32,
-    pub process_start_abstime: Option<u64>,
-    pub process_compressed_logical_bytes: Option<u64>,
-    pub process_compressed_peak_logical_bytes: Option<u64>,
-    pub process_compressed_lifetime_logical_bytes: Option<u64>,
-    /// Counts pages, saturating at i32::MAX; it does not count disk reads.
-    pub process_decompressions: Option<u64>,
-    /// Logical bytes consumed from swapped-in segments, not SSD bytes or swap-outs.
-    pub process_ledger_swapins_logical_bytes: Option<u64>,
-}
-
-impl MemoryStats {
-    fn from_raw(values: [u64; MEMORY_STATS_VALUES], process_id: u32) -> Self {
-        let field = |index: usize, mask: u64| (values[11] & mask != 0).then_some(values[index]);
-        Self {
-            mlx_active_bytes: values[0],
-            mlx_cache_bytes: values[1],
-            mlx_peak_bytes: values[2],
-            process_footprint_bytes: field(3, 1),
-            process_lifetime_peak_bytes: field(4, 1),
-            process_id,
-            process_start_abstime: field(10, 1),
-            process_compressed_logical_bytes: field(5, 2),
-            process_compressed_peak_logical_bytes: field(6, 2),
-            process_compressed_lifetime_logical_bytes: field(7, 2),
-            process_decompressions: field(8, 4),
-            process_ledger_swapins_logical_bytes: field(9, 8),
-        }
-    }
-}
+pub use crate::runtime_stats::MemoryStats;
 
 pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
     initialize()?;
