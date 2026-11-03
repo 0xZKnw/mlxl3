@@ -286,14 +286,15 @@ async fn native_flash_prefix_cache_preserves_bridge_recovery() -> anyhow::Result
                 if !id.is_empty() && event["request_id"] != id {
                     continue;
                 }
-                if event["type"] == "delta" && !signalled {
-                    if let Some(pid) = cancel_pid {
-                        ensure!(
-                            unsafe { libc::kill(pid, libc::SIGUSR1) } == 0,
-                            "cancel signal failed"
-                        );
-                        signalled = true;
-                    }
+                if event["type"] == "delta"
+                    && !signalled
+                    && let Some(pid) = cancel_pid
+                {
+                    ensure!(
+                        unsafe { libc::kill(pid, libc::SIGUSR1) } == 0,
+                        "cancel signal failed"
+                    );
+                    signalled = true;
                 }
                 if event["type"] == wanted {
                     ensure!(

@@ -15,7 +15,7 @@ Planned validation: same/extended/divergent prompts and conversations, cache bud
 
 
 
-- First full strict cache CPU lint finds reset_request_budgets unused in the headless test-only module. Gate the helper to its real native/reference callers and Kani, preserving the headless budget tests without a dead-code suppression. No model campaign has started. Retain clippy-cpu-initial.log before the corrected batch.
+- First full strict cache CPU lint finds reset_request_budgets unused in the headless test-only module. Gate the helper to its real native/reference callers and Kani, preserving the headless budget tests without a dead-code suppression. The direct lint subsequently finds a collapsible test-only cancellation conditional; collapse it without changing the signal contract. No model campaign has started. Retain clippy-cpu-initial.log and clippy-direct-initial.log before the corrected batch.
 
 - Corrected reset regression passes1 selected test; eligibility passes1 selected test. The real reset helper Kani checks794 obligations with2covers in2.90s at unwind17, symbolic scalar/float contents and0..2 queued labels;18 unreachable statuses are standard formatting/allocation/ZST branches, not the reset assertions. It does not prove larger queues, concurrency or Metal. Source review found no concrete reset correctness issue. The initial native reset failure remains in reset-before.log.
 
