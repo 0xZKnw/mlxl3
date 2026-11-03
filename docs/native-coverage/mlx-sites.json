@@ -4,6 +4,9 @@
     "array::tests": 1,
     "mlx": 5
   },
+  ".github/workflows/check.yml": {
+    "mlx": 1
+  },
   ".github/workflows/quantization.yml": {
     "ponyexl3": 1
   },
@@ -16,9 +19,9 @@
     "mlx": 1
   },
   "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": {
-    "libjaccl.dylib": 2,
-    "libmlx.dylib": 2,
-    "mlx.metallib": 2,
+    "libjaccl.dylib": 1,
+    "libmlx.dylib": 1,
+    "mlx.metallib": 4,
     "mlx_enabled": 1
   },
   "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/__init__.py": {
@@ -2855,12 +2858,13 @@
     "mlx": 1,
     "mlx-lm": 2
   },
-  "scripts/build-macos-app.sh": {
+  "scripts/build-engine.sh": {
     "MLXL3_MLX_ROOT": 3,
     "libjaccl.dylib": 3,
     "libmlx.dylib": 4,
-    "mlx": 2,
-    "mlx.metallib": 3
+    "mlx": 6,
+    "mlx.metallib": 4,
+    "mlx_enabled": 1
   },
   "scripts/build-quantizer.sh": {
     "mlx": 1,
@@ -2917,6 +2921,7 @@
   "scripts/package_engine.py": {
     "libjaccl.dylib": 1,
     "libmlx.dylib": 1,
+    "mlx": 5,
     "mlx.metallib": 2
   },
   "scripts/patches/ponyexl3-bounded-conversion-cache.patch": {
