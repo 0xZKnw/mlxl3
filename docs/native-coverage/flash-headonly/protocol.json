@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "preregistered_not_run",
+  "status": "qualified_mechanism_short_screen_complete",
   "date": "2026-11-03",
   "id": "ISSUE75-NATIVE-HEADONLY-01",
   "base": "be43ee15",
@@ -27,7 +27,7 @@
   ],
   "timing": {
     "executor": "root",
-    "common_protocol": "docs/measurements/issue75-native-reuse-20261103/protocol.json",
+    "common_protocol": "This self-contained protocol; selected executed arms are screen/arms.json",
     "harness": "scripts/benchmark-flash-bridge.py",
     "mode": "DFlash2 mode1",
     "cache_gib": 3,
@@ -58,5 +58,6 @@
     "retain_all_samples": true,
     "claim": "Native gain unmeasured. Decode is an unchanged control; do not transfer historic percentages."
   },
-  "integration": "isolated worktree; no installed app replacement/merge/release; MTP follow-up separate"
+  "integration": "isolated worktree; no installed app replacement/merge/release; MTP follow-up separate",
+  "decision": "Retain HEADS1 work elimination with HEADS0 rollback. Observed MAIN TTFT\u22122.103%; HOLD paired result and all decode gains inconclusive. No further DFlash/MTP campaign after user AR-only priority."
 }
