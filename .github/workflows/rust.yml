@@ -103,6 +103,7 @@ jobs:
             xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun -sdk macosx metal -c native/shaders/exl3.metal -o "$RUNNER_TEMP/exl3.air"
+          xcrun -sdk macosx metal -c native/shaders/qwen_gdn.metal -o "$RUNNER_TEMP/qwen-gdn.air" -DHIDDEN=2048 -DKEY_HEADS=16 -DVALUE_HEADS=32 -DKEY_DIM=128 -DVALUE_DIM=128 -DKEYS=2048 -DCONV_DIMS=8192 -DCONV_LENGTH=4 -DCONV_HISTORY=3
       - run: cargo fmt --check
       - run: cargo clippy --locked --all-targets --features chat -- -D warnings
       - run: cargo test --locked --features chat

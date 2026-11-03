@@ -23,6 +23,8 @@ mod flash;
 pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
+mod qwen_gdn;
+pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
@@ -36,7 +38,9 @@ pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
 mod projection;
-pub use projection::{FlashExpert, FlashProjection, ProjectionOutput};
+pub use projection::{
+    FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
+};
 
 #[allow(
     unexpected_cfgs,
@@ -179,6 +183,8 @@ pub struct Metal {
     flash_qmv_pipeline: ComputePipelineState,
     dense_qmv: [[ComputePipelineState; 3]; 2],
     dense_finish: ComputePipelineState,
+    mapped_glu: ComputePipelineState,
+    mapped_mix: ComputePipelineState,
     mtp_hidden_qmv: ComputePipelineState,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
@@ -208,6 +214,10 @@ impl Metal {
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
+                .replace(
+                    "#include \"mapped_expert.metal\"",
+                    include_str!("../shaders/mapped_expert.metal"),
+                )
                 .replace(
                     "#include \"dense_projection.metal\"",
                     include_str!("../shaders/dense_projection.metal"),
@@ -314,6 +324,8 @@ impl Metal {
                 ],
             ];
             let dense_finish = pipeline("dense_finish128")?;
+            let mapped_glu = pipeline("mapped_glu")?;
+            let mapped_mix = pipeline("mapped_mix")?;
             let k7_pipeline = pipeline("flash_k7_qmv")?;
             let swiglu_pipeline = pipeline("flash_swiglu")?;
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
@@ -362,6 +374,8 @@ impl Metal {
                 flash_qmv_pipeline,
                 dense_qmv,
                 dense_finish,
+                mapped_glu,
+                mapped_mix,
                 mtp_hidden_qmv,
                 mtp_norm,
                 mtp_combine,
