@@ -4054,22 +4054,8 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
             let probabilities = logits.log_probs()?.to_f32()?;
             #[cfg(not(feature = "mlx"))]
             let probabilities = gpu.flash_log_probs(&logits)?;
-            let mut best = None;
-            for (i, value) in probabilities.iter().enumerate() {
-                anyhow::ensure!(
-                    !value.is_nan() && *value != f32::INFINITY,
-                    "non-finite model log probabilities"
-                );
-                if best.is_none_or(|(_, previous)| *value > previous) {
-                    best = Some((i, *value));
-                }
-            }
-            let (index, value) = best.context("model returned no logits")?;
-            anyhow::ensure!(
-                value.is_finite(),
-                "model returned no finite log probabilities"
-            );
-            let next = u32::try_from(index)?;
+            let next = mlxl3_native::speculative::greedy_log_prob_id(&probabilities)
+                .context("model returned invalid log probabilities or no finite token")?;
             if tokenizer.eos_ids().contains(&next) {
                 break;
             }

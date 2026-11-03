@@ -341,6 +341,25 @@ impl Metal {
 }
 
 #[cfg(test)]
+fn first_embedding(embed: &TensorInfo) -> Result<TensorInfo> {
+    let temp = tempfile::tempdir()?;
+    let path = temp.path().join("single.safetensors");
+    let header = br#"{"embed":{"dtype":"BF16","shape":[1,2560],"data_offsets":[0,5120]}}"#;
+    let (file, start) = embed.source()?;
+    let mut row = [0u8; 5120];
+    file.read_exact_at(&mut row, start)?;
+    use std::io::Write;
+    let mut f = std::fs::File::create(&path)?;
+    f.write_all(&(header.len() as u64).to_le_bytes())?;
+    f.write_all(header)?;
+    f.write_all(&row)?;
+    drop(f);
+    crate::checkpoint::read_header(&path)?
+        .remove("embed")
+        .context("missing test row")
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -428,21 +447,7 @@ mod tests {
         );
         ensure!(model.forward(42)? == expected_first);
         // A real pinned one-row shard lets token 0 finish, then forces EOF when reading token 1.
-        let temp = tempfile::tempdir()?;
-        let path = temp.path().join("single.safetensors");
-        let header = br#"{"embed":{"dtype":"BF16","shape":[1,2560],"data_offsets":[0,5120]}}"#;
-        let (file, start) = model.embed.source()?;
-        let mut row = [0u8; 5120];
-        file.read_exact_at(&mut row, start)?;
-        use std::io::Write;
-        let mut f = std::fs::File::create(&path)?;
-        f.write_all(&(header.len() as u64).to_le_bytes())?;
-        f.write_all(header)?;
-        f.write_all(&row)?;
-        drop(f);
-        let short = crate::checkpoint::read_header(&path)?
-            .remove("embed")
-            .context("missing test row")?;
+        let short = first_embedding(&model.embed)?;
         let original = std::mem::replace(&mut model.embed, short);
         let error = model
             .prefill(&[0, 1])

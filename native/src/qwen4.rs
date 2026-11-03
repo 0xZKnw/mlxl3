@@ -3066,7 +3066,7 @@ mod tests {
                 "session head state differs, budget={budget}"
             );
             println!(
-                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}",
+                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}, tokens={golden:?}",
                 session.proposed, session.accepted, session.blocks
             );
             proposed += session.proposed;

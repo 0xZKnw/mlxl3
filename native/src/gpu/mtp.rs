@@ -149,7 +149,7 @@ impl<'a> FlashMtpHead<'a> {
 /// Greedy verification retains at most one already-verified target token.
 #[derive(Default)]
 pub struct FlashMtpSession {
-    pending: Option<u32>,
+    pending: Option<(u32, u32, MatrixView)>,
     pub proposed: usize,
     pub accepted: usize,
 }
@@ -217,8 +217,21 @@ impl FlashMtpSession {
                 && Rc::ptr_eq(&target.owner, &head.owner),
             "invalid Flash MTP budget, token or session"
         );
-        if let Some(token) = self.pending.take() {
-            return Ok(token);
+        if let Some((expected_anchor, token, row)) = &self.pending {
+            ensure!(
+                anchor == *expected_anchor
+                    && target.offset <= context_limit
+                    && target
+                        .last_hidden()
+                        .is_some_and(|h| std::ptr::eq::<metal::BufferRef>(
+                            h.buffer.as_ref(),
+                            row.buffer.as_ref()
+                        )),
+                "pending Flash MTP token belongs to a different prefix"
+            );
+            let verified = *token;
+            self.pending = None;
+            return Ok(verified);
         }
         let remaining = context_limit
             .checked_sub(target.offset)
@@ -238,13 +251,8 @@ impl FlashMtpSession {
         let gpu = target.gpu;
         let greedy = |logits: Vec<u16>| -> Result<u32> {
             let log_probs = gpu.flash_log_probs(&logits)?;
-            let mut best = None;
-            for (i, &value) in log_probs.iter().enumerate() {
-                if value.is_finite() && best.is_none_or(|(_, max)| value > max) {
-                    best = Some((i as u32, value));
-                }
-            }
-            best.map(|(i, _)| i).context("no finite Flash MTP token")
+            crate::speculative::greedy_log_prob_id(&log_probs)
+                .context("invalid Flash MTP probabilities")
         };
         let result = (|| {
             if width == 0 {
@@ -268,7 +276,14 @@ impl FlashMtpSession {
                         .context("missing retained hidden row")?,
                     proposal,
                 )?;
-                self.pending = Some(choice.target_token);
+                self.pending = Some((
+                    proposal,
+                    choice.target_token,
+                    target
+                        .last_hidden()
+                        .context("missing MTP verified row")?
+                        .clone(),
+                ));
             }
             self.proposed += 1;
             self.accepted += choice.accepted_draft_tokens;
@@ -381,6 +396,139 @@ fn draft_head_replays_retained_steps_and_vocabulary() -> Result<()> {
                 .collect(),
             248320,
         )?;
+        let full = head.layer.retained_half_words()?;
+        for key in ["keys", "values", "index_tail"] {
+            if let Some(bits) = full.get(key) {
+                check(
+                    key,
+                    bits.iter().map(|&v| f16::from_bits(v).to_f32()).collect(),
+                    bits.len(),
+                )?;
+            } else {
+                ensure!(case[key].is_null(), "missing {key} at step {i}");
+            }
+        }
+        head.layer.restore(&before)?;
+        head.extend(&target, &hidden, token)?;
+        ensure!(
+            head.layer.retained_half_words()? == full,
+            "cache-only MTP extension differs at step {i}"
+        );
     }
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Flash MTP greedy acceptance, cache commits, cancellation and output budget"]
+fn speculative_commits_match_stock_sequence_and_ordinary_state() -> Result<()> {
+    use std::{path::Path, sync::atomic::AtomicBool};
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let stock: serde_json::Value = serde_json::from_reader(std::fs::File::open(std::env::var(
+        "MLXL3_FLASH_MTP_SESSION_ORACLE",
+    )?)?)?;
+    let gpu = Metal::new()?;
+    let mut target = FlashNext::load(&gpu, &c, 32)?;
+    let mut head = FlashMtpHead::load(&c, &target)?;
+    let mut session = FlashMtpSession::default();
+    let prompt = [248044, 78768, 11];
+    let cancelled = AtomicBool::new(true);
+    ensure!(
+        session
+            .prefill(&mut target, &mut head, &prompt, &cancelled)
+            .is_err()
+    );
+    ensure!(target.offset == 0 && head.layer.offset() == 0 && target.last_hidden().is_none());
+    cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
+    let greedy = |logits: Vec<u16>| -> Result<u32> {
+        crate::speculative::greedy_log_prob_id(&gpu.flash_log_probs(&logits)?)
+            .context("invalid reference probabilities")
+    };
+    let mut counts = (0, 0);
+    for budget in [1usize, 2, 3, 17] {
+        let mut anchor = greedy(session.prefill(&mut target, &mut head, &prompt, &cancelled)?)?;
+        let mut expected = Vec::new();
+        for _ in 0..budget {
+            head.extend(&target, target.last_hidden().unwrap(), anchor)?;
+            anchor = greedy(target.forward(anchor)?)?;
+            expected.push(anchor);
+        }
+        let expected_head = head.layer.retained_half_words()?;
+        let expected_hidden = target.last_hidden().unwrap().export_bytes(&gpu)?;
+        let expected_next = target.forward(7)?;
+        let mut anchor = greedy(session.prefill(&mut target, &mut head, &prompt, &cancelled)?)?;
+        let limit = (prompt.len() + budget) as u32;
+        ensure!(
+            session
+                .advance(&mut target, &mut head, anchor, limit, 0)
+                .is_err()
+        );
+        ensure!(
+            session
+                .advance(&mut target, &mut head, 248320, limit, budget)
+                .is_err()
+        );
+        for (i, &wanted) in expected.iter().enumerate() {
+            if session.pending.is_some() {
+                ensure!(
+                    session
+                        .advance(
+                            &mut target,
+                            &mut head,
+                            (anchor + 1) % 248320,
+                            limit,
+                            budget - i
+                        )
+                        .is_err()
+                );
+            }
+            anchor = session.advance(&mut target, &mut head, anchor, limit, budget - i)?;
+            ensure!(anchor == wanted, "wrong draft token at {i} of {budget}");
+        }
+        let row = &stock[budget.to_string()];
+        ensure!(
+            row["tokens"] == serde_json::json!(expected)
+                && row["proposed"] == session.proposed
+                && row["accepted"] == session.accepted,
+            "stock MTP transcript differs for {budget}"
+        );
+        ensure!(
+            session.pending.is_none() && target.offset == limit && head.layer.offset() + 1 == limit
+        );
+        ensure!(
+            head.layer.retained_half_words()? == expected_head
+                && target.last_hidden().unwrap().export_bytes(&gpu)? == expected_hidden
+                && target.forward(7)? == expected_next
+        );
+        counts.0 += session.proposed;
+        counts.1 += session.accepted;
+    }
+    ensure!(counts.1 > 0 && counts.0 > counts.1);
+    session.prefill(&mut target, &mut head, &prompt, &cancelled)?;
+    let before = target.snapshot();
+    let head_before = head.layer.retained_half_words()?;
+    let hidden_before = target.last_hidden().unwrap().export_bytes(&gpu)?;
+    let short = super::first_embedding(&target.embed)?;
+    let original = std::mem::replace(&mut target.embed, short);
+    let error = session
+        .advance(&mut target, &mut head, 0, 32, 3)
+        .err()
+        .context("truncated verification succeeded")?;
+    ensure!(
+        error
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|e| e.kind() == std::io::ErrorKind::UnexpectedEof),
+        "unexpected verification failure: {error:#}"
+    );
+    target.embed = original;
+    ensure!(
+        target.offset == before.offset
+            && head.layer.retained_half_words()? == head_before
+            && target.last_hidden().unwrap().export_bytes(&gpu)? == hidden_before
+            && session.pending.is_none()
+    );
+    let expected = greedy(target.forward(0)?)?;
+    target.restore(&before)?;
+    ensure!(session.advance(&mut target, &mut head, 0, 32, 3)? == expected);
     Ok(())
 }
