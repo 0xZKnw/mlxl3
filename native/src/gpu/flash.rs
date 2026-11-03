@@ -68,9 +68,15 @@ pub struct FlashNext<'a> {
 impl<'a> FlashNext<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
+        let context = if context == 0 {
+            u32::try_from(config.context)?
+        } else {
+            context
+        };
         ensure!(
-            (1..=512).contains(&context) && context <= config.context as u32,
-            "dense native Flash context must be within 1..=512 and the checkpoint limit"
+            (1..=crate::flash_support::FLASH_MAX_CONTEXT).contains(&context)
+                && context <= config.context as u32,
+            "native Flash context exceeds the supported checkpoint limit"
         );
         ensure!(
             std::env::var_os("MLXL3_FLASH_REQUEST_MIB").is_none(),

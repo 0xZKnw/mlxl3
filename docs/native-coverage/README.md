@@ -161,3 +161,15 @@ MLXL3_SSD_CACHE_GIB=0.6 target/release/mlxl3-rs run /chemin/vers/Flash-Next-exl3
 Sans `--prompt`, le terminal ouvre une conversation. `/clear` efface l’historique et `/quit` quitte. Le moteur affiche la réflexion et la réponse au fur et à mesure. Cette première version qualifie la génération gloutonne sur les 48 couches de Flash, à concurrence de 512 positions au total, template et sortie compris. Le budget de 0,6 Gio choisit dix slots SSD par couche. Les modes spéculatifs, les contextes longs et les parcours Studio suivent leurs qualifications séparées. La commande `forward` accepte aussi une séquence de tokens imposés, ou `--batch` pour les logits du dernier.
 
 Le prompt français du rapport se termine par « 4 » après 77 tokens sur les deux binaires. Sur quatre tokens imposés, tous les 993 280 logits sont identiques, ainsi que les 248 320 logits du batch. [Rapport physique](flash-ar/physical.json) · [Mutation, reprise et preuves](flash-ar/provenance.json).
+
+### Flash AR au premier bloc écarté
+
+La sélection s’active au 513e bloc complet, à la position 2 052. Elle conserve les 512 blocs les mieux classés, les remet dans l’ordre chronologique, puis ajoute les tokens du bloc incomplet. À égalité de score, les blocs les plus récents passent en premier à la coupure. Le cache double de capacité à la demande. Un préfixe restauré conserve ses clés, valeurs, blocs compressés et la queue de l’index.
+
+Sur le M5, une couche a parcouru 4 096 positions, avec comparaison des projections d’index, des scores, des positions, des sorties et du cache complet à la dernière position. La même suite a aussi exercé les variantes Max et Ultra imposées sur ce M5. La CLI a traversé les 48 couches sur une entrée de 2 053 tokens avec 248 320 logits finaux identiques. La limite configurée est de 262 144 tokens. [Détail par tenseur](qsa-long/layer.json), [parcours complet](qsa-long/whole-model-initial.json), [conditions, preuves CPU et tests](qsa-long/provenance.json).
+
+Pour reproduire le parcours complet avec deux exécutables release, lancer la commande suivante sur un Mac Apple Silicon avec le checkpoint Flash.
+
+```sh
+python tests/physical_flash_run.py DIRECT STOCK CHECKPOINT NOUVEAU_RAPPORT --long-only
+```

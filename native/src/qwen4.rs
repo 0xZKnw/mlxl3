@@ -543,6 +543,8 @@ struct QsaWeights {
 struct Qsa {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
+    #[cfg(test)]
+    sparse_trace: Option<BTreeMap<&'static str, Array>>,
     weights: QsaWeights,
     state: QsaState,
 }
@@ -591,6 +593,8 @@ impl Qsa {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
+            #[cfg(test)]
+            sparse_trace: None,
             weights: QsaWeights {
                 q: proj("q_proj", 12288)?,
                 k: proj("k_proj", 512)?,
@@ -733,6 +737,11 @@ impl Qsa {
             }
             tokens.extend((count * 4..offset + 1).map(|i| i as u32));
             let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
+            #[cfg(test)]
+            if let Some(t) = &mut self.sparse_trace {
+                t.insert("index_scores", reduced.try_clone()?);
+                t.insert("selected_positions", selected.try_clone()?);
+            }
             (keys.take(&selected, 2)?, values.take(&selected, 2)?)
         } else {
             (keys.try_clone()?, values.try_clone()?)
@@ -763,6 +772,10 @@ impl Qsa {
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 5, 128])?;
+        #[cfg(test)]
+        if let Some(t) = &mut self.sparse_trace {
+            t.insert("index_qk", qk.try_clone()?);
+        }
         let raw = qk.slice(2, 4, 5)?.reshape(&[1, 1, 128])?;
         let tail = Self::append(&self.state.index_tail, &raw, 1)?;
         if (self.state.offset + 1) % 4 == 0 {

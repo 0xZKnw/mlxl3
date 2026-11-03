@@ -1353,7 +1353,9 @@ fn run(cli: Cli) -> Result<()> {
                 "direct Flash state export is not available for this build"
             );
             anyhow::ensure!(
-                !tokens.is_empty() && tokens.len() <= 512 && tokens.iter().all(|&t| t < 248320),
+                !tokens.is_empty()
+                    && tokens.len() <= mlxl3_native::flash_support::FLASH_MAX_CONTEXT as usize
+                    && tokens.iter().all(|&t| t < 248320),
                 "invalid native Flash tokens or context"
             );
             let gpu = mlxl3_native::gpu::Metal::new()?;
@@ -3934,11 +3936,11 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
     #[cfg(not(feature = "mlx"))]
     let gpu = mlxl3_native::gpu::Metal::new()?;
     #[cfg(not(feature = "mlx"))]
-    let mut model = mlxl3_native::gpu::FlashNext::load(&gpu, &checkpoint::inspect(path)?, 512)?;
+    let mut model = mlxl3_native::gpu::FlashNext::load(&gpu, &checkpoint::inspect(path)?, 0)?;
     #[cfg(feature = "mlx")]
     let name = model.name();
     #[cfg(not(feature = "mlx"))]
-    let name = "Flash Next / direct Metal (512 positions)";
+    let name = "Flash Next / direct Metal";
     eprintln!(
         "Loaded native {} engine (experimental, greedy sampling)",
         name

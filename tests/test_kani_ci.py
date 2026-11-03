@@ -90,6 +90,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::ple_codewords_select_the_wrapped_nibbles",
         "flash_support::dense_flash_prompt_cursor_never_overflows_or_partially_accepts",
         "flash_support::qsa_append_preserves_all_published_rows",
+        "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
+        "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",
         "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",

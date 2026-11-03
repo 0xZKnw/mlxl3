@@ -1,0 +1,92 @@
+{
+  "source_base": "74a7aa144c141794a8426dddf6c08c4a83cb0d4f",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "machine": "Apple M5, 24 GiB, build 26B123",
+  "oracle": "separately built Rust/MLX 0.32.2",
+  "layer": 15,
+  "layer_runs": {
+    "g": {
+      "status": "verified",
+      "comparisons": 4406540,
+      "mismatches": 0,
+      "rows": 72,
+      "report_sha256": "ffcb69aafc860f91698936c2191703cf74ad224f0c55e1a08538413295ccf7bd"
+    },
+    "s": {
+      "status": "verified",
+      "comparisons": 4406540,
+      "mismatches": 0,
+      "rows": 72,
+      "report_sha256": "ffcb69aafc860f91698936c2191703cf74ad224f0c55e1a08538413295ccf7bd"
+    },
+    "d": {
+      "status": "verified",
+      "comparisons": 4406540,
+      "mismatches": 0,
+      "rows": 72,
+      "report_sha256": "ffcb69aafc860f91698936c2191703cf74ad224f0c55e1a08538413295ccf7bd"
+    }
+  },
+  "layer_report_note": "All three report payloads have the same per-stage rows. Physical device M5 standard, class overrides for s and d. d also forces the classic non-TF32 matrix path.",
+  "initial_score_variants": {
+    "simd_gemv": 2200,
+    "classic_tile_on_nax_reference": 2630
+  },
+  "environment": {
+    "MLXL3_SSD_CACHE_GIB": "0.6",
+    "DYLD_PRINT_LIBRARIES": "1 (CLI)",
+    "MLX_METAL_GPU_ARCH": "g17s or g17d in forced stock tests",
+    "MLX_ENABLE_TF32": "0 in forced d oracle"
+  },
+  "sha256": {
+    "native/src/flash_support.rs": "eb171f6a89646faa8b69112fd1f2a638ea55e3e41ebaf68a745d172991f2d823",
+    "native/src/gpu/qsa.rs": "c7e0de30c08eb03e74b2be583e7b31fd6251e1044f291c4717867d0c9aef86de",
+    "native/src/gpu/flash.rs": "dca342dea14243b94457f9d448885b0c9501e1af234e33690ef5fdc133b0fce3",
+    "native/src/qwen4/direct_gdn_oracle.rs": "3800c0aa18543c913d000cef31d877c7088c49a8bdd7c6b26331afac4a69aa85",
+    "native/shaders/flash_qsa.metal": "1e3abeb50ed35ef17dec3161d88411b51b2808db4999596490d4af9865418f62",
+    "native/shaders/flash_qsa_nax.metal": "eba8deeac86eb5117d2c0c42d578260594d9c6eeda7d50486c61937ec8865167",
+    "tests/physical_flash_run.py": "1fe9cb1c9b054681fe1f7a12ab670e898638338d204823823f0dc878abe00090"
+  },
+  "release_binaries": {
+    "direct": "cdc8d773fdcf52028add4f9d13dba350dabfe33855272ad57578406771902104",
+    "stock": "4b9739442a03ea3482bb9d070443fb5e63fb2cf4c4083502d5b79c15bd4d6429"
+  },
+  "kani": {
+    "dense_flash_prompt_cursor_never_overflows_or_partially_accepts": {
+      "checks": 16,
+      "covers": 2
+    },
+    "qsa_append_preserves_all_published_rows": {
+      "checks": 39,
+      "covers": 2
+    },
+    "qsa_growth_fits_all_copied_and_appended_rows": {
+      "checks": 41,
+      "covers": 2
+    },
+    "qsa_stable_ranking_preserves_best_blocks_and_time_order": {
+      "checks": 1736,
+      "covers": 2
+    }
+  },
+  "kani_system": "0.68.0, default full suite compiler ICE intrinsics.rs:243. The ranking harness checks the implementation with 3 symbolic i8 scores and budget 2; arithmetic domains use arbitrary parameters. No formal GPU claim.",
+  "suites": {
+    "cpu": {
+      "passed": 305,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 306,
+      "failed": 0,
+      "ignored": 21
+    },
+    "stock": {
+      "passed": 342,
+      "failed": 0,
+      "ignored": 242
+    }
+  },
+  "mutation": "Dropping the trailing incomplete block from the actual source selector fails sparse_qsa_positions_preserve_ties_and_current_tail; unmutated case passes."
+}

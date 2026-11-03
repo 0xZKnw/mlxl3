@@ -1701,7 +1701,7 @@
     ".take": 2,
     "array::from_fn": 2,
     "config MLXL3_FLASH_MULTI_TOKEN": 1,
-    "mlx": 27
+    "mlx": 29
   },
   "native/src/gated_delta.rs": {
     ".add": 1,
@@ -1859,8 +1859,13 @@
   },
   "native/src/gpu/qsa.rs": {
     ".shape": 1,
-    ".transpose": 1,
-    "config MLXL3_QSA_MODEL": 1
+    ".transpose": 5,
+    "config MLXL3_QSA_MODEL": 2,
+    "config MLXL3_QSA_ORACLE_DIR": 1,
+    "config MLXL3_QSA_REPORT": 1,
+    "config MLXL3_QSA_TEST_CLASS": 1,
+    "config MLXL3_QSA_TEST_CLASSIC": 1,
+    "shader ../../shaders/flash_qsa_nax.metal": 1
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -2332,7 +2337,7 @@
     ".to_f32": 16,
     ".to_u32": 4,
     ".transpose": 18,
-    ".try_clone": 32,
+    ".try_clone": 35,
     "Array::concatenate": 12,
     "Array::from_bytes": 1,
     "Array::from_f16_bits": 3,
@@ -2380,18 +2385,21 @@
     ".add": 2,
     ".astype": 3,
     ".dtype": 7,
-    ".eval": 1,
+    ".eval": 2,
     ".shape": 6,
-    ".to_bytes": 7,
-    "Array::from_f32": 4,
+    ".slice": 1,
+    ".take": 1,
+    ".to_bytes": 8,
+    ".transpose": 1,
+    "Array::from_f32": 5,
     "config MLXL3_GDN_FROZEN": 1,
     "config MLXL3_GDN_MODEL": 1,
     "config MLXL3_GDN_ORACLE_DIR": 1,
     "config MLXL3_PLE_FROZEN": 1,
     "config MLXL3_PLE_MODEL": 1,
     "config MLXL3_PLE_ORACLE_DIR": 1,
-    "config MLXL3_QSA_MODEL": 1,
-    "config MLXL3_QSA_ORACLE_DIR": 1
+    "config MLXL3_QSA_MODEL": 2,
+    "config MLXL3_QSA_ORACLE_DIR": 2
   },
   "native/src/qwen4/hc_row_oracle.rs": {
     ".dtype": 1,
