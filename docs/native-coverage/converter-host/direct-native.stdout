@@ -1,0 +1,58 @@
+{
+  "codebook": "mcg",
+  "emitted": {
+    "loaded_shape": [
+      128,
+      128
+    ],
+    "out_dir": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/direct-native",
+    "trellis_shape": [
+      8,
+      8,
+      64
+    ]
+  },
+  "k": 4,
+  "module": "model.layers.0.mlp.gate_proj",
+  "requested": {
+    "bits": 4.0,
+    "buf_size_rows": 32,
+    "calibration_activations": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/activations.npy",
+    "calibration_rows": 192,
+    "codebook": "mcg",
+    "fast_layer_metrics": false,
+    "head_bits": 6,
+    "hessian_shrinkage": 0.0,
+    "hessian_shrinkage_source": "default",
+    "ldlq_feedback_rows": 16,
+    "only_layer": null,
+    "oracle_metrics": false,
+    "out_dir": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/direct-native",
+    "regularization_seed": 0,
+    "resume": false,
+    "scale_mode": "identity",
+    "search_backend": "native",
+    "sigma_reg": 0.025,
+    "skip_g_scale": false,
+    "work_dir": null
+  },
+  "scale_mode": "identity",
+  "search_backend": "native",
+  "shape": [
+    128,
+    128
+  ],
+  "stats": {
+    "basis_mlx_hadamard": false,
+    "inner_mse": 0.0028714260552078485,
+    "inner_rel_rms": 0.1069006398618301,
+    "output_mse": 0.41473960876464844,
+    "output_rel_rms": 0.10693789127224677,
+    "pack_roundtrip": true,
+    "public_mse": 0.0028714260552078485,
+    "public_rel_rms": 0.1069006398618301,
+    "regularize_computed_scales": false,
+    "suh_zero_replacements": 0.0,
+    "svh_zero_replacements": 0.0
+  }
+}

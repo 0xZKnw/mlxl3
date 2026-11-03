@@ -3,9 +3,8 @@
 import json
 import math
 import os
-import subprocess
 import tempfile
-import time
+import threading
 from operator import index
 from pathlib import Path
 
@@ -73,56 +72,31 @@ def quantize_tiles_native(
         root = Path(directory)
         source, output = root / "tiles.f32", root / "result"
         source.write_bytes(np.asarray(values, dtype="<f4").tobytes())
-        with (root / "stdout").open("w+b") as stdout, (root / "stderr").open("w+b") as stderr:
-            process = subprocess.Popen(
-                [
-                    str(executable),
-                    "quantize-tiles",
-                    str(source),
-                    str(output),
-                    "--k",
-                    str(k),
-                    "--codebook",
-                    str(cb),
-                    "--max-scratch-bytes",
-                    str(scratch),
-                ],
-                stdin=subprocess.DEVNULL,
-                stdout=stdout,
-                stderr=stderr,
-            )
-            try:
-                deadline = time.monotonic() + timeout
-                while process.poll() is None:
-                    if (
-                        max(os.fstat(stdout.fileno()).st_size, os.fstat(stderr.fileno()).st_size)
-                        > 65536
-                    ):
-                        raise ValueError("oversized native conversion output")
-                    if cancel_check is not None:
-                        cancel_check()
-                    if time.monotonic() >= deadline:
-                        raise TimeoutError("native tile conversion timed out")
-                    time.sleep(0.01)
-                stdout.seek(0)
-                response = stdout.read(65537)
-                stderr.seek(0)
-                error = stderr.read(4096).decode("utf-8", errors="replace")
-                if process.returncode != 0:
-                    raise RuntimeError(f"native tile conversion failed: {error}")
-                if len(response) > 65536:
-                    raise ValueError("oversized native tile response")
-            finally:
-                if process.poll() is None:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=5)
+        from .process import run_native
+
+        response = run_native(
+            [
+                str(executable),
+                "quantize-tiles",
+                str(source),
+                str(output),
+                "--k",
+                str(k),
+                "--codebook",
+                str(cb),
+                "--max-scratch-bytes",
+                str(scratch),
+            ],
+            root=root,
+            timeout=timeout,
+            cancel_check=cancel_check,
+            label="tile conversion",
+        )
         report_file = output / "report.json"
         if (
-            report_file.is_symlink()
+            output.is_symlink()
+            or not output.is_dir()
+            or report_file.is_symlink()
             or not report_file.is_file()
             or report_file.stat().st_size > 65536
         ):
@@ -168,3 +142,48 @@ def quantize_tiles_native(
         if not np.isfinite(decoded).all():
             raise ValueError("nonfinite native tile output")
         return decoded, states
+
+
+_CONVERTER_LOCK = threading.Lock()
+# Keep each file well below the native command's 256 MiB protocol ceiling.
+_CONVERTER_TILE_BATCH = 65536
+
+
+def converter_tiles(tiles, k, cb=0):
+    """Run the explicit native converter backend, without an MLX fallback.
+
+    Measurement workers share one bounded native process at a time. The
+    converter's existing cancellation flag also interrupts an active child.
+    """
+    from ponyexl3.convert.cancel import raise_if_requested
+
+    engine = os.environ.get("MLXL3_NATIVE_ENGINE")
+    if not engine:
+        raise RuntimeError("native conversion requires MLXL3_NATIVE_ENGINE")
+    raise_if_requested()
+    k, cb = index(k), index(cb)
+    values = np.asarray(tiles, dtype=np.float32)
+    if values.ndim != 2 or values.shape[0] == 0 or values.shape[1] != 256:
+        raise ValueError("native conversion requires nonempty 256-value tiles")
+    try:
+        batch = launch_tiles(
+            min(values.shape[0], _CONVERTER_TILE_BATCH) * 256, k, cb, 256 * 1024 * 1024
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"unsupported native converter configuration: {exc}") from exc
+    decoded = np.empty_like(values)
+    states = np.empty(values.shape, dtype=np.uint16)
+    with _CONVERTER_LOCK:
+        for start in range(0, values.shape[0], batch):
+            stop = min(start + batch, values.shape[0])
+            try:
+                block, state = quantize_tiles_native(
+                    values[start:stop], k, cb, engine=engine, cancel_check=raise_if_requested
+                )
+            except (OSError, ValueError) as exc:
+                # The driver treats ValueError/FileNotFoundError as an unsupported
+                # source module and may skip it. A failed native child is fatal.
+                raise RuntimeError(f"native converter service failed: {exc}") from exc
+            decoded[start:stop] = block
+            states[start:stop] = state
+    return decoded, states

@@ -49,7 +49,7 @@ fn native_tile_search_launch_stays_inside_input_and_scratch() {
 }
 
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
-fn publish_directory(
+pub(crate) fn publish_directory(
     stage: &std::path::Path,
     destination: &std::path::Path,
 ) -> std::io::Result<()> {

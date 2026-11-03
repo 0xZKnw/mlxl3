@@ -1,0 +1,102 @@
+{
+  "status": "validated_finite_scope",
+  "source_base": "395f9aad567d3f597f40419a8d34fa2742eecc24",
+  "working_tree": "modified; exact source hashes below; tested native release embeds base-dirty identity",
+  "source_sha256": {
+    "native/src/convert_matmul.rs": "6206f0077ce40e6ab8431a2a9607ae947210f5bc4b74efd8af19277b84547981",
+    "native/src/gpu/convert_matmul.rs": "dafe6c0f0a1b7bb62a58af433cd553dc092df368e57a98816fb32ce0fe204023",
+    "native/shaders/convert_matmul.metal": "dbb88231f2157657f2a98ca18ee71c8a3d6dce8d372c2f4cb039713d038b3d5f",
+    "native/shaders/convert_matmul_nax.metal": "ef4c22519acc435993054f18036a7199417880d971faf3dcf6035ed8fda17219",
+    "src/mlxl3_quantizer/feedback.py": "c556ff20b1486eaaf0681a2326c73af064bcff8d714a14ee03939544674e305c",
+    "src/mlxl3_quantizer/process.py": "2a431af0a9eea4d9bfd45105ca399181d66e3a2ac61b17a56e57aec467c8c863",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/hessian.py": "1c1faf3e161438c3db31c772586feb014ad50efe79e0b6e881bf72cc6dfc9b5a",
+    "tests/physical_native_feedback.py": "d99ec745bb5696f66cee91777030cadcb912892add74ecdb75cc07256fde4632",
+    "tests/physical_native_converter_host.py": "870afe90a7b34bd0916c45d5e35bef496a4da3bc5d56a0e7245b06c426dd026b"
+  },
+  "artifacts": {
+    "native_release": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-converter-feedback/mix-stq1_0/build/issue75feedback/nax-direct",
+      "sha256": "369e6f36d965d46602a8646eede9940ed8f87480a0cb004800f7b96b1daa201e",
+      "features": "--no-default-features --features direct-metal,chat"
+    },
+    "compatibility_release": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-converter-feedback/mix-stq1_0/build/issue75feedback/final-stock",
+      "sha256": "c148583a50d05b759c36a68636321687324dc2664facb4aebd60786c6bcb6059",
+      "features": "--features mlx,chat"
+    }
+  },
+  "physical": {
+    "hardware": "MacBook Air M5 24 GiB, macOS26.2, MLX0.32.2 independent oracle",
+    "products": {
+      "cases": 7,
+      "exact_fp32_words": 32768,
+      "reference": "physical-02.json",
+      "conditions": "physical-02-conditions.json"
+    },
+    "full_fp32_and_tails": {
+      "full_precision_words": 32768,
+      "partial_tail_words_per_arithmetic": 15,
+      "report": "full-smoke.json"
+    },
+    "public_cli": {
+      "comparisons": 14,
+      "checkpoint_words": 64000,
+      "variants": [
+        "cli-identity-32",
+        "cli-identity-128",
+        "cli-computed-128",
+        "cli-forced-1024-32",
+        "cli-forced-4096-128",
+        "cli-k2-computed-128",
+        "cli-k8-computed-128"
+      ],
+      "candidate_mlx_imports": "forbidden by sitecustomize import finder",
+      "checkpoint": "synthetic FP16 projection128x128 seed7508,192 correlated activations,MCG,K2/K4/K8",
+      "result": "all emitted tensors and quantization metadata exact; no speed measurement"
+    }
+  },
+  "checks": {
+    "python_full": {
+      "passed": 2492,
+      "skipped": 144,
+      "subtests": 6,
+      "warnings": 10,
+      "seconds": 227.31,
+      "scope": "includes final production transport slicing, prior to final frozen-corpus regression and physical-driver boundary flags"
+    },
+    "rust_cpu": {
+      "passed": 304,
+      "ignored": 8
+    },
+    "rust_direct_chat": {
+      "passed": 315,
+      "ignored": 25
+    },
+    "rust_mlx_chat": {
+      "passed": 351,
+      "ignored": 246
+    },
+    "clippy": "all three feature configurations passed with warnings denied",
+    "crosshair": "six helper postconditions confirmed in symbolic counterexample search; not a proof",
+    "kani_targeted": "90.011s timeout, arbitrary u32 dimensions and addresses; no verdict",
+    "kani_global": "compiler ICE in intrinsics.rs:243 after2.04s, inherited toolchain limitation; no proof",
+    "final_focused": {
+      "passed": 130,
+      "skipped": 44,
+      "seconds": 6.68,
+      "note": "Final affected tests include corpus and directory-symlink regressions; see retained log for actual timing."
+    },
+    "mutation": "Removing the output-directory symlink rejection makes the new regression fail; restored guard passes both matrix and tile directory-symlink cases."
+  },
+  "limits": [
+    "Grouped expert15-point global-scale search not yet ported.",
+    "Raw source capture producer and teacher/model adapters not yet wired; capture reader remains consumer-only.",
+    "Studio automatic conversion and standalone MLX-free PyInstaller product remain pending.",
+    "Physical device views exercised through contiguous CLI uploads; negative/strided device views await shared-model integration.",
+    "Finite M5 product/checkpoint corpus does not establish all hardware, all MLX dispatch shapes, or complete conversion parity.",
+    "The device product caps each logical matrix at256MiB; host compensation tiles rows/columns without splitting K.",
+    "Full-u32 Kani property is not verified; no weakened domain or proof stub.",
+    "Final full-FP32/tail smoke was an inline Python command; report retained, no separate historical script snapshot.",
+    "No installed app replacement, merge or release."
+  ]
+}

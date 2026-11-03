@@ -1,0 +1,63 @@
+{
+  "status": "verified-direct-slice",
+  "source_base": "6e2cb43c68f77cf33262f1d985fd5f805826ecf9",
+  "production_sha256": {
+    "src/mlxl3_quantizer/native.py": "cd2144556fc390f35b7bdc15544f18305071c6759c27ff239560c9ba94040b0d",
+    "src/mlxl3_quantizer/capture.py": "082645821776754fad1462366c664ead8a3a638963035dde4a0096bcc18fff5f",
+    "src/mlxl3_quantizer/transforms.py": "a947fe67d58bb6410c1c0fc2e6ecf01544bbd6516447310782b1f3a102fee223",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/cli/convert_advanced.py": "cfc321bf628312f86d04e770eabe94dcb52b57259bf96e2f174d08f7d4a33167",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/direct.py": "12d685dd776bf5dc097cc28a96c4435ae6fc2d77d4f408409549c32dfd6195de",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/driver.py": "41c2d4818e11c6cc032ff282e3a6ed81c5764fef638752e6115d68b26dfbf25f",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/fixtures.py": "4ea1e7c5154ef94d0e1475061e6226f02d29060a0c126568009c9a1f7f46dd91",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/hessian.py": "8f1d6c246342d7048955ec797b6d0cfcb04b324c8edfd6e26c5aadb73822e31a",
+    "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/convert/measure.py": "871902f0b13a950ce7ddcf94c772524864bfff756bc4755b988827adaac7a179"
+  },
+  "real_native_engine_sha256": "45467437686cd966fa8f607c8fcc34a6eff5de9cc04b81cc81e88f7e8d43d210",
+  "physical": {
+    "direct": {
+      "source": "FP16 128x128, seed7508, identity basis, K4/MCG",
+      "packed_words": 4096,
+      "unequal": 0,
+      "mlx_imports_rejected": true
+    },
+    "ldlq": {
+      "status": "rejected",
+      "packed_words": 4096,
+      "unequal": 446,
+      "first_divergent_tile_row": 5,
+      "native_entry": "fatal guard pending qualified FP32 compensation"
+    },
+    "whole_campaign": "failed/parity=false; original reports retained"
+  },
+  "hadamard": {
+    "cases": 8,
+    "exact_words": 197888,
+    "unequal_after_ftz": 0,
+    "original_unequal": 4,
+    "mutation_detected": true
+  },
+  "python": {
+    "focused_passed": 193,
+    "focused_skipped": 26,
+    "full_passed": 2463,
+    "full_skipped": 144,
+    "subtests": 6,
+    "warnings": 10,
+    "full_duration_seconds": 221.99,
+    "followup": "Full suite collected before final native LDLQ guards/mode selection; nineteen affected host tests passed after these final changes, legacy paths unchanged."
+  },
+  "crosshair": {
+    "capture_rows": "3 conditions confirmed over explored symbolic paths, not deductive proof",
+    "hadamard": "2 conditions not confirmed within10s each; arbitrary ndarray transformation remains unproved"
+  },
+  "pinned_patch": "Six production files replay against upstream8e7fa6b; CI compares them byte-for-byte",
+  "limits": [
+    "Native grouped scale/search policy pending",
+    "Raw source-forward capture producer and MoE filling pending",
+    "Studio/e2e adapters and MLX-free converter package pending",
+    "No installed app replaced",
+    "No throughput measured",
+    "No complete Metal/NumPy/filesystem/concurrency proof",
+    "Historical physical driver source snapshot was not retained; its final mode selector changed, direct production path unchanged and hashes recorded here"
+  ]
+}
