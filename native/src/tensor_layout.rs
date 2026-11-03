@@ -248,30 +248,34 @@ fn trace_extent_requires_whole_contiguous_byte_allocation() {
 #[cfg(kani)]
 #[kani::proof]
 fn trace_extent_checks_bytes_and_slice_bound() {
-    let rows = u32::from(kani::any::<u8>());
-    let cols = u32::from(kani::any::<u8>());
+    let rows: u32 = kani::any();
+    let cols: u32 = kani::any();
     let l = MatrixLayout {
         shape: [rows, cols],
         strides: [kani::any(), kani::any()],
         offset: kani::any(),
     };
     let allocation: u64 = kani::any();
-    let item = u64::from(kani::any::<u8>());
-    let bytes = u64::from(rows) * u64::from(cols) * item;
+    let item: u64 = kani::any();
+    let words = u64::from(rows) * u64::from(cols);
+    let exact = match item {
+        2 => allocation.is_multiple_of(2) && allocation >> 1 == words,
+        4 => allocation.is_multiple_of(4) && allocation >> 2 == words,
+        _ => false,
+    };
     let result = l.trace_byte_extent(item, allocation);
     assert_eq!(
         result.is_some(),
-        matches!(item, 2 | 4)
-            && rows > 0
-            && cols > 0
+        exact
+            && allocation > 0
+            && allocation <= isize::MAX as u64
             && l.offset == 0
             && l.strides == [i64::from(cols), 1]
-            && allocation == bytes
     );
     if let Some(n) = result {
-        assert_eq!(n as u64, bytes);
+        assert_eq!(n as u64, allocation);
         assert!(n <= isize::MAX as usize);
-        kani::cover!(item == 4 && rows > 1);
+        kani::cover!(item == 4 && rows == u32::MAX && cols == 1);
         kani::cover!(item == 2 && rows == 1);
     }
 }

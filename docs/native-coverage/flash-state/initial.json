@@ -762,5 +762,13 @@
     "step": 706,
     "batch": 706
   },
-  "pair_equal": true
+  "pair_equal": true,
+  "proof": {
+    "tool": "Kani 0.68.0",
+    "checks": 45,
+    "covers": 2,
+    "domain": "dimensions u8, item size u8, arbitrary strides, offset and buffer length; concrete unit checks cover u32 MAX overflow",
+    "harness": "tensor_layout::trace_extent_checks_bytes_and_slice_bound"
+  },
+  "python_symbolic": "CrossHair did not confirm the byte digest contract"
 }

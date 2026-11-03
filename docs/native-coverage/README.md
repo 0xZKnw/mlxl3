@@ -173,3 +173,11 @@ Pour reproduire le parcours complet avec deux exécutables release, lancer la co
 ```sh
 python tests/physical_flash_run.py DIRECT STOCK CHECKPOINT NOUVEAU_RAPPORT --long-only
 ```
+
+### Export des états du modèle Flash
+
+La CLI native accepte `forward --states`. Pour chaque token imposé, elle émet les logits FP16, les 48 sorties de couche et les 36 états récurrents GDN au format de la CLI MLX. Les noms, l’ordre, les formes et les octets sont comparés sur la même entrée. En mode `--batch --states`, Flash renvoie les derniers logits et une liste d’états vide, conformément au protocole existant. Un instantané interne conserve aussi la position, la dernière ligne cachée, les historiques PLE et les caches QSA pour reprendre la génération. [Empreintes par tenseur](flash-state/initial.json), [validation sur la branche de contexte long](flash-state/release.json).
+
+```sh
+python tests/physical_flash_trace.py --cli DIRECT --stock STOCK --model CHECKPOINT --report NOUVEAU_RAPPORT
+```
