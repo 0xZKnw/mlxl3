@@ -1796,10 +1796,20 @@
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/exl3.metal": 1,
     "shader ../shaders/flash_gate.metal": 1,
+    "shader ../shaders/flash_hc.metal": 1,
+    "shader ../shaders/flash_hc_gemv.metal": 1,
     "shader ../shaders/flash_moe.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
     "shader ../shaders/flash_reference_reduction.h": 1,
     "shader ../shaders/router_topk.h": 1
+  },
+  "native/src/gpu/hc.rs": {
+    ".shape": 3,
+    ".to_f32": 2,
+    ".transpose": 3,
+    "config MLXL3_HC_FROZEN": 1,
+    "config MLXL3_HC_MODEL": 1,
+    "mlx": 2
   },
   "native/src/gpu/moe.rs": {
     ".shape": 1,
@@ -2043,7 +2053,7 @@
     ".finish": 5,
     ".log_probs": 2,
     ".retained_bytes": 4,
-    ".shape": 4,
+    ".shape": 5,
     ".slice": 2,
     ".swiglu": 1,
     ".take": 7,
@@ -2051,7 +2061,7 @@
     ".to_f16_bits": 30,
     ".to_f32": 12,
     ".to_u32": 3,
-    ".transpose": 18,
+    ".transpose": 19,
     ".try_clone": 7,
     "Array::from_f16_bits": 38,
     "Array::from_f32": 11,
@@ -2326,6 +2336,19 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader mlxl3_flash_mrope_r{dimensions}_h{heads}_w{width}": 1,
     "shader mlxl3_flash_qsa_scores_{count}": 1
+  },
+  "native/src/qwen4/hc_row_oracle.rs": {
+    ".dtype": 1,
+    ".qwen4_hc_activate": 1,
+    ".reshape": 1,
+    ".to_f16_bits": 1,
+    ".to_f32": 1,
+    ".to_u32": 1,
+    ".transpose": 1,
+    "Array::from_f16_bits": 1,
+    "Array::from_f32": 1,
+    "config MLXL3_HC_FIXTURES": 1,
+    "config MLXL3_HC_MODEL": 1
   },
   "native/src/qwen4/memory.rs": {
     ".backing": 1,

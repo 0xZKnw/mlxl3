@@ -920,12 +920,59 @@ fn codec_loop() -> Result<()> {
                 | "metal-prepare-view"
                 | "metal-router"
                 | "metal-checkpoint-router"
-                | "metal-checkpoint-moe" => {
+                | "metal-checkpoint-moe"
+                | "metal-checkpoint-hc"
+                | "metal-checkpoint-mlp" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-hc" | "metal-checkpoint-mlp" => {
+                            let streams = request.input_view(gpu)?;
+                            anyhow::ensure!(
+                                streams.shape() == [1, 10240],
+                                "expected one Flash row of four streams"
+                            );
+                            let path = std::path::Path::new(&request.path);
+                            let checkpoint = checkpoint::inspect(path)?;
+                            let config: serde_json::Value = serde_json::from_reader(
+                                std::fs::File::open(path.join("config.json"))?,
+                            )?;
+                            let eps = config["text_config"]["rms_norm_eps"]
+                                .as_f64()
+                                .context("missing Flash norm epsilon")?
+                                as f32;
+                            let mlp = request.op == "metal-checkpoint-mlp";
+                            let prefix = if mlp {
+                                format!("{}.mlp_hyper_connection", request.prefix)
+                            } else {
+                                request.prefix.clone()
+                            };
+                            let hc = mlxl3_native::gpu::FlashHc::load(
+                                gpu,
+                                &checkpoint,
+                                &prefix,
+                                eps,
+                                !prefix.ends_with(".hyper_connection_mixer"),
+                            )?;
+                            let (read, output, route) = if mlp {
+                                let mut experts = mlxl3_native::gpu::FlashMoeRow::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &format!("{}.mlp", request.prefix),
+                                    request.slots.unwrap_or(10),
+                                )?;
+                                let (out, route, read) =
+                                    hc.forward_moe(&streams, &mut experts, request.return_raw)?;
+                                (read, Some(out.read_output()?), Some(route.indices))
+                            } else {
+                                (hc.read(&streams, request.return_raw)?, None, None)
+                            };
+                            Ok(
+                                json!({"mixed":read.mixed.read_output()?,"gate":read.gate.as_ref().map(|g|g.read_output()).transpose()?,"output":output,"indices":route,"trace":read.trace}),
+                            )
+                        }
                         "metal-checkpoint-moe" => {
                             let input = request.input_view(gpu)?;
                             let [rows, width] = input.shape();

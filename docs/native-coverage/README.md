@@ -125,3 +125,9 @@ python3 -c 'import json,sys; print(json.dumps(dict(op="metal-checkpoint-moe",pat
 ```
 
 Résultat attendu en (coefficients, experts en cache, octets lus) : `[(2560, 0, 12480120), (2560, 10, 0)]`. Cette commande accepte des activations numériques. Le parcours prompt → tokens exige aussi l’embedding, l’attention, les états récurrents, les 48 couches et la tête de sortie. [Comparaison physique](moe/physical.json) · [Erreurs détectées et reproduction](moe/provenance.json).
+
+### Sous-couche MLP Flash, du flux d’entrée au résidu
+
+Dans le CLI `codec`, `metal-checkpoint-mlp` prend `path`, un préfixe de couche tel que `model.language_model.layers.0`, et une vue `x_layout` de forme [1,10240] sur `x_f32` ou des mots FP16 `x`. Le résultat contient le résidu des quatre streams, les IDs des dix experts, le vecteur mélangé et les quatre gates. `return_raw` permet aussi de comparer les normalisations, les deux projections HC et l’activation. `metal-checkpoint-hc` permet de lire un mélangeur isolé, dont le mélangeur final du modèle.
+
+Sur M5, huit lignes réelles ou imposées en F16/F32 reproduisent les 230 464 mots et indices de référence, dont les 40 960 valeurs du résidu après le MoE de la couche standard et MTP. Six captures indépendantes d’écriture couvrent également 61 440 valeurs avec branches F16 et F32. Le test de sous-couche reçoit des activations numériques ; la génération à partir d’un prompt attend encore l’attention et l’assemblage du modèle. [Rejeu physique](hc/physical.json) · [Protocole et contrôles rejetés](hc/provenance.json).

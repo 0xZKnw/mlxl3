@@ -205,3 +205,5 @@ ROUTE_KERNEL(float, "route_float")
 #include "flash_gate.metal"
 
 #include "flash_moe.metal"
+
+#include "flash_hc.metal"

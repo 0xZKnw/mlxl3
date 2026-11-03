@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod hc;
+pub use hc::{FlashHc, FlashHcRead};
 mod moe;
 pub use moe::{FlashMoeRow, MoeOutput};
 mod gate;
@@ -88,6 +90,7 @@ pub struct Metal {
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
+    hc: [hc::Pipelines; 2],
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
     gate_dot: [ComputePipelineState; 2],
@@ -128,10 +131,19 @@ impl Metal {
                 "#include \"flash_moe.metal\"",
                 include_str!("../shaders/flash_moe.metal"),
             );
+            let source = source
+                .replace(
+                    "#include \"flash_hc.metal\"",
+                    include_str!("../shaders/flash_hc.metal"),
+                )
+                .replace(
+                    "#include \"flash_hc_gemv.metal\"",
+                    include_str!("../shaders/flash_hc_gemv.metal"),
+                );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
-            let pipeline = |name| -> Result<_> {
+            let pipeline = |name: &str| -> Result<_> {
                 let function = library
                     .get_function(name, None)
                     .map_err(anyhow::Error::msg)?;
@@ -168,6 +180,10 @@ impl Metal {
             let moe_mix = [pipeline("moe_mix_half")?, pipeline("moe_mix_float")?];
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
+            let hc = [
+                hc::Pipelines::load(&pipeline, "half")?,
+                hc::Pipelines::load(&pipeline, "float")?,
+            ];
             let queue = device.new_command_queue();
             Ok(Self {
                 device,
@@ -182,6 +198,7 @@ impl Metal {
                 prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
+                hc,
                 moe_switch,
                 moe_mix,
                 gate_dot,

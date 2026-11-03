@@ -246,6 +246,10 @@ The scalar shared-expert switch and weighted expert reduction in
 [`dot.h`](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/dot.h)
 and [strided reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_col.h).
 
+The direct Flash hyper-connection uses the shared GEMV body and the last-axis sum
+order from Apple's [Metal row reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_row.h).
+Its sigmoid follows the [unary operator](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/unary_ops.h).
+
 Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
 <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 

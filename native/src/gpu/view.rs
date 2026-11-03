@@ -71,7 +71,7 @@ impl MatrixView {
     }
 
     /// Only for contiguous shared outputs, after a successful command completion.
-    pub(super) fn read_output(&self) -> Result<Vec<u32>> {
+    pub fn read_output(&self) -> Result<Vec<u32>> {
         let [rows, cols] = self.layout.shape;
         let count = rows.checked_mul(cols).context("matrix size overflow")? as usize;
         let size = if self.dtype == FloatType::F16 { 2 } else { 4 };

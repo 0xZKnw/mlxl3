@@ -85,6 +85,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::prepare128_validates_block_and_scale_indices",
         "flash_support::flash_record_projection_bindings_fit_the_pinned_read",
         "contracts::flash_gate_dispatch_bounds_output_and_weight_addresses",
+        "contracts::flash_hc_groups_cover_exactly_the_checked_weight_matrix",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",
         "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",

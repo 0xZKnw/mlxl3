@@ -4444,3 +4444,6 @@ mod tests {
 
 #[cfg(all(test, feature = "chat"))]
 mod profile;
+
+#[cfg(test)]
+mod hc_row_oracle;

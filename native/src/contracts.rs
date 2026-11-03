@@ -2334,3 +2334,48 @@ fn flash_gate_dispatch_bounds_output_and_weight_addresses() {
         kani::cover!(rows == u32::MAX / 512 && row + 1 == rows);
     }
 }
+
+/// Flash HC GEMV threadgroups and threads per group for the three checkpoint matrices.
+pub fn flash_hc_dispatch(input: u32, output: u32) -> Option<(u32, u32)> {
+    match (input, output) {
+        (10240, 320 | 4) => Some((output / 4, 256)),
+        (320, 10240) => Some((output / 32, 256)),
+        _ => None,
+    }
+}
+
+#[test]
+fn hc_dispatch_rejects_inexact_weights_and_covers_all_outputs() {
+    for (k, n, g) in [(10240, 4, 1), (10240, 320, 80), (320, 10240, 320)] {
+        assert_eq!(flash_hc_dispatch(k, n), Some((g, 256)));
+        assert_eq!(flash_hc_dispatch(k - 1, n), None);
+        assert_eq!(flash_hc_dispatch(k, n + 1), None);
+    }
+    assert_eq!(flash_hc_dispatch(0, 0), None);
+    assert_eq!(flash_hc_dispatch(u32::MAX, u32::MAX), None);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn flash_hc_groups_cover_exactly_the_checked_weight_matrix() {
+    let (input, output): (u32, u32) = kani::any();
+    let group: u32 = kani::any();
+    let inside: u32 = kani::any();
+    let k: u32 = kani::any();
+    let plan = flash_hc_dispatch(input, output);
+    assert_eq!(
+        plan.is_some(),
+        [(10240, 320), (10240, 4), (320, 10240)].contains(&(input, output))
+    );
+    if let Some((groups, threads)) = plan {
+        let per = if input == 320 { 32 } else { 4 };
+        assert!(groups * per == output && threads == 256);
+        if group < groups && inside < per && k < input {
+            let index = (group * per + inside) * input + k;
+            assert!(index < input * output);
+            kani::cover!(index == input * output - 1);
+        }
+        kani::cover!(groups == 1);
+    }
+}
