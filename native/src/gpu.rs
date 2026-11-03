@@ -16,12 +16,15 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
 pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
+mod qwen_gdn;
+pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
@@ -35,7 +38,9 @@ pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
 mod projection;
-pub use projection::{FlashExpert, FlashProjection, ProjectionOutput};
+pub use projection::{
+    FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
+};
 
 #[allow(
     unexpected_cfgs,
@@ -176,6 +181,10 @@ pub struct Metal {
     qmv_pipeline: ComputePipelineState,
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
+    dense_qmv: [[ComputePipelineState; 3]; 2],
+    dense_finish: ComputePipelineState,
+    mapped_glu: ComputePipelineState,
+    mapped_mix: ComputePipelineState,
     mtp_hidden_qmv: ComputePipelineState,
     mtp_norm: ComputePipelineState,
     mtp_combine: ComputePipelineState,
@@ -185,6 +194,7 @@ pub struct Metal {
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
     qsa: qsa::Pipelines,
+    model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
     logsumexp: ComputePipelineState,
     ple: ple::Pipelines,
@@ -205,6 +215,14 @@ impl Metal {
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
                 .replace(
+                    "#include \"mapped_expert.metal\"",
+                    include_str!("../shaders/mapped_expert.metal"),
+                )
+                .replace(
+                    "#include \"dense_projection.metal\"",
+                    include_str!("../shaders/dense_projection.metal"),
+                )
+                .replace(
                     "#include \"flash_projection.metal\"",
                     include_str!("../shaders/flash_projection.metal"),
                 )
@@ -220,6 +238,10 @@ impl Metal {
                     "#include \"router_topk.h\"",
                     include_str!("../shaders/router_topk.h"),
                 );
+            let source = source.replace(
+                "#include \"model_ops.metal\"",
+                include_str!("../shaders/model_ops.metal"),
+            );
             let source = source.replace(
                 "#include \"flash_gate.metal\"",
                 include_str!("../shaders/flash_gate.metal"),
@@ -289,6 +311,21 @@ impl Metal {
             let codebook_pipeline = pipeline("exl3_codebook")?;
             let qmv_pipeline = pipeline("exl3_qmv")?;
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
+            let dense_qmv = [
+                [
+                    pipeline("dense_qmv_s4_n1")?,
+                    pipeline("dense_qmv_s4_n2")?,
+                    pipeline("dense_qmv_s4_n4")?,
+                ],
+                [
+                    pipeline("dense_qmv_s8_n1")?,
+                    pipeline("dense_qmv_s8_n2")?,
+                    pipeline("dense_qmv_s8_n4")?,
+                ],
+            ];
+            let dense_finish = pipeline("dense_finish128")?;
+            let mapped_glu = pipeline("mapped_glu")?;
+            let mapped_mix = pipeline("mapped_mix")?;
             let k7_pipeline = pipeline("flash_k7_qmv")?;
             let swiglu_pipeline = pipeline("flash_swiglu")?;
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
@@ -325,6 +362,7 @@ impl Metal {
             let logsumexp = pipeline("flash_logsumexp")?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
+            let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
                 queue,
@@ -334,6 +372,10 @@ impl Metal {
                 qmv_pipeline,
                 prepare128_pipeline,
                 flash_qmv_pipeline,
+                dense_qmv,
+                dense_finish,
+                mapped_glu,
+                mapped_mix,
                 mtp_hidden_qmv,
                 mtp_norm,
                 mtp_combine,
@@ -343,6 +385,7 @@ impl Metal {
                 k7_pipeline,
                 hc,
                 qsa,
+                model_ops,
                 gdn,
                 logsumexp,
                 ple,
