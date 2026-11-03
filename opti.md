@@ -1,5 +1,11 @@
 # MLXL3 — journal des optimisations
 
+## I75-ZERO-N0-2026-11-03 — inventaire avant tout port autonome
+
+Le complément de #75 du 3 novembre à 10:49 UTC fixe zéro MLX comme destination du produit. La décision MLX de la campagne précédente décrit son étape intermédiaire. Base des fondations PR #76 a7eb377c, main b9d5cbdc, PR #72 a6397210 et #74 ede7f3b8 exclues. Réutiliser les oracles et mesures archivés. Avant de changer le runtime, recenser familles/modes, opérations, contrats mémoire et dtype, tests, dépendances des paquets et références MLX dans les sources. Vérifier la barrière sur additions, suppressions, nouveaux fichiers et alias Python dans un dépôt jetable. Travail CPU sans modèle ni mesure de débit. [Complément](https://github.com/0xZKnw/mlxl3/issues/75#issuecomment-6601668261).
+
+- Inventaire statique et première barrière CI validés. 199 fichiers, dont 75 du PonyEXL3 embarqué ; 54 symboles FFI avec déclaration Rust et définition C++, sept types modèle, 148 clés de configuration et 79 références de shader/kernel relevées en Rust. Parcours de test avec nouvel appel via alias, ajout de fichier, baisse de compteur et comparaisons de dictionnaires. Quatre tests ciblés et 86 contrôles avec packaging/quantizer réussis. CrossHair ne confirme pas le contrat général en 20 s. Les fixtures réelles supplémentaires restent ouvertes dans N0. [Registre et références](docs/native-coverage/README.md).
+
 ## I75-MIG-2026-11-03 — qualification M5 terminée, MLX par défaut, prototype Metal optionnel
 
 - Référence de migration. Sources moteur de main b9d5cbdce50aa98adfee560e06da75614e730bd3, séparées d’AR-QUICK et des branches non fusionnées. Construire CLI et libtest release mlx,chat, wheel 0.32.2 sur M5 24 Go, macOS 27.2 26B123. Flash-Next EXL3 65c89531, oracle-07, cache 3 Gio, allocateur 64 Mio, 4 lecteurs, Dynamic/ColdReady/Hot/Wide/Unique activés, MLX 40/40, S/K OFF. Greedy MAIN/HOLD AR B1, 87/82 entrées, 128 sorties, chaque processus une chauffe puis une mesure par prompt. Comparer texte et empreinte à AR-QUICK, oracle indépendant aux cinq pas, puis logits/états/routes des deux prompts pour la migration. Enregistrer identité et commandes par étape.
