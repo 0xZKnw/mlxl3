@@ -205,3 +205,11 @@ mlxl3-rs serve CHECKPOINT --host 127.0.0.1 --port 8000
 python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --context 256
 MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```
+
+### Lectures SSD Flash et trois vagues Metal
+
+Le chemin natif réserve les dix routes de la ligne, déduplique les lectures et garde les contributions dans l’ordre du routeur pour le mélange final. Quatre lecteurs bornés lisent des records EXL3 contigus dans des allocations hôtes possédées. Une commande calcule le partagé et les experts résidents pendant ces lectures. Les deux vagues suivantes consomment uniquement des records complets, dont la génération est encore valide, puis exécutent le mélange. Le test physique bloque le dernier record jusqu’à la soumission de W1 pour exercer les trois commandes. [Trace CPU/GPU et contrôles](ssd/validation.json).
+
+Sur le M5 local, les seize lignes FP16/FP32 du checkpoint et de la tête MTP concordent sur 40 960 coefficients. Les 496 640 logits de deux pas du modèle complet sont également identiques à la CLI indépendante. Les erreurs de métadonnées se reprennent sur le même objet. Les tests CPU couvrent le timeout d’un vrai worker bloqué, le refus de réemploi avant drainage, le refus d’allocation, EOF, les générations et le descripteur du premier tenseur d’un record. [Comparaisons MoE](ssd/rows.json), [continuation complète](ssd/full-model.json).
+
+La copie hôte vers le backing Metal est incluse dans cette implémentation. Le préfetch prédictif, les cohortes multi-lignes et le redimensionnement entre requêtes restent des gates N4 à qualifier. Le débit de ce port est non mesuré.
