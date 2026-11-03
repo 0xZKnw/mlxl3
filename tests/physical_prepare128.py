@@ -18,18 +18,21 @@ def check(cli: Path, report: dict) -> None:
     packets = []
     refs = []
 
-    def add(name, x, scales):
+    def add(name, x, scales, packet=None):
         rows, width = x.shape
         assert scales.shape in ((1, width), (rows, width))
         # Preserve FP16 products and the reference kernel’s two rounding boundaries.
-        product = mx.array(x) * mx.array(scales)
+        product = mx.array(np.ascontiguousarray(x)).astype(mx.float16) * mx.array(
+            np.ascontiguousarray(scales)
+        )
         rotated = mx.hadamard_transform(product.reshape(-1, 128), scale=1.0 / (128**0.5))
         ref = np.array(rotated).reshape(x.shape)
         assert ref.dtype == np.float16 and np.isfinite(ref).all() and ref.size == x.size
         cases.append(name)
         refs.append(ref.view(np.uint16).ravel())
         packets.append(
-            {
+            packet
+            or {
                 "op": "metal-prepare128",
                 "cols": width,
                 "x": x.view(np.uint16).ravel().tolist(),
@@ -50,13 +53,89 @@ def check(cli: Path, report: dict) -> None:
     special[1] = np.float16(-0.0)
     special[2] = np.resize(bits[::-1], 128).view(np.float16)
     add("subnormal-signed-zero", special, np.ones_like(special))
+    # Rank-two NumPy slicing builds the independent reference without deriving indices
+    # from the child's layout. Guard words surround each backing allocation.
+    for width in (128, 640, 2560):
+        rows = 3
+        for dtype in (np.float16, np.float32):
+            base = rng.normal(0, 0.5, (2 * width + 2, rows + 2)).astype(dtype)
+            scales = rng.normal(0, 0.75, (rows + 2, width + 2)).astype(np.float16)
+            for name, x, sv in (
+                ("transpose-reverse", base[1:-1:2, -2:0:-1].T, scales[1:-1, -2:0:-1]),
+                ("negative-row-col", base[-2:0:-2, -2:0:-1].T, scales[-2:0:-1, 1:-1]),
+                (
+                    "row-broadcast",
+                    np.broadcast_to(base[1:-1:2, 1], (rows, width)),
+                    scales[1:-1, 1:-1],
+                ),
+                (
+                    "column-broadcast",
+                    np.broadcast_to(base[1, 1:-1, None], (rows, width)),
+                    np.broadcast_to(scales[1, 1:-1], (rows, width)),
+                ),
+            ):
+
+                def layout(view, backing):
+                    return {
+                        "shape": list(view.shape),
+                        "strides": [v // view.itemsize for v in view.strides],
+                        "offset": (view.ctypes.data - backing.ctypes.data) // view.itemsize,
+                    }
+
+                field = "x" if dtype == np.float16 else "x_f32"
+                raw = base.view(np.uint16) if dtype == np.float16 else base
+                add(
+                    f"view-{name}-{width}-{dtype.__name__}",
+                    x,
+                    sv,
+                    {
+                        "op": "metal-prepare-view",
+                        field: raw.ravel().tolist(),
+                        "x_layout": layout(x, base),
+                        "scale_layout": layout(sv, scales),
+                        "data": scales.view(np.uint16).ravel().tolist(),
+                    },
+                )
     invalid = [
         {"op": "metal-prepare128", "cols": 127, "x": [0] * 127, "data": [0] * 127},
         {"op": "metal-prepare128", "cols": 128, "x": [0] * 128, "data": [0] * 127},
         {"op": "metal-prepare128", "cols": 128, "x": [0] * 127, "data": [0] * 128},
     ]
     empty = {"op": "metal-prepare128", "cols": 128, "x": [], "data": []}
-    stream = [*invalid, empty, *packets]
+    errors = ["expected complete 128-aligned rows"] * len(invalid)
+    view = {"shape": [1, 128], "strides": [0, 0], "offset": 0}
+    zero = {
+        "op": "metal-prepare-view",
+        "x": [0],
+        "data": [0],
+        "x_layout": view,
+        "scale_layout": view,
+    }
+    for fields, error in [
+        ({"x_layout": {**view, "strides": [0, -1]}}, "outside initialized storage"),
+        ({"scale_layout": {**view, "strides": [0, 2**63 - 1]}}, "outside initialized storage"),
+        ({"x_layout": {**view, "offset": -1}}, "outside initialized storage"),
+        ({"x_layout": {**view, "shape": [2, 128]}}, "invalid H128 view shape"),
+        ({"x_f32": [0]}, "conflicting input buffer dtypes"),
+        ({"x_layout": None}, "missing input matrix layout"),
+        ({"scale_layout": None}, "missing scale matrix layout"),
+        (
+            {"x_layout": {**view, "shape": [1, 127]}, "scale_layout": {**view, "shape": [1, 127]}},
+            "128-aligned",
+        ),
+        (
+            {
+                "x_layout": {**view, "shape": [2**31, 128]},
+                "scale_layout": {**view, "shape": [2**31, 128]},
+            },
+            "size overflow",
+        ),
+    ]:
+        invalid.append({**zero, **fields})
+        errors.append(error)
+    one_past = {**view, "shape": [0, 128], "offset": 1}
+    empties = [empty, {**zero, "x_layout": one_past, "scale_layout": one_past}]
+    stream = [*invalid, *empties, *packets]
     child = subprocess.run(
         [cli, "codec"],
         input="".join(json.dumps(p) + "\n" for p in stream),
@@ -75,9 +154,9 @@ def check(cli: Path, report: dict) -> None:
     )
     results = [json.loads(line) for line in child.stdout.splitlines()]
     assert len(results) == len(stream)
-    for result in results[: len(invalid)]:
-        assert "expected complete 128-aligned rows" in result.get("error", ""), result
-    assert results[len(invalid)] == {"data": []}
+    for error, result in zip(errors, results[: len(invalid)], strict=True):
+        assert error in result.get("error", ""), result
+    assert results[len(invalid) : len(invalid) + len(empties)] == [{"data": []}] * len(empties)
     report.update(
         cases={},
         rejected=len(invalid),
@@ -87,7 +166,7 @@ def check(cli: Path, report: dict) -> None:
         oracle_version=importlib.metadata.version("mlx"),
         finite_values=0,
     )
-    for name, ref, result in zip(cases, refs, results[len(invalid) + 1 :], strict=True):
+    for name, ref, result in zip(cases, refs, results[len(invalid) + len(empties) :], strict=True):
         raw = result["data"]
         assert len(raw) == len(ref) and all(type(v) is int and 0 <= v <= 65535 for v in raw)
         actual = np.array(raw, dtype=np.uint16)

@@ -100,7 +100,35 @@ def verify(args, root, report):
                         expert=True,
                     )
                 )
-    (root / "cases.json").write_text(json.dumps(cases))
+    # The stock projection receives ordinary contiguous FP16 rows. Feed the same
+    # values through a reversed, padded backing on the direct path.
+    stock_cases = list(cases)
+    for case in list(cases):
+        if not (
+            case["prefix"].endswith(("cb1", "experts.0", "shared_expert", "gate_proj", "down_proj"))
+        ):
+            continue
+        x = np.asarray(case["x"], dtype=np.uint16).view(np.float16)
+        rows = 3 if len(x) % 3 == 0 else 1
+        width = len(x) // rows
+        strided = x.reshape(rows, width)[::-1, ::-1]
+        storage = np.pad(strided, ((0, 0), (1, 2)), constant_values=7)
+        use_f32 = len(cases) % 2 == 0
+        if use_f32:
+            # Force the GPU to round the FP32 source before multiplication.
+            storage = np.nextafter(storage.astype(np.float32), np.float32(1.0))
+        gathered = storage[::-1, -3:0:-1].astype(np.float16)
+        assert np.array_equal(gathered.view(np.uint16).ravel(), x.view(np.uint16))
+        layout = {"shape": [rows, width], "strides": [-width - 3, -1], "offset": storage.size - 3}
+        packet = {**case, "x_layout": layout}
+        if use_f32:
+            del packet["x"]
+            packet["x_f32"] = storage.ravel().tolist()
+        else:
+            packet["x"] = storage.view(np.uint16).ravel().tolist()
+        cases.append(packet)
+        stock_cases.append(case)
+    (root / "cases.json").write_text(json.dumps(stock_cases))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
     env["MLXL3_PROJECTION_FIXTURES"] = str(root)
     stock = subprocess.run(
@@ -174,6 +202,11 @@ def verify(args, root, report):
             {
                 "projection": case["prefix"],
                 "outputs": len(ref),
+                "input": "view-f32"
+                if "x_f32" in case
+                else "view-f16"
+                if "x_layout" in case
+                else "contiguous",
                 "f16le_sha256": hashlib.sha256(np.asarray(ref, dtype="<u2").tobytes()).hexdigest(),
             }
         )

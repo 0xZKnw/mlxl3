@@ -78,6 +78,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
         "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",

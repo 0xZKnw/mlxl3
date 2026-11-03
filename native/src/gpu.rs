@@ -6,11 +6,39 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 use metal::{
     Buffer, CommandBufferRef, CommandQueue, CompileOptions, ComputePipelineState, Device,
-    MTLCommandBufferStatus, MTLResourceOptions, MTLSize,
+    DeviceRef, MTLCommandBufferStatus, MTLResourceOptions as Storage, MTLSize,
+    foreign_types::ForeignType,
 };
 
+use objc::{msg_send, sel, sel_impl};
+mod view;
+pub use view::{MatrixView, TensorStorage};
 mod projection;
 pub use projection::{FlashExpert, FlashProjection, ProjectionOutput};
+
+#[allow(
+    unexpected_cfgs,
+    reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
+)]
+fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
+    ensure!(
+        length > 0 && length <= device.max_buffer_length(),
+        "invalid Metal buffer length {length}"
+    );
+    // Metal may return nil on allocation failure. A successful new method returns +1.
+    let ptr: *mut objc::runtime::Object =
+        unsafe { msg_send![device, newBufferWithLength:length options:storage] };
+    ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
+    Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
+}
+
+fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
+    let bytes = std::mem::size_of_val(data);
+    let dest = buffer(device, (bytes as u64).max(1), Storage::StorageModeShared)?;
+    // The private-to-this-function allocation is shared-storage and unpublished.
+    unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), dest.contents().cast(), data.len()) };
+    Ok(dest)
+}
 
 pub struct Metal {
     device: Device,
@@ -22,6 +50,7 @@ pub struct Metal {
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
+    prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
     inverse: Buffer,
@@ -64,6 +93,7 @@ impl Metal {
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
             let k7_pipeline = pipeline("flash_k7_qmv")?;
             let swiglu_pipeline = pipeline("flash_swiglu")?;
+            let prepare_view_pipeline = pipeline("flash_prepare_view")?;
             let finish128_pipeline = pipeline("flash_finish128")?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
@@ -75,7 +105,7 @@ impl Metal {
                 .into_iter()
                 .map(|i| i as u16)
                 .collect();
-            let inverse = Self::upload(&device, &perm);
+            let inverse = upload(&device, &perm)?;
             let queue = device.new_command_queue();
             Ok(Self {
                 device,
@@ -87,6 +117,7 @@ impl Metal {
                 prepare128_pipeline,
                 flash_qmv_pipeline,
                 finish128_pipeline,
+                prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
                 inverse,
@@ -98,18 +129,11 @@ impl Metal {
         self.device.name()
     }
 
-    fn upload(device: &Device, data: &[u16]) -> Buffer {
-        // Metal copies the bytes before returning. The Rust slice can then drop.
-        device.new_buffer_with_data(
-            data.as_ptr().cast(),
-            std::mem::size_of_val(data) as u64,
-            MTLResourceOptions::StorageModeShared,
-        )
-    }
-
-    fn output(&self, count: usize) -> Buffer {
-        self.device
-            .new_buffer((count * 2) as u64, MTLResourceOptions::StorageModeShared)
+    fn output(&self, count: usize) -> Result<Buffer> {
+        let bytes = u64::try_from(count)?
+            .checked_mul(2)
+            .context("output size overflow")?;
+        buffer(&self.device, bytes, Storage::StorageModeShared)
     }
 
     fn dispatch(
@@ -141,11 +165,11 @@ impl Metal {
         })
     }
 
-    fn encode(
+    fn encode<T: Copy, const N: usize>(
         command: &CommandBufferRef,
         pipeline: &ComputePipelineState,
         buffers: &[&Buffer],
-        params: [u32; 5],
+        params: [T; N],
         groups: MTLSize,
         threads: usize,
     ) {
@@ -185,8 +209,8 @@ impl Metal {
             encoded.len() <= u32::MAX as usize,
             "Metal input index overflow"
         );
-        let input = Self::upload(&self.device, encoded);
-        let output = self.output(count);
+        let input = upload(&self.device, encoded)?;
+        let output = self.output(count)?;
         self.dispatch(
             &self.pack_pipeline,
             &[&input, &output],
@@ -209,9 +233,9 @@ impl Metal {
         let count =
             contracts::decoded_states(packed.len(), k).context("Metal decode shape overflow")?;
         let n = u32::try_from(count).context("Metal decode index overflow")?;
-        let input = Self::upload(&self.device, packed);
-        let states = self.output(count);
-        let values = self.output(count);
+        let input = upload(&self.device, packed)?;
+        let states = self.output(count)?;
+        let values = self.output(count)?;
         self.dispatch(
             &self.decode_pipeline,
             &[&input, &states, &values],
@@ -223,7 +247,7 @@ impl Metal {
     }
 
     pub fn codebook(&self, cb: Codebook) -> Result<Vec<u16>> {
-        let out = self.output(65536);
+        let out = self.output(65536)?;
         self.dispatch(
             &self.codebook_pipeline,
             &[&out],
@@ -246,9 +270,9 @@ impl Metal {
             self.prepare128_pipeline.max_total_threads_per_threadgroup() >= 64,
             "Metal H128 requires 64 threads per threadgroup"
         );
-        let input = Self::upload(&self.device, x);
-        let scales = Self::upload(&self.device, suh);
-        let output = self.output(x.len());
+        let input = upload(&self.device, x)?;
+        let scales = upload(&self.device, suh)?;
+        let output = self.output(x.len())?;
         self.dispatch(
             &self.prepare128_pipeline,
             &[&input, &scales, &output],
@@ -281,9 +305,9 @@ impl Metal {
         );
         let rows = u32::try_from(rows)?;
         let n = u32::try_from(cols)?;
-        let x = Self::upload(&self.device, x);
-        let packed = Self::upload(&self.device, packed);
-        let y = self.output(cols);
+        let x = upload(&self.device, x)?;
+        let packed = upload(&self.device, packed)?;
+        let y = self.output(cols)?;
         self.dispatch(
             &self.qmv_pipeline,
             &[&x, &packed, &self.inverse, &y],

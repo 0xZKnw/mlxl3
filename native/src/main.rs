@@ -199,6 +199,15 @@ struct CodecRequest {
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     x: Vec<u16>,
     #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    x_f32: Option<Vec<f32>>,
+    #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    x_layout: Option<mlxl3_native::tensor_layout::MatrixLayout>,
+    #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    scale_layout: Option<mlxl3_native::tensor_layout::MatrixLayout>,
+    #[serde(default)]
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     cols: usize,
     #[serde(default)]
@@ -292,6 +301,20 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     tokens: Vec<u32>,
 }
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+impl CodecRequest {
+    fn input_view(&self, gpu: &mlxl3_native::gpu::Metal) -> Result<mlxl3_native::gpu::MatrixView> {
+        let layout = self.x_layout.context("missing input matrix layout")?;
+        let storage = if let Some(data) = &self.x_f32 {
+            anyhow::ensure!(self.x.is_empty(), "conflicting input buffer dtypes");
+            gpu.f32_storage(data)?
+        } else {
+            gpu.f16_storage(&self.x)?
+        };
+        storage.matrix(layout)
+    }
+}
+
 fn default_k() -> usize {
     4
 }
@@ -881,30 +904,51 @@ fn codec_loop() -> Result<()> {
                 | "metal-prepare128"
                 | "metal-checkpoint-linear"
                 | "metal-checkpoint-expert"
-                | "metal-swiglu" => {
+                | "metal-swiglu"
+                | "metal-prepare-view" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-prepare-view" => {
+                            let x = request.input_view(gpu)?;
+                            let scales = gpu.f16_storage(&request.data)?.matrix(
+                                request
+                                    .scale_layout
+                                    .context("missing scale matrix layout")?,
+                            )?;
+                            Ok(json!(gpu.prepare_view(&x, &scales)?))
+                        }
                         "metal-swiglu" => Ok(json!(gpu.swiglu(&request.x, &request.data)?.read()?)),
                         "metal-checkpoint-linear" | "metal-checkpoint-expert" => {
                             let checkpoint =
                                 checkpoint::inspect(std::path::Path::new(&request.path))?;
-                            let flight = if request.op == "metal-checkpoint-expert" {
-                                mlxl3_native::gpu::FlashExpert::load(
-                                    gpu,
-                                    &checkpoint,
-                                    &request.prefix,
-                                )?
-                                .submit(&request.x)?
+                            let view = if request.x_layout.is_some() || request.x_f32.is_some() {
+                                Some(request.input_view(gpu)?)
                             } else {
-                                mlxl3_native::gpu::FlashProjection::load(
+                                None
+                            };
+                            let flight = if request.op == "metal-checkpoint-expert" {
+                                let expert = mlxl3_native::gpu::FlashExpert::load(
                                     gpu,
                                     &checkpoint,
                                     &request.prefix,
-                                )?
-                                .submit(&request.x)?
+                                )?;
+                                match &view {
+                                    Some(x) => expert.submit_fp16_view(x)?,
+                                    None => expert.submit(&request.x)?,
+                                }
+                            } else {
+                                let layer = mlxl3_native::gpu::FlashProjection::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &request.prefix,
+                                )?;
+                                match &view {
+                                    Some(x) => layer.submit_fp16_view(x)?,
+                                    None => layer.submit(&request.x)?,
+                                }
                             };
                             Ok(json!(flight.read()?))
                         }

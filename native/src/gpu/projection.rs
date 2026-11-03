@@ -1,5 +1,5 @@
 //! Resident Flash EXL3 weights and a single retained Metal submission.
-use super::Metal;
+use super::{MatrixView, Metal, buffer, upload};
 use crate::{
     checkpoint::{Checkpoint, TensorInfo},
     codec::Codebook,
@@ -9,9 +9,8 @@ use anyhow::{Context, Result, bail, ensure};
 use half::{bf16, f16};
 use metal::{
     Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize, foreign_types::ForeignType,
+    MTLResourceOptions as Storage, MTLSize,
 };
-use objc::{msg_send, sel, sel_impl};
 use std::os::unix::fs::FileExt;
 
 pub struct FlashProjection<'a> {
@@ -25,6 +24,12 @@ pub struct FlashProjection<'a> {
     k: u32,
     cb: Codebook,
     splits: u32,
+}
+
+#[derive(Clone, Copy)]
+enum Activation<'a> {
+    Contiguous(&'a Buffer),
+    View(&'a MatrixView),
 }
 
 pub struct ProjectionOutput {
@@ -43,30 +48,6 @@ impl ProjectionOutput {
         );
         Ok(Metal::read(&self.buffer, self.count))
     }
-}
-
-#[allow(
-    unexpected_cfgs,
-    reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
-)]
-fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
-    ensure!(
-        length > 0 && length <= device.max_buffer_length(),
-        "invalid Metal buffer length {length}"
-    );
-    // Metal may return nil on allocation failure. A successful new method returns +1.
-    let ptr: *mut objc::runtime::Object =
-        unsafe { msg_send![device, newBufferWithLength:length options:storage] };
-    ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
-    Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
-}
-
-fn upload(device: &DeviceRef, data: &[u16]) -> Result<Buffer> {
-    let bytes = std::mem::size_of_val(data);
-    let dest = buffer(device, bytes as u64, Storage::StorageModeShared)?;
-    // The private-to-this-function allocation is shared-storage and unpublished.
-    unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), dest.contents().cast(), data.len()) };
-    Ok(dest)
 }
 
 fn scale(device: &DeviceRef, tensor: &TensorInfo, width: u32) -> Result<Buffer> {
@@ -190,7 +171,12 @@ impl<'a> FlashProjection<'a> {
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
         let extents = self.extents(x.len())?;
         submit(self.metal, x, |cmd, x| {
-            self.encode(cmd, x, extents, Storage::StorageModeShared)
+            self.encode(
+                cmd,
+                Activation::Contiguous(x),
+                extents,
+                Storage::StorageModeShared,
+            )
         })
     }
 
@@ -204,34 +190,60 @@ impl<'a> FlashProjection<'a> {
             .context("invalid Flash projection batch or index overflow")
     }
 
+    fn view_extents(&self, x: &MatrixView) -> Result<[u32; 3]> {
+        let [rows, cols] = x.layout.shape;
+        ensure!(cols == self.input, "invalid projection view width");
+        contracts::projection_extents(rows, self.input, self.output, self.splits)
+            .context("invalid Flash projection view batch or index overflow")
+    }
+
+    /// Cast the source to FP16 in the preparation kernel.
+    pub fn submit_fp16_view(&self, x: &MatrixView) -> Result<ProjectionOutput> {
+        let extents = self.view_extents(x)?;
+        submit_encoded(self.metal, |cmd| {
+            self.encode(
+                cmd,
+                Activation::View(x),
+                extents,
+                Storage::StorageModeShared,
+            )
+        })
+    }
+
     fn encode(
         &self,
         cmd: &CommandBufferRef,
-        x: &Buffer,
+        x: Activation<'_>,
         [inputs, partials, outputs]: [u32; 3],
         storage: Storage,
     ) -> Result<Buffer> {
-        let batch = inputs / self.input;
         let gpu = self.metal;
+        let batch = inputs / self.input;
         let prepared = buffer(
             &gpu.device,
             u64::from(inputs) * 2,
             Storage::StorageModePrivate,
         )?;
+        match x {
+            Activation::Contiguous(x) => Metal::encode(
+                cmd,
+                &gpu.prepare128_pipeline,
+                &[x, &self.suh, &prepared],
+                [self.input, 0, 0, 0, 0],
+                MTLSize::new(u64::from(inputs / 128), 1, 1),
+                64,
+            ),
+            Activation::View(x) => {
+                let scales = MatrixView::column_scales(&self.suh, batch, self.input)?;
+                gpu.encode_prepare_view(cmd, x, &scales, &prepared)?;
+            }
+        }
         let partial = buffer(
             &gpu.device,
             u64::from(partials) * 4,
             Storage::StorageModePrivate,
         )?;
         let dest = buffer(&gpu.device, u64::from(outputs) * 2, storage)?;
-        Metal::encode(
-            cmd,
-            &gpu.prepare128_pipeline,
-            &[x, &self.suh, &prepared],
-            [self.input, 0, 0, 0, 0],
-            MTLSize::new(u64::from(inputs / 128), 1, 1),
-            64,
-        );
         let (pipeline, third, groups) = if self.k == 7 {
             (&gpu.k7_pipeline, &gpu.inverse, self.output)
         } else {
@@ -273,10 +285,19 @@ fn submit(
     x: &[u16],
     encode: impl FnOnce(&CommandBufferRef, &Buffer) -> Result<Buffer>,
 ) -> Result<ProjectionOutput> {
-    objc::rc::autoreleasepool(|| {
+    submit_encoded(gpu, |cmd| {
         let input = upload(&gpu.device, x)?;
+        encode(cmd, &input)
+    })
+}
+
+pub(super) fn submit_encoded(
+    gpu: &Metal,
+    encode: impl FnOnce(&CommandBufferRef) -> Result<Buffer>,
+) -> Result<ProjectionOutput> {
+    objc::rc::autoreleasepool(|| {
         let cmd = gpu.queue.new_command_buffer();
-        let dest = encode(cmd, &input)?;
+        let dest = encode(cmd)?;
         cmd.commit();
         Ok(ProjectionOutput {
             command: cmd.to_owned(),
@@ -349,21 +370,49 @@ impl<'a> FlashExpert<'a> {
     }
 
     pub fn submit(&self, x: &[u16]) -> Result<ProjectionOutput> {
-        let gpu = self.gate.metal;
-        let gate_extents = self.gate.extents(x.len())?;
-        let up_extents = self.up.extents(x.len())?;
-        let down_extents = self.down.extents(gate_extents[2] as usize)?;
-        submit(gpu, x, |cmd, x| {
-            let gate = self
-                .gate
-                .encode(cmd, x, gate_extents, Storage::StorageModePrivate)?;
-            let up = self
-                .up
-                .encode(cmd, x, up_extents, Storage::StorageModePrivate)?;
-            let activated = gpu.encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
-            self.down
-                .encode(cmd, &activated, down_extents, Storage::StorageModeShared)
+        let extents = self.expert_extents(self.gate.extents(x.len())?)?;
+        submit(self.gate.metal, x, |cmd, x| {
+            self.encode(cmd, Activation::Contiguous(x), extents)
         })
+    }
+
+    pub fn submit_fp16_view(&self, x: &MatrixView) -> Result<ProjectionOutput> {
+        let extents = self.expert_extents(self.gate.view_extents(x)?)?;
+        submit_encoded(self.gate.metal, |cmd| {
+            self.encode(cmd, Activation::View(x), extents)
+        })
+    }
+
+    fn expert_extents(&self, gate: [u32; 3]) -> Result<[[u32; 3]; 3]> {
+        Ok([
+            gate,
+            self.up.extents(gate[0] as usize)?,
+            self.down.extents(gate[2] as usize)?,
+        ])
+    }
+
+    fn encode(
+        &self,
+        cmd: &CommandBufferRef,
+        x: Activation<'_>,
+        [gate_extents, up_extents, down_extents]: [[u32; 3]; 3],
+    ) -> Result<Buffer> {
+        let gate = self
+            .gate
+            .encode(cmd, x, gate_extents, Storage::StorageModePrivate)?;
+        let up = self
+            .up
+            .encode(cmd, x, up_extents, Storage::StorageModePrivate)?;
+        let activated =
+            self.gate
+                .metal
+                .encode_swiglu(cmd, &gate, &up, Storage::StorageModePrivate)?;
+        self.down.encode(
+            cmd,
+            Activation::Contiguous(&activated),
+            down_extents,
+            Storage::StorageModeShared,
+        )
     }
 }
 

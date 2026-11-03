@@ -163,3 +163,21 @@ kernel void flash_swiglu(const device half* gate [[buffer(0)]],
     half sigmoid = g < half(0) ? tail : half(1) - tail;
     dest[i] = (g * sigmoid) * up[i];
 }
+
+kernel void flash_prepare_view(const device uchar* input [[buffer(0)]],
+    const device half* scales [[buffer(1)]], device half* output [[buffer(2)]],
+    constant long* p [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    long start = long(block) * 128, row = start / p[0], col = start % p[0];
+    for (uint i=lane; i<128; i+=64) {
+        long xi = p[1] + row*p[2] + (col+i)*p[3];
+        long si = p[4] + row*p[5] + (col+i)*p[6];
+        half x = p[7] ? half(reinterpret_cast<const device float*>(input)[xi])
+                      : reinterpret_cast<const device half*>(input)[xi];
+        values[i]=float(x * scales[si]);
+    }
+    hadamard128(values,lane);
+    for (uint i=lane; i<128; i+=64)
+        output[start+i]=half(values[i]*as_type<float>(0x3db504f3u));
+}
