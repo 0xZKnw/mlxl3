@@ -1,0 +1,70 @@
+{
+  "codebook": "mcg",
+  "emitted": {
+    "loaded_shape": [
+      128,
+      128
+    ],
+    "out_dir": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/ldlq-metal",
+    "trellis_shape": [
+      8,
+      8,
+      64
+    ]
+  },
+  "k": 4,
+  "module": "model.layers.0.mlp.gate_proj",
+  "quantizer": "ldlq",
+  "requested": {
+    "bits": 4.0,
+    "buf_size_rows": 32,
+    "calibration_activations": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/activations.npy",
+    "calibration_rows": 192,
+    "codebook": "mcg",
+    "fast_layer_metrics": true,
+    "head_bits": 6,
+    "hessian_shrinkage": 0.0,
+    "hessian_shrinkage_source": "default",
+    "ldlq_feedback_rows": 16,
+    "only_layer": null,
+    "oracle_metrics": false,
+    "out_dir": "/Users/justin/.codex/worktrees/issue75-native-converter-host/mix-stq1_0/build/issue75host/physical-02/ldlq-metal",
+    "regularization_seed": 0,
+    "resume": false,
+    "scale_mode": "identity",
+    "search_backend": "metal",
+    "sigma_reg": 0.025,
+    "skip_g_scale": false,
+    "work_dir": null
+  },
+  "scale_mode": "identity",
+  "search_backend": "metal",
+  "shape": [
+    128,
+    128
+  ],
+  "stats": {
+    "activations_mlx_hadamard": false,
+    "basis_mlx_hadamard": false,
+    "fast_metrics": true,
+    "hessian_diag_mean": 1.1342090368270874,
+    "hessian_offdiag_rel": 0.08127764827903186,
+    "hessian_offdiag_rel_unshrunk": 0.08127764827903186,
+    "hessian_shrinkage": 0.0,
+    "inner_mse": 0.004327820148319006,
+    "inner_rel_rms": 0.13123996126881296,
+    "ldl_retries": 0.0,
+    "ldlq_feedback_rows": 16.0,
+    "mlx_ldlq": true,
+    "mlx_packed_deferred": true,
+    "oracle_metrics": false,
+    "output_mse": NaN,
+    "output_rel_rms": NaN,
+    "pack_roundtrip": true,
+    "public_mse": NaN,
+    "public_rel_rms": NaN,
+    "regularize_computed_scales": false,
+    "suh_zero_replacements": 0.0,
+    "svh_zero_replacements": 0.0
+  }
+}

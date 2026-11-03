@@ -7,12 +7,19 @@ use mlxl3_native::{
     streaming::ThinkingSplitter,
 };
 use serde::Deserialize;
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 use serde::Serialize;
 use serde_json::{Value, json};
 #[cfg(all(feature = "mlx", feature = "chat"))]
+use std::collections::VecDeque;
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 use std::{
-    collections::VecDeque,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -20,9 +27,38 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+mod direct_bridge;
 #[cfg(all(feature = "mlx", feature = "chat"))]
 mod mtp_tune;
-#[cfg(any(test, all(feature = "mlx", feature = "chat")))]
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+use direct_bridge::{ChatMtpHead, NativeChatModel, PromptCache};
+#[cfg(all(feature = "mlx", feature = "chat"))]
+type RoundDraft = mlxl3_native::dflash::DFlashWeights;
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+type RoundDraft = mlxl3_native::native_draft::Session;
+#[cfg(any(
+    test,
+    all(
+        feature = "chat",
+        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+    )
+))]
 mod openai;
 use std::{
     io::{self, BufRead, Read, Write},
@@ -69,6 +105,31 @@ enum Command {
     },
     /// JSON-line codec oracle used for differential tests (not a chat bridge).
     Codec,
+    /// Quantize complete FP32 kernel-order tiles with the autonomous Metal trellis.
+    QuantizeTiles {
+        input: PathBuf,
+        output: PathBuf,
+        #[arg(long)]
+        k: u32,
+        #[arg(long, default_value_t = 0)]
+        codebook: u32,
+        #[arg(long, default_value_t = 256 * 1024 * 1024)]
+        max_scratch_bytes: u64,
+    },
+    /// Multiply finite FP32 matrices for the converter's feedback boundary.
+    ConvertMatmul {
+        left: PathBuf,
+        right: PathBuf,
+        output: PathBuf,
+        #[arg(long)]
+        m: u32,
+        #[arg(long)]
+        n: u32,
+        #[arg(long)]
+        k: u32,
+        #[arg(long)]
+        full_fp32: bool,
+    },
     /// Feed a JSON array of text chunks on stdin; return reasoning/answer fragments.
     Split {
         #[arg(long, default_value = "")]
@@ -193,6 +254,9 @@ struct CodecRequest {
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     prefix: String,
     #[serde(default)]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
+    prefixes: Vec<String>,
+    #[serde(default)]
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     slots: Option<usize>,
     #[serde(default)]
@@ -238,13 +302,13 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     g: Vec<f32>,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     beta: Vec<u16>,
     #[serde(default)]
     #[cfg(feature = "mlx")]
     state: Vec<f32>,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     key_heads: usize,
     #[serde(default)]
     #[cfg(feature = "mlx")]
@@ -265,7 +329,7 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     scale: f32,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     selected: Vec<u32>,
     #[serde(default)]
     #[cfg(feature = "mlx")]
@@ -726,6 +790,56 @@ fn codec_loop() -> Result<()> {
                     Ok(json!(output.to_f16_bits()?))
                 }
                 #[cfg(feature = "mlx")]
+                "mlx-checkpoint-group" => {
+                    use mlxl3_native::{
+                        array::Array,
+                        linear::{Exl3Group, Exl3Linear},
+                    };
+                    let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    anyhow::ensure!(!request.prefixes.is_empty(), "empty projection bundle");
+                    let layers = request
+                        .prefixes
+                        .iter()
+                        .map(|p| Exl3Linear::from_checkpoint(&c, p))
+                        .collect::<Result<Vec<_>>>()?;
+                    let grouped = Exl3Group::compatible(&layers.iter().collect::<Vec<_>>());
+                    let input =
+                        Array::from_f16_bits(&request.x, &[1, i32::try_from(request.x.len())?])?;
+                    let outputs = if grouped {
+                        Exl3Group::new(layers)?.forward(&input)?
+                    } else {
+                        layers
+                            .iter()
+                            .map(|p| p.forward(&input))
+                            .collect::<Result<Vec<_>>>()?
+                    };
+                    Ok(
+                        json!({"grouped":grouped,"outputs":outputs.iter().map(|v|v.to_f16_bits()).collect::<Result<Vec<_>>>()?}),
+                    )
+                }
+                #[cfg(feature = "mlx")]
+                "mlx-checkpoint-switch" => {
+                    use mlxl3_native::{array::Array, moe::Exl3SwitchGlu};
+                    let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                    let experts = i32::try_from(request.key_heads)?;
+                    let count = i32::try_from(request.selected.len())?;
+                    let input = i32::try_from(request.x.len())?;
+                    let layer = if c.model_type == "lfm2_moe" {
+                        Exl3SwitchGlu::from_lfm_checkpoint(&c, &request.prefix, experts, count)?
+                    } else {
+                        Exl3SwitchGlu::from_checkpoint(&c, &request.prefix, experts, count)?
+                    };
+                    Ok(json!(
+                        layer
+                            .forward(
+                                &Array::from_f16_bits(&request.x, &[1, input])?,
+                                &Array::from_u32(&request.selected, &[1, count])?,
+                                &Array::from_f16_bits(&request.beta, &[1, count])?
+                            )?
+                            .to_f16_bits()?
+                    ))
+                }
+                #[cfg(feature = "mlx")]
                 "mlx-qwen-moe" => {
                     use mlxl3_native::{array::Array, checkpoint, qwen35::Moe};
                     let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
@@ -744,7 +858,7 @@ fn codec_loop() -> Result<()> {
                     Ok(json!(output.to_f16_bits()?))
                 }
                 #[cfg(feature = "mlx")]
-                "mlx-qwen-gdn" => {
+                "mlx-qwen-gdn" | "mlx-qwen-gdn-sequence" => {
                     use mlxl3_native::{array::Array, checkpoint, qwen35::GatedDelta};
                     let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
                     let hidden = i32::try_from(request.cols)?;
@@ -783,8 +897,27 @@ fn codec_loop() -> Result<()> {
                             })
                             .transpose()?,
                     )?;
-                    let output =
-                        block.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?;
+                    let output = if request.op == "mlx-qwen-gdn-sequence" {
+                        anyhow::ensure!(
+                            hidden > 0
+                                && !request.x.is_empty()
+                                && request.x.len().is_multiple_of(hidden as usize),
+                            "invalid Qwen sequence rows"
+                        );
+                        let mut rows = Vec::new();
+                        for row in request.x.chunks_exact(hidden as usize) {
+                            let output =
+                                block.forward(&Array::from_f16_bits(row, &[1, 1, hidden])?)?;
+                            output.eval()?;
+                            let (conv, state) = block.states()?;
+                            conv.eval()?;
+                            state.eval()?;
+                            rows.push(output);
+                        }
+                        Array::concatenate(&rows.iter().collect::<Vec<_>>(), 1)?
+                    } else {
+                        block.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?
+                    };
                     let (conv, recurrent) = block.states()?;
                     Ok(json!({
                         "output": output.to_f16_bits()?,
@@ -930,6 +1063,10 @@ fn codec_loop() -> Result<()> {
                 | "metal-qmv"
                 | "metal-prepare128"
                 | "metal-checkpoint-linear"
+                | "metal-exl3-linear"
+                | "metal-qwen-gdn"
+                | "metal-checkpoint-switch"
+                | "metal-checkpoint-group"
                 | "metal-checkpoint-expert"
                 | "metal-swiglu"
                 | "metal-prepare-view"
@@ -1149,6 +1286,104 @@ fn codec_loop() -> Result<()> {
                             }
                             Ok(json!(results))
                         }
+                        "metal-checkpoint-group" => {
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let layer = mlxl3_native::gpu::ProjectionGroup::load(
+                                gpu,
+                                &c,
+                                &request.prefixes,
+                            )?;
+                            let input = if request.x_layout.is_some() {
+                                request.input_view(gpu)?
+                            } else {
+                                anyhow::ensure!(
+                                    request.x.len() == layer.input_width() as usize,
+                                    "invalid grouped input row length"
+                                );
+                                gpu.f16_storage(&request.x)?.matrix(
+                                    mlxl3_native::tensor_layout::MatrixLayout {
+                                        shape: [1, layer.input_width()],
+                                        strides: [i64::from(layer.input_width()), 1],
+                                        offset: 0,
+                                    },
+                                )?
+                            };
+                            let outputs = layer
+                                .forward(&input)?
+                                .iter()
+                                .map(|v| v.read_output())
+                                .collect::<Result<Vec<_>>>()?;
+                            Ok(json!({"grouped":layer.is_grouped(),"outputs":outputs}))
+                        }
+                        "metal-checkpoint-switch" => {
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let names = if c.model_type == "lfm2_moe" {
+                                ["w1", "w3", "w2"]
+                            } else {
+                                ["gate_proj", "up_proj", "down_proj"]
+                            };
+                            let layer = mlxl3_native::gpu::MappedSwitchGlu::load(
+                                gpu,
+                                &c,
+                                &request.prefix,
+                                u32::try_from(request.key_heads)?,
+                                u32::try_from(request.selected.len())?,
+                                names,
+                            )?;
+                            anyhow::ensure!(
+                                request.x.len() == layer.hidden_size() as usize,
+                                "invalid mapped input row length"
+                            );
+                            let input = gpu.f16_storage(&request.x)?.matrix(
+                                mlxl3_native::tensor_layout::MatrixLayout {
+                                    shape: [1, layer.hidden_size()],
+                                    strides: [i64::from(layer.hidden_size()), 1],
+                                    offset: 0,
+                                },
+                            )?;
+                            let count = u32::try_from(request.beta.len())?;
+                            let scores = gpu.f16_storage(&request.beta)?.matrix(
+                                mlxl3_native::tensor_layout::MatrixLayout {
+                                    shape: [1, count],
+                                    strides: [i64::from(count), 1],
+                                    offset: 0,
+                                },
+                            )?;
+                            Ok(json!(
+                                layer
+                                    .forward(&input, &request.selected, &scores)?
+                                    .read_output()?
+                            ))
+                        }
+                        "metal-qwen-gdn" => {
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let mut layer = mlxl3_native::gpu::QwenGdn::from_checkpoint(
+                                gpu,
+                                &c,
+                                &request.prefix,
+                            )?;
+                            let width = layer.hidden_size();
+                            anyhow::ensure!(
+                                !request.x.is_empty()
+                                    && request.x.len().is_multiple_of(width as usize),
+                                "invalid Qwen GDN input rows"
+                            );
+                            let mut output = Vec::new();
+                            for row in request.x.chunks_exact(width as usize) {
+                                let input = gpu.f16_storage(row)?.matrix(
+                                    mlxl3_native::tensor_layout::MatrixLayout {
+                                        shape: [1, width],
+                                        strides: [i64::from(width), 1],
+                                        offset: 0,
+                                    },
+                                )?;
+                                output.extend(layer.forward(&input)?.read_output()?);
+                            }
+                            let states = layer.states()?.context("missing Qwen GDN state")?;
+                            Ok(
+                                json!({"output":output,"conv_state":states.conv_state,"state":states.state}),
+                            )
+                        }
                         "metal-checkpoint-router" => {
                             let input = request.input_view(gpu)?;
                             let checkpoint =
@@ -1182,7 +1417,9 @@ fn codec_loop() -> Result<()> {
                             Ok(json!(gpu.prepare_view(&x, &scales)?))
                         }
                         "metal-swiglu" => Ok(json!(gpu.swiglu(&request.x, &request.data)?.read()?)),
-                        "metal-checkpoint-linear" | "metal-checkpoint-expert" => {
+                        "metal-checkpoint-linear"
+                        | "metal-checkpoint-expert"
+                        | "metal-exl3-linear" => {
                             let checkpoint =
                                 checkpoint::inspect(std::path::Path::new(&request.path))?;
                             let view = if request.x_layout.is_some() || request.x_f32.is_some() {
@@ -1201,11 +1438,12 @@ fn codec_loop() -> Result<()> {
                                     None => expert.submit(&request.x)?,
                                 }
                             } else {
-                                let layer = mlxl3_native::gpu::FlashProjection::load(
-                                    gpu,
-                                    &checkpoint,
-                                    &request.prefix,
-                                )?;
+                                let load = if request.op == "metal-exl3-linear" {
+                                    mlxl3_native::gpu::FlashProjection::load_exl3
+                                } else {
+                                    mlxl3_native::gpu::FlashProjection::load
+                                };
+                                let layer = load(gpu, &checkpoint, &request.prefix)?;
                                 match &view {
                                     Some(x) => layer.submit_fp16_view(x)?,
                                     None => layer.submit(&request.x)?,
@@ -1257,6 +1495,38 @@ fn main() -> std::process::ExitCode {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
+        Command::QuantizeTiles {
+            input,
+            output,
+            k,
+            codebook,
+            max_scratch_bytes,
+        } => {
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            mlxl3_native::quantize::run_tiles(&input, &output, k, codebook, max_scratch_bytes)?;
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            {
+                let _ = (input, output, k, codebook, max_scratch_bytes);
+                bail!("tile quantization requires native Metal on macOS");
+            }
+        }
+        Command::ConvertMatmul {
+            left,
+            right,
+            output,
+            m,
+            n,
+            k,
+            full_fp32,
+        } => {
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            mlxl3_native::convert_matmul::run(&left, &right, &output, m, n, k, full_fp32)?;
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            {
+                let _ = (left, right, output, m, n, k, full_fp32);
+                bail!("converter matrix multiplication requires native Metal on macOS");
+            }
+        }
         Command::RuntimeInfo => {
             println!(
                 "{}",
@@ -1265,6 +1535,7 @@ fn run(cli: Cli) -> Result<()> {
                     "bridge_protocol": 1,
                     "architecture": std::env::consts::ARCH,
                     "mlx_enabled": cfg!(feature = "mlx"),
+                    "backend": if cfg!(feature = "mlx") { "mlx" } else if cfg!(all(target_os = "macos", feature = "direct-metal")) { "metal" } else { "cpu" },
                     "chat_enabled": cfg!(feature = "chat"),
                     "commit": env!("MLXL3_BUILD_REVISION"),
                     "profile": env!("MLXL3_BUILD_PROFILE")
@@ -1357,6 +1628,7 @@ fn run(cli: Cli) -> Result<()> {
             let gpu = mlxl3_native::gpu::Metal::new()?;
             let c = checkpoint::inspect(&model)?;
             let mut target = mlxl3_native::gpu::FlashNext::load(&gpu, &c, tokens.len() as u32)?;
+            target.admit_request(tokens.len())?;
             let mut out = io::stdout().lock();
             #[derive(serde::Serialize)]
             struct Row {
@@ -1496,10 +1768,20 @@ fn run(cli: Cli) -> Result<()> {
         } => {
             #[cfg(all(feature = "mlx", feature = "chat"))]
             native_bridge(cli.registry.as_deref(), &model, context_length)?;
-            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            #[cfg(all(
+                not(feature = "mlx"),
+                feature = "chat",
+                target_os = "macos",
+                feature = "direct-metal"
+            ))]
+            direct_bridge::run(cli.registry.as_deref(), &model, context_length)?;
+            #[cfg(not(all(
+                feature = "chat",
+                any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+            )))]
             {
                 let _ = (model, context_length);
-                bail!("the Desktop bridge requires a build with --features mlx,chat");
+                bail!("the Desktop bridge requires chat and an inference backend");
             }
         }
         Command::Serve {
@@ -1509,7 +1791,10 @@ fn run(cli: Cli) -> Result<()> {
             api_key,
             context_length,
         } => {
-            #[cfg(all(feature = "mlx", feature = "chat"))]
+            #[cfg(all(
+                feature = "chat",
+                any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+            ))]
             {
                 let runtime = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -1523,10 +1808,13 @@ fn run(cli: Cli) -> Result<()> {
                     context_length,
                 ))?;
             }
-            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            #[cfg(not(all(
+                feature = "chat",
+                any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+            )))]
             {
                 let _ = (model, host, port, api_key, context_length);
-                bail!("the OpenAI API requires a build with --features mlx,chat");
+                bail!("the OpenAI API requires chat and an inference backend");
             }
         }
         Command::Hub {
@@ -1928,7 +2216,10 @@ impl NativeChatModel {
     }
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[derive(Deserialize)]
 struct BridgeRequest {
     #[serde(rename = "type")]
@@ -1973,7 +2264,10 @@ struct BridgeRequest {
     mtp_depth: usize,
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn default_mtp_depth() -> usize {
     1
 }
@@ -2094,7 +2388,10 @@ struct DFlashChat {
     lookup_blocks: usize,
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn reuse_cache_by_default() -> bool {
     true
 }
@@ -2545,17 +2842,26 @@ fn dflash_runtime_key(base: &str, copy: bool) -> String {
     format!("{base}:dflash-v4:copy={}", u8::from(copy))
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn unlimited_tokens() -> i64 {
     -1
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn unit_penalty() -> f32 {
     1.0
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[derive(Clone, Default, Serialize)]
 struct NativeStats {
     ttft_seconds: f64,
@@ -2578,13 +2884,13 @@ struct NativeStats {
     draft_load_seconds: f64,
     tool_rounds: usize,
     round_count: usize,
-    memory: Option<mlxl3_native::array::MemoryStats>,
+    memory: Option<mlxl3_native::runtime_stats::MemoryStats>,
     dflash_proposed_tokens: Option<usize>,
     dflash_accepted_tokens: Option<usize>,
     dflash_blocks: Option<usize>,
     dflash_lookup_blocks: Option<usize>,
     dflash_block_seconds: f64,
-    dflash_profile: Option<mlxl3_native::qwen4::FlashDraftProfile>,
+    dflash_profile: Option<mlxl3_native::runtime_stats::FlashDraftProfile>,
     mtp_proposed_tokens: Option<usize>,
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
@@ -2592,7 +2898,10 @@ struct NativeStats {
     mtp_depth_blocks: Option<[usize; 4]>,
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 impl NativeStats {
     fn accumulate(&mut self, round: &Self) {
         self.prompt_tokens += round.prompt_tokens;
@@ -2657,7 +2966,10 @@ impl NativeStats {
     }
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 struct RoundOutput {
     stop_reason: mlxl3_native::GenerationStopReason,
     raw: String,
@@ -2667,7 +2979,10 @@ struct RoundOutput {
     token_hash: String,
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn token_hash(tokens: &[u32]) -> String {
     let mut hash = 0xcbf29ce484222325u64;
     for token in tokens {
@@ -2678,7 +2993,10 @@ fn token_hash(tokens: &[u32]) -> String {
     format!("{hash:016x}")
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn emit_event(value: Value) -> Result<()> {
     let mut stdout = io::stdout().lock();
     serde_json::to_writer(&mut stdout, &value)?;
@@ -2711,7 +3029,28 @@ fn select_token(
             .next()
             .context("model returned no logits");
     }
-    let mut values = logits.log_probs()?.to_f32()?;
+    sample_values(
+        logits.log_probs()?.to_f32()?,
+        generated,
+        temperature,
+        top_k,
+        repetition_penalty,
+        random,
+    )
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+fn sample_values(
+    mut values: Vec<f32>,
+    generated: &[u32],
+    temperature: f32,
+    top_k: usize,
+    repetition_penalty: f32,
+    random: &mut u64,
+) -> Result<u32> {
     if repetition_penalty != 1. {
         for &token in generated.iter().rev().take(20) {
             if let Some(value) = values.get_mut(token as usize) {
@@ -2774,7 +3113,10 @@ fn select_token(
     Ok(candidates.last().expect("nonempty candidates").0 as u32)
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn bridge_emit_delta(
     request_id: &str,
     phase: &str,
@@ -2791,7 +3133,41 @@ fn bridge_emit_delta(
     Ok(())
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl BridgeRequest {
+    fn greedy_unpenalized(&self) -> bool {
+        (self.temperature == 0. || self.top_k == 1) && self.repetition_penalty == 1.
+    }
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+fn emit_generation_mode(
+    request: &BridgeRequest,
+    mtp: bool,
+    dflash: bool,
+    proposals: usize,
+    path: Option<String>,
+) -> Result<()> {
+    emit_event(json!({
+        "type":"generation_mode", "request_id":request.request_id,
+        "dflash_requested":request.dflash2,"dflash_active":dflash,
+        "mtp_requested":request.mtp, "mtp_active":mtp, "mtp_depth":if mtp { request.mtp_depth } else { 0 },
+        "mtp_reason":if request.mtp && !mtp { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
+        "dflash_proposals":proposals, "dflash_mode":if dflash { request.dflash_mode } else { 0 },
+        "dflash_draft_path":path
+    }))
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[allow(clippy::too_many_arguments)]
 fn bridge_generate_round(
     model: &mut NativeChatModel,
@@ -2807,7 +3183,7 @@ fn bridge_generate_round(
     resident_gb: f64,
     cancelled: &AtomicBool,
     random: &mut u64,
-    draft: Option<&mlxl3_native::dflash::DFlashWeights>,
+    draft: Option<&RoundDraft>,
     mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
     dflash_mode: usize,
@@ -2840,6 +3216,7 @@ fn bridge_generate_round(
     } else {
         usize::try_from(max_tokens)?.min(available)
     };
+    #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &mut *model
         && let Some(plan) = target.admit_request(tokens.len() + budget)?
     {
@@ -2848,36 +3225,58 @@ fn bridge_generate_round(
             "memory":target.memory_ledger(None)?}),
         )?;
     }
+    #[cfg(not(feature = "mlx"))]
+    if let Some(plan) = model.admit_request(tokens.len() + budget)? {
+        emit_event(
+            json!({"type":"flash_memory_plan","request_id":request_id,"ar":plan,"memory":model.memory_ledger(None)?}),
+        )?;
+    }
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
-    let (mut logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
-        match head {
-            ChatMtpHead::Qwen(head) => {
-                prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+    #[cfg(feature = "mlx")]
+    let (mut logits, mut dflash, cached, mut mtp_session) = {
+        let (logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
+            match head {
+                ChatMtpHead::Qwen(head) => {
+                    prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+                }
+                ChatMtpHead::Flash(head) => {
+                    prefill_flash_mtp(model, head, &tokens, cache, cancelled)?
+                }
             }
-            ChatMtpHead::Flash(head) => prefill_flash_mtp(model, head, &tokens, cache, cancelled)?,
+        } else {
+            prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
+        };
+        if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+            session.configure(dflash_mode, weights.family, &tokens);
         }
-    } else {
-        prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
+        let mut mtp_session = mtp
+            .as_ref()
+            .map(|head| ChatMtpSession::new(head, mtp_depth))
+            .transpose()?;
+        if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
+            && let Some(session) = &mut mtp_session
+        {
+            session.enable_adaptive();
+        }
+        if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
+            && let Some(session) = &mut mtp_session
+        {
+            session.enable_prompt_lookup(&tokens);
+        }
+        (logits, dflash, cached, mtp_session)
     };
-    if let Some((session, weights)) = dflash.as_mut().zip(draft) {
-        session.configure(dflash_mode, weights.family, &tokens);
-    }
-    let mut mtp_session = mtp
-        .as_ref()
-        .map(|head| ChatMtpSession::new(head, mtp_depth))
-        .transpose()?;
-    if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
-        && let Some(session) = &mut mtp_session
-    {
-        session.enable_adaptive();
-    }
-    if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
-        && let Some(session) = &mut mtp_session
-    {
-        session.enable_prompt_lookup(&tokens);
-    }
+    #[cfg(not(feature = "mlx"))]
+    let (mut logits, cached, mut mtp_session) = {
+        let _ = (dflash_mode, cache, conversation, reuse);
+        if let Some(draft) = draft {
+            (draft.prefill(model, &tokens, cancelled)?, 0, None)
+        } else {
+            direct_bridge::prefill(model, mtp.as_deref_mut(), &tokens, mtp_depth, cancelled)?
+        }
+    };
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
+    #[cfg(feature = "mlx")]
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
@@ -2898,14 +3297,26 @@ fn bridge_generate_round(
         let next = if let Some(token) = dflash_next.take() {
             token
         } else {
-            select_token(
+            #[cfg(feature = "mlx")]
+            let sampled = select_token(
                 &logits,
                 &generated,
                 temperature,
                 top_k,
                 repetition_penalty,
                 random,
-            )?
+            )?;
+            #[cfg(not(feature = "mlx"))]
+            let sampled = direct_bridge::select(
+                model,
+                &logits,
+                &generated,
+                temperature,
+                top_k,
+                repetition_penalty,
+                random,
+            )?;
+            sampled
         };
         if tokenizer.eos_ids().contains(&next) {
             eos_observed = true;
@@ -2955,35 +3366,53 @@ fn bridge_generate_round(
             last_tool_progress = Some(Instant::now());
         }
         if generated.len() < budget {
+            #[cfg(feature = "mlx")]
+            {
+                if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
+                    dflash_next = Some(session.advance(
+                        model,
+                        head,
+                        next,
+                        context_limit,
+                        budget - generated.len(),
+                        |ids| {
+                            tokenizer
+                                .tokenizer()
+                                .decode(ids, false)
+                                .is_ok_and(|s| s.contains('\n'))
+                        },
+                    )?);
+                } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+                    let NativeChatModel::Qwen(target) = &mut *model else {
+                        bail!("DFlash2 requires a supported Qwen target")
+                    };
+                    dflash_next = Some(session.advance(
+                        target,
+                        weights,
+                        next,
+                        context_limit,
+                        budget - generated.len(),
+                    )?);
+                } else if let NativeChatModel::Flash(target) = &mut *model
+                    && target.dflash2_active()
+                {
+                    dflash_next = Some(target.advance_dflash2(next, budget - generated.len())?);
+                } else {
+                    logits = model.forward(next)?;
+                }
+            }
+            #[cfg(not(feature = "mlx"))]
             if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
                 dflash_next = Some(session.advance(
                     model,
                     head,
                     next,
-                    context_limit,
-                    budget - generated.len(),
-                    |ids| {
-                        tokenizer
-                            .tokenizer()
-                            .decode(ids, false)
-                            .is_ok_and(|s| s.contains('\n'))
-                    },
-                )?);
-            } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
-                let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires a supported Qwen target")
-                };
-                dflash_next = Some(session.advance(
-                    target,
-                    weights,
-                    next,
-                    context_limit,
+                    u32::try_from(context_limit)?,
                     budget - generated.len(),
                 )?);
-            } else if let NativeChatModel::Flash(target) = &mut *model
-                && target.dflash2_active()
-            {
-                dflash_next = Some(target.advance_dflash2(next, budget - generated.len())?);
+            } else if let Some(draft) = draft {
+                dflash_next =
+                    Some(draft.advance(model, next, context_limit, budget - generated.len())?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -3026,10 +3455,12 @@ fn bridge_generate_round(
             bridge_emit_delta(request_id, "answer", &text, buffer_output, &mut answer)?;
         }
     }
+    #[cfg(feature = "mlx")]
     if let Some(capture) = gpu_capture {
         capture.finish()?;
     }
     let elapsed = started.elapsed().as_secs_f64();
+    #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &*model
         && target.request_memory_limit().is_some()
     {
@@ -3054,20 +3485,57 @@ fn bridge_generate_round(
         decode_seconds: elapsed - ttft,
         decode_tokens: generated.len().saturating_sub(1),
         round_count: 1,
+        #[cfg(feature = "mlx")]
         memory: mlxl3_native::array::memory_stats(false).ok(),
+        #[cfg(feature = "mlx")]
         dflash_proposed_tokens: dflash.as_ref().map(|session| session.proposed),
+        #[cfg(feature = "mlx")]
         dflash_accepted_tokens: dflash.as_ref().map(|session| session.accepted),
+        #[cfg(feature = "mlx")]
         dflash_blocks: dflash.as_ref().map(|session| session.blocks),
+        #[cfg(feature = "mlx")]
         dflash_lookup_blocks: dflash.as_ref().map(|session| session.lookup_blocks),
+        #[cfg(feature = "mlx")]
         dflash_block_seconds: dflash.as_ref().map_or(0., |session| session.block_seconds),
+        #[cfg(feature = "mlx")]
         mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.stats().0),
+        #[cfg(feature = "mlx")]
         mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.stats().1),
+        #[cfg(feature = "mlx")]
         mtp_blocks: mtp_session.as_ref().map(|s| s.stats().2),
+        #[cfg(feature = "mlx")]
         mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.stats().3),
+        #[cfg(feature = "mlx")]
         mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
+        #[cfg(not(feature = "mlx"))]
+        memory: model.memory_stats().ok(),
+        #[cfg(not(feature = "mlx"))]
+        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
+        #[cfg(not(feature = "mlx"))]
+        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
+        #[cfg(not(feature = "mlx"))]
+        mtp_blocks: mtp_session.as_ref().map(|s| s.proposed),
+        #[cfg(not(feature = "mlx"))]
+        dflash_proposed_tokens: draft.map(|s| s.stats().0),
+        #[cfg(not(feature = "mlx"))]
+        dflash_accepted_tokens: draft.map(|s| s.stats().1),
+        #[cfg(not(feature = "mlx"))]
+        dflash_blocks: draft.map(|s| s.stats().2),
+        #[cfg(not(feature = "mlx"))]
+        dflash_profile: draft.map(|s| s.profile()),
+        #[cfg(not(feature = "mlx"))]
+        dflash_lookup_blocks: draft.map(|_| 0),
+        #[cfg(not(feature = "mlx"))]
+        dflash_block_seconds: draft.map_or(0., |d| {
+            let p = d.profile();
+            p.draft_seconds + p.verification_seconds + p.commit_cache_seconds
+        }),
+
         ..Default::default()
     };
+    #[cfg(feature = "mlx")]
     let mut stats = stats;
+    #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &*model
         && let Some((proposed, accepted, blocks, seconds)) = target.dflash2_stats()
     {
@@ -3091,7 +3559,10 @@ fn bridge_generate_round(
     })
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn validated_bridge_messages(messages: Vec<Value>) -> Result<Vec<Value>> {
     let mut output = Vec::new();
     for mut message in messages {
@@ -3135,7 +3606,10 @@ fn validated_bridge_messages(messages: Vec<Value>) -> Result<Vec<Value>> {
     Ok(output)
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[allow(clippy::too_many_arguments)]
 fn bridge_generate(
     model: &mut NativeChatModel,
@@ -3151,7 +3625,7 @@ fn bridge_generate(
     cancelled: &AtomicBool,
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
-    draft: Option<&mlxl3_native::dflash::DFlashWeights>,
+    draft: Option<&RoundDraft>,
     mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
     dflash_mode: usize,
@@ -3780,15 +4254,14 @@ fn native_bridge(
                 }
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
+                let memory_saver = request.memory_saver;
                 let result = (|| -> Result<()> {
                     let mut draft_load_seconds = 0.;
                     anyhow::ensure!(
                         !(request.mtp && request.dflash2),
                         "Choose either MTP or DFlash2"
                     );
-                    let mtp_active = request.mtp
-                        && (request.temperature == 0. || request.top_k == 1)
-                        && request.repetition_penalty == 1.;
+                    let mtp_active = request.mtp && request.greedy_unpenalized();
                     if mtp_active {
                         anyhow::ensure!(
                             (1..=3).contains(&request.mtp_depth),
@@ -3824,8 +4297,7 @@ fn native_bridge(
                             "DFlash mode must be 1, 2 or 3"
                         );
                         anyhow::ensure!(
-                            (request.temperature == 0. || request.top_k == 1)
-                                && request.repetition_penalty == 1.,
+                            request.greedy_unpenalized(),
                             "DFlash2 requires greedy sampling and repetition penalty 1.0"
                         );
                         let draft_started = Instant::now();
@@ -3856,17 +4328,31 @@ fn native_bridge(
                     let flash_dflash =
                         matches!(&model, NativeChatModel::Flash(target) if target.dflash2_active());
                     let dflash_active = dflash_weights.is_some() || flash_dflash;
-                    emit_event(json!({
-                        "type":"generation_mode", "request_id":request.request_id,
-                        "dflash_requested":request.dflash2,
-                        "dflash_active":dflash_active,
-                        "mtp_requested":request.mtp, "mtp_active":mtp_active,
-                        "mtp_depth":if mtp_active { request.mtp_depth } else { 0 },
-                        "mtp_reason":if request.mtp && !mtp_active { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
-                        "dflash_proposals":if let NativeChatModel::Flash(target) = &model { target.dflash2_proposals().unwrap_or(0) } else if dflash_active { if request.dflash_mode == 3 { 7 } else if request.dflash_mode == 2 { 2 } else { 5 } } else { 0 },
-                        "dflash_mode":if dflash_active { request.dflash_mode } else { 0 },
-                        "dflash_draft_path":if flash_dflash { Some(request.dflash_draft_path.clone()) } else { dflash_weights.as_ref().map(|(path, _, _)| path.display().to_string()) }
-                    }))?;
+                    let proposals = if let NativeChatModel::Flash(target) = &model {
+                        target.dflash2_proposals().unwrap_or(0)
+                    } else if dflash_active {
+                        match request.dflash_mode {
+                            3 => 7,
+                            2 => 2,
+                            _ => 5,
+                        }
+                    } else {
+                        0
+                    };
+                    let draft_path = if flash_dflash {
+                        Some(request.dflash_draft_path.clone())
+                    } else {
+                        dflash_weights
+                            .as_ref()
+                            .map(|(path, _, _)| path.display().to_string())
+                    };
+                    emit_generation_mode(
+                        &request,
+                        mtp_active,
+                        dflash_active,
+                        proposals,
+                        draft_path,
+                    )?;
                     bridge_generate(
                         &mut model,
                         &tokenizer,
@@ -3903,7 +4389,7 @@ fn native_bridge(
                 if let Err(error) = release_bridge_idle_state(
                     &mut model,
                     mtp_head.as_mut().map(|(_, head)| head),
-                    request.memory_saver,
+                    memory_saver,
                 ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
@@ -4005,6 +4491,8 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         }
         // Replay keeps conversation contents exact. Qwen uses bounded QMM chunks;
         // other architectures retain their established token path.
+        #[cfg(not(feature = "mlx"))]
+        model.admit_request(tokens.len() + budget)?;
         model.reset();
         let started = std::time::Instant::now();
         #[cfg(feature = "mlx")]

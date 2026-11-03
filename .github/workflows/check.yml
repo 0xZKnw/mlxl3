@@ -21,7 +21,16 @@ jobs:
       - run: python -m unittest discover -s tests -p test_native_coverage.py
       - run: python -m unittest discover -s tests -p test_flash_run_report.py
       - run: python -m unittest discover -s tests -p test_flash_trace_report.py
+      - run: python -m pip install numpy==2.5.2 safetensors==0.8.0
+      - run: python -m unittest discover -s tests -p test_physical_qwen_gdn.py
+      - run: python -m unittest discover -s tests -p test_physical_mapped_expert.py
+      - run: python -m unittest discover -s tests -p test_physical_projection_group.py
+      - run: python -m py_compile tests/physical_flash_projection.py tests/physical_qwen_gdn.py tests/physical_mapped_expert.py tests/physical_projection_group.py
       - run: python scripts/check_native_coverage.py
+      - run: python -m pip install pytest==8.3.5 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+      - run: PYTHONPATH=src python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py tests/test_native_quantizer.py tests/test_native_transforms.py tests/test_native_converter_host.py tests/test_native_capture.py tests/test_native_feedback.py
+      - run: python -m ruff format --check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py
+      - run: python -m ruff check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py
 
   desktop-and-protocol:
     runs-on: macos-26
@@ -37,3 +46,50 @@ jobs:
       - run: python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt
       - run: scripts/check-e2e.sh
       # Hosted VMs are not a substitute for physical-Mac Metal validation.
+
+  native-engine-archive:
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      MLXL3_ENGINE_BACKEND: metal
+      MLXL3_BUILD_PYTHON: python
+      MLXL3_SKIP_METAL_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -c "import importlib.util; assert importlib.util.find_spec('mlx') is None"
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: zsh -n scripts/build-engine.sh scripts/build-macos-app.sh
+      - name: Compile every native trellis specialization without a GPU
+        run: |
+          mkdir -p build/quantizer-ci
+          xcrun -sdk macosx metal -c native/shaders/convert_matmul.metal -o build/quantizer-ci/convert-matmul.air
+          xcrun -sdk macosx metal -std=metal4.0 -c native/shaders/convert_matmul_nax.metal -o build/quantizer-ci/convert-matmul-nax.air
+          for k in {2..8}; do
+            for cb in {0..2}; do
+              xcrun -sdk macosx metal -c -DMLXL3_QUANT_K=$k -DMLXL3_QUANT_CB=$cb native/shaders/quantize_tiles.metal -o "build/quantizer-ci/k${k}-cb${cb}.air"
+            done
+          done
+      - run: scripts/build-engine.sh
+      - name: Install and reject the signed native archive in a disposable directory
+        run: |
+          mkdir -p build/archive-ci
+          python tests/update-archive-fixtures.py build/archive-ci/fixtures
+          swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+            apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+            tests/updater-check.swift -o build/archive-ci/updater-check
+          version=$(python -c "import tomllib; print(tomllib.load(open('Cargo.toml','rb'))['package']['version'])")
+          build/archive-ci/updater-check build/archive-ci/fixtures "dist/MLXL3-Engine-v${version}-arm64.tar.gz" "$version"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-engine-archive
+          path: |
+            dist/MLXL3-Engine-*-arm64.tar.gz
+            build/native-runtime.json
+            build/native-dependencies.txt
+            build/native-dyld.txt

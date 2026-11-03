@@ -1,0 +1,14 @@
+{
+  "harness": "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+  "command": "cargo kani --lib --no-default-features --harness contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
+  "verifier": "Kani0.68.0 / CBMC6.11.0",
+  "result": "VERIFICATION SUCCESSFUL",
+  "obligations": 301,
+  "unreachable": 5,
+  "covers_reached": 3,
+  "seconds": 310.1686,
+  "domain": "All arbitrary u32 hidden, key_heads, value_heads, convolution length; no assumptions. Compare checked implementation extents/acceptance to independently evaluated u128 geometry. Includes local MoE, dense geometry and zero-dimension covers.",
+  "whole_contracts_source_sha256": "677160da12e86a652859f9bed76f8219d24bc5f203eef074aeaf0d94ead43244",
+  "complete_log_sha256": "82bbf19b3150747c77d8e2e94f27deb68af8c33782ffc45a7616955b764bf8ee",
+  "limits": "CPU geometry and arithmetic only. This does not prove Metal numerical arithmetic, buffer implementation, GPU scheduling, or complete generation. The prior global macOS Kani attempt on parent#97 failed with the existing intrinsics.rs:243 ICE; global proof not repeated here."
+}

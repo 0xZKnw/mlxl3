@@ -271,6 +271,44 @@ final class ChannelProtocol: URLProtocol, @unchecked Sendable {
       check(
         !FileManager.default.fileExists(atPath: root.appendingPathComponent("current.json").path))
     }
+    let nativeStore = root.appendingPathComponent("native-store")
+    try FileManager.default.createDirectory(at: nativeStore, withIntermediateDirectories: true)
+    let previousNative = nativeStore.appendingPathComponent("v1.2.0")
+    try EngineRuntimeStore.stage(archive: valid, directory: previousNative, releaseVersion: "1.2.0", appVersion: "2.0.0")
+    try EngineRuntimeStore.activate(version: "1.2.0", appVersion: "2.0.0", root: nativeStore)
+    let native = nativeStore.appendingPathComponent("v2.0.2")
+    try EngineRuntimeStore.stage(archive: fixtures.appendingPathComponent("native.tar.gz"), directory: native,
+      releaseVersion: "2.0.2", appVersion: "2.0.0")
+    let nativeManifest = try EngineRuntimeStore.readManifest(native)
+    try nativeManifest.validate(appVersion: "2.0.0")
+    fails("native archive on old app") { try nativeManifest.validate(appVersion: "1.4.5") }
+    let identity: [String: Any] = ["version": "2.0.2", "bridge_protocol": 1, "backend": "metal",
+      "mlx_enabled": false, "chat_enabled": true, "architecture": "aarch64"]
+    try nativeManifest.validateRuntimeInfo(identity)
+    for field in ["backend", "mlx_enabled", "chat_enabled", "architecture", "version", "bridge_protocol"] {
+      var missing = identity; missing.removeValue(forKey: field)
+      fails("missing native identity " + field) { try nativeManifest.validateRuntimeInfo(missing) }
+      var wrong = identity; wrong[field] = "wrong"
+      fails("wrong native identity " + field) { try nativeManifest.validateRuntimeInfo(wrong) }
+    }
+    try EngineRuntimeStore.activate(version: "2.0.2", appVersion: "2.0.0", root: nativeStore)
+    let oldPointer = try JSONDecoder().decode([String: String].self,
+      from: Data(contentsOf: nativeStore.appendingPathComponent("previous.json")))
+    check(oldPointer["version"] == "1.2.0")
+    check(EngineRuntimeStore.resolve(appVersion: "2.0.0", root: nativeStore, bundledVersion: "1.2.0") == native.appendingPathComponent("mlxl3"))
+    for invalid in ["extra", "duplicate", "hash", "schema", "backend", "missing", "old-minimum", "symlink", "manifest-duplicate"] {
+      fails("native archive " + invalid) {
+        try EngineRuntimeStore.stage(archive: fixtures.appendingPathComponent("native-" + invalid + ".tar.gz"),
+          directory: nativeStore.appendingPathComponent(invalid), releaseVersion: "2.0.2", appVersion: "2.0.0")
+      }
+    }
+    let unexpected = native.appendingPathComponent("libmlx.dylib")
+    try Data("unexpected".utf8).write(to: unexpected)
+    fails("native installed directory with MLX") { try EngineRuntimeStore.verify(native, appVersion: "2.0.0", expectedVersion: "2.0.2") }
+    try FileManager.default.removeItem(at: unexpected)
+    check(EngineRuntimeStore.reject(native.appendingPathComponent("mlxl3"), root: nativeStore))
+    check(EngineRuntimeStore.resolve(appVersion: "2.0.0", root: nativeStore, bundledVersion: "1.2.0") == nil)
+    print("Native archive checks passed. Migration, exact members, identity, corruption, links and rollback.")
     try EngineRuntimeStore.activate(version: "1.2.0", appVersion: "1.2.0", root: root)
     let executable = staged.appendingPathComponent("mlxl3")
     check(EngineRuntimeStore.resolve(appVersion: "1.2.0", root: root, bundledVersion: "1.2.0") == nil, "An equal managed engine must not mask the newer bundled beta build")
