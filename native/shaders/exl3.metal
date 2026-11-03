@@ -181,3 +181,43 @@ kernel void flash_prepare_view(const device uchar* input [[buffer(0)]],
     for (uint i=lane; i<128; i+=64)
         output[start+i]=half(values[i]*as_type<float>(0x3db504f3u));
 }
+
+#include "router_topk.h"
+
+template <typename T>
+kernel void route_matrix(const device T* values [[buffer(0)]], device uint* indices [[buffer(1)]],
+    device T* scores [[buffer(2)]], constant long* p [[buffer(3)]],
+    uint tid [[thread_index_in_threadgroup]], uint row [[threadgroup_position_in_grid]]) {
+    threadgroup ulong keys[1024];
+    threadgroup float selected[1024];
+    uint k = uint(p[1]);
+    long address = p[3] + long(row)*p[4] + long(tid)*p[5];
+    mlxl3_rank_row(values[address], tid, uint(p[0]), k, bool(p[2]), keys, selected,
+                   indices + row*k, scores + row*k);
+}
+
+#define ROUTE_KERNEL(TYPE, NAME) template [[host_name(NAME)]] kernel void route_matrix<TYPE>( \
+    const device TYPE*, device uint*, device TYPE*, constant long*, uint, uint);
+ROUTE_KERNEL(half, "route_half")
+ROUTE_KERNEL(float, "route_float")
+#undef ROUTE_KERNEL
+
+#include "flash_gate.metal"
+
+#include "flash_moe.metal"
+
+#include "flash_hc.metal"
+
+#include "flash_gdn.metal"
+
+#include "flash_ple.metal"
+
+#include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
+
+#include "flash_mtp.metal"
+
+#include "dense_projection.metal"
+
+#include "mapped_expert.metal"
+#include "model_ops.metal"

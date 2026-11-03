@@ -1,0 +1,1346 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:961:17
+    |
+961 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1114:17
+     |
+1114 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3070:15
+     |
+3070 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3137:15
+     |
+3137 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.72s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness contracts::model_gqa_widths_reject_invalid_groups_and_overflow...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0/build/issue75lfm/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/0c01a9816f8f8483/out/mlxl3_native-0c01a9816f8f8483__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts51model_gqa_widths_reject_invalid_groups_and_overflow.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3anyNCNvXsB_NtB9_3cmpmNtB1J_13SliceContains14slice_containss_0ECskjkzMwJII5G_12mlxl3_native.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 326 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3anyNCNvXsB_NtB9_3cmpmNtB1J_13SliceContains14slice_containss_0ECskjkzMwJII5G_12mlxl3_native.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 326 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3anyNCNvXsB_NtB9_3cmpmNtB1J_13SliceContains14slice_containss_0ECskjkzMwJII5G_12mlxl3_native.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 326 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function contracts::model_gqa_widths thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[u32; 2]>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 2605 column 1 function contracts::model_gqa_widths_reject_invalid_groups_and_overflow thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 6 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 7 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 8 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2439 column 15 function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[u32; 2]>::is_some thread 0
+Runtime Symex: 0.0827681s
+size of program expression: 6428 steps
+slicing removed 4548 assignments
+Generated 405 VCC(s), 40 remaining after simplification
+Runtime Postprocess Equation: 0.00105583s
+Passing problem to SMT2 QF_AUFBV using Z3
+converting SSA
+Runtime Convert SSA: 0.0143679s
+Running SMT2 QF_AUFBV using Z3
+Runtime Solver: 0.0795379s
+Runtime decision procedure: 0.0941169s
+Running SMT2 QF_AUFBV using Z3
+Runtime Solver: 0.213973s
+Runtime decision procedure: 0.214048s
+Running SMT2 QF_AUFBV using Z3
+Runtime Solver: 0.260927s
+Runtime decision procedure: 0.261003s
+Running SMT2 QF_AUFBV using Z3
+Runtime Solver: 0.406615s
+Runtime decision procedure: 0.406692s
+Running SMT2 QF_AUFBV using Z3
+Runtime Solver: 0.743471s
+Runtime decision procedure: 0.743549s
+
+RESULTS:
+Check 1: std::slice::ChunksExact::<'_, u32>::new.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1850:19 in function std::slice::ChunksExact::<'_, u32>::new
+
+Check 2: std::slice::ChunksExact::<'_, u32>::new.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1850:19 in function std::slice::ChunksExact::<'_, u32>::new
+
+Check 3: std::slice::ChunksExact::<'_, u32>::new.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1851:23 in function std::slice::ChunksExact::<'_, u32>::new
+
+Check 4: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 5: <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:321:13 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}>
+
+Check 6: <u32 as core::slice::cmp::SliceContains>::slice_contains.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:422:34 in function <u32 as core::slice::cmp::SliceContains>::slice_contains
+
+Check 7: <std::slice::Iter<'_, u32> as std::iter::Iterator>::fold::<bool, {closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:274:43 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::fold::<bool, {closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>
+
+Check 8: <std::slice::Iter<'_, u32> as std::iter::Iterator>::fold::<bool, {closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:274:43 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::fold::<bool, {closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}}>
+
+Check 9: std::ptr::const_ptr::<impl *const u32>::offset_from_unsigned.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: 0 < pointee_size && pointee_size <= isize::MAX as usize"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:731:9 in function std::ptr::const_ptr::<impl *const u32>::offset_from_unsigned
+
+Check 10: core::ub_checks::is_valid_allocation_size.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to divide by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 11: core::ub_checks::is_valid_allocation_size.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 12: <std::option::Option<[u32; 2]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<[u32; 2]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 13: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 14: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 15: memcmp.precondition.1
+	 - Status: SUCCESS
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 16: memcmp.precondition.2
+	 - Status: SUCCESS
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 17: <std::option::Option<u32> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<u32> as std::ops::Try>::branch
+
+Check 18: std::option::Option::<[u32; 2]>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 19: core::slice::<impl [u32]>::chunks_exact.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:1242:9 in function core::slice::<impl [u32]>::chunks_exact
+
+Check 20: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 21: core::num::<impl u32>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 22: core::num::<impl u32>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 23: std::slice::from_raw_parts::<'_, u32>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/raw.rs:139:9 in function std::slice::from_raw_parts::<'_, u32>
+
+Check 24: std::slice::from_raw_parts::<'_, u32>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/raw.rs:139:9 in function std::slice::from_raw_parts::<'_, u32>
+
+Check 25: core::num::<impl usize>::unchecked_add.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1013:17 in function core::num::<impl usize>::unchecked_add
+
+Check 26: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 27: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 28: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 29: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 30: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 31: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 32: std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1541:15 in function std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>
+
+Check 33: kani::rustc_intrinsics::ptr_offset_from::<u32>.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "Cannot compute offset of a ZST"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 34: kani::rustc_intrinsics::ptr_offset_from::<u32>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer should point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 35: kani::rustc_intrinsics::ptr_offset_from::<u32>.assertion.2
+	 - Status: UNREACHABLE
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 36: kani::rustc_intrinsics::ptr_offset_from::<u32>.assertion.3
+	 - Status: UNREACHABLE
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 37: kani::rustc_intrinsics::ptr_offset_from::<u32>.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 38: kani::rustc_intrinsics::ptr_offset_from::<u32>.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 39: kani::rustc_intrinsics::ptr_offset_from::<u32>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Expected the distance between the pointers, in bytes, to be a
+                        multiple of the size of `T`"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 40: kani::rustc_intrinsics::ptr_offset_from::<u32>.assertion.4
+	 - Status: UNREACHABLE
+	 - Description: "attempt to divide by zero"
+	 - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 41: kani::rustc_intrinsics::ptr_offset_from::<u32>.assertion.5
+	 - Status: UNREACHABLE
+	 - Description: "attempt to divide with overflow"
+	 - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 42: kani::rustc_intrinsics::ptr_offset_from::<u32>.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 43: kani::rustc_intrinsics::ptr_offset_from::<u32>.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 44: core::slice::<impl [u32]>::split_at_unchecked.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:2062:74 in function core::slice::<impl [u32]>::split_at_unchecked
+
+Check 45: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to subtract with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to
+
+Check 46: std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1357:13 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to
+
+Check 47: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2610:19 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 48: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2611:19 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 49: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:2614:12 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 50: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:2614:12 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 51: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: result.is_some() == valid"
+	 - Location: native/src/contracts.rs:2618:5 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 52: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/contracts.rs:2605:1 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 53: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(a) == q_width"
+	 - Location: native/src/contracts.rs:2620:9 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 54: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.assertion.6
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(b) == k_width"
+	 - Location: native/src/contracts.rs:2621:9 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 55: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: result == Some([2048, 512])"
+	 - Location: native/src/contracts.rs:2623:5 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 56: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: q > 0 && k > 0 && result.is_none()"
+	 - Location: native/src/contracts.rs:2624:5 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 57: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 58: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 59: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 60: contracts::model_gqa_widths.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function contracts::model_gqa_widths
+
+Check 61: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 62: kani::rustc_intrinsics::ptr_offset_from_unsigned::<u32>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Expected non-negative distance between pointers"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from_unsigned::<u32>
+
+Check 63: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 64: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 65: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 66: std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1541:15 in function std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>
+
+Check 67: std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1543:21 in function std::option::Option::<(&[u32], &[u32])>::and_then::<&[u32], {closure@<std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}}>
+
+Check 68: kani::rustc_intrinsics::ptr_offset_from::<u32>.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 69: kani::rustc_intrinsics::ptr_offset_from::<u32>.division-by-zero.2
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u32>
+
+Check 70: <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:326:37 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@<u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}}>
+
+Check 71: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 72: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 73: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 74: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 75: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 76: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1896:13 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next::{closure#0}
+
+Check 77: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 78: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 79: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 80: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 81: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 82: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:69 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 83: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 84: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 85: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 86: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 87: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 88: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 89: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 90: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 91: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 92: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 93: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 94: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:423:75 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#0}
+
+Check 95: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 96: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 97: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 98: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 99: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 100: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:62 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 101: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 102: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 103: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 104: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 105: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 106: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 107: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 108: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 109: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 110: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 111: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 112: <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:428:68 in function <u32 as core::slice::cmp::SliceContains>::slice_contains::{closure#1}
+
+Check 113: core::slice::<impl [u32]>::split_at_checked.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:2168:13 in function core::slice::<impl [u32]>::split_at_checked
+
+Check 114: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 115: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 116: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 117: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 118: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 119: std::option::Option::<[u32; 2]>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 2]>::is_some
+
+Check 120: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 121: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 122: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 123: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 124: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 125: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 126: std::slice::ChunksExact::<'_, u32>::new.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1850:19 in function std::slice::ChunksExact::<'_, u32>::new
+
+Check 127: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 128: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 129: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 130: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 131: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 132: std::slice::ChunksExact::<'_, u32>::remainder.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1877:9 in function std::slice::ChunksExact::<'_, u32>::remainder
+
+Check 133: core::num::<impl u32>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 134: core::ub_checks::is_valid_allocation_size.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size
+
+Check 135: contracts::model_gqa_widths_reject_invalid_groups_and_overflow.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/contracts.rs:2614:12 in function contracts::model_gqa_widths_reject_invalid_groups_and_overflow
+
+Check 136: std::ptr::const_ptr::<impl *const T>::offset_from_unsigned::runtime_ptr_ge::runtime.pointer.1
+	 - Status: SUCCESS
+	 - Description: "same object violation in this >= origin"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:716:21 in function std::ptr::const_ptr::<impl *const T>::offset_from_unsigned::runtime_ptr_ge::runtime
+
+Check 137: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 138: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 139: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 140: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 141: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 142: <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:4235:9 in function <&mut std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 143: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 144: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 145: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 146: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 147: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 148: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:9 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 149: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 150: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 151: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 152: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 153: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 154: <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1895:33 in function <std::slice::ChunksExact<'_, u32> as std::iter::Iterator>::next
+
+Check 155: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 156: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 157: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 158: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 159: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 160: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 161: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 162: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 163: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 164: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 165: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 166: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 167: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 168: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 169: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 170: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 171: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 172: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 173: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 174: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 175: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 176: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 177: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 178: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 179: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 180: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 181: <u32 as core::slice::cmp::SliceContains>::slice_contains.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/cmp.rs:422:34 in function <u32 as core::slice::cmp::SliceContains>::slice_contains
+
+Check 182: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 183: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 184: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 185: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 186: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 187: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 188: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 189: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 190: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 191: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 192: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 193: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 194: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 195: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 196: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 197: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 198: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 199: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 200: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 201: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 202: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 203: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 204: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 205: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 206: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 207: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 208: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 209: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 210: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 211: <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2439:15 in function <std::option::Option<[u32; 2]> as std::cmp::PartialEq>::eq
+
+Check 212: memcmp.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 213: memcmp.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 214: memcmp.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 215: memcmp.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 216: memcmp.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 217: memcmp.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 218: memcmp.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 219: memcmp.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 220: memcmp.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 221: memcmp.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 222: memcmp.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 223: memcmp.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+
+SUMMARY:
+ ** 0 of 221 failed (8 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 1.8980187s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

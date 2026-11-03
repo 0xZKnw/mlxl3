@@ -46,6 +46,9 @@ jobs:
           git clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3
           git -C references/PonyExl3 checkout 8e7fa6b1556f59fc669e25087903b279b9b0346f
           git -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-mlxl3-conversion.patch
+          for path in cli/convert_advanced.py convert/direct.py convert/driver.py convert/fixtures.py convert/hessian.py convert/measure.py; do
+            cmp "apps/MLXL3Studio/Vendor/PonyExl3/ponyexl3/$path" "references/PonyExl3/ponyexl3/$path"
+          done
       - name: Check host contracts and benchmark failure gates
         run: |
           ruff format --check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py tests/test_quantize_k4_boundaries.py tests/test_lfm25_group_profile.py tests/lfm25_profile_contracts.py docs/measurements/quant-lfm25-research-20261013/profile-baseline.py

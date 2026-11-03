@@ -1,0 +1,51 @@
+{
+  "base": "9456ed2bc23bfbcf3e8c3e8f046f4c0a688105d9",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "stock": "AR-QUICK r3 Rust CLI with MLX 0.32.2, separate process",
+  "command": "python tests/physical_flash_run.py DIRECT STOCK CHECKPOINT NEW_REPORT",
+  "environment": {
+    "MLXL3_SSD_CACHE_GIB": "0.6",
+    "DYLD_PRINT_LIBRARIES": "1"
+  },
+  "physical_negative": {
+    "skip_layer_47": {
+      "status": "failed",
+      "cli_sha256": "82e9d1228c9625059ea384aadbf1a53c664727c1c34574cbb8fd3d1db2a62748",
+      "stock_sha256": "5050f39104304fcffe7e2e5f6e29761b44d9c861dfc5e8f89f1baec5b461dbd6",
+      "logits": 993280,
+      "dyld_images": 706,
+      "logit_sha256": [
+        "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445",
+        "833ef923345928bdfb2ea39847a722c568cb709feaa225e4476ba5f6daac3815",
+        "2a8dda767af9442bde08ee4e0a6238e1bf3340221406f8ed08d23c20bf909662",
+        "268b5ee1d4b3240638242344c57e560b72442a1e0d31510689d4c1386835cc40"
+      ],
+      "logit_mismatches": 992949,
+      "batch_mismatches": 248235,
+      "error": ""
+    },
+    "read_failure": "The first token of a two-token prefill traverses 48 layers, then a disposable one-row embedding shard causes EOF. After restoring the original shard the replay returns exactly the same complete logits and cursor as a clean session.",
+    "probabilities": "Equal normalized probabilities for unequal half logits, wrong width, all -inf, one NaN."
+  },
+  "source_sha256": {
+    "native/src/gpu/flash.rs": "2ea5dead11919e638c0c7f582b1e854774b4095354be30354f2a440e05f20f89",
+    "native/src/flash_config.rs": "55a3aaa4ff2f843ab4a9906db2fa9336da81d23f1505ffc3f84355d77267f90c",
+    "native/src/gpu.rs": "ff159938ba9be1808982dfe83cfcb8f1cb976b1a0f41d541a16d0b1131b4c51f",
+    "native/src/flash_support.rs": "c8ad311640226dfa19f85b94d213472b155ffb8e8437fc68aad920d6fdafcb3c",
+    "native/src/qwen4.rs": "a6e63bbb97372ed40f37ce04d77e2638b036e4ea675579634b7b5de630ed65e0",
+    "native/src/main.rs": "2c46b095b8c23f1a2aeb90bd31db6fc4709a320dfbb3be8a1785655cde4d1b2e",
+    "native/shaders/flash_logsumexp.metal": "f81192e5cfbbfbf3a66c841fb24df2738ed43295213b87194a006b2506f6d3e3",
+    "tests/physical_flash_run.py": "f8ec7c9ab5948c3aa314808f37e49ceabe78e4699fd388c85ae1b8fb345ba539"
+  },
+  "kani": {
+    "harness": "flash_support::dense_flash_prompt_cursor_never_overflows_or_partially_accepts",
+    "version": "0.68",
+    "checks": 16,
+    "covers": 2,
+    "domain": "arbitrary u32 position and context, usize token count; checked against wide u128 arithmetic, no loops"
+  },
+  "crosshair": "CLI output parser postcondition not confirmed within 8s. Six malformed/partial outputs rejected by deterministic checks.",
+  "scope": "Dense context up to 512, one Flash checkpoint, AR CLI only. Studio, requests with an explicit process budget, speculative modes, other families and long contexts remain open. Process timings are not a throughput benchmark."
+}
