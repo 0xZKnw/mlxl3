@@ -1,6 +1,6 @@
 # MLXL3 — journal des optimisations
 
-## I75-MIG-2026-11-03 — migration Flash native, préenregistrement
+## I75-MIG-2026-11-03 — qualification M5 terminée, MLX par défaut, prototype Metal optionnel
 
 - Référence de migration. Sources moteur de main b9d5cbdce50aa98adfee560e06da75614e730bd3, séparées d’AR-QUICK et des branches non fusionnées. Construire CLI et libtest release mlx,chat, wheel 0.32.2 sur M5 24 Go, macOS 27.2 26B123. Flash-Next EXL3 65c89531, oracle-07, cache 3 Gio, allocateur 64 Mio, 4 lecteurs, Dynamic/ColdReady/Hot/Wide/Unique activés, MLX 40/40, S/K OFF. Greedy MAIN/HOLD AR B1, 87/82 entrées, 128 sorties, chaque processus une chauffe puis une mesure par prompt. Comparer texte et empreinte à AR-QUICK, oracle indépendant aux cinq pas, puis logits/états/routes des deux prompts pour la migration. Enregistrer identité et commandes par étape.
 - Avant modèle. La précédente campagne terminée avait déjà dépassé son ancre (+141,30 Mio écrits pour 32 Mio). Nouvelle campagne indépendante autorisée le 3 novembre, ancre unique conservée après le build de référence, avant le premier modèle. Gardes 32 Mio swapout/256 Mio swapin cumulatifs, admission 8 Go décimaux (dernière campagne avec même modèle), secteur, RSS 10 Gio, footprint 12 Go, processus bornés et rejoints. Refuser la mesure sous pression, sur dérive ou sous charge concurrente. Aucun réancrage pour sauver un bras. Builds et preuves séparés des modèles.
@@ -58,6 +58,8 @@
 - Relecture Strata et TurboEXL3 demandée par l’utilisateur. Sources épinglées, décompte des cellules QSA différent à 2 052, partition H128/GU à une ligne et comparaison du stockage SSD consignés dans les [décisions du lot 5](docs/measurements/issue75-migration-20261103/decisions.md). Revue de sources et de géométries, aucun benchmark amont mélangé aux chiffres locaux.
 
 - CI Linux de la première tête moteur. Le job natif a détecté les trois harnais nouveaux comme différences inattendues de la baseline figée. Échec reproduit en appelant le test portable sur macOS. Mise à jour des trois entrées attendues, baseline de 322 inchangée. L’oracle vérifie aussi que retirer chacun de ces harnais échoue. Les deux tests d’inventaire et le lint strict repassent. [Échec du job d’origine](https://github.com/0xZKnw/mlxl3/actions/runs/41620180332/job/125864194830).
+
+- **I75-R5-ORDRE terminé.** Seize sorties AR128, chauffes incluses, identiques aux témoins, tous processus et lecteurs rejoints. Sur le binaire final, médianes OFF → ON MAIN 10,5360 → 10,3413 tok/s (−1,85 %, couples +0,91 et −4,53 %) et HOLD 9,6050 → 10,0428 (+4,56 %, couples +4,85 et +4,27 %). Sur l’ensemble de la campagne, maxima cumulés de swap écrit/lu 1 966 080 / 8 028 160 octets, avec les plafonds de 32/256 Mio. La prudence sur le réglage par défaut résulte de la direction différente selon le prompt. Aucun seuil de 3 %. Les lots 0–5 et leurs décisions sont documentés dans la PR 76, dont la CI distante est indépendante des validations physiques. [Tous les bras](docs/measurements/issue75-migration-20261103/ar128.md).
 
 ## I75-LOT0-2026-11-03 — récupération documentaire d’AR-QUICK close, lot 0 ouvert
 

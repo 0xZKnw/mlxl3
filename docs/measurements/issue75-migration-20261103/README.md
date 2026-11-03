@@ -4,6 +4,8 @@
 
 MLX reste le backend du moteur. La tranche Metal facultative conserve les sorties du contrôle et réduit le nombre d’opérations de construction du graphe. Ses médianes AR128 sont de 10,27 tok/s MAIN et 9,96 HOLD, contre 10,34 et 10,04 sur le chemin existant. Conserver le prototype OFF, accessible avec MLXL3_FLASH_NATIVE_PREPARE=1 sur le matériel qualifié. Les huit bras, la dispersion et la révision du seuil à la demande de l’utilisateur sont documentés. [Comparaison AR128](ar128.md) · [Contrats, décision et suites QSA/KV/spéculatif](decisions.md).
 
+R5, le binaire de la PR, a donné un premier couple favorable sur les deux prompts. Le contrôle indépendant en ordre B-A-A-B ramène MAIN à **10,5360 → 10,3413 tok/s** (−1,85 %) et donne sur HOLD **9,6050 → 10,0428 tok/s** (+4,56 %). Les deux paires HOLD vont dans le même sens (+4,85 %, +4,27 %). Sur MAIN, elles se contredisent. Les 16 sorties de ce contrôle sont identiques, chauffes comprises. Le gain mesuré est donc propre à HOLD dans cette série. Le chemin par défaut reste MLX.
+
 ## Provenance et reproduction
 
 Worktree issu de main b9d5cbdce50aa98adfee560e06da75614e730bd3. Référence historique, PR 72 et 74 et versions d’AR-QUICK réconciliées séparément. Référence de migration recompilée avec le wheel MLX 0.32.2. Checkpoint Flash Next EXL3 2,05 bpw révision 65c895314393431c09050b2e04e250836b3a6eb4. M5, 24 Go, macOS 27.2 (26B123). Secteur et compteurs thermiques disponibles dans les plans par processus. Les capteurs de puissance/J par token et la température interne du GPU n’ont pas été échantillonnés. [Historique et patches](../issue75-lot0-20261103/README.md) · [Empreintes du checkpoint](checkpoint.json) · [Sources finales et binaires de chaque étape](source-manifest.json).
