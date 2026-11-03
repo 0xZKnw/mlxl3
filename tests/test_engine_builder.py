@@ -78,7 +78,8 @@ def test_native_builder_uses_chat_without_loading_mlx_and_packages_embedded_shad
     result = run(project)
     assert result.returncode == 0, result.stderr
     args = json.loads((root / "cargo.json").read_text())
-    assert args[args.index("--features") + 1] == "chat"
+    assert "--no-default-features" in args
+    assert args[args.index("--features") + 1] == "direct-metal,chat"
     runtime = root / "build/rust-runtime"
     assert {p.name for p in runtime.iterdir()} == {"mlxl3", "engine.json"}
     assert json.loads((runtime / "engine.json").read_text())["backend"] == "metal"

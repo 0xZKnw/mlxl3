@@ -309,6 +309,18 @@ impl<'a> FlashPleLayer<'a> {
     }
 }
 
+impl FlashPleLayerState {
+    pub(super) fn record_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+        category: &'static str,
+    ) -> Result<()> {
+        if let Some(history) = &self.0.history {
+            backings.record(category, &history.buffer)?;
+        }
+        self.1.record_memory(backings, category)
+    }
+}
 impl FlashPleLayer<'_> {
     pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
         for buffer in [

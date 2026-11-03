@@ -1,0 +1,45 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0)
+error[E0364]: `admit_request` is private, and cannot be re-exported
+  --> native/src/direct_bridge.rs:13:38
+   |
+13 | pub(super) use prefix::{PromptCache, admit_request, prefill};
+   |                                      ^^^^^^^^^^^^^
+   |
+note: consider marking `admit_request` as `pub` in the imported module
+  --> native/src/direct_bridge.rs:13:38
+   |
+13 | pub(super) use prefix::{PromptCache, admit_request, prefill};
+   |                                      ^^^^^^^^^^^^^
+
+error[E0603]: function import `admit_request` is private
+    --> native/src/main.rs:2998:40
+     |
+2998 |     if let Some(plan) = direct_bridge::admit_request(model, tokens.len() + budget, cache, reuse)? {
+     |                                        ^^^^^^^^^^^^^ private function import
+     |
+note: the function import `admit_request` is defined here...
+    --> native/src/direct_bridge.rs:13:38
+     |
+  13 | pub(super) use prefix::{PromptCache, admit_request, prefill};
+     |                                      ^^^^^^^^^^^^^
+note: ...and refers to the function `admit_request` which is defined here
+    --> native/src/native_prompt_cache.rs:118:1
+     |
+ 118 | / pub(super) fn admit_request(
+ 119 | |     model: &mut NativeChatModel,
+ 120 | |     positions: usize,
+ 121 | |     cache: &mut Option<PromptCache>,
+...    |
+ 135 | | }
+     | |_^
+help: import `admit_request` directly
+     |
+2998 -     if let Some(plan) = direct_bridge::admit_request(model, tokens.len() + budget, cache, reuse)? {
+2998 +     if let Some(plan) = prefix::admit_request(model, tokens.len() + budget, cache, reuse)? {
+     |
+
+Some errors have detailed explanations: E0364, E0603.
+For more information about an error, try `rustc --explain E0364`.
+error: could not compile `mlxl3-native` (bin "mlxl3-rs" test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `mlxl3-native` (bin "mlxl3-rs") due to 2 previous errors

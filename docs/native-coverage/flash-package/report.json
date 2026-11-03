@@ -1,0 +1,51 @@
+{
+  "status": "verified_packaging_scope",
+  "main_base": "599628120c95df45b00a2076ffe466331a9c94f2",
+  "built_source": "42465d1f8ea14b83ec67c8adb151195b9fbf8af7",
+  "source_sha256": {
+    "scripts/build-engine.sh": "3ed24cacda15b65838f74e0fce72e06cac29c762bc3a539e1379b74b7c008147",
+    "scripts/build_manifest.py": "72b0cc216b8e298207fbc8791ff8fc443d80187e5e412f9e34f97f0a7fae53d2",
+    "scripts/package_engine.py": "440b9dc6409ec4c88700b272cbf572533434499556646dc45429b2e0c0693f76"
+  },
+  "native_artifact": "main-artifact.json",
+  "previous_artifact": "initial-98.json",
+  "build": {
+    "seconds": 34.86,
+    "flags": [
+      "--release",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat"
+    ],
+    "MLXL3_MLX_ROOT": "/missing/mlx",
+    "python_environment": "isolated venv; importlib confirms no mlx/mlx_lm",
+    "target": "private APFS-cloned Cargo target"
+  },
+  "checks": {
+    "python_passed": 92,
+    "python_skipped": 0,
+    "python_seconds": 7.93,
+    "format_lint": "passed",
+    "zsh_syntax": "passed",
+    "inventory": "245 files match reviewed baseline",
+    "regression": "previous real script mislabeled native artifact; corrected script derives Metal/version/SHA from verified actual artifact",
+    "crosshair": "two postconditions confirmed in symbolic counterexample search, not a deductive proof",
+    "real_archive": "signature, two exact members, relocated runtime-info, static+loaded library audits, and actual clean-Python metadata emission with stale mlx flag pass"
+  },
+  "versions": {
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "clang": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+    "macos": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+    "build_python": "Python 3.12.14"
+  },
+  "limits": [
+    "This is an engine-only archive, not a complete MLX-free Desktop distribution.",
+    "The separately bundled quantizer still requires MLX and remains explicitly labeled.",
+    "Runtime-info relocation is not a substitute for physical Flash generation; root owns the isolated Swift client and inference campaign.",
+    "No model generation or throughput test was run by this packaging change.",
+    "No installed app replacement, release or merge.",
+    "Filesystem, process execution, signatures and Metal are tested contracts, not formally proved by the two classifier properties."
+  ]
+}

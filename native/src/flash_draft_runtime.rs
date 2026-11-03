@@ -47,8 +47,7 @@ impl Session {
 
     pub(in crate::qwen4) fn reset(&mut self) {
         self.draft.reset();
-        self.budget = VerifyBudget::default();
-        self.pre_budget = PreDraftBudget::default();
+        crate::flash_draft_budget::reset_request_budgets(&mut self.budget, &mut self.pre_budget);
         self.pending.clear();
         self.proposed = 0;
         self.accepted = 0;

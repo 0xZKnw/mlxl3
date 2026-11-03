@@ -29,6 +29,11 @@ jobs:
           crosshair check tests/cold_legacy_contracts.py --report_all --per_condition_timeout=20 > build/proofs/cold-legacy.log 2>&1
           cat build/proofs/cold-legacy.log
           python -c "from pathlib import Path; text = Path('build/proofs/cold-legacy.log').read_text(); assert text.count('info: Confirmed over all paths.') == 2, text"
+      - name: Check packaged engine backend classification
+        run: |
+          PYTHONPATH=scripts crosshair check build_manifest.runtime_backend --analysis_kind=PEP316 --report_all --per_condition_timeout=10 > build/proofs/native-package.log 2>&1
+          cat build/proofs/native-package.log
+          python -c "from pathlib import Path; text = Path('build/proofs/native-package.log').read_text(); assert text.count('info: Confirmed over all paths.') == 2, text"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,197 @@
+{
+  "status": "completed_DFlash_only_selected_from_shared_arms",
+  "arms": [
+    {
+      "experiment": "dflash-prefill-headonly",
+      "arm": 1,
+      "kind": "control",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+      "source_sha": "3a044f39fdad9569aa88177641069253570ba12e",
+      "binary_sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0",
+        "MLXL3_FLASH_DRAFT_Q4": "1",
+        "MLXL3_FLASH_DRAFT_RING": "1",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+        "MLXL3_FLASH_DRAFT_PRECAP": "0"
+      },
+      "output": "screen-1-control",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "source_receipt": "../cpu-receipt.json",
+      "quality": [
+        "headonly-quality-01/report.json",
+        "headonly-bridge-01/report.json"
+      ],
+      "build_provenance": "be43ee15-dirty; committed executable source hashes equal3a044f39, docs-only dcde51d7",
+      "parity": true,
+      "started_utc": "2026-11-03T20:55:28.494353+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.04901299721861,
+        "HOLD": 3.6300124809395924
+      },
+      "elapsed_seconds": 108.30501308300882,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "dflash-prefill-headonly",
+      "arm": 2,
+      "kind": "candidate",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+      "source_sha": "3a044f39fdad9569aa88177641069253570ba12e",
+      "binary_sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "1",
+        "MLXL3_FLASH_DRAFT_Q4": "1",
+        "MLXL3_FLASH_DRAFT_RING": "1",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+        "MLXL3_FLASH_DRAFT_PRECAP": "0"
+      },
+      "output": "screen-2-candidate",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "source_receipt": "../cpu-receipt.json",
+      "quality": [
+        "headonly-quality-01/report.json",
+        "headonly-bridge-01/report.json"
+      ],
+      "build_provenance": "be43ee15-dirty; committed executable source hashes equal3a044f39, docs-only dcde51d7",
+      "parity": true,
+      "started_utc": "2026-11-03T20:57:16.837417+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.087299598970552,
+        "HOLD": 4.1164246618372715
+      },
+      "elapsed_seconds": 105.80563891699421,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "dflash-prefill-headonly",
+      "arm": 3,
+      "kind": "candidate",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+      "source_sha": "3a044f39fdad9569aa88177641069253570ba12e",
+      "binary_sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "1",
+        "MLXL3_FLASH_DRAFT_Q4": "1",
+        "MLXL3_FLASH_DRAFT_RING": "1",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+        "MLXL3_FLASH_DRAFT_PRECAP": "0"
+      },
+      "output": "screen-3-candidate",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "source_receipt": "../cpu-receipt.json",
+      "quality": [
+        "headonly-quality-01/report.json",
+        "headonly-bridge-01/report.json"
+      ],
+      "build_provenance": "be43ee15-dirty; committed executable source hashes equal3a044f39, docs-only dcde51d7",
+      "parity": true,
+      "started_utc": "2026-11-03T20:59:02.700636+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.204109279872052,
+        "HOLD": 3.6715979666817424
+      },
+      "elapsed_seconds": 105.7162138329877,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "experiment": "dflash-prefill-headonly",
+      "arm": 4,
+      "kind": "control",
+      "status": "validated",
+      "engine": "/Users/justin/.codex/worktrees/issue75-native-flash-headonly/mix-stq1_0/build/issue75headonly/cargo-target/release/mlxl3-rs",
+      "source_sha": "3a044f39fdad9569aa88177641069253570ba12e",
+      "binary_sha256": "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473",
+      "environment": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_SSD_DYNAMIC_READERS": "0",
+        "MLXL3_FLASH_PREFILL_HEADS": "0",
+        "MLXL3_FLASH_DRAFT_Q4": "1",
+        "MLXL3_FLASH_DRAFT_RING": "1",
+        "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+        "MLXL3_FLASH_DRAFT_PRECAP": "0"
+      },
+      "output": "screen-4-control",
+      "tokens": 32,
+      "measured_repeats": 1,
+      "warmups": 1,
+      "prompts": [
+        "MAIN",
+        "HOLD"
+      ],
+      "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "source_receipt": "../cpu-receipt.json",
+      "quality": [
+        "headonly-quality-01/report.json",
+        "headonly-bridge-01/report.json"
+      ],
+      "build_provenance": "be43ee15-dirty; committed executable source hashes equal3a044f39, docs-only dcde51d7",
+      "parity": true,
+      "started_utc": "2026-11-03T21:00:48.443371+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "median_decode_tps": {
+        "MAIN": 4.168445212815474,
+        "HOLD": 3.9854022854788482
+      },
+      "elapsed_seconds": 107.43958233299782,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ]
+}

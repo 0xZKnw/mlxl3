@@ -27,7 +27,7 @@ fi
 backend="${MLXL3_ENGINE_BACKEND:-mlx}"
 case "${backend}" in
     metal)
-        MACOSX_DEPLOYMENT_TARGET=26.2 "${cargo_bin}" build --release --locked --features chat --manifest-path "${repo_dir}/Cargo.toml"
+        MACOSX_DEPLOYMENT_TARGET=26.2 "${cargo_bin}" build --release --locked --no-default-features --features direct-metal,chat --manifest-path "${repo_dir}/Cargo.toml"
         ;;
     mlx)
         if [[ -z "${mlx_root}" ]]; then

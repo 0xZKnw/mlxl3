@@ -1,0 +1,653 @@
+{
+  "status": "completed_short_screen",
+  "quality_parity": true,
+  "performance_decision": "Retain exact unused-head elimination with small MAIN prefill observation; HOLD prefill and all decode changes remain inconclusive at this sample size. No universal or sustained gain established.",
+  "generated_utc": "2026-11-03T21:04:01.804693+00:00",
+  "protocol": "../protocol.json",
+  "arms": "arms.json",
+  "binary_sha256": [
+    "4bf916ba9bb6afd5dfe1f20c3bcf08196793efe5aff31552bcb1128340cdd473"
+  ],
+  "source_sha": "3a044f39fdad9569aa88177641069253570ba12e",
+  "order": "ABBA",
+  "tokens": 32,
+  "warmups": 8,
+  "measured_responses": 8,
+  "measured_repeats_per_prompt_per_kind": 2,
+  "expert_bank_capacity_bytes": [
+    3174942528,
+    3174942528,
+    3174942528,
+    3174942528
+  ],
+  "expert_slots_per_layer": 53,
+  "layers": 48,
+  "all_children_reaped": true,
+  "power": "AC100% before/after every arm",
+  "thermal": "not measured",
+  "by_prompt": {
+    "MAIN": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            4.04901299721861,
+            4.168445212815474
+          ],
+          "candidate": [
+            4.087299598970552,
+            4.204109279872052
+          ]
+        },
+        "median": {
+          "control": 4.1087291050170425,
+          "candidate": 4.145704439421301
+        },
+        "range": {
+          "control": [
+            4.04901299721861,
+            4.168445212815474
+          ],
+          "candidate": [
+            4.087299598970552,
+            4.204109279872052
+          ]
+        },
+        "candidate_change_percent": 0.8999214467342087,
+        "control_drift_percent": 2.9496624406714744,
+        "paired_changes_percent": [
+          0.9455786330703875,
+          0.8555724073554316
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            7.656186834,
+            7.436825583000001
+          ],
+          "candidate": [
+            7.584469709,
+            7.373737916
+          ]
+        },
+        "median": {
+          "control": 7.5465062085,
+          "candidate": 7.4791038125
+        },
+        "range": {
+          "control": [
+            7.436825583000001,
+            7.656186834
+          ],
+          "candidate": [
+            7.373737916,
+            7.584469709
+          ]
+        },
+        "candidate_change_percent": -0.8931602802377814,
+        "control_drift_percent": -2.8651501818875103,
+        "paired_changes_percent": [
+          -0.9367211975746748,
+          -0.8483144628833927
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.589582790504715,
+            4.61016027659372
+          ],
+          "candidate": [
+            4.688655911823353,
+            4.7086096642162785
+          ]
+        },
+        "median": {
+          "control": 4.5998715335492175,
+          "candidate": 4.6986327880198155
+        },
+        "range": {
+          "control": [
+            4.589582790504715,
+            4.61016027659372
+          ],
+          "candidate": [
+            4.688655911823353,
+            4.7086096642162785
+          ]
+        },
+        "candidate_change_percent": 2.147043754380573,
+        "control_drift_percent": 0.44835199686510396,
+        "paired_changes_percent": [
+          2.158652013503448,
+          2.1354873088121673
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            18.955971375,
+            18.87136125
+          ],
+          "candidate": [
+            18.555424334,
+            18.476791708
+          ]
+        },
+        "median": {
+          "control": 18.9136663125,
+          "candidate": 18.516108021
+        },
+        "range": {
+          "control": [
+            18.87136125,
+            18.955971375
+          ],
+          "candidate": [
+            18.476791708,
+            18.555424334
+          ]
+        },
+        "candidate_change_percent": -2.101963125135886,
+        "control_drift_percent": -0.44635077425569936,
+        "paired_changes_percent": [
+          -2.113038857656535,
+          -2.0908377343473283
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            18.957814666,
+            18.874501041
+          ],
+          "candidate": [
+            18.558114833,
+            18.478717667
+          ]
+        },
+        "median": {
+          "control": 18.9161578535,
+          "candidate": 18.51841625
+        },
+        "range": {
+          "control": [
+            18.874501041,
+            18.957814666
+          ],
+          "candidate": [
+            18.478717667,
+            18.558114833
+          ]
+        },
+        "candidate_change_percent": -2.1026553414302596,
+        "control_drift_percent": -0.43946850661760184,
+        "paired_changes_percent": [
+          -2.108364492648218,
+          -2.0969209895417062
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            18.957844458,
+            18.874554916
+          ],
+          "candidate": [
+            18.558137958000003,
+            18.478745833
+          ]
+        },
+        "median": {
+          "control": 18.916199687000002,
+          "candidate": 18.518441895500004
+        },
+        "range": {
+          "control": [
+            18.874554916,
+            18.957844458
+          ],
+          "candidate": [
+            18.478745833,
+            18.558137958000003
+          ]
+        },
+        "candidate_change_percent": -2.1027362688148976,
+        "control_drift_percent": -0.43934078151407485,
+        "paired_changes_percent": [
+          -2.108396346881758,
+          -2.0970512139837028
+        ]
+      },
+      "draft_load_seconds": {
+        "samples": {
+          "control": [
+            0.0,
+            0.0
+          ],
+          "candidate": [
+            0.0,
+            0.0
+          ]
+        },
+        "median": {
+          "control": 0.0,
+          "candidate": 0.0
+        },
+        "range": {
+          "control": [
+            0.0,
+            0.0
+          ],
+          "candidate": [
+            0.0,
+            0.0
+          ]
+        },
+        "candidate_change_percent": null,
+        "control_drift_percent": null,
+        "paired_changes_percent": [
+          null,
+          null
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            26.614024042,
+            26.311347666
+          ],
+          "candidate": [
+            26.142605792,
+            25.852477084
+          ]
+        },
+        "median": {
+          "control": 26.462685854,
+          "candidate": 25.997541438
+        },
+        "range": {
+          "control": [
+            26.311347666,
+            26.614024042
+          ],
+          "candidate": [
+            25.852477084,
+            26.142605792
+          ]
+        },
+        "candidate_change_percent": -1.757736983185676,
+        "control_drift_percent": -1.1372815156488247,
+        "paired_changes_percent": [
+          -1.7713151880228484,
+          -1.7440025795142367
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          9862913752,
+          9859030744
+        ],
+        "candidate": [
+          9873530584,
+          9872449240
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          10001735360,
+          9994411736
+        ],
+        "candidate": [
+          10005421784,
+          10001358552
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          6440206336,
+          3067625472
+        ],
+        "candidate": [
+          3414540288,
+          3482058752
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          1737408,
+          1503965
+        ],
+        "candidate": [
+          1532625,
+          1511200
+        ]
+      }
+    },
+    "HOLD": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            3.6300124809395924,
+            3.9854022854788482
+          ],
+          "candidate": [
+            4.1164246618372715,
+            3.6715979666817424
+          ]
+        },
+        "median": {
+          "control": 3.8077073832092205,
+          "candidate": 3.894011314259507
+        },
+        "range": {
+          "control": [
+            3.6300124809395924,
+            3.9854022854788482
+          ],
+          "candidate": [
+            3.6715979666817424,
+            4.1164246618372715
+          ]
+        },
+        "candidate_change_percent": 2.2665589123486596,
+        "control_drift_percent": 9.790319080315314,
+        "paired_changes_percent": [
+          13.399738525741277,
+          -7.873842997994918
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            8.539915541000003,
+            7.7783866669999995
+          ],
+          "candidate": [
+            7.530807082999999,
+            8.443190208
+          ]
+        },
+        "median": {
+          "control": 8.159151104000001,
+          "candidate": 7.9869986455
+        },
+        "range": {
+          "control": [
+            7.7783866669999995,
+            8.539915541000003
+          ],
+          "candidate": [
+            7.530807082999999,
+            8.443190208
+          ]
+        },
+        "candidate_change_percent": -2.109931000243448,
+        "control_drift_percent": -8.917288120051248,
+        "paired_changes_percent": [
+          -11.816375152134583,
+          8.546805005470448
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.582455684213199,
+            4.650016156058663
+          ],
+          "candidate": [
+            4.557799712570687,
+            4.791781451916513
+          ]
+        },
+        "median": {
+          "control": 4.6162359201359315,
+          "candidate": 4.674790582243601
+        },
+        "range": {
+          "control": [
+            4.582455684213199,
+            4.650016156058663
+          ],
+          "candidate": [
+            4.557799712570687,
+            4.791781451916513
+          ]
+        },
+        "candidate_change_percent": 1.2684503808017,
+        "control_drift_percent": 1.474328973397676,
+        "paired_changes_percent": [
+          -0.5380515021117027,
+          3.048705447466893
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            17.894335625,
+            17.634347333
+          ],
+          "candidate": [
+            17.991137209,
+            17.112633542
+          ]
+        },
+        "median": {
+          "control": 17.764341479000002,
+          "candidate": 17.5518853755
+        },
+        "range": {
+          "control": [
+            17.634347333,
+            17.894335625
+          ],
+          "candidate": [
+            17.112633542,
+            17.991137209
+          ]
+        },
+        "candidate_change_percent": -1.1959694861256587,
+        "control_drift_percent": -1.45290832500522,
+        "paired_changes_percent": [
+          0.5409621571239587,
+          -2.9585092158397663
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            17.896158334,
+            17.636303291
+          ],
+          "candidate": [
+            17.992991458,
+            17.116365166999998
+          ]
+        },
+        "median": {
+          "control": 17.766230812499998,
+          "candidate": 17.5546783125
+        },
+        "range": {
+          "control": [
+            17.636303291,
+            17.896158334
+          ],
+          "candidate": [
+            17.116365166999998,
+            17.992991458
+          ]
+        },
+        "candidate_change_percent": -1.1907562286715079,
+        "control_drift_percent": -1.452015779868876,
+        "paired_changes_percent": [
+          0.5410832995147885,
+          -2.9481128523420996
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            17.896185042,
+            17.636333416000003
+          ],
+          "candidate": [
+            17.993025083,
+            17.116407666999997
+          ]
+        },
+        "median": {
+          "control": 17.766259229,
+          "candidate": 17.554716374999998
+        },
+        "range": {
+          "control": [
+            17.636333416000003,
+            17.896185042
+          ],
+          "candidate": [
+            17.116407666999997,
+            17.993025083
+          ]
+        },
+        "candidate_change_percent": -1.1907000301712212,
+        "control_drift_percent": -1.4519945194473527,
+        "paired_changes_percent": [
+          0.541121142705725,
+          -2.9480376489611992
+        ]
+      },
+      "draft_load_seconds": {
+        "samples": {
+          "control": [
+            0.0,
+            0.0
+          ],
+          "candidate": [
+            0.0,
+            0.0
+          ]
+        },
+        "median": {
+          "control": 0.0,
+          "candidate": 0.0
+        },
+        "range": {
+          "control": [
+            0.0,
+            0.0
+          ],
+          "candidate": [
+            0.0,
+            0.0
+          ]
+        },
+        "candidate_change_percent": null,
+        "control_drift_percent": null,
+        "paired_changes_percent": [
+          null,
+          null
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            26.436095166,
+            25.414709291
+          ],
+          "candidate": [
+            25.523818791,
+            25.559577583
+          ]
+        },
+        "median": {
+          "control": 25.9254022285,
+          "candidate": 25.541698187
+        },
+        "range": {
+          "control": [
+            25.414709291,
+            26.436095166
+          ],
+          "candidate": [
+            25.523818791,
+            25.559577583
+          ]
+        },
+        "candidate_change_percent": -1.4800311992004156,
+        "control_drift_percent": -3.863603412631167,
+        "paired_changes_percent": [
+          -3.4508741524478137,
+          0.570017505772924
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          9873120960,
+          9876610752
+        ],
+        "candidate": [
+          9876807384,
+          9875562176
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          10001735360,
+          9994411736
+        ],
+        "candidate": [
+          10005487320,
+          10001358552
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          6431555584,
+          2789097472
+        ],
+        "candidate": [
+          3227746304,
+          3508043776
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          2163573,
+          1948380
+        ],
+        "candidate": [
+          1989746,
+          1951823
+        ]
+      }
+    }
+  },
+  "limits": [
+    "Two measured samples per prompt/kind, warmup data preserved separately.",
+    "Control HOLD decode drifts9.79%; no attributed decode boost.",
+    "3GiB fixed requested cache (effective3174942528bytes) is not compared to earlier0.6GiB quick5tok/s.",
+    "No64-token confirmation, long-context or combined-port timing yet.",
+    "Nativeallocatedbytes differs from processfootprint/peak; compression/decompression reported separately."
+  ]
+}
