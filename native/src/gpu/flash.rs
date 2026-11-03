@@ -201,6 +201,24 @@ impl<'a> FlashNext<'a> {
         self.offset = 0;
         self.hidden = None;
     }
+    pub fn log_probs(&self, logits: &[u16]) -> Result<Vec<f32>> {
+        self.gpu.flash_log_probs(logits)
+    }
+    pub fn memory_stats(&self) -> Result<crate::runtime_stats::MemoryStats> {
+        unsafe extern "C" {
+            fn mlxl3_read_process_stats(values: *mut u64, count: usize) -> i32;
+        }
+        let mut raw = [0u64; 12];
+        // The shim fills nine host fields. The MLX allocator counters are zero on the native path.
+        let process = &mut raw[3..];
+        ensure!(
+            unsafe { mlxl3_read_process_stats(process.as_mut_ptr(), process.len()) } == 0,
+            "invalid native process statistics extent"
+        );
+        let mut stats = crate::runtime_stats::MemoryStats::from_raw(raw, std::process::id());
+        stats.native_metal_allocated_bytes = Some(self.gpu.device.current_allocated_size());
+        Ok(stats)
+    }
     pub fn context_limit(&self) -> u32 {
         self.context
     }

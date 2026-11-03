@@ -64,6 +64,7 @@ pub mod qwen4;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;
+pub mod runtime_stats;
 pub mod speculative;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;

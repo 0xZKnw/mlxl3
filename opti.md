@@ -1,5 +1,9 @@
 # MLXL3 — journal des optimisations
 
+## I75-N7-FLASH-BRIDGE-20261103 — serve the existing Flash protocol over the native session
+
+Before implementation. Run the existing Desktop JSON-lines dialogue on the no-MLX Flash target, including request validation, chat templates, reasoning and visible deltas, greedy/sampling, AR and checkpoint MTP, cache reuse, cancellation, shutdown and API transport. Keep the common protocol and MCP/schema/streaming machinery shared with the stock bridge. Compare event ordering, token hashes and termination reasons against the separately linked stock engine, including failure and recovery. Validate the actual OpenAI-compatible loopback HTTP path. Label backend capabilities precisely while the DFlash and SSD policy ports are in progress. No tuning or throughput comparison.
+
 ## I75-N6-MTP-20261103 — checkpoint MTP head and speculative greedy contract
 
 Before implementation. Port the checkpoint's one-layer Flash MTP using the target embedding, previous complete four-stream hidden state, its two FC projections, QSA decoder, mixer and shared output head. Replay every held-out MTP step under the independently captured flash-mtp-oracle-held-02, including attention state, rounded residuals and all finite vocabulary logits. Exercise the real CLI mode, both proposal outcomes, pending tokens, tail budgets, context and cancellation. Compare emitted greedy tokens and target state with AR and the archived stock MTP; preserve reject/restore and cache-only extension. No throughput campaign. The preceding session-snapshot work is the dependency for transactional replay.
