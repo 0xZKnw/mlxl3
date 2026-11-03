@@ -88,6 +88,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::flash_hc_groups_cover_exactly_the_checked_weight_matrix",
         "contracts::packed_flash_gdn_groups_partition_state_entries",
         "flash_support::ple_codewords_select_the_wrapped_nibbles",
+        "flash_support::dense_flash_prompt_cursor_never_overflows_or_partially_accepts",
         "flash_support::qsa_append_preserves_all_published_rows",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",

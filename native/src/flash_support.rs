@@ -164,7 +164,12 @@ pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
     if !(10..=512).contains(&uniform) {
         return false;
@@ -179,7 +184,12 @@ pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
     total == uniform * 48
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 48]> {
     let bytes = value.as_bytes();
     let mut start = 0;
@@ -202,7 +212,12 @@ pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 4
     valid_layer_slots(&slots, uniform).then_some(slots)
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 fn parse_slot_capacity(bytes: &[u8]) -> Option<usize> {
     std::str::from_utf8(bytes).ok()?.parse().ok()
 }
@@ -2907,4 +2922,38 @@ fn qsa_append_handles_empty_full_and_forked_prefixes() {
     for (offset, end, cap) in [(1, 1, 1), (1, 0, 1), (0, 2, 1), (0, 0, 0), (0, 0, 513)] {
         assert_eq!(qsa_append(offset, end, cap), None);
     }
+}
+
+/// Publish the new cursor only after a whole Flash prefill has succeeded.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_prompt_end(offset: u32, tokens: usize, context: u32) -> Option<u32> {
+    let n = u32::try_from(tokens).ok()?;
+    let end = offset.checked_add(n)?;
+    (n > 0 && context <= 512 && end <= context).then_some(end)
+}
+#[cfg(kani)]
+#[kani::proof]
+fn dense_flash_prompt_cursor_never_overflows_or_partially_accepts() {
+    let (offset, tokens, context) = (kani::any(), kani::any(), kani::any());
+    let end = flash_prompt_end(offset, tokens, context);
+    let wide = u128::from(offset) + tokens as u128;
+    assert_eq!(
+        end.is_some(),
+        tokens > 0 && context <= 512 && wide <= u128::from(context)
+    );
+    if let Some(end) = end {
+        assert_eq!(u128::from(end), wide);
+        kani::cover!(end == context && offset > 0);
+        kani::cover!(offset == 0 && tokens > 1);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn dense_prompt_rejects_partial_empty_and_overflowing_inputs() {
+    assert_eq!(flash_prompt_end(0, 512, 512), Some(512));
+    assert_eq!(flash_prompt_end(1, 512, 512), None);
+    assert_eq!(flash_prompt_end(512, 0, 512), None);
+    assert_eq!(flash_prompt_end(u32::MAX, usize::MAX, 512), None);
+    assert_eq!(flash_prompt_end(0, 1, 513), None);
 }

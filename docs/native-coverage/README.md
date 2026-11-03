@@ -149,3 +149,15 @@ Cinq captures indépendantes vérifient 832 040 valeurs, avec tous les états de
 Les opérations de diagnostic `metal-checkpoint-qsa` et `metal-checkpoint-qsa-layer` évaluent des lignes successives du même contexte (1 à 512 tokens). La première accepte les 2 560 activations d’attention et la deuxième les 10 240 valeurs du résidu. La sélection de blocs sparse commence au-delà de cette plage. Un snapshot reste rejouable après l’écriture d’un suffixe divergent.
 
 Les couches 15 et 35 reproduisent les captures indépendantes. Les 512 positions de deux séquences FP16 et FP32 et quatre sorties de la couche 3 par dtype correspondent à la référence de production. [Comparaisons et empreintes](qsa/physical.json) · [Mutation, sources et vérification de l’append](qsa/provenance.json).
+
+### Tester Flash avec un prompt sans MLX
+
+Sur un Mac Apple Silicon, compiler la CLI en release avec `cargo build --locked --release --features chat`. Utiliser ensuite le chemin du checkpoint local ou son nom dans le registre.
+
+```sh
+MLXL3_SSD_CACHE_GIB=0.6 target/release/mlxl3-rs run /chemin/vers/Flash-Next-exl3 --prompt 'Combien font 2 + 2 ?' --max-tokens 256
+```
+
+Sans `--prompt`, le terminal ouvre une conversation. `/clear` efface l’historique et `/quit` quitte. Le moteur affiche la réflexion et la réponse au fur et à mesure. Cette première version qualifie la génération gloutonne sur les 48 couches de Flash, à concurrence de 512 positions au total, template et sortie compris. Le budget de 0,6 Gio choisit dix slots SSD par couche. Les modes spéculatifs, les contextes longs et les parcours Studio suivent leurs qualifications séparées. La commande `forward` accepte aussi une séquence de tokens imposés, ou `--batch` pour les logits du dernier.
+
+Le prompt français du rapport se termine par « 4 » après 77 tokens sur les deux binaires. Sur quatre tokens imposés, tous les 993 280 logits sont identiques, ainsi que les 248 320 logits du batch. [Rapport physique](flash-ar/physical.json) · [Mutation, reprise et preuves](flash-ar/provenance.json).

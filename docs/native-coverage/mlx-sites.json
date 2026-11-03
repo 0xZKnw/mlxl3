@@ -1544,6 +1544,10 @@
     "config MLXL3_CURRENT_POOL_CAPTURE": 2,
     "config MLXL3_CURRENT_POOL_REPORT": 2
   },
+  "native/src/flash_config.rs": {
+    "config MLXL3_SSD_CACHE_GIB": 1,
+    "config MLXL3_SSD_LAYER_SLOTS": 1
+  },
   "native/src/flash_draft.rs": {
     ".add": 9,
     ".affine4": 1,
@@ -1808,6 +1812,7 @@
     "shader ../shaders/flash_gdn_prepare.metal": 1,
     "shader ../shaders/flash_hc.metal": 1,
     "shader ../shaders/flash_hc_gemv.metal": 1,
+    "shader ../shaders/flash_logsumexp.metal": 1,
     "shader ../shaders/flash_moe.metal": 1,
     "shader ../shaders/flash_ple.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
@@ -1816,6 +1821,12 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
     "shader ../shaders/router_topk.h": 1
+  },
+  "native/src/gpu/flash.rs": {
+    ".exp": 1,
+    ".to_f32": 9,
+    "config MLXL3_FLASH_MODEL": 1,
+    "config MLXL3_FLASH_REQUEST_MIB": 1
   },
   "native/src/gpu/gdn.rs": {
     ".shape": 1,
@@ -1912,7 +1923,7 @@
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
   "native/src/lib.rs": {
-    "mlx": 23
+    "mlx": 24
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2097,7 +2108,7 @@
     "Array::from_u16": 5,
     "Array::from_u32": 3,
     "Array::to_f16_bits": 2,
-    "array::Array": 28,
+    "array::Array": 27,
     "array::MemoryStats": 1,
     "array::capture_for_request": 1,
     "array::clear_cache": 8,
@@ -2119,7 +2130,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 123,
+    "mlx": 134,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2353,10 +2364,10 @@
     "config MLXL3_FLASH_REFERENCE": 3,
     "config MLXL3_FLASH_VARIANCE_REFERENCE": 1,
     "config MLXL3_FLASH_VARIANCE_TRACE": 1,
-    "config MLXL3_SSD_CACHE_GIB": 3,
+    "config MLXL3_SSD_CACHE_GIB": 2,
     "config MLXL3_SSD_CACHE_POLICY": 2,
     "config MLXL3_SSD_COLD_READY": 1,
-    "config MLXL3_SSD_LAYER_SLOTS": 3,
+    "config MLXL3_SSD_LAYER_SLOTS": 2,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1,
     "config MLXL3_SSD_OVERLAP": 1,
     "config MLXL3_SSD_RESIDENT_GATES": 1,

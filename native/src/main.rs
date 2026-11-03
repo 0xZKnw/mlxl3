@@ -74,7 +74,7 @@ enum Command {
         #[arg(long, default_value = "")]
         prompt: String,
     },
-    /// Native LFM2, Qwen, Gemma 4 and Ling 3 chat through MLX.
+    /// Chat with a local or registered model using the compiled inference backend.
     Run {
         model: String,
         #[arg(short, long)]
@@ -134,7 +134,10 @@ enum Command {
         action: McpAction,
     },
     /// Emit logits for an imposed token sequence (native parity check).
-    #[cfg(all(feature = "mlx", feature = "chat"))]
+    #[cfg(all(
+        feature = "chat",
+        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+    ))]
     Forward {
         model: PathBuf,
         #[arg(long, value_delimiter = ',', required = true)]
@@ -1333,6 +1336,50 @@ fn run(cli: Cli) -> Result<()> {
             result.extend(splitter.finish());
             println!("{}", serde_json::to_string(&result)?);
         }
+        #[cfg(all(
+            not(feature = "mlx"),
+            feature = "chat",
+            target_os = "macos",
+            feature = "direct-metal"
+        ))]
+        Command::Forward {
+            model,
+            tokens,
+            states,
+            batch,
+        } => {
+            anyhow::ensure!(
+                !states,
+                "direct Flash state export is not available for this build"
+            );
+            anyhow::ensure!(
+                !tokens.is_empty() && tokens.len() <= 512 && tokens.iter().all(|&t| t < 248320),
+                "invalid native Flash tokens or context"
+            );
+            let gpu = mlxl3_native::gpu::Metal::new()?;
+            let c = checkpoint::inspect(&model)?;
+            let mut target = mlxl3_native::gpu::FlashNext::load(&gpu, &c, tokens.len() as u32)?;
+            let mut out = io::stdout().lock();
+            let mut emit = |token: u32, logits: Vec<u16>| -> Result<()> {
+                serde_json::to_writer(
+                    &mut out,
+                    &json!({"token":token,"logits":logits,"states":[]}),
+                )?;
+                writeln!(out)?;
+                out.flush()?;
+                Ok(())
+            };
+            if batch {
+                emit(
+                    *tokens.last().context("empty Flash input")?,
+                    target.prefill(&tokens)?,
+                )?;
+            } else {
+                for token in tokens {
+                    emit(token, target.forward(token)?)?;
+                }
+            }
+        }
         #[cfg(all(feature = "mlx", feature = "chat"))]
         Command::Forward {
             model,
@@ -1413,26 +1460,18 @@ fn run(cli: Cli) -> Result<()> {
             prompt,
             max_tokens,
         } => {
-            #[cfg(all(feature = "mlx", feature = "chat"))]
+            #[cfg(all(
+                feature = "chat",
+                any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+            ))]
             {
-                let candidate = registry::expand_home(&PathBuf::from(&model))?;
-                let model_path = if candidate.is_dir() {
-                    candidate
-                } else {
-                    let path = cli
-                        .registry
-                        .map(Ok)
-                        .unwrap_or_else(registry::default_path)?;
-                    PathBuf::from(
-                        &registry::load(&path)?
-                            .get(&model)
-                            .context("unknown registered model")?
-                            .path,
-                    )
-                };
+                let model_path = resolve_model_path(cli.registry.as_deref(), &model)?;
                 native_chat(&model_path, prompt, max_tokens)?;
             }
-            #[cfg(not(all(feature = "mlx", feature = "chat")))]
+            #[cfg(not(all(
+                feature = "chat",
+                any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+            )))]
             {
                 let _ = (prompt, max_tokens);
                 bail!(
@@ -1683,7 +1722,10 @@ fn run(cli: Cli) -> Result<()> {
     Ok(())
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn resolve_model_path(registry_path: Option<&std::path::Path>, model: &str) -> Result<PathBuf> {
     let candidate = registry::expand_home(&PathBuf::from(model))?;
     if candidate.is_dir() {
@@ -3877,18 +3919,29 @@ fn native_bridge(
     Ok(())
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize) -> Result<()> {
     use mlxl3_native::{
-        array::Array,
         streaming::Channel,
         tokenizer::{ChatTokenizer, Message},
     };
     let tokenizer = ChatTokenizer::load(path)?;
+    #[cfg(feature = "mlx")]
     let mut model = NativeChatModel::load(path)?;
+    #[cfg(not(feature = "mlx"))]
+    let gpu = mlxl3_native::gpu::Metal::new()?;
+    #[cfg(not(feature = "mlx"))]
+    let mut model = mlxl3_native::gpu::FlashNext::load(&gpu, &checkpoint::inspect(path)?, 512)?;
+    #[cfg(feature = "mlx")]
+    let name = model.name();
+    #[cfg(not(feature = "mlx"))]
+    let name = "Flash Next / direct Metal (512 positions)";
     eprintln!(
         "Loaded native {} engine (experimental, greedy sampling)",
-        model.name()
+        name
     );
     let mut messages = Vec::new();
     let interactive = prompt.is_none();
@@ -3935,20 +3988,27 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         } else {
             max_tokens.min(available)
         };
+        #[cfg(feature = "mlx")]
         if let NativeChatModel::Flash(target) = &mut model {
             target.admit_request(tokens.len() + budget)?;
         }
         // Replay keeps conversation contents exact. Qwen uses bounded QMM chunks;
         // other architectures retain their established token path.
         model.reset();
-        let started = Instant::now();
-        let mut last: Option<Array> = None;
-        for chunk in tokens.chunks(model.prefill_chunk_size()) {
-            last = Some(model.forward_many(chunk)?);
-            model.eval_state()?;
-        }
-        let mut logits = last.context("no prefill output")?;
-        logits.eval()?;
+        let started = std::time::Instant::now();
+        #[cfg(feature = "mlx")]
+        let mut logits = {
+            let mut last = None;
+            for chunk in tokens.chunks(model.prefill_chunk_size()) {
+                last = Some(model.forward_many(chunk)?);
+                model.eval_state()?;
+            }
+            let logits = last.context("no prefill output")?;
+            logits.eval()?;
+            logits
+        };
+        #[cfg(not(feature = "mlx"))]
+        let mut logits = model.prefill(&tokens)?;
         let prefill = started.elapsed();
         let mut decoder = tokenizer.tokenizer().decode_stream(false);
         let mut split = ThinkingSplitter::new(&rendered);
@@ -3979,7 +4039,10 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         for _ in 0..budget {
             // Preserve MLX-LM's normalization before greedy selection. A raw
             // logits argmax could choose differently at FP16 rounding ties.
+            #[cfg(feature = "mlx")]
             let probabilities = logits.log_probs()?.to_f32()?;
+            #[cfg(not(feature = "mlx"))]
+            let probabilities = gpu.flash_log_probs(&logits)?;
             let mut best = None;
             for (i, value) in probabilities.iter().enumerate() {
                 anyhow::ensure!(

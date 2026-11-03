@@ -18,6 +18,8 @@ pub struct FlashAttentionOutput {
 
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
+mod flash;
+pub use flash::FlashNext;
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod gdn;
@@ -181,6 +183,7 @@ pub struct Metal {
     hc: [hc::Pipelines; 2],
     qsa: qsa::Pipelines,
     gdn: gdn::Pipelines,
+    logsumexp: ComputePipelineState,
     ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
@@ -259,6 +262,10 @@ impl Metal {
                     "#include \"flash_hc_gemv.metal\"",
                     include_str!("../shaders/flash_hc_gemv.metal"),
                 );
+            let source = source.replace(
+                "#include \"flash_logsumexp.metal\"",
+                include_str!("../shaders/flash_logsumexp.metal"),
+            );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -305,6 +312,7 @@ impl Metal {
             ];
             let qsa = qsa::Pipelines::load(&pipeline)?;
             let gdn = gdn::Pipelines::load(&pipeline)?;
+            let logsumexp = pipeline("flash_logsumexp")?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             Ok(Self {
@@ -323,6 +331,7 @@ impl Metal {
                 hc,
                 qsa,
                 gdn,
+                logsumexp,
                 ple,
                 moe_switch,
                 moe_mix,

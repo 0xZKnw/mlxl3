@@ -213,3 +213,4 @@ ROUTE_KERNEL(float, "route_float")
 #include "flash_ple.metal"
 
 #include "flash_qsa.metal"
+#include "flash_logsumexp.metal"
