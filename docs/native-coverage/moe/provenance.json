@@ -1,0 +1,75 @@
+{
+  "base": "c2ddf00ba2d4ac2ff0755ec74333da3e6e12c1ba",
+  "os": "macOS 26B123, Apple M5, 24 GiB",
+  "stock": "MLX 0.32.2, production SsdMoe::forward",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "source_sha256": {
+    "native/shaders/exl3.metal": "207ec7bed869b9590c0ef8a51ba69a0ceb3a52c4d744ac985630fbd6634fdb2d",
+    "native/shaders/flash_moe.metal": "0b2c1cc901e1b538ccece69973d237ed9dfeec4deca749efa8400c10365b6dfa",
+    "native/src/checkpoint.rs": "16b982caa14f9ef1f86dc0003a5e8b6cebcb53cfc3b0158745f1f6d711a5e387",
+    "native/src/flash_support.rs": "6eae74ab0ff6f661a373be74cd2fc96ff1074f04a0ef59c91ab809593ae4acfd",
+    "native/src/gpu.rs": "08c5159e325dd5ad71356c264c542cc3165df3ee99cbc7537ae6a8b08a8361af",
+    "native/src/gpu/moe.rs": "772b765fba461441846cff5928b7fbf59526b53df887786f63ba1230575b4f8f",
+    "native/src/gpu/projection.rs": "e78635e89c660ae1a68621b15a41485a76b18ea3f30a5ee76f8bc36a39529b8e",
+    "native/src/gpu/view.rs": "c20e454038c5ace11578066a4102a731fb74fd8e9b6612d21927b0173005db09",
+    "native/src/main.rs": "8c965e9047f7e14d1db02ffaf5d8f7afa2e6ed766e0d1bf15b3a95ca3070e889",
+    "native/src/ssd_moe.rs": "9b01563f284d3c598393f7d60ab0de181f3499ba797bade80ebd9e1258d8db4f",
+    "native/src/ssd_moe/row_oracle.rs": "5c0700a365fbecc06109ac723614e228044b6cc1c9ed7e87bb9588c6df1bb44f",
+    "native/src/tensor_layout.rs": "7654c145ca677d57148adf4ba63cde86709b8cb19f905a6953415bfaec7f630c",
+    "tests/physical_flash_moe.py": "73246f26a0a46c388e717081798a7735e63072ea68869e052d8b312c1d84a22e"
+  },
+  "protocol": "python tests/physical_flash_moe.py DIRECT STOCK_LIBTEST CHECKPOINT NEW_REPORT",
+  "release": "cargo build --locked --release --features chat",
+  "stock_libtest": "cargo test --locked --release --lib --features mlx,chat --no-run",
+  "scope": "One AR row per forward, demand-only pread, native router, ten routed experts and one shared expert. Full-model throughput and asynchronous prefetch unmeasured.",
+  "negative_controls": {
+    "first": {
+      "status": "failed",
+      "cli_sha256": "802d3009784cec637d194f9bcfbcb5d1c228dad005814ab632eb2a4aaf4c9f8f",
+      "compared": 40960,
+      "mismatches": 21368,
+      "error": "model.language_model.layers.0.mlp/float16/0 column 0: 8690 vs 86b0, 1264/2560 | model.language_model.layers.0.mlp/float16/1 column 0: 8690 vs 86b0, 1264/2560 | model.language_model.layers.0.mlp/float16/2 column 0: 8cb6 vs 8cb9, 1294/2560 | model.language_model.layers.0.mlp/float16/3 column 0: 8690 vs 86b0, 1264/2560 | model.language_model.layers.0.mlp/float32/0 column 0: bb6ff754 vs bb6ff755, 1802/2560 | model.language_model.layers.0.mlp/float32/1 column 0: bb6ff754 vs bb6ff755, 1802/2560"
+    },
+    "striped": {
+      "status": "failed",
+      "cli_sha256": "a3215863f821eda7395fc518791902d704df84308ba51780228911628fbf0a06",
+      "compared": 40960,
+      "mismatches": 4365,
+      "error": "model.language_model.layers.0.mlp/float32/0 column 0: bb6ff754 vs bb6ff756, 1455/2560 | model.language_model.layers.0.mlp/float32/1 column 0: bb6ff754 vs bb6ff756, 1455/2560 | model.language_model.layers.0.mlp/float32/3 column 0: bb6ff754 vs bb6ff756, 1455/2560"
+    },
+    "trace": {
+      "status": "failed",
+      "cli_sha256": "6e8446682bdea91155c835f2afba02b041406ebc27f8fdd76b404a71d77e6e97",
+      "compared": 40960,
+      "mismatches": 4365,
+      "error": "model.language_model.layers.0.mlp/float32/0 column 0: bb6ff754 vs bb6ff756, 1455/2560 | model.language_model.layers.0.mlp/float32/1 column 0: bb6ff754 vs bb6ff756, 1455/2560 | model.language_model.layers.0.mlp/float32/3 column 0: bb6ff754 vs bb6ff756, 1455/2560"
+    },
+    "mutant": {
+      "status": "failed",
+      "cli_sha256": "6ad4f327dbe1509974a4e4aee6747c78c58b2ecda4069cf4fdbf1befe1ae5d58",
+      "compared": 40960,
+      "mismatches": 40952,
+      "error": "model.language_model.layers.0.mlp/float16/0 column 0: 8690 vs d84, 2560/2560 | model.language_model.layers.0.mlp/float16/1 column 0: 8690 vs d84, 2560/2560 | model.language_model.layers.0.mlp/float16/2 column 0: 8cb6 vs 878, 2559/2560 | model.language_model.layers.0.mlp/float16/3 column 0: 8690 vs d84, 2560/2560 | model.language_model.layers.0.mlp/float32/0 column 0: bb6ff754 vs 382060fe, 2560/2560 | model.language_model.layers.0.mlp/float32/1 column 0: bb6ff754 vs 382060fe, 2560/2560"
+    }
+  },
+  "kani": {
+    "version": "0.68",
+    "record_offsets": {
+      "harness": "flash_record_projection_bindings_fit_the_pinned_read",
+      "checks": 150,
+      "unreachable": 1,
+      "covers": 2,
+      "domain": "all usize projection indices; accepted iff <3, 4-byte alignment and pinned record upper bound"
+    },
+    "row": {
+      "harness": "matrix_row_preserves_backing_and_address",
+      "checks": 391,
+      "unreachable": 8,
+      "covers": 1,
+      "domain": "all u8 axes, row, column, offset and backing extent, i8 strides; address equality and bounds for accepted views",
+      "unwind": 10
+    }
+  },
+  "failure_test": "gpu::moe::tests::partial_record_read_recovers_before_a_replacement_is_visible"
+}

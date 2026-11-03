@@ -7,47 +7,11 @@ package_dir="${repo_dir}/apps/MLXL3Studio"
 app_dir="${repo_dir}/dist/MLXL3 Desktop.app"
 legacy_app_dir="${repo_dir}/dist/MLXL3 Studio.app"
 runtime_dist_dir="${repo_dir}/build/rust-runtime"
-mlx_root="${MLXL3_MLX_ROOT:-}"
 python_bin="${MLXL3_BUILD_PYTHON:-${repo_dir}/.venv/bin/python}"
-cargo_bin="${MLXL3_CARGO:-${HOME}/.cargo/bin/cargo}"
-
 if [[ -z "${MLXL3_MACOS_SDK:-}" && -d /Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk ]]; then
     export MLXL3_MACOS_SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
 fi
-
-if [[ "$(uname -m)" != "arm64" ]]; then
-    print -u2 "Le bundle MLX doit être construit sur un Mac Apple Silicon."
-    exit 2
-fi
-if [[ -z "${mlx_root}" ]]; then
-    mlx_candidates=("${repo_dir}"/.venv/lib/python*/site-packages/mlx(N))
-    mlx_root="${mlx_candidates[1]:-}"
-fi
-if [[ ! -f "${mlx_root}/lib/libmlx.dylib" || ! -f "${mlx_root}/lib/mlx.metallib" ]]; then
-    print -u2 "MLX natif introuvable. Définis MLXL3_MLX_ROOT vers le paquet MLX 0.32.2."
-    exit 2
-fi
-if [[ ! -x "${cargo_bin}" ]]; then
-    cargo_bin="$(command -v cargo || true)"
-fi
-if [[ ! -x "${cargo_bin}" ]]; then
-    print -u2 "Cargo introuvable. Installe Rust avec rustup."
-    exit 2
-fi
-
-MLXL3_MLX_ROOT="${mlx_root}" MACOSX_DEPLOYMENT_TARGET=26.2 \
-    "${cargo_bin}" build --release --locked --features mlx,chat --manifest-path "${repo_dir}/Cargo.toml"
-rm -rf "${runtime_dist_dir}"
-install -d "${runtime_dist_dir}"
-install -m 755 "${repo_dir}/target/release/mlxl3-rs" "${runtime_dist_dir}/mlxl3"
-install -m 755 "${mlx_root}/lib/libmlx.dylib" "${runtime_dist_dir}/libmlx.dylib"
-install -m 755 "${mlx_root}/lib/libjaccl.dylib" "${runtime_dist_dir}/libjaccl.dylib"
-install -m 644 "${mlx_root}/lib/mlx.metallib" "${runtime_dist_dir}/mlx.metallib"
-for component in mlxl3 libmlx.dylib libjaccl.dylib; do
-    codesign --force --sign - "${runtime_dist_dir}/${component}"
-    lipo "${runtime_dist_dir}/${component}" -verify_arch arm64
-done
-"${python_bin}" "${script_dir}/package_engine.py" "${runtime_dist_dir}" "${repo_dir}/dist"
+"${script_dir}/build-engine.sh"
 
 swift_args=(--configuration release --package-path "${package_dir}")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then

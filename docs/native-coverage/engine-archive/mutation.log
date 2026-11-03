@@ -1,0 +1,23 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_native_archive_is_reproducible_and_contains_only_embedded_runtime ____
+
+native_runtime = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_native_archive_is_reprodu0/native')
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-61/test_native_archive_is_reprodu0')
+
+    def test_native_archive_is_reproducible_and_contains_only_embedded_runtime(
+        native_runtime, tmp_path
+    ):
+        one = engine.package(native_runtime, tmp_path / "one", "2.0.2", "metal")
+        two = engine.package(native_runtime, tmp_path / "two", "2.0.2", "metal")
+        assert one.read_bytes() == two.read_bytes()
+        with tarfile.open(one) as archive:
+            assert archive.getnames() == ["engine.json", "mlxl3"]
+            data = json.load(archive.extractfile("engine.json"))
+>           assert data["schema"] == 2 and data["backend"] == "metal"
+E           assert (1 == 2)
+
+tests/test_package_engine.py:273: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_package_engine.py::test_native_archive_is_reproducible_and_contains_only_embedded_runtime
+1 failed in 0.07s
