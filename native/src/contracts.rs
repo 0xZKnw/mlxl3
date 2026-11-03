@@ -2585,3 +2585,56 @@ fn packed_flash_gdn_groups_partition_state_entries() {
         kani::cover!(at == 0);
     }
 }
+/// Flattened widths for one-query grouped attention, before buffer allocation.
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn model_gqa_widths(query_heads: u32, kv_heads: u32, head_dim: u32) -> Option<[u32; 2]> {
+    if query_heads == 0
+        || kv_heads == 0
+        || !query_heads.is_multiple_of(kv_heads)
+        || ![64, 128, 256].contains(&head_dim)
+    {
+        return None;
+    }
+    Some([
+        query_heads.checked_mul(head_dim)?,
+        kv_heads.checked_mul(head_dim)?,
+    ])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn model_gqa_widths_reject_invalid_groups_and_overflow() {
+    let q: u32 = kani::any();
+    let k: u32 = kani::any();
+    let d: u32 = kani::any();
+    let result = model_gqa_widths(q, k, d);
+    let q_width = u64::from(q) * u64::from(d);
+    let k_width = u64::from(k) * u64::from(d);
+    let valid = q > 0
+        && k > 0
+        && q % k == 0
+        && (d == 64 || d == 128 || d == 256)
+        && q_width <= u64::from(u32::MAX)
+        && k_width <= u64::from(u32::MAX);
+    assert_eq!(result.is_some(), valid);
+    if let Some([a, b]) = result {
+        assert_eq!(u64::from(a), q_width);
+        assert_eq!(u64::from(b), k_width);
+    }
+    kani::cover!(result == Some([2048, 512]));
+    kani::cover!(q > 0 && k > 0 && result.is_none());
+}
+
+#[test]
+fn model_gqa_shapes_reject_invalid_heads_and_overflow() {
+    assert_eq!(model_gqa_widths(32, 8, 64), Some([2048, 512]));
+    for args in [
+        (0, 1, 64),
+        (1, 0, 64),
+        (3, 2, 64),
+        (4, 2, 63),
+        (u32::MAX, u32::MAX, 256),
+    ] {
+        assert!(model_gqa_widths(args.0, args.1, args.2).is_none());
+    }
+}

@@ -218,3 +218,5 @@ ROUTE_KERNEL(float, "route_float")
 #include "flash_mtp.metal"
 
 #include "dense_projection.metal"
+
+#include "model_ops.metal"
