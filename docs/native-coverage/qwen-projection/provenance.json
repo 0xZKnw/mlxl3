@@ -95,5 +95,31 @@
     "Python syntax and Ruff"
   ],
   "integration": "Native projection codec is active. Complete Qwen sessions and other model families are subsequent work.",
-  "throughput": "not measured"
+  "throughput": "not measured",
+  "integration_base": "b9e1dd6c52f91cb9758e347d9847e40ef591b764",
+  "source_files_changed_by_integration_base": {
+    "native/src/main.rs": "c1b7380bd43b98c3a8693af03aad7312966530c209279609d5d9f398171b0436"
+  },
+  "integration_note": "Only main.rs imports, inference surfaces and shared bridge helpers changed in the parent. The production codec_loop text and every projection shader, loader, shape contract, stock linear and physical harness hash remain those physically tested. All three integrated Clippy checks and Rust suites passed.",
+  "production_codec_loop_sha256": "2a1d500e6ef95533d1491910bba97b0eacfce9b70afb696e92cc2ab74003cbc0",
+  "production_codec_loop_unchanged_after_rebase": true,
+  "integrated_suites": {
+    "cpu": {
+      "passed": 309,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 310,
+      "failed": 0,
+      "ignored": 25
+    },
+    "stock": {
+      "passed": 346,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "integrated_clippy": "all three configurations passed",
+  "integrated_inventory_files": 223
 }
