@@ -2260,3 +2260,47 @@ fn exl3_lane_order_preserves_shape_and_large_m_fallback() {
     kani::cover!(rows == 3 && enabled && !selected);
     kani::cover!(!enabled && rows == 1 && !selected);
 }
+
+#[cfg(any(
+    all(target_os = "macos", feature = "direct-metal"),
+    feature = "mlx",
+    test,
+    kani
+))]
+pub(crate) fn router_output_len(rows: u32, experts: u32, k: u32) -> Option<u32> {
+    if rows == 0 || !(1..=1024).contains(&experts) || k == 0 || k > experts {
+        return None;
+    }
+    rows.checked_mul(experts)?;
+    rows.checked_mul(k)
+}
+
+#[test]
+fn router_extents_match_wide_products_and_device_bounds() {
+    for rows in [0, 1, 2, 4, 17, u32::MAX / 512, u32::MAX / 512 + 1, u32::MAX] {
+        for experts in [0, 1, 2, 31, 32, 256, 512, 1024, 1025, u32::MAX] {
+            for k in [0, 1, 8, 10, experts, experts.saturating_add(1)] {
+                let legal = rows != 0
+                    && (1..=1024).contains(&experts)
+                    && (1..=experts).contains(&k)
+                    && u64::from(rows) * u64::from(experts) <= u64::from(u32::MAX);
+                assert_eq!(router_output_len(rows, experts, k), legal.then(|| rows * k));
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn router_dispatch_sizes_bound_static_memory_and_output() {
+    let (rows, experts, k): (u32, u32, u32) = kani::any();
+    if let Some(length) = router_output_len(rows, experts, k) {
+        assert!(rows > 0 && k > 0 && k <= experts && experts <= 1024);
+        assert_eq!(u64::from(length), u64::from(rows) * u64::from(k));
+        assert!(rows.checked_mul(experts).is_some());
+        assert!(length > 0);
+        kani::cover!(rows > 1 && experts == 512 && k == 10);
+        kani::cover!(rows > 1 && experts == 256 && k == 8);
+        kani::cover!(experts == 1024 && k == experts);
+    }
+}

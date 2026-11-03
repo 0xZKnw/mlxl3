@@ -105,3 +105,7 @@ Les 63 488 gates FP16 finis avec six multiplicateurs fixes donnent 380 928 valeu
 ### Vues natives des activations Flash
 
 Les entrées de préparation, de projection et d’expert acceptent un backing immuable F16/F32 et une vue matricielle en éléments (forme, offset, strides signés). Le kernel convertit les sources F32 en FP16 avant le produit par les échelles. Les buffers privés du gate/up/down restent sur le GPU. En cas de dimension vide, la préparation accepte un offset juste après le dernier élément ; une projection exige au moins une ligne. Les layouts transposés, inversés et diffusés sont vérifiés sur le M5. [Préparation](views/prepare.json) · [Chaîne sur checkpoint](views/chain.json) · [Mutation du stride](views/missing-row-stride.json).
+
+### Classement des experts sur Metal direct
+
+Le CLI `metal-router` consomme une vue de scores FP16 ou FP32 et rend les indices des experts et les bits de leurs scores. L’API Rust permet au lecteur SSD de transférer seulement les IDs ; les scores publiés après succès peuvent alimenter une autre file Metal. Le contrôle indépendant compare les 80 cas au tri scalaire, au routeur MLX courant et, pour FP16, au binaire d’avant extraction du kernel. Les 32 940 indices sont exacts, ainsi que les 28 136 scores finis et le signe des infinis. Pour les NaN, le test compare la classe. [Comparaison](router/physical.json) · [Mutation des égalités](router/reversed-tie.json) · [Périmètre et références](router/provenance.json).

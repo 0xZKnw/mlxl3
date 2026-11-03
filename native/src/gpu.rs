@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod router;
+pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
 mod projection;
@@ -53,6 +55,8 @@ pub struct Metal {
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
+    route_half: ComputePipelineState,
+    route_float: ComputePipelineState,
     inverse: Buffer,
 }
 
@@ -74,6 +78,10 @@ impl Metal {
                 .replace(
                     "#include \"flash_reference_reduction.h\"",
                     include_str!("../shaders/flash_reference_reduction.h"),
+                )
+                .replace(
+                    "#include \"router_topk.h\"",
+                    include_str!("../shaders/router_topk.h"),
                 );
             let library = device
                 .new_library_with_source(&source, &options)
@@ -106,6 +114,8 @@ impl Metal {
                 .map(|i| i as u16)
                 .collect();
             let inverse = upload(&device, &perm)?;
+            let route_half = pipeline("route_half")?;
+            let route_float = pipeline("route_float")?;
             let queue = device.new_command_queue();
             Ok(Self {
                 device,
@@ -120,6 +130,8 @@ impl Metal {
                 prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
+                route_half,
+                route_float,
                 inverse,
             })
         })

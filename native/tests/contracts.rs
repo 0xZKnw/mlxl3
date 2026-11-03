@@ -587,7 +587,7 @@ fn cli_codec_recovers_after_invalid_request() {
         .unwrap();
     writeln!(
         child.stdin.take().unwrap(),
-        "not json\n{{\"op\":\"{unavailable}\"}}\n{{\"op\":\"permutation\"}}"
+        "not json\n{{\"op\":\"{unavailable}\"}}\n{{\"op\":\"mlx-router\",\"data\":[]}}\n{{\"op\":\"permutation\"}}"
     )
     .unwrap();
     let output = child.wait_with_output().unwrap();
@@ -597,14 +597,20 @@ fn cli_codec_recovers_after_invalid_request() {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
-    assert_eq!(responses.len(), 3);
+    assert_eq!(responses.len(), 4);
     assert!(responses[0]["error"].is_string());
     assert!(responses[1]["error"].is_string());
     assert_eq!(
         responses[1]["error"],
         format!("unknown or unavailable codec operation {unavailable}")
     );
-    assert!(responses[2]["data"].is_array());
+    let router_error = if cfg!(feature = "mlx") {
+        "invalid router rows"
+    } else {
+        "unknown or unavailable codec operation mlx-router"
+    };
+    assert_eq!(responses[2]["error"], router_error);
+    assert!(responses[3]["data"].is_array());
     assert!(!root.path().join("models.json").exists());
 }
 

@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use metal::{Buffer, CommandBufferRef, MTLResourceOptions as Storage, MTLSize};
 
 #[derive(Clone, Copy, PartialEq)]
-enum FloatType {
+pub(super) enum FloatType {
     F16,
     F32,
 }
@@ -19,7 +19,7 @@ pub struct TensorStorage {
 pub struct MatrixView {
     pub(super) buffer: Buffer,
     pub(super) layout: MatrixLayout,
-    dtype: FloatType,
+    pub(super) dtype: FloatType,
 }
 
 impl TensorStorage {

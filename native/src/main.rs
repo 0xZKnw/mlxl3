@@ -199,7 +199,7 @@ struct CodecRequest {
     #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     x: Vec<u16>,
     #[serde(default)]
-    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     x_f32: Option<Vec<f32>>,
     #[serde(default)]
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -244,7 +244,7 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     value_dims: usize,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     normalize: bool,
     #[serde(default)]
     #[cfg(feature = "mlx")]
@@ -510,25 +510,34 @@ fn codec_loop() -> Result<()> {
                 #[cfg(feature = "mlx")]
                 "mlx-router" => {
                     use mlxl3_native::{array::Array, router};
-                    let experts = i32::try_from(if request.cols > 0 {
-                        request.cols
+                    let elements = request.x_f32.as_ref().map_or(request.data.len(), Vec::len);
+                    let experts = if request.cols == 0 {
+                        elements
                     } else {
-                        request.data.len()
-                    })?;
+                        request.cols
+                    };
                     anyhow::ensure!(
-                        request.data.len().is_multiple_of(usize::try_from(experts)?),
+                        experts > 0 && elements > 0 && elements.is_multiple_of(experts),
                         "invalid router rows"
                     );
-                    let rows = i32::try_from(request.data.len() / usize::try_from(experts)?)?;
-                    let (indices, scores) = router::topk(
-                        &Array::from_f16_bits(&request.data, &[rows, experts])?,
-                        request.k,
-                        request.normalize,
-                    )?;
-                    Ok(json!({
-                        "indices": indices.to_u32()?,
-                        "scores": scores.to_f16_bits()?,
-                    }))
+                    let shape = [i32::try_from(elements / experts)?, i32::try_from(experts)?];
+                    let input = if let Some(data) = &request.x_f32 {
+                        anyhow::ensure!(request.data.is_empty(), "conflicting router input dtypes");
+                        Array::from_f32(data, &shape)?
+                    } else {
+                        Array::from_f16_bits(&request.data, &shape)?
+                    };
+                    let (indices, scores) = router::topk(&input, request.k, request.normalize)?;
+                    let words = if request.x_f32.is_some() {
+                        scores
+                            .to_f32()?
+                            .into_iter()
+                            .map(f32::to_bits)
+                            .collect::<Vec<_>>()
+                    } else {
+                        scores.to_f16_bits()?.into_iter().map(u32::from).collect()
+                    };
+                    Ok(json!({"indices": indices.to_u32()?, "scores": words}))
                 }
                 #[cfg(feature = "mlx")]
                 "mlx-router-biased" => {
@@ -905,12 +914,20 @@ fn codec_loop() -> Result<()> {
                 | "metal-checkpoint-linear"
                 | "metal-checkpoint-expert"
                 | "metal-swiglu"
-                | "metal-prepare-view" => {
+                | "metal-prepare-view"
+                | "metal-router" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-router" => {
+                            let input = request.input_view(gpu)?;
+                            let (indices, scores) = gpu
+                                .route(&input, u32::try_from(request.k)?, request.normalize)?
+                                .read()?;
+                            Ok(json!({"indices":indices,"scores":scores}))
+                        }
                         "metal-prepare-view" => {
                             let x = request.input_view(gpu)?;
                             let scales = gpu.f16_storage(&request.data)?.matrix(
