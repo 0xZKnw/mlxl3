@@ -63,65 +63,31 @@ fn topk_legacy(values: &Array, top_k: usize, normalize: bool) -> Result<(Array, 
         matches!(values.dtype(), Dtype::Float16 | Dtype::Float32),
         "native router expects FP16 or FP32 values"
     );
-    let arithmetic = if values.dtype() == Dtype::Float32 {
-        "float"
-    } else {
-        "half"
-    };
-    let score = if normalize { "score / sum" } else { "score" };
+    crate::contracts::router_output_len(rows as u32, experts as u32, top_k as u32)
+        .context("router index overflow")?;
     let source = format!(
         r#"
-            constexpr uint EXPERTS = {experts}u;
-            constexpr uint TOP_K = {top_k}u;
+            constexpr uint experts = {experts}u;
+            constexpr uint k = {top_k}u;
             uint row = threadgroup_position_in_grid.y;
             uint tid = thread_position_in_threadgroup.x;
-
-            threadgroup ulong sort_keys[EXPERTS];
-            threadgroup float top_values[TOP_K];
-
-            float value = float(selection[row * EXPERTS + tid]);
-            uint bits = value == 0.0f ? 0u : as_type<uint>(value);
-            uint monotonic = isnan(value)
-                ? 0xffffffffu
-                : bits ^ uint((int(bits) >> 31) | int(0x80000000u));
-            ulong key = (ulong(monotonic) << 32) | ulong(tid);
-            sort_keys[tid] = key;
-            threadgroup_barrier(mem_flags::mem_threadgroup);
-
-            int above = 0;
-            for (uint other = 0u; other < EXPERTS; ++other) {{
-                above += sort_keys[other] > key ? 1 : 0;
-            }}
-            if (above < int(TOP_K)) {{
-                uint slot = TOP_K - 1u - uint(above);
-                top_values[slot] = float(values[row * EXPERTS + tid]);
-                indices[row * TOP_K + slot] = tid;
-            }}
-            threadgroup_barrier(mem_flags::mem_threadgroup);
-
-            if (tid == 0u) {{
-                {arithmetic} sum = {arithmetic}(0);
-                for (uint slot = 0u; slot < TOP_K; ++slot) {{
-                    sum = {arithmetic}(top_values[slot]) + sum;
-                }}
-                for (uint slot = 0u; slot < TOP_K; ++slot) {{
-                    {arithmetic} score = {arithmetic}(top_values[slot]);
-                    scores[row * TOP_K + slot] = {score};
-                }}
-            }}
+            threadgroup ulong keys[experts];
+            threadgroup float selected[k];
+            mlxl3_rank_row(values[row * experts + tid], tid, experts, k, {normalize},
+                           keys, selected, indices + row*k, scores + row*k);
         "#
     );
     let mut outputs = array::metal_kernel(
         &format!(
-            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v3",
+            "mlxl3_rs_router_e{experts}_k{top_k}_n{}_f32{}_v4",
             u8::from(normalize),
             u8::from(values.dtype() == Dtype::Float32)
         ),
-        &["selection", "values"],
+        &["values"],
         &["indices", "scores"],
-        "",
+        include_str!("../shaders/router_topk.h"),
         &source,
-        &[values, values],
+        &[values],
         &[vec![rows, top_k as i32], vec![rows, top_k as i32]],
         &[Dtype::UInt32, values.dtype()],
         [experts, rows, 1],

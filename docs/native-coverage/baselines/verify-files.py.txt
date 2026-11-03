@@ -1,0 +1,37 @@
+from pathlib import Path
+import hashlib,json,struct
+b=Path('build/issue75n'); d=Path('docs/native-coverage/baselines')
+home=Path.home(); parent=home/'Documents/mix-stq1_0/models'
+dense=home/'Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0'
+paths={'qwen-dense':dense,'qwen-moe':parent/'Qwen3.6-35B-A3B-EXL3-2.49bpw','lfm-moe':parent/'LFM2.5-24B-A2B-EXL3-4bpw-v3'}
+def sha(path):
+ with path.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+old=json.loads(Path('docs/measurements/engine-v1.4.1/checkpoint-identity.json').read_text())
+previous={Path(row['path']):row for row in old['files']+old['state_reference_files']}
+summary={}
+for name,path in paths.items():
+ config=json.loads((path/'config.json').read_text()); cat=json.loads((path/'model.safetensors.index.json').read_text())
+ shards=set(cat['weight_map'].values()); files={p.name for p in path.glob('*.json')}|shards
+ assert shards and all(Path(f).name==f for f in files)
+ receipt={f:{'bytes':(path/f).stat().st_size,'sha256':sha(path/f)} for f in sorted(files)}
+ for f,identity in receipt.items():
+  if path/f in previous: assert previous[path/f]['sha256']==identity['sha256']
+ for f in shards:
+  with (path/f).open('rb') as inp:
+   n=int.from_bytes(inp.read(8),'little'); assert 0<n<100_000_000; head=json.loads(inp.read(n))
+  assert set(head)-{'__metadata__'}=={k for k,v in cat['weight_map'].items() if v==f}
+  assert 8+n+max(row['data_offsets'][1] for k,row in head.items() if k!='__metadata__')==(path/f).stat().st_size
+ summary[name]={'directory_name':path.name,'model_type':config['model_type'],'vocab_size':config.get('text_config',config)['vocab_size'],'shards':len(shards),'tensors':len(cat['weight_map']), 'previously_matched':sum(path/f in previous for f in files),'files':receipt}
+(d/'local-checkpoints.json').write_text(json.dumps(summary,indent=2)+'\n')
+assert len(old['state_reference_files'])==1548
+groups={}
+for row in old['state_reference_files']:
+ path=Path(row['path']); assert path.stat().st_size==row['bytes'] and sha(path)==row['sha256']
+ group,idx=path.stem.split('-array'); groups.setdefault(group,set()).add(int(idx))
+ if idx=='128':
+  raw=path.read_bytes(); assert len(raw)==248320*2
+  assert all((v[0]&0x7c00)!=0x7c00 for v in struct.iter_unpack('<H',raw))
+assert len(groups)==12 and all(ids==set(range(129)) for ids in groups.values())
+(d/'qwen-dense-fixtures.json').write_text(json.dumps({'status':'rehashed_against_original','cases':sorted(groups),'files':1548,'entries_per_case':129,'finite_f16_logits_per_case':248320,'sha256_of_original_manifest':sha(Path('docs/measurements/engine-v1.4.1/checkpoint-identity.json'))},indent=2)+'\n')
+(b/'local-paths.json').write_text(json.dumps({k:str(p) for k,p in paths.items()}))
+print('authenticated checkpoint identities and 1548 golden files',flush=True)

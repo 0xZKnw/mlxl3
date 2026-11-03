@@ -1,0 +1,28 @@
+{
+  "base": "e5def65be92ca6306730b34212677229cd94cc2f",
+  "os_build": "26B123",
+  "chip": "Apple M5",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_manifest": "../../measurements/issue75-migration-20261103/source-manifest.json",
+  "source_sha256": {
+    "native/shaders/exl3.metal": "06ca57968e37bf1be734410b351ba1656b8242aa6e736220fc73a856ffca8c31",
+    "native/shaders/flash_projection.metal": "636cd3dbea548b7a90e34ed5b2fbd44bb2e92cfc081ae321bc95309ef9ba07f6",
+    "native/shaders/flash_reference_reduction.h": "f588157e30d595e0b72a5f3e56c6282a6a8610c36210e69a126a05ba688d99a4",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "native/src/gpu.rs": "45d9b00e3b1caffdb5616b9cc4a6378b719fbb75566dbc151e0db3b6ec3916a5",
+    "native/src/gpu/projection.rs": "0e48f9fea1cb2cedfda72e902672f234ce00393d88a8bdfbb73fe54344fa70f0",
+    "native/src/contracts.rs": "5acb5b88fd9f661dafc431b1a18fdbf17d5cf371e479ec3572c5ec570cf389df",
+    "native/src/linear.rs": "0ade84141c89d8b66a9785f3818705c07e30d21d6b476b9bb38662123ded6bd8",
+    "native/tests/runtime_gpu.rs": "36ffe37fe5b4dbaa61fc69ff424f7c198493c0992b12db7c57b04fcc5b7cb33e",
+    "tests/physical_flash_projection.py": "2fd1fec0f0b3b9d7f5a21f2d0b8091ce7b96571918e3ef1cb8c0f16db5b929ea"
+  },
+  "h128_finite_values": 173184,
+  "exl3_tile_stdout_sha256": "d78baaf6d77989d78dff2c46040d268ef99bc9073c8a139075c41e4c7213b778",
+  "exl3_tile_values": 3072,
+  "case_seed": 7503,
+  "oracle": "Stock Flash Exl3Linear::from_checkpoint and forward, MLX 0.32.2, isolated serial rows",
+  "standalone_cli": "cargo build --locked --release --features chat",
+  "kani_harness": "contracts::projection_offsets_fit_submitted_extents",
+  "kani_checks": 75,
+  "kani_covers": 2
+}

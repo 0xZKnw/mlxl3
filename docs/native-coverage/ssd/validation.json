@@ -1,0 +1,224 @@
+{
+  "status": "verified",
+  "scope": "Flash one-row native demand reads and ordered Hot/W1/W2 GPU waves",
+  "source_commit": "95645e39a1b229756edd7972480773d48b261a04",
+  "hardware": "Apple M5, 24 GiB, macOS build 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "expert_cache_GiB": 0.6,
+  "SSD_readers": 4,
+  "native_cli_sha256": "a362e49ae69ffa75bf9f3432600ceb0d5feef51cb0c6c6359564ff9ee947c617",
+  "direct_libtest_sha256": "d9512f8d65daf7480b5d9cfd34607bd0269ac4fd6565f141f13135337854f2d3",
+  "stock_libtest_sha256": "e46d13292a2f5579d5e9b9c3fe67d564a87b2414fa1b2df5c9a41569b240e9ab",
+  "source_files": {
+    "native/src/ssd_reads.rs": "864499e5cdecb6f4f738797828bccd1802c1d512a2f2d6017536f7979c4d1289",
+    "native/src/flash_support.rs": "fa6331067096586f4ccce1dba79da0aea42bdbfb17cad3552ca0a4b641e53a8b",
+    "native/src/gpu.rs": "77510562456b3cffce4714abbdd1c9cfc1f688d5c757d8ca3c9946c2632f87d4",
+    "native/src/gpu/moe.rs": "5dfd936ba3bf6eb89023b1818de21b6695fead4c37cacd6c3ecfdd7ff3839521",
+    "native/src/gpu/projection.rs": "0d34de3d51b65258bbf3a144d01a50298614fb5d3c12f835b7af781e217f8fe5"
+  },
+  "waves": {
+    "cold": {
+      "cpu": [
+        {
+          "event": "hot_submit",
+          "remaining_reads": 10,
+          "time_ns": 423333
+        },
+        {
+          "event": "w1_submit",
+          "remaining_reads": 9,
+          "time_ns": 4658250
+        },
+        {
+          "event": "final_submit",
+          "remaining_reads": 0,
+          "time_ns": 14829708
+        },
+        {
+          "end_ns": 4466541,
+          "event": "read",
+          "expert": 4,
+          "slot": 0,
+          "start_ns": 367125
+        },
+        {
+          "end_ns": 4785041,
+          "event": "read",
+          "expert": 371,
+          "slot": 8,
+          "start_ns": 368583
+        },
+        {
+          "end_ns": 4849916,
+          "event": "read",
+          "expert": 27,
+          "slot": 1,
+          "start_ns": 370166
+        },
+        {
+          "end_ns": 4984166,
+          "event": "read",
+          "expert": 367,
+          "slot": 7,
+          "start_ns": 378250
+        },
+        {
+          "end_ns": 8951000,
+          "event": "read",
+          "expert": 192,
+          "slot": 5,
+          "start_ns": 4786625
+        },
+        {
+          "end_ns": 9149166,
+          "event": "read",
+          "expert": 168,
+          "slot": 4,
+          "start_ns": 4472000
+        },
+        {
+          "end_ns": 9372041,
+          "event": "read",
+          "expert": 126,
+          "slot": 3,
+          "start_ns": 4851708
+        },
+        {
+          "end_ns": 9523666,
+          "event": "read",
+          "expert": 319,
+          "slot": 6,
+          "start_ns": 4985250
+        },
+        {
+          "end_ns": 13488083,
+          "event": "read",
+          "expert": 481,
+          "slot": 9,
+          "start_ns": 8952458
+        },
+        {
+          "end_ns": 13635916,
+          "event": "read",
+          "expert": 60,
+          "slot": 2,
+          "start_ns": 9152833
+        }
+      ],
+      "gpu": [
+        {
+          "end": 156327.864252125,
+          "start": 156327.863912625
+        },
+        {
+          "end": 156327.86857425002,
+          "start": 156327.86825354167
+        },
+        {
+          "end": 156327.8817625,
+          "start": 156327.878749
+        }
+      ]
+    },
+    "hot": {
+      "cpu": [
+        {
+          "event": "final_submit",
+          "remaining_reads": 0,
+          "time_ns": 4035708
+        }
+      ],
+      "gpu": [
+        {
+          "end": 156327.88581625,
+          "start": 156327.88233725002
+        }
+      ]
+    }
+  },
+  "wave_time_units": {
+    "cpu": "nanoseconds relative to this forward call",
+    "gpu": "seconds reported by MTLCommandBuffer GPUStartTime/GPUEndTime; ordered by CPU submission"
+  },
+  "suites": {
+    "cpu": {
+      "passed": 314,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 315,
+      "failed": 0,
+      "ignored": 24
+    },
+    "stock": {
+      "passed": 351,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "bounded_model_check": {
+    "tool": "Kani 0.68.0",
+    "harness": "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
+    "domain": "expert IDs 0..511, arbitrary u64 generation, success/failure",
+    "obligations": 785,
+    "unreachable": 7,
+    "covers": 3,
+    "global": "attempt on ad439580 encountered compiler ICE at kani-compiler/src/intrinsics.rs:243",
+    "scope": "generation transitions; GPU execution, threads and OS I/O are not proven"
+  },
+  "CPU_regressions": [
+    "deduplicated reads and ordered duplicate contributions",
+    "stale and repeated publication, partial plan cleanup, exhausted generation",
+    "owned disjoint byte ranges, EOF, drain and retry",
+    "actual blocked worker survives logical timeout; reuse refused until physical drain",
+    "allocation refusal via try_reserve_exact",
+    "first-tensor descriptor spans full contiguous record; truncation rejected"
+  ],
+  "negative_control": {
+    "variant": "remove stale/duplicate demand publication guard in isolated checkout ad439580",
+    "selected": 1,
+    "failed": 1,
+    "assertion": "!plan.publish(plan.reads[0])"
+  },
+  "retained_failures": [
+    {
+      "phase": "initial exact-filter command",
+      "selected": 0,
+      "excluded": true
+    },
+    {
+      "phase": "first physical run",
+      "reason": "invalid Flash record length before expected offset error"
+    },
+    {
+      "phase": "offset-corrected physical run",
+      "reason": "same invalid-length error exposed first-constituent descriptor bug"
+    },
+    {
+      "phase": "new CPU record regression before correction",
+      "selected": 1,
+      "failed": 1,
+      "reason": "invalid Flash record length"
+    }
+  ],
+  "cost": "one extra owned host record and one host-to-shared-Metal copy per cold read; throughput unmeasured",
+  "open_N4_gates": [
+    "predictive prefetch integration",
+    "multi-row cohorts beyond current one-row ten-route production entry",
+    "request-time resize and shrink",
+    "additional transition-specific physical fault injections"
+  ],
+  "raw_local_directory": "/Users/justin/.codex/worktrees/issue75-native-flash-ssd/mix-stq1_0/build/issue75ssd",
+  "integration": {
+    "base_pr": 94,
+    "base_sha": "b9e1dd6c52f91cb9758e347d9847e40ef591b764",
+    "rebase_source_sha": "64ce967a2c03f14a065799ee51b11b31d522c6be",
+    "native_file_hashes_unchanged": true,
+    "clippy": "CPU, direct and compatibility passed after original bridge integration",
+    "direct_suite": "passed after original bridge integration",
+    "final_parent_delta": "restored #93 test shapes/documents and discovery-based CI fixture; production code unchanged",
+    "proof_inventory": "upstream native accounting and N4 demand harness retained"
+  }
+}

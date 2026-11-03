@@ -1,0 +1,20 @@
+{
+  "base": "f76346dfd86ee01da909cd94740e7f74eb704635",
+  "chip": "Apple M5",
+  "os_build": "26B123",
+  "source_sha256": {
+    "native/src/gpu/projection.rs": "1498276e956d873c4334cefd0b5dbd4add9a81e3f5a8653c34e5d5cac5f5ef25",
+    "native/src/gpu.rs": "71080cf09d6e2f9dce7d737f9e7ec19289267dcce149432b05d7011d4c2377ca",
+    "native/src/contracts.rs": "9f016e76d32def22b2610509aa8e5d3aa0e96516da2cde54b6d570a62c899f8c",
+    "native/shaders/exl3.metal": "d35b1c71487ce02364321a970e6a714c5f214174723865a10c69d1a603b3e893",
+    "native/tests/runtime_gpu.rs": "4807274d54316ae89040686ae88e16962a47cd47aaa7604e878d48dcd10b92ae",
+    "tests/physical_flash_projection.py": "21a868ffd40c9caadc845bb2f388575610688552c401a147414608dd819d238c",
+    "tests/physical_flash_swiglu.py": "04fc9f1bde702a12441ddb65a319a2af9244ccc66cfc04b536d033dc3bfc0a68"
+  },
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "one_command_encoders": 10,
+  "stock": "MLX 0.32.2, stock Flash serialized gate, up, compiled SwiGLU then down on each imposed row",
+  "kani_harness": "contracts::flash_expert_submissions_share_intermediate_extents",
+  "kani_checks": 118,
+  "kani_covers": 2
+}

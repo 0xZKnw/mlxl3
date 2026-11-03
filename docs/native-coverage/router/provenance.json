@@ -1,0 +1,35 @@
+{
+  "base": "4967cd01be6f2e1b3f33a1ed47fdb40e0368ede8",
+  "chip": "Apple M5, 24 GiB",
+  "os_build": "26B123",
+  "reference": "Frozen pre-port CLI for all FP16, current isolated MLX 0.32.2 stock for FP16 and FP32, independent Python stable numeric sort and ascending dtype sum for all cases. NaN payload excluded; infinity sign and all finite words exact.",
+  "scope": "MoE top-k on score matrices. Layer gate, softmax, Flash FP16 post-selection normalization and expert mixing separate.",
+  "source_sha256": {
+    "native/src/contracts.rs": "a345fda78e946bb904a0119c2e85782f36132f62358e4782558a9ad5dc096da2",
+    "native/src/router.rs": "3014111a78f53288ce9ceee5fcd0c1a8459884db6560156e1b516d82c2bfe7cd",
+    "native/src/gpu/router.rs": "6ed89c586170a25f4e047be8781d1d769705e055546c7eadaa1847a9888d8fd2",
+    "native/src/gpu.rs": "1a6f921ce8af177efb2d6407a39649b9889fd1a8e6ff4b86b3a6a415726f7966",
+    "native/shaders/router_topk.h": "25504198d214e7febc9c66cb4158dce5faa07a3cbed2476ed6dd77ebe97db185",
+    "native/shaders/exl3.metal": "a7620b8642236c0defa73e6f0da773cac8972d6e1d22e4769d78d00abfea392d",
+    "native/src/main.rs": "1f9ffc075cd787822453fd001c6e87ff0c70563ff92e4c8cb15ffa6f1b594306",
+    "tests/physical_moe_router.py": "98617c41b6d04884c9870dcca7bb98293d80d1650ce3d6469b7298873ca35b40"
+  },
+  "kani": {
+    "harness": "contracts::router_dispatch_sizes_bound_static_memory_and_output",
+    "version": "0.68.0",
+    "domain": "All u32 rows, experts and k, no assumptions",
+    "checks": 71,
+    "unreachable": 0,
+    "covers": 3
+  },
+  "reproduction": {
+    "returncode": 101,
+    "stderr": "\nthread 'main' (3615736) panicked at native/src/main.rs:522:46:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n"
+  },
+  "commands": [
+    "cargo build --locked --release --features chat",
+    "cargo build --locked --release --features mlx,chat",
+    "python tests/physical_moe_router.py DIRECT FROZEN_MLX UPDATED_MLX REPORT",
+    "cargo test --features chat --lib gpu::router::tests::publishes_complete_routes_after_producer_and_input_drop -- --ignored --exact --test-threads=1"
+  ]
+}

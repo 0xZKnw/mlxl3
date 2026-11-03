@@ -228,53 +228,7 @@ impl SsdMoe {
         slots: usize,
         policy: ResolvedPolicy,
     ) -> Result<Self> {
-        let mut records = Vec::with_capacity(512);
-        for expert in 0..512 {
-            let p = format!("{prefix}.experts.{expert}");
-            let mut start = None;
-            let mut cursor = 0;
-            let mut file = None;
-            for (projection, input, output) in
-                [("down_proj", I, H), ("gate_proj", H, I), ("up_proj", H, I)]
-            {
-                for (part, shape, dtype) in [
-                    ("suh", vec![input as usize], "F16"),
-                    ("svh", vec![output as usize], "F16"),
-                    ("mul1", vec![], "I32"),
-                    (
-                        "trellis",
-                        vec![input as usize / 16, output as usize / 16, 32],
-                        "I16",
-                    ),
-                ] {
-                    let name = format!("{p}.{projection}.{part}");
-                    let tensor = c
-                        .tensors
-                        .get(&name)
-                        .with_context(|| format!("missing {name}"))?;
-                    ensure!(
-                        tensor.shape == shape && tensor.dtype == dtype,
-                        "unsupported Flash expert tensor {name}"
-                    );
-                    if start.is_none() {
-                        start = Some(tensor.clone());
-                        cursor = tensor.data_offsets[0];
-                        file = Some(tensor.file.clone());
-                    }
-                    ensure!(
-                        Some(&tensor.file) == file.as_ref() && tensor.data_offsets[0] == cursor,
-                        "Flash expert record is not contiguous"
-                    );
-                    cursor = tensor.data_offsets[1];
-                }
-            }
-            let first = start.context("empty expert record")?;
-            ensure!(
-                cursor - first.data_offsets[0] == EXPERT_BYTES,
-                "invalid Flash expert record size"
-            );
-            records.push(first);
-        }
+        let records = crate::checkpoint::flash_expert_records(c, prefix)?;
         let cache = Rc::new(RefCell::new(ExpertCache::new(slots)?));
         if policy.force_lru {
             cache.borrow_mut().enable_predictive_lru();
@@ -2812,3 +2766,6 @@ mod tests {
 #[cfg(test)]
 #[path = "ssd_moe/grouped_micro.rs"]
 mod grouped_micro;
+
+#[cfg(test)]
+mod row_oracle;
