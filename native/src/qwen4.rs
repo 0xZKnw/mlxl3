@@ -39,19 +39,7 @@ mod mtp_prefill_tests;
 
 /// Inclusive host timings; verification includes its existing GPU completion waits.
 #[cfg(feature = "chat")]
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
-pub struct FlashDraftProfile {
-    pub draft_seconds: f64,
-    pub verification_seconds: f64,
-    pub commit_cache_seconds: f64,
-    pub verified_rows: usize,
-    pub drafted_rows: usize,
-    pub drafted_widths: [usize; 8],
-    pub verified_widths: [usize; 8],
-    pub expert_demand_bytes: u64,
-    /// Submitted, completed, used, reused, timeouts, wait ns, read bytes, late demands.
-    pub ssd_prefetch: [u64; 8],
-}
+pub use crate::runtime_stats::FlashDraftProfile;
 
 struct Norm {
     gain: Array,
@@ -543,6 +531,8 @@ struct QsaWeights {
 struct Qsa {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
+    #[cfg(test)]
+    sparse_trace: Option<BTreeMap<&'static str, Array>>,
     weights: QsaWeights,
     state: QsaState,
 }
@@ -591,6 +581,8 @@ impl Qsa {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
+            #[cfg(test)]
+            sparse_trace: None,
             weights: QsaWeights {
                 q: proj("q_proj", 12288)?,
                 k: proj("k_proj", 512)?,
@@ -733,6 +725,11 @@ impl Qsa {
             }
             tokens.extend((count * 4..offset + 1).map(|i| i as u32));
             let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
+            #[cfg(test)]
+            if let Some(t) = &mut self.sparse_trace {
+                t.insert("index_scores", reduced.try_clone()?);
+                t.insert("selected_positions", selected.try_clone()?);
+            }
             (keys.take(&selected, 2)?, values.take(&selected, 2)?)
         } else {
             (keys.try_clone()?, values.try_clone()?)
@@ -763,6 +760,10 @@ impl Qsa {
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 5, 128])?;
+        #[cfg(test)]
+        if let Some(t) = &mut self.sparse_trace {
+            t.insert("index_qk", qk.try_clone()?);
+        }
         let raw = qk.slice(2, 4, 5)?.reshape(&[1, 1, 128])?;
         let tail = Self::append(&self.state.index_tail, &raw, 1)?;
         if (self.state.offset + 1) % 4 == 0 {
@@ -3053,7 +3054,7 @@ mod tests {
                 "session head state differs, budget={budget}"
             );
             println!(
-                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}",
+                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}, tokens={golden:?}",
                 session.proposed, session.accepted, session.blocks
             );
             proposed += session.proposed;

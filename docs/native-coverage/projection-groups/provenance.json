@@ -1,0 +1,124 @@
+{
+  "status": "verified_component",
+  "source_base": "197a4e0476cdca8857951dc412d385c67daa46f5",
+  "source_modified": true,
+  "source_sha256": {
+    "native/src/gpu/projection.rs": "67f5ebebdb4eb9007daa1e00afc9756b84484ccc71ba1d1e010302e573e3450f",
+    "native/src/gpu.rs": "1d487ffa8b09d92b4da3fdc93c845f07173ba256fac27cabbe7060b160a99019",
+    "native/src/contracts.rs": "bfd467f7603290fad8f8046a356eb2cace1a1191b9a0357205ff6cf80ac2c56c",
+    "native/src/main.rs": "111a136b066e0b9366f4df55aa30a084b13b168acefe95d528430ebb9ce5f861",
+    "tests/physical_projection_group.py": "03a0e13ae12e79ebdfd874e9a5fc4b13f3bc57ff226f9c29ff00f3add4df9e21",
+    "tests/test_physical_projection_group.py": "d9eed06a9b79c535945663858cc2f67ad30144e61da14e742401ee8c1f248b0c"
+  },
+  "shader_sha256": {
+    "native/shaders/exl3.metal": "677dd6eda4dc34d59996b07c385f35a0c884b638a3290548de88920fb9ddc725",
+    "native/shaders/dense_projection.metal": "425f0e31ddd8efcf4c36ba921abd4c582604f62efbbbea58e8c8d0cdf4705aa6",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "native/shaders/flash_projection.metal": "e7a3118bd4e71755f1914155537453103fe43a88552c3cf40c39b6963bff6b8d",
+    "native/shaders/flash_reference_reduction.h": "f588157e30d595e0b72a5f3e56c6282a6a8610c36210e69a126a05ba688d99a4"
+  },
+  "shaders_identical_to_103": true,
+  "hardware": "Apple M5,24GiB,macOS26B123",
+  "oracle": "Independent Rust/MLX0.32.2 Exl3Group and fallback Exl3Linear::from_checkpoint; final half outputs",
+  "direct_sha256": "c9010e59d294c46d833e8243bf91379fdd1a24a56c9005a857724ebebafd81ad",
+  "stock_sha256": "6b868346ca18254dfed678c222aac9b272c394e2b4232dc47e9e72279321c8c7",
+  "direct_libtest_sha256": "fb6bedb02ccebd24631a1d0a906fab096c6bacdbaf5a507d53febcf72bf6ce9a",
+  "each_mode": {
+    "cases": 38,
+    "finite_half_words": 164352,
+    "unequal_words": 0,
+    "real_bundles": 8,
+    "invalid_requests_then_recovery": 5,
+    "previous_103_bias_control_words": 1024
+  },
+  "coverage": [
+    "K1\u20138 and three codebooks",
+    "unequal Q/K/V widths and combined split plan",
+    "K7/mixed-codebook/single-prefix separate fallback",
+    "duplicate prefixes and negative input stride",
+    "F16/BF16/F32 checkpoint gains and maintained bias-to-half cast",
+    "5120\u219210240+6144 and5120\u219217408+17408 lane-layout geometries",
+    "actual Qwen attention layers3/39 and shared pairs0/36",
+    "actual LFM attention layers2/38 and dense pairs0/1"
+  ],
+  "modes": {
+    "M5": "m5.json",
+    "forced_four_groups_on_M5": "portable.json"
+  },
+  "lifecycle": {
+    "passed": 1,
+    "scope": [
+      "empty prefixes",
+      "incompatible input widths",
+      "invalid shape/dtype",
+      "outputs retained after bundle/checkpoint/device release"
+    ]
+  },
+  "proof": {
+    "verifier": "Kani0.68.0/CBMC6.11.0",
+    "checks": 132,
+    "covers": 6,
+    "unreachable": 1,
+    "width_fold": {
+      "checks": 121,
+      "covers": 4,
+      "seconds": 1.3493729,
+      "domain": "Symbolic lists of0..3 arbitrary u32 widths, matching actual two/three-projection callers; unwind13 retains all unwinding checks. Longer lists are supported by checked production iteration and a64-entry regression, but not formally proved here."
+    },
+    "scalar_lane_operands": {
+      "checks": 11,
+      "covers": 2,
+      "seconds": 0.025959376,
+      "domain": "All four scalar positions and all lane classes, through the actual existing exl3_lane_source_index helper. This is a CPU operand-layout relation, not a Metal proof."
+    },
+    "initial_failure": "Unwind5 failed the builtin12-byte memcmp used by the array-equality cover. Raised bound13 without restricting inputs; initial-kani.log retained.",
+    "log": "kani.log",
+    "scope": "CPU contracts only; does not prove Metal numerical arithmetic or complete inference."
+  },
+  "suites": {
+    "cpu": {
+      "passed": 307,
+      "failed": 0,
+      "ignored": 8
+    },
+    "direct": {
+      "passed": 314,
+      "failed": 0,
+      "ignored": 28
+    },
+    "stock": {
+      "passed": 350,
+      "failed": 0,
+      "ignored": 249
+    }
+  },
+  "python": {
+    "driver_passed": 3,
+    "malformed_subcases": 5,
+    "inventory_passed": 4,
+    "Linux_only_runner_skipped_on_macOS": 44,
+    "crosshair": "Imports succeed; no checkable functions. No Python proof."
+  },
+  "checks": [
+    "three strict Clippy configurations",
+    "cargo fmt --check",
+    "release direct/stock CLI and physical libtest",
+    "Ruff/syntax",
+    "reviewed MLX inventory225files"
+  ],
+  "projection_regression": {
+    "report": "projection-regression.json",
+    "cases": 104,
+    "finite_half_words": 429952,
+    "unequal_words": 0
+  },
+  "source_correction": "A preliminary F32-bias suspicion was withdrawn before any build/GPU test: the stock checkpoint caller already casts biasHalf. The unexecuted float-bias prototype was removed. Both final shader hashes and1024-word previous#103 controls confirm unchanged behavior.",
+  "provenance_note": "The final Kani-only unwind attribute changed5\u219213 after the release build; the production helper, wrapper, codec and all shader source bytes are those physically tested.",
+  "CI": "New driver regressions run on PR/main; exact remote head will be inspected after push. Parent#103 routes shard has two inherited600s grouped-route proof timeouts, not introduced by this component.",
+  "throughput": "not measured",
+  "limits": [
+    "Native wrapper accepts one F16 row; ordinary grouping preserves sequence and same-dtype output.",
+    "Full Qwen/LFM sessions and speculative modes remain separate work.",
+    "No installed application change."
+  ]
+}

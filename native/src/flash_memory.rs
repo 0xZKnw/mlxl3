@@ -35,6 +35,22 @@ impl ResourcePlan {
         })
     }
 
+    pub fn native_ar(positions: u32, context: u32) -> Option<Self> {
+        if positions == 0
+            || positions > context
+            || context > crate::flash_support::FLASH_MAX_CONTEXT
+        {
+            return None;
+        }
+        let capacity = positions.checked_next_power_of_two()?.max(32).min(context);
+        let mut plan = Self::ar(positions)?;
+        plan.kv_bytes = u64::from(capacity) * 24576;
+        plan.index_bytes = (u64::from(capacity) / 4 + 3) * 12 * 128 * 2;
+        // A restored prefix may fork a complete slab of this capacity.
+        plan.append_overlap_bytes = plan.kv_bytes + plan.index_bytes;
+        Some(plan)
+    }
+
     pub fn extra_bytes(self) -> u64 {
         self.kv_bytes
             + self.index_bytes
@@ -43,6 +59,23 @@ impl ResourcePlan {
             + self.append_overlap_bytes
             + self.scratch_reserve_bytes
     }
+}
+
+/// Budget mode preserves the reference policy: reject speculation before loading its weights.
+pub fn native_speculation_permitted(limit: Option<u64>) -> bool {
+    limit.is_none()
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_request_budget_keeps_every_configured_limit_ar_only() {
+    let configured: bool = kani::any();
+    let bytes: u64 = kani::any();
+    let limit = configured.then_some(bytes);
+    assert_eq!(native_speculation_permitted(limit), !configured);
+    kani::cover!(!configured && native_speculation_permitted(limit));
+    kani::cover!(configured && bytes == 0 && !native_speculation_permitted(limit));
+    kani::cover!(configured && bytes == u64::MAX && !native_speculation_permitted(limit));
 }
 
 /// The default cache may be non-uniform. Only take slots above the floor,
@@ -95,5 +128,70 @@ fn admission_and_shrink_respect_memory_bounds() {
         assert!(positions > 0 && positions <= i32::MAX as u32);
         assert!(plan.extra_bytes() >= plan.kv_bytes * 2 + plan.scratch_reserve_bytes);
         kani::cover!(positions == 2052);
+    }
+}
+
+#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn request_limit() -> anyhow::Result<Option<u64>> {
+    use anyhow::Context;
+    match std::env::var("MLXL3_FLASH_REQUEST_MIB") {
+        Ok(text) => Ok(Some(
+            text.parse::<u64>()
+                .ok()
+                .filter(|n| *n > 0)
+                .and_then(|n| n.checked_mul(1 << 20))
+                .context("MLXL3_FLASH_REQUEST_MIB requires a positive integer MiB budget")?,
+        )),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn native_plan_reserves_geometric_slabs_and_their_forks() {
+    for (positions, context, capacity) in [
+        (1, 1, 1),
+        (1, 512, 32),
+        (33, 50, 50),
+        (2053, 4096, 4096),
+        (131073, 262144, 262144),
+    ] {
+        let plan = ResourcePlan::native_ar(positions, context).unwrap();
+        assert_eq!(plan.kv_bytes, capacity * 24576);
+        assert_eq!(plan.append_overlap_bytes, plan.kv_bytes + plan.index_bytes);
+    }
+    for (n, c) in [(0, 512), (2, 1), (1, 0), (1, u32::MAX)] {
+        assert!(ResourcePlan::native_ar(n, c).is_none());
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_admission_covers_the_complete_geometric_slab() {
+    let (positions, context): (u32, u32) = kani::any();
+    let plan = ResourcePlan::native_ar(positions, context);
+    assert_eq!(
+        plan.is_some(),
+        positions > 0 && positions <= context && context <= crate::flash_support::FLASH_MAX_CONTEXT
+    );
+    if let Some(plan) = plan {
+        let capacity = plan.kv_bytes / 24576;
+        assert!(capacity >= u64::from(positions) && capacity <= u64::from(context));
+        assert!(capacity >= u64::from(context.min(32)));
+        assert!(capacity == u64::from(context) || capacity.is_power_of_two());
+        let candidate: u32 = kani::any();
+        if candidate >= 32
+            && candidate.is_power_of_two()
+            && candidate >= positions
+            && candidate < context
+        {
+            assert!(capacity <= u64::from(candidate));
+        }
+        assert_eq!(plan.append_overlap_bytes, plan.kv_bytes + plan.index_bytes);
+        assert!(plan.extra_bytes() >= 2 * plan.kv_bytes + (512 << 20));
+        kani::cover!(positions == 2053 && context == 4096 && capacity == 4096);
+        kani::cover!(positions == 33 && context == 50 && capacity == 50);
+        kani::cover!(positions == 1 && context == 262144 && capacity == 32);
     }
 }

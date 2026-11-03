@@ -180,3 +180,98 @@ fn dense_qsa_across_simd_stripes_and_residual() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "physical long Flash QSA independent MLX oracle, including exact sparse positions"]
+fn qsa_index_boundaries_and_cache() -> Result<()> {
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_QSA_MODEL")?))?;
+    let dir = PathBuf::from(std::env::var("MLXL3_QSA_ORACLE_DIR")?);
+    let mut qsa = Qsa::load(&c, "model.language_model.layers.15.self_attn", 1e-6, 1e7)?;
+    for t in 0..4096 {
+        let n = t + 1;
+        let sampled = crate::flash_support::qsa_probe_checkpoint(n as u32);
+        qsa.sparse_trace = sampled.then(BTreeMap::new);
+        let values = crate::flash_support::qsa_probe_row(t as u32);
+        let input = Array::from_f32(&values, &[1, H])?;
+        let out = qsa.forward(&input)?;
+        out.eval()?;
+        if sampled {
+            let write = |name: &str, data: &Array| -> Result<()> {
+                std::fs::write(dir.join(format!("{n}-{name}.bin")), data.to_bytes()?)?;
+                Ok(())
+            };
+            write("out", &out)?;
+            for (name, a) in qsa.sparse_trace.take().context("missing trace")? {
+                write(name, &a)?;
+            }
+            if let Some(tail) = &qsa.state.index_tail {
+                write("index_tail", tail)?;
+            }
+            if n % 4 == 0 {
+                let blocks = qsa.state.blocks.as_ref().context("missing index blocks")?;
+                write("index_block", &blocks.slice(2, n / 4 - 1, n / 4)?)?;
+            }
+            if n == 4096 {
+                for (name, v) in [("keys", &qsa.state.keys), ("values", &qsa.state.values)] {
+                    write(
+                        name,
+                        &v.as_ref().context("missing KV")?.transpose(&[0, 2, 1, 3])?,
+                    )?;
+                }
+                write(
+                    "blocks",
+                    qsa.state.blocks.as_ref().context("missing blocks")?,
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Flash MTP intermediate oracle for the first held-out token"]
+fn mtp_fc_inputs_and_projections() -> Result<()> {
+    let root = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MTP_REFERENCE")?);
+    let output = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MTP_STOCK_PARTS")?);
+    let reference: serde_json::Value =
+        serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
+    let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+    let target = FlashNext::from_checkpoint(&c)?;
+    let head = FlashMtpHead::load(&c, &target)?;
+    let case = &reference["mtp_steps"][0];
+    let token = u32::try_from(case["token"].as_u64().context("missing token")?)?;
+    let hidden = super::tests::input(&root, &case["input"], WIDTH)?;
+    let embedding = target.embedding(token)?.reshape(&[1, 1, H])?;
+    let en = head.embedding_norm.forward(&embedding)?;
+    let ep = head.embedding_fc.forward(&en)?;
+    let capture = if let Ok(path) = std::env::var("MLXL3_MTP_NORM_CAPTURE") {
+        crate::array::synchronize()?;
+        Some(crate::array::MetalCapture::start(Path::new(&path))?)
+    } else {
+        None
+    };
+    let hn = head
+        .hidden_norm
+        .forward(&hidden.reshape(&[1, 1, WIDTH])?)?
+        .reshape(&[1, 1, HC, H])?;
+    hn.eval()?;
+    crate::array::synchronize()?;
+    if let Some(capture) = capture {
+        capture.finish()?;
+    }
+    let hp = head.hidden_fc.forward(&hn)?.astype(Dtype::Float16)?;
+    let mixed = head.mixed(&target, &hidden, token)?;
+    for (name, a) in [
+        ("embedding", embedding),
+        ("embedding_norm", en),
+        ("embedding_fc", ep),
+        ("hidden_norm", hn),
+        ("hidden_fc", hp),
+        ("mixed", mixed),
+    ] {
+        let bytes = a.to_bytes()?;
+        ensure!(!bytes.is_empty());
+        std::fs::write(output.join(format!("{token}-{name}.bin")), bytes)?;
+    }
+    Ok(())
+}

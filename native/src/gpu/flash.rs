@@ -11,9 +11,13 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use half::{bf16, f16};
-use std::os::unix::fs::FileExt;
+use std::{cell::RefCell, os::unix::fs::FileExt, rc::Rc};
 
-enum Layer<'a> {
+#[path = "mtp.rs"]
+mod mtp;
+pub use mtp::{FlashMtpHead, FlashMtpSession};
+
+pub(super) enum Layer<'a> {
     Gdn(FlashGdnLayer<'a>),
     Ple(Box<FlashPleLayer<'a>>),
     Qsa(FlashQsaLayer<'a>),
@@ -24,12 +28,25 @@ enum State {
     Ple(FlashPleLayerState),
     Qsa(FlashQsaState),
 }
-impl Layer<'_> {
-    fn forward(&mut self, x: &MatrixView, token: u32) -> Result<MatrixView> {
+impl<'a> Layer<'a> {
+    fn forward(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         match self {
-            Self::Gdn(a) => a.forward(x),
-            Self::Ple(a) => a.forward(x, token),
-            Self::Qsa(a) => a.forward(x),
+            Self::Gdn(a) => a.forward_lookahead(x, next, depth),
+            Self::Ple(a) => a.forward_lookahead(x, token, next, depth),
+            Self::Qsa(a) => a.forward_lookahead(x, next, depth),
+        }
+    }
+    fn moe(&mut self) -> &mut super::FlashMoeRow<'a> {
+        match self {
+            Self::Gdn(a) => &mut a.residual.moe,
+            Self::Ple(a) => &mut a.body.residual.moe,
+            Self::Qsa(a) => &mut a.residual.moe,
         }
     }
     fn snapshot(&self) -> State {
@@ -47,6 +64,35 @@ impl Layer<'_> {
             _ => anyhow::bail!("invalid Flash layer snapshot"),
         }
     }
+    fn recurrent(&self) -> Option<&MatrixView> {
+        match self {
+            Self::Gdn(l) => l.recurrent(),
+            Self::Ple(l) => l.recurrent(),
+            Self::Qsa(_) => None,
+        }
+    }
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.record_memory(backings),
+            Self::Ple(layer) => layer.record_memory(backings),
+            Self::Qsa(layer) => layer.record_memory(backings),
+        }
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.release_idle_state(),
+            Self::Ple(layer) => layer.release_idle_state(),
+            Self::Qsa(layer) => layer.release_idle_state(),
+        }
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.shrink(slots),
+            Self::Ple(layer) => layer.shrink(slots),
+            Self::Qsa(layer) => layer.shrink(slots),
+        }
+    }
+
     fn reset(&mut self) {
         match self {
             Self::Gdn(a) => a.reset(),
@@ -56,27 +102,63 @@ impl Layer<'_> {
     }
 }
 
-pub struct FlashNext<'a> {
-    gpu: &'a Metal,
-    embed: TensorInfo,
-    layers: Vec<Layer<'a>>,
-    mixer: FlashHc<'a>,
-    head: FlashProjection<'a>,
-    context: u32,
+#[derive(Clone)]
+pub struct FlashSnapshot {
+    owner: Rc<()>,
     offset: u32,
+    layers: Vec<State>,
+    hidden: Option<MatrixView>,
+}
+
+#[derive(serde::Serialize)]
+pub struct FlashTraceTensor {
+    pub name: String,
+    pub shape: Vec<u32>,
+    pub data: Vec<u8>,
+}
+pub struct FlashNext<'a> {
+    checkpoint_path: std::path::PathBuf,
+    lookahead_depth: usize,
+    pub(super) prefetcher: Option<Rc<RefCell<super::moe::PrefetchPool<'a>>>>,
+    owner: Rc<()>,
+    pub(super) hidden: Option<MatrixView>,
+    pub(super) gpu: &'a Metal,
+    embed: TensorInfo,
+    pub(super) layers: Vec<Layer<'a>>,
+    pub(super) mixer: FlashHc<'a>,
+    pub(super) head: FlashProjection<'a>,
+    pub(super) context: u32,
+    offset: u32,
+    pub(super) request_limit: Option<u64>,
 }
 impl<'a> FlashNext<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
         let config = FlashConfig::load(c)?;
+        let context = if context == 0 {
+            u32::try_from(config.context)?
+        } else {
+            context
+        };
         ensure!(
-            (1..=512).contains(&context) && context <= config.context as u32,
-            "dense native Flash context must be within 1..=512 and the checkpoint limit"
+            (1..=crate::flash_support::FLASH_MAX_CONTEXT).contains(&context)
+                && context <= config.context as u32,
+            "native Flash context exceeds the supported checkpoint limit"
         );
+        let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+            Ok(value) => value
+                .parse::<usize>()
+                .context("invalid SSD lookahead depth")?,
+            Err(std::env::VarError::NotPresent) => 0,
+            Err(error) => return Err(error.into()),
+        };
         ensure!(
-            std::env::var_os("MLXL3_FLASH_REQUEST_MIB").is_none(),
-            "native Flash request memory budgets are not available for this build"
+            lookahead_depth <= 10,
+            "SSD lookahead depth must be in 0..=10"
         );
+        let request_limit = crate::flash_memory::request_limit()?;
         let slots = layer_slots()?;
+        let total_slots = slots.iter().sum();
+        gpu.admit_load(request_limit, total_slots)?;
         let embed = c
             .tensors
             .get("model.language_model.embed_tokens.weight")
@@ -86,10 +168,11 @@ impl<'a> FlashNext<'a> {
             embed.dtype == "BF16" && embed.shape == [248320, 2560],
             "unsupported token embedding"
         );
-        let layers = slots
+        let mut layers: Vec<Layer> = slots
             .into_iter()
             .enumerate()
             .map(|(i, slots)| -> Result<_> {
+                gpu.admit_load(request_limit, total_slots)?;
                 let prefix = format!("model.language_model.layers.{i}");
                 Ok(if i == 1 {
                     Layer::Ple(Box::new(FlashPleLayer::load(
@@ -110,6 +193,15 @@ impl<'a> FlashNext<'a> {
                 })
             })
             .collect::<Result<_>>()?;
+        let prefetcher = (lookahead_depth > 0)
+            .then(|| super::moe::PrefetchPool::new(gpu).map(|pool| Rc::new(RefCell::new(pool))))
+            .transpose()?;
+        if let Some(pool) = &prefetcher {
+            for layer in &mut layers {
+                let moe = layer.moe();
+                moe.enable_prefetch(pool.clone());
+            }
+        }
         let mixer = FlashHc::load(
             gpu,
             c,
@@ -122,7 +214,13 @@ impl<'a> FlashNext<'a> {
             head.dimensions() == [2560, 248320],
             "invalid Flash language model head"
         );
+        gpu.admit_load(request_limit, total_slots)?;
         Ok(Self {
+            checkpoint_path: c.path.clone(),
+            lookahead_depth,
+            prefetcher,
+            owner: Rc::new(()),
+            hidden: None,
             gpu,
             embed,
             layers,
@@ -130,30 +228,78 @@ impl<'a> FlashNext<'a> {
             head,
             context,
             offset: 0,
+            request_limit,
         })
+    }
+    pub fn snapshot(&self) -> FlashSnapshot {
+        FlashSnapshot {
+            owner: self.owner.clone(),
+            offset: self.offset,
+            hidden: self.hidden.clone(),
+            layers: self.layers.iter().map(Layer::snapshot).collect(),
+        }
+    }
+    pub fn restore(&mut self, s: &FlashSnapshot) -> Result<()> {
+        ensure!(
+            Rc::ptr_eq(&self.owner, &s.owner)
+                && s.layers.len() == self.layers.len()
+                && s.offset <= self.context,
+            "snapshot belongs to a different Flash session"
+        );
+        for (l, state) in self.layers.iter_mut().zip(&s.layers) {
+            l.restore(state)?;
+        }
+        self.offset = s.offset;
+        self.hidden = s.hidden.clone();
+        Ok(())
+    }
+    pub fn last_hidden(&self) -> Option<&MatrixView> {
+        self.hidden.as_ref()
     }
     pub fn reset(&mut self) {
         for l in &mut self.layers {
             l.reset();
         }
         self.offset = 0;
+        self.hidden = None;
+    }
+    pub fn log_probs(&self, logits: &[u16]) -> Result<Vec<f32>> {
+        self.gpu.flash_log_probs(logits)
+    }
+    pub fn memory_stats(&self) -> Result<crate::runtime_stats::MemoryStats> {
+        self.gpu.memory_stats()
+    }
+    pub fn offset(&self) -> u32 {
+        self.offset
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn checkpoint_path(&self) -> &std::path::Path {
+        &self.checkpoint_path
     }
     pub fn context_limit(&self) -> u32 {
         self.context
     }
 
-    fn streams(&self, token: u32) -> Result<MatrixView> {
+    fn embedding_bits(&self, token: u32) -> Result<Vec<u16>> {
         let (file, base) = self.embed.source()?;
         let at = row_offset(base, u64::from(token), 248320, 5120)
             .context("token outside Flash vocabulary or embedding offset overflow")?;
         let mut bytes = [0u8; 5120];
         file.read_exact_at(&mut bytes, at)?;
-        let values = bytes
+        Ok(bytes
             .as_chunks::<2>()
             .0
             .iter()
-            .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_f32())
-            .collect::<Vec<_>>();
+            .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_bits())
+            .collect())
+    }
+    fn streams(&self, token: u32) -> Result<MatrixView> {
+        let values: Vec<_> = self
+            .embedding_bits(token)?
+            .into_iter()
+            .map(|b| f16::from_bits(b).to_f32())
+            .collect();
         self.gpu
             .f32_storage(&values.repeat(4))?
             .matrix(MatrixLayout {
@@ -167,17 +313,128 @@ impl<'a> FlashNext<'a> {
         self.prefill(&[token])
     }
 
-    fn hidden(&mut self, token: u32) -> Result<MatrixView> {
+    fn hidden(
+        &mut self,
+        token: u32,
+        mut trace: Option<&mut Vec<FlashTraceTensor>>,
+        mut captures: Option<(&[usize], &mut Vec<MatrixView>)>,
+    ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
-        for (i, layer) in self.layers.iter_mut().enumerate() {
+        for i in 0..self.layers.len() {
+            let (current, remaining) = self.layers.split_at_mut(i + 1);
+            let layer = &mut current[i];
+            let next = remaining.first_mut().map(Layer::moe);
             streams = layer
-                .forward(&streams, token)
+                .forward(&streams, token, next, self.lookahead_depth)
                 .with_context(|| format!("running Flash layer {i}"))?;
+            if let Some((ids, rows)) = &mut captures
+                && ids.contains(&i)
+            {
+                rows.push(streams.clone());
+            }
+            if let Some(t) = &mut trace {
+                t.push(FlashTraceTensor {
+                    name: format!("layer_{i}"),
+                    shape: vec![1, 10240],
+                    data: streams.export_bytes(self.gpu)?,
+                });
+                if let Some(r) = layer.recurrent() {
+                    t.push(FlashTraceTensor {
+                        name: format!("gdn_state_{i}"),
+                        shape: vec![1, 48, 128, 128],
+                        data: r.export_bytes(self.gpu)?,
+                    });
+                }
+            }
         }
         Ok(streams)
     }
 
+    #[cfg(feature = "chat")]
+    pub(crate) fn forward_captured(
+        &mut self,
+        token: u32,
+        ids: &[usize; 5],
+    ) -> Result<(Vec<u16>, crate::native_bf16::Matrix)> {
+        let before = self.snapshot();
+        let operation = (|| {
+            let mut rows = Vec::with_capacity(5);
+            let logits = self.prefill_inner(&[token], None, Some((ids, &mut rows)))?;
+            ensure!(rows.len() == 5, "incomplete native draft captures");
+            let mut captured = Vec::with_capacity(12800);
+            for row in rows {
+                ensure!(row.shape() == [1, 10240] && row.dtype == crate::gpu::view::FloatType::F32);
+                let bytes = row.export_bytes(self.gpu)?;
+                ensure!(bytes.len() == 40960);
+                let values: Vec<_> = bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|&b| f32::from_le_bytes(b))
+                    .collect();
+                for col in 0..2560 {
+                    captured.push(crate::native_bf16::round(
+                        ((values[col] + values[2560 + col])
+                            + values[5120 + col]
+                            + values[7680 + col])
+                            * 0.25,
+                    ));
+                }
+            }
+            Ok((logits, crate::native_bf16::Matrix::new(1, 12800, captured)?))
+        })();
+        if operation.is_err() {
+            self.restore(&before)?;
+        }
+        operation
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn draft_embedding(&self, token: u32) -> Result<Vec<f32>> {
+        Ok(self
+            .embedding_bits(token)?
+            .into_iter()
+            .map(|bits| crate::native_bf16::round(f16::from_bits(bits).to_f32()))
+            .collect())
+    }
+
+    #[cfg(feature = "chat")]
+    pub(crate) fn draft_logits(&self, rows: &crate::native_bf16::Matrix) -> Result<Vec<Vec<f32>>> {
+        ensure!(
+            rows.cols == 2560 && (1..=7).contains(&rows.rows),
+            "invalid native draft head rows"
+        );
+        rows.values
+            .as_chunks::<2560>()
+            .0
+            .iter()
+            .map(|row| {
+                let half: Vec<_> = row.iter().map(|&v| f16::from_f32(v).to_bits()).collect();
+                Ok(self
+                    .head
+                    .submit(&half)?
+                    .read()?
+                    .into_iter()
+                    .map(|v| crate::native_bf16::round(f16::from_bits(v).to_f32()))
+                    .collect())
+            })
+            .collect()
+    }
+
+    pub fn forward_trace(&mut self, token: u32) -> Result<(Vec<u16>, Vec<FlashTraceTensor>)> {
+        let mut trace = Vec::with_capacity(84);
+        let logits = self.prefill_inner(&[token], Some(&mut trace), None)?;
+        Ok((logits, trace))
+    }
     pub fn prefill(&mut self, tokens: &[u32]) -> Result<Vec<u16>> {
+        self.prefill_inner(tokens, None, None)
+    }
+    fn prefill_inner(
+        &mut self,
+        tokens: &[u32],
+        trace: Option<&mut Vec<FlashTraceTensor>>,
+        captures: Option<(&[usize], &mut Vec<MatrixView>)>,
+    ) -> Result<Vec<u16>> {
         let end = crate::flash_support::flash_prompt_end(self.offset, tokens.len(), self.context)
             .context("empty prompt or Flash context exhausted")?;
         ensure!(
@@ -185,19 +442,19 @@ impl<'a> FlashNext<'a> {
             "token outside Flash vocabulary"
         );
         let (&last, prefix) = tokens.split_last().context("empty Flash prompt")?;
-        let before = self.layers.iter().map(Layer::snapshot).collect::<Vec<_>>();
+        let before = self.snapshot();
         let result = (|| {
             for &token in prefix {
-                self.hidden(token)?;
+                self.hidden(token, None, None)?;
             }
-            let streams = self.hidden(last)?;
+            let streams = self.hidden(last, trace, captures)?;
             let mixed = self.mixer.read(&streams, false)?.mixed;
-            self.head.submit_fp16_view(&mixed)?.read()
+            let logits = self.head.submit_fp16_view(&mixed)?.read()?;
+            self.hidden = Some(streams);
+            Ok(logits)
         })();
         if result.is_err() {
-            for (l, s) in self.layers.iter_mut().zip(&before) {
-                l.restore(s)?;
-            }
+            self.restore(&before)?;
         } else {
             self.offset = end;
         }
@@ -241,6 +498,25 @@ impl Metal {
 }
 
 #[cfg(test)]
+fn first_embedding(embed: &TensorInfo) -> Result<TensorInfo> {
+    let temp = tempfile::tempdir()?;
+    let path = temp.path().join("single.safetensors");
+    let header = br#"{"embed":{"dtype":"BF16","shape":[1,2560],"data_offsets":[0,5120]}}"#;
+    let (file, start) = embed.source()?;
+    let mut row = [0u8; 5120];
+    file.read_exact_at(&mut row, start)?;
+    use std::io::Write;
+    let mut f = std::fs::File::create(&path)?;
+    f.write_all(&(header.len() as u64).to_le_bytes())?;
+    f.write_all(header)?;
+    f.write_all(&row)?;
+    drop(f);
+    crate::checkpoint::read_header(&path)?
+        .remove("embed")
+        .context("missing test row")
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -272,6 +548,142 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "physical Flash lookahead, archived independent full states/logits and continuation"]
+    fn predictive_reads_match_archived_full_states_and_imposed_continuation() -> Result<()> {
+        fn digest(bytes: &[u8]) -> Result<String> {
+            use std::io::Write;
+            let mut file = tempfile::NamedTempFile::new()?;
+            file.write_all(bytes)?;
+            let output = std::process::Command::new("/usr/bin/shasum")
+                .args(["-a", "256"])
+                .arg(file.path())
+                .output()?;
+            ensure!(output.status.success(), "cannot hash native state");
+            let output = String::from_utf8(output.stdout)?;
+            let hash = output
+                .split_whitespace()
+                .next()
+                .context("missing state digest")?;
+            ensure!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+            Ok(hash.to_owned())
+        }
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 64)?;
+        ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/native-coverage/flash-state/initial.json"
+        ))?;
+        let (first, states) = model.forward_trace(248044)?;
+        let words = first
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<_>>();
+        ensure!(first.len() == 248320 && first.iter().all(|&v| f16::from_bits(v).is_finite()));
+        ensure!(
+            digest(&words)? == "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445"
+        );
+        let expected = oracle["step_tensors"]
+            .as_array()
+            .context("missing archived states")?;
+        ensure!(states.len() == 84 && expected.len() == 84);
+        let mut count = 0;
+        for (state, reference) in states.iter().zip(expected) {
+            ensure!(
+                state.name == reference["name"]
+                    && serde_json::to_value(&state.shape)? == reference["shape"]
+            );
+            let elements = state
+                .shape
+                .iter()
+                .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                .context("state shape overflow")?;
+            ensure!(
+                elements > 0
+                    && state.data.len() == elements * 4
+                    && state
+                        .data
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|b| f32::from_le_bytes(*b).is_finite())
+            );
+            ensure!(
+                digest(&state.data)? == reference["sha256"],
+                "lookahead changed {}",
+                state.name
+            );
+            count += elements;
+        }
+        ensure!(count == 28_803_072);
+        drop(states);
+        let second = model.forward(1)?;
+        ensure!(second.len() == 248320 && second.iter().all(|&v| f16::from_bits(v).is_finite()));
+        ensure!(
+            digest(
+                &second
+                    .iter()
+                    .flat_map(|v| v.to_le_bytes())
+                    .collect::<Vec<_>>()
+            )? == "833ef923345928bdfb2ea39847a722c568cb709feaa225e4476ba5f6daac3815"
+        );
+        model.reset();
+        ensure!(model.prefill(&[248044, 1])? == second);
+        let pool = model.prefetcher.as_ref().unwrap();
+        pool.borrow_mut().drain()?;
+        ensure!(
+            pool.borrow().stats.submitted > 0
+                && pool.borrow().stats.published > 0
+                && pool.borrow().in_flight() == 0
+        );
+        eprintln!(
+            "native prefetch model: {}",
+            serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical whole-model Flash snapshot ownership, fork and replay"]
+    fn retained_snapshots_restore_hidden_logits_and_empty_session() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 4)?;
+        let empty = model.snapshot();
+        ensure!(model.last_hidden().is_none());
+        let first = model.forward(248044)?;
+        let prefix = model.snapshot();
+        let hidden = model
+            .last_hidden()
+            .context("missing hidden row")?
+            .export_bytes(&gpu)?;
+        let left = model.forward(42)?;
+        let left_state = model.snapshot();
+        let left_end = model.forward(7)?;
+        model.restore(&prefix)?;
+        ensure!(model.offset == 1 && model.last_hidden().unwrap().export_bytes(&gpu)? == hidden);
+        let right = model.forward(7)?;
+        let right_state = model.snapshot();
+        let right_end = model.forward(42)?;
+        ensure!(left != right && left_end != right_end);
+        let mut foreign = prefix.clone();
+        foreign.owner = Rc::new(());
+        ensure!(model.restore(&foreign).is_err() && model.offset == 3);
+        model.restore(&left_state)?;
+        ensure!(model.forward(7)? == left_end);
+        model.reset();
+        model.restore(&right_state)?;
+        ensure!(model.forward(42)? == right_end);
+        model.restore(&empty)?;
+        ensure!(
+            model.last_hidden().is_none() && model.offset == 0 && model.forward(248044)? == first
+        );
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Flash whole-model prefill transaction and late read failure"]
     fn partial_prompt_io_failure_rolls_back_every_layer() -> Result<()> {
         let c =
@@ -289,21 +701,7 @@ mod tests {
         );
         ensure!(model.forward(42)? == expected_first);
         // A real pinned one-row shard lets token 0 finish, then forces EOF when reading token 1.
-        let temp = tempfile::tempdir()?;
-        let path = temp.path().join("single.safetensors");
-        let header = br#"{"embed":{"dtype":"BF16","shape":[1,2560],"data_offsets":[0,5120]}}"#;
-        let (file, start) = model.embed.source()?;
-        let mut row = [0u8; 5120];
-        file.read_exact_at(&mut row, start)?;
-        use std::io::Write;
-        let mut f = std::fs::File::create(&path)?;
-        f.write_all(&(header.len() as u64).to_le_bytes())?;
-        f.write_all(header)?;
-        f.write_all(&row)?;
-        drop(f);
-        let short = crate::checkpoint::read_header(&path)?
-            .remove("embed")
-            .context("missing test row")?;
+        let short = first_embedding(&model.embed)?;
         let original = std::mem::replace(&mut model.embed, short);
         let error = model
             .prefill(&[0, 1])

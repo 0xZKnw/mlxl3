@@ -13,14 +13,14 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def execute(cli, args, direct, *, user_input=None, success=True):
+def execute(cli, args, direct, *, user_input=None, success=True, timeout=600):
     child = subprocess.run(
         [cli, *args],
         input=user_input,
         capture_output=True,
         check=False,
         text=True,
-        timeout=600,
+        timeout=timeout,
         env={**os.environ, "DYLD_PRINT_LIBRARIES": "1", "MLXL3_SSD_CACHE_GIB": "0.6"},
     )
     if (child.returncode == 0) != success:
@@ -77,7 +77,7 @@ def verify(args, report):
         batch_mismatches=int(np.count_nonzero(ref[-1] != batched[0])),
     )
     assert report["logit_mismatches"] == report["batch_mismatches"] == 0
-    for tokens in ("248320", ",".join(["1"] * 513)):
+    for tokens in ("248320", "4294967295"):
         _, err, _ = execute(
             args.cli, ["forward", args.model, "--tokens", tokens], True, success=False
         )
@@ -103,10 +103,35 @@ def verify(args, report):
     report["interactive_replays"] = 2
 
 
+def long_forward(args, report):
+    import numpy as np
+
+    tokens = [248044, *(1 + 17 * i % 251 for i in range(1, 2053))]
+    command = ["forward", args.model, "--batch", "--tokens", ",".join(map(str, tokens))]
+    report["tokens_sha256"] = hashlib.sha256(np.asarray(tokens, dtype="<u4").tobytes()).hexdigest()
+    report["positions"] = len(tokens)
+    results = []
+    for label, cli in [("direct", args.cli), ("stock", args.stock)]:
+        out, _, images = execute(cli, command, label == "direct", timeout=1800)
+        row = json.loads(out)
+        logits = row["logits"]
+        assert row["token"] == tokens[-1] and row["states"] == []
+        assert len(logits) == 248320 and all(type(x) is int and 0 <= x <= 65535 for x in logits)
+        bits = np.asarray(logits, dtype="<u2")
+        assert np.isfinite(bits.view("<f2")).all()
+        report[label] = {"sha256": hashlib.sha256(bits.tobytes()).hexdigest(), "images": images}
+        results.append(bits)
+    report["mismatches"] = int(np.count_nonzero(results[0] != results[1]))
+    assert report["mismatches"] == 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("cli", "stock", "model", "report"):
         parser.add_argument(name, type=Path)
+    parser.add_argument(
+        "--long-only", action="store_true", help="compare the complete 2053-position sparse path"
+    )
     args = parser.parse_args()
     report = {
         "status": "incomplete",
@@ -115,7 +140,10 @@ def main():
     }
     with args.report.open("x") as output:
         try:
-            verify(args, report)
+            if args.long_only:
+                long_forward(args, report)
+            else:
+                verify(args, report)
             report["status"] = "verified"
         except Exception as error:
             report.update(status="failed", error=str(error))

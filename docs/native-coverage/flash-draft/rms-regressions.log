@@ -1,0 +1,13 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-draft/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.41s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/issue75draft/cargo-target/debug/deps/mlxl3_native-0abbe8b89444eaa3)
+
+running 3 tests
+test native_bf16::tests::dense_projection_preserves_row_major_transpose_and_bf16_boundaries ... ok
+test native_bf16::tests::residual_variance_uses_the_unrounded_sum_from_the_independent_counterexample ... ok
+test native_bf16::tests::ordinary_rms_rounds_before_gain_against_the_independent_mlx_oracle ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 248 filtered out; finished in 0.01s
+

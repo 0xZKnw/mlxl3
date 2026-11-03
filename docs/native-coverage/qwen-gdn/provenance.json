@@ -1,0 +1,137 @@
+{
+  "status": "verified_component",
+  "scope": "Native Qwen Gated DeltaNet and immutable state lifecycle; shared expert construction for ordinary dense/shared MLPs",
+  "source_base": "3cf9dd904ca580dff17d0e408a5bd42691420328",
+  "source_modified": true,
+  "source_sha256": {
+    "native/src/gpu/qwen_gdn.rs": "fa9a8efaaf0ecc32483858d746da0ca61b33b9203bb1b6f75d562b94188f2f4e",
+    "native/shaders/qwen_gdn.metal": "5d2fa4222f8abc3ea356489e77a028d09ab185516e9fd3cf2878d7e89799167d",
+    "native/shaders/gated_delta_prepare.metal": "44aa2c25f8f17b133b56879c815f505c4298383b64b50788a400f8abe19a2f23",
+    "native/shaders/gated_delta_packed.metal": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159",
+    "native/src/gpu/projection.rs": "7eae81e1035aa4309f1c2d21c5717adcff2f3f3e74866c52e008a3044f47d435",
+    "native/src/contracts.rs": "677160da12e86a652859f9bed76f8219d24bc5f203eef074aeaf0d94ead43244",
+    "native/src/gpu.rs": "37a790a986635c7d6975b0e163ae2792d48920958f2e880549ee17d7d7d1dda7",
+    "native/src/main.rs": "31b6fec0c1765e2022681bd0e37757fd1509546e11d4b2f7b97856cc90caa04a",
+    "native/src/qwen35.rs": "92475776c7a3d98155db27d2f074a505670811aef71ab05dc4cc3e0844697f40",
+    "tests/physical_qwen_gdn.py": "579fe3da2714d1baccd1747fadff0f1fd98dc21bacb295c06924a0054589f763",
+    "tests/test_physical_qwen_gdn.py": "b61a9ff38a3314dc18095f59b76d12ac983df5827c2f8cd4160ca7ecf76ad959"
+  },
+  "hardware": "Apple M5,24GiB,macOS26B123",
+  "oracle": "Independent Rust/MLX0.32.2 qwen35::GatedDelta::forward; one serial call per position; native child has no MLX image",
+  "models": {
+    "Qwen3.6-35B-A3B-EXL3-2.49bpw": {
+      "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+      "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+      "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94"
+    },
+    "Qwen3.8-Flash-Next-exl3-205-65c89531": {
+      "config.json": "d4a35225fc5236c8a2d64d01fd273f2f41192be5ff43e5c50ef1ef50e28ccda2",
+      "quantization_config.json": "c057f732f92379dac8b345ee065d3f07c72df77fead15ee4ec972e8e9831bef5",
+      "model.safetensors.index.json": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed"
+    }
+  },
+  "shards": "Shared N0 checkpoint evidence remains ../baselines/local-checkpoints.json; no new whole-shard hash pass in this component check.",
+  "direct_cli_sha256": "85773a1d5ee9da550002c920a7f41fba9d6abd19568e734bff32b093126dd344",
+  "stock_cli_sha256": "516c6c4e632dca9a8215da14aa81d244661e449d28aad865b5ac6540cff3c7b3",
+  "direct_libtest_sha256": "d1f33011a2af9438669e6553bb7d2eadf2936dde20e78fd2a02eba1c08ca0c73",
+  "initial_direct_cli_sha256": "54e8ea4be24ea78cbded441596e42c084ea43ae487eaff94e05ffcbf4e20ddf6",
+  "initial_failure": {
+    "report": "initial.json",
+    "unequal_half_outputs": 20661,
+    "compared_words": 3321856,
+    "recurrence_and_conv": "Already bitexact. Corrected missing half normalization cast before gain and matched compiled fast exponent."
+  },
+  "corrected_physical": {
+    "report": "physical.json",
+    "cases": 6,
+    "layers": [
+      0,
+      36
+    ],
+    "prefix_lengths": [
+      1,
+      2,
+      4
+    ],
+    "output_half_words": 28672,
+    "conv_half_words": 147456,
+    "recurrence_fp32_words": 3145728,
+    "compared_words": 3321856,
+    "unequal_words": 0,
+    "invalid_request_recovery": 3
+  },
+  "lifecycle": {
+    "command": "MLXL3_QWEN_NATIVE_MODEL=CHECKPOINT corrected-tests gpu::qwen_gdn::retained_states_replay_after_branch_and_rejected_input --exact --ignored",
+    "passed": 1,
+    "cases": [
+      "retained branches and restore/replay",
+      "reset/replay",
+      "two-row input rejection retains state",
+      "foreign snapshot rejection",
+      "zero,negative,NaN,infinite epsilon rejected",
+      "unaligned hidden rejected"
+    ]
+  },
+  "expert_factory_regression": {
+    "report": "expert-regression.json",
+    "cases": 104,
+    "finite_half_words": 429952,
+    "unequal_words": 0,
+    "invalid_request_recovery": 5,
+    "scope": "Original Flash plus generic projection/expert fixtures. The from_projections factory does not implement the distinct routed SwitchGlu fused boundary."
+  },
+  "kani": "geometry-proof.json",
+  "suites": {
+    "cpu": {
+      "passed": 304,
+      "failed": 0,
+      "ignored": 8
+    },
+    "direct": {
+      "passed": 311,
+      "failed": 0,
+      "ignored": 26
+    },
+    "stock": {
+      "passed": 347,
+      "failed": 0,
+      "ignored": 247
+    }
+  },
+  "commands": [
+    "cargo fmt --check",
+    "cargo clippy --locked --no-default-features --all-targets -- -D warnings",
+    "cargo test --locked --no-default-features",
+    "cargo clippy --locked --features chat --all-targets -- -D warnings",
+    "cargo test --locked --features chat",
+    "cargo clippy --locked --features mlx,chat --all-targets -- -D warnings",
+    "cargo test --locked --features mlx,chat",
+    "python -m unittest discover -s tests -p test_native_coverage.py",
+    "python -m unittest discover -s tests -p test_physical_qwen_gdn.py",
+    "python -m pytest tests/test_kani_ci.py -q",
+    "python scripts/check_native_coverage.py",
+    "python -m ruff check tests/physical_qwen_gdn.py tests/test_physical_qwen_gdn.py tests/test_kani_ci.py"
+  ],
+  "failed_attempts": [
+    "Initial Rust pipeline Function temporary borrow failed before correction.",
+    "Initial physical test failed20661 words; initial.json retained.",
+    "Incorrect stock --no-default-features --features mlx,chat exposed existing optional Metal import; correct delivered stock keeps default direct-metal feature.",
+    "CrossHair check tests/physical_qwen_gdn.py --analysis_kind=asserts --per_condition_timeout=2 --per_path_timeout=2 failed import: NumPy absent from separate verifier venv; no Python proof."
+  ],
+  "python": {
+    "passed": 7,
+    "driver_tests": 3,
+    "malformed_subcases": 5,
+    "Linux_only_skipped_on_macOS": 44
+  },
+  "inventory_files": 225,
+  "CI": "Workflow runs PR/main and new driver failure regressions with pinned NumPy. Remote run will be inspected after push; physical Mac tests intentionally ignored on hosted VM.",
+  "throughput": "not measured",
+  "limits": [
+    "Full Qwen AR session, standard attention, routed MoE and MTP still require integration.",
+    "Only local Qwen3.6 MoE geometries and recorded finite activations physically verified. Dense-family geometry is CPU/Kani covered, not a physical dense-model test.",
+    "This native EXL3 F16 path cannot stand in for raw BF16 calibration captures.",
+    "No installed application changed."
+  ]
+}

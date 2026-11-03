@@ -70,11 +70,13 @@ impl Metal {
         eps: f32,
         storage: Storage,
     ) -> Result<MatrixView> {
+        let [rows, width] = x.shape();
         ensure!(
-            x.shape() == [1, 10240]
+            rows == 1
+                && matches!(width, 2560 | 10240)
                 && x.buffer.device().registry_id() == self.device.registry_id()
-                && gain.length() == 10240 * 4,
-            "invalid four-stream normalization"
+                && gain.length() == u64::from(width) * 4,
+            "invalid Flash stream normalization"
         );
         let pipeline = &self.hc[usize::from(x.dtype == FloatType::F32)].norm;
         ensure!(
@@ -82,7 +84,7 @@ impl Metal {
                 && pipeline.max_total_threads_per_threadgroup() >= 640,
             "HC needs SIMD32 and 640 threads for normalization"
         );
-        let normalized = MatrixView::output(self, x.dtype, 1, 10240, storage)?;
+        let normalized = MatrixView::output(self, x.dtype, 1, width, storage)?;
         Metal::encode(
             cmd,
             pipeline,
@@ -92,7 +94,7 @@ impl Metal {
                 x.layout.strides[1],
                 i64::from(eps.to_bits()),
             ],
-            groups(4),
+            groups(width / 2560),
             640,
         );
         Ok(normalized)
@@ -230,12 +232,22 @@ impl<'a> FlashHc<'a> {
         moe: &mut super::FlashMoeRow,
         trace: bool,
     ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
+        self.forward_moe_lookahead(streams, moe, trace, None, 0)
+    }
+    pub(super) fn forward_moe_lookahead<'b>(
+        &self,
+        streams: &MatrixView,
+        moe: &mut super::FlashMoeRow<'b>,
+        trace: bool,
+        next: Option<&mut super::FlashMoeRow<'b>>,
+        depth: usize,
+    ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
         ensure!(
             self.inject.is_some(),
             "Flash MLP requires an injection gate"
         );
         let read = self.read(streams, trace)?;
-        let experts = moe.submit(&read.mixed)?;
+        let experts = moe.lookahead(&read.mixed, next, depth)?;
         let written = self.write(
             streams,
             experts.completed()?,
@@ -281,6 +293,18 @@ impl<'a> FlashHc<'a> {
             );
             Ok(out)
         })
+    }
+}
+
+impl FlashHc<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [&self.gain, &self.down, &self.up]
+            .into_iter()
+            .chain(&self.inject)
+        {
+            backings.record("fixed_weights", buffer)?;
+        }
+        Ok(())
     }
 }
 
