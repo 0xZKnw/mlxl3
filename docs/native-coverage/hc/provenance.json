@@ -1,0 +1,120 @@
+{
+  "base": "22aad39cb0ecc020d73f2ede7671cd9bbee7484a",
+  "os": "macOS 26B123, Apple M5, 24 GiB",
+  "stock": "MLX 0.32.2; Hc::read, Hc::write, production SsdMoe; separate process.",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "frozen_norm_write_manifest_sha256": "726e7e2a4c677d838a34a5faf655350b591be1f2e8154b3da964a19b65af789e",
+  "sources": {
+    "native/src/gpu/hc.rs": "da75e62cf9f0de9f772a47e97aea84e53095113438c8a3afca8f8d45820e71fe",
+    "native/src/gpu.rs": "d6035e100d57bc91c6f7a6ff84f701fbe1dae9cb8efc70f0732d5e7f397f18d9",
+    "native/src/main.rs": "3b0ccaefb5d5a9ccf0ff86dde2d17ec5f82f94c5bc85b5c5cd274e75414ad8e3",
+    "native/src/contracts.rs": "21dde7f11a09c9cbdfe9bb30086d24228827347f6177b313fc6e2d1dc2387c84",
+    "native/shaders/flash_hc.metal": "06e9f9d31a3010f2b75a51bab060f3de18aa9569afbb444f15fb2333a0c0aad3",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159",
+    "native/src/qwen4/hc_row_oracle.rs": "a257a93346d7a6619c34aeef78bf32eb0c638b45b99bd0822efaca849e91d117",
+    "tests/physical_flash_hc.py": "b1c552384d624a98035c1d159d0bd8201d0781339be52e6ccc1112ffb887bf35"
+  },
+  "physical": "python tests/physical_flash_hc.py DIRECT STOCK_LIBTEST CHECKPOINT FROZEN_HC_DIR NEW_REPORT",
+  "frozen_writes": {
+    "test": "gpu::hc::tests::frozen_residual_writes_preserve_mixed_precision_rounding",
+    "precision": "F16 and F32 branches, F32 streams/gates",
+    "cases": 6,
+    "words": 61440
+  },
+  "build_direct": "cargo build --locked --release --features chat",
+  "build_stock": "cargo test --locked --release --lib --features mlx,chat --no-run",
+  "kani": {
+    "version": "0.68",
+    "harness": "contracts::flash_hc_groups_cover_exactly_the_checked_weight_matrix",
+    "unwind": 10,
+    "checks": 100,
+    "unreachable": 1,
+    "covers": 2,
+    "domain": "u32 input, output, group, tile offset and input column; exactly three legal shapes, coverage of every output and in-bounds weight access"
+  },
+  "failures": {
+    "first": {
+      "status": "failed",
+      "candidate": "5ba4ae7a19b5a8dad601a357f7f0c2d8a3923b3ccd43eaa4da0ee9e074e1eae4",
+      "error": "1/active 60/320, 1/up 1583/10240, 1/mixed 344/2560, 1/output 412/10240, 3/active 35/320, 3/up 3597/10240, 3/mixed 518/2560, 3/output 2096/10240, 5/active 9/320, 5/up 1411/10240, 5/mixed 222/2560, 7/active 93/320, 7/up 3849/10240, 7/mixed 635/2560",
+      "mismatches": [
+        {},
+        {
+          "active": 60,
+          "up": 1583,
+          "mixed": 344,
+          "output": 412
+        },
+        {},
+        {
+          "active": 35,
+          "up": 3597,
+          "mixed": 518,
+          "output": 2096
+        },
+        {},
+        {
+          "active": 9,
+          "up": 1411,
+          "mixed": 222
+        },
+        {},
+        {
+          "active": 93,
+          "up": 3849,
+          "mixed": 635
+        }
+      ]
+    },
+    "fast": {
+      "status": "failed",
+      "candidate": "673143631c4e2568095da9701f1bb0b0511ddb943c56bbf5485599f749062137",
+      "error": "1/mixed 302/2560, 1/output 846/10240, 3/mixed 234/2560, 3/output 1690/10240, 5/mixed 394/2560, 7/mixed 211/2560",
+      "mismatches": [
+        {},
+        {
+          "mixed": 302,
+          "output": 846
+        },
+        {},
+        {
+          "mixed": 234,
+          "output": 1690
+        },
+        {},
+        {
+          "mixed": 394
+        },
+        {},
+        {
+          "mixed": 211
+        }
+      ]
+    },
+    "no-injection": {
+      "status": "failed",
+      "candidate": "993992c1beeb060aa55d1de15522ba35ebe6331416650b62a3655e71052a0467",
+      "error": "0/output 7896/10240, 1/output 10240/10240, 2/output 10187/10240, 3/output 10240/10240",
+      "mismatches": [
+        {
+          "output": 7896
+        },
+        {
+          "output": 10240
+        },
+        {
+          "output": 10187
+        },
+        {
+          "output": 10240
+        },
+        {},
+        {},
+        {},
+        {}
+      ]
+    }
+  },
+  "scope": "B1 hyper-connection read, checkpoint MLP and residual write. No full model generation, throughput or prefetch measurement."
+}

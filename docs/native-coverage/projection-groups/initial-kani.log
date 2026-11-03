@@ -1,0 +1,1057 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:966:17
+    |
+966 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1119:17
+     |
+1119 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3070:15
+     |
+3070 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3137:15
+     |
+3137 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.04s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 23`
+Checking harness contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0/build/issue75models/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/5baffbb9b13d71ee/out/mlxl3_native-5baffbb9b13d71ee__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts63ordinary_group_lane_layout_selects_the_original_scalar_operands.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.00578833s
+size of program expression: 403 steps
+slicing removed 180 assignments
+Generated 25 VCC(s), 21 remaining after simplification
+Runtime Postprocess Equation: 5.3709e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.000798083s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.3583e-05s
+Solving with CaDiCaL 3.0.0
+317 variables, 739 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 6.425e-05s
+Runtime decision procedure: 0.000945666s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+318 variables, 740 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.1375e-05s
+Runtime decision procedure: 4.5417e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+319 variables, 741 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 1.7e-05s
+Runtime decision procedure: 3.325e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+320 variables, 742 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 9.7167e-05s
+Runtime decision procedure: 0.00012625s
+
+RESULTS:
+Check 1: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2908:20 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 2: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:2908:20 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 3: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2908:44 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 4: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2908:44 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 5: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2908:44 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 6: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:2908:20 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 7: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2909:39 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 8: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:2909:39 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 9: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: exl3_lane_source_index(lane * 4 + item) == original"
+	 - Location: native/src/contracts.rs:2909:5 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 10: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: lane == 0 && item == 0"
+	 - Location: native/src/contracts.rs:2910:5 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 11: contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: lane == 3 && item == 3"
+	 - Location: native/src/contracts.rs:2911:5 in function contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands
+
+Check 12: contracts::exl3_lane_source_index.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to shift right with overflow"
+	 - Location: native/src/contracts.rs:2238:21 in function contracts::exl3_lane_source_index
+
+Check 13: contracts::exl3_lane_source_index.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to shift left with overflow"
+	 - Location: native/src/contracts.rs:2238:59 in function contracts::exl3_lane_source_index
+
+
+SUMMARY:
+ ** 0 of 11 failed
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.04870196s
+
+Checking harness contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0/build/issue75models/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/5baffbb9b13d71ee/out/mlxl3_native-5baffbb9b13d71ee__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4ItermENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldmNCNvNtCskjkzMwJII5G_12mlxl3_native9contracts23projection_bundle_width0INtNtBa_6option6OptionmEEB1G_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4ItermENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldmNCNvNtCskjkzMwJII5G_12mlxl3_native9contracts23projection_bundle_width0INtNtBa_6option6OptionmEEB1G_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4ItermENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldmNCNvNtCskjkzMwJII5G_12mlxl3_native9contracts23projection_bundle_width0INtNtBa_6option6OptionmEEB1G_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4ItermENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldmNCNvNtCskjkzMwJII5G_12mlxl3_native9contracts23projection_bundle_width0INtNtBa_6option6OptionmEEB1G_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+Not unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter4ItermENtNtNtNtBa_4iter6traits8iterator8Iterator8try_foldmNCNvNtCskjkzMwJII5G_12mlxl3_native9contracts23projection_bundle_width0INtNtBa_6option6OptionmEEB1G_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>> thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.0 iteration 1 file native/src/contracts.rs line 2886 column 5 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.0 iteration 2 file native/src/contracts.rs line 2886 column 5 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.0 iteration 3 file native/src/contracts.rs line 2886 column 5 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.0 iteration 4 file native/src/contracts.rs line 2886 column 5 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+Not unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts66ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.0 iteration 5 file native/src/contracts.rs line 2886 column 5 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u32>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 2886 column 19 function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 1 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 2 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 3 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Unwinding loop memcmp.0 iteration 4 file <builtin-library-memcmp> line 25 function memcmp thread 0
+Not unwinding loop memcmp.0 iteration 5 file <builtin-library-memcmp> line 25 function memcmp thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u32>::is_some thread 0
+Runtime Symex: 0.266821s
+size of program expression: 15978 steps
+slicing removed 10417 assignments
+Generated 748 VCC(s), 155 remaining after simplification
+Runtime Postprocess Equation: 0.00417863s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0376855s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.00695958s
+Solving with CaDiCaL 3.0.0
+52511 variables, 103916 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00871642s
+Runtime decision procedure: 0.0475479s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52512 variables, 103917 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00581008s
+Runtime decision procedure: 0.00641762s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52513 variables, 103918 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00104775s
+Runtime decision procedure: 0.00129937s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52514 variables, 103919 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00116333s
+Runtime decision procedure: 0.00137804s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52515 variables, 103920 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00598212s
+Runtime decision procedure: 0.00617792s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52516 variables, 103921 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0129648s
+Runtime decision procedure: 0.0132183s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52517 variables, 103922 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00339012s
+Runtime decision procedure: 0.00361642s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+52518 variables, 103923 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.124478s
+Runtime decision procedure: 0.124617s
+
+RESULTS:
+Check 1: memcmp.precondition.1
+	 - Status: UNDETERMINED
+	 - Description: "memcmp region 1 readable"
+	 - Location: <builtin-library-memcmp>:19 in function memcmp
+
+Check 2: memcmp.precondition.2
+	 - Status: UNDETERMINED
+	 - Description: "memcpy region 2 readable"
+	 - Location: <builtin-library-memcmp>:21 in function memcmp
+
+Check 3: std::option::Option::<u32>::is_some.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<u32>::is_some
+
+Check 4: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: UNDETERMINED
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 5: core::num::<impl u32>::is_multiple_of.assertion.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 6: core::num::<impl u32>::is_multiple_of.arithmetic_overflow.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 7: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.1
+	 - Status: UNDETERMINED
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 8: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 9: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.1
+	 - Status: UNDETERMINED
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 10: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.2
+	 - Status: UNDETERMINED
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 11: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.3
+	 - Status: UNDETERMINED
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 12: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: UNDETERMINED
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 13: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 14: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.1
+	 - Status: UNDETERMINED
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 15: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.2
+	 - Status: UNDETERMINED
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 16: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.3
+	 - Status: UNDETERMINED
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 17: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 18: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 19: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: UNDETERMINED
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 20: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/contracts.rs:2887:9 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 21: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.2
+	 - Status: UNDETERMINED
+	 - Description: "assertion failed: actual.is_some() == aligned && expected <= u64::from(u32::MAX)"
+	 - Location: native/src/contracts.rs:2890:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 22: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: native/src/contracts.rs:2886:19 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 23: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.3
+	 - Status: UNDETERMINED
+	 - Description: "assertion failed: u64::from(total) == expected"
+	 - Location: native/src/contracts.rs:2892:9 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 24: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.4
+	 - Status: UNDETERMINED
+	 - Description: "assertion failed: total > 0 && total.is_multiple_of(128)"
+	 - Location: native/src/contracts.rs:2893:9 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 25: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.cover.1
+	 - Status: UNDETERMINED
+	 - Description: "cover condition: values == [8192, 512, 512] && len == 3"
+	 - Location: native/src/contracts.rs:2895:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 26: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.cover.2
+	 - Status: UNDETERMINED
+	 - Description: "cover condition: values == [2048, 512, 512] && len == 3"
+	 - Location: native/src/contracts.rs:2896:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 27: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.5
+	 - Status: UNDETERMINED
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/contracts.rs:2897:18 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 28: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.assertion.6
+	 - Status: UNDETERMINED
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/contracts.rs:2897:40 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 29: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: values[0] == 17408 && values[1] == 17408 && len == 2"
+	 - Location: native/src/contracts.rs:2897:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 30: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: len == 0 && actual.is_none()"
+	 - Location: native/src/contracts.rs:2898:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 31: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: UNDETERMINED
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 32: <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2490:21 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>
+
+Check 33: core::num::<impl u32>::checked_add.arithmetic_overflow.1
+	 - Status: UNDETERMINED
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:942:31 in function core::num::<impl u32>::checked_add
+
+Check 34: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: UNDETERMINED
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 35: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 36: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: UNDETERMINED
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 37: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: UNDETERMINED
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 38: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: UNDETERMINED
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 39: <std::option::Option<u32> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<u32> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 40: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: UNDETERMINED
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 41: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 42: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.1
+	 - Status: UNDETERMINED
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 43: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 44: <std::option::Option<u32> as std::ops::Try>::branch.unreachable.1
+	 - Status: UNDETERMINED
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<u32> as std::ops::Try>::branch
+
+Check 45: <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:29 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>
+
+Check 46: contracts::projection_bundle_width::{closure#0}.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 47: contracts::projection_bundle_width::{closure#0}.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 48: contracts::projection_bundle_width::{closure#0}.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 49: contracts::projection_bundle_width::{closure#0}.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 50: contracts::projection_bundle_width::{closure#0}.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 51: contracts::projection_bundle_width::{closure#0}.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/contracts.rs:2853:43 in function contracts::projection_bundle_width::{closure#0}
+
+Check 52: std::option::Option::<u32>::is_some.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 53: std::option::Option::<u32>::is_some.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 54: std::option::Option::<u32>::is_some.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 55: std::option::Option::<u32>::is_some.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 56: std::option::Option::<u32>::is_some.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 57: std::option::Option::<u32>::is_some.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u32>::is_some
+
+Check 58: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 59: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 60: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 61: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 62: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 63: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 64: core::num::<impl u32>::is_multiple_of.division-by-zero.1
+	 - Status: UNDETERMINED
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 65: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/contracts.rs:2886:19 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 66: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 67: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 68: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 69: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 70: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 71: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.pointer_dereference.7
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/contracts.rs:2886:10 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 72: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.array_bounds.1
+	 - Status: UNDETERMINED
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/contracts.rs:2897:18 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 73: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.array_bounds.2
+	 - Status: UNDETERMINED
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/contracts.rs:2897:40 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 74: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 75: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 76: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 77: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 78: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 79: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 80: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 81: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 82: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 83: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 84: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 85: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 86: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 87: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 88: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 89: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 90: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 91: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 92: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 93: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 94: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 95: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 96: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 97: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 98: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 99: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 100: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 101: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 102: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 103: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 104: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 105: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 106: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 107: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 108: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 109: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 110: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 111: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 112: memcmp.pointer_dereference.1
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 113: memcmp.pointer_dereference.2
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 114: memcmp.pointer_dereference.3
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 115: memcmp.pointer_dereference.4
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 116: memcmp.pointer_dereference.5
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 117: memcmp.pointer_dereference.6
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 118: memcmp.pointer_dereference.7
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 119: memcmp.pointer_dereference.8
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 120: memcmp.pointer_dereference.9
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 121: memcmp.pointer_dereference.10
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: dead object"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 122: memcmp.pointer_dereference.11
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 123: memcmp.pointer_dereference.12
+	 - Status: UNDETERMINED
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: <builtin-library-memcmp>:27 in function memcmp
+
+Check 124: <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>.unwind.0
+	 - Status: UNDETERMINED
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:9 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::try_fold::<u32, {closure@native/src/contracts.rs:2853:34: 2853:49}, std::option::Option<u32>>
+
+Check 125: contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections.unwind.0
+	 - Status: UNDETERMINED
+	 - Description: "unwinding assertion loop 0"
+	 - Location: native/src/contracts.rs:2886:5 in function contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+
+Check 126: memcmp.unwind.0
+	 - Status: FAILURE
+	 - Description: "unwinding assertion loop 0"
+	 - Location: <builtin-library-memcmp>:25 in function memcmp
+
+
+SUMMARY:
+ ** 1 of 122 failed (121 undetermined)
+
+ ** 2 of 4 cover properties satisfied (2 undetermined)
+
+Failed Checks: unwinding assertion loop 0
+ File: "<builtin-library-memcmp>", line 25, in memcmp
+
+VERIFICATION:- FAILED
+[Kani] info: Verification output shows one or more unwinding failures.
+[Kani] tip: Consider increasing the unwinding value or disabling `--unwinding-assertions`.
+Verification Time: 0.8528361s
+
+Manual Harness Summary:
+Verification failed for - contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections
+Complete - 1 successfully verified harnesses, 1 failures, 2 total.

@@ -143,6 +143,56 @@ pub struct Checkpoint {
     pub tensors: BTreeMap<String, TensorInfo>,
 }
 
+#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn flash_expert_records(c: &Checkpoint, prefix: &str) -> Result<Vec<TensorInfo>> {
+    const H: usize = 2560;
+    const I: usize = 640;
+    let mut records = Vec::with_capacity(512);
+    for expert in 0..512 {
+        let p = format!("{prefix}.experts.{expert}");
+        let mut start = None;
+        let mut cursor = 0;
+        let mut file = None;
+        for (projection, input, output) in
+            [("down_proj", I, H), ("gate_proj", H, I), ("up_proj", H, I)]
+        {
+            for (part, shape, dtype) in [
+                ("suh", vec![input], "F16"),
+                ("svh", vec![output], "F16"),
+                ("mul1", vec![], "I32"),
+                ("trellis", vec![input / 16, output / 16, 32], "I16"),
+            ] {
+                let name = format!("{p}.{projection}.{part}");
+                let tensor = c
+                    .tensors
+                    .get(&name)
+                    .with_context(|| format!("missing {name}"))?;
+                ensure!(
+                    tensor.shape == shape && tensor.dtype == dtype,
+                    "unsupported Flash expert tensor {name}"
+                );
+                if start.is_none() {
+                    start = Some(tensor.clone());
+                    cursor = tensor.data_offsets[0];
+                    file = Some(tensor.file.clone());
+                }
+                ensure!(
+                    Some(&tensor.file) == file.as_ref() && tensor.data_offsets[0] == cursor,
+                    "Flash expert record is not contiguous"
+                );
+                cursor = tensor.data_offsets[1];
+            }
+        }
+        let first = start.context("empty expert record")?;
+        ensure!(
+            cursor.checked_sub(first.data_offsets[0]) == Some(crate::flash_support::EXPERT_BYTES),
+            "invalid Flash expert record size"
+        );
+        records.push(first);
+    }
+    Ok(records)
+}
+
 pub fn inspect(path: &Path) -> Result<Checkpoint> {
     let path = path
         .canonicalize()
@@ -288,4 +338,25 @@ pub fn inspect(path: &Path) -> Result<Checkpoint> {
         modules,
         tensors,
     })
+}
+
+pub fn artifact_key(path: &std::path::Path) -> Result<String> {
+    use std::hash::{Hash, Hasher};
+    let mut fingerprint = std::collections::hash_map::DefaultHasher::new();
+    path.canonicalize()?.hash(&mut fingerprint);
+    let mut files = std::fs::read_dir(path)?.collect::<std::io::Result<Vec<_>>>()?;
+    files.sort_by_key(|f| f.file_name());
+    for file in files {
+        if file
+            .path()
+            .extension()
+            .is_some_and(|e| e == "json" || e == "safetensors" || e == "bin")
+        {
+            let meta = file.metadata()?;
+            file.file_name().hash(&mut fingerprint);
+            meta.len().hash(&mut fingerprint);
+            meta.modified()?.hash(&mut fingerprint);
+        }
+    }
+    Ok(format!("{:016x}", fingerprint.finish()))
 }
