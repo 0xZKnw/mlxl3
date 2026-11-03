@@ -6,18 +6,39 @@ use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 
 const H: i32 = 2560;
 
-#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+#[cfg(any(
+    all(
+        feature = "chat",
+        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+    ),
+    test,
+    kani
+))]
 #[derive(Debug)]
 pub(crate) struct InvalidDraftProposalCount;
 
-#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+#[cfg(any(
+    all(
+        feature = "chat",
+        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+    ),
+    test,
+    kani
+))]
 impl std::fmt::Display for InvalidDraftProposalCount {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("invalid draft proposal count")
     }
 }
 
-#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+#[cfg(any(
+    all(
+        feature = "chat",
+        any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+    ),
+    test,
+    kani
+))]
 impl std::error::Error for InvalidDraftProposalCount {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,7 +71,13 @@ impl Kind {
             248070
         }
     }
-    #[cfg(any(all(feature = "mlx", feature = "chat"), test))]
+    #[cfg(any(
+        all(
+            feature = "chat",
+            any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+        ),
+        test
+    ))]
     pub(crate) fn rope(self) -> f32 {
         if self == Self::Dflash2 {
             10_000.0
@@ -61,7 +88,14 @@ impl Kind {
     pub(crate) fn intermediate(self) -> i32 {
         if self == Self::Dflash2 { 7680 } else { 9728 }
     }
-    #[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+    #[cfg(any(
+        all(
+            feature = "chat",
+            any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+        ),
+        test,
+        kani
+    ))]
     pub(crate) fn rows(self, proposals: usize) -> Result<i32, InvalidDraftProposalCount> {
         if !(1..=7).contains(&proposals) {
             return Err(InvalidDraftProposalCount);

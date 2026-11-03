@@ -1,0 +1,306 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-product/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:961:17
+    |
+961 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1114:17
+     |
+1114 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: struct `Options` is never constructed
+ --> native/src/flash_draft_options.rs:4:19
+  |
+4 | pub(crate) struct Options {
+  |                   ^^^^^^^
+
+warning: associated function `read` is never used
+  --> native/src/flash_draft_options.rs:12:19
+   |
+11 | impl Options {
+   | ------------ associated function in this implementation
+12 |     pub(crate) fn read(mode: usize) -> Result<Self> {
+   |                   ^^^^
+
+warning: struct `DemandPlan` is never constructed
+    --> native/src/flash_support.rs:1329:19
+     |
+1329 | pub(crate) struct DemandPlan {
+     |                   ^^^^^^^^^^
+
+warning: associated items `reserve` and `publish` are never used
+    --> native/src/flash_support.rs:1337:19
+     |
+1336 | impl DemandPlan {
+     | --------------- associated items in this implementation
+1337 |     pub(crate) fn reserve(
+     |                   ^^^^^^^
+...
+1358 |     pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+     |                   ^^^^^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3164:15
+     |
+3164 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3231:15
+     |
+3231 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.66s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-flash-product/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 25`
+Checking harness flash_memory::native_request_budget_keeps_every_configured_limit_ar_only...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-flash-product/mix-stq1_0/build/issue75product/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/cc3041b28f150c30/out/mlxl3_native-cc3041b28f150c30__RNvNtCskjkzMwJII5G_12mlxl3_native12flash_memory58native_request_budget_keeps_every_configured_limit_ar_only.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u64>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u64>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u64>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u64>::is_some thread 0
+Runtime Symex: 0.00396992s
+size of program expression: 406 steps
+slicing removed 177 assignments
+Generated 36 VCC(s), 12 remaining after simplification
+Runtime Postprocess Equation: 5.0167e-05s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00131275s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 5.041e-06s
+Solving with CaDiCaL 3.0.0
+1629 variables, 2696 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.3666e-05s
+Runtime decision procedure: 0.00139629s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1630 variables, 2697 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.5625e-05s
+Runtime decision procedure: 4.325e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1631 variables, 2698 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 2.0959e-05s
+Runtime decision procedure: 3.5167e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+1632 variables, 2699 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000108167s
+Runtime decision procedure: 0.000117084s
+
+RESULTS:
+Check 1: flash_memory::native_request_budget_keeps_every_configured_limit_ar_only.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: native_speculation_permitted(limit) == !configured"
+	 - Location: native/src/flash_memory.rs:75:5 in function flash_memory::native_request_budget_keeps_every_configured_limit_ar_only
+
+Check 2: flash_memory::native_request_budget_keeps_every_configured_limit_ar_only.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: !configured && native_speculation_permitted(limit)"
+	 - Location: native/src/flash_memory.rs:76:5 in function flash_memory::native_request_budget_keeps_every_configured_limit_ar_only
+
+Check 3: flash_memory::native_request_budget_keeps_every_configured_limit_ar_only.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: configured && bytes == 0 && !native_speculation_permitted(limit)"
+	 - Location: native/src/flash_memory.rs:77:5 in function flash_memory::native_request_budget_keeps_every_configured_limit_ar_only
+
+Check 4: flash_memory::native_request_budget_keeps_every_configured_limit_ar_only.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: configured && bytes == u64::MAX && !native_speculation_permitted(limit)"
+	 - Location: native/src/flash_memory.rs:78:5 in function flash_memory::native_request_budget_keeps_every_configured_limit_ar_only
+
+Check 5: std::option::Option::<u64>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<u64>::is_some
+
+Check 6: std::option::Option::<u64>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+Check 7: std::option::Option::<u64>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+Check 8: std::option::Option::<u64>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+Check 9: std::option::Option::<u64>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+Check 10: std::option::Option::<u64>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+Check 11: std::option::Option::<u64>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<u64>::is_some
+
+
+SUMMARY:
+ ** 0 of 8 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.026934s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

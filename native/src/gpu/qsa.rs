@@ -377,7 +377,7 @@ impl<'a> FlashQsa<'a> {
             })?;
             Ok(f)
         };
-        let indexed = capacity >= 2052;
+        let indexed = capacity >= 2052 || prefix == "mtp.layers.0.self_attn";
         let index = if indexed {
             let gain = |name| {
                 super::checkpoint_float_weight(
@@ -389,7 +389,11 @@ impl<'a> FlashQsa<'a> {
                 )
             };
             Some(Index {
-                nax: gpu.qsa_nax_pipeline(&arch)?,
+                nax: if capacity >= 2052 {
+                    gpu.qsa_nax_pipeline(&arch)?
+                } else {
+                    None
+                },
                 qk: proj("indexer.index_qk_proj", [2560, 640])?,
                 q_norm: gain("q_layernorm")?,
                 k_norm: gain("k_layernorm")?,
@@ -634,7 +638,7 @@ impl<'a> FlashQsa<'a> {
 
 pub struct FlashQsaLayer<'a> {
     attention: FlashQsa<'a>,
-    residual: super::gdn::LayerResidual<'a>,
+    pub(super) residual: super::gdn::LayerResidual<'a>,
 }
 impl<'a> FlashQsaLayer<'a> {
     pub fn load(
@@ -658,6 +662,56 @@ impl<'a> FlashQsaLayer<'a> {
             residual: super::gdn::LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
     }
+    pub(super) fn offset(&self) -> u32 {
+        self.attention.state.offset
+    }
+    #[cfg(test)]
+    pub(super) fn retained_half_words(&self) -> Result<BTreeMap<&'static str, Vec<u16>>> {
+        let state = &self.attention.state;
+        let gpu = self.attention.gpu;
+        let n = state.offset as usize;
+        let mut data = BTreeMap::new();
+        let read = |buffer: &Buffer, words: usize| -> Result<Vec<u16>> {
+            let bytes = u64::try_from(words)?
+                .checked_mul(2)
+                .context("cache extent overflow")?;
+            ensure!(bytes > 0 && bytes <= buffer.length());
+            let out = super::buffer(&gpu.device, bytes, Storage::StorageModeShared)?;
+            gpu.command(|cmd| {
+                let blit = cmd.new_blit_command_encoder();
+                blit.copy_from_buffer(buffer, 0, &out, 0, bytes);
+                blit.end_encoding();
+                Ok(())
+            })?;
+            Ok(Metal::read(&out, words))
+        };
+        if n > 0 {
+            for (key, buf) in [("keys", &state.slab.keys), ("values", &state.slab.values)] {
+                let interleaved = read(buf, n * 512)?;
+                let mut ordered = Vec::with_capacity(n * 512);
+                for h in 0..2 {
+                    for row in interleaved.as_chunks::<512>().0 {
+                        ordered.extend_from_slice(&row[h * 256..(h + 1) * 256]);
+                    }
+                }
+                data.insert(key, ordered);
+            }
+        }
+        if let Some(tail) = &state.tail {
+            data.insert("index_tail", read(tail, n % 4 * 128)?);
+        }
+        if n >= 4
+            && let Some(blocks) = &state.slab.blocks
+        {
+            data.insert("blocks", read(blocks, n / 4 * 128)?);
+        }
+        Ok(data)
+    }
+    pub(super) fn extend(&mut self, streams: &MatrixView) -> Result<()> {
+        let mixed = self.residual.attention_input(streams)?;
+        self.attention.forward(&mixed, false)?;
+        Ok(())
+    }
     pub fn snapshot(&self) -> FlashQsaState {
         self.attention.snapshot()
     }
@@ -668,14 +722,64 @@ impl<'a> FlashQsaLayer<'a> {
         self.attention.reset();
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
         let out = self
             .residual
-            .forward(streams, |x| self.attention.forward(x, false));
+            .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if out.is_err() {
             self.restore(&before)?;
         }
         out
+    }
+}
+
+impl FlashQsaLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        let q = &self.attention;
+        for projection in [&q.q, &q.k, &q.v, &q.out] {
+            projection.record_memory(backings)?;
+        }
+        for buffer in [&q.q_norm, &q.k_norm, &q.freq] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(index) = &q.index {
+            index.qk.record_memory(backings)?;
+            for buffer in [&index.q_norm, &index.k_norm, &index.freq] {
+                backings.record("fixed_weights", buffer)?;
+            }
+        }
+        backings.record("qsa_kv", &q.state.slab.keys)?;
+        backings.record("qsa_kv", &q.state.slab.values)?;
+        if let Some(buffer) = &q.state.slab.blocks {
+            backings.record("qsa_index", buffer)?;
+        }
+        if let Some(buffer) = &q.state.tail {
+            backings.record("qsa_index", buffer)?;
+        }
+        self.residual.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.residual.release_idle_state()?;
+        let attention = &mut self.attention;
+        let slab = Slab::new(
+            attention.gpu,
+            attention.capacity.min(32),
+            attention.index.is_some(),
+        )?;
+        attention.state.slab = slab;
+        attention.reset();
+        Ok(())
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.residual.shrink(slots)
     }
 }
 
