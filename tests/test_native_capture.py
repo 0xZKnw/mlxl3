@@ -241,7 +241,7 @@ def test_source_identity_is_structured_not_an_empty_attestation(sample, fault):
     elif fault == "size":
         weights[0]["size"] = True
     elif fault == "mtime":
-        weights[0]["mtime_ns"] = 0
+        weights[0]["mtime_ns"] = True
     with pytest.raises(ValueError, match="source identity"):
         save_and_read(sample)
 
@@ -252,3 +252,10 @@ def test_nonfinite_json_is_rejected_even_in_additional_metadata(sample, constant
     manifest["metrics"] = {"loss": constant}
     with pytest.raises(ValueError, match="nonfinite JSON"):
         save_and_read(sample)
+
+
+@pytest.mark.parametrize("timestamp", [0, -1, 1])
+def test_capture_identity_accepts_valid_epoch_and_pre_epoch_file_timestamps(sample, timestamp):
+    _, _, args = sample
+    args["source_identity"]["weights"][0]["mtime_ns"] = timestamp
+    assert len(save_and_read(sample)) == 1

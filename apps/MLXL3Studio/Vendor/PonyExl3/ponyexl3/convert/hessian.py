@@ -444,8 +444,6 @@ def ldlq_inner_matrix(
 ) -> LDLQResult:
     """Reverse 16-row LDLQ over an EXL3 inner-domain matrix."""
 
-    if search_backend == "native":
-        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
     if inner.ndim != 2 or inner.shape[0] % 16 != 0 or inner.shape[1] % 16 != 0:
         raise ValueError(f"expected inner matrix with 16-multiple dims, got {inner.shape}")
     rows, cols = inner.shape
@@ -471,6 +469,11 @@ def ldlq_inner_matrix(
             feedback_rows=feedback_rows,
             compute_proxy=compute_proxy,
         )
+
+    if search_backend == "native":
+        from mlxl3_quantizer.feedback import converter_matmul as product
+    else:
+        product = np.matmul
 
     weight = inner.astype(np.float32, copy=True)
     l = l_factor.astype(np.float32, copy=True)
@@ -503,7 +506,7 @@ def ldlq_inner_matrix(
             bb_l = b_l[bj:, i + bi : i + bj]
             compensation = b_prod_cache[bi:bj].copy()
             if bb_err.size:
-                compensation += bb_l.T @ bb_err
+                compensation += product(bb_l.T, bb_err)
             rows_to_quantize = b_weight[bi:bj] + compensation
             block_packed, block_states, block_reconstructed = quantize_inner_matrix_direct(
                 rows_to_quantize,
@@ -522,7 +525,7 @@ def ldlq_inner_matrix(
 
         b_err = b_weight - b_reconstructed
         if i > 0:
-            prod_cache[:i] += b_l[:, :i].T @ b_err
+            prod_cache[:i] += product(b_l[:, :i].T, b_err)
         j = i
 
     delta = reconstructed - weight
@@ -701,8 +704,6 @@ def ldlq_quantize_layer(
 ) -> DirectLayerResult:
     """Quantize one full linear module with activation-aware LDLQ."""
 
-    if search_backend == "native":
-        raise RuntimeError("native LDLQ awaits qualified FP32 compensation; use a qualified backend")
     if fast_metrics and compare_oracle:
         raise ValueError("fast_metrics requires compare_oracle=False")
     compute_proxy = not fast_metrics and (compute_proxy or compare_oracle)

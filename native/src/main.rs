@@ -116,6 +116,20 @@ enum Command {
         #[arg(long, default_value_t = 256 * 1024 * 1024)]
         max_scratch_bytes: u64,
     },
+    /// Multiply finite FP32 matrices for the converter's feedback boundary.
+    ConvertMatmul {
+        left: PathBuf,
+        right: PathBuf,
+        output: PathBuf,
+        #[arg(long)]
+        m: u32,
+        #[arg(long)]
+        n: u32,
+        #[arg(long)]
+        k: u32,
+        #[arg(long)]
+        full_fp32: bool,
+    },
     /// Feed a JSON array of text chunks on stdin; return reasoning/answer fragments.
     Split {
         #[arg(long, default_value = "")]
@@ -1317,6 +1331,23 @@ fn run(cli: Cli) -> Result<()> {
             {
                 let _ = (input, output, k, codebook, max_scratch_bytes);
                 bail!("tile quantization requires native Metal on macOS");
+            }
+        }
+        Command::ConvertMatmul {
+            left,
+            right,
+            output,
+            m,
+            n,
+            k,
+            full_fp32,
+        } => {
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            mlxl3_native::convert_matmul::run(&left, &right, &output, m, n, k, full_fp32)?;
+            #[cfg(not(all(target_os = "macos", feature = "direct-metal")))]
+            {
+                let _ = (left, right, output, m, n, k, full_fp32);
+                bail!("converter matrix multiplication requires native Metal on macOS");
             }
         }
         Command::RuntimeInfo => {

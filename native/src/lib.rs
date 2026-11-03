@@ -8,6 +8,7 @@ pub mod codec;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod cold_ready;
 mod contracts;
+pub mod convert_matmul;
 pub mod quantize;
 pub mod tensor_layout;
 pub use contracts::{

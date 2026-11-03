@@ -183,7 +183,6 @@ def read_native_capture(
             or type(item.get("size")) is not int
             or item["size"] <= 0
             or type(item.get("mtime_ns")) is not int
-            or item["mtime_ns"] <= 0
             for item in weights
         )
         or len({item["name"] for item in weights}) != len(weights)

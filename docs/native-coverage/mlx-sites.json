@@ -1163,6 +1163,12 @@
   "native/shaders/_qmv_tile_kernel.metal": {
     "mlxl3_decode_codeword": 4
   },
+  "native/shaders/convert_matmul.metal": {
+    "mlxl3_convert_matmul": 1
+  },
+  "native/shaders/convert_matmul_nax.metal": {
+    "mlxl3_convert_matmul_nax": 1
+  },
   "native/shaders/exl3.metal": {
     "mlxl3_rank_row": 1
   },
@@ -1448,6 +1454,9 @@
   },
   "native/src/contracts.rs": {
     "mlx": 31
+  },
+  "native/src/convert_matmul.rs": {
+    ".take": 1
   },
   "native/src/dec_one.rs": {
     ".dtype": 3,
@@ -1842,6 +1851,14 @@
     "shader ../shaders/flash_rope.metal": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
     "shader ../shaders/router_topk.h": 1
+  },
+  "native/src/gpu/convert_matmul.rs": {
+    ".shape": 3,
+    "config MLX_ENABLE_TF32": 1,
+    "shader ../../shaders/convert_matmul.metal": 1,
+    "shader ../../shaders/convert_matmul_nax.metal": 1,
+    "shader mlxl3_convert_matmul": 1,
+    "shader mlxl3_convert_matmul_nax": 1
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
@@ -3022,6 +3039,10 @@
     "mlx": 2,
     "mlx_lm": 4,
     "ponyexl3": 7
+  },
+  "src/mlxl3_quantizer/feedback.py": {
+    "call ponyexl3.convert.cancel.raise_if_requested": 2,
+    "ponyexl3": 1
   },
   "src/mlxl3_quantizer/metal.py": {
     "call mlx.core.array": 4,
