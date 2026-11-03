@@ -160,11 +160,17 @@ fn native_prepare_grid_contains_complete_hadamard_groups() {
     }
 }
 
+pub const FLASH_MAX_CONTEXT: u32 = 262144;
 pub const EXPERT_BYTES: u64 = 1_248_012;
 pub const NGRAM_DIM: usize = 160;
 pub const NGRAM_WORDS: usize = 41;
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
     if !(10..=512).contains(&uniform) {
         return false;
@@ -179,7 +185,12 @@ pub(crate) fn valid_layer_slots(slots: &[usize; 48], uniform: usize) -> bool {
     total == uniform * 48
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 48]> {
     let bytes = value.as_bytes();
     let mut start = 0;
@@ -202,7 +213,12 @@ pub(crate) fn parse_layer_slots(value: &str, uniform: usize) -> Option<[usize; 4
     valid_layer_slots(&slots, uniform).then_some(slots)
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 fn parse_slot_capacity(bytes: &[u8]) -> Option<usize> {
     std::str::from_utf8(bytes).ok()?.parse().ok()
 }
@@ -278,7 +294,12 @@ pub(crate) fn expert_grouping_worthwhile(rows: usize, chunks: usize) -> bool {
         && (rows - chunks) * 5 >= rows
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
     match value {
         "auto" => Some(false),
@@ -287,7 +308,12 @@ pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
     }
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_predictor_half(value: &str) -> Option<bool> {
     match value {
         "f32" => Some(false),
@@ -418,7 +444,12 @@ pub(crate) fn parse_gpu_hot_wide(value: &str) -> Option<bool> {
     }
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
 pub(crate) fn fixed_draft_width(value: &str, adaptive: bool) -> Option<usize> {
     match (value.as_bytes(), adaptive) {
         ([digit @ b'1'..=b'7'], false) => Some(usize::from(*digit - b'0')),
@@ -1161,6 +1192,11 @@ impl ExpertCache {
             })
     }
 
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn predictive_lru_enabled(&self) -> bool {
+        self.predictive_lru
+    }
+
     pub(crate) fn enable_predictive_lru(&mut self) {
         // Unused prefetches need a lifetime without inventing demand frequency.
         self.predictive_lru = true;
@@ -1198,11 +1234,40 @@ impl ExpertCache {
         Ok(Some(slot))
     }
 
-    #[cfg(feature = "mlx")]
+    #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
     pub(crate) fn claim_lease(&mut self, expert: u32) -> Result<Option<SlotLease>, CacheError> {
         Ok(self
             .claim_prefetch(expert)?
             .and_then(|slot| self.pending_lease(slot, expert)))
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    fn begin_demand(&mut self, slot: usize, expert: u32) -> Result<SlotLease, CacheError> {
+        if self.keys.get(slot) != Some(&Some(expert)) || self.pending[slot].is_some() {
+            return Err(CacheError::NoSlot);
+        }
+        let generation = self.generations[slot]
+            .checked_add(1)
+            .ok_or(CacheError::Clock)?;
+        self.generations[slot] = generation;
+        self.keys[slot] = None;
+        self.pending[slot] = Some(expert);
+        Ok(SlotLease {
+            slot,
+            expert,
+            generation,
+        })
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    fn finish_demand(&mut self, lease: SlotLease, valid: bool) -> bool {
+        if self.pending_lease(lease.slot, lease.expert) != Some(lease) {
+            return false;
+        }
+        self.pending[lease.slot] = None;
+        // Reserve already accounted this demand. Arrival order must not change replacement ages.
+        self.keys[lease.slot] = valid.then_some(lease.expert);
+        valid
     }
 
     pub(crate) fn pending_lease(&self, slot: usize, expert: u32) -> Option<SlotLease> {
@@ -1257,6 +1322,51 @@ impl ExpertCache {
 
     pub(crate) fn available_slots(&self) -> usize {
         self.pending.iter().filter(|p| p.is_none()).count()
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) struct DemandPlan {
+    cache: Rc<RefCell<ExpertCache>>,
+    pub(crate) routes: Vec<(usize, bool)>,
+    pub(crate) reads: Vec<SlotLease>,
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+impl DemandPlan {
+    pub(crate) fn reserve(
+        cache: &Rc<RefCell<ExpertCache>>,
+        ids: &[u32],
+    ) -> Result<Self, CacheError> {
+        let guard = ExpertFill::new(cache);
+        let routes = cache.borrow_mut().reserve(ids)?;
+        let mut plan = Self {
+            cache: cache.clone(),
+            routes,
+            reads: Vec::new(),
+        };
+        for (&expert, &(slot, hit)) in ids.iter().zip(&plan.routes) {
+            if !hit && !plan.reads.iter().any(|lease| lease.slot == slot) {
+                let result = { cache.borrow_mut().begin_demand(slot, expert) };
+                plan.reads.push(result?);
+            }
+        }
+        guard.commit();
+        Ok(plan)
+    }
+
+    pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+        self.reads.contains(&lease) && self.cache.borrow_mut().finish_demand(lease, true)
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+impl Drop for DemandPlan {
+    fn drop(&mut self) {
+        let mut cache = self.cache.borrow_mut();
+        for &lease in &self.reads {
+            cache.finish_demand(lease, false);
+        }
     }
 }
 
@@ -2877,7 +2987,10 @@ fn flash_record_projection_bindings_fit_the_pinned_read() {
 /// Byte offset for a dense QSA KV append, and whether live suffixes require a new slab.
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn qsa_append(offset: u32, published: u32, capacity: u32) -> Option<(u64, bool)> {
-    (capacity <= 512 && offset < capacity && offset <= published && published <= capacity)
+    (capacity <= FLASH_MAX_CONTEXT
+        && offset < capacity
+        && offset <= published
+        && published <= capacity)
         .then(|| (u64::from(offset) * 1024, offset < published))
 }
 
@@ -2886,8 +2999,10 @@ pub(crate) fn qsa_append(offset: u32, published: u32, capacity: u32) -> Option<(
 fn qsa_append_preserves_all_published_rows() {
     let (offset, published, capacity) = (kani::any(), kani::any(), kani::any());
     let plan = qsa_append(offset, published, capacity);
-    let valid =
-        offset <= published && published <= capacity && capacity <= 512 && offset < capacity;
+    let valid = offset <= published
+        && published <= capacity
+        && capacity <= FLASH_MAX_CONTEXT
+        && offset < capacity;
     assert_eq!(plan.is_some(), valid);
     if let Some((bytes, copy)) = plan {
         assert_eq!(bytes / 1024, u64::from(offset));
@@ -2904,7 +3019,348 @@ fn qsa_append_preserves_all_published_rows() {
 fn qsa_append_handles_empty_full_and_forked_prefixes() {
     assert_eq!(qsa_append(0, 0, 1), Some((0, false)));
     assert_eq!(qsa_append(510, 512, 512), Some((522240, true)));
-    for (offset, end, cap) in [(1, 1, 1), (1, 0, 1), (0, 2, 1), (0, 0, 0), (0, 0, 513)] {
+    for (offset, end, cap) in [(1, 1, 1), (1, 0, 1), (0, 2, 1), (0, 0, 0), (0, 0, 262145)] {
         assert_eq!(qsa_append(offset, end, cap), None);
     }
+}
+
+/// Publish the new cursor only after a whole Flash prefill has succeeded.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_prompt_end(offset: u32, tokens: usize, context: u32) -> Option<u32> {
+    let n = u32::try_from(tokens).ok()?;
+    let end = offset.checked_add(n)?;
+    (n > 0 && context <= FLASH_MAX_CONTEXT && end <= context).then_some(end)
+}
+#[cfg(kani)]
+#[kani::proof]
+fn dense_flash_prompt_cursor_never_overflows_or_partially_accepts() {
+    let (offset, tokens, context) = (kani::any(), kani::any(), kani::any());
+    let end = flash_prompt_end(offset, tokens, context);
+    let wide = u128::from(offset) + tokens as u128;
+    assert_eq!(
+        end.is_some(),
+        tokens > 0 && context <= FLASH_MAX_CONTEXT && wide <= u128::from(context)
+    );
+    if let Some(end) = end {
+        assert_eq!(u128::from(end), wide);
+        kani::cover!(end == context && offset > 0);
+        kani::cover!(offset == 0 && tokens > 1);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn dense_prompt_rejects_partial_empty_and_overflowing_inputs() {
+    assert_eq!(flash_prompt_end(0, 512, 512), Some(512));
+    assert_eq!(flash_prompt_end(1, 262143, 262144), Some(262144));
+    assert_eq!(flash_prompt_end(1, 512, 512), None);
+    assert_eq!(flash_prompt_end(512, 0, 512), None);
+    assert_eq!(flash_prompt_end(u32::MAX, usize::MAX, 512), None);
+    assert_eq!(flash_prompt_end(0, 1, FLASH_MAX_CONTEXT + 1), None);
+}
+
+/// A fork reuses the current extent; a full slab grows up to the model context.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn qsa_slab_capacity(offset: u32, allocated: u32, limit: u32) -> Option<u32> {
+    if allocated == 0
+        || allocated > limit
+        || limit > FLASH_MAX_CONTEXT
+        || offset > allocated
+        || offset >= limit
+    {
+        return None;
+    }
+    Some(if offset == allocated {
+        (allocated * 2).min(limit)
+    } else {
+        allocated
+    })
+}
+
+#[test]
+fn qsa_slab_forks_preserve_capacity_and_growth_is_capped() {
+    for (offset, allocated, limit, expected) in [
+        (0, 32, 33, Some(32)),
+        (31, 32, 33, Some(32)),
+        (32, 32, 33, Some(33)),
+        (32, 32, 512, Some(64)),
+        (0, 0, 1, None),
+        (33, 32, 64, None),
+        (32, 32, 32, None),
+        (0, 33, 32, None),
+        (0, 1, FLASH_MAX_CONTEXT + 1, None),
+    ] {
+        assert_eq!(qsa_slab_capacity(offset, allocated, limit), expected);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn qsa_growth_fits_all_copied_and_appended_rows() {
+    let (offset, allocated, limit) = (kani::any(), kani::any(), kani::any());
+    let next = qsa_slab_capacity(offset, allocated, limit);
+    assert_eq!(
+        next.is_some(),
+        allocated > 0
+            && allocated <= limit
+            && limit <= FLASH_MAX_CONTEXT
+            && offset <= allocated
+            && offset < limit
+    );
+    if let Some(next) = next {
+        assert!(allocated <= next && next <= limit && offset < next);
+        assert!((u64::from(offset) + 1) * 1024 <= u64::from(next) * 1024);
+        assert!((offset + 1) / 4 <= next.div_ceil(4));
+        assert_eq!(next > allocated, offset == allocated);
+        kani::cover!(next == limit && next > allocated && limit == FLASH_MAX_CONTEXT);
+        kani::cover!(next == allocated && offset % 4 == 3);
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+fn rank_qsa_blocks(scores: &[f32], ids: &mut [u32], keep: usize) -> Option<usize> {
+    if scores.len() != ids.len()
+        || keep == 0
+        || keep > ids.len()
+        || scores.iter().any(|s| !s.is_finite())
+    {
+        return None;
+    }
+    for (i, id) in ids.iter_mut().enumerate() {
+        *id = u32::try_from(i).ok()?;
+    }
+    let split = ids.len() - keep;
+    ids.select_nth_unstable_by(split, |&a, &b| {
+        scores[a as usize]
+            .partial_cmp(&scores[b as usize])
+            .unwrap()
+            .then_with(|| a.cmp(&b))
+    });
+    ids[split..].sort_unstable();
+    Some(split)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn qsa_stable_ranking_preserves_best_blocks_and_time_order() {
+    let values: [i8; 3] = kani::any();
+    let scores = values.map(f32::from);
+    let mut ids = [0; 3];
+    let split = rank_qsa_blocks(&scores, &mut ids, 2).unwrap();
+    assert_eq!(split, 1);
+    let [discarded, first, second] = ids.map(|id| id as usize);
+    assert!(first < second && second < 3 && discarded < 3);
+    assert!(discarded != first && discarded != second);
+    for kept in [first, second] {
+        assert!((values[discarded], discarded) < (values[kept], kept));
+    }
+    kani::cover!(values[0] == values[1] && values[1] == values[2] && discarded == 0);
+    kani::cover!(discarded == 2);
+}
+
+/// Stable ascending argsort followed by the last 512 blocks; ties at the cutoff keep later blocks.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+    let blocks = length / 4;
+    if length > FLASH_MAX_CONTEXT || blocks <= 512 || scores.len() != blocks as usize {
+        return None;
+    }
+    let mut ids = vec![0; blocks as usize];
+    let split = rank_qsa_blocks(scores, &mut ids, 512)?;
+    let keep = &ids[split..];
+    let mut tokens = Vec::with_capacity(2048 + (length % 4) as usize);
+    for &block in keep.iter() {
+        tokens.extend(block * 4..block * 4 + 4);
+    }
+    tokens.extend(blocks * 4..length);
+    Some(tokens)
+}
+
+#[cfg(test)]
+#[test]
+fn sparse_qsa_positions_preserve_ties_and_current_tail() {
+    for n in [2052, 2053, 2054, 2055, 4095, 4096] {
+        let mut scores = vec![0.; (n / 4) as usize];
+        let last = scores.len() - 1;
+        scores[0] = 2.;
+        scores[last] = -1.;
+        let ids = sparse_qsa_positions(&scores, n).unwrap();
+        let mut expected: Vec<u32> = (0..n / 4).collect();
+        expected.sort_by(|&a, &b| scores[a as usize].partial_cmp(&scores[b as usize]).unwrap());
+        let mut keep = expected[expected.len() - 512..].to_vec();
+        keep.sort_unstable();
+        let reference = keep
+            .into_iter()
+            .flat_map(|b| b * 4..b * 4 + 4)
+            .chain(n / 4 * 4..n)
+            .collect::<Vec<_>>();
+        assert_eq!(ids, reference);
+        assert_eq!(ids.len(), 2048 + (n % 4) as usize);
+        assert!(ids.windows(2).all(|p| p[0] < p[1]));
+    }
+    for n in [2048, 2051, 262145] {
+        assert!(sparse_qsa_positions(&[], n).is_none());
+    }
+    assert!(sparse_qsa_positions(&[f32::NAN; 513], 2052).is_none());
+    assert!(sparse_qsa_positions(&[0.; 512], 2052).is_none());
+}
+
+#[cfg(all(
+    test,
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+pub(crate) fn qsa_probe_row(t: u32) -> Vec<f32> {
+    (0..2560)
+        .map(|i| (((i * 17 + t * 83) % 257) as i32 - 128) as f32 / 237.)
+        .collect()
+}
+#[cfg(all(
+    test,
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+pub(crate) fn qsa_probe_checkpoint(n: u32) -> bool {
+    matches!(
+        n,
+        1 | 4 | 32 | 33 | 512 | 513 | 1023 | 1024 | 2047..=2055 | 4095 | 4096
+    )
+}
+
+/// Flash GQA has twelve query heads per KV head; sparse attention has at most 2051 positions.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+    if count < 1024 {
+        return None;
+    }
+    match (arch, count) {
+        (b's', 1024) => Some(64),
+        (b's' | b'd', _) => Some(128),
+        _ => None,
+    }
+}
+#[cfg(test)]
+#[test]
+fn qsa_attention_two_pass_boundary() {
+    for (a, n, b) in [
+        (b's', 1023, None),
+        (b's', 1024, Some(64)),
+        (b's', 1025, Some(128)),
+        (b'd', 1024, Some(128)),
+        (b'g', 2051, None),
+    ] {
+        assert_eq!(qsa_attention_blocks(a, n), b);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn native_demand_deduplicates_reads_but_preserves_routes_and_fails_closed() -> Result<()> {
+    let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+    let plan = DemandPlan::reserve(&cache, &[9, 7, 9, 8, 7])?;
+    assert_eq!(plan.reads.len(), 3);
+    assert_eq!(plan.routes[0], plan.routes[2]);
+    assert_eq!(plan.routes[1], plan.routes[4]);
+    assert_eq!(cache.borrow().available_slots(), 7);
+    assert!(!cache.borrow().contains(9));
+    for &lease in plan.reads.iter().rev() {
+        assert!(plan.publish(lease));
+    }
+    assert!(!plan.publish(plan.reads[0]));
+    drop(plan);
+    let hot = DemandPlan::reserve(&cache, &[7, 8, 9, 7])?;
+    assert!(hot.reads.is_empty() && hot.routes.iter().all(|(_, hit)| *hit));
+    drop(hot);
+    let failed = DemandPlan::reserve(&cache, &[100, 101])?;
+    let old = failed.reads[0];
+    drop(failed);
+    assert_eq!(cache.borrow().available_slots(), 10);
+    assert!(!cache.borrow().contains(100));
+    let retried = DemandPlan::reserve(&cache, &[100, 101])?;
+    assert_ne!(old, retried.reads[0]);
+    assert!(!retried.publish(old));
+    assert!(retried.publish(retried.reads[0]));
+    assert!(DemandPlan::reserve(&cache, &[]).is_err());
+    assert!(DemandPlan::reserve(&cache, &[512]).is_err());
+    assert!(DemandPlan::reserve(&cache, &(0..11).collect::<Vec<_>>()).is_err());
+    drop(retried);
+    cache.borrow_mut().generations.fill(u64::MAX);
+    assert!(DemandPlan::reserve(&cache, &[211]).is_err());
+    assert_eq!(cache.borrow().available_slots(), 10);
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn native_demand_generation_rejects_stale_and_duplicate_publication() {
+    let mut cache = ExpertCache::new(10).unwrap();
+    let expert: u32 = kani::any();
+    kani::assume(expert < 512);
+    let generation: u64 = kani::any();
+    let valid: bool = kani::any();
+    cache.keys[0] = Some(expert);
+    cache.generations[0] = generation;
+    cache.ages[0] = 79;
+    let result = cache.begin_demand(0, expert);
+    assert_eq!(result.is_ok(), generation < u64::MAX);
+    if let Ok(lease) = result {
+        assert_eq!(lease.generation, generation + 1);
+        assert!(!cache.contains(expert));
+        let stale = SlotLease {
+            generation,
+            ..lease
+        };
+        assert!(!cache.finish_demand(stale, true));
+        assert_eq!(cache.pending_lease(0, expert), Some(lease));
+        assert_eq!(cache.finish_demand(lease, valid), valid);
+        assert_eq!(cache.contains(expert), valid);
+        assert_eq!(cache.ages[0], 79);
+        assert!(!cache.finish_demand(lease, true));
+        kani::cover!(valid);
+        kani::cover!(!valid);
+    } else {
+        assert_eq!(cache.keys[0], Some(expert));
+        assert!(cache.pending[0].is_none());
+        kani::cover!(generation == u64::MAX);
+    }
+}
+
+/// At most four owned prefetch records, including completed results awaiting publication.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn native_prefetch_room(pending: usize, active: usize) -> Option<usize> {
+    if pending > 4 || active > 4 {
+        return None;
+    }
+    Some(4 - pending.max(active))
+}
+#[cfg(kani)]
+#[kani::proof]
+fn native_prefetch_room_bounds_owned_and_running_records() {
+    let pending: usize = kani::any();
+    let active: usize = kani::any();
+    let room = native_prefetch_room(pending, active);
+    assert_eq!(room.is_some(), pending <= 4 && active <= 4);
+    if let Some(room) = room {
+        assert!(room <= 4 && pending + room <= 4 && active + room <= 4);
+        assert!(pending + room == 4 || active + room == 4);
+        kani::cover!(room == 4);
+        kani::cover!(room == 0 && pending == 4 && active == 0);
+        kani::cover!(room == 0 && pending == 0 && active == 4);
+    }
+    kani::cover!(room.is_none());
+}
+#[cfg(test)]
+#[test]
+fn native_prefetch_room_rejects_invalid_ownership_counts() {
+    for pending in 0..=5 {
+        for active in 0..=5 {
+            let room = native_prefetch_room(pending, active);
+            assert_eq!(room.is_some(), pending <= 4 && active <= 4);
+            if let Some(room) = room {
+                assert_eq!(room + pending.max(active), 4);
+            }
+        }
+    }
+    assert_eq!(native_prefetch_room(usize::MAX, 0), None);
+    assert_eq!(native_prefetch_room(0, usize::MAX), None);
 }

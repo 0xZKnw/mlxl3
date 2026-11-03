@@ -35,8 +35,41 @@ for variant in [
     "size",
     "protocol",
     "huge",
+    "native",
+    "native-extra",
+    "native-duplicate",
+    "native-hash",
+    "native-schema",
+    "native-backend",
+    "native-missing",
+    "native-old-minimum",
+    "native-symlink",
+    "native-manifest-duplicate",
 ]:
     entries = dict(files)
+    if variant.startswith("native"):
+        entries = {"mlxl3": files["mlxl3"]}
+        changed = dict(
+            manifest,
+            schema=2,
+            backend="metal",
+            version="2.0.2",
+            minimum_app_version="2.0.0",
+            files={"mlxl3": manifest["files"]["mlxl3"]},
+        )
+        if variant == "native-schema":
+            changed["schema"] = 3
+        if variant == "native-backend":
+            changed["backend"] = "mlx"
+        if variant == "native-old-minimum":
+            changed["minimum_app_version"] = "1.2.0"
+        if variant == "native-hash":
+            changed["files"] = {"mlxl3": dict(changed["files"]["mlxl3"], sha256="0" * 64)}
+        if variant == "native-extra":
+            entries["libmlx.dylib"] = files["libmlx.dylib"]
+        if variant == "native-missing":
+            del entries["mlxl3"]
+        entries["engine.json"] = json.dumps(changed).encode()
     if variant in ["hash", "size", "protocol"]:
         changed = json.loads(files["engine.json"])
         if variant == "protocol":
@@ -58,12 +91,16 @@ for variant in [
         for name, data in entries.items():
             member = tarfile.TarInfo(name)
             member.size = len(data)
-            if name == "mlxl3" and variant in ["symlink", "hardlink"]:
-                member.type = tarfile.SYMTYPE if variant == "symlink" else tarfile.LNKTYPE
+            if name == "mlxl3" and variant in ["symlink", "hardlink", "native-symlink"]:
+                member.type = (
+                    tarfile.SYMTYPE if variant in ["symlink", "native-symlink"] else tarfile.LNKTYPE
+                )
                 member.linkname = "libmlx.dylib"
                 member.size = 0
             archive.addfile(member, io.BytesIO(data))
-        if variant == "duplicate":
-            member = tarfile.TarInfo("mlxl3")
+        if variant in ["duplicate", "native-duplicate", "native-manifest-duplicate"]:
+            member = tarfile.TarInfo(
+                "engine.json" if variant == "native-manifest-duplicate" else "mlxl3"
+            )
             member.size = 1
             archive.addfile(member, io.BytesIO(b"x"))

@@ -5,26 +5,7 @@ use mlxl3_native::{
     tokenizer::ChatTokenizer,
 };
 
-pub(super) fn artifact_key(path: &std::path::Path) -> Result<String> {
-    use std::hash::{Hash, Hasher};
-    let mut fingerprint = std::collections::hash_map::DefaultHasher::new();
-    path.canonicalize()?.hash(&mut fingerprint);
-    let mut files = std::fs::read_dir(path)?.collect::<std::io::Result<Vec<_>>>()?;
-    files.sort_by_key(|f| f.file_name());
-    for file in files {
-        if file
-            .path()
-            .extension()
-            .is_some_and(|e| e == "json" || e == "safetensors" || e == "bin")
-        {
-            let meta = file.metadata()?;
-            file.file_name().hash(&mut fingerprint);
-            meta.len().hash(&mut fingerprint);
-            meta.modified()?.hash(&mut fingerprint);
-        }
-    }
-    Ok(format!("{:016x}", fingerprint.finish()))
-}
+pub(super) use mlxl3_native::checkpoint::artifact_key;
 
 pub(super) fn runtime_key(path: &std::path::Path, context: usize) -> Result<String> {
     runtime_key_with_options(

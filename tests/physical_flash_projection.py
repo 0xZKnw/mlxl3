@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -100,6 +101,35 @@ def verify(args, root, report):
                         expert=True,
                     )
                 )
+    if args.qwen_checkpoint:
+        generic = root / "generic"
+        shutil.copytree(root / "synthetic", generic)
+        (generic / "config.json").write_text(json.dumps({"model_type": "qwen3_5_moe"}))
+        cases.extend(
+            {**case, "path": str(generic), "op": "metal-exl3-linear"}
+            for case in list(cases)
+            if case["path"] == str(root / "synthetic") and case["op"] == "metal-checkpoint-linear"
+        )
+        cases.append(make_case(rng, generic, "four", 8192, 1) | {"op": "metal-exl3-linear"})
+        checkpoint = args.qwen_checkpoint.resolve()
+        for suffix, width in [
+            ("linear_attn.in_proj_qkv", 2048),
+            ("linear_attn.in_proj_z", 2048),
+            ("linear_attn.out_proj", 4096),
+            ("mlp.shared_expert.gate_proj", 2048),
+            ("mlp.shared_expert.up_proj", 2048),
+            ("mlp.shared_expert.down_proj", 512),
+            ("mlp.experts.0.gate_proj", 2048),
+            ("mlp.experts.0.down_proj", 512),
+        ]:
+            for batch in (1, 3):
+                cases.append(
+                    make_case(
+                        rng, checkpoint, "model.language_model.layers.0." + suffix, width, batch
+                    )
+                    | {"op": "metal-exl3-linear"}
+                )
+        cases.append(make_case(rng, checkpoint, "lm_head", 2048, 1) | {"op": "metal-exl3-linear"})
     # The stock projection receives ordinary contiguous FP16 rows. Feed the same
     # values through a reversed, padded backing on the direct path.
     stock_cases = list(cases)
@@ -131,6 +161,8 @@ def verify(args, root, report):
     (root / "cases.json").write_text(json.dumps(stock_cases))
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
     env["MLXL3_PROJECTION_FIXTURES"] = str(root)
+    if args.portable:
+        env["MLXL3_DISABLE_TENSOR_OPS"] = "1"
     stock = subprocess.run(
         [args.stock, "flash_projection_stock_oracle", "--exact", "--ignored", "--test-threads=1"],
         env=env,
@@ -201,6 +233,7 @@ def verify(args, root, report):
         report["cases"].append(
             {
                 "projection": case["prefix"],
+                "op": case["op"],
                 "outputs": len(ref),
                 "input": "view-f32"
                 if "x_f32" in case
@@ -219,12 +252,15 @@ if __name__ == "__main__":
     parser.add_argument("stock", type=Path)
     parser.add_argument("report", type=Path)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--qwen-checkpoint", type=Path)
+    parser.add_argument("--portable", action="store_true")
     args = parser.parse_args()
     state = {
         "status": "started",
         "seed": 7503,
         "cli_sha256": hashlib.sha256(args.cli.read_bytes()).hexdigest(),
         "stock_test_sha256": hashlib.sha256(args.stock.read_bytes()).hexdigest(),
+        "portable_projection": args.portable,
     }
     with args.report.open("x") as output, tempfile.TemporaryDirectory() as directory:
         try:
