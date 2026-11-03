@@ -939,6 +939,50 @@ pub fn segment_tokens(current: u32, previous: [u32; 2], eos: u32) -> [u32; 3] {
     ]
 }
 
+/// Four successive packed symbols, newest first. The first word is the row scale.
+pub fn ple_codeword(words: &[u16; 41], position: usize) -> Option<u16> {
+    if position >= 160 {
+        return None;
+    }
+    let mut state = 0u16;
+    for j in 0..4 {
+        let symbol = (position + 160 - j) % 160;
+        state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
+    }
+    Some(state)
+}
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(5)]
+fn ple_codewords_select_the_wrapped_nibbles() {
+    let words: [u16; 41] = kani::any();
+    let i: usize = kani::any();
+    let j: u8 = kani::any();
+    let codeword = ple_codeword(&words, i);
+    assert_eq!(codeword.is_some(), i < 160);
+    if let Some(value) = codeword
+        && j < 4
+    {
+        let tap = usize::from(j);
+        let from = if tap > i { 160 - (tap - i) } else { i - tap };
+        let expected = words[1 + from / 4] >> (4 * (from % 4)) & 15;
+        assert_eq!((value >> (4 * tap)) & 15, expected);
+        kani::cover!(i == 0 && j == 3);
+        kani::cover!(i == 159 && j == 0);
+    }
+}
+#[test]
+fn ple_codeword_reads_four_symbols_across_column_zero() {
+    let mut row = [0u16; 41];
+    row[0] = 0xffff;
+    row[1] = 0x4321;
+    row[40] = 0xabcd;
+    assert_eq!(ple_codeword(&row, 0), Some(0xcba1));
+    assert_eq!(ple_codeword(&row, 3), Some(0x1234));
+    assert_eq!(ple_codeword(&row, 159), Some(0xdcba));
+    assert!(ple_codeword(&row, usize::MAX).is_none());
+}
+
 /// Identifies one outstanding write, even when the same slot and expert recur.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SlotLease {

@@ -1,9 +1,6 @@
-use super::{
-    FlashProjection, MatrixView, Metal, float_values, read_weight, upload, view::FloatType,
-};
+use super::{FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::checkpoint::Checkpoint;
 use anyhow::{Context, Result, ensure};
-use half::f16;
 use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize, NSRange};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -72,36 +69,14 @@ impl<'a> FlashGdn<'a> {
             );
             Ok(p)
         };
-        let weight = |name: &str, shape: &[usize], half: bool| -> Result<Buffer> {
-            let name = format!("{prefix}.{name}");
-            let w = c
-                .tensors
-                .get(&name)
-                .with_context(|| format!("missing {name}"))?;
-            ensure!(w.shape == shape, "invalid Flash GDN tensor {name}");
-            if let Some(p) = name.strip_suffix(".weight") {
-                ensure!(
-                    !c.tensors.contains_key(&format!("{p}.bias")),
-                    "unexpected GDN bias {p}"
-                )
-            }
-            let count = shape.iter().product::<usize>();
-            if half && w.dtype == "F16" {
-                return read_weight(&gpu.device, w, (count * 2) as u64);
-            }
-            let values = float_values(w)?;
-            ensure!(values.len() == count, "truncated Flash GDN tensor {name}");
-            if half {
-                upload(
-                    &gpu.device,
-                    &values
-                        .into_iter()
-                        .map(|v| f16::from_f32(v).to_bits())
-                        .collect::<Vec<_>>(),
-                )
-            } else {
-                upload(&gpu.device, &values)
-            }
+        let weight = |name: &str, shape: &[usize], half: bool| {
+            super::checkpoint_float_weight(
+                gpu,
+                c,
+                &format!("{prefix}.{name}"),
+                shape,
+                if half { FloatType::F16 } else { FloatType::F32 },
+            )
         };
         Ok(Self {
             gpu,
@@ -331,6 +306,15 @@ impl<'a> FlashGdnLayer<'a> {
                 .is_some_and(|(k, _)| k.starts_with(&ple)),
             "Flash layer requires PLE before attention"
         );
+        Self::load_body(gpu, c, prefix, eps, slots)
+    }
+    pub(super) fn load_body(
+        gpu: &'a Metal,
+        c: &Checkpoint,
+        prefix: &str,
+        eps: f32,
+        slots: usize,
+    ) -> Result<Self> {
         Ok(Self {
             attn_hc: super::FlashHc::load(
                 gpu,

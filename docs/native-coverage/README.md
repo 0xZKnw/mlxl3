@@ -137,3 +137,9 @@ Sur M5, huit lignes réelles ou imposées en F16/F32 reproduisent les 230 464 mo
 Le CLI direct accepte `metal-checkpoint-gdn-layer` avec le chemin du modèle, le préfixe d’une couche GDN sans PLE et une vue F16/F32 de largeur 10 240. Il renvoie les quatre flux FP32 après l’attention récurrente et le MoE pour chaque ligne. Une requête conserve les états entre ses une à huit lignes. `metal-checkpoint-gdn` accepte le préfixe `.linear_attn` et une largeur 2 560. Le mode `return_raw` de cette opération permet d’inspecter les états et les activations.
 
 Sur le M5, cinq entrées successives de la couche 2 reproduisent 4 375 520 valeurs de calcul et de cache. Les six résidus complets de la couche 0 reproduisent 61 440 valeurs FP32. Le test de reprise force une panne dans le MLP après l’attention puis compare le prochain résidu sur une branche restaurée. [Résultats numériques](gdn/physical.json) · [Preuves ciblées, témoins négatifs et commandes](gdn/provenance.json).
+
+### Couche Flash avec embeddings de n-grammes
+
+`metal-checkpoint-ple-layer` accepte le préfixe `model.language_model.layers.1`, des streams de largeur 10 240 et un ID de vocabulaire par ligne dans `token_ids`. Chaque pas exécute PLE, GDN puis le MLP. `metal-checkpoint-ple` isole la branche PLE avec le préfixe `model.language_model.layers.1.ple` et expose ses stades en mode `return_raw`. Les mots des n-grammes sont lus dans les 128 shards du checkpoint et conservés dans le cache partagé avec le lecteur historique.
+
+Cinq captures indépendantes vérifient 832 040 valeurs, avec tous les états de l’historique. Deux séquences de douze pas en FP16 et FP32 comparent 2 703 360 valeurs supplémentaires de l’historique, de la sortie PLE et du résidu complet de la couche. La reprise après lecture invalide est exercée au dernier head de PLE puis à l’intérieur du MoE. [Rapport numérique](ple/physical.json) · [Provenance et mutation de la convolution](ple/provenance.json).

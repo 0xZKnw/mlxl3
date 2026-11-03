@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod ple;
+pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
@@ -68,6 +70,57 @@ fn float_values(info: &crate::checkpoint::TensorInfo) -> Result<Vec<f32>> {
         _ => bail!("expected floating HC weights"),
     })
 }
+fn checkpoint_float_weight(
+    gpu: &Metal,
+    c: &crate::checkpoint::Checkpoint,
+    name: &str,
+    shape: &[usize],
+    dtype: view::FloatType,
+) -> Result<Buffer> {
+    let tensor = c
+        .tensors
+        .get(name)
+        .with_context(|| format!("missing {name}"))?;
+    ensure!(tensor.shape == shape, "invalid shape for {name}");
+    if let Some(p) = name.strip_suffix(".weight") {
+        ensure!(
+            !c.tensors.contains_key(&format!("{p}.bias")),
+            "unexpected bias for {name}"
+        );
+    }
+    let count = shape
+        .iter()
+        .try_fold(1usize, |n, width| n.checked_mul(*width))
+        .context("weight extent overflow")?;
+    let (kind, bytes) = if dtype == view::FloatType::F16 {
+        ("F16", 2)
+    } else {
+        ("F32", 4)
+    };
+    if tensor.dtype == kind {
+        return read_weight(
+            &gpu.device,
+            tensor,
+            (count as u64)
+                .checked_mul(bytes)
+                .context("weight bytes overflow")?,
+        );
+    }
+    let values = float_values(tensor)?;
+    ensure!(values.len() == count, "truncated {name}");
+    if dtype == view::FloatType::F16 {
+        upload(
+            &gpu.device,
+            &values
+                .into_iter()
+                .map(|v| half::f16::from_f32(v).to_bits())
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        upload(&gpu.device, &values)
+    }
+}
+
 fn read_weight(
     device: &DeviceRef,
     tensor: &crate::checkpoint::TensorInfo,
@@ -120,6 +173,7 @@ pub struct Metal {
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
     gdn: gdn::Pipelines,
+    ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
     gate_dot: [ComputePipelineState; 2],
@@ -182,6 +236,10 @@ impl Metal {
                     include_str!("../shaders/flash_gdn_epilogue.metal"),
                 )
                 .replace(
+                    "#include \"flash_ple.metal\"",
+                    include_str!("../shaders/flash_ple.metal"),
+                )
+                .replace(
                     "#include \"flash_hc_gemv.metal\"",
                     include_str!("../shaders/flash_hc_gemv.metal"),
                 );
@@ -230,6 +288,7 @@ impl Metal {
                 hc::Pipelines::load(&pipeline, "float")?,
             ];
             let gdn = gdn::Pipelines::load(&pipeline)?;
+            let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             Ok(Self {
                 device,
@@ -246,6 +305,7 @@ impl Metal {
                 k7_pipeline,
                 hc,
                 gdn,
+                ple,
                 moe_switch,
                 moe_mix,
                 gate_dot,

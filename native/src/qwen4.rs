@@ -3,7 +3,7 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::{Checkpoint, TensorInfo},
-    codec::{self, Codebook},
+    flash_ngrams::{EOS, Ngrams},
     flash_support, gated_delta,
     lfm2::{Projection, half_weight},
     linear::checkpoint_array,
@@ -17,7 +17,6 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, VecDeque},
     fs::File,
-    os::unix::fs::FileExt,
     path::PathBuf,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -26,7 +25,6 @@ use std::{
 const H: i32 = 2560;
 const HC: i32 = 4;
 const WIDTH: i32 = H * HC;
-const EOS: u32 = 248044;
 
 #[cfg(feature = "chat")]
 #[path = "flash_draft.rs"]
@@ -820,154 +818,6 @@ impl Qsa {
     }
 }
 
-struct NgramsWeights {
-    shards: Vec<TensorInfo>,
-    sizes: [u64; 16],
-    offsets: [u64; 16],
-    multipliers: [u64; 3],
-    bias: Vec<f16>,
-}
-struct Ngrams {
-    weights: NgramsWeights,
-    cache: BTreeMap<u64, Vec<u16>>,
-    queue: VecDeque<u64>,
-    previous: [u32; 2],
-    read_bytes: u64,
-}
-impl Ngrams {
-    fn load(c: &Checkpoint, p: &str) -> Result<Self> {
-        let integers = |name: &str, n: usize| -> Result<Vec<u64>> {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.{name}"))
-                .context("missing PLE hash metadata")?;
-            ensure!(
-                tensor.dtype == "I64" && tensor.shape == [n],
-                "invalid PLE hash metadata"
-            );
-            Ok(tensor
-                .read_bytes()?
-                .as_chunks::<8>()
-                .0
-                .iter()
-                .map(|b| u64::from_le_bytes(*b))
-                .collect())
-        };
-        let sizes: [u64; 16] = integers("head_vocab_sizes", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE heads"))?;
-        let offsets: [u64; 16] = integers("head_offsets", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE offsets"))?;
-        let multipliers: [u64; 3] = integers("layer_multipliers", 3)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE multipliers"))?;
-        let mut end = 0;
-        for head in 0..16 {
-            ensure!(
-                offsets[head] == end && sizes[head] > 0 && sizes[head] <= i64::MAX as u64,
-                "invalid PLE head range"
-            );
-            end = end
-                .checked_add(sizes[head])
-                .context("PLE row count overflow")?;
-        }
-        ensure!(
-            end <= 320001536 && end > 320001408,
-            "unsupported PLE row count"
-        );
-        let bias = checkpoint_array(c, &format!("{p}.head_bias"))?;
-        ensure!(
-            bias.shape() == [16, 160] && bias.dtype() == Dtype::Float16,
-            "invalid PLE head bias"
-        );
-        let bias = bias
-            .to_f16_bits()?
-            .into_iter()
-            .map(f16::from_bits)
-            .collect();
-        let mut shards = Vec::with_capacity(128);
-        for index in 0..128 {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.shard_{index}.trellis"))
-                .context("missing PLE trellis shard")?;
-            ensure!(
-                tensor.dtype == "I16" && tensor.shape == [2500012, 41],
-                "unsupported PLE row format"
-            );
-            shards.push(tensor.clone());
-        }
-        Ok(Self {
-            weights: NgramsWeights {
-                shards,
-                sizes,
-                offsets,
-                multipliers,
-                bias,
-            },
-            cache: BTreeMap::new(),
-            queue: VecDeque::new(),
-            previous: [EOS; 2],
-            read_bytes: 0,
-        })
-    }
-    fn forward(&mut self, token: u32) -> Result<Array> {
-        let history = flash_support::segment_tokens(token, self.previous, EOS);
-        let mut output = Vec::with_capacity(2560);
-        for head in 0..16 {
-            let row = flash_support::ngram_row(
-                history,
-                self.weights.multipliers,
-                2 + head / 8,
-                self.weights.offsets[head],
-                self.weights.sizes[head],
-            )
-            .context("invalid PLE row")?;
-            if !self.cache.contains_key(&row) {
-                let shard = &self.weights.shards[(row / 2500012) as usize];
-                let (file, base) = shard.source()?;
-                let offset = flash_support::row_offset(base, row % 2500012, 2500012, 82)
-                    .context("PLE offset overflow")?;
-                let mut raw = [0u8; 82];
-                file.read_exact_at(&mut raw, offset)?;
-                let words = raw
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|b| u16::from_le_bytes(*b))
-                    .collect();
-                if self.cache.len() == 16384
-                    && let Some(old) = self.queue.pop_front()
-                {
-                    self.cache.remove(&old);
-                }
-                self.cache.insert(row, words);
-                self.queue.push_back(row);
-                self.read_bytes += 82;
-            }
-            let words = &self.cache[&row];
-            let scale = f16::from_bits(words[0]).to_f32();
-            ensure!(scale.is_finite(), "nonfinite PLE row scale");
-            for i in 0..160 {
-                let mut state = 0u16;
-                for j in 0..4 {
-                    let symbol = (i + 160 - j) % 160;
-                    state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
-                }
-                let value = f16::from_f32(
-                    codec::decode_codeword(state, Codebook::Mul1).to_f32() * scale
-                        + self.weights.bias[head * 160 + i].to_f32(),
-                );
-                ensure!(value.is_finite(), "nonfinite PLE embedding");
-                output.push(value.to_bits());
-            }
-        }
-        self.previous = [token, self.previous[0]];
-        Array::from_f16_bits(&output, &[1, H])
-    }
-}
-
 struct Ple {
     #[cfg(test)]
     stages: Vec<(String, Array)>,
@@ -1012,7 +862,7 @@ impl Ple {
                 }
             };
         }
-        let embedding = self.rows.forward(token)?;
+        let embedding = Array::from_f16_bits(&self.rows.read(token)?, &[1, H])?;
         stage!("embedding", embedding);
         let key = self
             .nk

@@ -26,6 +26,8 @@ mod flash_cache_profile;
 pub(crate) mod flash_draft_budget;
 pub(crate) mod flash_draft_metadata;
 pub mod flash_memory;
+#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) mod flash_ngrams;
 #[cfg(test)]
 pub(crate) mod flash_profile;
 pub mod flash_support;

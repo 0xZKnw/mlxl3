@@ -64,3 +64,77 @@ fn five_gdn_states_and_residual_layers() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "physical PLE history and full Flash layer oracle"]
+fn ple_history_and_complete_layer_on_twelve_steps() -> Result<()> {
+    let model = std::env::var_os("MLXL3_PLE_MODEL").context("missing Flash model")?;
+    let frozen =
+        PathBuf::from(std::env::var_os("MLXL3_PLE_FROZEN").context("missing PLE capture")?);
+    let root = PathBuf::from(std::env::var_os("MLXL3_PLE_ORACLE_DIR").context("missing output")?);
+    let c = crate::checkpoint::inspect(Path::new(&model))?;
+    let spec: Value = serde_json::from_reader(File::open(frozen.join("reference.json"))?)?;
+    ensure!(spec["status"] == "complete" && spec["mode"] == "eval");
+    let cases = spec["attention"]["1"]
+        .as_array()
+        .context("missing PLE probe")?;
+    ensure!(cases.len() == 5);
+    let order = [0, 1, 2, 3, 4, 0, 0, 4, 1, 2, 3, 4];
+    for half in [false, true] {
+        let mut layer = Layer::load(
+            &c,
+            "model.language_model.layers.1",
+            true,
+            true,
+            1e-6,
+            1e7,
+            10,
+            crate::ssd_moe::ResolvedPolicy::resolve(true, false)?,
+        )?;
+        for (i, &index) in order.iter().enumerate() {
+            let case = &cases[index];
+            let bytes = std::fs::read(
+                frozen.join(
+                    case["input"]["file"]
+                        .as_str()
+                        .context("missing PLE input")?,
+                ),
+            )?;
+            ensure!(bytes.len() == 10240 * 4);
+            let x = Array::from_f32(
+                &bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|&x| f32::from_le_bytes(x))
+                    .collect::<Vec<_>>(),
+                &[1, WIDTH],
+            )?;
+            let x = if half { x.astype(Dtype::Float16)? } else { x };
+            let token = u32::try_from(case["token"].as_u64().context("missing token")?)?;
+            let out = layer.forward(&x, token)?;
+            ensure!(out.dtype() == Dtype::Float32 && out.shape() == [1, WIDTH]);
+            let ple = layer.ple.as_ref().context("PLE not executed")?;
+            let history = ple.history.as_ref().context("missing history")?;
+            ensure!(history.dtype() == Dtype::Float32 && history.shape() == [1, 9, WIDTH]);
+            std::fs::write(root.join(format!("layer-{half}-{i}.bin")), out.to_bytes()?)?;
+            std::fs::write(
+                root.join(format!("history-{half}-{i}.bin")),
+                history.to_bytes()?,
+            )?;
+            let (_, gated) = ple
+                .stages
+                .iter()
+                .find(|(name, _)| name == "gated")
+                .context("missing PLE branch")?;
+            let (_, conv) = ple
+                .stages
+                .iter()
+                .find(|(name, _)| name == "convolution")
+                .context("missing PLE convolution")?;
+            let value = x.add(&gated.add(conv)?)?;
+            std::fs::write(root.join(format!("ple-{half}-{i}.bin")), value.to_bytes()?)?;
+        }
+    }
+    Ok(())
+}

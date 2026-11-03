@@ -1677,6 +1677,12 @@
     "array::synchronize": 1,
     "config MLXL3_FLASH_DRAFT": 1
   },
+  "native/src/flash_ngrams.rs": {
+    ".to_f32": 3,
+    "array::from_fn": 1,
+    "config MLXL3_PLE_MODEL": 1,
+    "mlx": 1
+  },
   "native/src/flash_profile.rs": {
     ".dtype": 1,
     ".eval": 1,
@@ -1803,6 +1809,7 @@
     "shader ../shaders/flash_hc.metal": 1,
     "shader ../shaders/flash_hc_gemv.metal": 1,
     "shader ../shaders/flash_moe.metal": 1,
+    "shader ../shaders/flash_ple.metal": 1,
     "shader ../shaders/flash_projection.metal": 1,
     "shader ../shaders/flash_reference_reduction.h": 1,
     "shader ../shaders/gated_delta_packed.metal": 1,
@@ -1814,7 +1821,7 @@
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/hc.rs": {
-    ".shape": 3,
+    ".shape": 4,
     ".transpose": 3,
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
@@ -1825,6 +1832,11 @@
     ".take": 1,
     ".transpose": 1,
     "config MLXL3_MOE_CHECKPOINT": 1
+  },
+  "native/src/gpu/ple.rs": {
+    ".shape": 1,
+    ".transpose": 1,
+    "config MLXL3_PLE_MODEL": 1
   },
   "native/src/gpu/projection.rs": {
     ".shape": 1,
@@ -1893,7 +1905,7 @@
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
   "native/src/lib.rs": {
-    "mlx": 22
+    "mlx": 23
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2063,7 +2075,7 @@
     ".finish": 5,
     ".log_probs": 2,
     ".retained_bytes": 4,
-    ".shape": 6,
+    ".shape": 7,
     ".slice": 2,
     ".swiglu": 1,
     ".take": 7,
@@ -2274,7 +2286,7 @@
     ".compiled_silu": 1,
     ".conv1d": 1,
     ".div": 2,
-    ".dtype": 9,
+    ".dtype": 8,
     ".eval": 25,
     ".finish": 1,
     ".matmul": 1,
@@ -2290,7 +2302,7 @@
     ".rope": 8,
     ".rsqrt": 1,
     ".scalar_mul": 2,
-    ".shape": 34,
+    ".shape": 33,
     ".sigmoid": 3,
     ".silu": 1,
     ".slice": 23,
@@ -2299,8 +2311,7 @@
     ".synchronize": 1,
     ".take": 4,
     ".to_bytes": 48,
-    ".to_f16_bits": 1,
-    ".to_f32": 19,
+    ".to_f32": 16,
     ".to_u32": 4,
     ".transpose": 18,
     ".try_clone": 32,
@@ -2348,15 +2359,19 @@
     "shader mlxl3_flash_qsa_scores_{count}": 1
   },
   "native/src/qwen4/direct_gdn_oracle.rs": {
-    ".astype": 1,
-    ".dtype": 3,
+    ".add": 2,
+    ".astype": 2,
+    ".dtype": 5,
     ".eval": 1,
-    ".shape": 3,
-    ".to_bytes": 3,
-    "Array::from_f32": 2,
+    ".shape": 5,
+    ".to_bytes": 6,
+    "Array::from_f32": 3,
     "config MLXL3_GDN_FROZEN": 1,
     "config MLXL3_GDN_MODEL": 1,
-    "config MLXL3_GDN_ORACLE_DIR": 1
+    "config MLXL3_GDN_ORACLE_DIR": 1,
+    "config MLXL3_PLE_FROZEN": 1,
+    "config MLXL3_PLE_MODEL": 1,
+    "config MLXL3_PLE_ORACLE_DIR": 1
   },
   "native/src/qwen4/hc_row_oracle.rs": {
     ".dtype": 1,

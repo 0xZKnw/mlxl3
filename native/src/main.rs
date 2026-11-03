@@ -192,6 +192,9 @@ struct CodecRequest {
     #[serde(default)]
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     slots: Option<usize>,
+    #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    token_ids: Vec<u32>,
     #[serde(default = "default_k")]
     k: usize,
     #[serde(default)]
@@ -933,12 +936,55 @@ fn codec_loop() -> Result<()> {
                 | "metal-checkpoint-hc"
                 | "metal-checkpoint-mlp"
                 | "metal-checkpoint-gdn"
-                | "metal-checkpoint-gdn-layer" => {
+                | "metal-checkpoint-gdn-layer"
+                | "metal-checkpoint-ple"
+                | "metal-checkpoint-ple-layer" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-ple" | "metal-checkpoint-ple-layer" => {
+                            let input = request.input_view(gpu)?;
+                            let [rows, width] = input.shape();
+                            anyhow::ensure!(
+                                (1..=16).contains(&rows)
+                                    && width == 10240
+                                    && request.token_ids.len() == rows as usize
+                                    && request.token_ids.iter().all(|&id| id < 248320),
+                                "invalid PLE tokens or streams"
+                            );
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let eps = flash_checkpoint_epsilon(&c)?;
+                            let mut out = Vec::new();
+                            if request.op.ends_with("-layer") {
+                                let mut block = mlxl3_native::gpu::FlashPleLayer::load(
+                                    gpu,
+                                    &c,
+                                    &request.prefix,
+                                    eps,
+                                    request.slots.unwrap_or(10),
+                                )?;
+                                for (i, &t) in request.token_ids.iter().enumerate() {
+                                    out.push(json!(
+                                        block.forward(&input.row(i as u32)?, t)?.read_output()?
+                                    ));
+                                }
+                            } else {
+                                let mut ple = mlxl3_native::gpu::FlashPle::load(
+                                    gpu,
+                                    &c,
+                                    &request.prefix,
+                                    eps,
+                                )?;
+                                for (i, &t) in request.token_ids.iter().enumerate() {
+                                    let r =
+                                        ple.forward(&input.row(i as u32)?, t, request.return_raw)?;
+                                    out.push(json!({"values":r.values.read_output()?,"trace":r.trace,"read_bytes":r.read_bytes}));
+                                }
+                            }
+                            Ok(json!(out))
+                        }
                         "metal-checkpoint-gdn" | "metal-checkpoint-gdn-layer" => {
                             let input = request.input_view(gpu)?;
                             let [rows, width] = input.shape();

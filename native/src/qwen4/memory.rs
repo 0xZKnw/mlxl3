@@ -166,7 +166,7 @@ impl FlashNext {
                 if let Some(a) = &ple.history {
                     backings.record("ple", a)?;
                 }
-                ple_host_row_payload_bytes += ple.rows.cache.len() * 82;
+                ple_host_row_payload_bytes += ple.rows.cache_bytes();
             }
         }
         if let Some(a) = &self.last_hidden {
