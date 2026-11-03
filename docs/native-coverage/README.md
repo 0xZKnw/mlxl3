@@ -192,6 +192,7 @@ Pour rejouer, définir `MLXL3_FLASH_MODEL` et `MLXL3_FLASH_MTP_REFERENCE` (répe
 cargo test --locked --lib --features chat gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary -- --exact --ignored
 cargo test --locked --lib --features mlx,chat qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --exact --ignored --nocapture
 cargo test --locked --lib --features chat gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state -- --exact --ignored
+```
 
 ### Bridge Studio et API HTTP Flash sans MLX
 
@@ -225,4 +226,51 @@ L’intégration commune avec DFlash refuse également le chargement du draft av
 ```sh
 MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_SSD_CACHE_GIB=1.2 cargo test --locked --lib --features chat gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay -- --exact --ignored --nocapture
 MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_FLASH_TEST_CLI=DIRECT cargo test --locked --test openai_transport --features chat native_flash_memory_budget_preserves_bridge_recovery -- --exact --ignored --nocapture
+```
+
+### Projections natives Qwen
+
+Le chargeur `FlashProjection::load_exl3` et l’opération `codec` `metal-exl3-linear` exécutent les matrices EXL3 des autres familles. La préparation H128 et les codebooks réutilisent les primitives qualifiées. Le nombre de groupes SIMD, les tuiles de sortie et les divisions de la réduction suivent le chemin dense/MoE existant. Le noyau K=7 conserve ses 128 threads et la tête MTP ses 64 threads.
+
+Sur ce M5, chacun des deux parcours vérifie 104 cas et 429 952 mots FP16 finis sans écart face au Rust/MLX indépendant. Parmi eux, 58 cas génériques comparent 359 040 valeurs, avec les matrices Qwen réelles et les 248 320 logits de sa tête. Les cas synthétiques couvrent les huit taux du treillis, les trois codebooks, biais, anciens noms de gains, entrées à strides et seize divisions. Les fixtures Flash et la durée de vie des soumissions sont rejouées dans la même campagne. Le second parcours force les quatre groupes sur le M5. [M5](qwen-projection/m5.json), [quatre groupes forcés](qwen-projection/portable.json), [sources et limites](qwen-projection/provenance.json).
+
+```sh
+python tests/physical_flash_projection.py DIRECT_CLI STOCK_LIBTEST NEW_REPORT --checkpoint FLASH_CHECKPOINT --qwen-checkpoint QWEN35B_CHECKPOINT
+```
+
+Ajouter `--portable` pour le parcours à quatre groupes. Utiliser un Python disposant de MLX pour construire les fixtures et lancer l’oracle. Le processus du moteur direct vérifie lui-même l’absence de MLX dans ses bibliothèques chargées. Cette tranche qualifie les projections et leur entrée CLI. La génération Qwen complète est suivie séparément.
+
+
+### Qwen Gated DeltaNet sans MLX
+
+`QwenGdn` et le codec `metal-qwen-gdn` exécutent les projections, la convolution causale, la récurrence FP32, la normalisation et la porte Qwen. Les instantanés conservent les buffers précédents et refusent les états d’une autre couche. La publication n’a lieu qu’après le succès de la commande.
+
+Sur le Qwen3.6 MoE local, les couches 0 et 36 et les préfixes de 1, 2 et 4 positions comparent **3 321 856 valeurs finies bit à bit**, sans écart : sorties, historique de convolution et récurrence. Un premier essai avait trouvé un arrondi FP16 manquant avant le gain RMS ; son [rapport d’échec](qwen-gdn/initial.json) reste conservé. Le [rejeu corrigé](qwen-gdn/physical.json), le [contrôle des projections et experts Flash](qwen-gdn/expert-regression.json) et la [provenance](qwen-gdn/provenance.json) sont archivés. Cette tranche qualifie le composant récurrent ; la session Qwen complète reste à assembler.
+
+```sh
+python tests/physical_qwen_gdn.py DIRECT_CLI STOCK_CLI QWEN35B_CHECKPOINT NEW_REPORT
+MLXL3_QWEN_NATIVE_MODEL=QWEN35B_CHECKPOINT cargo test --locked --lib --features chat gpu::qwen_gdn::retained_states_replay_after_branch_and_rejected_input -- --exact --ignored
+```
+
+
+### Experts routés Qwen/LFM sans MLX
+
+`MappedSwitchGlu` charge une banque EXL3 et reçoit une ligne FP16, les IDs imposés et leurs scores FP16. Le chemin conserve les divisions liées au nombre de routes, les quatre groupes M5 pour K2, les papillons et SiLU FP32 du GLU fusionné, puis les arrondis et la réduction FP16 des experts. Il accepte les noms Qwen `gate_proj/up_proj/down_proj` et LFM `w1/w3/w2`. Les gains doivent être FP16 et les projections sans biais.
+
+Les deux parcours M5 et quatre groupes forcés passent chacun **26 cas et 82 816 mots FP16 finis, sans écart** : sept largeurs de codebook, trois modes, IDs répétés, seize divisions, entrée nulle et quatre couches réelles Qwen/LFM. Le contrôle des projections Flash compare aussi 429 952 mots inchangés. Le garde de placement vérifie la fin de chaque ligne contre la longueur réelle du buffer. Ses 22 obligations et quatre couvertures complètent les 100 obligations et trois couvertures du plan de dispatch. L’ancienne propriété fondée sur un nombre de lignes reste archivée comme non vérifiée après trois tentatives sans verdict. [M5](mapped-glu/m5.json), [quatre groupes](mapped-glu/portable.json), [provenance et limites](mapped-glu/provenance.json).
+
+```sh
+python tests/physical_mapped_expert.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL
+MLXL3_QWEN_NATIVE_MODEL=QWEN_MODEL DIRECT_LIBTEST gpu::projection::mapped_expert_rejections_recover_and_outputs_outlive_the_bank --exact --ignored
+```
+
+
+### Projections ordinaires groupées
+
+`ProjectionGroup` reçoit une liste de préfixes et conserve leur ordre. Quand les matrices sont compatibles, leurs largeurs cumulées fixent le plan de réduction partagé ; K7 et les K/codebooks incompatibles conservent les projections séparées. Le chemin accepte une ligne FP16 et rend des vues FP16 possédées. Qwen et LFM peuvent ainsi réutiliser les mêmes groupes Q/K/V et gate/up.
+
+Chaque mode M5/quatre groupes forcés compare 38 cas et **164 352 mots FP16 finis sans écart**, dont huit groupes de vrais checkpoints, des largeurs inégales, les dispositions denses 5120, les biais/gains F16/BF16/F32, les préfixes répétés et les strides négatifs. Le contrôle d’ownership passe après libération du propriétaire. Les deux harnais CPU passent 132 obligations et six couvertures ; le pliage des largeurs est vérifié sur des listes de 0 à 3 éléments, pas sur toutes les longueurs possibles. Aucun shader n’a changé depuis #103. [M5](projection-groups/m5.json), [quatre groupes](projection-groups/portable.json), [sources, échecs et limites](projection-groups/provenance.json).
+
+```sh
+python tests/physical_projection_group.py DIRECT STOCK NEW_REPORT --qwen QWEN_MODEL --lfm LFM_MODEL --previous PREVIOUS_103_DIRECT
 ```
