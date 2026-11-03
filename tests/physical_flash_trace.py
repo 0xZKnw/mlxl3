@@ -4,9 +4,9 @@ import argparse
 import hashlib
 import json
 import math
+import struct
 from pathlib import Path
 
-import numpy as np
 from physical_flash_run import digest, execute
 
 
@@ -16,12 +16,18 @@ def state_digest(data: bytes, count: int) -> str:
     raises: ValueError
     post: len(_) == 64
     """
-    if count <= 0 or len(data) != count * 4 or not np.isfinite(np.frombuffer(data, "<f4")).all():
+    if (
+        count <= 0
+        or len(data) != count * 4
+        or not all(math.isfinite(x) for (x,) in struct.iter_unpack("<f", data))
+    ):
         raise ValueError("invalid FP32 state length or value")
     return hashlib.sha256(data).hexdigest()
 
 
 def observe(cli, direct, model, layers, batch):
+    import numpy as np
+
     args = ["forward", model, "--tokens", "248044", "--states"]
     if batch:
         args.append("--batch")
