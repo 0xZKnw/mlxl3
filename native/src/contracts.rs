@@ -1236,6 +1236,70 @@ pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
     })?
 }
 
+/// Counts addressed by the projection shaders in 32-bit element indices.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn projection_extents(
+    batch: u32,
+    input: u32,
+    output: u32,
+    splits: u32,
+) -> Option<[u32; 3]> {
+    if batch == 0
+        || !(1..=i32::MAX as u32).contains(&input)
+        || !(1..=i32::MAX as u32).contains(&output)
+        || !input.is_multiple_of(128)
+        || !output.is_multiple_of(128)
+        || !matches!(splits, 1 | 2)
+    {
+        return None;
+    }
+    let outputs = batch.checked_mul(output)?;
+    Some([
+        batch.checked_mul(input)?,
+        outputs.checked_mul(splits)?,
+        outputs,
+    ])
+}
+
+#[test]
+fn projection_refuses_partial_rows_unqualified_splits_and_overflow() {
+    for (batch, input, output, splits) in [
+        (0, 128, 128, 1),
+        (1, 128, 0, 1),
+        (1, 127, 128, 1),
+        (1, 128, 129, 1),
+        (1, 128, 128, 4),
+        (u32::MAX, 128, 128, 1),
+        (1, 1 << 31, 128, 1),
+        (2, 128, 1 << 30, 2),
+    ] {
+        assert_eq!(projection_extents(batch, input, output, splits), None);
+    }
+    assert_eq!(
+        projection_extents(3, 4096, 640, 2),
+        Some([12288, 3840, 1920])
+    );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn projection_offsets_fit_submitted_extents() {
+    let batch: u32 = kani::any();
+    let input: u32 = kani::any();
+    let output: u32 = kani::any();
+    let splits: u32 = kani::any();
+    if let Some([x, partial, y]) = projection_extents(batch, input, output, splits) {
+        assert!(batch > 0 && input > 0 && output > 0 && matches!(splits, 1 | 2));
+        assert_eq!(u64::from(x), u64::from(batch) * u64::from(input));
+        assert_eq!(u64::from(y), u64::from(batch) * u64::from(output));
+        assert_eq!(u64::from(partial), u64::from(y) * u64::from(splits));
+        assert_eq!(x % 128, 0);
+        assert_eq!(y % 128, 0);
+        kani::cover!(batch == 3 && input == 4096 && output == 640 && splits == 2);
+        kani::cover!(batch == 1 && input == 128 && output == 128 && splits == 1);
+    }
+}
+
 /// Number of complete H128 blocks in a contiguous FP16 activation matrix.
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn prepare128_blocks(elements: usize, width: usize, scales: usize) -> Option<u32> {

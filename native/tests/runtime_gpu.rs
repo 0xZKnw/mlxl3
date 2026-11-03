@@ -149,3 +149,66 @@ fn portable_exl3_prefill_matches_independent_single_rows() -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[test]
+#[ignore = "physical GPU; launched by tests/physical_flash_projection.py"]
+fn flash_projection_stock_oracle() -> Result<()> {
+    use mlxl3_native::{
+        checkpoint,
+        gpu::{FlashProjection, Metal},
+    };
+    use serde::Deserialize;
+    use std::{fs, path::PathBuf};
+    #[derive(Deserialize)]
+    struct Case {
+        path: PathBuf,
+        prefix: String,
+        x: Vec<u16>,
+    }
+    let dir = PathBuf::from(
+        std::env::var_os("MLXL3_PROJECTION_FIXTURES").context("fixture directory required")?,
+    );
+    let cases: Vec<Case> = serde_json::from_slice(&fs::read(dir.join("cases.json"))?)?;
+    ensure!(!cases.is_empty());
+    let mut expected = Vec::new();
+    let mut last = None;
+    for case in cases {
+        if last.as_ref().is_none_or(|(path, _)| path != &case.path) {
+            last = Some((case.path.clone(), checkpoint::inspect(&case.path)?));
+        }
+        let checkpoint = &last.as_ref().unwrap().1;
+        let stock = Exl3Linear::from_checkpoint(checkpoint, &case.prefix)?;
+        let width = stock.input_dims() as usize;
+        ensure!(!case.x.is_empty() && case.x.len().is_multiple_of(width));
+        let mut bits = Vec::new();
+        for row in case.x.chunks_exact(width) {
+            let x = Array::from_f16_bits(row, &[1, width as i32])?;
+            let output = stock.forward(&x)?;
+            ensure!(output.shape() == [1, stock.output_dims()]);
+            bits.extend(output.to_f16_bits()?);
+        }
+        ensure!(
+            bits.len() == case.x.len() / width * stock.output_dims() as usize
+                && bits.iter().all(|&v| f16::from_bits(v).is_finite())
+        );
+        if expected.is_empty() {
+            let (first, second) = {
+                let device = Metal::new()?;
+                let layer = FlashProjection::load(&device, checkpoint, &case.prefix)?;
+                let first = layer.submit(&case.x)?;
+                ensure!(layer.submit(&[]).is_err() && layer.submit(&case.x[1..]).is_err());
+                let second = layer.submit(&case.x)?;
+                drop(layer.submit(&case.x)?);
+                (first, second)
+            };
+            ensure!(
+                second.read()? == bits && first.read()? == bits,
+                "early drop or reverse read changed output"
+            );
+        }
+        expected.push(bits);
+    }
+    serde_json::to_writer(fs::File::create_new(dir.join("stock.json"))?, &expected)?;
+    Ok(())
+}

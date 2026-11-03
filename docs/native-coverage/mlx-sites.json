@@ -1154,6 +1154,9 @@
   "native/shaders/_qmv_tile_kernel.metal": {
     "mlxl3_decode_codeword": 4
   },
+  "native/shaders/flash_projection.metal": {
+    "mlxl3_decode_codeword": 1
+  },
   "native/shaders/flash_rope.metal": {
     "mlx": 1
   },
@@ -1781,7 +1784,14 @@
     "array::Array": 1
   },
   "native/src/gpu.rs": {
-    "shader ../shaders/exl3.metal": 1
+    "shader ../shaders/_qmv_tile_kernel.metal": 1,
+    "shader ../shaders/exl3.metal": 1,
+    "shader ../shaders/flash_projection.metal": 1,
+    "shader ../shaders/flash_reference_reduction.h": 1
+  },
+  "native/src/gpu/projection.rs": {
+    ".to_f32": 1,
+    ".transpose": 1
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -2667,7 +2677,7 @@
   },
   "native/tests/runtime_gpu.rs": {
     "Array::concatenate": 1,
-    "Array::from_f16_bits": 5,
+    "Array::from_f16_bits": 6,
     "Array::from_u16": 1,
     "array::Array": 1,
     "mlx": 1

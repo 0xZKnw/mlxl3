@@ -184,8 +184,11 @@ enum McpAction {
 struct CodecRequest {
     op: String,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     path: String,
+    #[serde(default)]
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    prefix: String,
     #[serde(default = "default_k")]
     k: usize,
     #[serde(default)]
@@ -872,12 +875,27 @@ fn codec_loop() -> Result<()> {
                     Ok(json!({ "layers": layers, "logits": logits.to_f16_bits()? }))
                 }
                 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
-                "metal-pack" | "metal-decode" | "metal-qmv" | "metal-prepare128" => {
+                "metal-pack"
+                | "metal-decode"
+                | "metal-qmv"
+                | "metal-prepare128"
+                | "metal-checkpoint-linear" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-linear" => {
+                            let checkpoint =
+                                checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let flight = mlxl3_native::gpu::FlashProjection::load(
+                                gpu,
+                                &checkpoint,
+                                &request.prefix,
+                            )?
+                            .submit(&request.x)?;
+                            Ok(json!(flight.read()?))
+                        }
                         "metal-prepare128" => Ok(json!(gpu.prepare128(
                             &request.x,
                             request.cols,

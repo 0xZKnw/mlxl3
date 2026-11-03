@@ -5,9 +5,12 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use metal::{
-    Buffer, CommandQueue, CompileOptions, ComputePipelineState, Device, MTLCommandBufferStatus,
-    MTLResourceOptions, MTLSize,
+    Buffer, CommandBufferRef, CommandQueue, CompileOptions, ComputePipelineState, Device,
+    MTLCommandBufferStatus, MTLResourceOptions, MTLSize,
 };
+
+mod projection;
+pub use projection::{FlashProjection, ProjectionOutput};
 
 pub struct Metal {
     device: Device,
@@ -17,6 +20,9 @@ pub struct Metal {
     codebook_pipeline: ComputePipelineState,
     qmv_pipeline: ComputePipelineState,
     prepare128_pipeline: ComputePipelineState,
+    flash_qmv_pipeline: ComputePipelineState,
+    finish128_pipeline: ComputePipelineState,
+    k7_pipeline: ComputePipelineState,
     inverse: Buffer,
 }
 
@@ -26,8 +32,21 @@ impl Metal {
             let device = Device::system_default().context("no Metal device")?;
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
+            let source = include_str!("../shaders/exl3.metal")
+                .replace(
+                    "#include \"flash_projection.metal\"",
+                    include_str!("../shaders/flash_projection.metal"),
+                )
+                .replace(
+                    "#include \"_qmv_tile_kernel.metal\"",
+                    include_str!("../shaders/_qmv_tile_kernel.metal"),
+                )
+                .replace(
+                    "#include \"flash_reference_reduction.h\"",
+                    include_str!("../shaders/flash_reference_reduction.h"),
+                );
             let library = device
-                .new_library_with_source(include_str!("../shaders/exl3.metal"), &options)
+                .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
             let pipeline = |name| -> Result<_> {
                 let function = library
@@ -41,6 +60,9 @@ impl Metal {
             let decode_pipeline = pipeline("exl3_decode")?;
             let codebook_pipeline = pipeline("exl3_codebook")?;
             let qmv_pipeline = pipeline("exl3_qmv")?;
+            let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
+            let k7_pipeline = pipeline("flash_k7_qmv")?;
+            let finish128_pipeline = pipeline("flash_finish128")?;
             let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
@@ -61,6 +83,9 @@ impl Metal {
                 codebook_pipeline,
                 qmv_pipeline,
                 prepare128_pipeline,
+                flash_qmv_pipeline,
+                finish128_pipeline,
+                k7_pipeline,
                 inverse,
             })
         })
@@ -94,21 +119,14 @@ impl Metal {
     ) -> Result<()> {
         objc::rc::autoreleasepool(|| {
             let command = self.queue.new_command_buffer();
-            let encoder = command.new_compute_command_encoder();
-            encoder.set_compute_pipeline_state(pipeline);
-            for (i, buffer) in buffers.iter().enumerate() {
-                encoder.set_buffer(i as u64, Some(buffer), 0);
-            }
-            encoder.set_bytes(
-                buffers.len() as u64,
-                std::mem::size_of_val(&params) as u64,
-                params.as_ptr().cast(),
-            );
-            encoder.dispatch_thread_groups(
+            Self::encode(
+                command,
+                pipeline,
+                buffers,
+                params,
                 MTLSize::new(groups as u64, 1, 1),
-                MTLSize::new(threads as u64, 1, 1),
+                threads,
             );
-            encoder.end_encoding();
             command.commit();
             command.wait_until_completed();
             ensure!(
@@ -118,6 +136,28 @@ impl Metal {
             );
             Ok(())
         })
+    }
+
+    fn encode(
+        command: &CommandBufferRef,
+        pipeline: &ComputePipelineState,
+        buffers: &[&Buffer],
+        params: [u32; 5],
+        groups: MTLSize,
+        threads: usize,
+    ) {
+        let encoder = command.new_compute_command_encoder();
+        encoder.set_compute_pipeline_state(pipeline);
+        for (i, buffer) in buffers.iter().enumerate() {
+            encoder.set_buffer(i as u64, Some(buffer), 0);
+        }
+        encoder.set_bytes(
+            buffers.len() as u64,
+            std::mem::size_of_val(&params) as u64,
+            params.as_ptr().cast(),
+        );
+        encoder.dispatch_thread_groups(groups, MTLSize::new(threads as u64, 1, 1));
+        encoder.end_encoding();
     }
 
     fn read(buffer: &Buffer, count: usize) -> Vec<u16> {
