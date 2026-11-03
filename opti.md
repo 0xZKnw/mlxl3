@@ -1,5 +1,9 @@
 # MLXL3 — journal des optimisations
 
+## I75-N8-ARCHIVE-20261103 — native engine archives and updater acceptance
+
+Avant implémentation. Le packager, le build Desktop et l’updater imposent quatre fichiers MLX et un runtime-info mlx_enabled=true. Introduire un manifeste de moteur Metal autonome (schema 2, backend metal, exécutable avec shaders intégrés) et conserver la lecture explicite du format historique schema 1. Vérifier fichiers/membres exacts, hachages, limites, architecture/signature et identité du backend avant activation. Tester installation dans des répertoires jetables, schémas inconnus, fichiers parasites MLX, corruption, interruption et reprise. Construire une archive native sans modifier l’app installée. Le converter PyInstaller dépend encore de MLX et reste une gate N8 distincte à achever. Aucune mesure de performance.
+
 ## I75-N7-FLASH-BRIDGE-20261103 — serve the existing Flash protocol over the native session
 
 Before implementation. Run the existing Desktop JSON-lines dialogue on the no-MLX Flash target, including request validation, chat templates, reasoning and visible deltas, greedy/sampling, AR and checkpoint MTP, cache reuse, cancellation, shutdown and API transport. Keep the common protocol and MCP/schema/streaming machinery shared with the stock bridge. Compare event ordering, token hashes and termination reasons against the separately linked stock engine, including failure and recovery. Validate the actual OpenAI-compatible loopback HTTP path. Label backend capabilities precisely while the DFlash and SSD policy ports are in progress. No tuning or throughput comparison.

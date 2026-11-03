@@ -12,7 +12,8 @@ payload = {
     'version': info['CFBundleShortVersionString'], 'build': info['CFBundleVersion'],
     'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip(),
     'tracked_changes': bool(subprocess.check_output(['git', 'diff', 'HEAD', '--name-only'], cwd=root)),
-    'runtime': 'Rust + MLX 0.32.2',
+    'runtime': 'Rust + Metal' if os.environ.get('MLXL3_ENGINE_BACKEND') == 'metal' else 'Rust + MLX 0.32.2',
+    'quantizer_runtime': 'PonyExl3 + MLX',
     'signing': 'ad-hoc; not notarized',
     'swift_sdk': os.environ.get('MLXL3_MACOS_SDK') or subprocess.check_output(
         ['xcrun', '--show-sdk-path'], text=True).strip(),
