@@ -207,6 +207,27 @@ python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --
 MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```
 
+### Lectures SSD Flash et trois vagues Metal
+
+Le chemin natif réserve les dix routes de la ligne, déduplique les lectures et garde les contributions dans l’ordre du routeur pour le mélange final. Quatre lecteurs bornés lisent des records EXL3 contigus dans des allocations hôtes possédées. Une commande calcule le partagé et les experts résidents pendant ces lectures. Les deux vagues suivantes consomment uniquement des records complets, dont la génération est encore valide, puis exécutent le mélange. Le test physique bloque le dernier record jusqu’à la soumission de W1 pour exercer les trois commandes. [Trace CPU/GPU et contrôles](ssd/validation.json).
+
+Sur le M5 local, les seize lignes FP16/FP32 du checkpoint et de la tête MTP concordent sur 40 960 coefficients. Les 496 640 logits de deux pas du modèle complet sont également identiques à la CLI indépendante. Les erreurs de métadonnées se reprennent sur le même objet. Les tests CPU couvrent le timeout d’un vrai worker bloqué, le refus de réemploi avant drainage, le refus d’allocation, EOF, les générations et le descripteur du premier tenseur d’un record. [Comparaisons MoE](ssd/rows.json), [continuation complète](ssd/full-model.json).
+
+La copie hôte vers le backing Metal est incluse dans cette implémentation. Le [port mémoire](flash-memory/physical.json) qualifie le ledger et le redimensionnement entre requêtes. Le [port prédictif](prefetch/validation.json) conserve le prochain gate sur le vrai mixed MLP courant, les seize prédictions dans leur ordre et les options de précision/cache. Les travailleurs conservent leurs fichiers et octets ; le thread d’inférence publie uniquement un bail encore courant. Le défaut de prélecture reste désactivé (`MLXL3_SSD_LOOKAHEAD_DEPTH=0`), avec profondeur 0..10 et quatre lectures au plus. Les capacités 10/19/20/24, les erreurs tardives, la récupération et le drainage au shrink sont exercés. La continuation et les 84 états indépendants sont exacts, ainsi que le bridge sous budget.
+
+La [revue des cohortes archivées](prefetch/cohorts.json) identifie deux requêtes de quatre lignes avec vingt experts uniques pour dix slots. Le parcours de production les sérialise et reste exact ; les kernels groupés constituent un travail de performance distinct. Le débit du port N4 reste non mesuré. Les deux adoptions explicites de baux en attente et leurs hits passent également. Les résultats physiques et les limites Kani/CI sont conservés dans les rapports.
+
+### Budget et ledger natifs de Flash
+
+Le bridge Metal répond à `flash_memory` et publie les backings uniques, les slots et records résidents, les états, les lectures en vol et les compteurs réels de processus/device. Les objets des pipelines Metal restent décrits comme non mesurés. `MLXL3_FLASH_REQUEST_MIB` conserve le mode AR du backend de référence. Le contrôle réserve les futurs experts encore non chargés, la capacité géométrique de QSA et ses forks, puis peut réduire les caches entre deux requêtes. `memory_saver` libère les états actifs après le tour. Un snapshot détenu par l’appelant conserve son backing et reste rejouable. [Mesures, contrôles et limites](flash-memory/physical.json).
+
+L’intégration commune avec DFlash refuse également le chargement du draft avant tout accès à son chemin lorsqu’un budget de requête est configuré. Le vrai bridge vérifie les capacités annoncées, les refus MTP/DFlash et la reprise AR. Le contrôle physique conserve un cas où les banques sont bien libérées mais où l’empreinte processus reste trop élevée : ce refus mesuré est correct. La réussite du shrink est exercée séparément sur les réservations encore vides d’une nouvelle cible, après destruction de la précédente. Les états et logits rejoués restent exacts. [Rapport, identités et échecs conservés](flash-product/admission.json). Cette étape ne qualifie pas encore le cache de conversation ni tous les modes/options DFlash.
+
+```sh
+MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_SSD_CACHE_GIB=1.2 cargo test --locked --lib --features chat gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay -- --exact --ignored --nocapture
+MLXL3_FLASH_MODEL=CHECKPOINT MLXL3_FLASH_TEST_CLI=DIRECT cargo test --locked --test openai_transport --features chat native_flash_memory_budget_preserves_bridge_recovery -- --exact --ignored --nocapture
+```
+
 ### Projections natives Qwen
 
 Le chargeur `FlashProjection::load_exl3` et l’opération `codec` `metal-exl3-linear` exécutent les matrices EXL3 des autres familles. La préparation H128 et les codebooks réutilisent les primitives qualifiées. Le nombre de groupes SIMD, les tuiles de sortie et les divisions de la réduction suivent le chemin dense/MoE existant. Le noyau K=7 conserve ses 128 threads et la tête MTP ses 64 threads.

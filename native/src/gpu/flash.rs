@@ -11,13 +11,13 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use half::{bf16, f16};
-use std::{os::unix::fs::FileExt, rc::Rc};
+use std::{cell::RefCell, os::unix::fs::FileExt, rc::Rc};
 
 #[path = "mtp.rs"]
 mod mtp;
 pub use mtp::{FlashMtpHead, FlashMtpSession};
 
-enum Layer<'a> {
+pub(super) enum Layer<'a> {
     Gdn(FlashGdnLayer<'a>),
     Ple(Box<FlashPleLayer<'a>>),
     Qsa(FlashQsaLayer<'a>),
@@ -28,12 +28,25 @@ enum State {
     Ple(FlashPleLayerState),
     Qsa(FlashQsaState),
 }
-impl Layer<'_> {
-    fn forward(&mut self, x: &MatrixView, token: u32) -> Result<MatrixView> {
+impl<'a> Layer<'a> {
+    fn forward(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         match self {
-            Self::Gdn(a) => a.forward(x),
-            Self::Ple(a) => a.forward(x, token),
-            Self::Qsa(a) => a.forward(x),
+            Self::Gdn(a) => a.forward_lookahead(x, next, depth),
+            Self::Ple(a) => a.forward_lookahead(x, token, next, depth),
+            Self::Qsa(a) => a.forward_lookahead(x, next, depth),
+        }
+    }
+    fn moe(&mut self) -> &mut super::FlashMoeRow<'a> {
+        match self {
+            Self::Gdn(a) => &mut a.residual.moe,
+            Self::Ple(a) => &mut a.body.residual.moe,
+            Self::Qsa(a) => &mut a.residual.moe,
         }
     }
     fn snapshot(&self) -> State {
@@ -58,6 +71,28 @@ impl Layer<'_> {
             Self::Qsa(_) => None,
         }
     }
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.record_memory(backings),
+            Self::Ple(layer) => layer.record_memory(backings),
+            Self::Qsa(layer) => layer.record_memory(backings),
+        }
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.release_idle_state(),
+            Self::Ple(layer) => layer.release_idle_state(),
+            Self::Qsa(layer) => layer.release_idle_state(),
+        }
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        match self {
+            Self::Gdn(layer) => layer.shrink(slots),
+            Self::Ple(layer) => layer.shrink(slots),
+            Self::Qsa(layer) => layer.shrink(slots),
+        }
+    }
+
     fn reset(&mut self) {
         match self {
             Self::Gdn(a) => a.reset(),
@@ -83,15 +118,18 @@ pub struct FlashTraceTensor {
 }
 pub struct FlashNext<'a> {
     checkpoint_path: std::path::PathBuf,
+    lookahead_depth: usize,
+    pub(super) prefetcher: Option<Rc<RefCell<super::moe::PrefetchPool<'a>>>>,
     owner: Rc<()>,
-    hidden: Option<MatrixView>,
-    gpu: &'a Metal,
+    pub(super) hidden: Option<MatrixView>,
+    pub(super) gpu: &'a Metal,
     embed: TensorInfo,
-    layers: Vec<Layer<'a>>,
-    mixer: FlashHc<'a>,
-    head: FlashProjection<'a>,
-    context: u32,
+    pub(super) layers: Vec<Layer<'a>>,
+    pub(super) mixer: FlashHc<'a>,
+    pub(super) head: FlashProjection<'a>,
+    pub(super) context: u32,
     offset: u32,
+    pub(super) request_limit: Option<u64>,
 }
 impl<'a> FlashNext<'a> {
     pub fn load(gpu: &'a Metal, c: &Checkpoint, context: u32) -> Result<Self> {
@@ -106,11 +144,21 @@ impl<'a> FlashNext<'a> {
                 && context <= config.context as u32,
             "native Flash context exceeds the supported checkpoint limit"
         );
+        let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+            Ok(value) => value
+                .parse::<usize>()
+                .context("invalid SSD lookahead depth")?,
+            Err(std::env::VarError::NotPresent) => 0,
+            Err(error) => return Err(error.into()),
+        };
         ensure!(
-            std::env::var_os("MLXL3_FLASH_REQUEST_MIB").is_none(),
-            "native Flash request memory budgets are not available for this build"
+            lookahead_depth <= 10,
+            "SSD lookahead depth must be in 0..=10"
         );
+        let request_limit = crate::flash_memory::request_limit()?;
         let slots = layer_slots()?;
+        let total_slots = slots.iter().sum();
+        gpu.admit_load(request_limit, total_slots)?;
         let embed = c
             .tensors
             .get("model.language_model.embed_tokens.weight")
@@ -120,10 +168,11 @@ impl<'a> FlashNext<'a> {
             embed.dtype == "BF16" && embed.shape == [248320, 2560],
             "unsupported token embedding"
         );
-        let layers = slots
+        let mut layers: Vec<Layer> = slots
             .into_iter()
             .enumerate()
             .map(|(i, slots)| -> Result<_> {
+                gpu.admit_load(request_limit, total_slots)?;
                 let prefix = format!("model.language_model.layers.{i}");
                 Ok(if i == 1 {
                     Layer::Ple(Box::new(FlashPleLayer::load(
@@ -144,6 +193,15 @@ impl<'a> FlashNext<'a> {
                 })
             })
             .collect::<Result<_>>()?;
+        let prefetcher = (lookahead_depth > 0)
+            .then(|| super::moe::PrefetchPool::new(gpu).map(|pool| Rc::new(RefCell::new(pool))))
+            .transpose()?;
+        if let Some(pool) = &prefetcher {
+            for layer in &mut layers {
+                let moe = layer.moe();
+                moe.enable_prefetch(pool.clone());
+            }
+        }
         let mixer = FlashHc::load(
             gpu,
             c,
@@ -156,8 +214,11 @@ impl<'a> FlashNext<'a> {
             head.dimensions() == [2560, 248320],
             "invalid Flash language model head"
         );
+        gpu.admit_load(request_limit, total_slots)?;
         Ok(Self {
             checkpoint_path: c.path.clone(),
+            lookahead_depth,
+            prefetcher,
             owner: Rc::new(()),
             hidden: None,
             gpu,
@@ -167,6 +228,7 @@ impl<'a> FlashNext<'a> {
             head,
             context,
             offset: 0,
+            request_limit,
         })
     }
     pub fn snapshot(&self) -> FlashSnapshot {
@@ -205,19 +267,7 @@ impl<'a> FlashNext<'a> {
         self.gpu.flash_log_probs(logits)
     }
     pub fn memory_stats(&self) -> Result<crate::runtime_stats::MemoryStats> {
-        unsafe extern "C" {
-            fn mlxl3_read_process_stats(values: *mut u64, count: usize) -> i32;
-        }
-        let mut host = [0u64; 9];
-        ensure!(
-            unsafe { mlxl3_read_process_stats(host.as_mut_ptr(), host.len()) } == 0,
-            "invalid native process statistics extent"
-        );
-        Ok(crate::runtime_stats::MemoryStats::native(
-            host,
-            self.gpu.device.current_allocated_size(),
-            std::process::id(),
-        ))
+        self.gpu.memory_stats()
     }
     pub fn offset(&self) -> u32 {
         self.offset
@@ -270,9 +320,12 @@ impl<'a> FlashNext<'a> {
         mut captures: Option<(&[usize], &mut Vec<MatrixView>)>,
     ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
-        for (i, layer) in self.layers.iter_mut().enumerate() {
+        for i in 0..self.layers.len() {
+            let (current, remaining) = self.layers.split_at_mut(i + 1);
+            let layer = &mut current[i];
+            let next = remaining.first_mut().map(Layer::moe);
             streams = layer
-                .forward(&streams, token)
+                .forward(&streams, token, next, self.lookahead_depth)
                 .with_context(|| format!("running Flash layer {i}"))?;
             if let Some((ids, rows)) = &mut captures
                 && ids.contains(&i)
@@ -491,6 +544,103 @@ mod tests {
         logits.fill(0);
         logits[2] = f16::NAN.to_bits();
         ensure!(gpu.flash_log_probs(&logits).is_err());
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Flash lookahead, archived independent full states/logits and continuation"]
+    fn predictive_reads_match_archived_full_states_and_imposed_continuation() -> Result<()> {
+        fn digest(bytes: &[u8]) -> Result<String> {
+            use std::io::Write;
+            let mut file = tempfile::NamedTempFile::new()?;
+            file.write_all(bytes)?;
+            let output = std::process::Command::new("/usr/bin/shasum")
+                .args(["-a", "256"])
+                .arg(file.path())
+                .output()?;
+            ensure!(output.status.success(), "cannot hash native state");
+            let output = String::from_utf8(output.stdout)?;
+            let hash = output
+                .split_whitespace()
+                .next()
+                .context("missing state digest")?;
+            ensure!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+            Ok(hash.to_owned())
+        }
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 64)?;
+        ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/native-coverage/flash-state/initial.json"
+        ))?;
+        let (first, states) = model.forward_trace(248044)?;
+        let words = first
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<_>>();
+        ensure!(first.len() == 248320 && first.iter().all(|&v| f16::from_bits(v).is_finite()));
+        ensure!(
+            digest(&words)? == "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445"
+        );
+        let expected = oracle["step_tensors"]
+            .as_array()
+            .context("missing archived states")?;
+        ensure!(states.len() == 84 && expected.len() == 84);
+        let mut count = 0;
+        for (state, reference) in states.iter().zip(expected) {
+            ensure!(
+                state.name == reference["name"]
+                    && serde_json::to_value(&state.shape)? == reference["shape"]
+            );
+            let elements = state
+                .shape
+                .iter()
+                .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                .context("state shape overflow")?;
+            ensure!(
+                elements > 0
+                    && state.data.len() == elements * 4
+                    && state
+                        .data
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|b| f32::from_le_bytes(*b).is_finite())
+            );
+            ensure!(
+                digest(&state.data)? == reference["sha256"],
+                "lookahead changed {}",
+                state.name
+            );
+            count += elements;
+        }
+        ensure!(count == 28_803_072);
+        drop(states);
+        let second = model.forward(1)?;
+        ensure!(second.len() == 248320 && second.iter().all(|&v| f16::from_bits(v).is_finite()));
+        ensure!(
+            digest(
+                &second
+                    .iter()
+                    .flat_map(|v| v.to_le_bytes())
+                    .collect::<Vec<_>>()
+            )? == "833ef923345928bdfb2ea39847a722c568cb709feaa225e4476ba5f6daac3815"
+        );
+        model.reset();
+        ensure!(model.prefill(&[248044, 1])? == second);
+        let pool = model.prefetcher.as_ref().unwrap();
+        pool.borrow_mut().drain()?;
+        ensure!(
+            pool.borrow().stats.submitted > 0
+                && pool.borrow().stats.published > 0
+                && pool.borrow().in_flight() == 0
+        );
+        eprintln!(
+            "native prefetch model: {}",
+            serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
+        );
         Ok(())
     }
 

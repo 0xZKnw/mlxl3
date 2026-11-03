@@ -514,9 +514,11 @@ impl<'a> FlashExpert<'a> {
         [self.gate.input, self.gate.output]
     }
 
-    pub(super) fn from_record(gpu: &'a Metal, record: &TensorInfo) -> Result<Self> {
-        let (file, offset) = record.source()?;
-        let backing = super::read_buffer(&gpu.device, file, offset, flash_support::EXPERT_BYTES)?;
+    pub(super) fn from_backing(gpu: &'a Metal, backing: &Buffer) -> Result<Self> {
+        ensure!(
+            backing.length() == flash_support::EXPERT_BYTES,
+            "invalid Flash expert record length"
+        );
         let projection = |index, input, output| -> Result<_> {
             let offsets =
                 flash_support::record_offsets(index).context("invalid Flash record projection")?;
@@ -612,6 +614,35 @@ impl<'a> FlashExpert<'a> {
             down_extents,
             storage,
         )
+    }
+}
+
+impl FlashProjection<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [&self.packed, &self.suh, &self.svh]
+            .into_iter()
+            .chain(&self.bias)
+        {
+            backings.record("fixed_weights", buffer)?;
+        }
+        Ok(())
+    }
+}
+impl FlashExpert<'_> {
+    pub(super) fn record_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+        category: &'static str,
+    ) -> Result<()> {
+        for projection in [&self.gate, &self.up, &self.down] {
+            for buffer in [&projection.packed, &projection.suh, &projection.svh]
+                .into_iter()
+                .chain(&projection.bias)
+            {
+                backings.record(category, buffer)?;
+            }
+        }
+        Ok(())
     }
 }
 

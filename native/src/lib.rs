@@ -79,8 +79,15 @@ pub mod runtime_stats;
 pub mod speculative;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) mod ssd_prefetch;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test))]
+pub(crate) mod ssd_reads;
 pub mod streaming;
 pub mod structured;
 #[cfg(feature = "chat")]

@@ -95,6 +95,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
         "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
         "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
+        "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
+        "flash_support::native_prefetch_room_bounds_owned_and_running_records",
         "contracts::native_qwen_gdn_geometry_bounds_every_addressed_row_and_state",
         "contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
         "contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
@@ -113,6 +115,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::flash_reference_mb34_role_parser_preserves_default_and_named_choices",
         "contracts::flash_reference_mb34_role_shapes_and_selection_are_exact",
         "flash_memory::admission_and_shrink_respect_memory_bounds",
+        "flash_memory::native_admission_covers_the_complete_geometric_slab",
+        "flash_memory::native_request_budget_keeps_every_configured_limit_ar_only",
         "flash_support::native_prepare_grid_contains_complete_hadamard_groups",
         "flash_support::stale_prefetch_completion_preserves_new_reservation",
     }

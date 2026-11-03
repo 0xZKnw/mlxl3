@@ -1571,6 +1571,7 @@ fn run(cli: Cli) -> Result<()> {
             let gpu = mlxl3_native::gpu::Metal::new()?;
             let c = checkpoint::inspect(&model)?;
             let mut target = mlxl3_native::gpu::FlashNext::load(&gpu, &c, tokens.len() as u32)?;
+            target.admit_request(tokens.len())?;
             let mut out = io::stdout().lock();
             #[derive(serde::Serialize)]
             struct Row {
@@ -3167,6 +3168,12 @@ fn bridge_generate_round(
             "memory":target.memory_ledger(None)?}),
         )?;
     }
+    #[cfg(not(feature = "mlx"))]
+    if let Some(plan) = model.admit_request(tokens.len() + budget)? {
+        emit_event(
+            json!({"type":"flash_memory_plan","request_id":request_id,"ar":plan,"memory":model.memory_ledger(None)?}),
+        )?;
+    }
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
     #[cfg(feature = "mlx")]
@@ -4427,6 +4434,8 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
         }
         // Replay keeps conversation contents exact. Qwen uses bounded QMM chunks;
         // other architectures retain their established token path.
+        #[cfg(not(feature = "mlx"))]
+        model.admit_request(tokens.len() + budget)?;
         model.reset();
         let started = std::time::Instant::now();
         #[cfg(feature = "mlx")]
