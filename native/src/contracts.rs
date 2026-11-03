@@ -11,6 +11,7 @@ pub(crate) fn flash_nt2_flag(value: Option<&str>) -> Option<bool> {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::unwind(10)]
 fn native_flash_nt2_default_and_supported_overrides_are_exact() {
     let present: bool = kani::any();
     let enabled: bool = kani::any();

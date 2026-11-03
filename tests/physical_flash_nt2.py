@@ -134,7 +134,16 @@ def verify(args, root, report):
     assert len(refs) == len(cases) > 0
     compared = 0
     report["modes"] = []
-    for enabled in (0, 1):
+    for setting in (0, 1, None):
+        enabled = 1 if setting is None else setting
+        label = "default" if setting is None else str(setting)
+        mode_root = root / f"mode-{label}"
+        mode_root.mkdir()
+        (mode_root / "stock.json").write_text(json.dumps(refs))
+        (mode_root / "native-cases.json").write_text(json.dumps(cases))
+        native_env = {**env, "MLXL3_NT2_FIXTURES": str(mode_root), "DYLD_PRINT_LIBRARIES": "1"}
+        if setting is not None:
+            native_env["MLXL3_NATIVE_FLASH_NT2"] = str(setting)
         stderr = process(
             [
                 str(args.native),
@@ -143,13 +152,8 @@ def verify(args, root, report):
                 "--ignored",
                 "--test-threads=1",
             ],
-            {
-                **env,
-                "MLXL3_NATIVE_FLASH_NT2": str(enabled),
-                "MLXL3_NT2_FIXTURES": str(root),
-                "DYLD_PRINT_LIBRARIES": "1",
-            },
-            root / f"native-{enabled}.log",
+            native_env,
+            root / f"native-{label}.log",
         )
         images = [line.lower() for line in stderr.splitlines() if line.startswith("dyld[")]
         assert images and not any(
@@ -157,7 +161,7 @@ def verify(args, root, report):
             for line in images
             for key in ("/libmlx", "/libjaccl", "/site-packages/mlx/")
         )
-        result = json.loads((root / f"native-{enabled}.json").read_text())
+        result = json.loads((mode_root / f"native-{enabled}.json").read_text())
         assert result["parity"] is True and result["unequal"] == 0
         assert len(result["cases"]) == len(cases)
         submissions = 0
@@ -167,13 +171,19 @@ def verify(args, root, report):
             assert item["case"] == i and item["nt"] == nt and item["nt2_submissions"] == count
             assert item["words"] == case["words"]
             submissions += count
-            actual = np.fromfile(root / f"native-{enabled}-{i}.bin", dtype="<u2").tolist()
+            actual = np.fromfile(mode_root / f"native-{enabled}-{i}.bin", dtype="<u2").tolist()
             assert len(actual) == case["words"] > 0
             compared += words(actual, ref)
             if enabled:
-                words(actual, np.fromfile(root / f"native-0-{i}.bin", dtype="<u2").tolist())
+                words(
+                    actual, np.fromfile(root / "mode-0" / f"native-0-{i}.bin", dtype="<u2").tolist()
+                )
+            if setting is None:
+                words(
+                    actual, np.fromfile(root / "mode-1" / f"native-1-{i}.bin", dtype="<u2").tolist()
+                )
         assert result["nt2_submissions"] == submissions and (submissions > 0) == bool(enabled)
-        report["modes"].append(result)
+        report["modes"].append({**result, "setting": setting})
     process(
         [
             str(args.native),

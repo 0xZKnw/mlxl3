@@ -18,6 +18,7 @@ class Nt2EvidenceTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
+        self.invocations = 0
 
     def test_numerical_checker_detects_empty_partial_nonfinite_and_divergent(self):
         self.assertEqual(driver.words([0x3C00, 0x4000], [0x3C00, 0x4000]), 2)
@@ -33,27 +34,33 @@ class Nt2EvidenceTests(unittest.TestCase):
             with self.subTest(a=a, b=b), self.assertRaises(AssertionError):
                 driver.words(a, b)
 
-    def invoke(self, mutation=None):
+    def invoke(self, mutation=None, *, default_off=False):
+        root = self.root / f"invoke-{self.invocations}"
+        self.invocations += 1
+        root.mkdir()
         cases = [{"generic": False, "candidate_nt": 2, "control_nt": 1, "words": 2}]
         ref = [[0x3C00, 0x4000]]
         args = SimpleNamespace(model=self.root, native=Path("native"), stock=Path("stock"))
 
         def child(command, env, log):
             if command[0] == "stock":
-                (self.root / "stock.json").write_text(json.dumps(ref))
+                (root / "stock.json").write_text(json.dumps(ref))
                 return ""
-            if env["MLXL3_NATIVE_FLASH_NT2"] == "true":
-                (self.root / "invalid-flag.json").write_text(
+            if env.get("MLXL3_NATIVE_FLASH_NT2") == "true":
+                (root / "invalid-flag.json").write_text(
                     json.dumps({"rejected": True, "fc_hidden_nt": 1, "generic_unchanged": True})
                 )
                 return ""
-            enabled = int(env["MLXL3_NATIVE_FLASH_NT2"])
+            enabled = int(env.get("MLXL3_NATIVE_FLASH_NT2", "1"))
+            if default_off and "MLXL3_NATIVE_FLASH_NT2" not in env:
+                enabled = 0
+            mode_root = Path(env["MLXL3_NT2_FIXTURES"])
             record = {"case": 0, "nt": 2 if enabled else 1, "nt2_submissions": enabled, "words": 2}
             result = {"parity": True, "unequal": 0, "cases": [record], "nt2_submissions": enabled}
             if mutation and enabled:
                 mutation(result)
-            (self.root / f"native-{enabled}.json").write_text(json.dumps(result))
-            np.array(ref[0], dtype="<u2").tofile(self.root / f"native-{enabled}-0.bin")
+            (mode_root / f"native-{enabled}.json").write_text(json.dumps(result))
+            np.array(ref[0], dtype="<u2").tofile(mode_root / f"native-{enabled}-0.bin")
             return "dyld[1]: /System/Library/Frameworks/Metal.framework/Metal"
 
         report = {"status": "started", "parity": False}
@@ -61,11 +68,13 @@ class Nt2EvidenceTests(unittest.TestCase):
             patch.object(driver, "fixtures", return_value=cases),
             patch.object(driver, "process", side_effect=child),
         ):
-            driver.verify(args, self.root, report)
+            driver.verify(args, root, report)
         return report
 
     def test_actual_path_and_complete_corpus_required(self):
-        self.assertEqual(self.invoke()["compared"], 4)
+        result = self.invoke()
+        self.assertEqual(result["compared"], 6)
+        self.assertEqual([m["setting"] for m in result["modes"]], [0, 1, None])
         mutations = [
             lambda r: r.update(parity=False),
             lambda r: r.update(cases=[]),
@@ -77,6 +86,10 @@ class Nt2EvidenceTests(unittest.TestCase):
         for mutation in mutations:
             with self.subTest(mutation=mutation), self.assertRaises(AssertionError):
                 self.invoke(mutation)
+
+    def test_unconfigured_path_cannot_silently_keep_old_disabled_default(self):
+        with self.assertRaises((FileNotFoundError, AssertionError)):
+            self.invoke(default_off=True)
 
     def test_process_timeout_and_nonzero_exit_are_retained(self):
         log = self.root / "child.log"
