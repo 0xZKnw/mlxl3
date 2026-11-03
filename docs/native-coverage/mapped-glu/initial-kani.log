@@ -1,0 +1,859 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:961:17
+    |
+961 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/contracts.rs:1114:17
+     |
+1114 |         None => assert!(!(2..24).contains(&rows)),
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/dec_one.rs:142:17
+    |
+142 |         None => assert!(rows != 1 && rows != 2),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: type alias `Occurrences` is never used
+ --> native/src/cold_ready.rs:3:6
+  |
+3 | type Occurrences = Vec<(usize, u32)>;
+  |      ^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `partition` is never used
+  --> native/src/cold_ready.rs:27:15
+   |
+27 | pub(crate) fn partition(cold: &[(usize, u32)], ready_slots: &[u32]) -> (Occurrences, Occurrences) {
+   |               ^^^^^^^^^
+
+warning: function `enabled_setting` is never used
+  --> native/src/dense_epilogue.rs:12:15
+   |
+12 | pub(crate) fn enabled_setting(value: Option<&str>) -> Option<bool> {
+   |               ^^^^^^^^^^^^^^^
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+
+warning: function `reject_unreachable_dp` is never used
+   --> native/src/flash_cache_profile.rs:419:8
+    |
+419 |     fn reject_unreachable_dp(_costs: &[Vec<u32>], _budget: usize) -> Option<Vec<usize>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: function `sparse_qsa_positions` is never used
+    --> native/src/flash_support.rs:3070:15
+     |
+3070 | pub(crate) fn sparse_qsa_positions(scores: &[f32], length: u32) -> Option<Vec<u32>> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `qsa_attention_blocks` is never used
+    --> native/src/flash_support.rs:3137:15
+     |
+3137 | pub(crate) fn qsa_attention_blocks(arch: u8, count: u32) -> Option<u32> {
+     |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.09s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 22`
+Checking harness contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0/build/issue75models/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/9aca17736d4b7fd4/out/mlxl3_native-9aca17736d4b7fd4__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts63mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 2798 column 5 function contracts::mapped_expert_row_offset thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u32>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 2819 column 1 function contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<u32>::is_some thread 0
+Runtime Symex: 0.0138248s
+size of program expression: 1574 steps
+slicing removed 828 assignments
+Generated 51 VCC(s), 30 remaining after simplification
+Runtime Postprocess Equation: 0.000519875s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00893583s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.3958e-05s
+Solving with CaDiCaL 3.0.0
+14630 variables, 73959 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00129808s
+Runtime decision procedure: 0.0103468s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+14631 variables, 73960 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00373796s
+Runtime decision procedure: 0.00392946s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+14632 variables, 73961 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0469758s
+Runtime decision procedure: 0.0470735s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+14633 variables, 73962 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000600333s
+Runtime decision procedure: 0.000674s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+
+CBMC failed with status 15
+VERIFICATION:- FAILED
+
+Checking harness contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/issue75-native-models/mix-stq1_0/build/issue75models/cargo-target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/9aca17736d4b7fd4/out/mlxl3_native-9aca17736d4b7fd4__RNvNtCskjkzMwJII5G_12mlxl3_native9contracts62mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 1 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 2 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 3 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 4 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 5 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 6 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 7 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 8 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 9 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 10 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 11 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 12 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 13 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 14 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 15 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 16 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 17 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 18 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 19 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 20 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 21 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 22 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 23 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 24 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 25 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 26 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 27 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 28 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 29 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 30 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+Unwinding loop _RNvNtCskjkzMwJII5G_12mlxl3_native9contracts22exl3_projection_splits.0 iteration 31 file native/src/contracts.rs line 1357 column 5 function contracts::exl3_projection_splits thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<u32> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function contracts::mapped_expert_plan thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[u32; 3]>::is_some thread 0
+aborting path on assume(false) at file native/src/contracts.rs line 2749 column 1 function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<[u32; 3]>::is_some thread 0
+Runtime Symex: 0.0863945s
+size of program expression: 7588 steps
+slicing removed 4837 assignments
+Generated 605 VCC(s), 144 remaining after simplification
+Runtime Postprocess Equation: 0.00127158s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0248123s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 7.916e-06s
+Solving with CaDiCaL 3.0.0
+49576 variables, 203424 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00210204s
+Runtime decision procedure: 0.027244s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49577 variables, 203425 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00227708s
+Runtime decision procedure: 0.00254213s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49578 variables, 203426 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0227253s
+Runtime decision procedure: 0.0229322s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49579 variables, 203427 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00454887s
+Runtime decision procedure: 0.004775s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49580 variables, 203428 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.005378s
+Runtime decision procedure: 0.00555179s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49581 variables, 203429 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00366129s
+Runtime decision procedure: 0.00383208s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49582 variables, 203430 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00415621s
+Runtime decision procedure: 0.00434079s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+49583 variables, 203431 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 3.91276s
+Runtime decision procedure: 3.91284s
+
+RESULTS:
+Check 1: <std::option::Option<u32> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<u32> as std::ops::Try>::branch
+
+Check 2: std::cmp::impls::<impl std::cmp::Ord for u32>::clamp::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2356:5 in function std::cmp::impls::<impl std::cmp::Ord for u32>::clamp::do_panic::runtime
+
+Check 3: core::num::<impl u32>::is_multiple_of.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 4: core::num::<impl u32>::is_multiple_of.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 5: contracts::mapped_expert_plan.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function contracts::mapped_expert_plan
+
+Check 6: contracts::mapped_expert_plan.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2698:17 in function contracts::mapped_expert_plan
+
+Check 7: contracts::mapped_expert_plan.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2698:17 in function contracts::mapped_expert_plan
+
+Check 8: std::option::Option::<[u32; 3]>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 9: contracts::exl3_projection_splits.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1349:23 in function contracts::exl3_projection_splits
+
+Check 10: contracts::exl3_projection_splits.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1349:23 in function contracts::exl3_projection_splits
+
+Check 11: contracts::exl3_projection_splits.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1350:24 in function contracts::exl3_projection_splits
+
+Check 12: contracts::exl3_projection_splits.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1350:24 in function contracts::exl3_projection_splits
+
+Check 13: contracts::exl3_projection_splits.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1352:9 in function contracts::exl3_projection_splits
+
+Check 14: contracts::exl3_projection_splits.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1352:9 in function contracts::exl3_projection_splits
+
+Check 15: contracts::exl3_projection_splits.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1357:11 in function contracts::exl3_projection_splits
+
+Check 16: contracts::exl3_projection_splits.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1357:11 in function contracts::exl3_projection_splits
+
+Check 17: contracts::exl3_projection_splits.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1357:11 in function contracts::exl3_projection_splits
+
+Check 18: contracts::exl3_projection_splits.arithmetic_overflow.5
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:1357:11 in function contracts::exl3_projection_splits
+
+Check 19: contracts::exl3_projection_splits.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:1358:9 in function contracts::exl3_projection_splits
+
+Check 20: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::contains::<u32>
+
+Check 21: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2757:16 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 22: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2758:17 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 23: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: actual.is_none() || accepted"
+	 - Location: native/src/contracts.rs:2769:5 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 24: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/contracts.rs:2749:1 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 25: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2771:55 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 26: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2771:55 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 27: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: splits.is_power_of_two() && splits <= input / 128"
+	 - Location: native/src/contracts.rs:2771:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 28: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.6
+	 - Status: SUCCESS
+	 - Description: "assertion failed: nt == if (m5 && rows >= 64) || total < 16384 { 4 } else { 2 }"
+	 - Location: native/src/contracts.rs:2772:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 29: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.7
+	 - Status: SUCCESS
+	 - Description: "assertion failed: groups == if m5 && k != 2 { 8 } else { 4 }"
+	 - Location: native/src/contracts.rs:2780:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 30: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2781:20 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 31: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/contracts.rs:2781:20 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 32: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:2781:20 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 33: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/contracts.rs:2781:20 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 34: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.10
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (output / 16) % nt == 0"
+	 - Location: native/src/contracts.rs:2781:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 35: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/contracts.rs:2782:17 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 36: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.assertion.12
+	 - Status: SUCCESS
+	 - Description: "assertion failed: u64::from(splits) * u64::from(output) <= u64::from(u32::MAX)"
+	 - Location: native/src/contracts.rs:2782:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 37: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: input == 2048 && output == 512 && routes == 8 && projections == 2 && k == 2 &&
+m5"
+	 - Location: native/src/contracts.rs:2783:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 38: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: input == 2048 && output == 2048 && routes == 4 && projections == 2 && k == 4
+&& m5"
+	 - Location: native/src/contracts.rs:2786:9 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 39: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: routes == 0 && actual.is_none()"
+	 - Location: native/src/contracts.rs:2790:5 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 40: <std::option::Option<[u32; 3]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<[u32; 3]> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 41: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 42: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 43: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 44: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 45: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 46: std::option::Option::<[u32; 3]>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<[u32; 3]>::is_some
+
+Check 47: core::num::<impl u32>::is_multiple_of.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3875:22 in function core::num::<impl u32>::is_multiple_of
+
+Check 48: contracts::exl3_projection_splits.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/contracts.rs:1357:11 in function contracts::exl3_projection_splits
+
+Check 49: contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/contracts.rs:2781:20 in function contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width
+
+Check 50: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 51: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 52: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 53: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 54: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 55: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 56: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 57: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 58: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 59: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 60: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 61: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2194:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::le
+
+Check 62: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 63: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 64: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 65: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 66: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 67: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 68: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 69: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 70: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 71: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 72: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 73: std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for u32>::lt
+
+Check 74: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 75: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 76: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 77: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 78: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 79: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 80: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 81: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 82: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 83: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 84: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 85: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2422:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::le
+
+Check 86: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 87: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 88: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 89: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 90: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 91: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:28 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 92: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 93: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 94: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 95: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 96: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 97: std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2418:35 in function std::cmp::impls::<impl std::cmp::PartialOrd for &u32>::lt
+
+Check 98: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 99: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 100: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 101: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 102: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+Check 103: <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/range.rs:1141:12 in function <std::ops::RangeInclusive<u32> as std::ops::RangeBounds<u32>>::end_bound
+
+
+SUMMARY:
+ ** 0 of 100 failed
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 4.3766613s
+
+Manual Harness Summary:
+Verification failed for - contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank
+Complete - 1 successfully verified harnesses, 1 failures, 2 total.

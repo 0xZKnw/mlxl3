@@ -615,6 +615,264 @@ impl<'a> FlashExpert<'a> {
     }
 }
 
+/// Routed EXL3 experts retain their distinct fused float SwiGLU contract.
+/// Ordinary dense/shared MLPs use `FlashExpert` instead.
+pub struct MappedSwitchGlu<'a> {
+    gpu: &'a Metal,
+    experts: Vec<FlashExpert<'a>>,
+    top_k: u32,
+    hidden: u32,
+    intermediate: u32,
+    gu_plan: [u32; 3],
+    down_plan: [u32; 3],
+}
+
+impl<'a> MappedSwitchGlu<'a> {
+    pub fn load(
+        gpu: &'a Metal,
+        c: &Checkpoint,
+        prefix: &str,
+        num_experts: u32,
+        top_k: u32,
+        names: [&str; 3],
+    ) -> Result<Self> {
+        ensure!(
+            num_experts > 0 && num_experts <= 1024 && top_k > 0 && top_k <= num_experts,
+            "invalid mapped expert bank geometry"
+        );
+        let mut experts: Vec<FlashExpert<'a>> = Vec::with_capacity(num_experts as usize);
+        for id in 0..num_experts {
+            let projection = |name| -> Result<_> {
+                let name = format!("{prefix}.{id}.{name}");
+                for (primary, legacy) in [("suh", "su"), ("svh", "sv")] {
+                    let tensor = c
+                        .tensors
+                        .get(&format!("{name}.{primary}"))
+                        .or_else(|| c.tensors.get(&format!("{name}.{legacy}")))
+                        .context("missing mapped expert scale")?;
+                    ensure!(tensor.dtype == "F16", "mapped expert scales require F16");
+                }
+                ensure!(
+                    !c.tensors.contains_key(&format!("{name}.bias")),
+                    "mapped expert must be unbiased"
+                );
+                FlashProjection::load_exl3(gpu, c, &name)
+            };
+            let expert = FlashExpert::from_projections(
+                projection(names[0])?,
+                projection(names[1])?,
+                projection(names[2])?,
+            )?;
+            ensure!(
+                expert.gate.k != 7
+                    && expert.gate.k == expert.up.k
+                    && expert.gate.k == expert.down.k
+                    && expert.gate.cb == expert.up.cb
+                    && expert.gate.cb == expert.down.cb,
+                "mapped expert requires one supported bit width and codebook"
+            );
+            if let Some(first) = experts.first() {
+                ensure!(
+                    expert.input_hidden() == first.input_hidden()
+                        && expert.gate.k == first.gate.k
+                        && expert.gate.cb == first.gate.cb,
+                    "incompatible mapped expert bank"
+                );
+            }
+            experts.push(expert);
+        }
+        let first = &experts[0];
+        let [hidden, intermediate] = first.input_hidden();
+        hidden
+            .checked_mul(top_k)
+            .context("mapped expert output bank overflow")?;
+        let m5 = (gpu.device_name() == "Apple M5" || gpu.device_name().starts_with("Apple M5 "))
+            && std::env::var_os("MLXL3_DISABLE_TENSOR_OPS").is_none();
+        let gu_plan =
+            contracts::mapped_expert_plan(hidden, intermediate, top_k, 2, first.gate.k, m5)
+                .context("invalid mapped gate/up plan")?;
+        let down_plan =
+            contracts::mapped_expert_plan(intermediate, hidden, top_k, 1, first.gate.k, m5)
+                .context("invalid mapped down plan")?;
+        Ok(Self {
+            gpu,
+            experts,
+            top_k,
+            hidden,
+            intermediate,
+            gu_plan,
+            down_plan,
+        })
+    }
+
+    pub fn hidden_size(&self) -> u32 {
+        self.hidden
+    }
+
+    pub fn forward(&self, x: &MatrixView, ids: &[u32], scores: &MatrixView) -> Result<MatrixView> {
+        use super::view::FloatType;
+        ensure!(
+            x.shape() == [1, self.hidden]
+                && x.dtype == FloatType::F16
+                && ids.len() == self.top_k as usize
+                && ids.iter().all(|&i| (i as usize) < self.experts.len())
+                && scores.shape() == [1, self.top_k]
+                && scores.dtype == FloatType::F16
+                && scores.layout.offset == 0
+                && scores.layout.strides[1] == 1,
+            "invalid mapped expert input, routes or scores"
+        );
+        ensure!(
+            x.buffer.device().registry_id() == self.gpu.device.registry_id()
+                && scores.buffer.device().registry_id() == self.gpu.device.registry_id(),
+            "foreign mapped expert storage"
+        );
+        let gpu = self.gpu;
+        gpu.command(|cmd| {
+            let stack = MatrixView::output(
+                gpu,
+                FloatType::F16,
+                self.top_k,
+                self.hidden,
+                Storage::StorageModePrivate,
+            )?;
+            for (route, &id) in ids.iter().enumerate() {
+                let expert = &self.experts[id as usize];
+                let prepare = |p: &FlashProjection<'_>| -> Result<Buffer> {
+                    let prepared = buffer(
+                        &gpu.device,
+                        u64::from(p.input) * 2,
+                        Storage::StorageModePrivate,
+                    )?;
+                    let scale = MatrixView::column_scales(&p.suh, p.offsets.suh, 1, p.input)?;
+                    gpu.encode_prepare_view(cmd, x, &scale, &prepared)?;
+                    Ok(prepared)
+                };
+                let gate =
+                    expert
+                        .gate
+                        .encode_mapped_raw(cmd, &prepare(&expert.gate)?, self.gu_plan)?;
+                let up = expert
+                    .up
+                    .encode_mapped_raw(cmd, &prepare(&expert.up)?, self.gu_plan)?;
+                let activated = buffer(
+                    &gpu.device,
+                    u64::from(self.intermediate) * 2,
+                    Storage::StorageModePrivate,
+                )?;
+                ensure!(
+                    gpu.mapped_glu.thread_execution_width() == 32
+                        && gpu.mapped_glu.max_total_threads_per_threadgroup() >= 128,
+                    "unsupported mapped GLU threadgroup"
+                );
+                Metal::encode_bound(
+                    cmd,
+                    &gpu.mapped_glu,
+                    [
+                        (&gate, 0),
+                        (&up, 0),
+                        (&expert.gate.svh, expert.gate.offsets.svh),
+                        (&expert.up.svh, expert.up.offsets.svh),
+                        (&expert.down.suh, expert.down.offsets.suh),
+                        (&activated, 0),
+                    ]
+                    .into_iter(),
+                    [self.intermediate, self.gu_plan[0]],
+                    MTLSize::new(u64::from(self.intermediate / 128), 1, 1),
+                    128,
+                );
+                let raw = expert
+                    .down
+                    .encode_mapped_raw(cmd, &activated, self.down_plan)?;
+                let offset = u64::from(
+                    contracts::mapped_expert_row_offset(
+                        u32::try_from(route)?,
+                        self.hidden,
+                        u32::try_from(stack.buffer.length() / 2)?,
+                    )
+                    .context("invalid mapped output row")?,
+                ) * 2;
+                Metal::encode_bound(
+                    cmd,
+                    &gpu.dense_finish,
+                    [
+                        (&raw, 0),
+                        (&expert.down.svh, expert.down.offsets.svh),
+                        (&expert.down.svh, expert.down.offsets.svh),
+                        (&stack.buffer, offset),
+                    ]
+                    .into_iter(),
+                    [self.down_plan[0], 0, 0, 0, self.hidden],
+                    MTLSize::new(u64::from(self.hidden / 128), 1, 1),
+                    64,
+                );
+            }
+            let output = MatrixView::output(
+                gpu,
+                FloatType::F16,
+                1,
+                self.hidden,
+                Storage::StorageModeShared,
+            )?;
+            ensure!(
+                gpu.mapped_mix.thread_execution_width() == 32
+                    && gpu.mapped_mix.max_total_threads_per_threadgroup() >= 128,
+                "unsupported mapped expert reduction threadgroup"
+            );
+            Metal::encode(
+                cmd,
+                &gpu.mapped_mix,
+                &[&stack.buffer, &scores.buffer, &output.buffer],
+                [self.hidden, self.top_k],
+                MTLSize::new(u64::from(self.hidden.div_ceil(128)), 1, 1),
+                128,
+            );
+            Ok(output)
+        })
+    }
+}
+
+impl FlashProjection<'_> {
+    fn encode_mapped_raw(
+        &self,
+        cmd: &CommandBufferRef,
+        prepared: &Buffer,
+        [splits, nt, groups]: [u32; 3],
+    ) -> Result<Buffer> {
+        let gpu = self.metal;
+        let partials = self
+            .output
+            .checked_mul(splits)
+            .context("mapped raw output overflow")?;
+        let raw = buffer(
+            &gpu.device,
+            u64::from(partials) * 4,
+            Storage::StorageModePrivate,
+        )?;
+        let p = &gpu.dense_qmv[usize::from(groups == 8)][nt.trailing_zeros() as usize];
+        ensure!(
+            p.thread_execution_width() == 32
+                && p.max_total_threads_per_threadgroup() >= u64::from(groups * 32),
+            "unsupported mapped expert QMV threadgroup"
+        );
+        Metal::encode_bound(
+            cmd,
+            p,
+            [
+                (prepared, 0),
+                (&self.packed, self.offsets.trellis),
+                (&self.svh, self.offsets.svh),
+                (&raw, 0),
+            ]
+            .into_iter(),
+            [1, self.k, self.cb as u32, self.input, self.output],
+            MTLSize::new(u64::from(self.output / 16 / nt), 1, u64::from(splits)),
+            (groups * 32) as usize,
+        );
+        Ok(raw)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -644,4 +902,82 @@ mod tests {
         ensure!(metal.swiglu(&[0], &[one])?.read()? == [0] && first.read()? == [twenty]);
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[test]
+#[ignore = "physical Qwen mapped experts: rejected routes and retained output after weight release"]
+fn mapped_expert_rejections_recover_and_outputs_outlive_the_bank() -> Result<()> {
+    use super::view::FloatType;
+    use crate::tensor_layout::MatrixLayout;
+    let mut c = crate::checkpoint::inspect(std::path::Path::new(&std::env::var(
+        "MLXL3_QWEN_NATIVE_MODEL",
+    )?))?;
+    let gpu = Metal::new()?;
+    let prefix = "model.language_model.layers.0.mlp.experts";
+    let names = ["gate_proj", "up_proj", "down_proj"];
+    let name = format!("{prefix}.0.gate_proj.svh");
+    let old = c
+        .tensors
+        .get_mut(&name)
+        .context("missing mapped scale fixture")?
+        .dtype
+        .clone();
+    c.tensors.get_mut(&name).unwrap().dtype = "F32".into();
+    ensure!(
+        MappedSwitchGlu::load(&gpu, &c, prefix, 256, 8, names)
+            .err()
+            .is_some_and(|e| e.to_string().contains("F16"))
+    );
+    c.tensors.get_mut(&name).unwrap().dtype = old;
+    let bank = MappedSwitchGlu::load(&gpu, &c, prefix, 256, 8, names)?;
+    let width = bank.hidden_size();
+    let data = (0..width)
+        .map(|i| f16::from_f32(((i * 29) % 193) as f32 / 779. - 96. / 779.).to_bits())
+        .collect::<Vec<_>>();
+    let x = gpu.f16_storage(&data)?.matrix(MatrixLayout {
+        shape: [1, width],
+        strides: [i64::from(width), 1],
+        offset: 0,
+    })?;
+    let scores = gpu
+        .f16_storage(&[f16::from_f32(0.125).to_bits(); 8])?
+        .matrix(MatrixLayout {
+            shape: [1, 8],
+            strides: [8, 1],
+            offset: 0,
+        })?;
+    let ids = [0, 17, 31, 64, 127, 191, 254, 255];
+    let expected = bank.forward(&x, &ids, &scores)?.read_output()?;
+    ensure!(
+        expected.len() == width as usize
+            && expected.iter().any(|&v| v != 0)
+            && expected
+                .iter()
+                .all(|&v| f16::from_bits(v as u16).is_finite())
+    );
+    ensure!(bank.forward(&x, &[256; 8], &scores).is_err());
+    ensure!(bank.forward(&x, &ids[..7], &scores).is_err());
+    let short = gpu.f16_storage(&[0; 7])?.matrix(MatrixLayout {
+        shape: [1, 7],
+        strides: [7, 1],
+        offset: 0,
+    })?;
+    ensure!(bank.forward(&x, &ids, &short).is_err());
+    let wrong = gpu
+        .f32_storage(&vec![0.; width as usize])?
+        .matrix(MatrixLayout {
+            shape: [1, width],
+            strides: [i64::from(width), 1],
+            offset: 0,
+        })?;
+    ensure!(wrong.dtype == FloatType::F32 && bank.forward(&wrong, &ids, &scores).is_err());
+    let result = bank.forward(&x, &ids, &scores)?;
+    drop(bank);
+    drop(c);
+    drop(scores);
+    drop(x);
+    drop(gpu);
+    ensure!(result.read_output()? == expected);
+    Ok(())
 }
