@@ -192,6 +192,7 @@ Pour rejouer, définir `MLXL3_FLASH_MODEL` et `MLXL3_FLASH_MTP_REFERENCE` (répe
 cargo test --locked --lib --features chat gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary -- --exact --ignored
 cargo test --locked --lib --features mlx,chat qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --exact --ignored --nocapture
 cargo test --locked --lib --features chat gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state -- --exact --ignored
+```
 
 ### Bridge Studio et API HTTP Flash sans MLX
 
@@ -217,3 +218,15 @@ python tests/physical_flash_projection.py DIRECT_CLI STOCK_LIBTEST NEW_REPORT --
 ```
 
 Ajouter `--portable` pour le parcours à quatre groupes. Utiliser un Python disposant de MLX pour construire les fixtures et lancer l’oracle. Le processus du moteur direct vérifie lui-même l’absence de MLX dans ses bibliothèques chargées. Cette tranche qualifie les projections et leur entrée CLI. La génération Qwen complète est suivie séparément.
+
+
+### Qwen Gated DeltaNet sans MLX
+
+`QwenGdn` et le codec `metal-qwen-gdn` exécutent les projections, la convolution causale, la récurrence FP32, la normalisation et la porte Qwen. Les instantanés conservent les buffers précédents et refusent les états d’une autre couche. La publication n’a lieu qu’après le succès de la commande.
+
+Sur le Qwen3.6 MoE local, les couches 0 et 36 et les préfixes de 1, 2 et 4 positions comparent **3 321 856 valeurs finies bit à bit**, sans écart : sorties, historique de convolution et récurrence. Un premier essai avait trouvé un arrondi FP16 manquant avant le gain RMS ; son [rapport d’échec](qwen-gdn/initial.json) reste conservé. Le [rejeu corrigé](qwen-gdn/physical.json), le [contrôle des projections et experts Flash](qwen-gdn/expert-regression.json) et la [provenance](qwen-gdn/provenance.json) sont archivés. Cette tranche qualifie le composant récurrent ; la session Qwen complète reste à assembler.
+
+```sh
+python tests/physical_qwen_gdn.py DIRECT_CLI STOCK_CLI QWEN35B_CHECKPOINT NEW_REPORT
+MLXL3_QWEN_NATIVE_MODEL=QWEN35B_CHECKPOINT cargo test --locked --lib --features chat gpu::qwen_gdn::retained_states_replay_after_branch_and_rejected_input -- --exact --ignored
+```

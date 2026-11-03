@@ -1180,6 +1180,10 @@
     "mlxl3_gdn_conv_silu": 3,
     "mlxl3_gdn_input": 3
   },
+  "native/shaders/qwen_gdn.metal": {
+    "mlxl3_gdn_conv_silu": 1,
+    "mlxl3_gdn_input": 1
+  },
   "native/shaders/router_topk.h": {
     "mlxl3_rank_row": 1
   },
@@ -1895,6 +1899,15 @@
     "config MLXL3_QSA_TEST_CLASSIC": 1,
     "shader ../../shaders/flash_qsa_nax.metal": 1
   },
+  "native/src/gpu/qwen_gdn.rs": {
+    ".shape": 1,
+    ".transpose": 1,
+    "config MLXL3_QWEN_NATIVE_MODEL": 1,
+    "shader ../../shaders/flash_hc_gemv.metal": 1,
+    "shader ../../shaders/gated_delta_packed.metal": 1,
+    "shader ../../shaders/gated_delta_prepare.metal": 1,
+    "shader ../../shaders/qwen_gdn.metal": 1
+  },
   "native/src/hub.rs": {
     ".sum": 3,
     ".take": 6,
@@ -2121,7 +2134,7 @@
   "native/src/main.rs": {
     ".chat_greedy_ids": 12,
     ".compact_for_cache": 5,
-    ".eval": 9,
+    ".eval": 12,
     ".exp": 1,
     ".finish": 5,
     ".log_probs": 2,
@@ -2137,7 +2150,8 @@
     ".to_u32": 3,
     ".transpose": 19,
     ".try_clone": 7,
-    "Array::from_f16_bits": 38,
+    "Array::concatenate": 1,
+    "Array::from_f16_bits": 39,
     "Array::from_f32": 11,
     "Array::from_u16": 5,
     "Array::from_u32": 3,
@@ -2163,7 +2177,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 171,
+    "mlx": 173,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {

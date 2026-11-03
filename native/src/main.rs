@@ -780,7 +780,7 @@ fn codec_loop() -> Result<()> {
                     Ok(json!(output.to_f16_bits()?))
                 }
                 #[cfg(feature = "mlx")]
-                "mlx-qwen-gdn" => {
+                "mlx-qwen-gdn" | "mlx-qwen-gdn-sequence" => {
                     use mlxl3_native::{array::Array, checkpoint, qwen35::GatedDelta};
                     let checkpoint = checkpoint::inspect(std::path::Path::new(&request.path))?;
                     let hidden = i32::try_from(request.cols)?;
@@ -819,8 +819,27 @@ fn codec_loop() -> Result<()> {
                             })
                             .transpose()?,
                     )?;
-                    let output =
-                        block.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?;
+                    let output = if request.op == "mlx-qwen-gdn-sequence" {
+                        anyhow::ensure!(
+                            hidden > 0
+                                && !request.x.is_empty()
+                                && request.x.len().is_multiple_of(hidden as usize),
+                            "invalid Qwen sequence rows"
+                        );
+                        let mut rows = Vec::new();
+                        for row in request.x.chunks_exact(hidden as usize) {
+                            let output =
+                                block.forward(&Array::from_f16_bits(row, &[1, 1, hidden])?)?;
+                            output.eval()?;
+                            let (conv, state) = block.states()?;
+                            conv.eval()?;
+                            state.eval()?;
+                            rows.push(output);
+                        }
+                        Array::concatenate(&rows.iter().collect::<Vec<_>>(), 1)?
+                    } else {
+                        block.forward(&Array::from_f16_bits(&request.x, &[1, 1, hidden])?)?
+                    };
                     let (conv, recurrent) = block.states()?;
                     Ok(json!({
                         "output": output.to_f16_bits()?,
@@ -967,6 +986,7 @@ fn codec_loop() -> Result<()> {
                 | "metal-prepare128"
                 | "metal-checkpoint-linear"
                 | "metal-exl3-linear"
+                | "metal-qwen-gdn"
                 | "metal-checkpoint-expert"
                 | "metal-swiglu"
                 | "metal-prepare-view"
@@ -1185,6 +1205,35 @@ fn codec_loop() -> Result<()> {
                                 results.push(json!({"indices":out.indices,"hits":out.hits,"read_bytes":out.read_bytes,"values":out.read()?,"switch":out.multiplier_trace()?}));
                             }
                             Ok(json!(results))
+                        }
+                        "metal-qwen-gdn" => {
+                            let c = checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let mut layer = mlxl3_native::gpu::QwenGdn::from_checkpoint(
+                                gpu,
+                                &c,
+                                &request.prefix,
+                            )?;
+                            let width = layer.hidden_size();
+                            anyhow::ensure!(
+                                !request.x.is_empty()
+                                    && request.x.len().is_multiple_of(width as usize),
+                                "invalid Qwen GDN input rows"
+                            );
+                            let mut output = Vec::new();
+                            for row in request.x.chunks_exact(width as usize) {
+                                let input = gpu.f16_storage(row)?.matrix(
+                                    mlxl3_native::tensor_layout::MatrixLayout {
+                                        shape: [1, width],
+                                        strides: [i64::from(width), 1],
+                                        offset: 0,
+                                    },
+                                )?;
+                                output.extend(layer.forward(&input)?.read_output()?);
+                            }
+                            let states = layer.states()?.context("missing Qwen GDN state")?;
+                            Ok(
+                                json!({"output":output,"conv_state":states.conv_state,"state":states.state}),
+                            )
                         }
                         "metal-checkpoint-router" => {
                             let input = request.input_view(gpu)?;

@@ -22,6 +22,8 @@ mod flash;
 pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
+mod qwen_gdn;
+pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;

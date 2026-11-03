@@ -487,6 +487,18 @@ impl<'a> FlashExpert<'a> {
         let gate = layer("gate")?;
         let up = layer("up")?;
         let down = layer("down")?;
+        Self::from_projections(gate, up, down)
+    }
+
+    pub fn from_projections(
+        gate: FlashProjection<'a>,
+        up: FlashProjection<'a>,
+        down: FlashProjection<'a>,
+    ) -> Result<Self> {
+        ensure!(
+            std::ptr::eq(gate.metal, up.metal) && std::ptr::eq(gate.metal, down.metal),
+            "expert projections require one Metal context"
+        );
         ensure!(
             contracts::compatible_flash_expert(
                 [gate.input, gate.output],

@@ -2585,3 +2585,90 @@ fn packed_flash_gdn_groups_partition_state_entries() {
         kani::cover!(at == 0);
     }
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn native_qwen_gdn_extents(
+    hidden: u32,
+    key_heads: u32,
+    value_heads: u32,
+    conv_length: u32,
+) -> Option<[u32; 5]> {
+    if hidden == 0
+        || !hidden.is_multiple_of(128)
+        || key_heads == 0
+        || value_heads == 0
+        || !value_heads.is_multiple_of(key_heads)
+        || !value_heads.is_multiple_of(4)
+        || !(2..=16).contains(&conv_length)
+    {
+        return None;
+    }
+    let keys = key_heads.checked_mul(128)?;
+    let values = value_heads.checked_mul(128)?;
+    let channels = keys.checked_mul(2)?.checked_add(values)?;
+    let history = channels.checked_mul(conv_length - 1)?;
+    let state = values.checked_mul(128)?;
+    hidden.checked_mul(value_heads)?;
+    Some([keys, values, channels, history, state])
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn native_qwen_gdn_geometry_bounds_every_addressed_row_and_state() {
+    let hidden: u32 = kani::any();
+    let kh: u32 = kani::any();
+    let vh: u32 = kani::any();
+    let c: u32 = kani::any();
+    let extent = native_qwen_gdn_extents(hidden, kh, vh, c);
+    let max = u128::from(u32::MAX);
+    let k = u128::from(kh) * 128;
+    let v = u128::from(vh) * 128;
+    let channels = k * 2 + v;
+    let basic = hidden > 0
+        && hidden.is_multiple_of(128)
+        && kh > 0
+        && vh > 0
+        && vh.is_multiple_of(kh)
+        && vh.is_multiple_of(4)
+        && (2..=16).contains(&c);
+    let bounded = k <= max
+        && v <= max
+        && channels <= max
+        && channels * u128::from(c.saturating_sub(1)) <= max
+        && v * 128 <= max
+        && u128::from(hidden) * u128::from(vh) <= max;
+    assert_eq!(extent.is_some(), basic && bounded);
+    if let Some(e) = extent {
+        assert_eq!(
+            e.map(u128::from),
+            [k, v, channels, channels * u128::from(c - 1), v * 128]
+        );
+        kani::cover!(hidden == 2048 && kh == 16 && vh == 32 && c == 4);
+        kani::cover!(hidden == 5120 && kh == 16 && vh == 48 && c == 4);
+    }
+    kani::cover!(hidden == 0 && extent.is_none());
+}
+
+#[test]
+fn native_qwen_gdn_shapes_cover_local_and_dense_geometries_and_reject_overflow() {
+    assert_eq!(
+        native_qwen_gdn_extents(2048, 16, 32, 4),
+        Some([2048, 4096, 8192, 24576, 524288])
+    );
+    assert_eq!(
+        native_qwen_gdn_extents(5120, 16, 48, 4),
+        Some([2048, 6144, 10240, 30720, 786432])
+    );
+    for [h, k, v, c] in [
+        [0, 16, 32, 4],
+        [2047, 16, 32, 4],
+        [2048, 0, 32, 4],
+        [2048, 3, 32, 4],
+        [2048, 16, 32, 1],
+        [2048, 16, 32, 17],
+        [2048, u32::MAX, 32, 4],
+        [u32::MAX - 127, 16, 32, 4],
+    ] {
+        assert_eq!(native_qwen_gdn_extents(h, k, v, c), None);
+    }
+}
