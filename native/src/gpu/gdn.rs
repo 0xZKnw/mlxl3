@@ -282,7 +282,7 @@ impl<'a> FlashGdn<'a> {
 pub(super) struct LayerResidual<'a> {
     attn_hc: super::FlashHc<'a>,
     mlp_hc: super::FlashHc<'a>,
-    moe: super::FlashMoeRow<'a>,
+    pub(super) moe: super::FlashMoeRow<'a>,
 }
 impl<'a> LayerResidual<'a> {
     pub(super) fn load(
@@ -317,6 +317,8 @@ impl<'a> LayerResidual<'a> {
         &mut self,
         streams: &MatrixView,
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
     ) -> Result<MatrixView> {
         let read = self.attn_hc.read(streams, false)?;
         let gate = read
@@ -325,13 +327,16 @@ impl<'a> LayerResidual<'a> {
             .context("missing attention injection gate")?;
         let attention = attend(&read.mixed)?;
         let written = self.attn_hc.write(streams, &attention.values, gate)?;
-        Ok(self.mlp_hc.forward_moe(&written, &mut self.moe, false)?.0)
+        Ok(self
+            .mlp_hc
+            .forward_moe_lookahead(&written, &mut self.moe, false, next, depth)?
+            .0)
     }
 }
 
 /// A complete non-PLE Flash layer with recurrent attention.
 pub struct FlashGdnLayer<'a> {
-    residual: LayerResidual<'a>,
+    pub(super) residual: LayerResidual<'a>,
     attention: FlashGdn<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
@@ -377,10 +382,18 @@ impl<'a> FlashGdnLayer<'a> {
         self.attention.reset()
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
-        let residual = self
-            .residual
-            .forward(streams, |x| self.attention.forward(x, false));
+        let residual =
+            self.residual
+                .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if residual.is_err() {
             self.restore(&before)?;
         }

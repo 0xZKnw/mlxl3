@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use std::{
+    cell::Cell,
     fs::File,
     os::unix::fs::FileExt,
     sync::{
@@ -77,6 +78,7 @@ impl Read {
 }
 
 pub(crate) struct ReadService {
+    next: Cell<usize>,
     workers: Vec<(SyncSender<Read>, JoinHandle<()>)>,
     active: Arc<AtomicUsize>,
     #[cfg(test)]
@@ -86,6 +88,7 @@ impl ReadService {
     pub(crate) fn new(readers: usize) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
+            next: Cell::new(0),
             workers: Vec::new(),
             active: Arc::new(AtomicUsize::new(0)),
             #[cfg(test)]
@@ -121,6 +124,23 @@ impl ReadService {
         &self,
         records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
     ) -> Result<ReadBatch> {
+        self.start(Self::sources(records)?, Duration::from_secs(30))
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn submit_background(
+        &self,
+        lease: SlotLease,
+        record: TensorInfo,
+    ) -> Result<ReadBatch> {
+        self.start_mode(
+            Self::sources([(lease, record)])?,
+            Duration::from_secs(30),
+            true,
+        )
+    }
+    fn sources(
+        records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+    ) -> Result<Vec<(SlotLease, File, u64, usize)>> {
         let mut reads = Vec::new();
         for (lease, record) in records {
             // The inspected record descriptor is its first constituent tensor.
@@ -134,16 +154,28 @@ impl ReadService {
             );
             reads.push((lease, file.try_clone()?, offset, EXPERT_BYTES as usize));
         }
-        self.start(reads, Duration::from_secs(30))
+        Ok(reads)
     }
     fn start(
         &self,
         reads: Vec<(SlotLease, File, u64, usize)>,
         limit: Duration,
     ) -> Result<ReadBatch> {
+        self.start_mode(reads, limit, false)
+    }
+    fn start_mode(
+        &self,
+        reads: Vec<(SlotLease, File, u64, usize)>,
+        limit: Duration,
+        background: bool,
+    ) -> Result<ReadBatch> {
         ensure!(reads.len() <= 10, "native SSD demand exceeds one AR cohort");
         ensure!(
-            self.active.load(Ordering::Acquire) == 0,
+            !background || (reads.len() == 1 && self.in_flight() < 4),
+            "native prefetch exceeds four readers"
+        );
+        ensure!(
+            background || self.active.load(Ordering::Acquire) == 0,
             "previous native SSD reads are still draining"
         );
         let (result, receiver) = mpsc::channel();
@@ -156,7 +188,7 @@ impl ReadService {
         };
         #[cfg(test)]
         let count = reads.len();
-        for (index, (lease, file, offset, bytes)) in reads.into_iter().enumerate() {
+        for (lease, file, offset, bytes) in reads {
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
                 lease,
@@ -166,11 +198,13 @@ impl ReadService {
                 result: result.clone(),
                 ticket: Ticket(self.active.clone()),
                 #[cfg(test)]
-                gate: (index + 1 == count)
+                gate: (batch.remaining + 1 == count)
                     .then(|| self.gate.borrow().clone())
                     .flatten(),
             };
-            self.workers[index % self.workers.len()]
+            let worker = self.next.get();
+            self.next.set((worker + 1) % self.workers.len());
+            self.workers[worker]
                 .0
                 .try_send(read)
                 .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
@@ -202,6 +236,23 @@ pub(crate) struct ReadBatch {
 impl ReadBatch {
     pub(crate) fn remaining(&self) -> usize {
         self.remaining
+    }
+    pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, Vec<u8>)>> {
+        ensure!(self.remaining == 1, "prefetch must own one pending read");
+        match self.receiver.try_recv() {
+            Ok(next) => {
+                self.remaining = 0;
+                Ok(Some((next.lease, next.result?)))
+            }
+            Err(mpsc::TryRecvError::Empty) => {
+                ensure!(
+                    Instant::now() < self.deadline,
+                    "native SSD prefetch deadline"
+                );
+                Ok(None)
+            }
+            Err(error) => Err(error.into()),
+        }
     }
     pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, Vec<u8>)>> {
         let mut completed = Vec::new();
@@ -342,6 +393,61 @@ mod tests {
         assert!(batch.ready(true).is_err());
         drop(batch);
         assert_eq!(pool.in_flight(), 0);
+        Ok(())
+    }
+    #[test]
+    fn four_background_workers_poll_without_blocking_and_recover_after_timeout() -> Result<()> {
+        let pool = ReadService::new(4)?;
+        let mut file = tempfile::tempfile()?;
+        file.write_all(b"owned background bytes")?;
+        let gate = Arc::new(std::sync::Barrier::new(5));
+        pool.set_test_gate(Some(gate.clone()));
+        let token = lease()?;
+        let mut pending = (0..4)
+            .map(|_| {
+                pool.start_mode(
+                    vec![(token, file.try_clone()?, 0, 5)],
+                    Duration::from_secs(2),
+                    true,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let active = pool.in_flight();
+        let refused = pool
+            .start_mode(vec![(token, file.try_clone()?, 0, 5)], Duration::ZERO, true)
+            .is_err();
+        let polls_empty = pending.iter_mut().all(|r| matches!(r.poll(), Ok(None)));
+        pool.release_test_gate();
+        assert_eq!(active, 4);
+        assert!(refused && polls_empty);
+        for read in &mut pending {
+            assert_eq!(read.ready(true)?[0].1, b"owned");
+        }
+        assert_eq!(pool.in_flight(), 0);
+        assert!(pool.start_mode(Vec::new(), Duration::ZERO, true).is_err());
+        assert!(
+            pool.start_mode(
+                vec![
+                    (token, file.try_clone()?, 0, 5),
+                    (token, file.try_clone()?, 0, 5)
+                ],
+                Duration::ZERO,
+                true
+            )
+            .is_err()
+        );
+        let gate = Arc::new(std::sync::Barrier::new(2));
+        pool.set_test_gate(Some(gate));
+        let mut timed = pool.start_mode(vec![(token, file, 0, 5)], Duration::ZERO, true)?;
+        let failed = timed.poll().is_err();
+        drop(timed);
+        let retained = pool.in_flight();
+        pool.release_test_gate();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while pool.in_flight() != 0 && Instant::now() < deadline {
+            std::thread::yield_now();
+        }
+        assert!(failed && retained == 1 && pool.in_flight() == 0);
         Ok(())
     }
     #[test]

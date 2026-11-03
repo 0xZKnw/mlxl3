@@ -638,7 +638,7 @@ impl<'a> FlashQsa<'a> {
 
 pub struct FlashQsaLayer<'a> {
     attention: FlashQsa<'a>,
-    residual: super::gdn::LayerResidual<'a>,
+    pub(super) residual: super::gdn::LayerResidual<'a>,
 }
 impl<'a> FlashQsaLayer<'a> {
     pub fn load(
@@ -722,10 +722,18 @@ impl<'a> FlashQsaLayer<'a> {
         self.attention.reset();
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
         let out = self
             .residual
-            .forward(streams, |x| self.attention.forward(x, false));
+            .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if out.is_err() {
             self.restore(&before)?;
         }

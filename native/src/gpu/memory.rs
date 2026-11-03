@@ -43,6 +43,7 @@ pub struct MemoryLedger {
     ple_host_row_payload_bytes: usize,
     native_allocated_other_bytes: Option<u64>,
     reads_in_flight: usize,
+    prefetch: Option<crate::gpu::moe::PrefetchStats>,
     memory: MemoryStats,
 }
 
@@ -143,11 +144,16 @@ impl FlashNext<'_> {
             native_allocated_other_bytes: memory
                 .native_metal_allocated_bytes
                 .and_then(|n| n.checked_sub(owned)),
+            prefetch: self.prefetcher.as_ref().map(|p| p.borrow().stats.clone()),
             reads_in_flight: self
-                .gpu
-                .readers
-                .get()
-                .map_or(0, crate::ssd_reads::ReadService::in_flight),
+                .prefetcher
+                .as_ref()
+                .map_or(0, |p| p.borrow().in_flight())
+                + self
+                    .gpu
+                    .readers
+                    .get()
+                    .map_or(0, crate::ssd_reads::ReadService::in_flight),
             memory,
         })
     }

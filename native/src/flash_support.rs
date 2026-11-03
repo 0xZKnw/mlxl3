@@ -294,7 +294,12 @@ pub(crate) fn expert_grouping_worthwhile(rows: usize, chunks: usize) -> bool {
         && (rows - chunks) * 5 >= rows
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
     match value {
         "auto" => Some(false),
@@ -303,7 +308,12 @@ pub(crate) fn parse_lru_override(value: &str) -> Option<bool> {
     }
 }
 
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) fn parse_predictor_half(value: &str) -> Option<bool> {
     match value {
         "f32" => Some(false),
@@ -1177,6 +1187,11 @@ impl ExpertCache {
             })
     }
 
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn predictive_lru_enabled(&self) -> bool {
+        self.predictive_lru
+    }
+
     pub(crate) fn enable_predictive_lru(&mut self) {
         // Unused prefetches need a lifetime without inventing demand frequency.
         self.predictive_lru = true;
@@ -1214,7 +1229,7 @@ impl ExpertCache {
         Ok(Some(slot))
     }
 
-    #[cfg(feature = "mlx")]
+    #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
     pub(crate) fn claim_lease(&mut self, expert: u32) -> Result<Option<SlotLease>, CacheError> {
         Ok(self
             .claim_prefetch(expert)?
@@ -3303,4 +3318,44 @@ fn native_demand_generation_rejects_stale_and_duplicate_publication() {
         assert!(cache.pending[0].is_none());
         kani::cover!(generation == u64::MAX);
     }
+}
+
+/// At most four owned prefetch records, including completed results awaiting publication.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn native_prefetch_room(pending: usize, active: usize) -> Option<usize> {
+    if pending > 4 || active > 4 {
+        return None;
+    }
+    Some(4 - pending.max(active))
+}
+#[cfg(kani)]
+#[kani::proof]
+fn native_prefetch_room_bounds_owned_and_running_records() {
+    let pending: usize = kani::any();
+    let active: usize = kani::any();
+    let room = native_prefetch_room(pending, active);
+    assert_eq!(room.is_some(), pending <= 4 && active <= 4);
+    if let Some(room) = room {
+        assert!(room <= 4 && pending + room <= 4 && active + room <= 4);
+        assert!(pending + room == 4 || active + room == 4);
+        kani::cover!(room == 4);
+        kani::cover!(room == 0 && pending == 4 && active == 0);
+        kani::cover!(room == 0 && pending == 0 && active == 4);
+    }
+    kani::cover!(room.is_none());
+}
+#[cfg(test)]
+#[test]
+fn native_prefetch_room_rejects_invalid_ownership_counts() {
+    for pending in 0..=5 {
+        for active in 0..=5 {
+            let room = native_prefetch_room(pending, active);
+            assert_eq!(room.is_some(), pending <= 4 && active <= 4);
+            if let Some(room) = room {
+                assert_eq!(room + pending.max(active), 4);
+            }
+        }
+    }
+    assert_eq!(native_prefetch_room(usize::MAX, 0), None);
+    assert_eq!(native_prefetch_room(0, usize::MAX), None);
 }

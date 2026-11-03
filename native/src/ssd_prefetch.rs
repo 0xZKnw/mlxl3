@@ -1,6 +1,7 @@
 //! Bounded reads into persistent GPU slots; only the inference thread owns MLX.
 pub(crate) const PREDICTION_RANKS: usize = 16;
 
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn prediction_rows(rows: usize) -> Option<usize> {
     (1..=8).contains(&rows).then_some(rows.min(2))
 }

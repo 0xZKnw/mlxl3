@@ -232,12 +232,22 @@ impl<'a> FlashHc<'a> {
         moe: &mut super::FlashMoeRow,
         trace: bool,
     ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
+        self.forward_moe_lookahead(streams, moe, trace, None, 0)
+    }
+    pub(super) fn forward_moe_lookahead<'b>(
+        &self,
+        streams: &MatrixView,
+        moe: &mut super::FlashMoeRow<'b>,
+        trace: bool,
+        next: Option<&mut super::FlashMoeRow<'b>>,
+        depth: usize,
+    ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
         ensure!(
             self.inject.is_some(),
             "Flash MLP requires an injection gate"
         );
         let read = self.read(streams, trace)?;
-        let experts = moe.submit(&read.mixed)?;
+        let experts = moe.lookahead(&read.mixed, next, depth)?;
         let written = self.write(
             streams,
             experts.completed()?,

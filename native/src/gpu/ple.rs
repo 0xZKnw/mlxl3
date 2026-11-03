@@ -258,7 +258,7 @@ impl<'a> FlashPle<'a> {
 
 pub struct FlashPleLayer<'a> {
     ple: FlashPle<'a>,
-    body: super::FlashGdnLayer<'a>,
+    pub(super) body: super::FlashGdnLayer<'a>,
 }
 #[derive(Clone)]
 pub struct FlashPleLayerState(FlashPleState, super::FlashGdnState);
@@ -290,9 +290,18 @@ impl<'a> FlashPleLayer<'a> {
         self.body.reset();
     }
     pub fn forward(&mut self, x: &MatrixView, token: u32) -> Result<MatrixView> {
+        self.forward_lookahead(x, token, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.ple.snapshot();
         let streams = self.ple.forward(x, token, false)?;
-        let result = self.body.forward(&streams.values);
+        let result = self.body.forward_lookahead(&streams.values, next, depth);
         if result.is_err() {
             self.ple.restore(&before)?;
         }
