@@ -120,11 +120,15 @@ impl ReadService {
     ) -> Result<ReadBatch> {
         let mut reads = Vec::new();
         for (lease, record) in records {
-            ensure!(
-                record.data_offsets[1].checked_sub(record.data_offsets[0]) == Some(EXPERT_BYTES),
-                "invalid Flash record length"
-            );
+            // The inspected record descriptor is its first constituent tensor.
             let (file, offset) = record.source()?;
+            let end = offset
+                .checked_add(EXPERT_BYTES)
+                .context("Flash record offset overflow")?;
+            ensure!(
+                end <= file.metadata()?.len(),
+                "checkpoint record was truncated after inspection"
+            );
             reads.push((lease, file.try_clone()?, offset, EXPERT_BYTES as usize));
         }
         self.start(reads, Duration::from_secs(30))
@@ -274,6 +278,31 @@ mod tests {
         assert_eq!(pool.active.load(Ordering::Acquire), 0);
         let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
         assert_eq!(retry.ready(true)?[0].1, b"0123456789abcdef");
+        Ok(())
+    }
+    #[test]
+    fn a_record_uses_the_first_tensor_offset_and_checks_the_full_pinned_extent() -> Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("records.safetensors");
+        let bytes = usize::try_from(EXPERT_BYTES)?;
+        let header = serde_json::to_vec(&serde_json::json!({
+            "first":{"dtype":"U8","shape":[4],"data_offsets":[0,4]},
+            "rest":{"dtype":"U8","shape":[bytes-4],"data_offsets":[4,bytes]}
+        }))?;
+        let mut file = File::create(&path)?;
+        file.write_all(&(header.len() as u64).to_le_bytes())?;
+        file.write_all(&header)?;
+        file.write_all(&vec![71; bytes])?;
+        let record = crate::checkpoint::read_header(&path)?["first"].clone();
+        assert_eq!(record.data_offsets, [0, 4]);
+        let pool = ReadService::new(1)?;
+        let mut batch = pool.submit([(lease()?, record.clone())])?;
+        let result = batch.ready(true)?;
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].1.len(), bytes);
+        assert!(result[0].1.iter().all(|&v| v == 71));
+        file.set_len((8 + header.len() + bytes - 1) as u64)?;
+        assert!(pool.submit([(lease()?, record)]).is_err());
         Ok(())
     }
     #[test]

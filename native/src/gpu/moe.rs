@@ -295,7 +295,7 @@ mod tests {
         let ids = layer.gate.submit(&x)?.indices()?;
         let id = ids[5] as usize;
         let old = layer.records[id].data_offsets;
-        layer.records[id].data_offsets = [u64::MAX; 2];
+        layer.records[id].data_offsets = [u64::MAX - EXPERT_BYTES, u64::MAX];
         let failure = layer
             .submit(&x)
             .err()
