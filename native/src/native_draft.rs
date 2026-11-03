@@ -758,10 +758,11 @@ impl Session {
             }
             let rows = captures.len() / 12800;
             let offset = state.draft.offset;
+            let commit_start = std::time::Instant::now();
             state
                 .draft
                 .append(&Matrix::new(rows, 12800, captures)?, offset)?;
-            Ok::<_, anyhow::Error>((emitted, rows))
+            Ok::<_, anyhow::Error>((emitted, rows, commit_start.elapsed().as_secs_f64()))
         })();
         let (emitted, rows, commit_seconds) = match operation {
             Ok(v) => v,
@@ -771,7 +772,7 @@ impl Session {
             }
         };
         let accepted = rows - 1;
-        let seconds = (verify_start.elapsed().as_secs_f64()-commit_seconds).max(0.);
+        let seconds = (verify_start.elapsed().as_secs_f64() - commit_seconds).max(0.);
         state.proposed += selected;
         state.accepted += accepted;
         state.blocks += 1;
@@ -877,7 +878,13 @@ fn speculative_session_preserves_ordinary_tokens_states_and_failure_recovery() -
             target.forward(7)? == continuation,
             "native DFlash changes continuation logits"
         );
-        if budget==17 { let (proposed,accepted,_)=draft.stats();ensure!(accepted>0 && proposed>accepted,"fixture must cover acceptance and rejection"); }
+        if budget == 17 {
+            let (proposed, accepted, _) = draft.stats();
+            ensure!(
+                accepted > 0 && proposed > accepted,
+                "fixture must cover acceptance and rejection"
+            );
+        }
         eprintln!(
             "native DFlash budget={budget}, counters={:?}, tokens={actual:?}",
             draft.stats()

@@ -118,6 +118,11 @@ impl Matrix {
     }
 
     pub fn linear(&self, weight: &Self) -> Result<Self> {
+        ensure!(
+            extent(self.rows, self.cols) == Some(self.values.len())
+                && extent(weight.rows, weight.cols) == Some(weight.values.len()),
+            "invalid draft BLAS storage"
+        );
         ensure!(self.cols == weight.cols, "draft projection shape mismatch");
         let count = extent(self.rows, weight.rows).context("draft projection extent overflow")?;
         let mut out = Vec::new();
@@ -244,6 +249,9 @@ mod tests {
         for dimensions in [(0, 2), (2, 0), (usize::MAX, 2), (i32::MAX as usize + 1, 1)] {
             assert!(extent(dimensions.0, dimensions.1).is_none());
         }
+        let mut invalid = x.clone();
+        invalid.values.pop();
+        assert!(invalid.linear(&w).is_err());
         let residual = Matrix::new(1, 2, vec![round(1.003), round(1.01)])?;
         let gain = Matrix::new(1, 2, vec![1., 1.])?;
         let (normalized, retained) = gain.residual_norm(&residual, &gain)?;

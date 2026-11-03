@@ -26,7 +26,7 @@ mod flash_cache_profile;
 mod flash_config;
 #[cfg(any(
     feature = "mlx",
-    all(target_os = "macos", feature = "direct-metal"),
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
     test,
     kani
 ))]
@@ -34,8 +34,7 @@ pub(crate) mod flash_draft_budget;
 pub(crate) mod flash_draft_metadata;
 #[cfg(any(
     all(feature = "mlx", feature = "chat"),
-    all(target_os = "macos", feature = "direct-metal"),
-    test,
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
     kani
 ))]
 mod flash_draft_options;

@@ -3283,9 +3283,12 @@ fn bridge_generate_round(
         #[cfg(not(feature = "mlx"))]
         dflash_profile: draft.map(|s| s.profile()),
         #[cfg(not(feature = "mlx"))]
-        dflash_lookup_blocks: draft.map(|_|0),
+        dflash_lookup_blocks: draft.map(|_| 0),
         #[cfg(not(feature = "mlx"))]
-        dflash_block_seconds: draft.map_or(0.,|d| { let p=d.profile();p.draft_seconds+p.verification_seconds+p.commit_cache_seconds }),
+        dflash_block_seconds: draft.map_or(0., |d| {
+            let p = d.profile();
+            p.draft_seconds + p.verification_seconds + p.commit_cache_seconds
+        }),
 
         ..Default::default()
     };

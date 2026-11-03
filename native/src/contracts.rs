@@ -2458,15 +2458,15 @@ fn draft_blas_extents_reject_overflow_and_truncation() {
     let rows: usize = kani::any();
     let cols: usize = kani::any();
     let result = draft_dense_extent(rows, cols);
+    let product = (rows as u128) * (cols as u128);
     let valid = rows > 0
         && cols > 0
         && rows <= i32::MAX as usize
         && cols <= i32::MAX as usize
-        && rows <= (isize::MAX as usize / 4) / cols;
+        && product <= isize::MAX as u128 / 4;
     assert_eq!(result.is_some(), valid);
     if let Some(words) = result {
-        assert_eq!(words / cols, rows);
-        assert_eq!(words % cols, 0);
+        assert_eq!(words as u128, product);
     }
     kani::cover!(result.is_some() && rows == 8 && cols == 248320);
     kani::cover!(result.is_none() && rows == usize::MAX);
