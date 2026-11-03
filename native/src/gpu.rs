@@ -16,6 +16,7 @@ pub struct Metal {
     decode_pipeline: ComputePipelineState,
     codebook_pipeline: ComputePipelineState,
     qmv_pipeline: ComputePipelineState,
+    prepare128_pipeline: ComputePipelineState,
     inverse: Buffer,
 }
 
@@ -40,6 +41,7 @@ impl Metal {
             let decode_pipeline = pipeline("exl3_decode")?;
             let codebook_pipeline = pipeline("exl3_codebook")?;
             let qmv_pipeline = pipeline("exl3_qmv")?;
+            let prepare128_pipeline = pipeline("exl3_prepare128")?;
             ensure!(
                 qmv_pipeline.thread_execution_width() == 32
                     && qmv_pipeline.max_total_threads_per_threadgroup() >= 128,
@@ -58,6 +60,7 @@ impl Metal {
                 decode_pipeline,
                 codebook_pipeline,
                 qmv_pipeline,
+                prepare128_pipeline,
                 inverse,
             })
         })
@@ -186,6 +189,31 @@ impl Metal {
             256,
         )?;
         Ok(Self::read(&out, 65536))
+    }
+
+    /// Multiply FP16 activations by per-column or per-element input scales,
+    /// then apply normalized H128 to each consecutive block within a row.
+    pub fn prepare128(&self, x: &[u16], width: usize, suh: &[u16]) -> Result<Vec<u16>> {
+        let blocks = contracts::prepare128_blocks(x.len(), width, suh.len())
+            .context("expected complete 128-aligned rows and column or element scales")?;
+        if blocks == 0 {
+            return Ok(Vec::new());
+        }
+        ensure!(
+            self.prepare128_pipeline.max_total_threads_per_threadgroup() >= 64,
+            "Metal H128 requires 64 threads per threadgroup"
+        );
+        let input = Self::upload(&self.device, x);
+        let scales = Self::upload(&self.device, suh);
+        let output = self.output(x.len());
+        self.dispatch(
+            &self.prepare128_pipeline,
+            &[&input, &scales, &output],
+            [suh.len() as u32, 0, 0, 0, 0],
+            blocks as usize,
+            64,
+        )?;
+        Ok(Self::read(&output, x.len()))
     }
 
     /// Half-bit inputs and outputs; operates in the rotated EXL3 basis.

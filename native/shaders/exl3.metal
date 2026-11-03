@@ -83,3 +83,31 @@ kernel void exl3_qmv(const device half* x [[buffer(0)]],
     float total = simd_sum(tid < 4 ? partials[tid] : 0.0f);
     if (tid == 0) y[n] = half(total);
 }
+
+// One thread owns both elements of its butterfly. Each stage completes before
+// the next can read it. The two FP16 boundaries reproduce radix-16 then radix-8.
+kernel void exl3_prepare128(const device half* x [[buffer(0)]],
+    const device half* suh [[buffer(1)]], device half* output [[buffer(2)]],
+    constant uint& scale_count [[buffer(3)]], uint lane [[thread_index_in_threadgroup]],
+    uint block [[threadgroup_position_in_grid]]) {
+    threadgroup float values[128];
+    uint base = block * 128;
+    for (uint i = lane; i < 128; i += 64)
+        values[i] = float(half(x[base + i] * suh[(base + i) % scale_count]));
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = 1; stride <= 64; stride <<= 1) {
+        uint low = 2 * (lane & ~(stride - 1)) + (lane & (stride - 1));
+        float a = values[low], b = values[low + stride];
+        float plus = a + b, minus = a - b;
+        if (stride == 8 || stride == 64) {
+            plus = float(half(plus));
+            minus = float(half(minus));
+        }
+        values[low] = plus;
+        values[low + stride] = minus;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const float normalization = as_type<float>(0x3db504f3u);
+    for (uint i = lane; i < 128; i += 64)
+        output[base + i] = half(values[i] * normalization);
+}

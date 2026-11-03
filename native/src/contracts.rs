@@ -1236,6 +1236,80 @@ pub(crate) fn qmv_words(rows: usize, cols: usize, k: usize) -> Option<usize> {
     })?
 }
 
+/// Number of complete H128 blocks in a contiguous FP16 activation matrix.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn prepare128_blocks(elements: usize, width: usize, scales: usize) -> Option<u32> {
+    let width = u32::try_from(width).ok()?;
+    let elements = u32::try_from(elements).ok()?;
+    let blocks = elements / 128;
+    if width == 0
+        || !width.is_multiple_of(128)
+        || !elements.is_multiple_of(128)
+        || !blocks.is_multiple_of(width / 128)
+        || (scales != width as usize && scales != elements as usize)
+    {
+        return None;
+    }
+    Some(blocks)
+}
+
+#[test]
+fn prepare128_checks_row_and_scale_extents_before_upload() {
+    assert_eq!(prepare128_blocks(0, 128, 0), Some(0));
+    assert_eq!(prepare128_blocks(1920, 640, 640), Some(15));
+    assert_eq!(prepare128_blocks(1920, 640, 1920), Some(15));
+    for width in [1, 127, 128, 256, 384, 640, 1280, 2560] {
+        for elements in 0usize..=4096 {
+            for scales in [0, width, elements, elements + 1] {
+                let expected = (width % 128 == 0
+                    && elements.is_multiple_of(width)
+                    && (scales == width || scales == elements))
+                    .then_some((elements / 128) as u32);
+                assert_eq!(prepare128_blocks(elements, width, scales), expected);
+            }
+        }
+    }
+    let largest = u32::MAX as usize & !127;
+    assert_eq!(
+        prepare128_blocks(largest, 128, 128),
+        Some((largest / 128) as u32)
+    );
+    for (elements, width, scales) in [
+        (0, 0, 0),
+        (128, 127, 127),
+        (641, 640, 640),
+        (640, 640, 639),
+        (usize::MAX, 128, 128),
+        (0, usize::MAX, 0),
+    ] {
+        assert_eq!(prepare128_blocks(elements, width, scales), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn prepare128_validates_block_and_scale_indices() {
+    let n: usize = kani::any();
+    let w: usize = kani::any();
+    let s: usize = kani::any();
+    let index: u32 = kani::any();
+    let grid = prepare128_blocks(n, w, s);
+    if let Some(groups) = grid {
+        assert!(w > 0 && w <= u32::MAX as usize && w % 128 == 0);
+        assert!(n <= u32::MAX as usize);
+        assert_eq!(groups as usize * 128, n);
+        if (index as usize) < n {
+            assert!(index / 128 < groups);
+            assert!(s == n || s == w);
+            assert!(s > 0 && s <= u32::MAX as usize);
+        }
+    }
+    kani::cover!(n == 0 && w == 128 && s == 0 && grid == Some(0));
+    kani::cover!(w == 640 && n == 1920 && s == w && grid == Some(15));
+    kani::cover!(w == 640 && n == 1920 && s == n && grid == Some(15));
+    kani::cover!(grid.is_none());
+}
+
 #[cfg(kani)]
 mod verification {
     use super::*;

@@ -872,12 +872,17 @@ fn codec_loop() -> Result<()> {
                     Ok(json!({ "layers": layers, "logits": logits.to_f16_bits()? }))
                 }
                 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
-                "metal-pack" | "metal-decode" | "metal-qmv" => {
+                "metal-pack" | "metal-decode" | "metal-qmv" | "metal-prepare128" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-prepare128" => Ok(json!(gpu.prepare128(
+                            &request.x,
+                            request.cols,
+                            &request.data
+                        )?)),
                         "metal-pack" => Ok(json!(gpu.pack(&request.data, request.k)?)),
                         "metal-decode" => {
                             let (states, values) = gpu.decode(&request.data, request.k, cb)?;
