@@ -1845,7 +1845,9 @@
     ".memory_stats": 1,
     ".sum": 1,
     ".to_f32": 9,
-    "config MLXL3_FLASH_MODEL": 2
+    ".transpose": 1,
+    "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/gdn.rs": {
     ".shape": 1,
@@ -1867,8 +1869,12 @@
   "native/src/gpu/moe.rs": {
     ".ready": 2,
     ".shape": 1,
-    ".transpose": 1,
-    "config MLXL3_MOE_CHECKPOINT": 1
+    ".take": 1,
+    ".to_f32": 1,
+    ".transpose": 2,
+    "config MLXL3_MOE_CHECKPOINT": 2,
+    "config MLXL3_SSD_CACHE_POLICY": 1,
+    "config MLXL3_SSD_PREDICTOR_DTYPE": 1
   },
   "native/src/gpu/mtp.rs": {
     ".shape": 1,
@@ -1882,6 +1888,9 @@
     ".shape": 1,
     ".transpose": 1,
     "config MLXL3_PLE_MODEL": 1
+  },
+  "native/src/gpu/prefetch.rs": {
+    ".ready": 1
   },
   "native/src/gpu/projection.rs": {
     ".shape": 2,
@@ -2765,14 +2774,14 @@
     "Array::zeros_dtype": 5,
     "array::PreparedRead": 3,
     "array::memory_stats": 2,
-    "mlx": 4
+    "mlx": 5
   },
   "native/src/ssd_reads.rs": {
-    ".ready": 10,
+    ".ready": 11,
     ".run": 1,
     ".start": 8,
     ".take": 1,
-    ".try_clone": 6
+    ".try_clone": 10
   },
   "native/src/streaming.rs": {
     ".finish": 5
