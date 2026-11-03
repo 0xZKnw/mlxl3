@@ -42,6 +42,28 @@ impl<'a> FlashGate<'a> {
         Ok(self.dispatch(x, Storage::StorageModePrivate)?.0)
     }
 
+    pub(super) fn predict(&self, x: &MatrixView, half: bool) -> Result<RouteOutput> {
+        ensure!(
+            x.buffer.device().registry_id() == self.gpu.device.registry_id(),
+            "predictor input belongs to another Metal device"
+        );
+        let converted;
+        let x = if half && x.dtype == FloatType::F32 {
+            // The mixed MLP row is a completed contiguous shared output.
+            let bits = x
+                .read_output()?
+                .into_iter()
+                .map(|b| half::f16::from_f32(f32::from_bits(b)).to_bits())
+                .collect::<Vec<_>>();
+            converted = self.gpu.f16_storage(&bits)?.matrix(x.layout)?;
+            &converted
+        } else {
+            x
+        };
+        let (_, logits, _) = self.dispatch(x, Storage::StorageModePrivate)?;
+        self.gpu.route(&logits, 16, false)
+    }
+
     pub fn trace(&self, x: &MatrixView) -> Result<FlashGateTrace> {
         let (routes, logits, probabilities) = self.dispatch(x, Storage::StorageModeShared)?;
         let (indices, scores) = routes.read()?;
@@ -104,5 +126,11 @@ impl<'a> FlashGate<'a> {
             cmd.commit();
             Ok((routes, logits, probabilities))
         })
+    }
+}
+
+impl FlashGate<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        backings.record("fixed_weights", &self.weight)
     }
 }

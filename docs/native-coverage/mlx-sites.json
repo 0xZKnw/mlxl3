@@ -1642,6 +1642,13 @@
     "config MLXL3_FLASH_DRAFT_PATH": 1,
     "mlx": 5
   },
+  "native/src/flash_draft_options.rs": {
+    "config MLXL3_FLASH_DRAFT_ADAPTIVE": 1,
+    "config MLXL3_FLASH_DRAFT_PRECAP": 1,
+    "config MLXL3_FLASH_DRAFT_Q4": 1,
+    "config MLXL3_FLASH_DRAFT_RING": 1,
+    "config MLXL3_FLASH_DRAFT_WIDTH": 1
+  },
   "native/src/flash_draft_runtime.rs": {
     ".astype": 1,
     ".chat_greedy_ids": 6,
@@ -1658,11 +1665,6 @@
     "config MLXL3_EXPECTED_MODE": 1,
     "config MLXL3_EXPECTED_PRECAP": 1,
     "config MLXL3_FLASH_DRAFT": 3,
-    "config MLXL3_FLASH_DRAFT_ADAPTIVE": 1,
-    "config MLXL3_FLASH_DRAFT_PRECAP": 1,
-    "config MLXL3_FLASH_DRAFT_Q4": 1,
-    "config MLXL3_FLASH_DRAFT_RING": 1,
-    "config MLXL3_FLASH_DRAFT_WIDTH": 1,
     "config MLXL3_FLASH_MODEL": 4,
     "config MLXL3_FLASH_MULTI_TOKEN": 1,
     "config MLXL3_PREFILL_TEST_LENGTHS": 1,
@@ -1694,11 +1696,14 @@
     "array::synchronize": 1,
     "config MLXL3_FLASH_DRAFT": 1
   },
+  "native/src/flash_memory.rs": {
+    "config MLXL3_FLASH_REQUEST_MIB": 1,
+    "mlx": 1
+  },
   "native/src/flash_ngrams.rs": {
     ".to_f32": 3,
     "array::from_fn": 1,
-    "config MLXL3_PLE_MODEL": 1,
-    "mlx": 1
+    "config MLXL3_PLE_MODEL": 1
   },
   "native/src/flash_profile.rs": {
     ".dtype": 1,
@@ -1839,10 +1844,13 @@
   },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
-    ".to_f32": 9,
-    "config MLXL3_FLASH_MODEL": 2,
-    "config MLXL3_FLASH_REQUEST_MIB": 1,
-    "mlxl3_read_process_stats": 2
+    ".memory_stats": 1,
+    ".shape": 1,
+    ".sum": 1,
+    ".to_f32": 11,
+    ".transpose": 1,
+    "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/gdn.rs": {
     ".shape": 1,
@@ -1856,11 +1864,20 @@
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2
   },
+  "native/src/gpu/memory.rs": {
+    ".memory_stats": 2,
+    "config MLXL3_FLASH_MODEL": 1,
+    "mlxl3_read_process_stats": 2
+  },
   "native/src/gpu/moe.rs": {
     ".ready": 2,
     ".shape": 1,
-    ".transpose": 1,
-    "config MLXL3_MOE_CHECKPOINT": 1
+    ".take": 1,
+    ".to_f32": 1,
+    ".transpose": 2,
+    "config MLXL3_MOE_CHECKPOINT": 2,
+    "config MLXL3_SSD_CACHE_POLICY": 1,
+    "config MLXL3_SSD_PREDICTOR_DTYPE": 1
   },
   "native/src/gpu/mtp.rs": {
     ".shape": 1,
@@ -1874,6 +1891,9 @@
     ".shape": 1,
     ".transpose": 1,
     "config MLXL3_PLE_MODEL": 1
+  },
+  "native/src/gpu/prefetch.rs": {
+    ".ready": 1
   },
   "native/src/gpu/projection.rs": {
     ".shape": 2,
@@ -1952,7 +1972,7 @@
     "config MLXL3_LFM_TEST_PREFIX": 1
   },
   "native/src/lib.rs": {
-    "mlx": 24
+    "mlx": 25
   },
   "native/src/linear.rs": {
     ".add": 6,
@@ -2159,7 +2179,7 @@
     "config MLXL3_MTP_TEST_MODEL": 1,
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 171,
+    "mlx": 178,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -2245,6 +2265,18 @@
     "config MLXL3_MTP_ADAPTIVE": 1,
     "config MLXL3_MTP_LOOKUP": 2,
     "config MLXL3_QWEN_PIPELINE": 1
+  },
+  "native/src/native_bf16.rs": {
+    ".to_f32": 2
+  },
+  "native/src/native_draft.rs": {
+    ".exp": 4,
+    ".log_probs": 2,
+    ".rope": 4,
+    "config MLXL3_FLASH_DRAFT_KIND": 1,
+    "config MLXL3_FLASH_DRAFT_MODEL": 2,
+    "config MLXL3_FLASH_DRAFT_ORACLE": 1,
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/openai.rs": {
     ".take": 11,
@@ -2456,8 +2488,7 @@
     "array::flash_program_cache": 2,
     "array::memory_stats": 5,
     "array::synchronize": 2,
-    "config MLXL3_FLASH_MODEL": 1,
-    "config MLXL3_FLASH_REQUEST_MIB": 1
+    "config MLXL3_FLASH_MODEL": 1
   },
   "native/src/qwen4/mtp_prefill_tests.rs": {
     ".chat_greedy_ids": 1,
@@ -2758,14 +2789,14 @@
     "Array::zeros_dtype": 5,
     "array::PreparedRead": 3,
     "array::memory_stats": 2,
-    "mlx": 4
+    "mlx": 5
   },
   "native/src/ssd_reads.rs": {
-    ".ready": 10,
+    ".ready": 11,
     ".run": 1,
     ".start": 8,
     ".take": 1,
-    ".try_clone": 6
+    ".try_clone": 10
   },
   "native/src/streaming.rs": {
     ".finish": 5

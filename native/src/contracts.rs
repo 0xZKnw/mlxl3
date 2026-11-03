@@ -2438,3 +2438,44 @@ fn packed_flash_gdn_groups_partition_state_entries() {
         kani::cover!(at == 0);
     }
 }
+
+#[cfg(any(
+    test,
+    kani,
+    all(target_os = "macos", feature = "direct-metal", feature = "chat")
+))]
+pub(crate) fn draft_dense_extent(rows: usize, cols: usize) -> Option<usize> {
+    if rows == 0 || cols == 0 || rows > i32::MAX as usize || cols > i32::MAX as usize {
+        return None;
+    }
+    let size = rows.checked_mul(cols)?;
+    (size <= isize::MAX as usize / std::mem::size_of::<f32>()).then_some(size)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn draft_blas_extents_reject_overflow_and_truncation() {
+    let rows: usize = kani::any();
+    let cols: usize = kani::any();
+    let result = draft_dense_extent(rows, cols);
+    let product = (rows as u128) * (cols as u128);
+    let valid = rows > 0
+        && cols > 0
+        && rows <= i32::MAX as usize
+        && cols <= i32::MAX as usize
+        && product <= isize::MAX as u128 / 4;
+    assert_eq!(result.is_some(), valid);
+    if let Some(words) = result {
+        assert_eq!(words as u128, product);
+    }
+    kani::cover!(result.is_some() && rows == 8 && cols == 248320);
+    kani::cover!(result.is_none() && rows == usize::MAX);
+}
+
+#[test]
+fn draft_dense_extent_checks_blas_and_allocation_boundaries() {
+    assert_eq!(draft_dense_extent(8, 248320), Some(1986560));
+    for (rows, cols) in [(0, 1), (1, 0), (usize::MAX, 2), (1, i32::MAX as usize + 1)] {
+        assert_eq!(draft_dense_extent(rows, cols), None);
+    }
+}

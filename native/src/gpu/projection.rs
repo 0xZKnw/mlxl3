@@ -533,6 +533,35 @@ impl<'a> FlashExpert<'a> {
     }
 }
 
+impl FlashProjection<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [&self.packed, &self.suh, &self.svh]
+            .into_iter()
+            .chain(&self.bias)
+        {
+            backings.record("fixed_weights", buffer)?;
+        }
+        Ok(())
+    }
+}
+impl FlashExpert<'_> {
+    pub(super) fn record_memory(
+        &self,
+        backings: &mut crate::gpu::memory::Backings,
+        category: &'static str,
+    ) -> Result<()> {
+        for projection in [&self.gate, &self.up, &self.down] {
+            for buffer in [&projection.packed, &projection.suh, &projection.svh]
+                .into_iter()
+                .chain(&projection.bias)
+            {
+                backings.record(category, buffer)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

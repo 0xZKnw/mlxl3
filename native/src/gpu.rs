@@ -26,6 +26,8 @@ mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
 pub use hc::{FlashHc, FlashHcRead};
+mod memory;
+pub use memory::MemoryLedger;
 mod moe;
 pub use moe::{FlashMoeRow, MoeOutput};
 mod gate;
