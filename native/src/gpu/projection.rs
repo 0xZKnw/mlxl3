@@ -433,9 +433,11 @@ impl<'a> FlashExpert<'a> {
         [self.gate.input, self.gate.output]
     }
 
-    pub(super) fn from_record(gpu: &'a Metal, record: &TensorInfo) -> Result<Self> {
-        let (file, offset) = record.source()?;
-        let backing = super::read_buffer(&gpu.device, file, offset, flash_support::EXPERT_BYTES)?;
+    pub(super) fn from_backing(gpu: &'a Metal, backing: &Buffer) -> Result<Self> {
+        ensure!(
+            backing.length() == flash_support::EXPERT_BYTES,
+            "invalid Flash expert record length"
+        );
         let projection = |index, input, output| -> Result<_> {
             let offsets =
                 flash_support::record_offsets(index).context("invalid Flash record projection")?;

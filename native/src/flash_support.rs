@@ -1221,6 +1221,35 @@ impl ExpertCache {
             .and_then(|slot| self.pending_lease(slot, expert)))
     }
 
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    fn begin_demand(&mut self, slot: usize, expert: u32) -> Result<SlotLease, CacheError> {
+        if self.keys.get(slot) != Some(&Some(expert)) || self.pending[slot].is_some() {
+            return Err(CacheError::NoSlot);
+        }
+        let generation = self.generations[slot]
+            .checked_add(1)
+            .ok_or(CacheError::Clock)?;
+        self.generations[slot] = generation;
+        self.keys[slot] = None;
+        self.pending[slot] = Some(expert);
+        Ok(SlotLease {
+            slot,
+            expert,
+            generation,
+        })
+    }
+
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+    fn finish_demand(&mut self, lease: SlotLease, valid: bool) -> bool {
+        if self.pending_lease(lease.slot, lease.expert) != Some(lease) {
+            return false;
+        }
+        self.pending[lease.slot] = None;
+        // Reserve already accounted this demand. Arrival order must not change replacement ages.
+        self.keys[lease.slot] = valid.then_some(lease.expert);
+        valid
+    }
+
     pub(crate) fn pending_lease(&self, slot: usize, expert: u32) -> Option<SlotLease> {
         if self.pending.get(slot) != Some(&Some(expert)) {
             return None;
@@ -1273,6 +1302,51 @@ impl ExpertCache {
 
     pub(crate) fn available_slots(&self) -> usize {
         self.pending.iter().filter(|p| p.is_none()).count()
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) struct DemandPlan {
+    cache: Rc<RefCell<ExpertCache>>,
+    pub(crate) routes: Vec<(usize, bool)>,
+    pub(crate) reads: Vec<SlotLease>,
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+impl DemandPlan {
+    pub(crate) fn reserve(
+        cache: &Rc<RefCell<ExpertCache>>,
+        ids: &[u32],
+    ) -> Result<Self, CacheError> {
+        let guard = ExpertFill::new(cache);
+        let routes = cache.borrow_mut().reserve(ids)?;
+        let mut plan = Self {
+            cache: cache.clone(),
+            routes,
+            reads: Vec::new(),
+        };
+        for (&expert, &(slot, hit)) in ids.iter().zip(&plan.routes) {
+            if !hit && !plan.reads.iter().any(|lease| lease.slot == slot) {
+                let result = { cache.borrow_mut().begin_demand(slot, expert) };
+                plan.reads.push(result?);
+            }
+        }
+        guard.commit();
+        Ok(plan)
+    }
+
+    pub(crate) fn publish(&self, lease: SlotLease) -> bool {
+        self.reads.contains(&lease) && self.cache.borrow_mut().finish_demand(lease, true)
+    }
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+impl Drop for DemandPlan {
+    fn drop(&mut self) {
+        let mut cache = self.cache.borrow_mut();
+        for &lease in &self.reads {
+            cache.finish_demand(lease, false);
+        }
     }
 }
 
@@ -3155,5 +3229,78 @@ fn qsa_attention_two_pass_boundary() {
         (b'g', 2051, None),
     ] {
         assert_eq!(qsa_attention_blocks(a, n), b);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn native_demand_deduplicates_reads_but_preserves_routes_and_fails_closed() -> Result<()> {
+    let cache = Rc::new(RefCell::new(ExpertCache::new(10)?));
+    let plan = DemandPlan::reserve(&cache, &[9, 7, 9, 8, 7])?;
+    assert_eq!(plan.reads.len(), 3);
+    assert_eq!(plan.routes[0], plan.routes[2]);
+    assert_eq!(plan.routes[1], plan.routes[4]);
+    assert_eq!(cache.borrow().available_slots(), 7);
+    assert!(!cache.borrow().contains(9));
+    for &lease in plan.reads.iter().rev() {
+        assert!(plan.publish(lease));
+    }
+    assert!(!plan.publish(plan.reads[0]));
+    drop(plan);
+    let hot = DemandPlan::reserve(&cache, &[7, 8, 9, 7])?;
+    assert!(hot.reads.is_empty() && hot.routes.iter().all(|(_, hit)| *hit));
+    drop(hot);
+    let failed = DemandPlan::reserve(&cache, &[100, 101])?;
+    let old = failed.reads[0];
+    drop(failed);
+    assert_eq!(cache.borrow().available_slots(), 10);
+    assert!(!cache.borrow().contains(100));
+    let retried = DemandPlan::reserve(&cache, &[100, 101])?;
+    assert_ne!(old, retried.reads[0]);
+    assert!(!retried.publish(old));
+    assert!(retried.publish(retried.reads[0]));
+    assert!(DemandPlan::reserve(&cache, &[]).is_err());
+    assert!(DemandPlan::reserve(&cache, &[512]).is_err());
+    assert!(DemandPlan::reserve(&cache, &(0..11).collect::<Vec<_>>()).is_err());
+    drop(retried);
+    cache.borrow_mut().generations.fill(u64::MAX);
+    assert!(DemandPlan::reserve(&cache, &[211]).is_err());
+    assert_eq!(cache.borrow().available_slots(), 10);
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn native_demand_generation_rejects_stale_and_duplicate_publication() {
+    let mut cache = ExpertCache::new(10).unwrap();
+    let expert: u32 = kani::any();
+    kani::assume(expert < 512);
+    let generation: u64 = kani::any();
+    let valid: bool = kani::any();
+    cache.keys[0] = Some(expert);
+    cache.generations[0] = generation;
+    cache.ages[0] = 79;
+    let result = cache.begin_demand(0, expert);
+    assert_eq!(result.is_ok(), generation < u64::MAX);
+    if let Ok(lease) = result {
+        assert_eq!(lease.generation, generation + 1);
+        assert!(!cache.contains(expert));
+        let stale = SlotLease {
+            generation,
+            ..lease
+        };
+        assert!(!cache.finish_demand(stale, true));
+        assert_eq!(cache.pending_lease(0, expert), Some(lease));
+        assert_eq!(cache.finish_demand(lease, valid), valid);
+        assert_eq!(cache.contains(expert), valid);
+        assert_eq!(cache.ages[0], 79);
+        assert!(!cache.finish_demand(lease, true));
+        kani::cover!(valid);
+        kani::cover!(!valid);
+    } else {
+        assert_eq!(cache.keys[0], Some(expert));
+        assert!(cache.pending[0].is_none());
+        kani::cover!(generation == u64::MAX);
     }
 }

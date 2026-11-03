@@ -94,6 +94,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
         "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
         "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
+        "flash_support::native_demand_generation_rejects_stale_and_duplicate_publication",
         "speculative::normalized_greedy_retains_first_finite_maximum",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",

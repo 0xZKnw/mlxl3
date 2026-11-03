@@ -195,9 +195,23 @@ pub struct Metal {
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
     inverse: Buffer,
+    readers: std::cell::OnceCell<crate::ssd_reads::ReadService>,
 }
 
 impl Metal {
+    fn readers(&self) -> Result<&crate::ssd_reads::ReadService> {
+        if self.readers.get().is_none() {
+            let count = std::env::var("MLXL3_SSD_READERS")
+                .unwrap_or_else(|_| "4".into())
+                .parse::<usize>()
+                .context("invalid SSD reader count")?;
+            self.readers
+                .set(crate::ssd_reads::ReadService::new(count)?)
+                .map_err(|_| anyhow::anyhow!("native SSD readers already initialized"))?;
+        }
+        self.readers.get().context("missing native SSD readers")
+    }
+
     pub fn new() -> Result<Self> {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
@@ -353,6 +367,7 @@ impl Metal {
                 route_half,
                 route_float,
                 inverse,
+                readers: std::cell::OnceCell::new(),
             })
         })
     }

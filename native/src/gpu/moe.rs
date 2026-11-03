@@ -1,13 +1,13 @@
 use super::{FlashExpert, FlashGate, MatrixView, Metal, read_weight, view::FloatType};
 use crate::{
     checkpoint::{self, Checkpoint, TensorInfo},
-    flash_support::{EXPERT_BYTES, ExpertCache, ExpertFill},
+    flash_support::{DemandPlan, EXPERT_BYTES, ExpertCache, ExpertFill},
 };
 use anyhow::{Context, Result, ensure};
 use metal::{
     Buffer, CommandBuffer, MTLCommandBufferStatus, MTLResourceOptions as Storage, MTLSize,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 /// One AR row, with immutable per-slot compressed records and demand-only I/O.
 pub struct FlashMoeRow<'a> {
@@ -18,26 +18,30 @@ pub struct FlashMoeRow<'a> {
     records: Vec<TensorInfo>,
     cache: Rc<RefCell<ExpertCache>>,
     slots: Vec<Option<FlashExpert<'a>>>,
-    last: Option<CommandBuffer>,
+    last: Vec<CommandBuffer>,
 }
 
 pub struct MoeOutput {
-    command: CommandBuffer,
+    commands: Vec<CommandBuffer>,
     values: MatrixView,
     pub indices: Vec<u32>,
     pub hits: usize,
     pub read_bytes: u64,
     multiplier_trace: Option<MatrixView>,
+    #[cfg(test)]
+    timeline: Vec<serde_json::Value>,
 }
 
 impl MoeOutput {
     pub fn completed(&self) -> Result<&MatrixView> {
-        self.command.wait_until_completed();
-        ensure!(
-            self.command.status() == MTLCommandBufferStatus::Completed,
-            "Flash MoE command failed ({:?})",
-            self.command.status()
-        );
+        for command in &self.commands {
+            command.wait_until_completed();
+            ensure!(
+                command.status() == MTLCommandBufferStatus::Completed,
+                "Flash MoE command failed ({:?})",
+                command.status()
+            );
+        }
         Ok(&self.values)
     }
     pub fn multiplier_trace(&self) -> Result<Option<Vec<u32>>> {
@@ -89,7 +93,7 @@ impl<'a> FlashMoeRow<'a> {
             cache,
             slots: (0..capacity).map(|_| None).collect(),
             switch: read_weight(&gpu.device, switch, 5120)?,
-            last: None,
+            last: Vec::new(),
         })
     }
 
@@ -104,6 +108,8 @@ impl<'a> FlashMoeRow<'a> {
             x.shape() == [1, 2560],
             "Flash MoE expects one 2560-wide AR row"
         );
+        #[cfg(test)]
+        let epoch = std::time::Instant::now();
         let gpu = self.gpu;
         let dtype = usize::from(x.dtype == FloatType::F32);
         let switch = &gpu.moe_switch[dtype];
@@ -116,7 +122,7 @@ impl<'a> FlashMoeRow<'a> {
         // SSD demand starts as soon as the route is known. This queue has also passed its previous row.
         let ids = routing.indices()?;
         let weights = routing.completed_scores()?;
-        if let Some(last) = self.last.take() {
+        for last in self.last.drain(..) {
             ensure!(
                 last.status() == MTLCommandBufferStatus::Completed,
                 "previous Flash MoE command failed ({:?})",
@@ -124,64 +130,123 @@ impl<'a> FlashMoeRow<'a> {
             );
         }
         let guard = ExpertFill::new(&self.cache);
-        let reserved = self.cache.borrow_mut().reserve(&ids)?;
-        let mut hits = 0;
-        for (&id, &(slot, hit)) in ids.iter().zip(&reserved) {
-            if hit {
-                hits += 1;
-            } else {
-                // Drop this completed generation before allocating its replacement.
-                self.slots[slot] = None;
-                self.slots[slot] = Some(FlashExpert::from_record(gpu, &self.records[id as usize])?);
-            }
+        let plan = DemandPlan::reserve(&self.cache, &ids)?;
+        let hits = plan.routes.iter().filter(|(_, hit)| *hit).count();
+        for lease in &plan.reads {
+            self.slots[lease.slot] = None;
         }
-        guard.commit();
+        let mut reads = gpu.readers()?.submit(
+            plan.reads
+                .iter()
+                .map(|&lease| (lease, self.records[lease.expert as usize].clone())),
+        )?;
         objc::rc::autoreleasepool(|| {
-            let cmd = gpu.queue.new_command_buffer();
-            let mut outputs = Vec::with_capacity(14);
-            for (slot, _) in reserved {
-                outputs.push(
-                    self.slots[slot]
-                        .as_ref()
-                        .context("missing published expert")?
-                        .encode_view(cmd, x, Storage::StorageModePrivate)?,
-                );
-            }
-            outputs.push(
-                self.shared
-                    .encode_view(cmd, x, Storage::StorageModePrivate)?,
-            );
-            outputs.push(weights.buffer.clone());
-            let multiplier = if trace {
-                MatrixView::output(gpu, x.dtype, 1, 2, Storage::StorageModeShared)?
-            } else {
-                MatrixView::output(gpu, x.dtype, 1, 1, Storage::StorageModePrivate)?
-            };
+            #[cfg(test)]
+            let mut timeline = Vec::new();
+            let mut outputs = BTreeMap::new();
+            let multiplier = MatrixView::output(
+                gpu,
+                x.dtype,
+                1,
+                if trace { 2 } else { 1 },
+                if trace {
+                    Storage::StorageModeShared
+                } else {
+                    Storage::StorageModePrivate
+                },
+            )?;
+            let values = MatrixView::output(gpu, x.dtype, 1, 2560, Storage::StorageModeShared)?;
+            let mut command = gpu.queue.new_command_buffer().to_owned();
+            let shared = self
+                .shared
+                .encode_view(&command, x, Storage::StorageModePrivate)?;
             Metal::encode(
-                cmd,
+                &command,
                 switch,
                 &[&x.buffer, &self.switch, &multiplier.buffer],
                 [x.layout.offset, x.layout.strides[1], i64::from(trace)],
                 MTLSize::new(1, 1, 1),
                 512,
             );
-            outputs.push(multiplier.buffer.clone());
-            let values = MatrixView::output(gpu, x.dtype, 1, 2560, Storage::StorageModeShared)?;
-            outputs.push(values.buffer.clone());
+            for &(slot, hit) in &plan.routes {
+                if hit && !outputs.contains_key(&slot) {
+                    outputs.insert(
+                        slot,
+                        self.slots[slot]
+                            .as_ref()
+                            .context("missing resident expert")?
+                            .encode_view(&command, x, Storage::StorageModePrivate)?,
+                    );
+                }
+            }
+            // Hot work is submitted before waiting for any cold record. The next two
+            // waves bind only CPU-complete, generation-checked immutable buffers.
+            if reads.remaining() > 0 {
+                #[cfg(test)] timeline.push(serde_json::json!({"event":"hot_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                command.commit();
+                self.last.push(command);
+                command = gpu.queue.new_command_buffer().to_owned();
+                let mut wave = reads.ready(false)?;
+                loop {
+                    for (lease, bytes) in wave {
+                        let backing = super::upload(&gpu.device, &bytes)?;
+                        let expert = FlashExpert::from_backing(gpu, &backing)?;
+                        ensure!(plan.publish(lease), "stale native SSD demand completion");
+                        self.slots[lease.slot] = Some(expert);
+                        outputs.insert(
+                            lease.slot,
+                            self.slots[lease.slot]
+                                .as_ref()
+                                .context("missing cold expert")?
+                                .encode_view(&command, x, Storage::StorageModePrivate)?,
+                        );
+                    }
+                    if reads.remaining() == 0 {
+                        break;
+                    }
+                    #[cfg(test)] timeline.push(serde_json::json!({"event":"w1_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                    command.commit();
+                    self.last.push(command);
+                    #[cfg(test)]
+                    gpu.readers()?.release_test_gate();
+                    command = gpu.queue.new_command_buffer().to_owned();
+                    wave = reads.ready(true)?;
+                }
+            }
+            let mut bindings = plan
+                .routes
+                .iter()
+                .map(|(slot, _)| {
+                    outputs
+                        .get(slot)
+                        .context("missing ordered expert contribution")
+                })
+                .collect::<Result<Vec<_>>>()?;
+            bindings.extend([&shared, &weights.buffer, &multiplier.buffer, &values.buffer]);
             Metal::encode_bound(
-                cmd,
+                &command,
                 &gpu.moe_mix[dtype],
-                outputs.iter().map(|b| (b, 0)),
+                bindings.into_iter().map(|b| (b, 0)),
                 [2560u32],
                 MTLSize::new(80, 1, 1),
                 32,
             );
-            cmd.commit();
-            self.last = Some(cmd.to_owned());
+            #[cfg(test)]
+            {
+                timeline.push(serde_json::json!({"event":"final_submit","time_ns":epoch.elapsed().as_nanos(),"remaining_reads":reads.remaining()}));
+                for (lease, started, ended) in &reads.trace {
+                    timeline.push(serde_json::json!({"event":"read","expert":lease.expert,"slot":lease.slot,"start_ns":started.duration_since(epoch).as_nanos(),"end_ns":ended.duration_since(epoch).as_nanos()}));
+                }
+            }
+            command.commit();
+            self.last.push(command);
+            guard.commit();
             Ok(MoeOutput {
-                command: cmd.to_owned(),
+                commands: self.last.clone(),
+                #[cfg(test)]
+                timeline,
                 values,
-                read_bytes: (ids.len() - hits) as u64 * EXPERT_BYTES,
+                read_bytes: plan.reads.len() as u64 * EXPERT_BYTES,
                 multiplier_trace: trace.then_some(multiplier),
                 indices: ids,
                 hits,
@@ -197,6 +262,10 @@ mod tests {
 
     #[test]
     #[ignore = "physical Flash checkpoint: partial fill failure, recovery, reuse and early release"]
+    #[allow(
+        unexpected_cfgs,
+        reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
+    )]
     fn partial_record_read_recovers_before_a_replacement_is_visible() -> Result<()> {
         let path = std::env::var_os("MLXL3_MOE_CHECKPOINT").context("Flash checkpoint required")?;
         let checkpoint = checkpoint::inspect(std::path::Path::new(&path))?;
@@ -233,10 +302,14 @@ mod tests {
             .context("partially failed read accepted")?;
         assert!(format!("{failure:#}").contains("offset"), "{failure:#}");
         layer.records[id].data_offsets = old;
+        gpu.readers()?
+            .set_test_gate(Some(std::sync::Arc::new(std::sync::Barrier::new(2))));
         let first = layer.submit(&x)?;
         let second = layer.submit(&x)?;
         ensure!(
-            first.hits == 0
+            first.commands.len() == 3
+                && second.commands.len() == 1
+                && first.hits == 0
                 && first.read_bytes == 10 * EXPERT_BYTES
                 && second.hits == 10
                 && second.read_bytes == 0
@@ -245,6 +318,26 @@ mod tests {
         drop(gpu);
         drop(x);
         drop(checkpoint);
+        for (label, output) in [("cold", &first), ("hot", &second)] {
+            output.completed()?;
+            let gpu_times = output
+                .commands
+                .iter()
+                .map(|c| {
+                    use objc::{msg_send, sel, sel_impl};
+                    let start: f64 = unsafe { msg_send![c.as_ref(), GPUStartTime] };
+                    let end: f64 = unsafe { msg_send![c.as_ref(), GPUEndTime] };
+                    serde_json::json!({"start":start,"end":end})
+                })
+                .collect::<Vec<_>>();
+            ensure!(gpu_times.iter().all(|v| v["start"].as_f64().is_some_and(
+                |start| start > 0. && v["end"].as_f64().is_some_and(|end| end >= start)
+            )));
+            eprintln!(
+                "native SSD {label}: {}",
+                serde_json::json!({"cpu":output.timeline,"gpu":gpu_times})
+            );
+        }
         let expected = second.read()?;
         ensure!(
             expected.len() == 2560 && expected.iter().any(|&x| x != 0) && first.read()? == expected
