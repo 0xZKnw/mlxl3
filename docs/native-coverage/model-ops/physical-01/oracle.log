@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0/tests/physical_model_ops.py", line 220, in <module>
+    oracle(args.oracle)
+  File "/Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0/tests/physical_model_ops.py", line 124, in oracle
+    out = mx.fast.rope(
+          ^^^^^^^^^^^^^
+TypeError: rope(): incompatible function arguments. The following argument types are supported:
+    1. rope(a: array, dims: int, *, traditional: bool, base: float | None, scale: float, offset: int | array, freqs: array | None = None, stream: StreamOrDevice = None) -> array
+
+Invoked with types: mlx.core.array, kwargs = { dims: int, traditional: bool, base: float, offset: int }

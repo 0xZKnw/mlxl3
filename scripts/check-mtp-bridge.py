@@ -1,4 +1,4 @@
-"""Exercise native MTP through the production Desktop JSON-lines bridge."""
+"""Exercise native speculative decoding through the production Desktop bridge."""
 
 import argparse
 import json
@@ -22,9 +22,11 @@ def run(
     check_cancel=True,
     check_prefix=False,
     timeout=300.0,
+    mode="mtp",
 ):
     if (
-        not budgets
+        mode not in ("mtp", "dflash")
+        or not budgets
         or any(type(b) is not int or b <= 0 for b in budgets)
         or not prompt
         or context <= 0
@@ -32,6 +34,9 @@ def run(
         or timeout <= 0
     ):
         raise ValueError("positive budgets/context/deadline and nonempty prompt required")
+    requested_field = "mtp" if mode == "mtp" else "dflash2"
+    path_field = "mtp_head_path" if mode == "mtp" else "dflash_draft_path"
+    active_field = f"{mode}_active"
     with tempfile.TemporaryDirectory(prefix="mlxl3-mtp-check-") as directory:
         registry = str(Path(directory) / "models.json")
         process = subprocess.Popen(
@@ -102,8 +107,8 @@ def run(
                 "temperature": 0,
                 "top_k": 1,
                 "repetition_penalty": 1,
-                "mtp": enabled,
-                "mtp_head_path": head,
+                requested_field: enabled,
+                path_field: head,
                 "reuse_prompt_cache": False,
                 **overrides,
             }
@@ -119,7 +124,7 @@ def run(
                 and (request["temperature"] == 0 or request["top_k"] == 1)
                 and request["repetition_penalty"] == 1
             )
-            if mode is None or mode.get("mtp_active") is not expected:
+            if mode is None or mode.get(active_field) is not expected:
                 raise RuntimeError(f"engine mode mismatch: {mode}")
             if not cancel_at:
                 stats = result.get("stats", {})
@@ -142,26 +147,26 @@ def run(
                 json.dumps({"runtime": ready, "head": head, "prompt": prompt, "context": context}),
                 flush=True,
             )
-            if ready.get("mtp_configure_supported") is True:
+            if ready.get(f"{mode}_configure_supported") is True:
                 for enabled in (True, False):
                     count += 1
                     request_id = str(count)
                     process.stdin.write(
                         json.dumps(
                             {
-                                "type": "set_mtp",
+                                "type": f"set_{mode}",
                                 "request_id": request_id,
                                 "enabled": enabled,
-                                "mtp_head_path": head if enabled else "",
+                                path_field: head if enabled else "",
                             }
                         )
                         + "\n"
                     )
                     process.stdin.flush()
-                    status, _, _ = until("mtp_status", request_id)
-                    if status.get("mtp_active") is not enabled:
+                    status, _, _ = until(f"{mode}_status", request_id)
+                    if status.get(active_field) is not enabled:
                         raise RuntimeError("MTP configuration did not match request")
-                    print(json.dumps({"configured_mtp": enabled}), flush=True)
+                    print(json.dumps({f"configured_{mode}": enabled}), flush=True)
             # Compile both paths before collecting the comparison. These are
             # explicitly warmups and are retained in the evidence.
             for enabled in (False, True):
@@ -195,7 +200,7 @@ def run(
                             "parity": True,
                             "token_hash": hashes.pop(),
                             "runs": [
-                                {"mtp": enabled, "stats": item["stats"]}
+                                {mode: enabled, "stats": item["stats"]}
                                 for enabled, item, _ in results
                             ],
                         }
@@ -237,13 +242,18 @@ def run(
                     )
             if check_cancel:
                 invalid_requests = [
-                    {"mtp_head_path": ""},
-                    {"mtp_head_path": "/missing-head"},
-                    {"dflash2": True},
-                    {"mtp_depth": 0},
+                    {path_field: ""},
+                    {path_field: "/missing-head"},
+                    {"dflash2" if mode == "mtp" else "mtp": True},
                 ]
-                if ready.get("mtp_max_depth") == 1:
-                    invalid_requests.append({"mtp_depth": 2})
+                if mode == "mtp":
+                    invalid_requests.append({"mtp_depth": 0})
+                    if ready.get("mtp_max_depth") == 1:
+                        invalid_requests.append({"mtp_depth": 2})
+                else:
+                    invalid_requests.extend(
+                        [{"dflash_mode": 0}, {"dflash_mode": 4}, {"repetition_penalty": 1.1}]
+                    )
                 for invalid in invalid_requests:
                     result, _ = generate(True, 8, expect_error=True, **invalid)
                     if result["type"] != "error":
@@ -256,21 +266,27 @@ def run(
                     if result["token_hash"] != golden["token_hash"] or text != actual:
                         raise RuntimeError("MTP cancellation polluted the next generation")
                     print(json.dumps({"cancel_at": phase, "recovery_parity": True}), flush=True)
-                # Sampling remains ordinary when MTP's v1 greedy contract is
-                # unmet. Both requests use the same deterministic greedy mode
-                # with a non-unit repetition penalty.
-                plain, text = generate(False, 8, repetition_penalty=1.1)
-                result, actual = generate(True, 8, repetition_penalty=1.1)
-                if result["token_hash"] != plain["token_hash"] or actual != text:
-                    raise RuntimeError("MTP fallback changed repetition sampling")
-                print(json.dumps({"non_unit_penalty_fallback": True}), flush=True)
+                if mode == "mtp":
+                    # Sampling remains ordinary when MTP's v1 greedy contract is
+                    # unmet. Both requests use the same deterministic greedy mode
+                    # with a non-unit repetition penalty.
+                    plain, text = generate(False, 8, repetition_penalty=1.1)
+                    result, actual = generate(True, 8, repetition_penalty=1.1)
+                    if result["token_hash"] != plain["token_hash"] or actual != text:
+                        raise RuntimeError("MTP fallback changed repetition sampling")
+                    print(json.dumps({"non_unit_penalty_fallback": True}), flush=True)
             process.stdin.write('{"type":"shutdown"}\n')
             process.stdin.flush()
             if process.wait(timeout=10) != 0:
                 raise RuntimeError("bridge shutdown failed")
             print(
                 json.dumps(
-                    {"status": "validated", "budgets": budgets, "cancel_checked": check_cancel}
+                    {
+                        "status": "validated",
+                        "mode": mode,
+                        "budgets": budgets,
+                        "cancel_checked": check_cancel,
+                    }
                 ),
                 flush=True,
             )
@@ -302,6 +318,7 @@ if __name__ == "__main__":
     parser.add_argument("--prompt-file", type=Path)
     parser.add_argument("--context", type=int, default=4096)
     parser.add_argument("--skip-cancel", action="store_true")
+    parser.add_argument("--mode", choices=("mtp", "dflash"), default="mtp")
     parser.add_argument("--check-prefix", action="store_true")
     args = parser.parse_args()
     budgets = [int(value) for value in args.tokens.split(",")]
@@ -321,4 +338,5 @@ if __name__ == "__main__":
         args.context,
         not args.skip_cancel,
         args.check_prefix,
+        mode=args.mode,
     )

@@ -1,9 +1,6 @@
-use super::{
-    FlashProjection, MatrixView, Metal, float_values, read_weight, upload, view::FloatType,
-};
+use super::{FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::checkpoint::Checkpoint;
 use anyhow::{Context, Result, ensure};
-use half::f16;
 use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize, NSRange};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -14,7 +11,7 @@ pub(super) struct Pipelines {
     step: ComputePipelineState,
     norm: ComputePipelineState,
     gate: ComputePipelineState,
-    to_float: ComputePipelineState,
+    pub(super) to_float: ComputePipelineState,
 }
 impl Pipelines {
     pub(super) fn load(p: &impl Fn(&str) -> Result<ComputePipelineState>) -> Result<Self> {
@@ -42,11 +39,7 @@ pub struct FlashGdnState {
     frame: Option<Frame>,
 }
 
-pub struct FlashGdnOutput {
-    pub values: MatrixView,
-    pub trace: Option<BTreeMap<&'static str, Vec<u32>>>,
-}
-
+pub type FlashGdnOutput = super::FlashAttentionOutput;
 pub struct FlashGdn<'a> {
     gpu: &'a Metal,
     qkv: FlashProjection<'a>,
@@ -72,36 +65,14 @@ impl<'a> FlashGdn<'a> {
             );
             Ok(p)
         };
-        let weight = |name: &str, shape: &[usize], half: bool| -> Result<Buffer> {
-            let name = format!("{prefix}.{name}");
-            let w = c
-                .tensors
-                .get(&name)
-                .with_context(|| format!("missing {name}"))?;
-            ensure!(w.shape == shape, "invalid Flash GDN tensor {name}");
-            if let Some(p) = name.strip_suffix(".weight") {
-                ensure!(
-                    !c.tensors.contains_key(&format!("{p}.bias")),
-                    "unexpected GDN bias {p}"
-                )
-            }
-            let count = shape.iter().product::<usize>();
-            if half && w.dtype == "F16" {
-                return read_weight(&gpu.device, w, (count * 2) as u64);
-            }
-            let values = float_values(w)?;
-            ensure!(values.len() == count, "truncated Flash GDN tensor {name}");
-            if half {
-                upload(
-                    &gpu.device,
-                    &values
-                        .into_iter()
-                        .map(|v| f16::from_f32(v).to_bits())
-                        .collect::<Vec<_>>(),
-                )
-            } else {
-                upload(&gpu.device, &values)
-            }
+        let weight = |name: &str, shape: &[usize], half: bool| {
+            super::checkpoint_float_weight(
+                gpu,
+                c,
+                &format!("{prefix}.{name}"),
+                shape,
+                if half { FloatType::F16 } else { FloatType::F32 },
+            )
         };
         Ok(Self {
             gpu,
@@ -308,12 +279,65 @@ impl<'a> FlashGdn<'a> {
     }
 }
 
+pub(super) struct LayerResidual<'a> {
+    attn_hc: super::FlashHc<'a>,
+    mlp_hc: super::FlashHc<'a>,
+    pub(super) moe: super::FlashMoeRow<'a>,
+}
+impl<'a> LayerResidual<'a> {
+    pub(super) fn load(
+        gpu: &'a Metal,
+        c: &Checkpoint,
+        prefix: &str,
+        eps: f32,
+        slots: usize,
+    ) -> Result<Self> {
+        Ok(Self {
+            attn_hc: super::FlashHc::load(
+                gpu,
+                c,
+                &format!("{prefix}.attn_hyper_connection"),
+                eps,
+                true,
+            )?,
+            mlp_hc: super::FlashHc::load(
+                gpu,
+                c,
+                &format!("{prefix}.mlp_hyper_connection"),
+                eps,
+                true,
+            )?,
+            moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
+        })
+    }
+    pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
+        Ok(self.attn_hc.read(streams, false)?.mixed)
+    }
+    pub(super) fn forward(
+        &mut self,
+        streams: &MatrixView,
+        attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
+        let read = self.attn_hc.read(streams, false)?;
+        let gate = read
+            .gate
+            .as_ref()
+            .context("missing attention injection gate")?;
+        let attention = attend(&read.mixed)?;
+        let written = self.attn_hc.write(streams, &attention.values, gate)?;
+        Ok(self
+            .mlp_hc
+            .forward_moe_lookahead(&written, &mut self.moe, false, next, depth)?
+            .0)
+    }
+}
+
 /// A complete non-PLE Flash layer with recurrent attention.
 pub struct FlashGdnLayer<'a> {
-    attn_hc: super::FlashHc<'a>,
+    pub(super) residual: LayerResidual<'a>,
     attention: FlashGdn<'a>,
-    mlp_hc: super::FlashHc<'a>,
-    moe: super::FlashMoeRow<'a>,
 }
 impl<'a> FlashGdnLayer<'a> {
     pub fn load(
@@ -331,24 +355,22 @@ impl<'a> FlashGdnLayer<'a> {
                 .is_some_and(|(k, _)| k.starts_with(&ple)),
             "Flash layer requires PLE before attention"
         );
+        Self::load_body(gpu, c, prefix, eps, slots)
+    }
+    pub(super) fn load_body(
+        gpu: &'a Metal,
+        c: &Checkpoint,
+        prefix: &str,
+        eps: f32,
+        slots: usize,
+    ) -> Result<Self> {
         Ok(Self {
-            attn_hc: super::FlashHc::load(
-                gpu,
-                c,
-                &format!("{prefix}.attn_hyper_connection"),
-                eps,
-                true,
-            )?,
             attention: FlashGdn::load(gpu, c, &format!("{prefix}.linear_attn"), eps)?,
-            mlp_hc: super::FlashHc::load(
-                gpu,
-                c,
-                &format!("{prefix}.mlp_hyper_connection"),
-                eps,
-                true,
-            )?,
-            moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
+            residual: LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
+    }
+    pub(super) fn recurrent(&self) -> Option<&MatrixView> {
+        self.attention.state.frame.as_ref().map(|f| &f.recurrent)
     }
     pub fn snapshot(&self) -> FlashGdnState {
         self.attention.snapshot()
@@ -360,25 +382,71 @@ impl<'a> FlashGdnLayer<'a> {
         self.attention.reset()
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
-        let read = self.attn_hc.read(streams, false)?;
-        let gate = read
-            .gate
-            .as_ref()
-            .context("missing attention injection gate")?;
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
-        let attention = self.attention.forward(&read.mixed, false)?;
-        let residual = self
-            .attn_hc
-            .write(streams, &attention.values, gate)
-            .and_then(|written| {
-                self.mlp_hc
-                    .forward_moe(&written, &mut self.moe, false)
-                    .map(|(out, _, _)| out)
-            });
+        let residual =
+            self.residual
+                .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if residual.is_err() {
             self.restore(&before)?;
         }
         residual
+    }
+}
+
+impl FlashGdn<'_> {
+    fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for projection in [&self.qkv, &self.z, &self.out] {
+            projection.record_memory(backings)?;
+        }
+        for buffer in [
+            &self.a,
+            &self.b,
+            &self.conv,
+            &self.a_log,
+            &self.dt_bias,
+            &self.gain,
+        ] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(frame) = &self.state.frame {
+            backings.record("gdn", &frame.history.buffer)?;
+            backings.record("gdn", &frame.recurrent.buffer)?;
+        }
+        Ok(())
+    }
+}
+impl LayerResidual<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attn_hc.record_memory(backings)?;
+        self.mlp_hc.record_memory(backings)?;
+        self.moe.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.moe.drain()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.moe.shrink(slots)
+    }
+}
+impl FlashGdnLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attention.record_memory(backings)?;
+        self.residual.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.reset();
+        self.residual.release_idle_state()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.residual.shrink(slots)
     }
 }
 
@@ -419,13 +487,13 @@ mod tests {
             1e-6,
             false,
         )?;
-        let good = std::mem::replace(&mut layer.mlp_hc, final_mixer);
+        let good = std::mem::replace(&mut layer.residual.mlp_hc, final_mixer);
         let error = layer
             .forward(&y)
             .err()
             .context("missing injection was used")?;
         ensure!(error.to_string().contains("injection gate"));
-        layer.mlp_hc = good;
+        layer.residual.mlp_hc = good;
         let resumed = layer.forward(&y)?;
         layer.reset();
         let reset = layer.forward(&x)?;

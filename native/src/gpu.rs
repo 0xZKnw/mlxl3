@@ -11,10 +11,26 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+pub struct FlashAttentionOutput {
+    pub values: MatrixView,
+    pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
+}
+
+mod model_ops;
+mod qsa;
+pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
+mod flash;
+pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
+mod ple;
+pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
+mod qwen_gdn;
+pub use qwen_gdn::{QwenGdn, QwenGdnState, QwenGdnTrace};
 mod gdn;
 pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
 pub use hc::{FlashHc, FlashHcRead};
+mod memory;
+pub use memory::MemoryLedger;
 mod moe;
 pub use moe::{FlashMoeRow, MoeOutput};
 mod gate;
@@ -23,8 +39,12 @@ mod router;
 pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
+pub mod convert_matmul;
 mod projection;
-pub use projection::{FlashExpert, FlashProjection, ProjectionOutput};
+pub mod quantize;
+pub use projection::{
+    FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
+};
 
 #[allow(
     unexpected_cfgs,
@@ -68,6 +88,57 @@ fn float_values(info: &crate::checkpoint::TensorInfo) -> Result<Vec<f32>> {
         _ => bail!("expected floating HC weights"),
     })
 }
+fn checkpoint_float_weight(
+    gpu: &Metal,
+    c: &crate::checkpoint::Checkpoint,
+    name: &str,
+    shape: &[usize],
+    dtype: view::FloatType,
+) -> Result<Buffer> {
+    let tensor = c
+        .tensors
+        .get(name)
+        .with_context(|| format!("missing {name}"))?;
+    ensure!(tensor.shape == shape, "invalid shape for {name}");
+    if let Some(p) = name.strip_suffix(".weight") {
+        ensure!(
+            !c.tensors.contains_key(&format!("{p}.bias")),
+            "unexpected bias for {name}"
+        );
+    }
+    let count = shape
+        .iter()
+        .try_fold(1usize, |n, width| n.checked_mul(*width))
+        .context("weight extent overflow")?;
+    let (kind, bytes) = if dtype == view::FloatType::F16 {
+        ("F16", 2)
+    } else {
+        ("F32", 4)
+    };
+    if tensor.dtype == kind {
+        return read_weight(
+            &gpu.device,
+            tensor,
+            (count as u64)
+                .checked_mul(bytes)
+                .context("weight bytes overflow")?,
+        );
+    }
+    let values = float_values(tensor)?;
+    ensure!(values.len() == count, "truncated {name}");
+    if dtype == view::FloatType::F16 {
+        upload(
+            &gpu.device,
+            &values
+                .into_iter()
+                .map(|v| half::f16::from_f32(v).to_bits())
+                .collect::<Vec<_>>(),
+        )
+    } else {
+        upload(&gpu.device, &values)
+    }
+}
+
 fn read_weight(
     device: &DeviceRef,
     tensor: &crate::checkpoint::TensorInfo,
@@ -114,12 +185,23 @@ pub struct Metal {
     qmv_pipeline: ComputePipelineState,
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
+    dense_qmv: [[ComputePipelineState; 3]; 2],
+    dense_finish: ComputePipelineState,
+    mapped_glu: ComputePipelineState,
+    mapped_mix: ComputePipelineState,
+    mtp_hidden_qmv: ComputePipelineState,
+    mtp_norm: ComputePipelineState,
+    mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
+    qsa: qsa::Pipelines,
+    model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
+    logsumexp: ComputePipelineState,
+    ple: ple::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
     gate_dot: [ComputePipelineState; 2],
@@ -127,15 +209,37 @@ pub struct Metal {
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
     inverse: Buffer,
+    readers: std::cell::OnceCell<crate::ssd_reads::ReadService>,
 }
 
 impl Metal {
+    fn readers(&self) -> Result<&crate::ssd_reads::ReadService> {
+        if self.readers.get().is_none() {
+            let count = std::env::var("MLXL3_SSD_READERS")
+                .unwrap_or_else(|_| "4".into())
+                .parse::<usize>()
+                .context("invalid SSD reader count")?;
+            self.readers
+                .set(crate::ssd_reads::ReadService::new(count)?)
+                .map_err(|_| anyhow::anyhow!("native SSD readers already initialized"))?;
+        }
+        self.readers.get().context("missing native SSD readers")
+    }
+
     pub fn new() -> Result<Self> {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
+                .replace(
+                    "#include \"mapped_expert.metal\"",
+                    include_str!("../shaders/mapped_expert.metal"),
+                )
+                .replace(
+                    "#include \"dense_projection.metal\"",
+                    include_str!("../shaders/dense_projection.metal"),
+                )
                 .replace(
                     "#include \"flash_projection.metal\"",
                     include_str!("../shaders/flash_projection.metal"),
@@ -153,12 +257,20 @@ impl Metal {
                     include_str!("../shaders/router_topk.h"),
                 );
             let source = source.replace(
+                "#include \"model_ops.metal\"",
+                include_str!("../shaders/model_ops.metal"),
+            );
+            let source = source.replace(
                 "#include \"flash_gate.metal\"",
                 include_str!("../shaders/flash_gate.metal"),
             );
             let source = source.replace(
                 "#include \"flash_moe.metal\"",
                 include_str!("../shaders/flash_moe.metal"),
+            );
+            let source = source.replace(
+                "#include \"flash_mtp.metal\"",
+                include_str!("../shaders/flash_mtp.metal"),
             );
             let source = source.replace(
                 "#include \"flash_hc.metal\"",
@@ -182,9 +294,25 @@ impl Metal {
                     include_str!("../shaders/flash_gdn_epilogue.metal"),
                 )
                 .replace(
+                    "#include \"flash_qsa.metal\"",
+                    include_str!("../shaders/flash_qsa.metal"),
+                )
+                .replace(
+                    "#include \"flash_rope.metal\"",
+                    include_str!("../shaders/flash_rope.metal"),
+                )
+                .replace(
+                    "#include \"flash_ple.metal\"",
+                    include_str!("../shaders/flash_ple.metal"),
+                )
+                .replace(
                     "#include \"flash_hc_gemv.metal\"",
                     include_str!("../shaders/flash_hc_gemv.metal"),
                 );
+            let source = source.replace(
+                "#include \"flash_logsumexp.metal\"",
+                include_str!("../shaders/flash_logsumexp.metal"),
+            );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -201,6 +329,21 @@ impl Metal {
             let codebook_pipeline = pipeline("exl3_codebook")?;
             let qmv_pipeline = pipeline("exl3_qmv")?;
             let flash_qmv_pipeline = pipeline("flash_reference_qmv")?;
+            let dense_qmv = [
+                [
+                    pipeline("dense_qmv_s4_n1")?,
+                    pipeline("dense_qmv_s4_n2")?,
+                    pipeline("dense_qmv_s4_n4")?,
+                ],
+                [
+                    pipeline("dense_qmv_s8_n1")?,
+                    pipeline("dense_qmv_s8_n2")?,
+                    pipeline("dense_qmv_s8_n4")?,
+                ],
+            ];
+            let dense_finish = pipeline("dense_finish128")?;
+            let mapped_glu = pipeline("mapped_glu")?;
+            let mapped_mix = pipeline("mapped_mix")?;
             let k7_pipeline = pipeline("flash_k7_qmv")?;
             let swiglu_pipeline = pipeline("flash_swiglu")?;
             let prepare_view_pipeline = pipeline("flash_prepare_view")?;
@@ -229,8 +372,15 @@ impl Metal {
                 hc::Pipelines::load(&pipeline, "half")?,
                 hc::Pipelines::load(&pipeline, "float")?,
             ];
+            let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
+            let mtp_norm = pipeline("mtp_hidden_norm")?;
+            let mtp_combine = pipeline("mtp_combine_streams")?;
+            let qsa = qsa::Pipelines::load(&pipeline)?;
             let gdn = gdn::Pipelines::load(&pipeline)?;
+            let logsumexp = pipeline("flash_logsumexp")?;
+            let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
+            let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
                 queue,
@@ -240,12 +390,23 @@ impl Metal {
                 qmv_pipeline,
                 prepare128_pipeline,
                 flash_qmv_pipeline,
+                dense_qmv,
+                dense_finish,
+                mapped_glu,
+                mapped_mix,
+                mtp_hidden_qmv,
+                mtp_norm,
+                mtp_combine,
                 finish128_pipeline,
                 prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
                 hc,
+                qsa,
+                model_ops,
                 gdn,
+                logsumexp,
+                ple,
                 moe_switch,
                 moe_mix,
                 gate_dot,
@@ -253,6 +414,7 @@ impl Metal {
                 route_half,
                 route_float,
                 inverse,
+                readers: std::cell::OnceCell::new(),
             })
         })
     }

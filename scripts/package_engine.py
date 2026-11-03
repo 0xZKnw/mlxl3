@@ -10,6 +10,7 @@ import tomllib
 from pathlib import Path
 
 FILES = ("mlxl3", "libmlx.dylib", "libjaccl.dylib", "mlx.metallib")
+NATIVE_FILES = ("mlxl3",)
 MAX_FILE = 256 * 1024 * 1024
 
 
@@ -24,12 +25,21 @@ def valid_version(version: str) -> bool:
     ) and all(len(p) <= 19 and int(p) <= 9223372036854775807 for p in version.split("."))
 
 
-def manifest(runtime: Path, version: str) -> dict:
-    """Read only regular runtime files; fail before publishing incomplete bundles."""
+def manifest(runtime: Path, version: str, backend: str = "mlx") -> dict:
+    """Read only regular runtime files; fail before publishing incomplete bundles.
+
+    post: __return__["schema"] == (2 if backend == "metal" else 1)
+    post: set(__return__["files"]) == set(NATIVE_FILES if backend == "metal" else FILES)
+    """
     if not valid_version(version):
         raise ValueError("invalid engine version")
+    if backend not in ("mlx", "metal"):
+        raise ValueError("invalid engine backend")
+    names = NATIVE_FILES if backend == "metal" else FILES
+    if backend == "metal" and any(p.name not in (*names, "engine.json") for p in runtime.iterdir()):
+        raise ValueError("unexpected file in native runtime")
     records = {}
-    for name in FILES:
+    for name in names:
         source = runtime / name
         if source.is_symlink() or not source.is_file():
             raise ValueError(f"missing or linked engine file: {name}")
@@ -39,29 +49,32 @@ def manifest(runtime: Path, version: str) -> dict:
         with source.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         records[name] = {"size": size, "sha256": digest}
+    minimum_app = "1.4.0" if tuple(map(int, version.split("."))) >= (1, 4, 0) else "1.2.0"
+    if backend == "metal":
+        minimum_app = "2.0.0"
     return {
-        "schema": 1,
+        "schema": 2 if backend == "metal" else 1,
+        **({"backend": "metal"} if backend == "metal" else {}),
         "version": version,
         "bridge_protocol": 1,
         "architecture": "arm64",
         "minimum_macos": "26.2.0",
         # Older Desktop versions do not pass a target to the MTP downloader.
-        "minimum_app_version": "1.4.0"
-        if tuple(map(int, version.split("."))) >= (1, 4, 0)
-        else "1.2.0",
+        "minimum_app_version": minimum_app,
         "files": records,
         "notices": {
             name: (Path(__file__).resolve().parents[1] / path).read_text()
             for name, path in {
                 "MTPLX": "LICENSES/MTPLX-NOTICE.txt",
                 "Apache-2.0": "LICENSES/Apache-2.0.txt",
+                "PonyExl3": "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
             }.items()
         },
     }
 
 
-def package(runtime: Path, output: Path, version: str) -> Path:
-    payload = manifest(runtime, version)
+def package(runtime: Path, output: Path, version: str, backend: str = "mlx") -> Path:
+    payload = manifest(runtime, version, backend)
     if (runtime / "engine.json").is_symlink():
         raise ValueError("linked runtime manifest")
     data = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode()
@@ -75,7 +88,7 @@ def package(runtime: Path, output: Path, version: str) -> Path:
             gzip.GzipFile(fileobj=raw, mode="wb", filename="", mtime=0) as compressed,
             tarfile.open(fileobj=compressed, mode="w", format=tarfile.USTAR_FORMAT) as archive,
         ):
-            for name in ("engine.json", *FILES):
+            for name in ("engine.json", *payload["files"]):
                 source = runtime / name
                 member = tarfile.TarInfo(name)
                 member.size = source.stat().st_size
@@ -83,7 +96,7 @@ def package(runtime: Path, output: Path, version: str) -> Path:
                 with source.open("rb") as stream:
                     archive.addfile(member, stream)
         # A concurrently changed runtime must not be released with stale hashes.
-        if payload != manifest(runtime, version):
+        if payload != manifest(runtime, version, backend):
             raise ValueError("runtime changed while packaging")
         temporary.replace(destination)
     finally:
@@ -96,13 +109,14 @@ def main() -> None:
     parser.add_argument("runtime", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--version")
+    parser.add_argument("--backend", choices=("mlx", "metal"), default="mlx")
     args = parser.parse_args()
     version = args.version
     if version is None:
         cargo = Path(__file__).resolve().parents[1] / "Cargo.toml"
         with cargo.open("rb") as stream:
             version = tomllib.load(stream)["package"]["version"]
-    print(package(args.runtime, args.output, version))
+    print(package(args.runtime, args.output, version, args.backend))
 
 
 if __name__ == "__main__":

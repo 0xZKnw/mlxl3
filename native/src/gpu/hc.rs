@@ -1,10 +1,11 @@
-use super::{MatrixView, Metal, float_values, read_weight, upload, view::FloatType};
-use crate::checkpoint::{Checkpoint, TensorInfo};
+use super::{MatrixView, Metal, view::FloatType};
+use crate::checkpoint::Checkpoint;
 #[cfg(test)]
 use anyhow::bail;
 use anyhow::{Context, Result, ensure};
 #[cfg(test)]
 use half::bf16;
+#[cfg(test)]
 use half::f16;
 use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
 
@@ -60,6 +61,45 @@ fn groups(n: u32) -> MTLSize {
     MTLSize::new(u64::from(n), 1, 1)
 }
 
+impl Metal {
+    pub(super) fn encode_stream_norm(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        x: &MatrixView,
+        gain: &Buffer,
+        eps: f32,
+        storage: Storage,
+    ) -> Result<MatrixView> {
+        let [rows, width] = x.shape();
+        ensure!(
+            rows == 1
+                && matches!(width, 2560 | 10240)
+                && x.buffer.device().registry_id() == self.device.registry_id()
+                && gain.length() == u64::from(width) * 4,
+            "invalid Flash stream normalization"
+        );
+        let pipeline = &self.hc[usize::from(x.dtype == FloatType::F32)].norm;
+        ensure!(
+            pipeline.thread_execution_width() == 32
+                && pipeline.max_total_threads_per_threadgroup() >= 640,
+            "HC needs SIMD32 and 640 threads for normalization"
+        );
+        let normalized = MatrixView::output(self, x.dtype, 1, width, storage)?;
+        Metal::encode(
+            cmd,
+            pipeline,
+            &[&x.buffer, gain, &normalized.buffer],
+            [
+                x.layout.offset,
+                x.layout.strides[1],
+                i64::from(eps.to_bits()),
+            ],
+            groups(width / 2560),
+            640,
+        );
+        Ok(normalized)
+    }
+}
 impl<'a> FlashHc<'a> {
     pub fn load(
         gpu: &'a Metal,
@@ -72,36 +112,14 @@ impl<'a> FlashHc<'a> {
             c.model_type == "qwen4_exp" && eps.is_finite() && eps > 0.,
             "invalid Flash HC configuration"
         );
-        let weight = |part: &str, shape: &[usize]| -> Result<&TensorInfo> {
-            let name = format!("{prefix}.{part}");
-            let w = c
-                .tensors
-                .get(&format!("{name}.weight"))
-                .with_context(|| format!("missing {name}.weight"))?;
-            ensure!(
-                w.shape == shape && !c.tensors.contains_key(&format!("{name}.bias")),
-                "invalid Flash HC weight {name}"
-            );
-            Ok(w)
+        let weight = |part: &str, shape: &[usize], dtype| {
+            super::checkpoint_float_weight(gpu, c, &format!("{prefix}.{part}.weight"), shape, dtype)
         };
-        let dense = |part: &str, rows: usize, cols: usize| -> Result<Buffer> {
-            let w = weight(part, &[rows, cols])?;
-            if w.dtype == "F16" {
-                return read_weight(&gpu.device, w, (rows * cols * 2) as u64);
-            }
-            let words: Vec<_> = float_values(w)?
-                .into_iter()
-                .map(|v| f16::from_f32(v).to_bits())
-                .collect();
-            ensure!(words.len() == rows * cols, "truncated HC matrix");
-            upload(&gpu.device, &words)
-        };
-        let gain = float_values(weight("hc_norm", &[10240])?)?;
-        ensure!(gain.len() == 10240, "truncated HC gain");
+        let dense = |part: &str, n, k| weight(part, &[n, k], FloatType::F16);
         Ok(Self {
             gpu,
             eps,
-            gain: upload(&gpu.device, &gain)?,
+            gain: weight("hc_norm", &[10240], FloatType::F32)?,
             down: dense("input_mix_weight_down", 320, 10240)?,
             up: dense("input_mix_weight_up", 10240, 320)?,
             inject: combine
@@ -121,11 +139,6 @@ impl<'a> FlashHc<'a> {
 
     pub fn read(&self, x: &MatrixView, trace: bool) -> Result<FlashHcRead> {
         let p = self.pipeline(x, 10240)?;
-        ensure!(
-            p.norm.thread_execution_width() == 32
-                && p.norm.max_total_threads_per_threadgroup() >= 640,
-            "HC needs SIMD32 and 640 threads for normalization"
-        );
         let storage = if trace {
             Storage::StorageModeShared
         } else {
@@ -133,19 +146,9 @@ impl<'a> FlashHc<'a> {
         };
         let output = |w, mode| MatrixView::output(self.gpu, x.dtype, 1, w, mode);
         let (normalized, down, active, up, mixed, gate) = self.gpu.command(|cmd| {
-            let normalized = output(10240, storage)?;
-            Metal::encode(
-                cmd,
-                &p.norm,
-                &[&x.buffer, &self.gain, &normalized.buffer],
-                [
-                    x.layout.offset,
-                    x.layout.strides[1],
-                    i64::from(self.eps.to_bits()),
-                ],
-                groups(4),
-                640,
-            );
+            let normalized = self
+                .gpu
+                .encode_stream_norm(cmd, x, &self.gain, self.eps, storage)?;
             let gemv = |v: &MatrixView, weight: &Buffer, n: u32| -> Result<MatrixView> {
                 let width = v.shape()[1];
                 let (count, threads) = crate::contracts::flash_hc_dispatch(width, n)
@@ -229,12 +232,22 @@ impl<'a> FlashHc<'a> {
         moe: &mut super::FlashMoeRow,
         trace: bool,
     ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
+        self.forward_moe_lookahead(streams, moe, trace, None, 0)
+    }
+    pub(super) fn forward_moe_lookahead<'b>(
+        &self,
+        streams: &MatrixView,
+        moe: &mut super::FlashMoeRow<'b>,
+        trace: bool,
+        next: Option<&mut super::FlashMoeRow<'b>>,
+        depth: usize,
+    ) -> Result<(MatrixView, super::MoeOutput, FlashHcRead)> {
         ensure!(
             self.inject.is_some(),
             "Flash MLP requires an injection gate"
         );
         let read = self.read(streams, trace)?;
-        let experts = moe.submit(&read.mixed)?;
+        let experts = moe.lookahead(&read.mixed, next, depth)?;
         let written = self.write(
             streams,
             experts.completed()?,
@@ -283,6 +296,18 @@ impl<'a> FlashHc<'a> {
     }
 }
 
+impl FlashHc<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [&self.gain, &self.down, &self.up]
+            .into_iter()
+            .chain(&self.inject)
+        {
+            backings.record("fixed_weights", buffer)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -313,7 +338,7 @@ mod tests {
             file.write_all(&header)?;
             file.write_all(&data)?;
             let tensors = crate::checkpoint::read_header(file.path())?;
-            let decoded = float_values(&tensors["weight"]);
+            let decoded = super::super::float_values(&tensors["weight"]);
             if dtype == "I32" {
                 assert!(decoded.is_err());
             } else {

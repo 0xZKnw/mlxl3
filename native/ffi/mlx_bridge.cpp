@@ -187,14 +187,7 @@ int mlxl3_memory_stats(uint64_t* out, size_t count, bool reset_peak) noexcept {
     out[0] = mx::get_active_memory();
     out[1] = mx::get_cache_memory();
     out[2] = std::max(out[0], uint64_t(mx::get_peak_memory()));
-    rusage_info_v4 usage{};
-    const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
-                                   reinterpret_cast<rusage_info_t*>(&usage)) == 0;
-    task_vm_info_data_t vm{};
-    mach_msg_type_number_t vm_count = TASK_VM_INFO_COUNT;
-    const auto vm_ok = task_info(mach_task_self(), TASK_VM_INFO,
-        reinterpret_cast<task_info_t>(&vm), &vm_count) == KERN_SUCCESS;
-    const auto process = mlxl3::process_memory_values(usage, ok, vm, vm_count, vm_ok);
+    const auto process = mlxl3::current_process_memory();
     std::copy(process.begin(), process.end(), out + 3);
   });
 }

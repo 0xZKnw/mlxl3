@@ -1,0 +1,99 @@
+{
+  "status": "verified",
+  "code_commit": "9e7e37ec5ea17e32dcad5721c379a3e144461668",
+  "base_pr": 93,
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "hardware": "Apple M5, 24 GiB, macOS build 26B123",
+  "SSD_cache_GiB": 0.6,
+  "context": 256,
+  "direct_cli_sha256": "fbaa2c675b5a9166d6ea34afd78e7be925a4a95d19ab992e7e903b1bfe0e7e31",
+  "stock_cli_sha256": "6b7406455615b4541434aa6da71d73ba1c524947c902cdb67c2d72caaaf73495",
+  "runtime_direct": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "9e7e37ec5ea1",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "runtime_stock": {
+    "architecture": "aarch64",
+    "backend": "mlx",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "9e7e37ec5ea1",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "bridge_budgets": [
+    2,
+    17
+  ],
+  "bridge_native_and_stock_token_hashes_identical": true,
+  "bridge_checks": [
+    "AR/MTP/MTP/AR after warmups",
+    "set_mtp on and off",
+    "empty or missing head path, simultaneous MTP/DFlash, depth zero or two",
+    "SIGUSR1 during context and during a delta, recovery token hashes",
+    "non-unit repetition penalty returns to ordinary sampling"
+  ],
+  "HTTP": {
+    "test": "native_flash_serve_streams_the_same_completion_as_json",
+    "passed": 1,
+    "prompt_tokens": 61,
+    "completion_tokens": 4,
+    "checked": [
+      "production CLI serve --port 0, loopback and disposable registry",
+      "API key, models list, invalid messages then valid request",
+      "non-stream JSON equals concatenated SSE content and reasoning",
+      "finish_reason length, equal usage, DONE exactly once",
+      "server shutdown and child reaping",
+      "Metal.framework loaded, no libmlx.dylib, libjaccl.dylib or mlx.metallib"
+    ]
+  },
+  "suites": {
+    "cpu": {
+      "passed": 307,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 308,
+      "failed": 0,
+      "ignored": 25
+    },
+    "stock": {
+      "passed": 344,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "python": {
+    "passed": 7,
+    "subtests": 6,
+    "skipped_linux_only_on_macOS": 44
+  },
+  "kani": {
+    "harness": "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
+    "input": "nine arbitrary u64 process fields, allocator bytes and PID",
+    "obligations": 123,
+    "failed": 0,
+    "unreachable": 4,
+    "covers": 2,
+    "full_package": "compiler ICE in kani-compiler/src/intrinsics.rs:243"
+  },
+  "C++": {
+    "asan_ubsan": "process_memory.cpp and actual process_stats.cpp passed invalid pointer/count, sentinels and OS sample checks",
+    "CBMC": "attempted actual shim; cannot parse current Apple libc++ headers"
+  },
+  "remaining_product_scope": [
+    "native Flash DFlash2",
+    "native SSD predictive pipeline and resize",
+    "other model families",
+    "MLX-independent conversion and product packaging"
+  ]
+}

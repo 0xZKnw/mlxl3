@@ -1,0 +1,162 @@
+{
+  "status": "verified_component",
+  "source_base": "7c934b735ec7f0c281132dcadd13d8016df7ca6f",
+  "source_modified": true,
+  "source_sha256": {
+    "native/src/gpu/projection.rs": "732b1bd73bc04e6ad68995826e04101f9efd2887aeeb6b876d3fd90fa2b55a49",
+    "native/src/gpu.rs": "cd342c995c4b34a76465e22da90d0371aa22e480498d47e660cb968d86fb07e5",
+    "native/src/contracts.rs": "92868f281291c429426a45de5bd33701e44fc419b9280a865afcd99e66f639e9",
+    "native/src/main.rs": "32c150bce32ce2f91eeea6c2db6abc4e93a5d86bce15f829659ceb2e0c86f2c9",
+    "native/shaders/mapped_expert.metal": "9dc9aa9b836770cabb9dc2ad5bf5231fa6e1b3c282737280f3d1f0c31873c1ca",
+    "native/shaders/exl3.metal": "677dd6eda4dc34d59996b07c385f35a0c884b638a3290548de88920fb9ddc725",
+    "native/shaders/dense_projection.metal": "425f0e31ddd8efcf4c36ba921abd4c582604f62efbbbea58e8c8d0cdf4705aa6",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "tests/physical_mapped_expert.py": "41d26905ee095aec89a9d30a2b41ef0b6e78fee9ab3551f4132abe2439e2fdca",
+    "tests/test_physical_mapped_expert.py": "1431b14e32272d62020f69c0ca28b57bd29065066cd28e6aede6d156deac66fe"
+  },
+  "hardware": "Apple M5,24GiB,macOS26B123",
+  "oracle": "Independent Rust/MLX0.32.2 Exl3SwitchGlu::forward with imposed IDs and scores; no MLX image loaded by native child",
+  "models": {
+    "Qwen3.6-35B-A3B-EXL3-2.49bpw": {
+      "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+      "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+      "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94"
+    },
+    "LFM2.5-24B-A2B-EXL3-4bpw-v3": {
+      "config.json": "cbbf9f8abf18fd68df5cb584c24bcfb66afbace3a8033c02a7b75e38eb2f37f5",
+      "quantization_config.json": "7352d45ca5b4063730d16fbbdfddaaad591e6f64513f2b31603060e88a8baf60",
+      "model.safetensors.index.json": "dfb0757927ad4664dc59dd8172100af43efdbae31928cd72f6177137b60d88ac"
+    }
+  },
+  "shards": "N0 baseline identities retained in ../baselines/local-checkpoints.json; no new whole-shard hash pass in this component campaign.",
+  "direct_cli_sha256": "95c4f29e573095deb99a4b159591f1c146fa0d13b619b4987caaee4654c3fca0",
+  "stock_cli_sha256": "572ea3b9523ef64626ab87406ab632515c2d5390cff107ad6d078bd62757e17a",
+  "direct_libtest_sha256": "7d7e4ff8fb3db8a143b128c05bca844658ea628992f606642a70c5b054ac29c7",
+  "each_mode": {
+    "cases": 26,
+    "finite_half_words": 82816,
+    "unequal_words": 0,
+    "synthetic_bit_widths": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8
+    ],
+    "codebooks": 3,
+    "includes": [
+      "signed/unsigned packed weights",
+      "legacy scale names",
+      "one and four imposed routes",
+      "duplicate IDs",
+      "sixteen splits",
+      "all-zero row",
+      "real Qwen layers0/36",
+      "real LFM layers2/38"
+    ],
+    "invalid_requests_then_recovery": 6
+  },
+  "modes": {
+    "M5": "m5.json",
+    "forced_four_groups_on_M5": "portable.json"
+  },
+  "lifecycle": {
+    "passed": 1,
+    "failed": 0,
+    "scope": [
+      "out-of-range IDs",
+      "wrong route count",
+      "short score row",
+      "wrong input dtype",
+      "explicit rejection of F32 scales",
+      "output retains storage after bank/checkpoint/device release"
+    ]
+  },
+  "projection_regression": {
+    "report": "projection-regression.json",
+    "cases": 104,
+    "finite_half_words": 429952,
+    "unequal_words": 0,
+    "scope": "Original frozen candidate; final host allocation guard affects only MappedSwitchGlu placement. All GPU shaders and ordinary projection paths are unchanged. Affected mapped paths were replayed on final binary."
+  },
+  "proof": {
+    "version": "Kani0.68.0/CBMC6.11.0",
+    "checks": 122,
+    "covers": 7,
+    "dispatch": {
+      "harness": "contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
+      "checks": 100,
+      "covers": 3,
+      "seconds": 4.3766613,
+      "domain": "Arbitrary u32 input/output/routes/projection-count/K and bool hardware mode; no assumptions. Check accepted dimensions, effective rows, fixed SIMD/NT choices and scratch extents."
+    },
+    "allocation": {
+      "harness": "contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
+      "checks": 22,
+      "covers": 4,
+      "seconds": 2.4012141,
+      "domain": "All arbitrary u32 row, width, actual allocation half-word length; no assumptions. Exact acceptance, checked product/end, 256-byte alignment and complete row fits real allocation.",
+      "log": "allocation-proof.log"
+    },
+    "scope": "CPU geometry and actual offset guard only, not a proof of Metal numerics, resource tracking or model generation."
+  },
+  "retired_contract": {
+    "source": "row-original-attempt.rs.txt",
+    "verdict": "unverified; no counterexample",
+    "attempts": [
+      "CaDiCaL manually stopped after125s; initial-kani.log contains CBMC status15, not a property counterexample.",
+      "Unchanged theorem with Kissat bounded45s produced no verdict; shell exit recorder mistakenly used zsh readonly status variable.",
+      "Unchanged theorem with Z3 bounded90s returned timeout124 without verdict."
+    ],
+    "revision": "The actual guard now checks the end against the destination buffer length. Its domain is arbitrary allocation lengths, including non-integral numbers of rows; not a restriction to smaller row counts or dimensions. The retired row-count theorem is not presented as proved."
+  },
+  "suites": {
+    "cpu": {
+      "passed": 306,
+      "failed": 0,
+      "ignored": 8
+    },
+    "direct": {
+      "passed": 313,
+      "failed": 0,
+      "ignored": 27
+    },
+    "stock": {
+      "passed": 349,
+      "failed": 0,
+      "ignored": 248
+    }
+  },
+  "checks": [
+    "cargo fmt --check",
+    "strict Clippy: CPU/direct-chat/stock-mlx-chat",
+    "release direct and stock CLI plus direct physical libtest",
+    "Metal AIR compile (four inherited unused-variable warnings)",
+    "four deterministic oracle-driver tests with five malformed/divergent subcases",
+    "four inventory tests",
+    "Ruff/syntax",
+    "reviewed MLX inventory225files"
+  ],
+  "crosshair": "Both current drivers import successfully using existing verifier dependencies; no checkable functions. Initial separate-venv missing NumPy attempt and all original logs remain; no Python proof.",
+  "commands": [
+    "cargo test --locked --no-default-features",
+    "cargo test --locked --features chat",
+    "cargo test --locked --features mlx,chat",
+    "cargo kani --lib --no-default-features --harness contracts::mapped_expert_dispatch_bounds_rows_splits_and_fixed_simd_width",
+    "cargo kani --lib --no-default-features --harness contracts::mapped_expert_row_offsets_are_aligned_and_fit_the_complete_bank",
+    "python tests/physical_mapped_expert.py DIRECT STOCK REPORT --qwen QWEN_MODEL --lfm LFM_MODEL",
+    "python tests/physical_mapped_expert.py DIRECT STOCK REPORT --qwen QWEN_MODEL --lfm LFM_MODEL --portable",
+    "MLXL3_QWEN_NATIVE_MODEL=QWEN_MODEL DIRECT_LIBTEST gpu::projection::mapped_expert_rejections_recover_and_outputs_outlive_the_bank --exact --ignored"
+  ],
+  "CI": "New failure regressions run on PR/main with pinned NumPy/Safetensors; global EXL3 AIR compile includes mapped shader. Exact remote head checks will be inspected after push.",
+  "throughput": "not measured",
+  "limits": [
+    "Only unbiased F16-scaled SwitchGlu banks are supported here; other scale dtypes are explicitly rejected.",
+    "Full Qwen/LFM sessions, grouping of ordinary projections, routing operators and speculative modes remain separate integration work.",
+    "This F16 EXL3 component cannot substitute for BF16/F32 raw calibration captures.",
+    "Hosted Mac tests cannot validate physical GPU numerics; physical tests remain explicitly ignored unless selected.",
+    "No installed application change."
+  ]
+}
