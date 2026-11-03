@@ -286,6 +286,18 @@ impl<'a> FlashHc<'a> {
     }
 }
 
+impl FlashHc<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [&self.gain, &self.down, &self.up]
+            .into_iter()
+            .chain(&self.inject)
+        {
+            backings.record("fixed_weights", buffer)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -397,18 +409,6 @@ mod tests {
                 output,
                 expected.into_iter().map(f32::to_bits).collect::<Vec<_>>()
             );
-        }
-        Ok(())
-    }
-}
-
-impl FlashHc<'_> {
-    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
-        for buffer in [&self.gain, &self.down, &self.up]
-            .into_iter()
-            .chain(&self.inject)
-        {
-            backings.record("fixed_weights", buffer)?;
         }
         Ok(())
     }

@@ -221,6 +221,40 @@ mod tests {
     use super::*;
     use std::path::Path;
 
+    fn same_states(
+        expected: &[crate::gpu::FlashTraceTensor],
+        actual: &[crate::gpu::FlashTraceTensor],
+    ) -> Result<()> {
+        ensure!(expected.len() == 84 && actual.len() == 84);
+        let mut words = 0usize;
+        for (before, after) in expected.iter().zip(actual) {
+            let count = after
+                .shape
+                .iter()
+                .try_fold(1usize, |count, &n| count.checked_mul(n as usize))
+                .context("trace shape overflow")?;
+            ensure!(count > 0 && after.data.len() == count * 4);
+            ensure!(
+                after
+                    .data
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|&bytes| f32::from_le_bytes(bytes).is_finite())
+            );
+            ensure!(
+                before.name == after.name
+                    && before.shape == after.shape
+                    && before.data == after.data,
+                "state replay differs: {}",
+                after.name
+            );
+            words += count;
+        }
+        ensure!(words == 28_803_072);
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Flash model, unique backings, snapshot aliases, budget shrink and recovery"]
     fn native_ledger_tracks_aliases_and_request_shrink_preserves_replay() -> Result<()> {
@@ -253,7 +287,13 @@ mod tests {
         let logits = target.forward(248044)?;
         ensure!(logits.len() == 248320);
         let snapshot = target.snapshot();
-        let next = target.forward(1)?;
+        let (next, before_states) = target.forward_trace(1)?;
+        ensure!(
+            logits
+                .iter()
+                .chain(&next)
+                .all(|&bits| half::f16::from_bits(bits).is_finite())
+        );
         let active = target.memory_ledger(None)?;
         ensure!(
             active.resident_experts > 0
@@ -269,22 +309,21 @@ mod tests {
                 && !idle.state_backing_bytes.contains_key("last_hidden")
         );
         target.restore(&snapshot)?;
-        ensure!(
-            target.forward(1)? == next,
-            "snapshot was changed by idle release"
-        );
+        let (replayed, replayed_states) = target.forward_trace(1)?;
+        ensure!(replayed == next, "snapshot was changed by idle release");
+        same_states(&before_states, &replayed_states)?;
+        drop(replayed_states);
         drop(snapshot);
         target.release_idle_state()?;
         let before = target.memory_ledger(None)?;
         let plan = ResourcePlan::native_ar(64, target.context).unwrap();
-        let unused = before
-            .expert_bank_capacity_bytes
-            .saturating_sub(before.expert_bank_backing_bytes);
+        let minimum_cache = 48 * 10 * crate::flash_support::EXPERT_BYTES;
         let limit = gpu
             .observed_memory()?
-            .checked_add(plan.extra_bytes())
-            .and_then(|n| n.checked_add(unused))
-            .and_then(|n| n.checked_sub(3 * crate::flash_support::EXPERT_BYTES))
+            .checked_sub(before.expert_bank_backing_bytes)
+            .and_then(|n| n.checked_add(plan.extra_bytes()))
+            .and_then(|n| n.checked_add(minimum_cache))
+            .and_then(|n| n.checked_add(64 << 20))
             .context("invalid budget fixture")?;
         target.request_limit = Some(limit);
         ensure!(target.admit_request(64)?.is_some());
@@ -315,9 +354,12 @@ mod tests {
         target.request_limit = None;
         target.reset();
         ensure!(
-            target.forward(248044)? == logits && target.forward(1)? == next,
-            "admission changed replay"
+            target.forward(248044)? == logits,
+            "admission changed first token replay"
         );
+        let (after, after_states) = target.forward_trace(1)?;
+        ensure!(after == next, "admission changed next token replay");
+        same_states(&before_states, &after_states)?;
         eprintln!(
             "native memory ledger {}",
             serde_json::json!({"initial":initial,"active":active,"idle":idle,"before_shrink":before,"after_shrink":shrunk})

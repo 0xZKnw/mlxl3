@@ -388,6 +388,55 @@ impl<'a> FlashGdnLayer<'a> {
     }
 }
 
+impl FlashGdn<'_> {
+    fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for projection in [&self.qkv, &self.z, &self.out] {
+            projection.record_memory(backings)?;
+        }
+        for buffer in [
+            &self.a,
+            &self.b,
+            &self.conv,
+            &self.a_log,
+            &self.dt_bias,
+            &self.gain,
+        ] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(frame) = &self.state.frame {
+            backings.record("gdn", &frame.history.buffer)?;
+            backings.record("gdn", &frame.recurrent.buffer)?;
+        }
+        Ok(())
+    }
+}
+impl LayerResidual<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attn_hc.record_memory(backings)?;
+        self.mlp_hc.record_memory(backings)?;
+        self.moe.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.moe.drain()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.moe.shrink(slots)
+    }
+}
+impl FlashGdnLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        self.attention.record_memory(backings)?;
+        self.residual.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.reset();
+        self.residual.release_idle_state()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.residual.shrink(slots)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -442,54 +491,5 @@ mod tests {
         ensure!(expected.len() == 10240 && expected != fresh_y.read_output()?);
         ensure!(resumed.read_output()? == expected && reset.read_output()? == first.read_output()?);
         Ok(())
-    }
-}
-
-impl FlashGdn<'_> {
-    fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
-        for projection in [&self.qkv, &self.z, &self.out] {
-            projection.record_memory(backings)?;
-        }
-        for buffer in [
-            &self.a,
-            &self.b,
-            &self.conv,
-            &self.a_log,
-            &self.dt_bias,
-            &self.gain,
-        ] {
-            backings.record("fixed_weights", buffer)?;
-        }
-        if let Some(frame) = &self.state.frame {
-            backings.record("gdn", &frame.history.buffer)?;
-            backings.record("gdn", &frame.recurrent.buffer)?;
-        }
-        Ok(())
-    }
-}
-impl LayerResidual<'_> {
-    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
-        self.attn_hc.record_memory(backings)?;
-        self.mlp_hc.record_memory(backings)?;
-        self.moe.record_memory(backings)
-    }
-    pub(super) fn release_idle_state(&mut self) -> Result<()> {
-        self.moe.drain()
-    }
-    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
-        self.moe.shrink(slots)
-    }
-}
-impl FlashGdnLayer<'_> {
-    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
-        self.attention.record_memory(backings)?;
-        self.residual.record_memory(backings)
-    }
-    pub(super) fn release_idle_state(&mut self) -> Result<()> {
-        self.reset();
-        self.residual.release_idle_state()
-    }
-    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
-        self.residual.shrink(slots)
     }
 }

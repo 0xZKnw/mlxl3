@@ -8,6 +8,8 @@ Avant implémentation. Le port de demandes SSD #96 qualifie les trois vagues d�
 
 - Le check corrigé de tous les targets passe. Le test ciblé du plan natif sélectionne un test qui passe. Le premier harnais Kani du plan vérifie 75 obligations et atteint ses trois couvertures, sur tous les u32 pour positions et contexte. Renforcer maintenant sa caractérisation de la capacité minimale géométrique par un candidat puissance de deux symbolique ; cette version renforcée attend sa relance. Le ledger, le shrink et les budgets bridge restent des prototypes locaux en attente des suites complètes et du test physique.
 
+- Le premier Clippy strict relève des impl de visite mémoire placées après les modules de tests dans cinq composants. Replacer ces blocs avant les tests, sans changer leur corps, puis relancer les trois configurations. Aucun modèle GPU lancé pendant cette phase CPU.
+
 ## I75-N7-FLASH-BRIDGE-20261103 — serve the existing Flash protocol over the native session
 
 Before implementation. Run the existing Desktop JSON-lines dialogue on the no-MLX Flash target, including request validation, chat templates, reasoning and visible deltas, greedy/sampling, AR and checkpoint MTP, cache reuse, cancellation, shutdown and API transport. Keep the common protocol and MCP/schema/streaming machinery shared with the stock bridge. Compare event ordering, token hashes and termination reasons against the separately linked stock engine, including failure and recovery. Validate the actual OpenAI-compatible loopback HTTP path. Label backend capabilities precisely while the DFlash and SSD policy ports are in progress. No tuning or throughput comparison.
