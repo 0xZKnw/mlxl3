@@ -16,6 +16,7 @@ pub struct TensorStorage {
     dtype: FloatType,
 }
 
+#[derive(Clone)]
 pub struct MatrixView {
     pub(super) buffer: Buffer,
     pub(super) layout: MatrixLayout,
@@ -37,6 +38,11 @@ impl TensorStorage {
 }
 
 impl MatrixView {
+    #[cfg(feature = "chat")]
+    pub(crate) fn shares_storage(&self, other: &Self) -> bool {
+        std::ptr::eq::<metal::BufferRef>(self.buffer.as_ref(), other.buffer.as_ref())
+    }
+
     pub fn row(&self, row: u32) -> Result<Self> {
         Ok(Self {
             buffer: self.buffer.clone(),
@@ -92,6 +98,32 @@ impl MatrixView {
                 std::slice::from_raw_parts(self.buffer.contents().cast::<u32>(), count).to_vec()
             },
         })
+    }
+    /// Export an initialized contiguous result after its producer has completed.
+    pub(crate) fn export_bytes(&self, gpu: &Metal) -> Result<Vec<u8>> {
+        let item = if self.dtype == FloatType::F16 { 2 } else { 4 };
+        let n = self
+            .layout
+            .trace_byte_extent(item, self.buffer.length())
+            .context("invalid trace extent")?;
+        ensure!(
+            self.buffer.device().registry_id() == gpu.device.registry_id(),
+            "trace belongs to a different Metal device"
+        );
+        let readable = if self.buffer.storage_mode() == metal::MTLStorageMode::Shared {
+            self.buffer.clone()
+        } else {
+            let copy = buffer(&gpu.device, n as u64, Storage::StorageModeShared)?;
+            gpu.command(|cmd| {
+                let blit = cmd.new_blit_command_encoder();
+                blit.copy_from_buffer(&self.buffer, 0, &copy, 0, n as u64);
+                blit.end_encoding();
+                Ok(())
+            })?;
+            copy
+        };
+        // The checked byte extent covers the entire owned, CPU-visible buffer.
+        Ok(unsafe { std::slice::from_raw_parts(readable.contents().cast::<u8>(), n) }.to_vec())
     }
     pub(super) fn column_scales(
         buffer: &Buffer,

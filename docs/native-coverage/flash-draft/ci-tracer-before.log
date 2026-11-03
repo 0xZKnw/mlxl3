@@ -1,0 +1,42 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_tracer_startup_does_not_race_the_first_trace_stop ____________
+
+setup = (<function setup.<locals>.execute at 0x108a69440>, {'command': ['/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000g...phase diagnostic capture; trace coverage requires later inspection.', '__package__': '', '__loader__': None, ...}, ...)
+
+    def test_tracer_startup_does_not_race_the_first_trace_stop(setup):
+        execute, _, _, _, tracer_fault, _, _ = setup
+        tracer_fault[0] = "startup_delay"
+>       result = execute()
+                 ^^^^^^^^^
+
+tests/test_decode_capture.py:309: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_decode_capture.py:263: in execute
+    return api["run"](path, anchor, identity)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+docs/measurements/decode-profile-20261031/capture.py:361: in run
+    finish_capture()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def finish_capture():
+        nonlocal tracer
+        entry = result["captures"][-1]
+        assert tracer.poll() is None, "tracer exited before stop marker"
+        os.killpg(tracer.pid, signal.SIGINT)
+        entry["stop_requested_epoch"] = time.time()
+        end = time.monotonic() + TRACER_JOIN_SECONDS
+        while tracer.poll() is None:
+            assert time.monotonic() < end, "tracer join timeout"
+            check()
+            time.sleep(0.05)
+        entry["exit"] = tracer.wait()
+        entry["reaped"] = True
+>       assert entry["exit"] == 0, "tracer failed"
+               ^^^^^^^^^^^^^^^^^^
+E       AssertionError: tracer failed
+
+docs/measurements/decode-profile-20261031/capture.py:282: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_decode_capture.py::test_tracer_startup_does_not_race_the_first_trace_stop
+1 failed in 0.78s

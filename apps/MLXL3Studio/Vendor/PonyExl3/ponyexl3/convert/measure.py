@@ -514,7 +514,7 @@ def _resolve_measure_workers(max_workers: int, n_items: int) -> int:
     return max(1, min(int(max_workers), n_items, 32))
 
 
-def _release_gpu_cache() -> None:
+def _release_gpu_cache(search_backend: SearchBackend = "metal") -> None:
     """Return MLX's reclaimable Metal buffer pool to the OS.
 
     MLX keeps freed buffers in a pool sized to the largest working set seen and
@@ -523,6 +523,8 @@ def _release_gpu_cache() -> None:
     this after each candidate bounds steady-state memory to the live working set;
     only active buffers stay, so it is safe to call while other workers run.
     """
+    if search_backend != "metal":
+        return
     try:
         import mlx.core as mx
 
@@ -804,7 +806,7 @@ def measure_ldlq_candidates(
             record = _measure_candidate(item)
             _store(record)
             _emit(record)
-            _release_gpu_cache()
+            _release_gpu_cache(search_backend)
     else:
         # Threads share the model; the gate caps concurrent transient working
         # sets (Hessian/scratch/etc.) to a fraction of free RAM, so a wide layer
@@ -850,7 +852,7 @@ def measure_ldlq_candidates(
                     if ready is not None:
                         _emit(ready)
                     next_pos += 1
-                _release_gpu_cache()
+                _release_gpu_cache(search_backend)
         except BaseException:
             # Stop new candidates (stop flag), cancel the queue, and ask in-flight
             # GPU work to abort at its next launch so Ctrl-C is near-instant rather

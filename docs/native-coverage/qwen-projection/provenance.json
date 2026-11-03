@@ -1,0 +1,125 @@
+{
+  "status": "verified",
+  "scope": "Dense/MoE row projections and Flash projection regression",
+  "source_base": "46857166ac570ebb19ffb9d1474ab7ac13b1ddce",
+  "source_modified": true,
+  "source_sha256": {
+    "native/shaders/dense_projection.metal": "425f0e31ddd8efcf4c36ba921abd4c582604f62efbbbea58e8c8d0cdf4705aa6",
+    "native/shaders/exl3.metal": "7d0d42c65b8c7ec4a752c96511d7252fe5f5a28ac4ad278174294bf9f514adca",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "native/shaders/flash_reference_reduction.h": "f588157e30d595e0b72a5f3e56c6282a6a8610c36210e69a126a05ba688d99a4",
+    "native/src/contracts.rs": "50a8107f18c800854118f5a25dabb9a59838557878ccb85ca03db3cf2c800b36",
+    "native/src/gpu.rs": "67335a36f209db802de3dcb22f2c1e665fff0552a1d48d39dbda11f4395ca8fa",
+    "native/src/gpu/projection.rs": "ace479cf8f91c2ea317f5c6fa693d528e1ee429e1fc4f215dc887fa063246ddf",
+    "native/src/gpu/view.rs": "3be8e7345f7e21db8d193aaf696e7eadcde80e855fa85da7f1967af870dbcfad",
+    "native/src/linear.rs": "6f644a9e180bcac01d4e2740bd99810e5130e6b9608f441db9e140b9c2901102",
+    "native/src/main.rs": "fe89fd4213895d1058e8fa10381e150847738b3d5ebe602cdace114e8338a989",
+    "native/tests/runtime_gpu.rs": "e2b3ed3ea3e010cf9d5e11bcd7582a9afaa9575e6361262e8c410da300336350",
+    "tests/physical_flash_projection.py": "98d681e23b374ca7d47014a2ae8643044001c2c526d3f97922c8c22f721e92fa"
+  },
+  "direct_cli_sha256": "f2bfa03d2e1ecbfac6422776816d759dc78f2158704e34ad480cfc00abfe0563",
+  "stock_libtest_sha256": "4c104c6ac7b1cfad709a2d88339859a0280944075e9d63fee568be61deb810bc",
+  "hardware": "Apple M5, 24 GiB, macOS build 26B123",
+  "oracle": "Rust/MLX0.32.2 Exl3Linear::from_checkpoint, serial FP16 row calls",
+  "models": {
+    "Qwen3.6-35B-A3B-EXL3-2.49bpw": {
+      "config.json": "aca65841e826dc7aadcb2700d84196c29df812f1b7caea5c2b09362ec738aa51",
+      "quantization_config.json": "baf853ee4faea8c8b7e359defff3a4f52ecbba1b0f52e7f037d5c812c3fb25b5",
+      "model.safetensors.index.json": "2bd8127e0d395d375a931c2cbd5e5d1615756b7cbc21958abeabed21eae12b94"
+    },
+    "Qwen3.8-Flash-Next-exl3-205-65c89531": {
+      "config.json": "d4a35225fc5236c8a2d64d01fd273f2f41192be5ff43e5c50ef1ef50e28ccda2",
+      "quantization_config.json": "c057f732f92379dac8b345ee065d3f07c72df77fead15ee4ec972e8e9831bef5",
+      "model.safetensors.index.json": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed"
+    }
+  },
+  "shards": "Shared N0 checkpoint evidence is retained in ../baselines/local-checkpoints.json. No new whole-shard hash pass for this component test.",
+  "modes": {
+    "m5": "m5.json",
+    "forced_four_groups_on_M5": "portable.json"
+  },
+  "each_mode": {
+    "cases": 104,
+    "finite_fp16_words": 429952,
+    "generic_cases": 58,
+    "generic_words": 359040,
+    "unequal_words": 0,
+    "rejected_requests_then_reused": 5,
+    "mlx_loaded_by_direct_process": false
+  },
+  "kani": {
+    "version": "0.68.0",
+    "checks": 120,
+    "covers": 5,
+    "harnesses": [
+      "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
+      "contracts::native_projection_thread_count_matches_its_fixed_kernel"
+    ],
+    "domains": "arbitrary u32 dimensions, batch, K and group count, bool draft mode; checked aligned extents and kernel-specific thread counts",
+    "global": "existing macOS compiler ICE kani-compiler/src/intrinsics.rs:243"
+  },
+  "crosshair": {
+    "command": "crosshair check tests/physical_flash_projection.py --analysis_kind=asserts --per_condition_timeout=2 --per_path_timeout=2",
+    "result": "No checkable functions. No Python proof."
+  },
+  "suites": {
+    "cpu": {
+      "passed": 309,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 310,
+      "failed": 0,
+      "ignored": 24
+    },
+    "stock": {
+      "passed": 346,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "python": {
+    "passed": 4,
+    "skipped_macOS_Linux_runner": 44
+  },
+  "builds": [
+    "release direct-metal,chat",
+    "release stock runtime_gpu with mlx,chat"
+  ],
+  "checks": [
+    "format",
+    "three strict Clippy configurations",
+    "Metal AIR compilation",
+    "reviewed source inventory",
+    "Python syntax and Ruff"
+  ],
+  "integration": "Native projection codec is active. Complete Qwen sessions and other model families are subsequent work.",
+  "throughput": "not measured",
+  "integration_base": "b9e1dd6c52f91cb9758e347d9847e40ef591b764",
+  "source_files_changed_by_integration_base": {
+    "native/src/main.rs": "c1b7380bd43b98c3a8693af03aad7312966530c209279609d5d9f398171b0436"
+  },
+  "integration_note": "Only main.rs imports, inference surfaces and shared bridge helpers changed in the parent. The production codec_loop text and every projection shader, loader, shape contract, stock linear and physical harness hash remain those physically tested. All three integrated Clippy checks and Rust suites passed.",
+  "production_codec_loop_sha256": "2a1d500e6ef95533d1491910bba97b0eacfce9b70afb696e92cc2ab74003cbc0",
+  "production_codec_loop_unchanged_after_rebase": true,
+  "integrated_suites": {
+    "cpu": {
+      "passed": 309,
+      "failed": 0,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 310,
+      "failed": 0,
+      "ignored": 25
+    },
+    "stock": {
+      "passed": 346,
+      "failed": 0,
+      "ignored": 246
+    }
+  },
+  "integrated_clippy": "all three configurations passed",
+  "integrated_inventory_files": 223
+}

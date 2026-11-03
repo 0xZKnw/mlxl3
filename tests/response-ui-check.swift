@@ -654,7 +654,8 @@ extension CodeBlockView {
       report(
         "\(label) first thinking=\(message.thinking.utf8.count)B answer=\(message.content.utf8.count)B ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
       )
-      if !found || snapshot.ink < 40 {
+      let firstInkIsVisible = snapshot.ink >= 40
+      if !found || !firstInkIsVisible {
         firstMisses += 1
         report("FIRST MISS \(label): expected=\(marker); OCR=\(text)")
         try saveBitmap(snapshot.bitmap, suffix: "first-miss")
@@ -668,9 +669,10 @@ extension CodeBlockView {
         report(
           "\(label) settled ink=\(snapshot.ink) marker=\(found) onscreen=\(snapshot.onscreen) documentHeight=\(snapshot.height) offset=\(snapshot.offset)"
         )
+        let settledInkIsVisible = snapshot.ink >= 40
         try saveBitmap(
           snapshot.bitmap,
-          suffix: found && snapshot.ink >= 40 ? "settled-recovery" : "settled-failure")
+          suffix: found && settledInkIsVisible ? "settled-recovery" : "settled-failure")
       } else if save {
         try saveBitmap(snapshot.bitmap, suffix: "first")
       }

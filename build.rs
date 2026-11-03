@@ -62,6 +62,34 @@ fn main() {
     println!("cargo:rerun-if-env-changed=MLXL3_MLX_ROOT");
     println!("cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp");
     println!("cargo:rerun-if-changed=native/ffi/flash_prepare.h");
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos")
+        && env::var_os("CARGO_FEATURE_DIRECT_METAL").is_some()
+    {
+        let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
+        let object = out.join("process_stats.o");
+        let arch = if env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("aarch64") {
+            "arm64"
+        } else {
+            "x86_64"
+        };
+        run(Command::new("/usr/bin/clang++")
+            .args([
+                "-std=c++17",
+                "-arch",
+                arch,
+                "-O2",
+                "-c",
+                "native/ffi/process_stats.cpp",
+                "-o",
+            ])
+            .arg(&object));
+        run(Command::new("/usr/bin/ar")
+            .arg("crs")
+            .arg(out.join("libmlxl3_process_stats.a"))
+            .arg(&object));
+        println!("cargo:rustc-link-search=native={}", out.display());
+        println!("cargo:rustc-link-lib=static=mlxl3_process_stats");
+    }
     if env::var_os("CARGO_FEATURE_MLX").is_none() {
         return;
     }

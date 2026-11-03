@@ -1,0 +1,38 @@
+{
+  "base": "ff99144c7d4f10d5739def65391ff89719732318",
+  "hardware": "Apple M5, 24 GiB, macOS 26B123",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint_index_sha256": "c17e08f4e7fe1fece39ba7c8144ad6b15f2c76520b3add6c6f9b98aaccfb51ed",
+  "upstream": "mlx-vlm 0.7.3 ATT08 eval (layers 15 and 35), Rust production compiled with MLX 0.32.2 (512 dense positions and complete layer 3)",
+  "frozen_manifest_sha256": "40c57a914159b81a14d95324188799c3f503ee2ca992f4bc46ccbc60aaed74ec",
+  "sources": {
+    "native/shaders/flash_qsa.metal": "cbdb6dd0e4c5b949680dd8654367f04bf8f6706373358f925278a333471ae223",
+    "native/src/gpu/qsa.rs": "55b288bcded4f5ee6cdb38964552134ad2e33b2acc1a04b3bfbfd3f713bbaa04",
+    "native/src/gpu/gdn.rs": "857fe1231ac1211e1d36cbfafcbba141d9e135440f92414aa6cac992660212f6",
+    "native/src/flash_support.rs": "cb6d3b5c4963f5d725088fdb14d3022e3c98e0585dd3c418c0f909b6ae7f6485",
+    "native/src/main.rs": "b661b7648abeaceba5cb1fe4f338bc96d71da9800ba1b5d65a1aca4efdbe0f89",
+    "native/src/qwen4/direct_gdn_oracle.rs": "16dd7f019b6b18a094eda7146e454f60c79f18547731ab3001e59dc329b87ec3",
+    "tests/physical_flash_qsa.py": "fce66266238d8aa006fc552d5ad25f33de1c957d38455196f2d1257179adbbe4"
+  },
+  "command": "python tests/physical_flash_qsa.py DIRECT CHECKPOINT FROZEN NEW_REPORT --stock STOCK_LIBTEST",
+  "negative": {
+    "two_simd_norm": {
+      "mismatches": 2207,
+      "comparisons": 378880,
+      "cli_sha256": "8de14d38010d08bf13f98106a73365b82b60db35817455fffa76b7ed142b882e"
+    },
+    "alternating_kv_head": {
+      "mismatches": 81913,
+      "comparisons": 378880,
+      "cli_sha256": "2bfb40c319b8a3739ec474608230e25a287290a9540c24933dbe43665ac5101f"
+    }
+  },
+  "kani": {
+    "harness": "flash_support::qsa_append_preserves_all_published_rows",
+    "version": "0.68",
+    "checks": 39,
+    "covers": 2,
+    "domain": "All u32 offset, high-water and capacity, both fork and final free slot; no loops"
+  },
+  "scope": "One checkpoint, scalar token append and all 512 dense positions. Sparse routing and throughput remain open."
+}

@@ -8,6 +8,8 @@ pub mod codec;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod cold_ready;
 mod contracts;
+pub mod convert_matmul;
+pub mod quantize;
 pub mod tensor_layout;
 pub use contracts::{
     GenerationStopReason, exl3_lane_order_enabled, exl3_lane_order_key, reusable_prefix_len,
@@ -22,10 +24,25 @@ pub mod dflash;
 pub(crate) mod embedding;
 #[cfg(any(test, kani))]
 mod flash_cache_profile;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+mod flash_config;
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    test,
+    kani
+))]
 pub(crate) mod flash_draft_budget;
 pub(crate) mod flash_draft_metadata;
+#[cfg(any(
+    all(feature = "mlx", feature = "chat"),
+    all(target_os = "macos", feature = "direct-metal", feature = "chat"),
+    kani
+))]
+mod flash_draft_options;
 pub mod flash_memory;
+#[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) mod flash_ngrams;
 #[cfg(test)]
 pub(crate) mod flash_profile;
 pub mod flash_support;
@@ -60,11 +77,19 @@ pub mod qwen4;
 pub mod registry;
 #[cfg(feature = "mlx")]
 pub mod router;
+pub mod runtime_stats;
 pub mod speculative;
 #[cfg(feature = "mlx")]
 pub mod ssd_moe;
-#[cfg(any(feature = "mlx", test, kani))]
+#[cfg(any(
+    feature = "mlx",
+    all(target_os = "macos", feature = "direct-metal"),
+    test,
+    kani
+))]
 pub(crate) mod ssd_prefetch;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test))]
+pub(crate) mod ssd_reads;
 pub mod streaming;
 pub mod structured;
 #[cfg(feature = "chat")]
@@ -72,3 +97,8 @@ pub mod tokenizer;
 pub mod tool_call;
 #[cfg(any(feature = "mlx", test, kani))]
 pub(crate) mod weighted_epilogue;
+
+#[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
+mod native_bf16;
+#[cfg(all(target_os = "macos", feature = "direct-metal", feature = "chat"))]
+pub mod native_draft;
