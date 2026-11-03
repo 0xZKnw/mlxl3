@@ -165,7 +165,7 @@
     "obligations": 785,
     "unreachable": 7,
     "covers": 3,
-    "global": "compiler ICE at kani-compiler/src/intrinsics.rs:243",
+    "global": "attempt on ad439580 encountered compiler ICE at kani-compiler/src/intrinsics.rs:243",
     "scope": "generation transitions; GPU execution, threads and OS I/O are not proven"
   },
   "CPU_regressions": [
@@ -210,5 +210,15 @@
     "request-time resize and shrink",
     "additional transition-specific physical fault injections"
   ],
-  "raw_local_directory": "/Users/justin/.codex/worktrees/issue75-native-flash-ssd/mix-stq1_0/build/issue75ssd"
+  "raw_local_directory": "/Users/justin/.codex/worktrees/issue75-native-flash-ssd/mix-stq1_0/build/issue75ssd",
+  "integration": {
+    "base_pr": 94,
+    "base_sha": "b9e1dd6c52f91cb9758e347d9847e40ef591b764",
+    "rebase_source_sha": "64ce967a2c03f14a065799ee51b11b31d522c6be",
+    "native_file_hashes_unchanged": true,
+    "clippy": "CPU, direct and compatibility passed after original bridge integration",
+    "direct_suite": "passed after original bridge integration",
+    "final_parent_delta": "restored #93 test shapes/documents and discovery-based CI fixture; production code unchanged",
+    "proof_inventory": "upstream native accounting and N4 demand harness retained"
+  }
 }
