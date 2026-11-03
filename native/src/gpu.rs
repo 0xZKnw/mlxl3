@@ -16,6 +16,7 @@ pub struct FlashAttentionOutput {
     pub trace: Option<std::collections::BTreeMap<&'static str, Vec<u32>>>,
 }
 
+mod model_ops;
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
@@ -187,6 +188,7 @@ pub struct Metal {
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
     qsa: qsa::Pipelines,
+    model_ops: model_ops::Pipelines,
     gdn: gdn::Pipelines,
     logsumexp: ComputePipelineState,
     ple: ple::Pipelines,
@@ -226,6 +228,10 @@ impl Metal {
                     "#include \"router_topk.h\"",
                     include_str!("../shaders/router_topk.h"),
                 );
+            let source = source.replace(
+                "#include \"model_ops.metal\"",
+                include_str!("../shaders/model_ops.metal"),
+            );
             let source = source.replace(
                 "#include \"flash_gate.metal\"",
                 include_str!("../shaders/flash_gate.metal"),
@@ -344,6 +350,7 @@ impl Metal {
             let logsumexp = pipeline("flash_logsumexp")?;
             let ple = ple::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
+            let model_ops = model_ops::Pipelines::load(&pipeline)?;
             Ok(Self {
                 device,
                 queue,
@@ -364,6 +371,7 @@ impl Metal {
                 k7_pipeline,
                 hc,
                 qsa,
+                model_ops,
                 gdn,
                 logsumexp,
                 ple,
