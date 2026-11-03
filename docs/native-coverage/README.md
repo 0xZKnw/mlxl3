@@ -181,3 +181,15 @@ La CLI native accepte `forward --states`. Pour chaque token imposé, elle émet 
 ```sh
 python tests/physical_flash_trace.py --cli DIRECT --stock STOCK --model CHECKPOINT --report NOUVEAU_RAPPORT
 ```
+
+### Tête MTP Flash et vérification des propositions
+
+Le moteur Metal peut charger la tête MTP intégrée au checkpoint Flash et vérifier une proposition à la fois. Sur dix pas conservés par l’oracle indépendant, les quatre flux mixtes, la sortie QSA, le mélange final, les 248 320 logits par pas et les caches capturés concordent bit à bit. La mise à jour du cache seule reproduit aussi les blocs comprimés de la tête complète. Les quatre limites de sortie testées sont 1, 2, 3 et 17. Pour 17 tokens, 5 des 12 propositions ont été acceptées. La continuation après refus ou après une lecture interrompue retrouve l’état AR. [Empreintes et transcriptions](flash-mtp/replay.json).
+
+Pour rejouer, définir `MLXL3_FLASH_MODEL` et `MLXL3_FLASH_MTP_REFERENCE` (répertoire produit par `scripts/check-flash-reference.py --mtp-only`). Extraire l’objet `session.oracle` du rapport vers un fichier JSON et en fournir le chemin dans `MLXL3_FLASH_MTP_SESSION_ORACLE`. Utiliser `MLXL3_SSD_CACHE_GIB=0.6`. Exécuter chaque test isolément.
+
+```sh
+cargo test --locked --lib --features chat gpu::flash::mtp::draft_head_replays_retained_steps_and_vocabulary -- --exact --ignored
+cargo test --locked --lib --features mlx,chat qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states -- --exact --ignored --nocapture
+cargo test --locked --lib --features chat gpu::flash::mtp::speculative_commits_match_stock_sequence_and_ordinary_state -- --exact --ignored
+```
