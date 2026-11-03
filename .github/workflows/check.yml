@@ -10,6 +10,15 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  desktop-preferences:
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      MLXL3_SKIP_METAL_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-desktop.sh --preferences-only
+
   desktop-and-protocol:
     runs-on: macos-26
     timeout-minutes: 25

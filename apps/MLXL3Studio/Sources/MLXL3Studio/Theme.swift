@@ -112,12 +112,16 @@ private struct LogoArtwork: View {
 
 /// Keep the real artwork and mask its dark icon background in the view.
 struct MonogramMark: View {
+    @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 20
 
     var body: some View {
         Group {
             if let logo = StudioBrand.logo {
-                Image(nsImage: logo).resizable().scaledToFit()
+                Image(nsImage: logo)
+                    .renderingMode(colorScheme == .light ? .template : .original)
+                    .resizable().scaledToFit()
+                    .foregroundStyle(StudioTheme.ink)
             } else {
                 Image(systemName: "cpu").resizable().scaledToFit().foregroundStyle(StudioTheme.ink)
             }

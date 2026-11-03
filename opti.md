@@ -1,5 +1,12 @@
 # MLXL3 — journal des optimisations
 
+### PR72-2026-11-03-LOGO — régression de contraste, préenregistré avant correctif
+
+- Échec conservé : tête492ad7c7, run41600416935/job125797796195, `StudioModesCombined.swift:2351 Actual logo remains visible after background masking`, exit133. Python2362/137ignorés et compilationapp réussis avant l'échec ; nouveaux tests préférences/notifications non atteints dans ce run.
+- Audit : MEMORY logo/DESKTOP-V2B3 relu. L'oracle historique exige rouge>fond+0,3 et suppose un fond sombre ; la nouvelle palette adaptative suit l'apparence claire du runner. Le vrai artwork masqué reste clair et sa partie gauche manque aussi de contraste sur fond clair. Ne pas changer l'asset ni le masque historique. Hypothèse : rendu template teinté avec ink en mode clair, rendu artwork original en sombre/bleu. Appelants : MonogramMark partagé dans sidebar/réglages/modes ; StudioBrand conserve le cache de masque existant.
+- Avant relance : expliciter le mode sombre de l'ancien oracle et ajouter un vrai test natif du MonogramMark en clair/sombre/bleu, coins sans rectangle, deux moitiés du symbole visibles avec polarité de contraste attendue, contrôle négatif bitmap vide. Ajouter un parcours CI ciblé pour préférences/notifications/logo, réutilisant le vrai script et les mêmes tests de la suite complète ; aucun modèle/Metal/benchmark. Comparer aussi au rendu clair non teinté dans le contrôle négatif si l'oracle le distingue. Garder toutes les limites Swift/formal-skill précédentes.
+- Statut : correction/contrôles en cours ; aucun gain de vitesse/RAM, moteur inchangé.
+
 ### PR72-2026-11-03-INTEGRATION — contrôles locaux clos, branche réparée/poussée ; CI distante distincte
 
 - Clôture cloud locale : merge poussé `1775c093de17bec727f08d606789bf6a54467f47`, ref distante relue identique et PR72 mergeable=true/open/unmerged. Contrôles locaux ci-dessous terminés, aucun essai/benchmark/GPU en cours. CI de ce code : profils et conversion/proof réussis au premier snapshot, Desktop/Native/compatibilité encore en cours ; statuts externes à rapporter séparément après vérification du dernier commit, pas de CI verte globale revendiquée. Rapport et snapshot initial conservés dans docs/measurements/pr72-cloud-20261103.
