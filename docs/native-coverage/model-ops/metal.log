@@ -1,0 +1,17 @@
+In file included from native/shaders/exl3.metal:155:
+In file included from native/shaders/flash_projection.metal:29:
+native/shaders/_qmv_tile_kernel.metal:174:22: warning: unused variable 'partial' [-Wunused-variable]
+                uint partial = (batch_row * MLXL3_QMV_NT + output_tile) * 16u + column;
+                     ^
+native/shaders/_qmv_tile_kernel.metal:20:31: warning: unused variable 'partials' [-Wunused-variable]
+            threadgroup float partials[MLXL3_QMV_SG]
+                              ^
+In file included from native/shaders/exl3.metal:155:
+In file included from native/shaders/flash_projection.metal:40:
+native/shaders/_qmv_tile_kernel.metal:174:22: warning: unused variable 'partial' [-Wunused-variable]
+                uint partial = (batch_row * MLXL3_QMV_NT + output_tile) * 16u + column;
+                     ^
+native/shaders/_qmv_tile_kernel.metal:20:31: warning: unused variable 'partials' [-Wunused-variable]
+            threadgroup float partials[MLXL3_QMV_SG]
+                              ^
+4 warnings generated.

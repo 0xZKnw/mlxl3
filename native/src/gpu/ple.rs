@@ -258,7 +258,7 @@ impl<'a> FlashPle<'a> {
 
 pub struct FlashPleLayer<'a> {
     ple: FlashPle<'a>,
-    body: super::FlashGdnLayer<'a>,
+    pub(super) body: super::FlashGdnLayer<'a>,
 }
 #[derive(Clone)]
 pub struct FlashPleLayerState(FlashPleState, super::FlashGdnState);
@@ -290,13 +290,49 @@ impl<'a> FlashPleLayer<'a> {
         self.body.reset();
     }
     pub fn forward(&mut self, x: &MatrixView, token: u32) -> Result<MatrixView> {
+        self.forward_lookahead(x, token, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.ple.snapshot();
         let streams = self.ple.forward(x, token, false)?;
-        let result = self.body.forward(&streams.values);
+        let result = self.body.forward_lookahead(&streams.values, next, depth);
         if result.is_err() {
             self.ple.restore(&before)?;
         }
         result
+    }
+}
+
+impl FlashPleLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        for buffer in [
+            &self.ple.key,
+            &self.ple.value,
+            &self.ple.nk,
+            &self.ple.nq,
+            &self.ple.nc,
+            &self.ple.conv,
+        ] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(history) = &self.ple.history {
+            backings.record("ple", &history.buffer)?;
+        }
+        backings.ple_rows += self.ple.rows.cache_bytes();
+        self.body.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.reset();
+        self.body.release_idle_state()
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.body.shrink(slots)
     }
 }
 

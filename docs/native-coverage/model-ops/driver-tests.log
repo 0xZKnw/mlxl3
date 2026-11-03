@@ -1,0 +1,75 @@
+......F.                                                                 [100%]
+=================================== FAILURES ===================================
+____ test_physical_report_cannot_validate_failed_or_missing_checks[timeout] ____
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_physical_report_cannot_va5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107c9b770>
+fault = 'timeout'
+
+    @pytest.mark.parametrize("fault", ["ok", "zero", "mismatch", "mlx", "fail", "timeout"])
+    def test_physical_report_cannot_validate_failed_or_missing_checks(tmp_path, monkeypatch, fault):
+        binary = tmp_path / "binary"
+        pidfile = tmp_path / "pid"
+        binary.write_text(
+            "#!/usr/bin/env python3\nimport os,time\n"
+            + f"open({str(pidfile)!r},'w').write(str(os.getpid()))\n"
+            + ("time.sleep(60)\n" if fault == "timeout" else "")
+            + "print('test result: ok. "
+            + ("0" if fault == "zero" else "1")
+            + " passed; 0 failed; 0 ignored;')\n"
+            + "print('model-ops checked 20 finite words')\n"
+            + "for i in range(20): print(f'model-op {i}: words=1, unequal="
+            + ("1" if fault == "mismatch" else "0")
+            + "')\n"
+            + ("print('dyld: /unexpected/libmlx.dylib')\n" if fault == "mlx" else "")
+            + ("raise SystemExit(2)\n" if fault == "fail" else "")
+        )
+        binary.chmod(0o755)
+        original = subprocess.run
+    
+        def oracle_only(command, **kwargs):
+            if "--oracle" in command:
+                Path(command[-1]).write_text(json.dumps([{"expected": [0]}] * 20))
+                return subprocess.CompletedProcess(command, 0)
+            return original(command, **kwargs)
+    
+        monkeypatch.setattr(physical.subprocess, "run", oracle_only)
+        output = tmp_path / "report"
+        if fault == "ok":
+            physical.run(binary, output, timeout=1)
+        else:
+            with pytest.raises((RuntimeError, subprocess.SubprocessError)):
+                physical.run(binary, output, timeout=0.2 if fault == "timeout" else 1)
+        report = json.loads((output / "report.json").read_text())
+        assert report["parity"] is (fault == "ok")
+        assert report["status"] == ("validated" if fault == "ok" else "failed")
+        with pytest.raises(ProcessLookupError):
+>           os.kill(int(pidfile.read_text()), 0)
+                        ^^^^^^^^^^^^^^^^^^^
+
+tests/test_physical_model_ops.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_physical_report_cannot_va5/pid')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_physical_report_cannot_va5/pid'
+
+/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py:1013: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_physical_model_ops.py::test_physical_report_cannot_validate_failed_or_missing_checks[timeout]
+1 failed, 7 passed in 2.03s

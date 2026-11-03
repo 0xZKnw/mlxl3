@@ -138,3 +138,119 @@ async fn native_flash_serve_streams_the_same_completion_as_json() -> anyhow::Res
     );
     Ok(())
 }
+
+#[cfg(all(
+    target_os = "macos",
+    feature = "direct-metal",
+    feature = "chat",
+    not(feature = "mlx")
+))]
+#[tokio::test]
+#[ignore = "physical Flash bridge, native memory budget, ledger, mode rejection and recovery"]
+async fn native_flash_memory_budget_preserves_bridge_recovery() -> anyhow::Result<()> {
+    use anyhow::{Context, ensure};
+    use serde_json::{Value, json};
+    use std::{process::Stdio, time::Duration};
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+        process::{ChildStdin, ChildStdout, Command},
+        time::timeout,
+    };
+
+    async fn request(
+        input: &mut ChildStdin,
+        output: &mut tokio::io::Lines<BufReader<ChildStdout>>,
+        value: Value,
+        wanted: &str,
+    ) -> anyhow::Result<Value> {
+        input
+            .write_all((value.to_string() + "\n").as_bytes())
+            .await?;
+        timeout(Duration::from_secs(120), async {
+            loop {
+                let line = output.next_line().await?.context("memory bridge exited")?;
+                let event: Value = serde_json::from_str(&line)?;
+                if event["request_id"] != value["request_id"] {
+                    continue;
+                }
+                if event["type"] == wanted {
+                    return Ok(event);
+                }
+                ensure!(event["type"] != "error", "unexpected bridge error {event}");
+            }
+        })
+        .await
+        .context("memory bridge request deadline")?
+    }
+
+    let model = std::env::var("MLXL3_FLASH_MODEL")?;
+    let cli = std::env::var("MLXL3_FLASH_TEST_CLI")
+        .unwrap_or_else(|_| env!("CARGO_BIN_EXE_mlxl3-rs").into());
+    let registry = tempfile::tempdir()?;
+    let mut process = Command::new(cli)
+        .arg("--registry")
+        .arg(registry.path().join("models.json"))
+        .arg("bridge")
+        .arg(&model)
+        .args(["--context-length", "256"])
+        .env("MLXL3_FLASH_REQUEST_MIB", "8192")
+        .env(
+            "MLXL3_SSD_CACHE_GIB",
+            std::env::var("MLXL3_FLASH_TEST_CACHE_GIB").unwrap_or_else(|_| "0.6".into()),
+        )
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+    let mut input = process.stdin.take().context("missing bridge input")?;
+    let mut output =
+        BufReader::new(process.stdout.take().context("missing bridge output")?).lines();
+    let result = timeout(Duration::from_secs(300),async {
+        let ready = timeout(Duration::from_secs(60),async {
+            loop {
+                let line = output.next_line().await?.context("memory bridge exited before ready")?;
+                let event: Value = serde_json::from_str(&line)?;
+                if event["type"] == "ready" { return Ok::<_,anyhow::Error>(event); }
+            }
+        }).await.context("memory bridge startup deadline")??;
+        ensure!(ready["mtp_supported"]==false && ready["flash"]["memory"]["request_limit_bytes"]==8u64<<30);
+        let first = request(&mut input,&mut output,json!({"type":"flash_memory","request_id":"before"}),"flash_memory").await?;
+        ensure!(first["ledger"]["expert_slots_by_layer"].as_array().is_some_and(|v|v.len()==48));
+        let refused = request(&mut input,&mut output,json!({"type":"set_mtp","request_id":"head","enabled":true,"mtp_head_path":model}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        ensure!(ready["dflash_supported"]==false && ready["dflash_configure_supported"]==false && ready["mtp_configure_supported"]==false);
+        let refused = request(&mut input,&mut output,json!({"type":"set_dflash","request_id":"draft","enabled":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","dflash_mode":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        let refused = request(&mut input,&mut output,json!({"type":"generate","request_id":"draft-generate","messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"dflash2":true,"dflash_draft_path":"/a/nonexistent/draft/that/must/not/be/opened","temperature":0,"top_k":1}),"error").await?;
+        ensure!(refused["message"].as_str().is_some_and(|s|s.contains("AR only")));
+        for id in ["first","repeat"] {
+            let completed = request(&mut input,&mut output,json!({"type":"generate","request_id":id,"messages":[{"role":"user","content":"Combien font 2 + 2 ?"}],"max_tokens":2,"temperature":0,"top_k":1,"memory_saver":true}),"complete").await?;
+            ensure!(completed["stats"]["generated_tokens"]==2 && completed["token_hash"]=="9f850af1cbba074b");
+        }
+        let after = request(&mut input,&mut output,json!({"type":"flash_memory","request_id":"after"}),"flash_memory").await?;
+        let ledger = &after["ledger"];
+        ensure!(ledger["reads_in_flight"]==0 && ledger["memory"]["mlx_active_bytes"]==0);
+        if std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH").ok().is_some_and(|v| v != "0") {
+            ensure!(ledger["prefetch"]["submitted"].as_u64().is_some_and(|n| n > 0), "lookahead bridge did not prefetch");
+        }
+        ensure!(ledger["memory"]["native_metal_allocated_bytes"].as_u64().is_some_and(|n|n>0));
+        ensure!(ledger["state_backing_bytes"].get("gdn").is_none() && ledger["state_backing_bytes"].get("last_hidden").is_none());
+        Ok::<_,anyhow::Error>(())
+    }).await.context("memory bridge campaign deadline");
+    let _ = input.write_all(b"{\"type\":\"shutdown\"}\n").await;
+    let status = match timeout(Duration::from_secs(12), process.wait()).await {
+        Ok(status) => status?,
+        Err(_) => {
+            process.start_kill()?;
+            timeout(Duration::from_secs(3), process.wait())
+                .await
+                .context("memory bridge cleanup deadline")??
+        }
+    };
+    result??;
+    ensure!(status.success(), "memory bridge shutdown failed: {status}");
+    eprintln!(
+        "Native budget bridge replay matches the independent two-token hash after rejection and memory-saver cleanup"
+    );
+    Ok(())
+}

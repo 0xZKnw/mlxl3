@@ -638,7 +638,7 @@ impl<'a> FlashQsa<'a> {
 
 pub struct FlashQsaLayer<'a> {
     attention: FlashQsa<'a>,
-    residual: super::gdn::LayerResidual<'a>,
+    pub(super) residual: super::gdn::LayerResidual<'a>,
 }
 impl<'a> FlashQsaLayer<'a> {
     pub fn load(
@@ -722,14 +722,64 @@ impl<'a> FlashQsaLayer<'a> {
         self.attention.reset();
     }
     pub fn forward(&mut self, streams: &MatrixView) -> Result<MatrixView> {
+        self.forward_lookahead(streams, None, 0)
+    }
+    pub(super) fn forward_lookahead(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MatrixView> {
         let before = self.snapshot();
         let out = self
             .residual
-            .forward(streams, |x| self.attention.forward(x, false));
+            .forward(streams, |x| self.attention.forward(x, false), next, depth);
         if out.is_err() {
             self.restore(&before)?;
         }
         out
+    }
+}
+
+impl FlashQsaLayer<'_> {
+    pub(super) fn record_memory(&self, backings: &mut crate::gpu::memory::Backings) -> Result<()> {
+        let q = &self.attention;
+        for projection in [&q.q, &q.k, &q.v, &q.out] {
+            projection.record_memory(backings)?;
+        }
+        for buffer in [&q.q_norm, &q.k_norm, &q.freq] {
+            backings.record("fixed_weights", buffer)?;
+        }
+        if let Some(index) = &q.index {
+            index.qk.record_memory(backings)?;
+            for buffer in [&index.q_norm, &index.k_norm, &index.freq] {
+                backings.record("fixed_weights", buffer)?;
+            }
+        }
+        backings.record("qsa_kv", &q.state.slab.keys)?;
+        backings.record("qsa_kv", &q.state.slab.values)?;
+        if let Some(buffer) = &q.state.slab.blocks {
+            backings.record("qsa_index", buffer)?;
+        }
+        if let Some(buffer) = &q.state.tail {
+            backings.record("qsa_index", buffer)?;
+        }
+        self.residual.record_memory(backings)
+    }
+    pub(super) fn release_idle_state(&mut self) -> Result<()> {
+        self.residual.release_idle_state()?;
+        let attention = &mut self.attention;
+        let slab = Slab::new(
+            attention.gpu,
+            attention.capacity.min(32),
+            attention.index.is_some(),
+        )?;
+        attention.state.slab = slab;
+        attention.reset();
+        Ok(())
+    }
+    pub(super) fn shrink(&mut self, slots: usize) -> Result<()> {
+        self.residual.shrink(slots)
     }
 }
 

@@ -1,0 +1,242 @@
+{
+  "status": "validated_component",
+  "scope": "Strided F16-output RMS,dense rows,single-query GQA and RoPE for quantized model blocks",
+  "source_commit": "d6c4578f881b36ae334b48aa6c39d5409b7f470c",
+  "source_sha256": {
+    "native/src/contracts.rs": "49a48828e7e49c4b60989bc1fbd2c747067656f8c306fdcd5558275540292f36",
+    "native/src/gpu.rs": "3afbcba5d7c5eb91ffbdb3fb230b0a573d106101651961b653246a3273af94e3",
+    "native/src/gpu/model_ops.rs": "97040bf5d7053b7bed2d7529d526dda6fb557ce20d6b86c9076baf7e272a608b",
+    "native/shaders/exl3.metal": "c76583c17913fb6fdb3b3da9ab85c7b301ae3b43b74900f998f92f6785a6b73c",
+    "native/shaders/model_ops.metal": "1d143fd3ddb278200fb1aa2491f348f6b102b1e2841ef86ad2ff7e4415977f88",
+    "tests/physical_model_ops.py": "97cbda8ecffdf0de960fbb7f5c9ec85c521b23f377242d589f3f2737a1e7c9d4",
+    "tests/test_physical_model_ops.py": "d0ed683df394805afebe918c1f8f0e82f5c935f26546631d5a58d6296866442c"
+  },
+  "base_pr": 97,
+  "hardware": {
+    "cpu": "Apple M5",
+    "memory_bytes": 25769803776,
+    "os_build": "26B123",
+    "os_version": "27.2"
+  },
+  "release_test_sha256": "ff975917635a17de69931672379d618de8c8b9e54cca5cc8ae7778fc5b26051e",
+  "release_cli_sha256": "7c354b4668778b2f57292018fcf8109a157391831621ec3629fadc66b5fea44e",
+  "oracle": {
+    "implementation": "actual MLX0.32.2 in a separate process,seed750703",
+    "fixture_sha256": "41573e6603679a6276705d1ab67fe685c2769978edbfb56037dcbfaa241bd843",
+    "raw_fixture_local_path": "/Users/justin/.codex/worktrees/issue75-native-lfm/mix-stq1_0/build/issue75lfm/physical-05/fixtures.json",
+    "fixture_generator": "tests/physical_model_ops.py",
+    "scope": "logical contiguous oracle inputs versus native negative strides,offsets and dropped storage handles",
+    "local_fixture_versioned": false
+  },
+  "physical": {
+    "status": "validated",
+    "parity": true,
+    "binary_sha256": "ff975917635a17de69931672379d618de8c8b9e54cca5cc8ae7778fc5b26051e",
+    "cases": 66,
+    "rejected_cases": 4,
+    "finite_words": 82149,
+    "fixture_sha256": "41573e6603679a6276705d1ab67fe685c2769978edbfb56037dcbfaa241bd843"
+  },
+  "accepted_types": "F16 input and F16 output. RMS gains F16/F32 preserve promoted normalization then explicit outputHalf. Dense F16 weights at1/3rows,F32 weights at1row. GQA dimensions64/128/256. RoPE full/partial toposition131071.",
+  "unsupported": "F32-weight dense batches explicitly rejected before allocation; full native FP32 GEMM and raw BF16/F32 teacher remain open",
+  "kani": {
+    "command": "cargo kani --lib --no-default-features --solver z3 --harness model_gqa_widths_reject_invalid_groups_and_overflow",
+    "domain": "three arbitrary u32 head counts/dimension,no assumptions",
+    "property": "checked flattened widths accept exactly positive compatible groups,allowed head widths and products fitting u32",
+    "obligations": 221,
+    "unreachable_standard_intrinsics": 8,
+    "failed": 0,
+    "covers": 2,
+    "solver_seconds": 1.8980187,
+    "earlier_cadical_attempt": "60s timeout,no verdict",
+    "global": "cargo kani --lib --no-default-features -Z stubbing reproduces existing macOS intrinsics.rs243 compiler ICE;unverified"
+  },
+  "rust_suites": {
+    "cpu": {
+      "passed": 304,
+      "ignored": 8,
+      "groups": [
+        [
+          217,
+          0,
+          8
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "direct": {
+      "passed": 311,
+      "ignored": 26,
+      "groups": [
+        [
+          224,
+          0,
+          25
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "stock": {
+      "passed": 347,
+      "ignored": 247,
+      "groups": [
+        [
+          251,
+          0,
+          235
+        ],
+        [
+          44,
+          0,
+          9
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          35,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          3
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "python": {
+    "passed": 9,
+    "failure_reproduction": "original timeout fixture could expire before child wrote PID; tracking actualPopenpid removes this test assumption",
+    "crosshair": "no checkable functions in actual processdriver,no proof"
+  },
+  "checks": [
+    "three strict Clippy modes",
+    "cargo fmt",
+    "native release",
+    "Metal AIR",
+    "Ruff format/lint",
+    "reviewed MLX source inventory"
+  ],
+  "retained_failures": [
+    "physical01 missing explicit RoPEscale parameter",
+    "physical02 mixedgain RMS needed promoted intermediate",
+    "physical03 RoPEhighposition needed actual exp2/log2/fasttrig contract",
+    "physical04 unqualified F32GEMM batches diverge; report remainsfalse",
+    "initialClippy testmodule order and GPUfeaturegate failures",
+    "initial executablecopy missingmode,zeroGPUchecksretained",
+    "CaDiCaLproof timeout"
+  ],
+  "source_verification_limits": [
+    "Kani CPUwidthcontractdoesnotproveMetal,floatarithmetic,allocator,concurrencyorfullgeneration",
+    "physicalonlyM5;forcedotherhardwarepolicyisnotrealhardwarecoverage",
+    "fullLFM/Qwen modelintegrationfollowsthiscomponent",
+    "no throughputbenchmarkorinstalledappchange"
+  ],
+  "artifacts": {
+    "geometry-test.log": "5c614f70f449978da1b6ccd67d7ed04d4bcf63b7e6b4e739890a16aa1d316931",
+    "clippy-2.log": "bdd57df0aef6397e17d380594a8d122bf892beaee9aed5afac7e4429ae3a3e46",
+    "final-clippy-cpu.log": "e7729ed5a0f3baf9100155426a8a28b6fb3bb950373825cfd4f3d25df8220227",
+    "python-final-2.log": "f67b03b4d762a8b94d1ee188c92f2cff78d091a4af9de4968644973373ac5834",
+    "geometry-test-2.log": "b03f92a59bb39ea61c29a5134d20b8282b62b5d0cde75abf1e8388c40caefade",
+    "final-suite-direct.log": "c3b050e644c429e56455cd6e712d7ebcbd8d2d2c8742788c692a8da213b7fda2",
+    "clippy.log": "7ed1c40d7332fc00c059b044fe8eb24c502f4dd923e83cdf8d8e1d19c0a5cf25",
+    "driver-tests.log": "dbbcdbcd53adec2fe16680d247ae431686bed92fb76a2844fc1d2e99006b476d",
+    "final-suite-stock.log": "f58739cd685e2906382ed9bbe4cae22624dc903586dc613be58b60d03300a1fe",
+    "driver-tests-2.log": "28c9157400275bf3dc22b5ef8d435a7c6ce9718f291cfbaad2d76ed7d244d09d",
+    "kani-z3.log": "5e6239ad399823865408e0dbb7291b68b58387173113f535a7bd57abec6f5300",
+    "final-clippy-stock.log": "f9351360a15407e58b31fea7f2e4b453909d18ebd64928988953feb00f2db4e2",
+    "kani-full-exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "final-clippy-cpu-2.log": "4c4f79f816356fd6e1be461aeebd386c8e0c6e7764bd7d8b86460a07de685523",
+    "inventory-review.log": "fda3805a4067b28cdd30559ac83d46f3a9d6fe4051e5fbb25a54781e217b21c3",
+    "crosshair.log": "2a2a263c19c8a43d66e1956a8f78212db851c23add6d8a1b2ac929fe1343dbfe",
+    "final-release-direct.log": "bde01ad5fad481f1eed72fe536b15335275ff9bf11708312d4213ddb199efcb7",
+    "final-clippy-direct.log": "ccace262a00e6cb11f1309c32ff38dbfbebbdb5aa219a949c45fe5980787401e",
+    "kani-z3-exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "final-suite-cpu.log": "2ac8c82f058b14c447c2e11553451be28e5e58f14e636c09e09e3a62552ae845",
+    "kani-full.log": "1d7e74d4f6780c9b92d3226fb42b50fe481f2ad805339f553513479da415835c",
+    "release-tests.log": "7f3c3584a33f469370a3a34f56ebd5964bcf07dd655379f38909770612caa13c",
+    "kani-exit": "ca2ebdf97d7469496b1f4b78958f9dc8447efdcb623953fee7b6996b762f6fff",
+    "metal.log": "d5aba6f92dad29a7bb12fc321e1cf86e7172b29dcd091ba2a575e36c6f259545",
+    "kani.log": "cda76e4f2af03e5c98817ba43520c92f53e6c4dc1b62d2a0e3132604e713a828",
+    "physical-01/report.json": "f5f013df80066dc422d24dea78a83829eadbd1d0417fca9e1714b2ec6bbb0316",
+    "physical-01/oracle.log": "5d3f7528e30daeae6cd68b03b5b9b1785dda2c40701bc9ee5cf53805c970ff4a",
+    "physical-05/report.json": "b0e68a4ccb3b6d25dbb546a790fd18c57632dc99041ef47f02517dbd37270762",
+    "physical-05/oracle.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "physical-05/native.log": "e7d050bd462074af6d215789351e07e79e7207440a52d02558b35fd586802d98",
+    "physical-02/report.json": "73aa42ccae93942ea5d0de758b894946978dc20be4002b7a3201c2c1e8827f5e",
+    "physical-02/oracle.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "physical-02/native.log": "ae61c223ecf36334e2a1ba64862d5225d71fe9cc8a1e80b4e91e97083b19d2d2",
+    "physical-03/report.json": "040f38a68cb99ca6985150997005d16283b2746907cc3fed9949a7e52f235923",
+    "physical-03/oracle.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "physical-03/native.log": "aeb3f884d2c6a84d538f495fc731f7efc971e21568947efeb8faf3d1a56fa1e4",
+    "physical-04/report.json": "4a80f512c583a9507733fb02c09de0ac5a550f5304dea7d8856631ac10d63044",
+    "physical-04/oracle.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "physical-04/native.log": "8f8a4e7a45c4be2d444b485aef14f9ab125a2142306530a2517e4ceae67f0aaa",
+    "final-metal.log": "d5aba6f92dad29a7bb12fc321e1cf86e7172b29dcd091ba2a575e36c6f259545",
+    "final-inventory.log": "38a5f56e704fa6322e35c7f00dd742f1e112a258d2e8b582addbf6e5268de8b9",
+    "final-python.log": "04fbc3948919b9acc53bef12688cae92940318058b0011b807347d25f1405c3a"
+  },
+  "source_build": {
+    "base_commit": "3cf9dd904ca580dff17d0e408a5bd42691420328",
+    "built_with_local_overlay": true,
+    "committed_implementation": "d6c4578f881b36ae334b48aa6c39d5409b7f470c",
+    "note": "The final implementation is committed; the numerical source was compiled before commit. A Rust module documentation line changed after compilation; encoding and Metal source are unchanged."
+  }
+}

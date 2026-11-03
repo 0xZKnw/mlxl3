@@ -2,19 +2,7 @@
 use super::*;
 use crate::flash_memory::{ResourcePlan, fits, shrink_slots};
 
-pub(super) fn request_limit() -> Result<Option<u64>> {
-    match std::env::var("MLXL3_FLASH_REQUEST_MIB") {
-        Ok(text) => Ok(Some(
-            text.parse::<u64>()
-                .ok()
-                .filter(|n| *n > 0)
-                .and_then(|n| n.checked_mul(1 << 20))
-                .context("MLXL3_FLASH_REQUEST_MIB requires a positive integer MiB budget")?,
-        )),
-        Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(error) => Err(error.into()),
-    }
-}
+pub(super) use crate::flash_memory::request_limit;
 
 fn observed(memory: array::MemoryStats) -> Result<u64> {
     Ok(memory
