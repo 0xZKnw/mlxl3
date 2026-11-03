@@ -109,3 +109,7 @@ Les entrées de préparation, de projection et d’expert acceptent un backing i
 ### Classement des experts sur Metal direct
 
 Le CLI `metal-router` consomme une vue de scores FP16 ou FP32 et rend les indices des experts et les bits de leurs scores. L’API Rust permet au lecteur SSD de transférer seulement les IDs ; les scores publiés après succès peuvent alimenter une autre file Metal. Le contrôle indépendant compare les 80 cas au tri scalaire, au routeur MLX courant et, pour FP16, au binaire d’avant extraction du kernel. Les 32 940 indices sont exacts, ainsi que les 28 136 scores finis et le signe des infinis. Pour les NaN, le test compare la classe. [Comparaison](router/physical.json) · [Mutation des égalités](router/reversed-tie.json) · [Périmètre et références](router/provenance.json).
+
+### Routeur Flash avec les poids du checkpoint
+
+`metal-checkpoint-router` prend le préfixe d’une gate Flash dense [512,2560] sans biais et une vue d’activation FP16/F32. La projection, le softmax précis et les dix scores ordonnés utilisent la même commande Metal. Le diagnostic `return_raw` permet de lire les logits et les probabilités. Trois gates du checkpoint Flash (couches 0 et 23, MTP) et une gate synthétique ont été qualifiées sur entrées imposées. [Comparaison physique](gate/physical.json) · [Divergence de normalisation](gate/widened-denominator.json) · [Provenance et domaine](gate/provenance.json).

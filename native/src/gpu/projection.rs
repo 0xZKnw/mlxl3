@@ -11,7 +11,6 @@ use metal::{
     Buffer, CommandBuffer, CommandBufferRef, DeviceRef, MTLCommandBufferStatus,
     MTLResourceOptions as Storage, MTLSize,
 };
-use std::os::unix::fs::FileExt;
 
 pub struct FlashProjection<'a> {
     metal: &'a Metal,
@@ -124,17 +123,8 @@ impl<'a> FlashProjection<'a> {
             "unsupported Flash projection threadgroup"
         );
         let bytes = u64::from(count) * 2;
-        ensure!(
-            t.data_offsets[1].checked_sub(t.data_offsets[0]) == Some(bytes),
-            "trellis byte count mismatch"
-        );
-        let (file, offset) = t.source()?;
-        let packed = buffer(&metal.device, bytes, Storage::StorageModeShared)?;
-        // The inspected inode is pinned. Metal cannot see the buffer before successful read.
-        let dst = unsafe {
-            std::slice::from_raw_parts_mut(packed.contents().cast::<u8>(), bytes as usize)
-        };
-        file.read_exact_at(dst, offset)?;
+        let packed =
+            super::read_weight(&metal.device, t, bytes).context("reading projection trellis")?;
         let get_scale = |primary, legacy, width| {
             let t = tensors
                 .get(&format!("{name}.{primary}"))

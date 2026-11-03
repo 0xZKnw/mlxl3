@@ -201,3 +201,5 @@ kernel void route_matrix(const device T* values [[buffer(0)]], device uint* indi
 ROUTE_KERNEL(half, "route_half")
 ROUTE_KERNEL(float, "route_float")
 #undef ROUTE_KERNEL
+
+#include "flash_gate.metal"

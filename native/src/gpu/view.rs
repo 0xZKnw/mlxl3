@@ -37,6 +37,49 @@ impl TensorStorage {
 }
 
 impl MatrixView {
+    pub(super) fn output(
+        gpu: &Metal,
+        dtype: FloatType,
+        rows: u32,
+        cols: u32,
+        storage: Storage,
+    ) -> Result<Self> {
+        let count = rows.checked_mul(cols).context("matrix size overflow")?;
+        let size = if dtype == FloatType::F16 { 2 } else { 4 };
+        Ok(Self {
+            buffer: buffer(&gpu.device, u64::from(count) * size, storage)?,
+            layout: MatrixLayout {
+                shape: [rows, cols],
+                offset: 0,
+                strides: [i64::from(cols), 1],
+            },
+            dtype,
+        })
+    }
+
+    /// Only for contiguous shared outputs, after a successful command completion.
+    pub(super) fn read_output(&self) -> Result<Vec<u32>> {
+        let [rows, cols] = self.layout.shape;
+        let count = rows.checked_mul(cols).context("matrix size overflow")? as usize;
+        let size = if self.dtype == FloatType::F16 { 2 } else { 4 };
+        ensure!(
+            self.buffer.storage_mode() == metal::MTLStorageMode::Shared
+                && self.layout.offset == 0
+                && self.layout.strides == [i64::from(cols), 1]
+                && self.buffer.length() == count as u64 * size,
+            "invalid host read of Metal output"
+        );
+        Ok(match self.dtype {
+            FloatType::F16 => Metal::read(&self.buffer, count)
+                .into_iter()
+                .map(u32::from)
+                .collect(),
+            // The exact extent, storage mode and contiguous layout have been checked.
+            FloatType::F32 => unsafe {
+                std::slice::from_raw_parts(self.buffer.contents().cast::<u32>(), count).to_vec()
+            },
+        })
+    }
     pub(super) fn column_scales(buffer: &Buffer, rows: u32, cols: u32) -> Result<Self> {
         ensure!(
             buffer.length() == 2 * u64::from(cols),

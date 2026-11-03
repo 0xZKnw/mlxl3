@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod gate;
+pub use gate::{FlashGate, FlashGateTrace};
 mod router;
 pub use router::RouteOutput;
 mod view;
@@ -34,6 +36,26 @@ fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
     Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
 }
 
+fn read_weight(
+    device: &DeviceRef,
+    tensor: &crate::checkpoint::TensorInfo,
+    bytes: u64,
+) -> Result<Buffer> {
+    use std::os::unix::fs::FileExt;
+    ensure!(
+        tensor.data_offsets[1].checked_sub(tensor.data_offsets[0]) == Some(bytes),
+        "weight byte count mismatch"
+    );
+    let (file, offset) = tensor.source()?;
+    let packed = buffer(device, bytes, Storage::StorageModeShared)?;
+    // The inspected inode is pinned. No handle is published before read_exact_at succeeds.
+    let dest = unsafe {
+        std::slice::from_raw_parts_mut(packed.contents().cast::<u8>(), usize::try_from(bytes)?)
+    };
+    file.read_exact_at(dest, offset)?;
+    Ok(packed)
+}
+
 fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
     let bytes = std::mem::size_of_val(data);
     let dest = buffer(device, (bytes as u64).max(1), Storage::StorageModeShared)?;
@@ -55,6 +77,8 @@ pub struct Metal {
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
+    gate_dot: [ComputePipelineState; 2],
+    gate_softmax: [ComputePipelineState; 2],
     route_half: ComputePipelineState,
     route_float: ComputePipelineState,
     inverse: Buffer,
@@ -83,6 +107,10 @@ impl Metal {
                     "#include \"router_topk.h\"",
                     include_str!("../shaders/router_topk.h"),
                 );
+            let source = source.replace(
+                "#include \"flash_gate.metal\"",
+                include_str!("../shaders/flash_gate.metal"),
+            );
             let library = device
                 .new_library_with_source(&source, &options)
                 .map_err(|e| anyhow::anyhow!("Metal compilation failed: {e}"))?;
@@ -114,6 +142,11 @@ impl Metal {
                 .map(|i| i as u16)
                 .collect();
             let inverse = upload(&device, &perm)?;
+            let gate_dot = [pipeline("gate_dot_half")?, pipeline("gate_dot_float")?];
+            let gate_softmax = [
+                pipeline("gate_softmax_half")?,
+                pipeline("gate_softmax_float")?,
+            ];
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let queue = device.new_command_queue();
@@ -130,6 +163,8 @@ impl Metal {
                 prepare_view_pipeline,
                 swiglu_pipeline,
                 k7_pipeline,
+                gate_dot,
+                gate_softmax,
                 route_half,
                 route_float,
                 inverse,

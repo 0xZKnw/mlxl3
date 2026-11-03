@@ -265,7 +265,7 @@ struct CodecRequest {
     #[cfg(feature = "mlx")]
     projection_stride_tiles: usize,
     #[serde(default)]
-    #[cfg(feature = "mlx")]
+    #[cfg(any(all(target_os = "macos", feature = "direct-metal"), feature = "mlx"))]
     return_raw: bool,
     #[serde(default)]
     #[cfg(feature = "mlx")]
@@ -915,12 +915,29 @@ fn codec_loop() -> Result<()> {
                 | "metal-checkpoint-expert"
                 | "metal-swiglu"
                 | "metal-prepare-view"
-                | "metal-router" => {
+                | "metal-router"
+                | "metal-checkpoint-router" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-router" => {
+                            let input = request.input_view(gpu)?;
+                            let checkpoint =
+                                checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let gate = mlxl3_native::gpu::FlashGate::load(
+                                gpu,
+                                &checkpoint,
+                                &request.prefix,
+                            )?;
+                            if request.return_raw {
+                                Ok(json!(gate.trace(&input)?))
+                            } else {
+                                let (indices, scores) = gate.submit(&input)?.read()?;
+                                Ok(json!({"indices":indices,"scores":scores}))
+                            }
+                        }
                         "metal-router" => {
                             let input = request.input_view(gpu)?;
                             let (indices, scores) = gpu

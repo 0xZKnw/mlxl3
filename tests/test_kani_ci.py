@@ -82,6 +82,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::flash_expert_submissions_share_intermediate_extents",
         "contracts::projection_offsets_fit_submitted_extents",
         "contracts::prepare128_validates_block_and_scale_indices",
+        "contracts::flash_gate_dispatch_bounds_output_and_weight_addresses",
         "contracts::router_dispatch_sizes_bound_static_memory_and_output",
         "dec_one::dec_one_storage_contract",
         "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",

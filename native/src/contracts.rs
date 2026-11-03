@@ -2304,3 +2304,33 @@ fn router_dispatch_sizes_bound_static_memory_and_output() {
         kani::cover!(experts == 1024 && k == experts);
     }
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_gate_rows(rows: u32, width: u32) -> bool {
+    width == 2560 && router_output_len(rows, 512, 10).is_some()
+}
+
+#[test]
+fn flash_gate_accepts_only_complete_indexable_rows() {
+    assert!(flash_gate_rows(1, 2560) && flash_gate_rows(u32::MAX / 512, 2560));
+    for (rows, width) in [(0, 2560), (1, 2559), (1, 2561), (u32::MAX / 512 + 1, 2560)] {
+        assert!(!flash_gate_rows(rows, width));
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn flash_gate_dispatch_bounds_output_and_weight_addresses() {
+    let (rows, width, row): (u32, u32, u32) = kani::any();
+    let expert = u32::from(kani::any::<u16>()) % 512;
+    let thread = u32::from(kani::any::<u8>()) % 128;
+    let col = u32::from(kani::any::<u16>()) % 2560;
+    if flash_gate_rows(rows, width) && row < rows {
+        assert!(row * 512 + expert < rows * 512);
+        assert!(row * 512 + 4 * thread + 3 < rows * 512);
+        assert!(expert * 2560 + col < 512 * 2560);
+        assert!(row * 10 + 9 < rows * 10);
+        kani::cover!(row > 0 && expert == 511 && col == 2559 && thread == 127);
+        kani::cover!(rows == u32::MAX / 512 && row + 1 == rows);
+    }
+}
