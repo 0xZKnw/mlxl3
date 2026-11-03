@@ -77,7 +77,7 @@ impl Matrix {
                 .sqrt()
                 .recip();
             for ((dst, &value), &gain) in output.iter_mut().zip(input).zip(&gain.values) {
-                *dst = round((value * inv) * gain);
+                *dst = round(round(value * inv) * gain);
             }
         }
         Self::new(self.rows, self.cols, out)
@@ -234,6 +234,45 @@ mod tests {
         let expected = values("guide_bits");
         assert_eq!(actual.values, expected);
         assert_ne!(actual.values, values("local_bits"));
+        Ok(())
+    }
+
+    #[test]
+    fn ordinary_rms_rounds_before_gain_against_the_independent_mlx_oracle() -> Result<()> {
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/native-coverage/flash-draft/bf16-rms.json"
+        ))?;
+        assert_eq!(data["status"], "complete");
+        for case in data["cases"].as_array().unwrap() {
+            let width = case["width"].as_u64().unwrap() as usize;
+            let values = |name: &str| -> Vec<f32> {
+                (0..width)
+                    .map(|i| data[name][i % 16].as_f64().unwrap() as f32)
+                    .collect()
+            };
+            let x = Matrix::new(1, width, values("input_pattern"))?;
+            let gain = Matrix::new(1, width, values("gain_pattern"))?;
+            let actual = x.norm(&gain, width)?;
+            let expected: Vec<_> = (0..width)
+                .map(|i| case["first16_f32_bits"][i % 16].as_u64().unwrap() as u32)
+                .collect();
+            let wrong: Vec<_> = (0..width)
+                .map(|i| {
+                    case["wrong_one_round_first16_f32_bits"][i % 16]
+                        .as_u64()
+                        .unwrap() as u32
+                })
+                .collect();
+            assert_ne!(wrong, expected);
+            assert_eq!(
+                actual
+                    .values
+                    .iter()
+                    .map(|v| v.to_bits())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
         Ok(())
     }
 
