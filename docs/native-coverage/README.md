@@ -205,3 +205,10 @@ mlxl3-rs serve CHECKPOINT --host 127.0.0.1 --port 8000
 python scripts/check-mtp-bridge.py DIRECT CHECKPOINT CHECKPOINT --tokens 2,17 --context 256
 MLXL3_FLASH_MODEL=CHECKPOINT cargo test --locked --features chat --test openai_transport native_flash_serve_streams_the_same_completion_as_json -- --exact --ignored --nocapture
 ```
+### Archive de moteur Metal autonome
+
+Le format de manifeste 2 identifie explicitement le backend `metal`. Les shaders étant embarqués dans l’exécutable, son archive contient `engine.json` et `mlxl3`. Le packager refuse les fichiers MLX ou autres membres supplémentaires. L’updater vérifie le format, les empreintes, l’architecture, la signature et le `runtime-info` du programme avant activation. Le format historique 1 reste accepté pour les archives d’anciennes versions. Une installation native exige une app au moins 2.0.0.
+
+`MLXL3_ENGINE_BACKEND=metal scripts/build-engine.sh` construit et signe le moteur autonome, inspecte les dépendances Mach-O et les images chargées puis produit son archive. `scripts/build-macos-app.sh` réutilise le même constructeur de moteur. Le sous-bundle de conversion utilise encore MLX à ce stade. La migration complète de l’app dépend de son remplacement.
+
+Le test local de l’archive signée a installé le véritable binaire parent 9e7e37ec dans un répertoire jetable, exécuté `runtime-info` et `list`, activé puis rejeté la version. Le protocole de build a réutilisé ce binaire déjà compilé, puis a réellement signé, inspecté et empaqueté l’artefact. Le job `native-engine-archive` reconstruit la source sans paquet MLX installé. [Empreintes et limites](engine-archive/local.json).

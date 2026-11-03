@@ -23,7 +23,7 @@ jobs:
       - run: python -m unittest discover -s tests -p test_flash_trace_report.py
       - run: python scripts/check_native_coverage.py
       - run: python -m pip install pytest==8.3.5
-      - run: python -m pytest -q tests/test_package_engine.py
+      - run: python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py
 
   desktop-and-protocol:
     runs-on: macos-26
@@ -39,3 +39,40 @@ jobs:
       - run: python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt
       - run: scripts/check-e2e.sh
       # Hosted VMs are not a substitute for physical-Mac Metal validation.
+
+  native-engine-archive:
+    runs-on: macos-26
+    timeout-minutes: 25
+    env:
+      MLXL3_ENGINE_BACKEND: metal
+      MLXL3_BUILD_PYTHON: python
+      MLXL3_SKIP_METAL_CHECK: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -c "import importlib.util; assert importlib.util.find_spec('mlx') is None"
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: zsh -n scripts/build-engine.sh scripts/build-macos-app.sh
+      - run: scripts/build-engine.sh
+      - name: Install and reject the signed native archive in a disposable directory
+        run: |
+          mkdir -p build/archive-ci
+          python tests/update-archive-fixtures.py build/archive-ci/fixtures
+          swiftc -swift-version 6 -warnings-as-errors -parse-as-library \
+            apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+            apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+            tests/updater-check.swift -o build/archive-ci/updater-check
+          version=$(python -c "import tomllib; print(tomllib.load(open('Cargo.toml','rb'))['package']['version'])")
+          build/archive-ci/updater-check build/archive-ci/fixtures "dist/MLXL3-Engine-v${version}-arm64.tar.gz" "$version"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-engine-archive
+          path: |
+            dist/MLXL3-Engine-*-arm64.tar.gz
+            build/native-runtime.json
+            build/native-dependencies.txt
+            build/native-dyld.txt

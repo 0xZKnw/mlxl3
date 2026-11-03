@@ -26,7 +26,11 @@ def valid_version(version: str) -> bool:
 
 
 def manifest(runtime: Path, version: str, backend: str = "mlx") -> dict:
-    """Read only regular runtime files; fail before publishing incomplete bundles."""
+    """Read only regular runtime files; fail before publishing incomplete bundles.
+
+    post: __return__["schema"] == (2 if backend == "metal" else 1)
+    post: set(__return__["files"]) == set(NATIVE_FILES if backend == "metal" else FILES)
+    """
     if not valid_version(version):
         raise ValueError("invalid engine version")
     if backend not in ("mlx", "metal"):
@@ -45,6 +49,9 @@ def manifest(runtime: Path, version: str, backend: str = "mlx") -> dict:
         with source.open("rb") as stream:
             digest = hashlib.file_digest(stream, "sha256").hexdigest()
         records[name] = {"size": size, "sha256": digest}
+    minimum_app = "1.4.0" if tuple(map(int, version.split("."))) >= (1, 4, 0) else "1.2.0"
+    if backend == "metal":
+        minimum_app = "2.0.0"
     return {
         "schema": 2 if backend == "metal" else 1,
         **({"backend": "metal"} if backend == "metal" else {}),
@@ -53,11 +60,7 @@ def manifest(runtime: Path, version: str, backend: str = "mlx") -> dict:
         "architecture": "arm64",
         "minimum_macos": "26.2.0",
         # Older Desktop versions do not pass a target to the MTP downloader.
-        "minimum_app_version": "2.0.0"
-        if backend == "metal"
-        else "1.4.0"
-        if tuple(map(int, version.split("."))) >= (1, 4, 0)
-        else "1.2.0",
+        "minimum_app_version": minimum_app,
         "files": records,
         "notices": {
             name: (Path(__file__).resolve().parents[1] / path).read_text()
