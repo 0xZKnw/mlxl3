@@ -26,23 +26,23 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
             true,
         )?;
         for (index, moe) in [&mut current, &mut next].into_iter().enumerate() {
-            for bank in &mut moe.banks {
+            for bank in &mut moe.store.banks {
                 // An accidental read of an unfilled scale becomes NaN, not a plausible zero.
                 *bank =
                     Array::from_bytes(&vec![0xff; bank.byte_len()?], bank.shape(), bank.dtype())?;
             }
-            moe.prefetch_pipeline = true;
-            moe.gpu_hot = true;
-            moe.gpu_hot_wide = true;
-            moe.unique_cohorts = true;
+            moe.policy.prefetch_pipeline = true;
+            moe.policy.gpu_hot = true;
+            moe.policy.gpu_hot_wide = true;
+            moe.policy.unique_cohorts = true;
             moe.prefetcher = Some((index, Rc::clone(&pool)));
         }
         for rows in 1..=8 {
-            pool.borrow_mut().wait_for_test()?;
+            pool.borrow_mut().wait_for_idle()?;
             current.drain()?;
             next.drain()?;
-            current.cache.borrow_mut().invalidate();
-            next.cache.borrow_mut().invalidate();
+            current.store.cache.borrow_mut().invalidate();
+            next.store.cache.borrow_mut().invalidate();
             current.cohort_sizes.clear();
             let values = (0..rows)
                 .flat_map(|r| {
@@ -60,7 +60,7 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
             ensure!(expected.slice(0, 0, 1)?.to_bytes()? == expected_first);
             let expected_next = next_reference.forward_draft_rows(&x)?;
             let ids = current.route(&input)?.0.to_u32()?;
-            let routes = current.cache.borrow_mut().reserve(&ids[..5])?;
+            let routes = current.store.cache.borrow_mut().reserve(&ids[..5])?;
             current.fill_many(
                 &ids[..5]
                     .iter()
@@ -100,7 +100,7 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
                     == 2
             );
             split_cases += usize::from(current.cohort_sizes.len() > 1);
-            pool.borrow_mut().wait_for_test()?;
+            pool.borrow_mut().wait_for_idle()?;
             let used = pool
                 .borrow()
                 .counters
@@ -122,7 +122,7 @@ fn draft_prefetch_preserves_hot_splits_and_next_layer_outputs() -> Result<()> {
         }
         current.drain()?;
         next.drain()?;
-        pool.borrow_mut().wait_for_test()?;
+        pool.borrow_mut().wait_for_idle()?;
     }
     ensure!(cases == 16 && split_cases > 0);
     println!(

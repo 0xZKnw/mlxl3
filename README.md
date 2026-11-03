@@ -680,3 +680,15 @@ An exact two-token grouped MTP prototype was subsequently tested and withdrawn:
 its independent confirmation included a 2.29% paired gain, below the predeclared
 3% retention threshold. The validated four-reader engine is retained.
 See the [complete trials, rejected prototype and restoration checks](docs/flash-mtp-pairs-2026-10-12.md).
+
+## Native conversion feedback (issue 75)
+
+The advanced converter's explicit `native` backend now supports direct and
+per-layer LDLQ conversion through `MLXL3_NATIVE_ENGINE`. The standalone engine
+owns trellis search and FP32 compensation, preserving M5 NAX/TF32 arithmetic;
+large products split rows/columns without changing their reduction dimension.
+Fourteen synthetic CLI comparisons reproduce 64,000 checkpoint words exactly.
+See the [intermediate products, failures, verification and remaining scope](docs/native-coverage/converter-feedback/verification.md).
+Raw source capture, grouped expert scale policy, automatic Studio conversion
+and the MLX-free converter bundle remain under implementation. No conversion
+throughput gain or complete-model qualification is claimed.

@@ -51,9 +51,9 @@ fn grouped_experts_match_captured_routes_before_timing() -> Result<()> {
             53,
             true,
         )?;
-        moe.shared_exl3 = false;
-        moe.gpu_hot = true;
-        moe.gpu_hot_wide = true;
+        moe.policy.shared_exl3 = false;
+        moe.policy.gpu_hot = true;
+        moe.policy.gpu_hot_wide = true;
         for rows in [1usize, 2, 4, 8] {
             let x = Array::concatenate(&(0..rows).map(|i| &inputs[i % 2]).collect::<Vec<_>>(), 0)?;
             ensure!(
@@ -67,7 +67,7 @@ fn grouped_experts_match_captured_routes_before_timing() -> Result<()> {
                 ids.extend(moe.route(&inputs[i % 2])?.0.to_u32()?);
             }
             ensure!(ids.len() == rows * 10);
-            let ready = moe.cache.borrow().resident_slot_map()?;
+            let ready = moe.store.cache.borrow().resident_slot_map()?;
             let slots = ids.iter().map(|&id| ready[id as usize]).collect::<Vec<_>>();
             ensure!(slots.iter().all(|&slot| slot < 53));
             let routed = x

@@ -414,3 +414,158 @@ fn flash_detailed_profile_preserves_full_outputs_and_states() -> Result<()> {
 fn actual_detailed_profile_path() {
     flash_detailed_profile_preserves_full_outputs_and_states().unwrap();
 }
+
+#[test]
+#[ignore = "physical Apple GPU, records or checks Flash migration fixtures in a disposable directory"]
+fn ar_migration_prompt_fixtures() -> Result<()> {
+    use std::io::Write;
+
+    let directory = PathBuf::from(std::env::var("MLXL3_AR_FIXTURE_DIR")?);
+    let record = match std::env::var("MLXL3_AR_FIXTURE_MODE")?.as_str() {
+        "record" => true,
+        "check" => false,
+        _ => anyhow::bail!("expected record or check"),
+    };
+    let marker = directory.join("complete");
+    if record {
+        std::fs::create_dir(&directory)?;
+    } else {
+        ensure!(
+            std::fs::read(&marker)? == b"flash-ar-v1\n",
+            "incomplete AR fixtures"
+        );
+    }
+    let path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+    let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+    let mut target = FlashNext::from_checkpoint(&crate::checkpoint::inspect(&path)?)?;
+    for (label, expected_len, prompt) in [
+        (
+            "MAIN",
+            87,
+            "Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE.",
+        ),
+        (
+            "HOLD",
+            82,
+            "Écris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexité et donne un exemple.",
+        ),
+    ] {
+        target.reset();
+        let ids = tokenizer.encode(&tokenizer.render(&[crate::tokenizer::Message {
+            role: "user".into(),
+            content: prompt.into(),
+        }])?)?;
+        ensure!(ids.len() == expected_len);
+        let mut logits = target.forward_tokens(&ids)?;
+        for step in 0..=1 {
+            ensure!(logits.shape().iter().product::<i32>() == 248320);
+            let mut values = super::tests::state_bytes(&target)?;
+            ensure!(values.len() == 136 && target.layers.len() == 48);
+            values.push(super::tests::tensor_state_bytes(&logits)?);
+            for layer in &target.layers {
+                let routes = &layer.moe.route_ids;
+                ensure!(routes.len() == 10 && routes.iter().all(|&v| v < 512));
+                values.push(routes.iter().flat_map(|v| v.to_le_bytes()).collect());
+            }
+            for (i, value) in values.into_iter().enumerate() {
+                let path = directory.join(format!("{label}-{step}-{i}.bin"));
+                if record {
+                    File::create_new(&path)?.write_all(&value)?;
+                } else {
+                    ensure!(
+                        value == std::fs::read(&path)?,
+                        "AR fixture mismatch at {label}/{step}/{i}"
+                    );
+                }
+            }
+            if step == 0 {
+                let next = logits.chat_greedy_ids()?;
+                ensure!(next.len() == 1);
+                logits = target.forward(next[0])?;
+            }
+        }
+    }
+    if record {
+        File::create_new(marker)?.write_all(b"flash-ar-v1\n")?;
+    }
+    println!("AR_FIXTURES prompts=2 checkpoints=4 states=136 logits=248320 route_layers=48");
+    Ok(())
+}
+
+#[test]
+#[ignore = "physical Apple GPU; native Flash prepare layouts, lifetime and FP16 rounding"]
+fn native_prepare_matches_canonical_hadamard() -> Result<()> {
+    let before = array::flash_program_cache(true)?;
+    ensure!(before.entries == 0);
+    let mut pending = Vec::new();
+    for width in [640, 2560] {
+        for rows in [1, 3, 10, 20] {
+            let data: Vec<_> = (0..rows * width)
+                .map(|i| ((i % 113) - 56) as f32 * 0.01953125 + 0.000031)
+                .collect();
+            let scales = Array::from_f32(&data, &[width, rows])?
+                .astype(Dtype::Float16)?
+                .transpose(&[1, 0])?;
+            for dtype in [Dtype::Float16, Dtype::Float32] {
+                let x = Array::from_f32(&data, &[rows, width])?.astype(dtype)?;
+                let broadcast = x.slice(0, 0, 1)?.broadcast_to(&[rows, width])?;
+                for input in [&x, &broadcast] {
+                    let expected = input
+                        .astype(Dtype::Float16)?
+                        .mul(&scales)?
+                        .reshape(&[-1, 128])?
+                        .hadamard_transform(Some(1.0 / 128f32.sqrt()))?
+                        .reshape(&[-1])?;
+                    pending.push((input.flash_prepare128(&scales)?, expected));
+                }
+            }
+        }
+    }
+    ensure!(pending.len() == 32);
+    for (candidate, expected) in pending.into_iter().rev() {
+        ensure!(candidate.shape() == expected.shape() && candidate.dtype() == Dtype::Float16);
+        let reference = expected.to_f32()?;
+        ensure!(
+            reference.len() >= 640
+                && reference.iter().all(|v| v.is_finite())
+                && reference.iter().any(|&v| v != 0.0)
+        );
+        ensure!(
+            candidate.to_bytes()? == expected.to_bytes()?,
+            "native EXL3 preparation diverged"
+        );
+    }
+    for shape in [[21, 640], [1, 128], [0, 640]] {
+        let x = Array::zeros_dtype(&shape, Dtype::Float16)?;
+        ensure!(x.flash_prepare128(&x).is_err());
+    }
+    let bad = Array::zeros_dtype(&[1, 640], Dtype::UInt32)?;
+    ensure!(bad.flash_prepare128(&bad).is_err());
+    let used = array::flash_program_cache(false)?;
+    ensure!(
+        used.entries == 1
+            && used.creations == before.creations + 1
+            && used.hits == before.hits + 31
+    );
+    ensure!(used.retained_host_object_bytes > 0 && used.cached_tensor_bytes == 0);
+    let empty = array::flash_program_cache(true)?;
+    ensure!(
+        empty.entries == 0
+            && empty.evictions == used.evictions + 1
+            && empty.retained_host_object_bytes == 0
+    );
+    let x = Array::from_f16_bits(&vec![0x3c00; 640], &[1, 640])?;
+    let late = x.flash_prepare128(&x)?;
+    array::flash_program_cache(true)?;
+    let rebuilt = x.flash_prepare128(&x)?;
+    ensure!(late.to_bytes()? == rebuilt.to_bytes()? && late.to_f32()?.iter().any(|x| *x != 0.));
+    let end = array::flash_program_cache(false)?;
+    ensure!(
+        end.creations == empty.creations + 2
+            && end.entries == 1
+            && end.evictions == empty.evictions + 1
+    );
+    println!("FLASH_PROGRAM_CACHE {end:?}");
+    println!("NATIVE_PREPARE real_layouts=32 rejected=4");
+    Ok(())
+}

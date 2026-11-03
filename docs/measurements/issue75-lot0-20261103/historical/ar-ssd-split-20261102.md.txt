@@ -1,0 +1,20 @@
+# Découpe SSD en AR sur Flash Next EXL3
+
+Le 3 novembre 2026, la découpe ciblée a donné 10,08 tok/s sur MAIN et 10,71 sur HOLD. La lecture entière reste le défaut. Les comparaisons portent sur le débit de décodage après la première sortie.
+
+| Essai | Réglage | MAIN (tok/s) | HOLD (tok/s) |
+|---|---|---:|---:|
+| R1 `35a21c1d` | Lecture entière, moyenne des deux témoins | 10,9944 | 10,1330 |
+| R1 | Chaque record divisé en deux | 10,3817 | 9,9737 |
+| R2 `ae6ed941` | Lecture entière | 10,6389 | 10,7075 |
+| R2 | Dernier record d’une vague incomplète divisé en deux | 10,0791 | 10,7133 |
+
+En R1, la découpe double le nombre de tâches de lecture actives dans les lots admissibles. À chaque moitié terminée, le lecteur réveille la condition qui attend deux experts complets. En R2, chaque lot de quatre ou huit experts reste entier. Dans une dernière vague incomplète, seul le dernier gros record est partagé entre deux lecteurs. Les deux morceaux écrivent dans des plages disjointes du buffer existant. Le moteur signale la réussite d’un expert quand ses données sont complètes. Les erreurs continuent à réveiller l’attente et le moteur rejoint tous les lecteurs. La validation des plages ne trie les intervalles qu’une fois.
+
+Sur la trace AR32 précédente, cette règle aurait découpé 615 des 3 826 records de 1 248 012 octets. Le dernier record soumis a réellement fini dernier dans 398 des 615 lots concernés. Avec R2, la différence mesurée est de −5,26 % sur MAIN et +0,05 % sur HOLD. Entre les témoins des deux builds, le débit a varié de −4,34 % sur MAIN et +5,68 % sur HOLD. Le pilote permet de décider de garder le réglage expérimental. La part du temps attribuable à chaque mécanisme reste inconnue. [Distribution des lectures](baseline-read-shapes.json) · [Mesures R1](inspection.json) · [Mesures R2](r2/inspection.json).
+
+Les mesures utilisent le même M5 de 24 Go sur secteur, MLX 0.32.2, Qwen Flash Next EXL3 2,05 bpw `65c89531`, cache experts 3 Gio et allocateur 64 Mio, quatre lecteurs, Dynamic/ColdReady/Hot/Wide/Unique actifs. Chaque mode effectue une chauffe et une mesure de 128 tokens par prompt, soit 127 tokens de décodage. Les deux bras R2 utilisent le même CLI, la seule option moteur différente est `MLXL3_SSD_READ_SPLIT=2` ou `1`. Le marqueur d’activation apparaît dans les deux parcours R2 attendus, modèle et CLI. Les processus et leurs lecteurs ont été rejoints, avec zéro octet de swapout pendant les deux chronos R2. Après le prévol initial sur batterie, l’utilisateur a branché le Mac et demandé le test avec la RAM disponible. L’admission du superviseur est passée à 8 Go. Le cache et les plafonds cumulatifs de swap ont été conservés.
+
+Les 20 sorties AR128 des deux pilotes, chauffe comprise, concordent avec le texte et l’empreinte des IDs de référence pour chaque prompt (`f6b5f974c6db2e7a` et `9d02c1a97e015196`). Pour chaque version, le vrai bridge a aussi reproduit MAIN17 et l’oracle indépendant a vérifié les 248 320 logits de cinq pas, les routes et les états GDN couplés. Les changements sont locaux. Le profilage détaillé par lecteur reste indisponible pour un lot effectivement découpé.
+
+Les sources, empreintes, commandes et résultats sont dans les plans et identités de chaque essai. En R2, 48 scénarios de découpe et 83 scénarios asynchrones passent sous ASan/UBSan puis TSan. La mutation du second offset échoue sur l’oracle des plages. Le format, Clippy strict et les builds release `mlx,chat` du CLI et du libtest passent. CBMC 6.11 a échoué à analyser les en-têtes libc++ avant la première obligation. Les sanitizers et oracles physiques couvrent les cas exercés. La CI macOS PR/main comprend déjà ces tests C++, aucun run distant de cet état local. [Commandes et limites](r2/build-results.json).

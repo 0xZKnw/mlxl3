@@ -1,0 +1,56 @@
+from pathlib import Path
+import datetime, hashlib,json,os,runpy,sys
+r=Path(__file__).resolve().parents[2]
+b=r/'build/issue75'; d=r/'docs/measurements/issue75-migration-20261103'
+old=Path('/Users/justin/.codex/worktrees/flash-options-speed-20261102/mix-stq1_0')
+hist=old/'docs/measurements/ar-quick-20261102'
+monitor=old/'docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt'
+supervisor=old/'docs/measurements/slotstream-20261026/supervisor.py'
+core=old/'docs/measurements/ar-ssd-split-20261102/admission-runner.py'
+p09=old/'docs/measurements/decode-profile-p09-20261101/run.py'
+parse_file=old/'benchmarks/benchmark_flash_memory.py'
+anchor=d/'anchor.json'
+def read(p):return json.loads(p.read_text())
+def sha(p):
+ with Path(p).open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+def new(p, data):
+ with p.open('x') as f:json.dump(data,f,indent=2);f.write('\n')
+def main():
+ os.chdir(old)
+ for key in list(os.environ):
+  if key.startswith(('MLXL3_','MLX_','DYLD_')):del os.environ[key]
+ if sys.argv[1]=='anchor':
+  snap=runpy.run_path(str(monitor))['snapshot'](runpy.run_path(str(parse_file))['parse_vm'])
+  new(anchor,{'campaign':'DECODE-PROFILE-09','experiment':'I75-MIG-2026-11-03','timestamp':datetime.datetime.now(datetime.UTC).isoformat(),'vm_bytes':snap['vm_bytes'],'system_snapshot':snap,'previous_anchor_sha256':sha(old/'docs/measurements/ar-oracle-file-20261103/anchor.json')})
+  return
+ name,kind,binary=sys.argv[1:4];exe=(b/binary).resolve(); canon=Path(sys.executable).resolve()
+ env=read(hist/'speed-A1-plan.json')[0]['env']
+ model=read(hist/'models-plan.json')[0]['env'];env.update({k:model[k] for k in ['MLXL3_FLASH_MODEL','MLXL3_FLASH_REFERENCE']})
+ env.update(dict(arg.split('=',1) for arg in sys.argv[4:]))
+ if kind=='speed':
+  driver=r/'scripts/benchmark-flash-bridge.py'
+  cmd=[str(canon),str(driver),str(exe),env['MLXL3_FLASH_MODEL'],str(d/name),'--tokens','128','--repeats','1','--timeout','180','--cache-gib','3']
+  extra={};requires=['"repeat": 1','"prompt": "HOLD"','"token_hash"']
+ else:
+  if kind=='fixture':
+   test='qwen4::profile::ar_migration_prompt_fixtures';env['MLXL3_AR_FIXTURE_DIR']=str(b/'ar-fixtures');requires=['AR_FIXTURES prompts=2 checkpoints=4']
+  elif kind=='oracle':
+   test='qwen4::tests::flash_matches_independent_reference_states_and_logits';requires=['s4/logits: count=248320','reset/logits: count=248320']
+  else:
+   test=kind;requires=[]
+  cmd=[str(exe),test,'--exact','--ignored','--nocapture','--test-threads=1'];extra={'native_test':test};requires+=['1 passed; 0 failed']
+ plan=d/(name+'-plan.json');iden=d/(name+'-identity.json')
+ new(plan,[dict(name=name,command=cmd,env=env,require_quiet=True,minimum_available_bytes=8000000000,expected_exit=0,timeout_seconds=300,required_text=requires,**extra)])
+ inputs=[anchor,plan,exe,core,monitor,supervisor,p09,parse_file,Path(__file__).resolve(),r/'scripts/benchmark-flash-bridge.py',d/'checkpoint.json',Path(env['MLXL3_FLASH_REFERENCE'])/'reference.json']
+ new(iden,{'sources':{str(p):sha(p) for p in inputs},'binaries':{x.name:{'path':str(x),'sha256':sha(x)} for x in [exe,canon]}})
+ run=runpy.run_path(str(p09))['run'];run.__globals__['ANCHOR']=anchor;run.__globals__['CORE']=runpy.run_path(str(core));run(plan,iden)
+ guard=read(d/(name+'-plan-result.json'))['commands'][0];assert guard['reaped'] and guard['exit_code']==0 and guard['status']=='completed_expected_outcome' and 'trigger_vm_bytes' in guard
+ if kind=='speed':
+  result=read(d/name/'report.json');ref=read(hist/'speed-A1/report.json')
+  assert result['status']=='validated' and result['binary_sha256']==sha(exe) and result['reaped'] and result['reader_joined']
+  for phase in ['runs','warmup']:
+   assert len(result[phase])==2 and {x['prompt'] for x in result[phase]}=={'MAIN','HOLD'}
+   for x,y in zip(result[phase],ref[phase],strict=True):
+    assert x['text'] and all(x[k]==y[k] for k in ['prompt','text','token_hash']) and x['stats']['generated_tokens']==128 and x['stats']['decode_tokens']==127
+ print(name,guard['status'],guard['swapouts_bytes'])
+if __name__=='__main__':main()

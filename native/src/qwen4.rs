@@ -3,7 +3,7 @@
 use crate::{
     array::{self, Array, Dtype},
     checkpoint::{Checkpoint, TensorInfo},
-    codec::{self, Codebook},
+    flash_ngrams::{EOS, Ngrams},
     flash_support, gated_delta,
     lfm2::{Projection, half_weight},
     linear::checkpoint_array,
@@ -17,7 +17,6 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, VecDeque},
     fs::File,
-    os::unix::fs::FileExt,
     path::PathBuf,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
@@ -26,7 +25,6 @@ use std::{
 const H: i32 = 2560;
 const HC: i32 = 4;
 const WIDTH: i32 = H * HC;
-const EOS: u32 = 248044;
 
 #[cfg(feature = "chat")]
 #[path = "flash_draft.rs"]
@@ -41,19 +39,7 @@ mod mtp_prefill_tests;
 
 /// Inclusive host timings; verification includes its existing GPU completion waits.
 #[cfg(feature = "chat")]
-#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
-pub struct FlashDraftProfile {
-    pub draft_seconds: f64,
-    pub verification_seconds: f64,
-    pub commit_cache_seconds: f64,
-    pub verified_rows: usize,
-    pub drafted_rows: usize,
-    pub drafted_widths: [usize; 8],
-    pub verified_widths: [usize; 8],
-    pub expert_demand_bytes: u64,
-    /// Submitted, completed, used, reused, timeouts, wait ns, read bytes, late demands.
-    pub ssd_prefetch: [u64; 8],
-}
+pub use crate::runtime_stats::FlashDraftProfile;
 
 struct Norm {
     gain: Array,
@@ -180,9 +166,7 @@ fn verification_projection(projection: &Projection, input: &Array) -> Result<Arr
     Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
 }
 
-struct Gdn {
-    #[cfg(test)]
-    stages: Vec<(String, Array)>,
+struct GdnWeights {
     qkv: Projection,
     z: Projection,
     a: Projection,
@@ -194,6 +178,11 @@ struct Gdn {
     dt_bias: Array,
     norm: Norm,
     gdn_epilogue: bool,
+}
+struct Gdn {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
+    weights: GdnWeights,
     state: Option<Array>,
     history: Option<Array>,
 }
@@ -221,17 +210,19 @@ impl Gdn {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
-            qkv: proj("in_proj_qkv", 10240)?,
-            z: proj("in_proj_z", 6144)?,
-            a: proj("in_proj_a", 48)?,
-            b: proj("in_proj_b", 48)?,
-            out: Projection::load(c, &format!("{p}.out_proj"), 6144, H, false)?,
-            conv,
-            prepared_conv,
-            a_log: checkpoint_array(c, &format!("{p}.A_log"))?.astype(Dtype::Float32)?,
-            dt_bias: half_weight(c, &format!("{p}.dt_bias"), Some(&[48]))?,
-            norm: Norm::load(c, &format!("{p}.norm.weight"), 128, 1, eps, false)?,
-            gdn_epilogue,
+            weights: GdnWeights {
+                qkv: proj("in_proj_qkv", 10240)?,
+                z: proj("in_proj_z", 6144)?,
+                a: proj("in_proj_a", 48)?,
+                b: proj("in_proj_b", 48)?,
+                out: Projection::load(c, &format!("{p}.out_proj"), 6144, H, false)?,
+                conv,
+                prepared_conv,
+                a_log: checkpoint_array(c, &format!("{p}.A_log"))?.astype(Dtype::Float32)?,
+                dt_bias: half_weight(c, &format!("{p}.dt_bias"), Some(&[48]))?,
+                norm: Norm::load(c, &format!("{p}.norm.weight"), 128, 1, eps, false)?,
+                gdn_epilogue,
+            },
             state: None,
             history: None,
         })
@@ -261,6 +252,7 @@ impl Gdn {
         let half_input = x.astype(Dtype::Float16)?;
         let x = &half_input;
         let qkv = self
+            .weights
             .qkv
             .forward(x)?
             .astype(Dtype::Float16)?
@@ -276,30 +268,41 @@ impl Gdn {
             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
         };
         let a = self
+            .weights
             .a
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 48])?;
         let b = self
+            .weights
             .b
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 48])?;
         stage!("a", a);
         stage!("b", b);
-        let (value, state) =
-            gated_delta::step_with_gates(&q, &k, &v, &a, &b, &self.a_log, &self.dt_bias, &state)?;
+        let (value, state) = gated_delta::step_with_gates(
+            &q,
+            &k,
+            &v,
+            &a,
+            &b,
+            &self.weights.a_log,
+            &self.weights.dt_bias,
+            &state,
+        )?;
         stage!("delta", value);
         self.state = Some(state);
         let z = self
+            .weights
             .z
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 48, 128])?;
         stage!("z", z);
-        let normed = self.norm.forward(&value)?;
+        let normed = self.weights.norm.forward(&value)?;
         stage!("normed", normed);
-        let gated = if self.gdn_epilogue {
+        let gated = if self.weights.gdn_epilogue {
             let gated = crate::gdn_epilogue::apply(&[normed], &z)?;
             #[cfg(test)]
             {
@@ -315,7 +318,7 @@ impl Gdn {
             stage!("gated", gated);
             gated.reshape(&[1, 6144])?
         };
-        self.out.forward(&gated)?.astype(Dtype::Float32)
+        self.weights.out.forward(&gated)?.astype(Dtype::Float32)
     }
     fn convolve(&mut self, qkv: &Array) -> Result<(Array, Array, Array, Array)> {
         #[cfg(test)]
@@ -327,10 +330,14 @@ impl Gdn {
         let input = Array::concatenate(&[&history, qkv], 1)?;
         self.history = Some(input.slice(1, 1, 4)?);
         let stock_coefficient;
-        let coefficient = match &self.prepared_conv {
+        let coefficient = match &self.weights.prepared_conv {
             Some(prepared) => prepared,
             None => {
-                stock_coefficient = self.conv.transpose(&[2, 1, 0])?.astype(Dtype::Float32)?;
+                stock_coefficient = self
+                    .weights
+                    .conv
+                    .transpose(&[2, 1, 0])?
+                    .astype(Dtype::Float32)?;
                 &stock_coefficient
             }
         };
@@ -367,7 +374,7 @@ impl Gdn {
             Array::concatenate(&inputs.iter().collect::<Vec<_>>(), 0)?.astype(Dtype::Float16)?;
         #[cfg(test)]
         let projection = crate::flash_profile::span("gdn_qkv_build");
-        let qkv = verification_projection(&self.qkv, &input)?
+        let qkv = verification_projection(&self.weights.qkv, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 10240])?;
         #[cfg(test)]
@@ -398,10 +405,10 @@ impl Gdn {
         }
         #[cfg(test)]
         let gates_profile = crate::flash_profile::span("gdn_gates_build");
-        let a = verification_projection(&self.a, &input)?
+        let a = verification_projection(&self.weights.a, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48])?;
-        let b = verification_projection(&self.b, &input)?
+        let b = verification_projection(&self.weights.b, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48])?;
         #[cfg(test)]
@@ -420,8 +427,8 @@ impl Gdn {
             &v,
             &a,
             &b,
-            &self.a_log,
-            &self.dt_bias,
+            &self.weights.a_log,
+            &self.weights.dt_bias,
             &initial,
         )?;
         #[cfg(test)]
@@ -437,16 +444,16 @@ impl Gdn {
                 retained: row as i32 + 1,
             })
             .collect();
-        let z = verification_projection(&self.z, &input)?
+        let z = verification_projection(&self.weights.z, &input)?
             .astype(Dtype::Float16)?
             .reshape(&[1, rows, 48, 128])?;
         #[cfg(test)]
         crate::flash_profile::stage("gdn_rows_z_completion", &z)?;
         #[cfg(test)]
         let post_profile = crate::flash_profile::span("gdn_norm_gate_build");
-        let gated = if self.gdn_epilogue {
+        let gated = if self.weights.gdn_epilogue {
             let normed = (0..rows)
-                .map(|row| self.norm.forward(&value.slice(1, row, row + 1)?))
+                .map(|row| self.weights.norm.forward(&value.slice(1, row, row + 1)?))
                 .collect::<Result<Vec<_>>>()?;
             let gated = crate::gdn_epilogue::apply(&normed, &z)?;
             #[cfg(test)]
@@ -455,7 +462,7 @@ impl Gdn {
         } else {
             let mut gated = Vec::with_capacity(inputs.len());
             for row in 0..rows {
-                let normed = self.norm.forward(&value.slice(1, row, row + 1)?)?;
+                let normed = self.weights.norm.forward(&value.slice(1, row, row + 1)?)?;
                 gated.push(
                     normed
                         .astype(Dtype::Float32)?
@@ -474,7 +481,7 @@ impl Gdn {
         };
         #[cfg(test)]
         crate::flash_profile::stage("gdn_rows_norm_gate_completion", &gated)?;
-        let output = verification_projection(&self.out, &gated)?.astype(Dtype::Float32)?;
+        let output = verification_projection(&self.weights.out, &gated)?.astype(Dtype::Float32)?;
         #[cfg(test)]
         crate::flash_profile::stage("gdn_rows_out_completion", &output)?;
         Ok((
@@ -509,9 +516,7 @@ fn prepared_conv_preserves_symbolic_half_endpoints_through_real_mlx() {
     kani::cover!(bits == 0x8000);
 }
 
-struct Qsa {
-    #[cfg(test)]
-    stages: Vec<(String, Array)>,
+struct QsaWeights {
     q: Projection,
     k: Projection,
     v: Projection,
@@ -521,14 +526,18 @@ struct Qsa {
     k_norm: Norm,
     iq_norm: Norm,
     ik_norm: Norm,
-    keys: Option<Array>,
-    values: Option<Array>,
-    index_tail: Option<Array>,
-    blocks: Option<Array>,
-    offset: i32,
     frequencies: [Array; 2],
 }
+struct Qsa {
+    #[cfg(test)]
+    stages: Vec<(String, Array)>,
+    #[cfg(test)]
+    sparse_trace: Option<BTreeMap<&'static str, Array>>,
+    weights: QsaWeights,
+    state: QsaState,
+}
 
+#[derive(Default)]
 struct QsaState {
     keys: Option<Array>,
     values: Option<Array>,
@@ -544,19 +553,15 @@ fn clone_array(value: &Option<Array>) -> Result<Option<Array>> {
 impl Qsa {
     fn snapshot(&self) -> Result<QsaState> {
         Ok(QsaState {
-            keys: clone_array(&self.keys)?,
-            values: clone_array(&self.values)?,
-            index_tail: clone_array(&self.index_tail)?,
-            blocks: clone_array(&self.blocks)?,
-            offset: self.offset,
+            keys: clone_array(&self.state.keys)?,
+            values: clone_array(&self.state.values)?,
+            index_tail: clone_array(&self.state.index_tail)?,
+            blocks: clone_array(&self.state.blocks)?,
+            offset: self.state.offset,
         })
     }
     fn restore(&mut self, state: QsaState) {
-        self.keys = state.keys;
-        self.values = state.values;
-        self.index_tail = state.index_tail;
-        self.blocks = state.blocks;
-        self.offset = state.offset;
+        self.state = state;
     }
     fn load(c: &Checkpoint, p: &str, eps: f32, rope: f32) -> Result<Self> {
         let proj =
@@ -576,35 +581,35 @@ impl Qsa {
         Ok(Self {
             #[cfg(test)]
             stages: Vec::new(),
-            q: proj("q_proj", 12288)?,
-            k: proj("k_proj", 512)?,
-            v: proj("v_proj", 512)?,
-            out: Projection::load(c, &format!("{p}.o_proj"), 6144, H, false)?,
-            index: proj("indexer.index_qk_proj", 640)?,
-            q_norm: Norm::load(c, &format!("{p}.q_norm.weight"), 256, 1, eps, true)?,
-            k_norm: Norm::load(c, &format!("{p}.k_norm.weight"), 256, 1, eps, true)?,
-            iq_norm: Norm::load(
-                c,
-                &format!("{p}.indexer.q_layernorm.weight"),
-                128,
-                1,
-                eps,
-                true,
-            )?,
-            ik_norm: Norm::load(
-                c,
-                &format!("{p}.indexer.k_layernorm.weight"),
-                128,
-                1,
-                eps,
-                true,
-            )?,
-            keys: None,
-            values: None,
-            index_tail: None,
-            blocks: None,
-            offset: 0,
-            frequencies,
+            #[cfg(test)]
+            sparse_trace: None,
+            weights: QsaWeights {
+                q: proj("q_proj", 12288)?,
+                k: proj("k_proj", 512)?,
+                v: proj("v_proj", 512)?,
+                out: Projection::load(c, &format!("{p}.o_proj"), 6144, H, false)?,
+                index: proj("indexer.index_qk_proj", 640)?,
+                q_norm: Norm::load(c, &format!("{p}.q_norm.weight"), 256, 1, eps, true)?,
+                k_norm: Norm::load(c, &format!("{p}.k_norm.weight"), 256, 1, eps, true)?,
+                iq_norm: Norm::load(
+                    c,
+                    &format!("{p}.indexer.q_layernorm.weight"),
+                    128,
+                    1,
+                    eps,
+                    true,
+                )?,
+                ik_norm: Norm::load(
+                    c,
+                    &format!("{p}.indexer.k_layernorm.weight"),
+                    128,
+                    1,
+                    eps,
+                    true,
+                )?,
+                frequencies,
+            },
+            state: QsaState::default(),
         })
     }
     fn rope(&self, x: &Array, dimensions: i32, offset: i32) -> Result<Array> {
@@ -622,8 +627,8 @@ impl Qsa {
             "invalid Flash RoPE input"
         );
         let frequencies = match dimensions {
-            32 => &self.frequencies[0],
-            64 => &self.frequencies[1],
+            32 => &self.weights.frequencies[0],
+            64 => &self.weights.frequencies[1],
             _ => anyhow::bail!("unsupported Flash rotary width"),
         };
         let work = heads
@@ -671,25 +676,27 @@ impl Qsa {
                 }
             };
         }
-        let offset = self.offset;
+        let offset = self.state.offset;
         let qk = self.append_cache(x)?;
         let qg = self
+            .weights
             .q
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 24, 512])?;
         let gate = qg.slice(3, 256, 512)?.reshape(&[1, 6144])?;
         stage!("q_proj", qg);
-        let query_norm = self.q_norm.forward(&qg.slice(3, 0, 256)?)?;
+        let query_norm = self.weights.q_norm.forward(&qg.slice(3, 0, 256)?)?;
         stage!("q_norm", query_norm);
         let query = self.rope(&query_norm.transpose(&[0, 2, 1, 3])?, 64, offset)?;
         stage!("q_rope", query);
-        let keys = self.keys.as_ref().context("missing QSA keys")?;
-        let values = self.values.as_ref().context("missing QSA values")?;
+        let keys = self.state.keys.as_ref().context("missing QSA keys")?;
+        let values = self.state.values.as_ref().context("missing QSA values")?;
         let count = (offset + 1) / 4;
         let (attn_keys, attn_values) = if count > 512 {
             let iq = self.rope(
                 &self
+                    .weights
                     .iq_norm
                     .forward(&qk.slice(2, 0, 4)?)?
                     .transpose(&[0, 2, 1, 3])?,
@@ -698,6 +705,7 @@ impl Qsa {
             )?;
             let scores = iq.astype(Dtype::Float32)?.matmul(
                 &self
+                    .state
                     .blocks
                     .as_ref()
                     .context("missing QSA index blocks")?
@@ -717,6 +725,11 @@ impl Qsa {
             }
             tokens.extend((count * 4..offset + 1).map(|i| i as u32));
             let selected = Array::from_u32(&tokens, &[tokens.len() as i32])?;
+            #[cfg(test)]
+            if let Some(t) = &mut self.sparse_trace {
+                t.insert("index_scores", reduced.try_clone()?);
+                t.insert("selected_positions", selected.try_clone()?);
+            }
             (keys.take(&selected, 2)?, values.take(&selected, 2)?)
         } else {
             (keys.try_clone()?, values.try_clone()?)
@@ -726,7 +739,7 @@ impl Qsa {
             .reshape(&[1, 6144])?;
         let gated = attention.mul(&gate.sigmoid()?)?;
         stage!("gated", gated);
-        self.out.forward(&gated)?.astype(x.dtype())
+        self.weights.out.forward(&gated)?.astype(x.dtype())
     }
 
     fn append_cache(&mut self, x: &Array) -> Result<Array> {
@@ -742,199 +755,67 @@ impl Qsa {
             };
         }
         let qk = self
+            .weights
             .index
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 5, 128])?;
+        #[cfg(test)]
+        if let Some(t) = &mut self.sparse_trace {
+            t.insert("index_qk", qk.try_clone()?);
+        }
         let raw = qk.slice(2, 4, 5)?.reshape(&[1, 1, 128])?;
-        let tail = Self::append(&self.index_tail, &raw, 1)?;
-        if (self.offset + 1) % 4 == 0 {
+        let tail = Self::append(&self.state.index_tail, &raw, 1)?;
+        if (self.state.offset + 1) % 4 == 0 {
             let pool = tail
                 .astype(Dtype::Float32)?
                 .sum(1, true)?
                 .scalar_mul(0.25)?
                 .astype(Dtype::Float16)?;
             let block = self.rope(
-                &self.ik_norm.forward(&pool)?.reshape(&[1, 1, 1, 128])?,
+                &self
+                    .weights
+                    .ik_norm
+                    .forward(&pool)?
+                    .reshape(&[1, 1, 1, 128])?,
                 32,
-                self.offset - 3,
+                self.state.offset - 3,
             )?;
-            self.blocks = Some(Self::append(&self.blocks, &block, 2)?);
-            self.index_tail = None;
+            self.state.blocks = Some(Self::append(&self.state.blocks, &block, 2)?);
+            self.state.index_tail = None;
         } else {
-            self.index_tail = Some(tail);
+            self.state.index_tail = Some(tail);
         }
         let raw_key = self
+            .weights
             .k
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 2, 256])?;
         stage!("k_proj", raw_key);
-        let key_norm = self.k_norm.forward(&raw_key)?;
+        let key_norm = self.weights.k_norm.forward(&raw_key)?;
         stage!("k_norm", key_norm);
-        let key = self.rope(&key_norm.transpose(&[0, 2, 1, 3])?, 64, self.offset)?;
+        let key = self.rope(&key_norm.transpose(&[0, 2, 1, 3])?, 64, self.state.offset)?;
         stage!("k_rope", key);
         let value = self
+            .weights
             .v
             .forward(x)?
             .astype(Dtype::Float16)?
             .reshape(&[1, 1, 2, 256])?;
         stage!("v_proj", value);
         let value = value.transpose(&[0, 2, 1, 3])?;
-        self.keys = Some(Self::append(&self.keys, &key, 2)?);
-        self.values = Some(Self::append(&self.values, &value, 2)?);
-        self.offset = self.offset.checked_add(1).context("QSA offset exhausted")?;
+        self.state.keys = Some(Self::append(&self.state.keys, &key, 2)?);
+        self.state.values = Some(Self::append(&self.state.values, &value, 2)?);
+        self.state.offset = self
+            .state
+            .offset
+            .checked_add(1)
+            .context("QSA offset exhausted")?;
         Ok(qk)
     }
     fn reset(&mut self) {
-        self.keys = None;
-        self.values = None;
-        self.index_tail = None;
-        self.blocks = None;
-        self.offset = 0;
-    }
-}
-
-struct Ngrams {
-    shards: Vec<TensorInfo>,
-    sizes: [u64; 16],
-    offsets: [u64; 16],
-    multipliers: [u64; 3],
-    bias: Vec<f16>,
-    cache: BTreeMap<u64, Vec<u16>>,
-    queue: VecDeque<u64>,
-    previous: [u32; 2],
-    read_bytes: u64,
-}
-impl Ngrams {
-    fn load(c: &Checkpoint, p: &str) -> Result<Self> {
-        let integers = |name: &str, n: usize| -> Result<Vec<u64>> {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.{name}"))
-                .context("missing PLE hash metadata")?;
-            ensure!(
-                tensor.dtype == "I64" && tensor.shape == [n],
-                "invalid PLE hash metadata"
-            );
-            Ok(tensor
-                .read_bytes()?
-                .as_chunks::<8>()
-                .0
-                .iter()
-                .map(|b| u64::from_le_bytes(*b))
-                .collect())
-        };
-        let sizes: [u64; 16] = integers("head_vocab_sizes", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE heads"))?;
-        let offsets: [u64; 16] = integers("head_offsets", 16)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE offsets"))?;
-        let multipliers: [u64; 3] = integers("layer_multipliers", 3)?
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("wrong PLE multipliers"))?;
-        let mut end = 0;
-        for head in 0..16 {
-            ensure!(
-                offsets[head] == end && sizes[head] > 0 && sizes[head] <= i64::MAX as u64,
-                "invalid PLE head range"
-            );
-            end = end
-                .checked_add(sizes[head])
-                .context("PLE row count overflow")?;
-        }
-        ensure!(
-            end <= 320001536 && end > 320001408,
-            "unsupported PLE row count"
-        );
-        let bias = checkpoint_array(c, &format!("{p}.head_bias"))?;
-        ensure!(
-            bias.shape() == [16, 160] && bias.dtype() == Dtype::Float16,
-            "invalid PLE head bias"
-        );
-        let bias = bias
-            .to_f16_bits()?
-            .into_iter()
-            .map(f16::from_bits)
-            .collect();
-        let mut shards = Vec::with_capacity(128);
-        for index in 0..128 {
-            let tensor = c
-                .tensors
-                .get(&format!("{p}.shard_{index}.trellis"))
-                .context("missing PLE trellis shard")?;
-            ensure!(
-                tensor.dtype == "I16" && tensor.shape == [2500012, 41],
-                "unsupported PLE row format"
-            );
-            shards.push(tensor.clone());
-        }
-        Ok(Self {
-            shards,
-            sizes,
-            offsets,
-            multipliers,
-            bias,
-            cache: BTreeMap::new(),
-            queue: VecDeque::new(),
-            previous: [EOS; 2],
-            read_bytes: 0,
-        })
-    }
-    fn forward(&mut self, token: u32) -> Result<Array> {
-        let history = flash_support::segment_tokens(token, self.previous, EOS);
-        let mut output = Vec::with_capacity(2560);
-        for head in 0..16 {
-            let row = flash_support::ngram_row(
-                history,
-                self.multipliers,
-                2 + head / 8,
-                self.offsets[head],
-                self.sizes[head],
-            )
-            .context("invalid PLE row")?;
-            if !self.cache.contains_key(&row) {
-                let shard = &self.shards[(row / 2500012) as usize];
-                let (file, base) = shard.source()?;
-                let offset = flash_support::row_offset(base, row % 2500012, 2500012, 82)
-                    .context("PLE offset overflow")?;
-                let mut raw = [0u8; 82];
-                file.read_exact_at(&mut raw, offset)?;
-                let words = raw
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|b| u16::from_le_bytes(*b))
-                    .collect();
-                if self.cache.len() == 16384
-                    && let Some(old) = self.queue.pop_front()
-                {
-                    self.cache.remove(&old);
-                }
-                self.cache.insert(row, words);
-                self.queue.push_back(row);
-                self.read_bytes += 82;
-            }
-            let words = &self.cache[&row];
-            let scale = f16::from_bits(words[0]).to_f32();
-            ensure!(scale.is_finite(), "nonfinite PLE row scale");
-            for i in 0..160 {
-                let mut state = 0u16;
-                for j in 0..4 {
-                    let symbol = (i + 160 - j) % 160;
-                    state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
-                }
-                let value = f16::from_f32(
-                    codec::decode_codeword(state, Codebook::Mul1).to_f32() * scale
-                        + self.bias[head * 160 + i].to_f32(),
-                );
-                ensure!(value.is_finite(), "nonfinite PLE embedding");
-                output.push(value.to_bits());
-            }
-        }
-        self.previous = [token, self.previous[0]];
-        Array::from_f16_bits(&output, &[1, H])
+        self.state = QsaState::default();
     }
 }
 
@@ -982,7 +863,7 @@ impl Ple {
                 }
             };
         }
-        let embedding = self.rows.forward(token)?;
+        let embedding = Array::from_f16_bits(&self.rows.read(token)?, &[1, H])?;
         stage!("embedding", embedding);
         let key = self
             .nk
@@ -1071,7 +952,7 @@ impl Layer {
         eps: f32,
         rope: f32,
         slots: usize,
-        overlap: bool,
+        policy: crate::ssd_moe::ResolvedPolicy,
     ) -> Result<Self> {
         Ok(Self {
             #[cfg(test)]
@@ -1088,7 +969,7 @@ impl Layer {
                     rope,
                 )?))
             },
-            moe: SsdMoe::load(c, &format!("{p}.mlp"), slots, overlap)?,
+            moe: SsdMoe::load_resolved(c, &format!("{p}.mlp"), slots, policy)?,
             ple: ple
                 .then(|| Ple::load(c, &format!("{p}.ple"), eps))
                 .transpose()?,
@@ -1320,14 +1201,22 @@ impl Layer {
     }
 }
 
-pub struct FlashNext {
+mod memory;
+
+struct ModelAssets {
     path: PathBuf,
     embed: TensorInfo,
-    layers: Vec<Layer>,
     mixer: Hc,
     head: Projection,
-    offset: i32,
     context: i32,
+}
+
+/// One inference session. Layer caches, transactions and the draft are session-local.
+pub struct FlashNext {
+    assets: ModelAssets,
+    request_limit: Option<u64>,
+    layers: Vec<Layer>,
+    offset: i32,
     pub last_hidden: Option<Array>,
     verification: Option<PairState>,
     multi_token: bool,
@@ -1363,104 +1252,11 @@ impl FlashNext {
             lookahead_depth <= 10,
             "SSD lookahead depth must be in 0..=10"
         );
-        let root: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
-        let t = &root["text_config"];
-        for (key, value) in [
-            ("hidden_size", 2560),
-            ("hc_count", 4),
-            ("hc_lowrank", 320),
-            ("num_hidden_layers", 48),
-            ("num_experts", 512),
-            ("num_experts_per_tok", 10),
-            ("moe_intermediate_size", 640),
-            ("head_dim", 256),
-            ("num_attention_heads", 24),
-            ("num_key_value_heads", 2),
-            ("linear_key_head_dim", 128),
-            ("linear_value_head_dim", 128),
-            ("linear_num_key_heads", 16),
-            ("linear_num_value_heads", 48),
-            ("linear_conv_kernel_dim", 4),
-            ("indexer_n_heads", 4),
-            ("indexer_kv_heads", 1),
-            ("indexer_head_dim", 128),
-            ("indexer_compress_ratio", 4),
-            ("indexer_budget", 2048),
-            ("eos_token_id", 248044),
-            ("vocab_size", 248320),
-            ("ple_embed_dim", 2560),
-            ("ngram_size", 3),
-            ("heads_per_ngram", 8),
-            ("ple_conv_kernel_size", 4),
-        ] {
-            ensure!(
-                t[key].as_i64() == Some(value),
-                "unsupported Flash Next {key}"
-            );
-        }
-        ensure!(
-            t["output_gate_type"] == "sigmoid" && t["ple_layer_ids"] == serde_json::json!([2]),
-            "unsupported Flash PLE/gate configuration"
-        );
-        let eps = t["rms_norm_eps"]
-            .as_f64()
-            .context("missing Flash epsilon")? as f32;
-        let rope = t["rope_parameters"]["rope_theta"]
-            .as_f64()
-            .context("missing Flash RoPE")? as f32;
-        let context = i32::try_from(
-            t["max_position_embeddings"]
-                .as_u64()
-                .context("missing context limit")?,
-        )?;
-        ensure!(
-            eps.is_finite()
-                && eps > 0.
-                && rope.is_finite()
-                && rope > 0.
-                && context > 0
-                && t["rope_parameters"]["partial_rotary_factor"] == 0.25,
-            "invalid Flash numerical configuration"
-        );
-        let budget = match std::env::var("MLXL3_SSD_CACHE_GIB") {
-            Ok(value) => Some(
-                value
-                    .parse::<f64>()
-                    .context("invalid MLXL3_SSD_CACHE_GIB")?,
-            ),
-            Err(std::env::VarError::NotPresent) => None,
-            Err(error) => return Err(error.into()),
-        };
-        let slots = if let Some(budget) = budget {
-            ensure!(
-                budget.is_finite() && (0.6..=12.).contains(&budget),
-                "SSD expert cache budget must be 0.6..12 GiB"
-            );
-            ((budget * (1u64 << 30) as f64 / (48. * flash_support::EXPERT_BYTES as f64)).floor()
-                as usize)
-                .clamp(10, 512)
-        } else {
-            #[cfg(target_os = "macos")]
-            let available = flash_support::available_memory_bytes()?;
-            #[cfg(not(target_os = "macos"))]
-            let available = 14 << 30;
-            let slots = flash_support::automatic_cache_slots(available).context(
-                "not enough system memory for Flash's minimum SSD cache and memory reserve",
-            )?;
-            eprintln!(
-                "Flash Next: auto cache {:.2} GiB ({slots} slots/layer), estimated available {:.2} GiB",
-                slots as f64 * 48. * flash_support::EXPERT_BYTES as f64 / (1u64 << 30) as f64,
-                available as f64 / (1u64 << 30) as f64
-            );
-            slots
-        };
-        let layer_slots = match std::env::var("MLXL3_SSD_LAYER_SLOTS") {
-            Ok(value) => flash_support::parse_layer_slots(&value, slots).context(
-                "MLXL3_SSD_LAYER_SLOTS requires 48 capacities in 20..512 with exactly the current total cache budget",
-            )?,
-            Err(std::env::VarError::NotPresent) => [slots; 48],
-            Err(error) => return Err(error.into()),
-        };
+        let crate::flash_config::FlashConfig { eps, rope, context } =
+            crate::flash_config::FlashConfig::load(c)?;
+        let layer_slots = crate::flash_config::layer_slots()?;
+        let request_limit = memory::request_limit()?;
+        memory::admit_load(request_limit, layer_slots.iter().sum())?;
         crate::array::set_default_cache_limit(512 << 20)?;
         let overlap = match std::env::var("MLXL3_SSD_OVERLAP") {
             Ok(value) => match value.as_str() {
@@ -1480,25 +1276,16 @@ impl FlashNext {
             embed.dtype == "BF16" && embed.shape == [248320, 2560],
             "unsupported token embedding"
         );
-        let types = t["layer_types"].as_array().context("missing layer types")?;
-        ensure!(types.len() == 48, "invalid layer count");
+        let policy = crate::ssd_moe::ResolvedPolicy::resolve(true, overlap)?;
         let mut layers = Vec::with_capacity(48);
-        for (i, kind) in types.iter().enumerate() {
+        for (i, &slots) in layer_slots.iter().enumerate() {
             let linear = i % 4 != 3;
-            ensure!(
-                *kind
-                    == if linear {
-                        "linear_attention"
-                    } else {
-                        "full_attention"
-                    },
-                "invalid Flash layer type"
-            );
             eprintln!(
                 "Flash Next: loading layer {}/48, {} exact expert slots",
                 i + 1,
-                layer_slots[i]
+                slots
             );
+            memory::admit_load(request_limit, slots)?;
             layers.push(Layer::load(
                 c,
                 &format!("model.language_model.layers.{i}"),
@@ -1506,8 +1293,8 @@ impl FlashNext {
                 i == 1,
                 eps,
                 rope,
-                layer_slots[i],
-                overlap,
+                slots,
+                policy,
             )?);
             #[cfg(test)]
             assert_eq!(layers[i].moe.slots_for_test(), layer_slots[i]);
@@ -1523,14 +1310,18 @@ impl FlashNext {
         };
         let mixer = Hc::load(c, "model.language_model.hyper_connection_mixer", eps, false)?;
         let head = Projection::load(c, "lm_head", H, 248320, false)?;
+        memory::admit_load(request_limit, 0)?;
         Ok(Self {
-            path: c.path.clone(),
-            embed,
+            request_limit,
+            assets: ModelAssets {
+                path: c.path.clone(),
+                embed,
+                mixer,
+                head,
+                context,
+            },
             layers,
-            mixer,
-            head,
             offset: 0,
-            context,
             last_hidden: None,
             verification: None,
             multi_token,
@@ -1543,7 +1334,7 @@ impl FlashNext {
     }
     pub fn embedding(&self, token: u32) -> Result<Array> {
         ensure!(token < 248320, "token outside Flash vocabulary");
-        let (file, base) = self.embed.source()?;
+        let (file, base) = self.assets.embed.source()?;
         let offset = flash_support::row_offset(base, u64::from(token), 248320, 5120)
             .context("token embedding offset overflow")?;
         Array::from_file(file, offset, &[1, H], Dtype::BFloat16)?.astype(Dtype::Float16)
@@ -1567,7 +1358,7 @@ impl FlashNext {
             self.verification.is_none(),
             "uncommitted Flash verification"
         );
-        ensure!(self.offset < self.context, "Flash context exhausted");
+        ensure!(self.offset < self.assets.context, "Flash context exhausted");
         let mut streams = self.streams(token)?;
         #[cfg(test)]
         crate::flash_profile::stage("embedding_streams", &streams)?;
@@ -1610,10 +1401,10 @@ impl FlashNext {
     fn logits(&self, streams: &Array) -> Result<Array> {
         #[cfg(test)]
         let _profile = crate::flash_profile::span("logits");
-        let (mixed, _) = self.mixer.read(streams)?;
+        let (mixed, _) = self.assets.mixer.read(streams)?;
         #[cfg(test)]
         crate::flash_profile::stage("final_hc_read", &mixed)?;
-        let logits = self.head.forward(&mixed.astype(Dtype::Float16)?)?;
+        let logits = self.assets.head.forward(&mixed.astype(Dtype::Float16)?)?;
         #[cfg(test)]
         let _eval = crate::flash_profile::span("lm_head_eval_inclusive");
         logits.eval()?;
@@ -1631,7 +1422,7 @@ impl FlashNext {
                     }
                 }
                 Attention::Qsa(q) => {
-                    if let Some(blocks) = &q.blocks {
+                    if let Some(blocks) = &q.state.blocks {
                         blocks.eval()?;
                     }
                 }
@@ -1647,7 +1438,7 @@ impl FlashNext {
             "uncommitted Flash verification"
         );
         ensure!(
-            self.context - self.offset >= 2 && tokens.iter().all(|&t| t < 248320),
+            self.assets.context - self.offset >= 2 && tokens.iter().all(|&t| t < 248320),
             "invalid Flash verification tokens or context"
         );
         let base = self.offset;
@@ -1674,11 +1465,11 @@ impl FlashNext {
             let input = streams
                 .iter()
                 .map(|stream| -> Result<Array> {
-                    self.mixer.read(stream)?.0.astype(Dtype::Float16)
+                    self.assets.mixer.read(stream)?.0.astype(Dtype::Float16)
                 })
                 .collect::<Result<Vec<_>>>()?;
             let logits = verification_projection(
-                &self.head,
+                &self.assets.head,
                 &Array::concatenate(&input.iter().collect::<Vec<_>>(), 0)?,
             )?;
             logits.eval()?;
@@ -1759,7 +1550,7 @@ impl FlashNext {
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
         ensure!(
             !tokens.is_empty()
-                && tokens.len() <= usize::try_from(self.context - self.offset)?
+                && tokens.len() <= usize::try_from(self.assets.context - self.offset)?
                 && tokens.iter().all(|&t| t < 248320),
             "invalid Flash token batch"
         );
@@ -1786,7 +1577,7 @@ impl FlashNext {
         }
     }
     pub fn context_limit(&self) -> i32 {
-        self.context
+        self.assets.context
     }
     pub fn offset(&self) -> i32 {
         self.offset
@@ -1837,7 +1628,11 @@ pub struct FlashMtpHead {
 impl FlashMtpHead {
     pub fn load(c: &Checkpoint, target: &FlashNext) -> Result<Self> {
         ensure!(
-            c.path == target.path && c.model_type == "qwen4_exp",
+            target.request_limit.is_none(),
+            "Flash request memory budget supports AR only"
+        );
+        ensure!(
+            c.path == target.assets.path && c.model_type == "qwen4_exp",
             "Flash MTP requires the target checkpoint"
         );
         let config: Value = serde_json::from_reader(File::open(c.path.join("config.json"))?)?;
@@ -1845,11 +1640,20 @@ impl FlashMtpHead {
             config["text_config"]["mtp_num_hidden_layers"] == 1,
             "Flash MTP requires one native draft layer"
         );
-        let eps = target.mixer.norm.eps;
+        let eps = target.assets.mixer.norm.eps;
         let rope = config["text_config"]["rope_parameters"]["rope_theta"]
             .as_f64()
             .context("missing MTP RoPE")? as f32;
-        let mut layer = Layer::load(c, "mtp.layers.0", false, false, eps, rope, 512, true)?;
+        let mut layer = Layer::load(
+            c,
+            "mtp.layers.0",
+            false,
+            false,
+            eps,
+            rope,
+            512,
+            crate::ssd_moe::ResolvedPolicy::resolve(false, true)?,
+        )?;
         layer.moe.warm_all()?;
         Ok(Self {
             #[cfg(test)]
@@ -1902,7 +1706,7 @@ impl FlashMtpHead {
             self.stages.push(("layer".into(), output.try_clone()?));
             self.stages.push(("output".into(), mixed.try_clone()?));
         }
-        let logits = target.head.forward(&mixed.astype(Dtype::Float16)?)?;
+        let logits = target.assets.head.forward(&mixed.astype(Dtype::Float16)?)?;
         logits.eval()?;
         self.layer.moe.drain()?;
         self.eval_cache()?;
@@ -1921,9 +1725,14 @@ impl FlashMtpHead {
         let Attention::Qsa(qsa) = &self.layer.attention else {
             anyhow::bail!("invalid MTP attention");
         };
-        for array in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks]
-            .into_iter()
-            .flatten()
+        for array in [
+            &qsa.state.keys,
+            &qsa.state.values,
+            &qsa.state.index_tail,
+            &qsa.state.blocks,
+        ]
+        .into_iter()
+        .flatten()
         {
             array.eval()?;
         }
@@ -1934,7 +1743,7 @@ impl FlashMtpHead {
     }
     pub fn offset(&self) -> i32 {
         match &self.layer.attention {
-            Attention::Qsa(q) => q.offset,
+            Attention::Qsa(q) => q.state.offset,
             Attention::Gdn(_) => 0,
         }
     }
@@ -2146,7 +1955,7 @@ mod tests {
                     model.lookahead_depth = depth;
                     for layer in &mut model.layers {
                         layer.moe.cache_for_test_invalidate();
-                        layer.moe.predictor_half = half;
+                        layer.moe.policy.predictor_half = half;
                     }
                     let before = pool.borrow().counters.submitted.load(Ordering::Relaxed);
                     for step in 0..3 {
@@ -2169,7 +1978,7 @@ mod tests {
                     } else {
                         after == before
                     });
-                    pool.borrow_mut().wait_for_test()?;
+                    pool.borrow_mut().wait_for_idle()?;
                     pool.borrow_mut().poll();
                     let pool = pool.borrow();
                     let counts = &pool.counters;
@@ -2233,8 +2042,13 @@ mod tests {
         }
     }
     pub(super) fn qsa_bytes(qsa: &Qsa) -> Result<Vec<Vec<u8>>> {
-        let mut bytes = vec![qsa.offset.to_le_bytes().to_vec()];
-        for value in [&qsa.keys, &qsa.values, &qsa.index_tail, &qsa.blocks] {
+        let mut bytes = vec![qsa.state.offset.to_le_bytes().to_vec()];
+        for value in [
+            &qsa.state.keys,
+            &qsa.state.values,
+            &qsa.state.index_tail,
+            &qsa.state.blocks,
+        ] {
             let mut item = vec![u8::from(value.is_some())];
             if let Some(value) = value {
                 ensure!(
@@ -2828,7 +2642,7 @@ mod tests {
             let mut anchor = logits.context("empty prefill")?.chat_greedy_ids()?[0];
             if let Some(pool) = &target.lookahead_pool {
                 let mut pool = pool.borrow_mut();
-                pool.wait_for_test()?;
+                pool.wait_for_idle()?;
                 pool.poll();
                 let c = &pool.counters;
                 for counter in [
@@ -2883,7 +2697,7 @@ mod tests {
             ensure!(host.len() == 248320 && host.iter().all(|v| v.is_finite()));
             let prefetch = if let Some(pool) = &target.lookahead_pool {
                 let mut pool = pool.borrow_mut();
-                pool.wait_for_test()?;
+                pool.wait_for_idle()?;
                 let c = &pool.counters;
                 Some(serde_json::json!({
                     "submitted":c.submitted.load(Ordering::Relaxed), "completed":c.completed.load(Ordering::Relaxed),
@@ -3052,7 +2866,7 @@ mod tests {
                             }
                         }
                         Attention::Qsa(q) => {
-                            if let Some(blocks) = &q.blocks {
+                            if let Some(blocks) = &q.state.blocks {
                                 blocks.eval()?;
                             }
                         }
@@ -3240,7 +3054,7 @@ mod tests {
                 "session head state differs, budget={budget}"
             );
             println!(
-                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}",
+                "MTP session budget={budget}, proposed={}, accepted={}, blocks={}, tokens={golden:?}",
                 session.proposed, session.accepted, session.blocks
             );
             proposed += session.proposed;
@@ -3344,8 +3158,8 @@ mod tests {
                         .clone(),
                     "next states differ after commit"
                 );
-                let context = model.context;
-                model.context = model.offset + 1;
+                let context = model.assets.context;
+                model.assets.context = model.offset + 1;
                 let before = state_bytes(&model)?;
                 ensure!(
                     model.verify_pair([1, 2]).is_err(),
@@ -3355,7 +3169,7 @@ mod tests {
                     before == state_bytes(&model)?,
                     "context rejection changed state"
                 );
-                model.context = context;
+                model.assets.context = context;
             }
         }
         Ok(())
@@ -3419,9 +3233,9 @@ mod tests {
                 unreachable!()
             };
             for (name, array) in [
-                ("keys", &q.keys),
-                ("values", &q.values),
-                ("index_tail", &q.index_tail),
+                ("keys", &q.state.keys),
+                ("values", &q.state.values),
+                ("index_tail", &q.state.index_tail),
             ] {
                 if let Some(array) = array {
                     check(
@@ -3849,7 +3663,7 @@ mod tests {
                 "invalid RoPE dtype accepted"
             );
             ensure!(
-                qsa.offset == 0 && qsa.keys.is_none(),
+                qsa.state.offset == 0 && qsa.state.keys.is_none(),
                 "rejected RoPE changed cache"
             );
             for (step, case) in steps.iter().enumerate() {
@@ -3995,10 +3809,10 @@ mod tests {
                 1e-6,
             )?;
             ensure!(
-                stock.gdn_epilogue && fused.gdn_epilogue,
+                stock.weights.gdn_epilogue && fused.weights.gdn_epilogue,
                 "loader lost epilogue flag"
             );
-            stock.gdn_epilogue = false;
+            stock.weights.gdn_epilogue = false;
             for step in &steps[..2] {
                 let reference = &step["components"][2]["linear_attn"];
                 let x = input(root, &reference["input"], H)?;
@@ -4375,3 +4189,9 @@ mod tests {
 
 #[cfg(all(test, feature = "chat"))]
 mod profile;
+
+#[cfg(test)]
+mod hc_row_oracle;
+
+#[cfg(test)]
+mod direct_gdn_oracle;

@@ -1,0 +1,47 @@
+{
+  "base": "da50ac2883f33851a9a126cbba397d284eb00ba7",
+  "os": "macOS 26B123",
+  "chip": "Apple M5, 24 GiB",
+  "checkpoint": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "activation": "seeded finite and zero FP16/FP32 inputs on synthetic, layers 0 and 23 and MTP checkpoint gates",
+  "shader": "Native Metal, one command, row-wise matvec then softmax then top-k; no intermediate to CPU on ordinary route",
+  "stock": "MLX 0.32.2 one [1,2560] matmul and precise softmax per row; stock router for IDs, Flash [1,10] sum and division for FP16",
+  "source_sha256": {
+    "native/src/gpu.rs": "32e91e68ea6e711af5c5d922d04a2691433d48a91ad843cae241df867215ccb5",
+    "native/src/gpu/gate.rs": "3565aa3c90566baa0cfeadb4b29c1d7008e12cc5e3cb43692cb55d12459b6bc2",
+    "native/src/gpu/router.rs": "db459478373ba28623754647c229fa588d43f0e3f4522f22c281611a1235e7ee",
+    "native/src/gpu/projection.rs": "5c39b31af2be075215021e015e3851fcab5fc2d68c8b41b8b7039d98629f285a",
+    "native/src/gpu/view.rs": "863f046052f660dde5d4a9d3ae435c61719880901c6954132c49bed6a7230c63",
+    "native/src/contracts.rs": "7d1fd1dc99ada65fca51625623594439023f3c2bd25d09ae15cfdb7ebd480a6c",
+    "native/shaders/flash_gate.metal": "5fd898b80cd71b701056a2013775baef7cd20c772103ebf32d377b3bf7d8f678",
+    "native/src/main.rs": "793b95f7935d2031e6a590d714c4d49e5428a1fdc3ef88d0495d8cc4c446c3be",
+    "tests/physical_flash_gate.py": "74b07f5dcf8b2f42297c20889bfeb1dd270f81ac6f058a5167809191e2864c03"
+  },
+  "kani": {
+    "version": "0.68.0",
+    "harness": "contracts::flash_gate_dispatch_bounds_output_and_weight_addresses",
+    "checks": 92,
+    "cover": 2,
+    "domain": "u32 rows, width, row, every expert, input column and thread index; output and weight addresses only"
+  },
+  "normalizer_examples": {
+    "seed": 7520,
+    "rows": 128,
+    "words_different": {
+      "serial": 0,
+      "group4": 43,
+      "fp32": 47
+    }
+  },
+  "early_failures": {
+    "debug_e2e": "Command '[PosixPath('build/issue75g/direct'), 'codec']' timed out after 150 seconds",
+    "fixture_without_exl3_module": "{'error': 'checkpoint contains no EXL3 modules'}",
+    "wide_denominator": {
+      "scores": 55
+    },
+    "grouped_half_denominator": {
+      "scores": 62
+    }
+  },
+  "repeat": "python tests/physical_flash_gate.py DIRECT MLX_ROUTER_CLI CHECKPOINT REPORT"
+}

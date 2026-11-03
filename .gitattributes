@@ -32,3 +32,8 @@ docs/measurements/desktop-followup-20261102/*.json linguist-generated=true
 # Keep verifier diagnostics byte-exact, including their original whitespace.
 docs/measurements/desktop-features-20261018/**/*.log linguist-generated=true -whitespace
 docs/measurements/desktop-v1.5.0/**/*.log linguist-generated=true -whitespace
+
+# The maintained converter patch has mandatory blank-context prefixes too.
+scripts/patches/ponyexl3-mlxl3-conversion.patch -whitespace
+# Preserve native converter verifier and mutation diagnostics byte-for-byte.
+docs/native-coverage/converter-host/*.log linguist-generated=true -whitespace

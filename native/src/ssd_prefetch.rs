@@ -1,6 +1,7 @@
 //! Bounded reads into persistent GPU slots; only the inference thread owns MLX.
 pub(crate) const PREDICTION_RANKS: usize = 16;
 
+#[cfg(any(feature = "mlx", test, kani))]
 pub(crate) fn prediction_rows(rows: usize) -> Option<usize> {
     (1..=8).contains(&rows).then_some(rows.min(2))
 }
@@ -70,8 +71,7 @@ mod gpu {
 
     struct Pending {
         layer: usize,
-        expert: u32,
-        slot: usize,
+        lease: crate::flash_support::SlotLease,
         cache: std::rc::Rc<std::cell::RefCell<crate::flash_support::ExpertCache>>,
         _read: crate::array::PreparedRead,
     }
@@ -134,16 +134,17 @@ mod gpu {
         pub fn submit(
             &mut self,
             layer: usize,
-            expert: u32,
-            slot: usize,
+            lease: crate::flash_support::SlotLease,
             cache: std::rc::Rc<std::cell::RefCell<crate::flash_support::ExpertCache>>,
             read: crate::array::PreparedRead,
         ) -> bool {
+            if cache.borrow().pending_lease(lease.slot, lease.expert) != Some(lease) {
+                return false;
+            }
             let token = read.token();
             let pending = Pending {
                 layer,
-                expert,
-                slot,
+                lease,
                 cache,
                 _read: read,
             };
@@ -169,10 +170,7 @@ mod gpu {
                     Err(TrySendError::Full(_)) => {}
                 }
             }
-            pending
-                .cache
-                .borrow_mut()
-                .publish_prefetch(slot, expert, false);
+            pending.cache.borrow_mut().finish_lease(lease, false);
             false
         }
 
@@ -180,11 +178,10 @@ mod gpu {
             let Some(pending) = worker.pending.take() else {
                 return false;
             };
-            let published =
-                pending
-                    .cache
-                    .borrow_mut()
-                    .publish_prefetch(pending.slot, pending.expert, valid);
+            let published = pending
+                .cache
+                .borrow_mut()
+                .finish_lease(pending.lease, valid);
             if !published {
                 counters.discarded.fetch_add(1, Ordering::Relaxed);
             }
@@ -213,7 +210,7 @@ mod gpu {
                 if worker
                     .pending
                     .as_ref()
-                    .is_some_and(|p| p.layer == layer && ids.contains(&p.expert))
+                    .is_some_and(|p| p.layer == layer && ids.contains(&p.lease.expert))
                 {
                     self.counters.late_needed.fetch_add(1, Ordering::Relaxed);
                 }
@@ -234,7 +231,7 @@ mod gpu {
                 if !worker.pending.as_ref().is_some_and(|p| {
                     p.layer == layer
                         && std::rc::Rc::ptr_eq(&p.cache, cache)
-                        && ids.contains(&p.expert)
+                        && ids.contains(&p.lease.expert)
                 }) {
                     continue;
                 }
@@ -267,13 +264,27 @@ mod gpu {
             }
         }
 
-        #[cfg(test)]
-        pub fn wait_for_test(&mut self) -> Result<()> {
+        pub fn wait_for_idle(&mut self) -> Result<()> {
+            self.drain_until(std::time::Instant::now() + std::time::Duration::from_secs(5))
+        }
+
+        fn drain_until(&mut self, deadline: std::time::Instant) -> Result<()> {
             for worker in &mut self.workers {
-                if worker.pending.is_some() {
-                    let completed = worker.rx.recv_timeout(std::time::Duration::from_secs(5))?;
-                    Self::finish(worker, completed.valid, &self.counters);
+                if worker.pending.is_none() {
+                    continue;
                 }
+                let valid = match worker
+                    .rx
+                    .recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()))
+                {
+                    Ok(completed) => completed.valid,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        worker.tx = None;
+                        false
+                    }
+                    Err(error) => return Err(error.into()),
+                };
+                Self::finish(worker, valid, &self.counters);
             }
             Ok(())
         }
@@ -324,10 +335,11 @@ mod gpu {
                     let slot = cache.borrow_mut().claim_prefetch(id)?.unwrap();
                     let read =
                         Array::prepare_read(&file, 0, &mut banks, &[(0, slot * 4096, 4096)])?;
-                    ensure!(pool.submit(0, id, slot, Rc::clone(&cache), read));
+                    let lease = cache.borrow().pending_lease(slot, id).unwrap();
+                    ensure!(pool.submit(0, lease, Rc::clone(&cache), read));
                 }
                 ensure!(Rc::strong_count(&cache) == 5 && !pool.has_room());
-                pool.wait_for_test()?;
+                pool.wait_for_idle()?;
                 ensure!(pool.workers.iter().all(|w| w.pending.is_none()));
                 ensure!(Rc::strong_count(&cache) == 1);
                 let now = crate::array::memory_stats(false)?.mlx_active_bytes;
@@ -351,7 +363,7 @@ mod gpu {
         fn demand_reuses_only_finished_matching_records_and_preserves_timeout_leases() -> Result<()>
         {
             let data = (0..64).map(|i| (i * 3 + 1) as u8).collect::<Vec<_>>();
-            for outcome in 0..4 {
+            for outcome in 0..5 {
                 let mut file = tempfile::tempfile()?;
                 file.write_all(&data)?;
                 let cache = Rc::new(RefCell::new(ExpertCache::new(24)?));
@@ -368,8 +380,7 @@ mod gpu {
                         thread: None,
                         pending: Some(Pending {
                             layer: 3,
-                            expert: 7,
-                            slot,
+                            lease: cache.borrow().pending_lease(slot, 7).unwrap(),
                             cache: Rc::clone(&cache),
                             _read: read,
                         }),
@@ -420,14 +431,23 @@ mod gpu {
                     ensure!(&actual[slot * 64..(slot + 1) * 64] == data);
                     ensure!(&actual[urgent.0 * 64..(urgent.0 + 1) * 64] == data);
                 } else {
+                    if outcome == 4 {
+                        assert!(pool.drain_until(std::time::Instant::now()).is_err());
+                        assert!(pool.workers[0].pending.is_some());
+                    }
                     drop(sender);
-                    pool.wait_demand(3, &cache, &[7]);
+                    if outcome == 4 {
+                        pool.wait_for_idle()?;
+                        pool.wait_for_idle()?;
+                    } else {
+                        pool.wait_demand(3, &cache, &[7]);
+                    }
                     ensure!(pool.workers[0].pending.is_none() && !cache.borrow().contains(7));
                     ensure!(pool.counters.discarded.load(Ordering::Relaxed) == 1);
                 }
             }
             println!(
-                "SSD_DEMAND_REUSE cases=4 identity_checks=12 records=real timeout_pending=true duplicate_rejected=true"
+                "SSD_DEMAND_REUSE cases=5 identity_checks=15 records=real timeout_pending=true duplicate_rejected=true"
             );
             Ok(())
         }
@@ -511,7 +531,8 @@ mod tests {
         for id in 0..4 {
             let slot = cache.borrow_mut().claim_prefetch(id)?.unwrap();
             let read = Array::prepare_read(&file, 0, &mut banks, &[(0, slot * 4096, 4096)])?;
-            ensure!(pool.submit(7, id, slot, Rc::clone(&cache), read));
+            let lease = cache.borrow().pending_lease(slot, id).unwrap();
+            ensure!(pool.submit(7, lease, Rc::clone(&cache), read));
         }
         ensure!(!pool.has_room());
         // Even if OS reads already finished, slots stay pending until the owner polls.
@@ -520,7 +541,7 @@ mod tests {
         ensure!(!demand.1 && demand.0 >= 4);
         Array::read_record(&file, 0, &mut banks, &[(0, demand.0 * 4096, 4096)])?;
         drop(banks);
-        pool.wait_for_test()?;
+        pool.wait_for_idle()?;
         ensure!((0..4).all(|id| cache.borrow().contains(id)));
         ensure!(pool.counters.discarded.load(Ordering::Relaxed) == 1);
         let result = observer.to_bytes()?;
@@ -535,8 +556,9 @@ mod tests {
         let slot = cache.borrow_mut().claim_prefetch(511)?.unwrap();
         let read = Array::prepare_read(&file, 0, &mut banks, &[(0, 0, 4096)])?;
         file.set_len(7)?;
-        ensure!(pool.submit(7, 511, slot, Rc::clone(&cache), read));
-        pool.wait_for_test()?;
+        let lease = cache.borrow().pending_lease(slot, 511).unwrap();
+        ensure!(pool.submit(7, lease, Rc::clone(&cache), read));
+        pool.wait_for_idle()?;
         ensure!(!cache.borrow().contains(511));
         ensure!(pool.counters.failed.load(Ordering::Relaxed) == 1);
         ensure!(pool.counters.bytes.load(Ordering::Relaxed) == 4 * 4096 + 7);
@@ -548,7 +570,8 @@ mod tests {
             let slot = cache.borrow_mut().claim_prefetch(id)?.unwrap();
             let mut bank = vec![Array::zeros_dtype(&[4096], Dtype::UInt8)?];
             let read = Array::prepare_read(&file, 0, &mut bank, &[(0, 0, 4096)])?;
-            ensure!(pool.submit(7, id, slot, Rc::clone(&cache), read));
+            let lease = cache.borrow().pending_lease(slot, id).unwrap();
+            ensure!(pool.submit(7, lease, Rc::clone(&cache), read));
         }
         let counters = Arc::clone(&pool.counters);
         drop(file);

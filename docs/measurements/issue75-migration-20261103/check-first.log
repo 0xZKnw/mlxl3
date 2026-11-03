@@ -1,0 +1,144 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0)
+error[E0609]: no field `blocks` on type `&Box<Qsa>`
+    --> native/src/qwen4.rs:1632:46
+     |
+1632 |                     if let Some(blocks) = &q.blocks {
+     |                                              ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1632 |                     if let Some(blocks) = &q.state.blocks {
+     |                                              ++++++
+
+error[E0609]: no field `offset` on type `&Box<Qsa>`
+    --> native/src/qwen4.rs:1949:36
+     |
+1949 |             Attention::Qsa(q) => q.offset,
+     |                                    ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1949 |             Attention::Qsa(q) => q.state.offset,
+     |                                    ++++++
+
+For more information about this error, try `rustc --explain E0609`.
+error: could not compile `mlxl3-native` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error[E0609]: no field `blocks` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:1632:46
+     |
+1632 |                     if let Some(blocks) = &q.blocks {
+     |                                              ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1632 |                     if let Some(blocks) = &q.state.blocks {
+     |                                              ++++++
+
+error[E0609]: no field `offset` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:1949:36
+     |
+1949 |             Attention::Qsa(q) => q.offset,
+     |                                    ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1949 |             Attention::Qsa(q) => q.state.offset,
+     |                                    ++++++
+
+error[E0609]: no field `blocks` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:3072:54
+     |
+3072 | ...                   if let Some(blocks) = &q.blocks {
+     |                                                ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+3072 |                             if let Some(blocks) = &q.state.blocks {
+     |                                                      ++++++
+
+error[E0609]: no field `keys` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:3439:29
+     |
+3439 |                 ("keys", &q.keys),
+     |                             ^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+3439 |                 ("keys", &q.state.keys),
+     |                             ++++++
+
+error[E0609]: no field `values` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:3440:31
+     |
+3440 |                 ("values", &q.values),
+     |                               ^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+3440 |                 ("values", &q.state.values),
+     |                               ++++++
+
+error[E0609]: no field `index_tail` on type `&Box<qwen4::Qsa>`
+    --> native/src/qwen4.rs:3441:35
+     |
+3441 |                 ("index_tail", &q.index_tail),
+     |                                   ^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+3441 |                 ("index_tail", &q.state.index_tail),
+     |                                   ++++++
+
+error[E0609]: no field `routed_index_cache` on type `ssd_moe::SsdMoe`
+   --> native/src/ssd_moe/routed_index_tests.rs:111:11
+    |
+111 |     other.routed_index_cache = true;
+    |           ^^^^^^^^^^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+111 |     other.policy.routed_index_cache = true;
+    |           +++++++
+
+error[E0609]: no field `cold_ready_rows` on type `ssd_moe::SsdMoe`
+   --> native/src/ssd_moe/cold_ready_wide_tests.rs:118:11
+    |
+118 |     small.cold_ready_rows = 4;
+    |           ^^^^^^^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+118 |     small.policy.cold_ready_rows = 4;
+    |           +++++++
+
+error[E0609]: no field `unique_cohorts` on type `ssd_moe::SsdMoe`
+   --> native/src/ssd_moe/cold_ready_wide_tests.rs:119:11
+    |
+119 |     small.unique_cohorts = true;
+    |           ^^^^^^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+119 |     small.policy.unique_cohorts = true;
+    |           +++++++
+
+error[E0560]: struct `ssd_prefetch::gpu::Pending` has no field named `expert`
+   --> native/src/ssd_prefetch.rs:368:29
+    |
+368 | ...                   expert: 7,
+    |                       ^^^^^^ `ssd_prefetch::gpu::Pending` does not have this field
+    |
+    = note: available fields are: `lease`
+
+error[E0560]: struct `ssd_prefetch::gpu::Pending` has no field named `slot`
+   --> native/src/ssd_prefetch.rs:369:29
+    |
+369 | ...                   slot,
+    |                       ^^^^ `ssd_prefetch::gpu::Pending` does not have this field
+    |
+    = note: available fields are: `lease`
+
+Some errors have detailed explanations: E0560, E0609.
+For more information about an error, try `rustc --explain E0560`.
+error: could not compile `mlxl3-native` (lib test) due to 11 previous errors

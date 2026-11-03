@@ -92,6 +92,7 @@ fn prepared_cold_chain_quality_and_micro() -> anyhow::Result<()> {
                             2,
                             Codebook::Mul1,
                             false,
+                            false,
                         )
                     };
                     let y = make()?;

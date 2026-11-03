@@ -1,0 +1,56 @@
+warning: methods `forward_captured`, `draft_embedding`, and `draft_logits` are never used
+   --> native/src/gpu/flash.rs:292:19
+    |
+ 96 | impl<'a> FlashNext<'a> {
+    | ---------------------- methods in this implementation
+...
+292 |     pub(crate) fn forward_captured(
+    |                   ^^^^^^^^^^^^^^^^
+...
+330 |     pub(crate) fn draft_embedding(&self, token: u32) -> Result<Vec<f32>> {
+    |                   ^^^^^^^^^^^^^^^
+...
+338 |     pub(crate) fn draft_logits(&self, rows: &crate::native_bf16::Matrix) -> Result<Vec<Vec<f32>>> {
+    |                   ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `row` is never used
+  --> native/src/native_bf16.rs:56:12
+   |
+19 | impl Matrix {
+   | ----------- method in this implementation
+...
+56 |     pub fn row(&self, index: usize) -> Result<Self> {
+   |            ^^^
+
+warning: methods `proposals` and `select_logits` are never used
+   --> native/src/native_draft.rs:394:12
+    |
+393 | impl Draft {
+    | ---------- methods in this implementation
+394 |     pub fn proposals(
+    |            ^^^^^^^^^
+...
+416 |     fn select_logits(
+    |        ^^^^^^^^^^^^^
+
+warning: `mlxl3-native` (lib test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (build/issue75draft/cargo-target/debug/deps/mlxl3_native-0abbe8b89444eaa3)
+
+running 1 test
+Error: Condition failed: `report["status"] == "complete_cpu_oracle" && report["residual_norm"] ==
+"sglang-3c560089-fp32-variance-bf16-residual"`
+test native_draft::native_backbone_matches_independent_numpy_layers_and_kv ... FAILED
+
+failures:
+
+failures:
+    native_draft::native_backbone_matches_independent_numpy_layers_and_kv
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 246 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

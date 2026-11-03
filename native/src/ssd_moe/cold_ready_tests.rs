@@ -57,37 +57,37 @@ fn load(checkpoint: &Checkpoint, capacity: usize) -> Result<SsdMoe> {
         true,
     )?;
     ensure!(
-        moe.cold_ready && !moe.shared_exl3 && !moe.weighted_epilogue,
+        moe.policy.cold_ready && !moe.policy.shared_exl3 && !moe.policy.weighted_epilogue,
         "test requires COLD_READY=1, SHARED_EXL3=0, WEIGHTED_EPILOGUE=0"
     );
     ensure!(
-        moe.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
+        moe.policy.cold_shared == (std::env::var("MLXL3_SSD_COLD_SHARED").as_deref() == Ok("1")),
         "Cold shared flag not wired"
     );
     ensure!(
-        Some(moe.cold_ready_rows)
+        Some(moe.policy.cold_ready_rows)
             == crate::cold_ready::parse_max_rows(
                 std::env::var("MLXL3_SSD_COLD_READY_ROWS").ok().as_deref()
             )
-            && moe.cold_priority
+            && moe.policy.cold_priority
                 == (std::env::var("MLXL3_SSD_COLD_PRIORITY").as_deref() == Ok("1")),
         "Cold candidate options not wired"
     );
-    moe.readers = 4;
-    moe.gpu_hot = true;
-    moe.gpu_hot_wide = true;
+    moe.policy.readers = 4;
+    moe.policy.gpu_hot = true;
+    moe.policy.gpu_hot_wide = true;
     moe.cold_ready_verify_overlap = true;
     Ok(moe)
 }
 
 fn reset(moe: &mut SsdMoe) -> Result<()> {
     moe.drain()?;
-    moe.cache.borrow_mut().invalidate();
+    moe.store.cache.borrow_mut().invalidate();
     Ok(())
 }
 
 fn prime(moe: &mut SsdMoe, ids: &[u32]) -> Result<()> {
-    let routes = moe.cache.borrow_mut().reserve(ids)?;
+    let routes = moe.store.cache.borrow_mut().reserve(ids)?;
     ensure!(routes.iter().all(|&(_, hit)| !hit));
     let jobs = ids
         .iter()
@@ -140,7 +140,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     for capacity in [20, 53] {
         let mut moe = load(&checkpoint, capacity)?;
         for gpu_hot in [false, true] {
-            moe.gpu_hot = gpu_hot;
+            moe.policy.gpu_hot = gpu_hot;
             for pair in [&[0][..], &[0, 1], &[1, 0], &[0, 0], &[1, 2]] {
                 reset(&mut moe)?;
                 let x =
@@ -175,7 +175,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                 let output = moe.forward_many(&x)?;
                 check(&output, &oracle, pair.len())?;
                 let dynamic = std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("0")
-                    && missing > moe.readers;
+                    && missing > moe.policy.readers;
                 ensure!(
                     crate::array::disk_profile_schedule()
                         == if dynamic { "dynamic" } else { "static" },
@@ -193,7 +193,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
                 ensure!(moe.read_bytes - before.1 == missing as u64 * EXPERT_BYTES);
                 ensure!(
                     moe.cold_shared_submissions
-                        == shared_submissions + usize::from(moe.cold_shared),
+                        == shared_submissions + usize::from(moe.policy.cold_shared),
                     "Cold shared submission path not exercised"
                 );
                 mixed += 1;
@@ -207,7 +207,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
             }
         }
         reset(&mut moe)?;
-        moe.gpu_hot = true;
+        moe.policy.gpu_hot = true;
         let waves = moe.cold_ready_waves.len();
         check(&moe.forward(&inputs[0])?, &expected[0], 1)?;
         ensure!(
@@ -235,11 +235,11 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
         scaled.to_bytes()? != inputs[0].to_bytes()? && moe.route(&scaled)?.0.to_u32()? == ids,
         "distinct-activation duplicate fixture is not valid"
     );
-    moe.cold_ready = false;
+    moe.policy.cold_ready = false;
     let second = moe.forward(&scaled)?.to_bytes()?;
     ensure!(second != expected[0]);
     reset(&mut moe)?;
-    moe.cold_ready = true;
+    moe.policy.cold_ready = true;
     prime(&mut moe, &ids[..5])?;
     let x = Array::concatenate(&[&inputs[0], &scaled], 0)?;
     let mut oracle = expected[0].clone();
@@ -256,7 +256,7 @@ fn ready_cold_waves_preserve_external_rows_duplicates_and_fallbacks() -> Result<
     );
 
     reset(&mut moe)?;
-    moe.cold_ready_rows = 2;
+    moe.policy.cold_ready_rows = 2;
     prime(&mut moe, &ids[..5])?;
     let x = Array::concatenate(&[&inputs[0], &inputs[1], &inputs[2]], 0)?;
     let oracle = expected.iter().flatten().copied().collect::<Vec<_>>();
@@ -351,12 +351,13 @@ fn ready_cold_preparation_preserves_completed_fenced_and_failure_paths() -> Resu
                 .any(|e| e.to_string().contains("injected Cold preparation failure"))
         );
         ensure!(moe.cold_ready_prepared_rest == prepared + 1);
-        ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
+        ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
         ensure!(
-            moe.last
+            moe.store
+                .last
                 .as_ref()
                 .context("missing Hot lease")?
-                .is_available_for_test()?
+                .is_available()?
         );
         moe.cold_ready_fail_after_prepare = false;
         prime(&mut moe, &ids[..5])?;
@@ -396,12 +397,13 @@ fn ready_cold_failure_drains_consumers_invalidates_reservations_and_recovers() -
         moe.cold_ready_waves.len() == 1,
         "failure preceded W1 submission"
     );
-    ensure!(ids.iter().all(|&id| !moe.cache.borrow().contains(id)));
+    ensure!(ids.iter().all(|&id| !moe.store.cache.borrow().contains(id)));
     ensure!(
-        moe.last
+        moe.store
+            .last
             .as_ref()
             .context("missing Hot lease")?
-            .is_available_for_test()?,
+            .is_available()?,
         "error returned with Hot consumer still pending"
     );
     moe.cold_ready_fail_after_wave = false;

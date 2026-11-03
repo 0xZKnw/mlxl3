@@ -155,6 +155,15 @@ pub(crate) struct Projection {
 }
 
 impl Projection {
+    pub(crate) fn collect_weights<'a>(&'a self, out: &mut Vec<&'a Array>) {
+        match &self.weights {
+            ProjectionWeights::Exl3(w) => out.extend(w.weight_arrays()),
+            ProjectionWeights::Affine(w) => out.extend(w.weight_arrays()),
+            ProjectionWeights::Dense(w) => out.push(w),
+        }
+        out.extend(&self.bias);
+    }
+
     pub(crate) fn is_exl3(&self) -> bool {
         matches!(self.weights, ProjectionWeights::Exl3(_))
     }

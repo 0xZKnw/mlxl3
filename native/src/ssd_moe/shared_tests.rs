@@ -117,9 +117,9 @@ fn shared_batches_match_single_row_projections_and_scalar_gates() -> Result<()> 
                     )?;
                     exact(&moe.shared_projection(&x)?, &join(&downs)?, &[rows, H])?;
                     let expected = join(&shared)?;
-                    moe.shared_batch = false;
+                    moe.policy.shared_batch = false;
                     exact(&moe.shared(&x)?, &expected, &[rows, H])?;
-                    moe.shared_batch = true;
+                    moe.policy.shared_batch = true;
                     let before = Array::host_readbacks_for_test();
                     let actual = moe.shared(&x)?;
                     ensure!(Array::host_readbacks_for_test() == before);
@@ -179,9 +179,9 @@ fn shared_batch_component_microbench() -> Result<()> {
                 .into_iter()
                 .zip(fixtures.iter_mut().zip(&inputs))
             {
-                moe.shared_batch = false;
+                moe.policy.shared_batch = false;
                 let expected = moe.shared(x)?;
-                moe.shared_batch = candidate;
+                moe.policy.shared_batch = candidate;
                 exact(&moe.shared(x)?, &expected, &[rows, H])?;
                 for _ in 0..8 {
                     moe.shared(x)?.eval()?;
@@ -204,7 +204,7 @@ fn shared_batch_component_microbench() -> Result<()> {
                 [true, false]
             } {
                 for (moe, _) in &mut fixtures {
-                    moe.shared_batch = candidate;
+                    moe.policy.shared_batch = candidate;
                 }
                 let started = std::time::Instant::now();
                 for _ in 0..32 {

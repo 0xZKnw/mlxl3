@@ -1,0 +1,59 @@
+   Compiling mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0)
+error: failed to run custom build command for `mlxl3-native v2.0.2 (/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0)`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0/target/debug/build/mlxl3-native-235fadca665b0677/build-script-build` (exit status: 101)
+  --- stdout
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_017/HEAD
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/worktrees/mix-stq1_017/index
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/packed-refs
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.git/refs/heads/codex/issue75-lot0-20261103
+  cargo:rerun-if-changed=native
+  cargo:rerun-if-changed=Cargo.toml
+  cargo:rerun-if-changed=Cargo.lock
+  cargo:rustc-env=MLXL3_BUILD_REVISION=b9d5cbdce50a-dirty
+  cargo:rustc-env=MLXL3_BUILD_PROFILE=debug
+  cargo:rerun-if-env-changed=MLXL3_MLX_ROOT
+  cargo:rerun-if-changed=native/ffi/mlx_bridge.cpp
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/version.h
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/fast.h
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/libmlx.dylib
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/libjaccl.dylib
+  cargo:rerun-if-changed=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib
+  cargo:rustc-env=MLXL3_MLX_VERSION=0.32.2
+
+  --- stderr
+  In file included from native/ffi/mlx_bridge.cpp:41:
+  native/ffi/flash_prepare.h:50:29: error: non-constant-expression cannot be narrowed from type 'long long' to 'unsigned long long' in initializer list [-Wc++11-narrowing]
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                             ^~~~~~~~~~~~~~
+  native/ffi/flash_prepare.h:50:29: note: insert an explicit cast to silence this issue
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                             ^~~~~~~~~~~~~~
+        |                             static_cast<unsigned long long>( )
+  native/ffi/flash_prepare.h:50:45: error: non-constant-expression cannot be narrowed from type 'long long' to 'unsigned long long' in initializer list [-Wc++11-narrowing]
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                             ^~~~~~~~~~~~~~
+  native/ffi/flash_prepare.h:50:45: note: insert an explicit cast to silence this issue
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                             ^~~~~~~~~~~~~~
+        |                                             static_cast<unsigned long long>( )
+  native/ffi/flash_prepare.h:50:61: error: non-constant-expression cannot be narrowed from type 'long long' to 'unsigned long long' in initializer list [-Wc++11-narrowing]
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                                             ^~~~~~~~~~~~~~~~~~~
+  native/ffi/flash_prepare.h:50:61: note: insert an explicit cast to silence this issue
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                                             ^~~~~~~~~~~~~~~~~~~
+        |                                                             static_cast<unsigned long long>( )
+  native/ffi/flash_prepare.h:50:82: error: non-constant-expression cannot be narrowed from type 'long long' to 'unsigned long long' in initializer list [-Wc++11-narrowing]
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                                                                  ^~~~~~~~~~~~~~~~~~~
+  native/ffi/flash_prepare.h:50:82: note: insert an explicit cast to silence this issue
+     50 |       uint64_t(x.shape(1)), x.strides()[0], x.strides()[1], scales.strides()[0], scales.strides()[1]};
+        |                                                                                  ^~~~~~~~~~~~~~~~~~~
+        |                                                                                  static_cast<unsigned long long>( )
+  4 errors generated.
+
+  thread 'main' (3369394) panicked at build.rs:5:5:
+  native compiler failed: "/usr/bin/clang++" "-std=c++20" "-O2" "-fPIC" "-fvisibility=hidden" "-c" "native/ffi/mlx_bridge.cpp" "-o" "/Users/justin/.codex/worktrees/issue75-lot0-20261103/mix-stq1_0/target/debug/build/mlxl3-native-ec58bcaa28f2863f/out/mlx_bridge.o" "-I" "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include" "-I" "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/metal_cpp"
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

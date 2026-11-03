@@ -32,11 +32,12 @@ spec.loader.exec_module(bridge)
         "configure",
     ],
 )
-def test_bridge_boundaries_and_cleanup(tmp_path, capsys, monkeypatch, fault):
+@pytest.mark.parametrize("kind", ["mtp", "dflash"])
+def test_bridge_boundaries_and_cleanup(tmp_path, capsys, monkeypatch, fault, kind):
     engine = tmp_path / "engine"
     engine.write_text(
         "#!/usr/bin/env python3\n"
-        + f"fault = {fault!r}\n"
+        + f"fault = {fault!r}\nkind = {kind!r}\n"
         + """
 import json, signal, sys, time
 cancelled = False
@@ -46,7 +47,7 @@ def cancel(*args):
     cancelled = True
 signal.signal(signal.SIGUSR1, cancel)
 def emit(**event): print(json.dumps(event), flush=True)
-emit(type='ready', mtp_max_depth=1, mtp_configure_supported=fault in ('ok', 'configure'))
+emit(type='ready', mtp_max_depth=1, **{f'{kind}_configure_supported': fault in ('ok', 'configure')})
 seen = set()
 for line in sys.stdin:
     r = json.loads(line)
@@ -65,14 +66,20 @@ for line in sys.stdin:
         emit(type='error', request_id=rid, message='duplicate request ID')
         continue
     seen.add(rid)
-    if r['type'] == 'set_mtp':
-        emit(type='mtp_status', request_id=rid, mtp_active=not r['enabled'] if fault == 'configure' else r['enabled'])
+    if r['type'] == f'set_{kind}':
+        emit(type=f'{kind}_status', request_id=rid, **{f'{kind}_active': not r['enabled'] if fault == 'configure' else r['enabled']})
         continue
-    if (not r['mtp_head_path'] or r['mtp_head_path'] == '/missing-head' or r.get('dflash2') or r.get('mtp_depth', 1) != 1) and fault != 'accept-invalid':
+    path_field = 'mtp_head_path' if kind == 'mtp' else 'dflash_draft_path'
+    requested = 'mtp' if kind == 'mtp' else 'dflash2'
+    invalid = (not r[path_field] or r[path_field] == '/missing-head' or
+               r.get('dflash2' if kind == 'mtp' else 'mtp') or
+               (r.get('mtp_depth', 1) != 1 if kind == 'mtp' else
+                r.get('dflash_mode', 1) not in (1,2,3) or r['repetition_penalty'] != 1))
+    if invalid and fault != 'accept-invalid':
         emit(type='error', request_id=rid, message='rejected')
         continue
-    active = r['mtp'] and r['repetition_penalty'] == 1
-    if fault != 'mode': emit(type='generation_mode', request_id=rid, mtp_active=active)
+    active = r[requested] and r['repetition_penalty'] == 1
+    if fault != 'mode': emit(type='generation_mode', request_id=rid, **{f'{kind}_active': active})
     emit(type='context_usage', request_id=rid, used_tokens=3)
     if not cancelled:
         emit(type='delta', request_id=rid, text='' if fault == 'empty' else 'answer')
@@ -98,10 +105,10 @@ for line in sys.stdin:
 
     monkeypatch.setattr(bridge.subprocess, "Popen", tracked)
     if fault == "ok":
-        bridge.run(str(engine), "model", "model", [1, 2, 3], "prompt", timeout=2)
+        bridge.run(str(engine), "model", "model", [1, 2, 3], "prompt", timeout=2, mode=kind)
     else:
         with pytest.raises((ValueError, RuntimeError, TimeoutError)):
-            bridge.run(str(engine), "model", "model", [1, 2], "prompt", timeout=0.2)
+            bridge.run(str(engine), "model", "model", [1, 2], "prompt", timeout=0.2, mode=kind)
     events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
     assert events[-1]["status"] == ("validated" if fault == "ok" else "failed")
     assert not any(event.get("status") == "validated" for event in events[:-1])
@@ -116,3 +123,8 @@ for line in sys.stdin:
 def test_invalid_protocol(budgets, context, timeout):
     with pytest.raises(ValueError):
         bridge.run("missing", "model", "head", budgets, "prompt", context=context, timeout=timeout)
+
+
+def test_unknown_speculative_backend_fails_before_starting_a_process():
+    with pytest.raises(ValueError):
+        bridge.run("missing", "model", "head", [1], "prompt", mode="other")

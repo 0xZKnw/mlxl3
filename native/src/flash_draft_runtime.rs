@@ -2,60 +2,7 @@ use super::*;
 use crate::flash_draft_budget::{PreDraftBudget, VerifyBudget};
 use std::sync::atomic::AtomicBool;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Options {
-    q4: bool,
-    ring: bool,
-    adaptive: bool,
-    precap: bool,
-    width: usize,
-}
-impl Options {
-    fn read(mode: usize) -> Result<Self> {
-        ensure!((1..=3).contains(&mode), "DFlash mode must be 1, 2 or 3");
-        let flag = |name: &str, default: bool| -> Result<bool> {
-            match std::env::var(name) {
-                Ok(v) if v == "0" => Ok(false),
-                Ok(v) if v == "1" => Ok(true),
-                Err(std::env::VarError::NotPresent) => Ok(default),
-                _ => anyhow::bail!("{name} must be 0 or 1"),
-            }
-        };
-        let adaptive_requested = flag("MLXL3_FLASH_DRAFT_ADAPTIVE", true)?;
-        let precap_requested = flag("MLXL3_FLASH_DRAFT_PRECAP", false)?;
-        ensure!(
-            !precap_requested || adaptive_requested,
-            "MLXL3_FLASH_DRAFT_PRECAP requires MLXL3_FLASH_DRAFT_ADAPTIVE=1"
-        );
-        let adaptive = adaptive_requested && mode == 1;
-        let precap = precap_requested && adaptive;
-        let width = match std::env::var("MLXL3_FLASH_DRAFT_WIDTH") {
-            Ok(value) => crate::flash_support::fixed_draft_width(&value, adaptive_requested)
-                .context(
-                    "MLXL3_FLASH_DRAFT_WIDTH requires 1..7 and MLXL3_FLASH_DRAFT_ADAPTIVE=0",
-                )?,
-            Err(std::env::VarError::NotPresent) => {
-                if precap {
-                    3
-                } else if adaptive || mode == 3 {
-                    7
-                } else if mode == 2 {
-                    2
-                } else {
-                    3
-                }
-            }
-            Err(_) => anyhow::bail!("MLXL3_FLASH_DRAFT_WIDTH must be valid Unicode"),
-        };
-        Ok(Self {
-            q4: flag("MLXL3_FLASH_DRAFT_Q4", true)?,
-            ring: flag("MLXL3_FLASH_DRAFT_RING", true)?,
-            adaptive,
-            precap,
-            width,
-        })
-    }
-}
+use crate::flash_draft_options::Options;
 
 #[cfg(kani)]
 #[kani::proof]
@@ -79,6 +26,25 @@ pub(in crate::qwen4) struct Session {
     profile: FlashDraftProfile,
 }
 impl Session {
+    pub(in crate::qwen4) fn record_memory(
+        &self,
+        ledger: &mut crate::qwen4::memory::Backings,
+    ) -> Result<()> {
+        for array in self.draft.weights.values() {
+            ledger.record("draft_weights", array)?;
+        }
+        for (w, s, b) in self.draft.quantized.values() {
+            for array in [w, s, b] {
+                ledger.record("draft_weights", array)?;
+            }
+        }
+        for (k, v) in self.draft.cache.iter().flatten() {
+            ledger.record("draft_kv", k)?;
+            ledger.record("draft_kv", v)?;
+        }
+        Ok(())
+    }
+
     pub(in crate::qwen4) fn reset(&mut self) {
         self.draft.reset();
         self.budget = VerifyBudget::default();
@@ -101,14 +67,16 @@ impl Session {
             return Ok(token);
         }
         ensure!(
-            remaining > 0 && target.offset == self.draft.offset && target.offset < target.context,
+            remaining > 0
+                && target.offset == self.draft.offset
+                && target.offset < target.assets.context,
             "DFlash target and cache positions differ"
         );
         let mut count = self
             .options
             .width
             .min(remaining - 1)
-            .min((target.context - target.offset - 1) as usize);
+            .min((target.assets.context - target.offset - 1) as usize);
         if self.options.precap {
             count = self.pre_budget.choose(count);
         }
@@ -132,7 +100,8 @@ impl Session {
         ensure!(input.shape() == [count as i32 + 1, H]);
         let (hidden, _) = self.draft.forward(&input, count)?;
         let (mut proposals, confidence) =
-            self.draft.select(&target.head, &hidden, count, anchor)?;
+            self.draft
+                .select(&target.assets.head, &hidden, count, anchor)?;
         ensure!(
             proposals.len() == count && confidence.len() == count,
             "incomplete DFlash selection"
@@ -233,6 +202,10 @@ impl FlashNext {
             self.dflash = None;
             return Ok(());
         };
+        ensure!(
+            self.request_limit.is_none(),
+            "Flash request memory budget supports AR only"
+        );
         let options = Options::read(mode)?;
         let path = path.canonicalize()?;
         let identify = |name: &str| -> Result<_> {
@@ -315,7 +288,7 @@ impl FlashNext {
             .context("DFlash draft is not configured")?;
         let result = (|| {
             ensure!(
-                !tokens.is_empty() && tokens.len() < self.context as usize,
+                !tokens.is_empty() && tokens.len() < self.assets.context as usize,
                 "invalid DFlash prompt"
             );
             let mut last = None;
@@ -506,7 +479,7 @@ mod tests {
         ensure!(target.offset == 0);
         ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
         target.reset();
-        target.context = 4;
+        target.assets.context = 4;
         ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
         ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
         ensure!(target.forward_tokens(&[7]).is_err());

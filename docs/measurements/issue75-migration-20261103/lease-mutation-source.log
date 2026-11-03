@@ -1,0 +1,9 @@
+native/src/flash_support.rs:1150:    pub(crate) fn finish_lease(&mut self, lease: SlotLease, valid: bool) -> bool {
+native/src/flash_support.rs-1151-        if self.pending_lease(lease.slot, lease.expert) != Some(lease) {
+native/src/flash_support.rs-1152-            return false;
+--
+build/issue75/mutation-gens/native/src/flash_support.rs:1150:    pub(crate) fn finish_lease(&mut self, lease: SlotLease, valid: bool) -> bool {
+build/issue75/mutation-gens/native/src/flash_support.rs-1151-        if self.pending_lease(lease.slot, lease.expert).is_none() {
+build/issue75/mutation-gens/native/src/flash_support.rs-1152-            return false;
+9e3261078da5404ea2105a90be058fd8c04aefa7ec7dab66763ae5487c32dfda  native/src/flash_support.rs
+228f752997cc16c72ab2542de980383d6d9a608e4d13da6bb51e39adb27265de  build/issue75/mutation-gens/native/src/flash_support.rs

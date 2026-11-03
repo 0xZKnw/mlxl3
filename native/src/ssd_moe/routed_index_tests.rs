@@ -3,7 +3,7 @@ use super::*;
 fn load(checkpoint: &Checkpoint) -> Result<SsdMoe> {
     let moe = SsdMoe::load(checkpoint, "model.language_model.layers.0.mlp", 53, true)?;
     ensure!(
-        moe.routed_index_cache
+        moe.policy.routed_index_cache
             == (std::env::var("MLXL3_SSD_ROUTED_INDEX_CACHE").as_deref() == Ok("1")),
         "routed index cache option was not loaded"
     );
@@ -58,11 +58,11 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
                 for seed in [0, 19] {
                     let (x, expected) = input(rows, seed, dtype, strided)?;
                     let readbacks = Array::host_readbacks_for_test();
-                    moe.routed_index_cache = false;
+                    moe.policy.routed_index_cache = false;
                     let builds = moe.routed_index_builds;
                     let stock = moe.routed_input(&x)?;
                     ensure!(moe.routed_index_builds == builds + 1);
-                    moe.routed_index_cache = true;
+                    moe.policy.routed_index_cache = true;
                     let populated = moe.routed_indices[rows as usize - 1].is_some();
                     let builds = moe.routed_index_builds;
                     let hits = moe.routed_index_hits;
@@ -108,7 +108,7 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
     ensure!((moe.routed_index_builds, moe.routed_index_hits) == (before.0 + 2, before.1));
     pending.push((first, second, expected));
     let mut other = load(&checkpoint)?;
-    other.routed_index_cache = true;
+    other.policy.routed_index_cache = true;
     let (x, expected) = input(2, 93, Dtype::Float16, true)?;
     let output = other.routed_input(&x)?;
     ensure!(other.routed_index_builds == 1 && other.routed_index_hits == 0);
@@ -139,16 +139,16 @@ fn routed_indices_reuse_only_shape_and_keep_live_graph_inputs() -> Result<()> {
 fn routed_indices_cache_preserves_real_hot_cold_and_invalid_inputs() -> Result<()> {
     let (checkpoint, input, expected) = super::tests::admission_fixture()?;
     let mut moe = load(&checkpoint)?;
-    moe.gpu_hot_wide = true;
-    moe.unique_cohorts = true;
+    moe.policy.gpu_hot_wide = true;
+    moe.policy.unique_cohorts = true;
     let mut checked = 0;
     for enabled in [false, true] {
-        moe.routed_index_cache = enabled;
+        moe.policy.routed_index_cache = enabled;
         for hot in [false, true] {
-            moe.gpu_hot = hot;
+            moe.policy.gpu_hot = hot;
             for rows in [1, 2, 3, 4, 8] {
                 moe.drain()?;
-                moe.cache.borrow_mut().invalidate();
+                moe.store.cache.borrow_mut().invalidate();
                 let x =
                     Array::concatenate(&std::iter::repeat_n(&input, rows).collect::<Vec<_>>(), 0)?;
                 let baseline = expected.repeat(rows);

@@ -38,6 +38,7 @@
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
+#include "flash_prepare.h"
 #include "prepared_metal.h"
 
 namespace mx = mlx::core;
@@ -186,14 +187,7 @@ int mlxl3_memory_stats(uint64_t* out, size_t count, bool reset_peak) noexcept {
     out[0] = mx::get_active_memory();
     out[1] = mx::get_cache_memory();
     out[2] = std::max(out[0], uint64_t(mx::get_peak_memory()));
-    rusage_info_v4 usage{};
-    const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
-                                   reinterpret_cast<rusage_info_t*>(&usage)) == 0;
-    task_vm_info_data_t vm{};
-    mach_msg_type_number_t vm_count = TASK_VM_INFO_COUNT;
-    const auto vm_ok = task_info(mach_task_self(), TASK_VM_INFO,
-        reinterpret_cast<task_info_t>(&vm), &vm_count) == KERN_SUCCESS;
-    const auto process = mlxl3::process_memory_values(usage, ok, vm, vm_count, vm_ok);
+    const auto process = mlxl3::current_process_memory();
     std::copy(process.begin(), process.end(), out + 3);
   });
 }
@@ -212,6 +206,27 @@ void mlxl3_array_free(void* p) noexcept { delete static_cast<mx::array*>(p); }
 int mlxl3_array_clone(void* p, void** out) noexcept {
   return protect([&] { *out = new mx::array(arr(p)); });
 }
+int mlxl3_flash_prepare128(void* input, void* scales, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null FlashPrepare128 output");
+    *out = new mx::array(mlxl3::flash_prepare128(arr(input), arr(scales)));
+  });
+}
+int mlxl3_flash_program_cache(uint64_t* out, size_t count, bool clear) noexcept {
+  return protect([&] {
+    if (!out || count != 5) throw std::invalid_argument("invalid Flash cache metrics destination");
+    auto& cache = mlxl3::flash_prepare_cache();
+    if (clear && cache.program) {
+      cache.program.reset();
+      ++cache.evictions;
+    }
+    out[0] = cache.hits;
+    out[1] = cache.creations;
+    out[2] = cache.evictions;
+    out[3] = cache.program ? 1 : 0;
+    out[4] = cache.program ? sizeof(mlxl3::FlashPrepareProgram) : 0;
+  });
+}
 int mlxl3_array_compact_copy(void* p, void** out) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null compact output");
@@ -228,6 +243,16 @@ int mlxl3_array_retained_bytes(void* p, uint64_t* out) noexcept {
     auto& a = arr(p);
     mx::eval(a);
     *out = a.size() ? a.buffer_size() : 0;
+  });
+}
+// Identity remains private to the synchronous ledger walk holding all Array owners.
+int mlxl3_backing(void* p, uintptr_t* key, uint64_t* bytes) noexcept {
+  return protect([&] {
+    if (!key || !bytes) throw std::invalid_argument("null backing descriptor");
+    auto& a = arr(p);
+    mx::eval(a);
+    *key = a.size() ? reinterpret_cast<uintptr_t>(a.buffer().ptr()) : 0;
+    *bytes = a.size() ? a.buffer_size() : 0;
   });
 }
 // Lossless F16 bit packing. No arithmetic/quantization on the stored values.

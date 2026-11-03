@@ -80,7 +80,14 @@ unsafe extern "C" {
     fn mlxl3_stop_capture() -> i32;
     fn mlxl3_set_cache_limit(bytes: u64) -> i32;
     fn mlxl3_pack_embedding(p: *mut c_void, out: *mut *mut c_void) -> i32;
+    fn mlxl3_backing(p: *mut c_void, key: *mut usize, bytes: *mut u64) -> i32;
     fn mlxl3_array_retained_bytes(p: *mut c_void, out: *mut u64) -> i32;
+    fn mlxl3_flash_program_cache(out: *mut u64, count: usize, clear: bool) -> i32;
+    fn mlxl3_flash_prepare128(
+        input: *mut c_void,
+        scales: *mut c_void,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_compact_copy(p: *mut c_void, out: *mut *mut c_void) -> i32;
     fn mlxl3_array_affine4(
         x: *mut c_void,
@@ -151,7 +158,6 @@ unsafe extern "C" {
         out: *mut *mut c_void,
     ) -> i32;
     fn mlxl3_array_eval(p: *mut c_void) -> i32;
-    #[cfg(test)]
     fn mlxl3_array_is_available(p: *mut c_void, out: *mut i32) -> i32;
     fn mlxl3_array_async_eval(p: *mut c_void) -> i32;
     fn mlxl3_arrays_preadv(
@@ -365,49 +371,44 @@ fn bytes_for(shape: &[i32], dtype: Dtype) -> Result<usize> {
 
 const MEMORY_STATS_VALUES: usize = 12;
 
-#[derive(Clone, Copy, Debug, serde::Serialize)]
-pub struct MemoryStats {
-    pub mlx_active_bytes: u64,
-    pub mlx_cache_bytes: u64,
-    pub mlx_peak_bytes: u64,
-    pub process_footprint_bytes: Option<u64>,
-    pub process_lifetime_peak_bytes: Option<u64>,
-    pub process_id: u32,
-    pub process_start_abstime: Option<u64>,
-    pub process_compressed_logical_bytes: Option<u64>,
-    pub process_compressed_peak_logical_bytes: Option<u64>,
-    pub process_compressed_lifetime_logical_bytes: Option<u64>,
-    /// Counts pages, saturating at i32::MAX; it does not count disk reads.
-    pub process_decompressions: Option<u64>,
-    /// Logical bytes consumed from swapped-in segments, not SSD bytes or swap-outs.
-    pub process_ledger_swapins_logical_bytes: Option<u64>,
-}
-
-impl MemoryStats {
-    fn from_raw(values: [u64; MEMORY_STATS_VALUES], process_id: u32) -> Self {
-        let field = |index: usize, mask: u64| (values[11] & mask != 0).then_some(values[index]);
-        Self {
-            mlx_active_bytes: values[0],
-            mlx_cache_bytes: values[1],
-            mlx_peak_bytes: values[2],
-            process_footprint_bytes: field(3, 1),
-            process_lifetime_peak_bytes: field(4, 1),
-            process_id,
-            process_start_abstime: field(10, 1),
-            process_compressed_logical_bytes: field(5, 2),
-            process_compressed_peak_logical_bytes: field(6, 2),
-            process_compressed_lifetime_logical_bytes: field(7, 2),
-            process_decompressions: field(8, 4),
-            process_ledger_swapins_logical_bytes: field(9, 8),
-        }
-    }
-}
+pub use crate::runtime_stats::MemoryStats;
 
 pub fn memory_stats(reset_peak: bool) -> Result<MemoryStats> {
     initialize()?;
     let mut values = [0u64; MEMORY_STATS_VALUES];
     checked(unsafe { mlxl3_memory_stats(values.as_mut_ptr(), values.len(), reset_peak) })?;
     Ok(MemoryStats::from_raw(values, std::process::id()))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct FlashProgramCache {
+    pub hits: u64,
+    pub creations: u64,
+    pub evictions: u64,
+    pub entries: u64,
+    pub retained_host_object_bytes: u64,
+    // The reusable primitive owns no step bindings or Metal buffers.
+    pub cached_tensor_bytes: u64,
+}
+
+pub(crate) fn flash_program_cache(clear: bool) -> Result<FlashProgramCache> {
+    let mut values = [0; 5];
+    checked(unsafe { mlxl3_flash_program_cache(values.as_mut_ptr(), values.len(), clear) })?;
+    let [
+        hits,
+        creations,
+        evictions,
+        entries,
+        retained_host_object_bytes,
+    ] = values;
+    Ok(FlashProgramCache {
+        hits,
+        creations,
+        evictions,
+        entries,
+        retained_host_object_bytes,
+        cached_tensor_bytes: 0,
+    })
 }
 
 /// Release unused allocator buffers; live arrays and their graphs are retained.
@@ -890,6 +891,11 @@ impl Array {
         checked(unsafe { mlxl3_array_retained_bytes(self.handle.as_ptr(), &mut bytes) })?;
         usize::try_from(bytes).context("retained array size overflow")
     }
+    pub(crate) fn backing(&self) -> Result<(usize, u64)> {
+        let (mut key, mut bytes) = (0, 0);
+        checked(unsafe { mlxl3_backing(self.handle.as_ptr(), &mut key, &mut bytes) })?;
+        Ok((key, bytes))
+    }
     /// Detach wasteful views only at a saved prefill checkpoint, never per token.
     pub fn compact_for_cache(&self) -> Result<Self> {
         if std::env::var("MLXL3_CACHE_COMPACTION").as_deref() == Ok("0")
@@ -912,10 +918,7 @@ impl Array {
         #[cfg(test)]
         let profile = crate::flash_profile::span("host_eval_inclusive");
         #[cfg(test)]
-        let ready = profile
-            .as_ref()
-            .map(|_| self.is_available_for_test())
-            .transpose()?;
+        let ready = profile.as_ref().map(|_| self.is_available()).transpose()?;
         let result = checked(unsafe { mlxl3_array_eval(self.handle.as_ptr()) });
         #[cfg(test)]
         if let Some(profile) = profile {
@@ -1233,8 +1236,7 @@ impl Array {
     pub(crate) fn host_readbacks_for_test() -> u64 {
         HOST_READBACKS.get()
     }
-    #[cfg(test)]
-    pub(crate) fn is_available_for_test(&self) -> Result<bool> {
+    pub(crate) fn is_available(&self) -> Result<bool> {
         let mut ready = 0;
         checked(unsafe { mlxl3_array_is_available(self.handle.as_ptr(), &mut ready) })?;
         Ok(ready != 0)
@@ -1546,6 +1548,11 @@ impl Array {
         ))
     }
 
+    pub(crate) fn flash_prepare128(&self, scales: &Self) -> Result<Self> {
+        Self::output(|out| unsafe {
+            mlxl3_flash_prepare128(self.handle.as_ptr(), scales.handle.as_ptr(), out)
+        })
+    }
     pub fn swiglu(&self, up: &Self) -> Result<Self> {
         self.binary(up, 6, 0, 0.)
     }
@@ -2110,10 +2117,7 @@ mod tests {
                 Array::zeros_dtype(&[32 * 1024 * 1024], Dtype::UInt16)?
             };
             if raw {
-                ensure!(
-                    bank.is_available_for_test()?,
-                    "allocation submitted a GPU fill"
-                );
+                ensure!(bank.is_available()?, "allocation submitted a GPU fill");
             }
             bank.eval()?;
             synchronize()?;
@@ -2176,7 +2180,7 @@ mod tests {
         )?.remove(0);
         slow.async_eval()?;
         let actual = ids.to_u32()?;
-        let pending = !slow.is_available_for_test()?;
+        let pending = !slow.is_available()?;
         slow.eval()?;
         assert_eq!(actual, expected);
         assert!(pending, "contiguous readback waited for later GPU work");
@@ -2331,7 +2335,7 @@ mod tests {
         use super::*;
         let array = Array::from_u32(&[7], &[1])?;
         let before = Array::host_readbacks_for_test();
-        assert!(array.is_available_for_test()?);
+        assert!(array.is_available()?);
         assert!(
             checked(unsafe {
                 mlxl3_array_is_available(array.handle.as_ptr(), std::ptr::null_mut())
