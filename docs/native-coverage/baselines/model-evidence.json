@@ -1,0 +1,32 @@
+{
+  "qwen_dense": {
+    "historical_snapshots_rehashed": 12,
+    "current_complete_snapshots_before_guard": 4,
+    "prefill": 23,
+    "steps": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "current_full_run": "interrupted",
+    "current_reaped": true
+  },
+  "qwen_moe": {
+    "current_physical_capture": "not_started_after_swap_guard",
+    "hardware_evidence": "docs/measurements/engine-v1.4.1/model-switch-validation.json",
+    "historical_mtp_switch_cases": 12,
+    "matching_original_shards": 2,
+    "captured_all_intermediate_states": false
+  },
+  "lfm_moe": {
+    "current_physical_capture": "not_started_after_swap_guard",
+    "original_manifest": "docs/measurements/quant-lfm25-v3-20261015/head-compact.json",
+    "matching_final_shards": 4,
+    "tensor_count": 29816,
+    "historical_exact_logits_compacted_head": 16384000,
+    "historical_quantization_quality_passed": false,
+    "quality_source": "docs/measurements/quant-lfm25-v3-20261015/quality.json"
+  },
+  "limits": "Historic results identify the oracle. No native runtime or new MoE generation was validated here."
+}
