@@ -24,6 +24,7 @@ pub struct FlashProjection<'a> {
     k: u32,
     cb: Codebook,
     splits: u32,
+    mtp_hidden: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -104,7 +105,16 @@ impl<'a> FlashProjection<'a> {
         let count = contracts::qmv_words(input as usize, output as usize, k as usize)
             .and_then(|v| u32::try_from(v).ok())
             .context("invalid packed geometry or index overflow")?;
-        let splits = if k == 7 {
+        let mtp_hidden = name == "mtp.fc_hidden";
+        if mtp_hidden {
+            ensure!(
+                input == 2560 && output == 2560 && k != 7,
+                "unsupported MTP hidden projection"
+            );
+        }
+        let splits = if mtp_hidden {
+            2
+        } else if k == 7 {
             1
         } else {
             flash_support::reference_splits(input / 16, output / 16)
@@ -155,6 +165,7 @@ impl<'a> FlashProjection<'a> {
             k,
             cb,
             splits,
+            mtp_hidden,
         })
     }
 
@@ -212,11 +223,20 @@ impl<'a> FlashProjection<'a> {
         storage: Storage,
     ) -> Result<MatrixView> {
         ensure!(x.shape()[0] == 1, "expected one projection row");
+        self.encode_rows(cmd, x, storage)
+    }
+
+    pub(super) fn encode_rows(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<MatrixView> {
         let b = self.encode(cmd, Activation::View(x), self.view_extents(x)?, storage)?;
         Ok(MatrixView {
             buffer: b,
             layout: crate::tensor_layout::MatrixLayout {
-                shape: [1, self.output],
+                shape: [x.shape()[0], self.output],
                 strides: [i64::from(self.output), 1],
                 offset: 0,
             },
@@ -233,6 +253,10 @@ impl<'a> FlashProjection<'a> {
     ) -> Result<Buffer> {
         let gpu = self.metal;
         let batch = inputs / self.input;
+        ensure!(
+            !self.mtp_hidden || batch == 4,
+            "MTP hidden projection requires four streams"
+        );
         let prepared = buffer(
             &gpu.device,
             u64::from(inputs) * 2,
@@ -263,7 +287,11 @@ impl<'a> FlashProjection<'a> {
             (&gpu.k7_pipeline, (&gpu.inverse, 0), self.output)
         } else {
             (
-                &gpu.flash_qmv_pipeline,
+                if self.mtp_hidden {
+                    &gpu.mtp_hidden_qmv
+                } else {
+                    &gpu.flash_qmv_pipeline
+                },
                 (&self.svh, self.offsets.svh),
                 self.output / 16,
             )
@@ -279,8 +307,12 @@ impl<'a> FlashProjection<'a> {
             ]
             .into_iter(),
             [batch, self.k, self.cb as u32, self.input, self.output],
-            MTLSize::new(u64::from(groups), u64::from(batch), u64::from(self.splits)),
-            128,
+            MTLSize::new(
+                u64::from(groups),
+                if self.mtp_hidden { 1 } else { u64::from(batch) },
+                u64::from(self.splits),
+            ),
+            if self.mtp_hidden { 64 } else { 128 },
         );
         Metal::encode_bound(
             cmd,
@@ -422,6 +454,7 @@ impl<'a> FlashExpert<'a> {
                 k: 2,
                 cb: Codebook::Mul1,
                 splits,
+                mtp_hidden: false,
             })
         };
         Ok(Self {

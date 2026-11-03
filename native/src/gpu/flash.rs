@@ -13,6 +13,10 @@ use anyhow::{Context, Result, ensure};
 use half::{bf16, f16};
 use std::{os::unix::fs::FileExt, rc::Rc};
 
+#[path = "mtp.rs"]
+mod mtp;
+pub use mtp::{FlashMtpHead, FlashMtpSession};
+
 enum Layer<'a> {
     Gdn(FlashGdnLayer<'a>),
     Ple(Box<FlashPleLayer<'a>>),
@@ -78,6 +82,7 @@ pub struct FlashTraceTensor {
     pub data: Vec<u8>,
 }
 pub struct FlashNext<'a> {
+    checkpoint_path: std::path::PathBuf,
     owner: Rc<()>,
     hidden: Option<MatrixView>,
     gpu: &'a Metal,
@@ -152,6 +157,7 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         Ok(Self {
+            checkpoint_path: c.path.clone(),
             owner: Rc::new(()),
             hidden: None,
             gpu,
@@ -199,18 +205,25 @@ impl<'a> FlashNext<'a> {
         self.context
     }
 
-    fn streams(&self, token: u32) -> Result<MatrixView> {
+    fn embedding_bits(&self, token: u32) -> Result<Vec<u16>> {
         let (file, base) = self.embed.source()?;
         let at = row_offset(base, u64::from(token), 248320, 5120)
             .context("token outside Flash vocabulary or embedding offset overflow")?;
         let mut bytes = [0u8; 5120];
         file.read_exact_at(&mut bytes, at)?;
-        let values = bytes
+        Ok(bytes
             .as_chunks::<2>()
             .0
             .iter()
-            .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_f32())
-            .collect::<Vec<_>>();
+            .map(|b| f16::from_f32(bf16::from_le_bytes(*b).to_f32()).to_bits())
+            .collect())
+    }
+    fn streams(&self, token: u32) -> Result<MatrixView> {
+        let values: Vec<_> = self
+            .embedding_bits(token)?
+            .into_iter()
+            .map(|b| f16::from_bits(b).to_f32())
+            .collect();
         self.gpu
             .f32_storage(&values.repeat(4))?
             .matrix(MatrixLayout {

@@ -658,6 +658,14 @@ impl<'a> FlashQsaLayer<'a> {
             residual: super::gdn::LayerResidual::load(gpu, c, prefix, eps, slots)?,
         })
     }
+    pub(super) fn offset(&self) -> u32 {
+        self.attention.state.offset
+    }
+    pub(super) fn extend(&mut self, streams: &MatrixView) -> Result<()> {
+        let mixed = self.residual.attention_input(streams)?;
+        self.attention.forward(&mixed, false)?;
+        Ok(())
+    }
     pub fn snapshot(&self) -> FlashQsaState {
         self.attention.snapshot()
     }

@@ -19,7 +19,7 @@ pub struct FlashAttentionOutput {
 mod qsa;
 pub use qsa::{FlashQsa, FlashQsaLayer, FlashQsaState};
 mod flash;
-pub use flash::{FlashNext, FlashSnapshot, FlashTraceTensor};
+pub use flash::{FlashMtpHead, FlashMtpSession, FlashNext, FlashSnapshot, FlashTraceTensor};
 mod ple;
 pub use ple::{FlashPle, FlashPleLayer, FlashPleLayerState, FlashPleState};
 mod gdn;
@@ -176,6 +176,9 @@ pub struct Metal {
     qmv_pipeline: ComputePipelineState,
     prepare128_pipeline: ComputePipelineState,
     flash_qmv_pipeline: ComputePipelineState,
+    mtp_hidden_qmv: ComputePipelineState,
+    mtp_norm: ComputePipelineState,
+    mtp_combine: ComputePipelineState,
     finish128_pipeline: ComputePipelineState,
     prepare_view_pipeline: ComputePipelineState,
     swiglu_pipeline: ComputePipelineState,
@@ -224,6 +227,10 @@ impl Metal {
             let source = source.replace(
                 "#include \"flash_moe.metal\"",
                 include_str!("../shaders/flash_moe.metal"),
+            );
+            let source = source.replace(
+                "#include \"flash_mtp.metal\"",
+                include_str!("../shaders/flash_mtp.metal"),
             );
             let source = source.replace(
                 "#include \"flash_hc.metal\"",
@@ -310,6 +317,9 @@ impl Metal {
                 hc::Pipelines::load(&pipeline, "half")?,
                 hc::Pipelines::load(&pipeline, "float")?,
             ];
+            let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
+            let mtp_norm = pipeline("mtp_hidden_norm")?;
+            let mtp_combine = pipeline("mtp_combine_streams")?;
             let qsa = qsa::Pipelines::load(&pipeline)?;
             let gdn = gdn::Pipelines::load(&pipeline)?;
             let logsumexp = pipeline("flash_logsumexp")?;
@@ -324,6 +334,9 @@ impl Metal {
                 qmv_pipeline,
                 prepare128_pipeline,
                 flash_qmv_pipeline,
+                mtp_hidden_qmv,
+                mtp_norm,
+                mtp_combine,
                 finish128_pipeline,
                 prepare_view_pipeline,
                 swiglu_pipeline,

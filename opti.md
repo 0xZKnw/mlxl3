@@ -1,5 +1,11 @@
 # MLXL3 — journal des optimisations
 
+## I75-N6-MTP-20261103 — checkpoint MTP head and speculative greedy contract
+
+Before implementation. Port the checkpoint's one-layer Flash MTP using the target embedding, previous complete four-stream hidden state, its two FC projections, QSA decoder, mixer and shared output head. Replay every held-out MTP step under the independently captured flash-mtp-oracle-held-02, including attention state, rounded residuals and all finite vocabulary logits. Exercise the real CLI mode, both proposal outcomes, pending tokens, tail budgets, context and cancellation. Compare emitted greedy tokens and target state with AR and the archived stock MTP; preserve reject/restore and cache-only extension. No throughput campaign. The preceding session-snapshot work is the dependency for transactional replay.
+
+- First held-out step failed before attention: 10,235 of 10,240 mixed-stream words differed. The native MTP hidden projection used four SIMD groups while its stock reduction deliberately consumes the first two and dispatches two. Match both the feature-specific tile stride and the physical threadgroup (64 threads), then compare the same frozen values.
+
 ## I75-N6-STATE-20261103 — session snapshots and the production forward-trace wire format
 
 Before implementation. The direct Flash CLI can run complete prompts, but the forward --states surface still explicitly rejects requests. Reuse existing owning GDN, PLE and QSA frames with a session-bound cursor and hidden row. Publish the whole snapshot only after a successful step. Exercise restore after divergent suffixes, reset/replay and transaction failure. For the same imposed token, compare the raw bytes, names, order and shapes of all 48 layer residuals, all 36 recurrent states and all logits against the independently built Rust/MLX CLI. Check --batch with --states against the stock Flash empty-state batch contract. Stream the JSON encoding from typed fields without materializing an aggregate JSON value. Scope is state and protocol correctness, without throughput measurements.

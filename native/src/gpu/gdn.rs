@@ -310,6 +310,9 @@ impl<'a> LayerResidual<'a> {
             moe: super::FlashMoeRow::load(gpu, c, &format!("{prefix}.mlp"), slots)?,
         })
     }
+    pub(super) fn attention_input(&self, streams: &MatrixView) -> Result<MatrixView> {
+        Ok(self.attn_hc.read(streams, false)?.mixed)
+    }
     pub(super) fn forward(
         &mut self,
         streams: &MatrixView,
