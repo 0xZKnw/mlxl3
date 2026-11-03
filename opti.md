@@ -1,5 +1,9 @@
 # MLXL3 — journal des optimisations
 
+## I75-N4-NATIVE-BUDGET-20261103 — Flash memory ledger and request-boundary admission
+
+Avant implémentation. Le port de demandes SSD #96 qualifie les trois vagues d’une ligne. Le backend natif refuse encore MLXL3_FLASH_REQUEST_MIB et le bridge ne répond pas à flash_memory. Réutiliser ResourcePlan, fits, shrink_slots et la politique du backend de référence. Compter les backings Metal uniques et leur résidence courante sans additionner empreinte processus et allocations GPU. Le redimensionnement doit drainer les commandes/lectures, s’effectuer entre requêtes et préserver la possibilité de rejouer la session. Tester les budgets invalides, le refus minimal, l’aliasing d’un snapshot, la libération effective de backings, les limites de contexte et la reprise du bridge. Aucun débit ni réglage nouveau.
+
 ## I75-N7-FLASH-BRIDGE-20261103 — serve the existing Flash protocol over the native session
 
 Before implementation. Run the existing Desktop JSON-lines dialogue on the no-MLX Flash target, including request validation, chat templates, reasoning and visible deltas, greedy/sampling, AR and checkpoint MTP, cache reuse, cancellation, shutdown and API transport. Keep the common protocol and MCP/schema/streaming machinery shared with the stock bridge. Compare event ordering, token hashes and termination reasons against the separately linked stock engine, including failure and recovery. Validate the actual OpenAI-compatible loopback HTTP path. Label backend capabilities precisely while the DFlash and SSD policy ports are in progress. No tuning or throughput comparison.
