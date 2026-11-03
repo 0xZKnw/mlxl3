@@ -1,0 +1,50 @@
+import asyncio, json, os, sys, tempfile, time
+from pathlib import Path
+root=Path(__file__).resolve().parents[2]
+d=root/'docs/measurements/issue75-migration-20261103'
+name,exe=sys.argv[1:]
+events=[]
+async def main():
+ with tempfile.TemporaryDirectory() as tmp:
+  proc=await asyncio.create_subprocess_exec(exe,'--registry',str(Path(tmp)/'models.json'),'bridge',os.environ['MLXL3_FLASH_MODEL'],'--context-length','4096',stdin=-1,stdout=-1)
+  async def until(kind):
+   while line:=await proc.stdout.readline():
+    event=json.loads(line);events.append(event)
+    assert event['type'] not in ['error','cancelled'],event
+    if event['type']==kind:return event
+   raise RuntimeError('bridge exited before '+kind)
+  async def send(command):
+   proc.stdin.write((json.dumps(command)+'\n').encode());await proc.stdin.drain()
+  result={'status':'incomplete','events':events}
+  output=d/(name+'-events.json')
+  assert not output.exists()
+  def save():
+   tmpfile=output.with_suffix('.tmp');tmpfile.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n');tmpfile.replace(output)
+  save()
+  try:
+   async with asyncio.timeout(285):
+    await until('ready')
+    await send({'type':'generate','request_id':'long','messages':[{'role':'user','content':json.loads((d/'long-prompt.json').read_text())['LONG']}],'max_tokens':8,'temperature':0,'top_k':1,'repetition_penalty':1,'reuse_prompt_cache':False})
+    assert (await until('context_usage'))['used_tokens']==2050
+    save()
+    final=await until('complete');stats=final['stats']
+    assert final['request_id']=='long' and final['cache_context'] and final['token_hash']
+    assert stats['prompt_tokens']==2050 and stats['generated_tokens']==8 and stats['decode_tokens']==7
+    if name!='long-base':
+     reference=json.loads((d/'long-base-events.json').read_text())
+     assert reference['status']=='validated'
+     expected=next(e for e in reference['events'] if e['type']=='complete')
+     assert final['token_hash']==expected['token_hash'] and final['cache_context']==expected['cache_context']
+     await send({'type':'flash_memory','request_id':'long-ledger'})
+     led=(await until('flash_memory'))['ledger']
+     assert led['fixed_weight_backing_bytes']>0 and led['mlx_active_other_bytes'] is not None
+    await send({'type':'shutdown'})
+    assert await proc.wait()==0
+    result['status']='validated'
+    print('QSA_LONG_CHECK positions=2050 generated=8 hash='+final['token_hash'])
+  except BaseException as error:
+   result['error']=repr(error);raise
+  finally:
+   if proc.returncode is None:proc.kill()
+   await proc.wait();result['reaped']=proc.returncode is not None;save()
+asyncio.run(main())

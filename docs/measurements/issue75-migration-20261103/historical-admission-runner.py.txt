@@ -1,0 +1,153 @@
+"""F02-S32 runner: fixed cumulative budget from the unchanged original anchor."""
+
+import hashlib
+import json
+import math
+import runpy
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+ROOT = Path(__file__).resolve().parents[3]
+MONITOR = (
+    ROOT
+    / "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt"
+)
+SUPERVISOR = ROOT / "docs/measurements/slotstream-20261026/supervisor.py"
+ORIGINAL_ANCHOR = Path(__file__).with_name("anchor-w1.json")
+ORIGINAL_ANCHOR_SHA256 = "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8"
+PROTOCOL = Path(__file__).with_name("swap32-amendment") / "protocol.json"
+MAXIMUM_NEW_SWAPOUT_BYTES = 32 << 20
+MAXIMUM_NEW_SWAPIN_BYTES = 256 << 20
+
+
+def file_sha(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_baseline(anchor_path):
+    protocol = json.loads(PROTOCOL.read_text())
+    assert anchor_path.resolve() == ORIGINAL_ANCHOR.resolve(), "original anchor path"
+    assert protocol["original_anchor"] == str(ORIGINAL_ANCHOR.resolve()), "protocol anchor"
+    assert protocol["original_anchor_sha256"] == ORIGINAL_ANCHOR_SHA256, "protocol anchor hash"
+    assert file_sha(anchor_path) == ORIGINAL_ANCHOR_SHA256, "changed original anchor"
+    assert protocol["no_reanchor"] is True, "reanchoring forbidden"
+    for key, expected in (
+        ("baseline_swapout_bytes", 262144),
+        ("maximum_new_swapout_bytes", MAXIMUM_NEW_SWAPOUT_BYTES),
+        ("incident_already_counted_bytes", 524288),
+    ):
+        assert type(protocol[key]) is int and protocol[key] == expected, key
+    anchor = json.loads(anchor_path.read_text())
+    assert anchor["campaign"] == "POSTP08-F02-01-w1", "original campaign"
+    assert anchor["timestamp"] == "2026-10-31T17:19:28.906524+00:00", "original timestamp"
+    baseline = {key: anchor["vm_bytes"][key] for key in ("Swapouts", "Swapins")}
+    assert type(baseline["Swapouts"]) is int and baseline["Swapouts"] == 262144
+    assert type(baseline["Swapins"]) is int and baseline["Swapins"] == 0
+    return baseline
+
+
+def vm_deltas(current, baseline):
+    deltas = {}
+    for key in ("Swapouts", "Swapins"):
+        value, start = current[key], baseline[key]
+        assert type(start) is int and start >= 0, "invalid VM baseline"
+        assert type(value) is int and value >= start, "invalid or reset VM counter"
+        deltas[key] = value - start
+    return deltas
+
+
+def check_vm(current, baseline):
+    deltas = vm_deltas(current, baseline)
+    assert deltas["Swapouts"] <= MAXIMUM_NEW_SWAPOUT_BYTES, "Swapouts"
+    assert deltas["Swapins"] <= MAXIMUM_NEW_SWAPIN_BYTES, "Swapins"
+
+
+def observe_vm(record, current, baseline):
+    record["trigger_vm_bytes"] = dict(current)
+    deltas = vm_deltas(current, baseline)
+    # Preserve the overshoot before rejecting it; these are campaign-wide deltas.
+    for key, delta in deltas.items():
+        field = "maximum_live_" + key.lower()[:-1] + "_bytes"
+        record[field] = max(record.get(field, 0), delta)
+    check_vm(current, baseline)
+
+
+def guarded_hooks(original, baseline):
+    baseline = dict(baseline)
+    last_seen = dict(baseline)
+    active_record = None
+
+    def observe(record, vm):
+        observe_vm(record, vm, baseline)
+        assert all(vm[key] >= last_seen[key] for key in last_seen), "reset VM counter"
+        last_seen.update({key: vm[key] for key in last_seen})
+
+    def before(record):
+        nonlocal active_record
+        active_record = record
+        vm = record["before"]["vm_bytes"]
+        observe(record, vm)
+        available = vm["Pages free"] + vm["File-backed pages"]
+        record["available_estimate_bytes"] = available
+        assert available >= record["minimum_available_bytes"], "load headroom estimate"
+
+    def monitor(child, record, parser):
+        def checked(text):
+            vm = parser(text)
+            observe(record, vm)
+            return vm
+
+        result = original["monitor"](child, record, checked)
+        observe(record, original["snapshot"](parser)["vm_bytes"])
+        return result
+
+    def snapshot(parser):
+        result = original["snapshot"](parser)
+        # Initial snapshots are checked by before_launch, once a savable record exists.
+        if active_record is not None and active_record["status"] == "running":
+            observe(active_record, result["vm_bytes"])
+        return result
+
+    return {**original, "snapshot": snapshot, "monitor": monitor, "before_launch": before}
+
+
+def run(plan, anchor_path, identity_path):
+    identity = json.loads(identity_path.read_text())
+    for name, sha in identity["sources"].items():
+        assert file_sha(ROOT / name) == sha, name
+    baseline = load_baseline(anchor_path)
+    binaries = {v["path"]: v["sha256"] for v in identity["binaries"].values()}
+    items = json.loads(plan.read_text())
+    assert items and len({v["name"] for v in items}) == len(items)
+    for item in items:
+        binary = item["command"][0]
+        assert binary in binaries and file_sha(Path(binary)) == binaries[binary]
+        assert item["require_quiet"] is True
+        seconds = item["timeout_seconds"]
+        assert type(seconds) in (int, float) and math.isfinite(seconds) and 0 < seconds <= 900
+        assert type(item["minimum_available_bytes"]) is int
+        assert item["minimum_available_bytes"] in (2_000_000_000, 8_000_000_000, 10_500_000_000)
+        if "native_test" in item:
+            assert item["command"][1:] == [
+                item["native_test"],
+                "--exact",
+                "--ignored",
+                "--nocapture",
+                "--test-threads=1",
+            ]
+            assert "1 passed; 0 failed" in item["required_text"] and item["expected_exit"] == 0
+    previous = guarded_hooks(runpy.run_path(str(MONITOR)), baseline)
+    supervisor = runpy.run_path(str(SUPERVISOR))
+    supervisor["main"].__globals__["runpy"] = SimpleNamespace(
+        run_path=lambda path: previous if Path(path).resolve() == MONITOR else runpy.run_path(path)
+    )
+    supervisor["main"](plan)
+
+
+if __name__ == "__main__":
+    run(*(Path(value) for value in sys.argv[1:]))

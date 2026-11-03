@@ -1,0 +1,2533 @@
+{
+  "status": "completed_audited_teacher_forced_coverage_no_tree_runtime_claim",
+  "issue": "https://github.com/0xZKnw/mlxl3/issues/71",
+  "protocol": "ISSUE71-COVERAGE-2026-11-02-01 plus preregistered offline terminal-width correction and width2 tree extension",
+  "errors": [],
+  "scope": {
+    "prompts": 2,
+    "reference_tokens_each": 64,
+    "anchor_positions": [
+      32,
+      47
+    ],
+    "prefixes_each": 16,
+    "actual_pool_queries": 96,
+    "policies_after_offline_extension": [
+      "chainB2",
+      "chainB3",
+      "chainB4",
+      "treeW2",
+      "treeW3",
+      "frontier4-width3"
+    ],
+    "GPU_tree_implementation": false
+  },
+  "policy_fidelity_audit": {
+    "topology": "conforms to issue71 minimum: anchor + two children + best grandchild under first child; parents0,0,1",
+    "root_and_branch_choice": "local stock score argmax/top2 and conditional successor, deterministic lower-rank tie break; not global joint optimization",
+    "stock_numeric_path": "actual BF16 head, top16 and predecessor/successor codebook edges/scores exported; all96 CPU reconstructions match stock select_logits",
+    "future_access": "constructors use pool IDs/scores only; capture persists policies before next teacher token; reference used afterward for evaluation",
+    "anchor_alignment": "anchor y[j] is already emitted and not consumed; future begins y[j+1]; accepted prefix plus one target bonus advances next cycle to j+L",
+    "teacher_ring": "same configured Q4/ring draft, production prefill helper, one-token true captured appends; KV bytes and offset unchanged across each group of three queries",
+    "append_grouping_limit": "probe does not independently prove bit equality of one-token teacher appends versus production commit-batched1..4token appends through affine4; canonical teacher-prefix coverage is measured, not every runtime chunk schedule",
+    "width3_vs_width2": "same depth2 topology recomputed offline from each actual captured width2 pool, not cropped from width3; no additional GPU execution",
+    "tail_defect_corrected": "initial simulator clipped full-width emissions instead of selecting width=min(nominal,remaining-1); current offline chain policy uses actual narrower pool, remaining1AR; trees use their width2/3 topology only for remaining>=4 and stock narrower-chain fallback otherwise",
+    "broader_Weaver_limit": "No trained path-conditioned draft, no width8 study, no actual target tree verifier; frontier heuristic is an offline allocation ablation only.",
+    "frontier_extension": "Three nodes chosen from best available local-logsoftmax prefix: stable binary64 exp/log over exported f32 scores, depth<=3, tie by depth then lexicographic rank path, ancestor-closed. Selection has no reference argument. Pairwise stock-score surrogate, not trained/full-path-conditioned Weaver or calibrated target acceptance."
+  },
+  "results": {
+    "MAIN": {
+      "original_simulations_preserved_in": "coverage-MAIN.json",
+      "original_L_provisional_superseded": {
+        "chainB2": 2.0,
+        "chainB3": 2.6666666666666665,
+        "chainB4": 4.0,
+        "tree4": 2.6666666666666665
+      },
+      "corrected_simulations": {
+        "chainB2": {
+          "cycles_including_AR_tail": 8,
+          "emitted": 16,
+          "accepted": 8,
+          "bonuses_including_AR_tail": 8,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 2.0,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366
+              ]
+            },
+            {
+              "anchor_position": 34,
+              "remaining": 14,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                324,
+                515
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13180,
+                933
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                15424,
+                293
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                27684,
+                79653
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305
+              ]
+            },
+            {
+              "anchor_position": 46,
+              "remaining": 2,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                44454,
+                220851
+              ]
+            }
+          ]
+        },
+        "chainB3": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 1,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366,
+                324
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                515,
+                13180,
+                933
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                15424,
+                293,
+                27684
+              ]
+            },
+            {
+              "anchor_position": 41,
+              "remaining": 7,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                79653,
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305,
+                44454
+              ]
+            },
+            {
+              "anchor_position": 47,
+              "remaining": 1,
+              "selection_kind": "AR-tail",
+              "effective_backbone_width": 0,
+              "matched": 0,
+              "emitted": 1,
+              "accepted": 0,
+              "bonus_including_AR": 1,
+              "tokens": [
+                220851
+              ]
+            }
+          ]
+        },
+        "chainB4": {
+          "cycles_including_AR_tail": 4,
+          "emitted": 16,
+          "accepted": 12,
+          "bonuses_including_AR_tail": 4,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 4.0,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366,
+                324,
+                515
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13180,
+                933,
+                15424,
+                293
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                27684,
+                79653,
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305,
+                44454,
+                220851
+              ]
+            }
+          ]
+        },
+        "treeW2": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 1,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366,
+                324
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                515,
+                13180,
+                933
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                15424,
+                293,
+                27684
+              ]
+            },
+            {
+              "anchor_position": 41,
+              "remaining": 7,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                79653,
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305,
+                44454
+              ]
+            },
+            {
+              "anchor_position": 47,
+              "remaining": 1,
+              "selection_kind": "AR-tail",
+              "effective_backbone_width": 0,
+              "matched": 0,
+              "emitted": 1,
+              "accepted": 0,
+              "bonus_including_AR": 1,
+              "tokens": [
+                220851
+              ]
+            }
+          ]
+        },
+        "treeW3": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 1,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366,
+                324
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                515,
+                13180,
+                933
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                15424,
+                293,
+                27684
+              ]
+            },
+            {
+              "anchor_position": 41,
+              "remaining": 7,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                79653,
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305,
+                44454
+              ]
+            },
+            {
+              "anchor_position": 47,
+              "remaining": 1,
+              "selection_kind": "AR-tail",
+              "effective_backbone_width": 0,
+              "matched": 0,
+              "emitted": 1,
+              "accepted": 0,
+              "bonus_including_AR": 1,
+              "tokens": [
+                220851
+              ]
+            }
+          ]
+        },
+        "frontier4-width3": {
+          "cycles_including_AR_tail": 4,
+          "emitted": 16,
+          "accepted": 12,
+          "bonuses_including_AR_tail": 4,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 4.0,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3533,
+                40366,
+                324,
+                515
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13180,
+                933,
+                15424,
+                293
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                27684,
+                79653,
+                5861,
+                36
+              ]
+            },
+            {
+              "anchor_position": 44,
+              "remaining": 4,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                7305,
+                44454,
+                220851
+              ]
+            }
+          ]
+        }
+      },
+      "terminal_accounting_differences": {
+        "chainB2": {
+          "original_cycles": 8,
+          "corrected_cycles": 8,
+          "original_accepted": 8,
+          "corrected_accepted": 8,
+          "original_bonuses": 8,
+          "corrected_bonuses_including_AR_tail": 8
+        },
+        "chainB3": {
+          "original_cycles": 6,
+          "corrected_cycles": 6,
+          "original_accepted": 11,
+          "corrected_accepted": 10,
+          "original_bonuses": 5,
+          "corrected_bonuses_including_AR_tail": 6
+        },
+        "chainB4": {
+          "original_cycles": 4,
+          "corrected_cycles": 4,
+          "original_accepted": 12,
+          "corrected_accepted": 12,
+          "original_bonuses": 4,
+          "corrected_bonuses_including_AR_tail": 4
+        },
+        "treeW3": {
+          "original_cycles": 6,
+          "corrected_cycles": 6,
+          "original_accepted": 11,
+          "corrected_accepted": 10,
+          "original_bonuses": 5,
+          "corrected_bonuses_including_AR_tail": 6
+        }
+      },
+      "branch_rescue_diagnostics": {
+        "treeW2": {
+          "first_position_rescues_all16prefixes": 1,
+          "larger_L_than_chainB4_prefixes": 1,
+          "smaller_L_than_chainB4_prefixes": 12,
+          "equal_L_prefixes": 3,
+          "observations": [
+            {
+              "position": 32,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 33,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 34,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 35,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 36,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 37,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 38,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 39,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 40,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 41,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 42,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 43,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 44,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 45,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 1,
+              "rescues_second_root_child": true
+            },
+            {
+              "position": 46,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 47,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            }
+          ]
+        },
+        "treeW3": {
+          "first_position_rescues_all16prefixes": 1,
+          "larger_L_than_chainB4_prefixes": 1,
+          "smaller_L_than_chainB4_prefixes": 12,
+          "equal_L_prefixes": 3,
+          "observations": [
+            {
+              "position": 32,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 33,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 34,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 35,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 36,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 37,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 38,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 39,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 40,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 41,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 42,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 43,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 44,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 45,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 1,
+              "rescues_second_root_child": true
+            },
+            {
+              "position": 46,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 47,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            }
+          ]
+        }
+      },
+      "conditional_top_r_independently_checked": [
+        {
+          "width": 1,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            15,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 2,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            15,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 2,
+          "position_after_anchor": 2,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            14,
+            15,
+            15,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            15,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 2,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            15,
+            15,
+            15,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 3,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 2,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            12,
+            14,
+            14,
+            14
+          ]
+        }
+      ],
+      "width2_width3_tree_token_disagreements": 2,
+      "maximum_reported_footprint_bytes": 7832279448,
+      "tree_average_cycle_time_ratio_to_beat_chainB4_unmeasured": {
+        "treeW2": 0.6666666666666666,
+        "treeW3": 0.6666666666666666,
+        "frontier4-width3": 1.0
+      },
+      "frontier4_width3": {
+        "topology_counts": {
+          "chain": 14,
+          "fork": 2
+        },
+        "parent_pattern_counts": {
+          "0,1,2": 14,
+          "0,1,1": 1,
+          "0,0,1": 1
+        },
+        "full_horizon_match_vs_chainB4": {
+          "equal": 16
+        },
+        "per_prefix": [
+          {
+            "position": 32,
+            "tokens": [
+              3533,
+              40366,
+              324
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 33,
+            "tokens": [
+              40366,
+              324,
+              515
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 34,
+            "tokens": [
+              324,
+              515,
+              13180
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 35,
+            "tokens": [
+              515,
+              13180,
+              933
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 36,
+            "tokens": [
+              13180,
+              933,
+              15424
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 37,
+            "tokens": [
+              933,
+              15424,
+              293
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 38,
+            "tokens": [
+              15424,
+              293,
+              27684
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 39,
+            "tokens": [
+              293,
+              27684,
+              79653
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 40,
+            "tokens": [
+              27684,
+              79653,
+              5861
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 41,
+            "tokens": [
+              79653,
+              5861,
+              36
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 42,
+            "tokens": [
+              5861,
+              36,
+              13
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 43,
+            "tokens": [
+              36,
+              1149,
+              7305
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 44,
+            "tokens": [
+              1149,
+              7305,
+              44454
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 45,
+            "tokens": [
+              271,
+              11707,
+              44454
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 0
+          },
+          {
+            "position": 46,
+            "tokens": [
+              44454,
+              220851,
+              199488
+            ],
+            "parents": [
+              0,
+              1,
+              1
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 47,
+            "tokens": [
+              220851,
+              186447,
+              8536
+            ],
+            "parents": [
+              0,
+              0,
+              1
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 1
+          }
+        ]
+      }
+    },
+    "HOLD": {
+      "original_simulations_preserved_in": "coverage-HOLD.json",
+      "original_L_provisional_superseded": {
+        "chainB2": 1.7777777777777777,
+        "chainB3": 2.6666666666666665,
+        "chainB4": 3.2,
+        "tree4": 2.6666666666666665
+      },
+      "corrected_simulations": {
+        "chainB2": {
+          "cycles_including_AR_tail": 9,
+          "emitted": 16,
+          "accepted": 7,
+          "bonuses_including_AR_tail": 9,
+          "AR_tail_cycles": 1,
+          "L_tokens_per_cycle": 1.7777777777777777,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447
+              ]
+            },
+            {
+              "anchor_position": 34,
+              "remaining": 14,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1778,
+                20251
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                632,
+                48388
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                14235
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3300,
+                1970
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 0,
+              "emitted": 1,
+              "accepted": 0,
+              "bonus_including_AR": 1,
+              "tokens": [
+                11
+              ]
+            },
+            {
+              "anchor_position": 43,
+              "remaining": 5,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                22373,
+                11
+              ]
+            },
+            {
+              "anchor_position": 45,
+              "remaining": 3,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3010,
+                13
+              ]
+            },
+            {
+              "anchor_position": 47,
+              "remaining": 1,
+              "selection_kind": "AR-tail",
+              "effective_backbone_width": 0,
+              "matched": 0,
+              "emitted": 1,
+              "accepted": 0,
+              "bonus_including_AR": 1,
+              "tokens": [
+                14235
+              ]
+            }
+          ]
+        },
+        "chainB3": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447,
+                1778
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                20251,
+                632,
+                48388
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                14235
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3300,
+                1970
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                11,
+                22373,
+                11
+              ]
+            },
+            {
+              "anchor_position": 45,
+              "remaining": 3,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3010,
+                13,
+                14235
+              ]
+            }
+          ]
+        },
+        "chainB4": {
+          "cycles_including_AR_tail": 5,
+          "emitted": 16,
+          "accepted": 11,
+          "bonuses_including_AR_tail": 5,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 3.2,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447,
+                1778,
+                20251
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                632,
+                48388,
+                1149
+              ]
+            },
+            {
+              "anchor_position": 39,
+              "remaining": 9,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                14235,
+                3300,
+                1970
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                11,
+                22373,
+                11,
+                3010
+              ]
+            },
+            {
+              "anchor_position": 46,
+              "remaining": 2,
+              "selection_kind": "stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13,
+                14235
+              ]
+            }
+          ]
+        },
+        "treeW2": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447,
+                1778
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                20251,
+                632,
+                48388
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                14235
+              ]
+            },
+            {
+              "anchor_position": 40,
+              "remaining": 8,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3300,
+                1970
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                11,
+                22373,
+                11
+              ]
+            },
+            {
+              "anchor_position": 45,
+              "remaining": 3,
+              "selection_kind": "tree-tail-stock-chain",
+              "effective_backbone_width": 2,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                3010,
+                13,
+                14235
+              ]
+            }
+          ]
+        },
+        "treeW3": {
+          "cycles_including_AR_tail": 6,
+          "emitted": 16,
+          "accepted": 10,
+          "bonuses_including_AR_tail": 6,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 2.6666666666666665,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447,
+                1778
+              ]
+            },
+            {
+              "anchor_position": 35,
+              "remaining": 13,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                20251,
+                632,
+                48388
+              ]
+            },
+            {
+              "anchor_position": 38,
+              "remaining": 10,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1149,
+                14235,
+                3300
+              ]
+            },
+            {
+              "anchor_position": 41,
+              "remaining": 7,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                1970,
+                11
+              ]
+            },
+            {
+              "anchor_position": 43,
+              "remaining": 5,
+              "selection_kind": "fixed-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                22373,
+                11,
+                3010
+              ]
+            },
+            {
+              "anchor_position": 46,
+              "remaining": 2,
+              "selection_kind": "tree-tail-stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13,
+                14235
+              ]
+            }
+          ]
+        },
+        "frontier4-width3": {
+          "cycles_including_AR_tail": 5,
+          "emitted": 16,
+          "accepted": 11,
+          "bonuses_including_AR_tail": 5,
+          "AR_tail_cycles": 0,
+          "L_tokens_per_cycle": 3.2,
+          "history": [
+            {
+              "anchor_position": 32,
+              "remaining": 16,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                6150,
+                12447,
+                1778,
+                20251
+              ]
+            },
+            {
+              "anchor_position": 36,
+              "remaining": 12,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                632,
+                48388,
+                1149
+              ]
+            },
+            {
+              "anchor_position": 39,
+              "remaining": 9,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 2,
+              "emitted": 3,
+              "accepted": 2,
+              "bonus_including_AR": 1,
+              "tokens": [
+                14235,
+                3300,
+                1970
+              ]
+            },
+            {
+              "anchor_position": 42,
+              "remaining": 6,
+              "selection_kind": "frontier-tree4",
+              "effective_backbone_width": 3,
+              "matched": 3,
+              "emitted": 4,
+              "accepted": 3,
+              "bonus_including_AR": 1,
+              "tokens": [
+                11,
+                22373,
+                11,
+                3010
+              ]
+            },
+            {
+              "anchor_position": 46,
+              "remaining": 2,
+              "selection_kind": "tree-tail-stock-chain",
+              "effective_backbone_width": 1,
+              "matched": 1,
+              "emitted": 2,
+              "accepted": 1,
+              "bonus_including_AR": 1,
+              "tokens": [
+                13,
+                14235
+              ]
+            }
+          ]
+        }
+      },
+      "terminal_accounting_differences": {
+        "chainB2": {
+          "original_cycles": 9,
+          "corrected_cycles": 9,
+          "original_accepted": 8,
+          "corrected_accepted": 7,
+          "original_bonuses": 8,
+          "corrected_bonuses_including_AR_tail": 9
+        },
+        "chainB3": {
+          "original_cycles": 6,
+          "corrected_cycles": 6,
+          "original_accepted": 10,
+          "corrected_accepted": 10,
+          "original_bonuses": 6,
+          "corrected_bonuses_including_AR_tail": 6
+        },
+        "chainB4": {
+          "original_cycles": 5,
+          "corrected_cycles": 5,
+          "original_accepted": 12,
+          "corrected_accepted": 11,
+          "original_bonuses": 4,
+          "corrected_bonuses_including_AR_tail": 5
+        },
+        "treeW3": {
+          "original_cycles": 6,
+          "corrected_cycles": 6,
+          "original_accepted": 11,
+          "corrected_accepted": 10,
+          "original_bonuses": 5,
+          "corrected_bonuses_including_AR_tail": 6
+        }
+      },
+      "branch_rescue_diagnostics": {
+        "treeW2": {
+          "first_position_rescues_all16prefixes": 0,
+          "larger_L_than_chainB4_prefixes": 0,
+          "smaller_L_than_chainB4_prefixes": 7,
+          "equal_L_prefixes": 9,
+          "observations": [
+            {
+              "position": 32,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 33,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 34,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 35,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 36,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 37,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 38,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 39,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 40,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 41,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 42,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 43,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 44,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 45,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 46,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 47,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            }
+          ]
+        },
+        "treeW3": {
+          "first_position_rescues_all16prefixes": 0,
+          "larger_L_than_chainB4_prefixes": 0,
+          "smaller_L_than_chainB4_prefixes": 7,
+          "equal_L_prefixes": 9,
+          "observations": [
+            {
+              "position": 32,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 33,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 34,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 35,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 36,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 37,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 38,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 39,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 40,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 41,
+              "tree_L_full_horizon": 2,
+              "chainB4_L_full_horizon": 2,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 42,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 43,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 44,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 4,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 45,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 46,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            },
+            {
+              "position": 47,
+              "tree_L_full_horizon": 3,
+              "chainB4_L_full_horizon": 3,
+              "rescues_second_root_child": false
+            }
+          ]
+        }
+      },
+      "conditional_top_r_independently_checked": [
+        {
+          "width": 1,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            15,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 2,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            16,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 2,
+          "position_after_anchor": 2,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            13,
+            15,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 1,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            16,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 2,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            14,
+            16,
+            16,
+            16
+          ]
+        },
+        {
+          "width": 3,
+          "position_after_anchor": 3,
+          "prefixes": 16,
+          "eligible_correct_predecessor": 16,
+          "unavailable_predecessor_outside_pool": 0,
+          "target_outside_top16": 0,
+          "ranks": [
+            1,
+            2,
+            4,
+            16
+          ],
+          "hits": [
+            7,
+            14,
+            16,
+            16
+          ]
+        }
+      ],
+      "width2_width3_tree_token_disagreements": 5,
+      "maximum_reported_footprint_bytes": 7823792608,
+      "tree_average_cycle_time_ratio_to_beat_chainB4_unmeasured": {
+        "treeW2": 0.8333333333333334,
+        "treeW3": 0.8333333333333334,
+        "frontier4-width3": 1.0
+      },
+      "frontier4_width3": {
+        "topology_counts": {
+          "chain": 12,
+          "fork": 3,
+          "star": 1
+        },
+        "parent_pattern_counts": {
+          "0,1,2": 12,
+          "0,1,1": 2,
+          "0,0,1": 1,
+          "0,0,0": 1
+        },
+        "full_horizon_match_vs_chainB4": {
+          "equal": 14,
+          "worse": 2
+        },
+        "per_prefix": [
+          {
+            "position": 32,
+            "tokens": [
+              6150,
+              12447,
+              1778
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 33,
+            "tokens": [
+              12447,
+              1778,
+              20251
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 34,
+            "tokens": [
+              1778,
+              20251,
+              632
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 35,
+            "tokens": [
+              20251,
+              632,
+              48388
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 36,
+            "tokens": [
+              632,
+              48388,
+              13
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 37,
+            "tokens": [
+              48388,
+              1149,
+              198
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 38,
+            "tokens": [
+              1149,
+              14235,
+              271
+            ],
+            "parents": [
+              0,
+              1,
+              1
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 39,
+            "tokens": [
+              14235,
+              3300,
+              12654
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 40,
+            "tokens": [
+              3300,
+              7936,
+              12654
+            ],
+            "parents": [
+              0,
+              0,
+              1
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 1
+          },
+          {
+            "position": 41,
+            "tokens": [
+              1970,
+              321,
+              15673
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 1
+          },
+          {
+            "position": 42,
+            "tokens": [
+              11,
+              22373,
+              11
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 43,
+            "tokens": [
+              22373,
+              11,
+              22373
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 44,
+            "tokens": [
+              11,
+              3010,
+              13
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 3
+          },
+          {
+            "position": 45,
+            "tokens": [
+              3010,
+              13,
+              26472
+            ],
+            "parents": [
+              0,
+              1,
+              2
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 46,
+            "tokens": [
+              13,
+              14235,
+              26472
+            ],
+            "parents": [
+              0,
+              1,
+              1
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 2
+          },
+          {
+            "position": 47,
+            "tokens": [
+              14235,
+              4543,
+              26472
+            ],
+            "parents": [
+              0,
+              0,
+              0
+            ],
+            "target_inputs_including_anchor": 4,
+            "matched": 1
+          }
+        ]
+      }
+    }
+  },
+  "verification": {
+    "cpu_tests": 5,
+    "cpu_failures": 0,
+    "bounded_model_check": {
+      "tool": "Kani",
+      "successful_checks_reported": 323,
+      "failed": 0,
+      "unreachable": 1,
+      "unreachable_kind": "standard library formatting internal",
+      "covers_reported": "5/5",
+      "unwind": 5,
+      "symbolic_domain": "Tree tokens/parents/len, four future u32 IDs, usize remaining budget, u32EOS; no assumptions",
+      "scope": "actual pureRustcoverage bounds and singlebonus, not poolMLX numerics/cache/concurrency/tree execution",
+      "receipt": "kani-final-result.json"
+    },
+    "GPU_processes": 2,
+    "all_joined": true,
+    "new_swapout_during_GPU_bytes": 0,
+    "new_swapin_during_GPU_bytes": 0,
+    "restoration": {
+      "status": "production_B4_restored_byte_exact",
+      "native_files": 76,
+      "production_identity_sources": 168,
+      "new_test_modules_removed": true
+    },
+    "offline_replay": {
+      "command": "python3 docs/measurements/issue71-coverage-20261102/audit.py",
+      "selfchecks": 3,
+      "stock_pool_reconstructions": 96,
+      "previous_five_policy_simulations_equal": true,
+      "first_attempt": "Assertion refused a history-label mismatch on HOLD tree tails: stock-chain versus tree-tail-stock-chain. All numerical fields were equal; label corrected before final success. No partial summary was written.",
+      "crosshair_available": false,
+      "formal_scope": "CrossHair unavailable; no symbolic proof of Python float/heap replay. Three deterministic shape cases and assertions over archived inputs. Rust Kani proof above remains limited to the original accounting helper."
+    }
+  },
+  "decision": "The fixed fork imposes a depth-two ceiling; frontier allocation addresses that limitation offline. This two-window coverage screen does not establish runtime speed, tree verification correctness or SSD cost, and cannot reject trained Weaver or tree decoding generally. Production B4 remains restored unchanged.",
+  "source_sha256": {
+    "docs/measurements/issue71-coverage-20261102/coverage-MAIN.json": "b71d80fa579e9a5fe16f3b47b78a2fe7e39a90edf09d32b01f752e6c7d7bd6b1",
+    "docs/measurements/issue71-coverage-20261102/coverage-HOLD.json": "e482aabc6b6a4b23dbf258b35318f35d8686096912349dcedff681aca80fd72a",
+    "docs/measurements/issue71-coverage-20261102/kani-final-result.json": "43cf212857e8e5384de3a0039c9857f071e487663e5bf3592b9a11aa4bb2a687",
+    "docs/measurements/issue71-coverage-20261102/cpu-tests-result.json": "2237887accc706e5783df7be8f2a5f9920fca0245925cdf0e8c15461c25e2d80",
+    "docs/measurements/issue71-coverage-20261102/gpu-plan-result.json": "57d3ccabd476acd65dbf1eefa3bbd05f72f5f5782c8646da6ab92617a1fd77dc",
+    "docs/measurements/issue71-coverage-20261102/restoration.json": "63a56ae6ed64123c2115808cbd751c0d3134372f80a10489722fc0b70c97c542",
+    "docs/measurements/issue71-coverage-20261102/audit.py": "c9afd9a70641b701a59529f300219e36fb501b92f658b92ab674a7ee55840928",
+    "docs/measurements/issue71-coverage-20261102/summary-five-policies.json": "a8ebcbb1241a0cea42fff08cd19894e21f5e37aba4485a73c178e33a03cc17cb"
+  }
+}

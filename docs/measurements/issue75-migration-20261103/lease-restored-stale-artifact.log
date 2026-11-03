@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-0abbe8b89444eaa3)
+
+running 1 test
+test flash_support::tests::delayed_completion_cannot_publish_a_recycled_expert_slot ... FAILED
+
+failures:
+
+---- flash_support::tests::delayed_completion_cannot_publish_a_recycled_expert_slot stdout ----
+
+thread 'flash_support::tests::delayed_completion_cannot_publish_a_recycled_expert_slot' (3429352) panicked at native/src/flash_support.rs:1206:9:
+assertion failed: !cache.finish_lease(old, true)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    flash_support::tests::delayed_completion_cannot_publish_a_recycled_expert_slot
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 210 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
