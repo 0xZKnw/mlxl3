@@ -31,7 +31,7 @@ from ponyexl3.ref.trellis import pack_trellis_tile, unpack_trellis_tile
 
 
 LayoutKind = Literal["linear_t", "qwen_gate", "qwen_up", "qwen_down"]
-SearchBackend = Literal["cpu", "metal"]
+SearchBackend = Literal["cpu", "metal", "native"]
 
 _QWEN_EXPERT_RE = re.compile(
     r"^(?P<prefix>.*\.mlp)\.experts\.(?P<expert>\d+)\."
@@ -530,8 +530,11 @@ def run_tile_pilot(
             cb=oracle.cb,
             max_pins=max_pins,
         )
-    elif search_backend == "metal":
-        from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
+    elif search_backend in ("metal", "native"):
+        if search_backend == "native":
+            from mlxl3_quantizer.native import converter_tiles as quantize_tiles_mlx_np
+        else:
+            from ponyexl3.convert.metal_search import quantize_tiles_mlx_np
 
         decoded_tiles, state_tiles = quantize_tiles_mlx_np(
             target_kernel.reshape(1, 256).astype(np.float32),

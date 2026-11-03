@@ -67,6 +67,7 @@ def manifest(runtime: Path, version: str, backend: str = "mlx") -> dict:
             for name, path in {
                 "MTPLX": "LICENSES/MTPLX-NOTICE.txt",
                 "Apache-2.0": "LICENSES/Apache-2.0.txt",
+                "PonyExl3": "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
             }.items()
         },
     }

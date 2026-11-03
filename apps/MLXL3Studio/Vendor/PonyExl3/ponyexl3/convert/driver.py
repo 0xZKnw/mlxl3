@@ -44,12 +44,14 @@ LayerQuantizer = Literal["direct", "ldlq"]
 ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
-def _release_gpu_cache() -> None:
+def _release_gpu_cache(search_backend: SearchBackend = "metal") -> None:
     """Return MLX's reclaimable Metal buffer pool to the OS between modules.
 
     MLX never shrinks its buffer pool on its own, so per-module scratch otherwise
     accumulates as wired memory across a long full-model conversion.
     """
+    if search_backend != "metal":
+        return
     try:
         import mlx.core as mx
 
@@ -629,7 +631,7 @@ def convert_module_set(
                             },
                         )
                 persist_incremental([result.layer for result in grouped_results])
-                _release_gpu_cache()
+                _release_gpu_cache(search_backend)
                 continue
         try:
             result = _convert_one(
@@ -674,7 +676,7 @@ def convert_module_set(
         item = _summary(quantizer, result)
         completed.append(item)
         persist_incremental([result.layer])
-        _release_gpu_cache()
+        _release_gpu_cache(search_backend)
         if progress is not None:
             stats = item.get("stats", {})
             progress(

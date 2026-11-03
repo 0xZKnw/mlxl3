@@ -22,8 +22,10 @@ jobs:
       - run: python -m unittest discover -s tests -p test_flash_run_report.py
       - run: python -m unittest discover -s tests -p test_flash_trace_report.py
       - run: python scripts/check_native_coverage.py
-      - run: python -m pip install pytest==8.3.5
-      - run: python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py
+      - run: python -m pip install pytest==8.3.5 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+      - run: PYTHONPATH=src python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py tests/test_native_quantizer.py tests/test_native_transforms.py tests/test_native_converter_host.py tests/test_native_capture.py tests/test_native_feedback.py
+      - run: python -m ruff format --check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py
+      - run: python -m ruff check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py
 
   desktop-and-protocol:
     runs-on: macos-26
@@ -55,6 +57,16 @@ jobs:
       - run: python -c "import importlib.util; assert importlib.util.find_spec('mlx') is None"
       - run: rustup toolchain install stable --profile minimal && rustup default stable
       - run: zsh -n scripts/build-engine.sh scripts/build-macos-app.sh
+      - name: Compile every native trellis specialization without a GPU
+        run: |
+          mkdir -p build/quantizer-ci
+          xcrun -sdk macosx metal -c native/shaders/convert_matmul.metal -o build/quantizer-ci/convert-matmul.air
+          xcrun -sdk macosx metal -std=metal4.0 -c native/shaders/convert_matmul_nax.metal -o build/quantizer-ci/convert-matmul-nax.air
+          for k in {2..8}; do
+            for cb in {0..2}; do
+              xcrun -sdk macosx metal -c -DMLXL3_QUANT_K=$k -DMLXL3_QUANT_CB=$cb native/shaders/quantize_tiles.metal -o "build/quantizer-ci/k${k}-cb${cb}.air"
+            done
+          done
       - run: scripts/build-engine.sh
       - name: Install and reject the signed native archive in a disposable directory
         run: |

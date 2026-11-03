@@ -54,6 +54,7 @@ def test_archive_reproducible_and_hashes_match(runtime, tmp_path):
         assert manifest["architecture"] == "arm64"
         assert "Powered by MTPLX" in manifest["notices"]["MTPLX"]
         assert "Apache License" in manifest["notices"]["Apache-2.0"]
+        assert "Copyright 2026 Theinruj Toranavikrai" in manifest["notices"]["PonyExl3"]
         for name in engine.FILES:
             member = archive.getmember(name)
             assert member.isfile() and member.mtime == 0 and member.uid == member.gid == 0
@@ -137,6 +138,12 @@ def cli_project(tmp_path):
         shutil.copyfile(
             Path(engine.__file__).resolve().parents[1] / "LICENSES" / name, notices / name
         )
+    notice = root / "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE"
+    notice.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(
+        Path(engine.__file__).resolve().parents[1] / "apps/MLXL3Studio/Vendor/PonyExl3/NOTICE",
+        notice,
+    )
     return root
 
 

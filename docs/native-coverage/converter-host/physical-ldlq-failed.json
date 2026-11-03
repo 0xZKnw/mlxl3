@@ -1,0 +1,24 @@
+{
+  "status": "failed",
+  "parity": false,
+  "engine": "/Users/justin/.codex/worktrees/issue75-native-quantizer/mix-stq1_0/build/issue75quant/final-direct",
+  "engine_sha256": "45467437686cd966fa8f607c8fcc34a6eff5de9cc04b81cc81e88f7e8d43d210",
+  "cases": [
+    {
+      "mode": "direct",
+      "words": 4096,
+      "unequal": 0
+    }
+  ],
+  "runtime_info": {
+    "architecture": "aarch64",
+    "backend": "metal",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "66da918bb2a8-dirty",
+    "mlx_enabled": false,
+    "profile": "release",
+    "version": "2.0.2"
+  },
+  "error": "ValueError: native conversion diverged: model.layers.0.mlp.gate_proj.trellis"
+}

@@ -1,6 +1,7 @@
 {
   "baseline_sha": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
   "required_harnesses": [
+    "convert_matmul::conversion_matmul_geometry_covers_all_shader_addresses",
     "flash_memory::admission_and_shrink_respect_memory_bounds",
     "cold_ready::cold_row_limit_has_only_qualified_and_opt_in_values",
     "cold_ready::two_job_priority_keeps_records_and_stable_order",
@@ -48,6 +49,7 @@
     "flash_support::qsa_growth_fits_all_copied_and_appended_rows",
     "flash_support::qsa_stable_ranking_preserves_best_blocks_and_time_order",
     "tensor_layout::trace_extent_checks_bytes_and_slice_bound",
+    "quantize::native_tile_search_launch_stays_inside_input_and_scratch",
     "runtime_stats::native_memory_stats_separate_metal_and_process_validity",
     "speculative::normalized_greedy_retains_first_finite_maximum",
     "contracts::router_dispatch_sizes_bound_static_memory_and_output",
