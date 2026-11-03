@@ -4447,3 +4447,6 @@ mod profile;
 
 #[cfg(test)]
 mod hc_row_oracle;
+
+#[cfg(test)]
+mod direct_gdn_oracle;

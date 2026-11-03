@@ -2380,3 +2380,61 @@ fn flash_hc_groups_cover_exactly_the_checked_weight_matrix() {
         kani::cover!(groups == 1);
     }
 }
+
+/// Two SIMD groups update sixteen value rows per group, each with 128 state columns.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn packed_gdn_grid(value_heads: u32, value_width: u32) -> Option<(u32, u32)> {
+    if value_heads == 0 || value_width == 0 || !value_width.is_multiple_of(16) {
+        return None;
+    }
+    Some((
+        value_width / 16,
+        value_heads.checked_mul(value_width)?.checked_mul(128)?,
+    ))
+}
+
+#[test]
+fn packed_grid_requires_complete_groups_and_addressable_state() {
+    assert_eq!(packed_gdn_grid(48, 128), Some((8, 786432)));
+    assert_eq!(packed_gdn_grid(1, 16), Some((1, 2048)));
+    for dims in [
+        (0, 128),
+        (1, 0),
+        (1, 8),
+        (1, 127),
+        (u32::MAX, 16),
+        (1, 1 << 25),
+    ] {
+        assert_eq!(packed_gdn_grid(dims.0, dims.1), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(24)]
+fn packed_flash_gdn_groups_partition_state_entries() {
+    let head: u32 = kani::any();
+    let group: u32 = kani::any();
+    let sg: u32 = kani::any();
+    let lane: u32 = kani::any();
+    let element: u32 = kani::any();
+    let (groups, state) = packed_gdn_grid(48, 128).unwrap();
+    if head < 48 && group < groups && sg < 2 && lane < 32 && element < 32 {
+        let row = (group * 2 + sg) * 8 + lane / 4;
+        let col = lane % 4 * 32 + element;
+        let at = (head * 128 + row) * 128 + col;
+        assert!(row < 128 && col < 128 && at < state);
+        assert_eq!(
+            (
+                at / 16384,
+                at / 2048 % 8,
+                at / 1024 % 2,
+                at / 128 % 8 * 4 + at / 32 % 4,
+                at % 32
+            ),
+            (head, group, sg, lane, element)
+        );
+        kani::cover!(at == state - 1);
+        kani::cover!(at == 0);
+    }
+}

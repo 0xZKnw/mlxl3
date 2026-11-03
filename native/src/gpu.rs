@@ -11,6 +11,8 @@ use metal::{
 };
 
 use objc::{msg_send, sel, sel_impl};
+mod gdn;
+pub use gdn::{FlashGdn, FlashGdnLayer, FlashGdnOutput, FlashGdnState};
 mod hc;
 pub use hc::{FlashHc, FlashHcRead};
 mod moe;
@@ -40,6 +42,32 @@ fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
     Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
 }
 
+fn float_values(info: &crate::checkpoint::TensorInfo) -> Result<Vec<f32>> {
+    use anyhow::bail;
+    use half::{bf16, f16};
+    let bytes = info.read_bytes()?;
+    Ok(match info.dtype.as_str() {
+        "F16" => bytes
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&v| f16::from_le_bytes(v).to_f32())
+            .collect(),
+        "BF16" => bytes
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|&v| bf16::from_le_bytes(v).to_f32())
+            .collect(),
+        "F32" => bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|&v| f32::from_le_bytes(v))
+            .collect(),
+        _ => bail!("expected floating HC weights"),
+    })
+}
 fn read_weight(
     device: &DeviceRef,
     tensor: &crate::checkpoint::TensorInfo,
@@ -91,6 +119,7 @@ pub struct Metal {
     swiglu_pipeline: ComputePipelineState,
     k7_pipeline: ComputePipelineState,
     hc: [hc::Pipelines; 2],
+    gdn: gdn::Pipelines,
     moe_switch: [ComputePipelineState; 2],
     moe_mix: [ComputePipelineState; 2],
     gate_dot: [ComputePipelineState; 2],
@@ -131,10 +160,26 @@ impl Metal {
                 "#include \"flash_moe.metal\"",
                 include_str!("../shaders/flash_moe.metal"),
             );
+            let source = source.replace(
+                "#include \"flash_hc.metal\"",
+                include_str!("../shaders/flash_hc.metal"),
+            );
             let source = source
                 .replace(
-                    "#include \"flash_hc.metal\"",
-                    include_str!("../shaders/flash_hc.metal"),
+                    "#include \"flash_gdn.metal\"",
+                    include_str!("../shaders/flash_gdn.metal"),
+                )
+                .replace(
+                    "#include \"flash_gdn_prepare.metal\"",
+                    include_str!("../shaders/flash_gdn_prepare.metal"),
+                )
+                .replace(
+                    "#include \"gated_delta_packed.metal\"",
+                    include_str!("../shaders/gated_delta_packed.metal"),
+                )
+                .replace(
+                    "#include \"flash_gdn_epilogue.metal\"",
+                    include_str!("../shaders/flash_gdn_epilogue.metal"),
                 )
                 .replace(
                     "#include \"flash_hc_gemv.metal\"",
@@ -184,6 +229,7 @@ impl Metal {
                 hc::Pipelines::load(&pipeline, "half")?,
                 hc::Pipelines::load(&pipeline, "float")?,
             ];
+            let gdn = gdn::Pipelines::load(&pipeline)?;
             let queue = device.new_command_queue();
             Ok(Self {
                 device,
@@ -199,6 +245,7 @@ impl Metal {
                 swiglu_pipeline,
                 k7_pipeline,
                 hc,
+                gdn,
                 moe_switch,
                 moe_mix,
                 gate_dot,
@@ -207,6 +254,21 @@ impl Metal {
                 route_float,
                 inverse,
             })
+        })
+    }
+
+    fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
+        objc::rc::autoreleasepool(|| {
+            let cmd = self.queue.new_command_buffer();
+            let value = encode(cmd)?;
+            cmd.commit();
+            cmd.wait_until_completed();
+            ensure!(
+                cmd.status() == MTLCommandBufferStatus::Completed,
+                "Metal command failed ({:?})",
+                cmd.status()
+            );
+            Ok(value)
         })
     }
 

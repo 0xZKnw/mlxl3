@@ -322,6 +322,15 @@ fn default_k() -> usize {
     4
 }
 
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+fn flash_checkpoint_epsilon(checkpoint: &checkpoint::Checkpoint) -> Result<f32> {
+    let config: serde_json::Value =
+        serde_json::from_reader(std::fs::File::open(checkpoint.path.join("config.json"))?)?;
+    Ok(config["text_config"]["rms_norm_eps"]
+        .as_f64()
+        .context("missing Flash norm epsilon")? as f32)
+}
+
 fn codec_loop() -> Result<()> {
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     let mut gpu = None;
@@ -922,12 +931,52 @@ fn codec_loop() -> Result<()> {
                 | "metal-checkpoint-router"
                 | "metal-checkpoint-moe"
                 | "metal-checkpoint-hc"
-                | "metal-checkpoint-mlp" => {
+                | "metal-checkpoint-mlp"
+                | "metal-checkpoint-gdn"
+                | "metal-checkpoint-gdn-layer" => {
                     if gpu.is_none() {
                         gpu = Some(mlxl3_native::gpu::Metal::new()?);
                     }
                     let gpu = gpu.as_ref().context("Metal is unavailable")?;
                     match request.op.as_str() {
+                        "metal-checkpoint-gdn" | "metal-checkpoint-gdn-layer" => {
+                            let input = request.input_view(gpu)?;
+                            let [rows, width] = input.shape();
+                            let full = request.op.ends_with("-layer");
+                            anyhow::ensure!(
+                                (1..=8).contains(&rows) && width == if full { 10240 } else { 2560 },
+                                "invalid Flash GDN row count or width"
+                            );
+                            let checkpoint =
+                                checkpoint::inspect(std::path::Path::new(&request.path))?;
+                            let eps = flash_checkpoint_epsilon(&checkpoint)?;
+                            let mut result = Vec::new();
+                            if full {
+                                let mut layer = mlxl3_native::gpu::FlashGdnLayer::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &request.prefix,
+                                    eps,
+                                    request.slots.unwrap_or(10),
+                                )?;
+                                for r in 0..rows {
+                                    result
+                                        .push(json!(layer.forward(&input.row(r)?)?.read_output()?));
+                                }
+                            } else {
+                                let mut layer = mlxl3_native::gpu::FlashGdn::load(
+                                    gpu,
+                                    &checkpoint,
+                                    &request.prefix,
+                                    eps,
+                                )?;
+                                for r in 0..rows {
+                                    let row = layer.forward(&input.row(r)?, request.return_raw)?;
+                                    result.push(json!({"values":row.values.read_output()?,"trace":row.trace}));
+                                }
+                            }
+                            Ok(json!(result))
+                        }
                         "metal-checkpoint-hc" | "metal-checkpoint-mlp" => {
                             let streams = request.input_view(gpu)?;
                             anyhow::ensure!(
@@ -936,13 +985,7 @@ fn codec_loop() -> Result<()> {
                             );
                             let path = std::path::Path::new(&request.path);
                             let checkpoint = checkpoint::inspect(path)?;
-                            let config: serde_json::Value = serde_json::from_reader(
-                                std::fs::File::open(path.join("config.json"))?,
-                            )?;
-                            let eps = config["text_config"]["rms_norm_eps"]
-                                .as_f64()
-                                .context("missing Flash norm epsilon")?
-                                as f32;
+                            let eps = flash_checkpoint_epsilon(&checkpoint)?;
                             let mlp = request.op == "metal-checkpoint-mlp";
                             let prefix = if mlp {
                                 format!("{}.mlp_hyper_connection", request.prefix)

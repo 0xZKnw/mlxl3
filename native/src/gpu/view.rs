@@ -16,6 +16,7 @@ pub struct TensorStorage {
     dtype: FloatType,
 }
 
+#[derive(Clone)]
 pub struct MatrixView {
     pub(super) buffer: Buffer,
     pub(super) layout: MatrixLayout,

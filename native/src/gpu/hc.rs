@@ -1,11 +1,12 @@
-use super::{MatrixView, Metal, read_weight, upload, view::FloatType};
+use super::{MatrixView, Metal, float_values, read_weight, upload, view::FloatType};
 use crate::checkpoint::{Checkpoint, TensorInfo};
-use anyhow::{Context, Result, bail, ensure};
-use half::{bf16, f16};
-use metal::{
-    Buffer, CommandBufferRef, ComputePipelineState, MTLCommandBufferStatus,
-    MTLResourceOptions as Storage, MTLSize,
-};
+#[cfg(test)]
+use anyhow::bail;
+use anyhow::{Context, Result, ensure};
+#[cfg(test)]
+use half::bf16;
+use half::f16;
+use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize};
 
 pub(super) struct Pipelines {
     norm: ComputePipelineState,
@@ -55,30 +56,6 @@ pub struct FlashHcTrace {
     up: Vec<u32>,
 }
 
-fn float_values(info: &TensorInfo) -> Result<Vec<f32>> {
-    let bytes = info.read_bytes()?;
-    Ok(match info.dtype.as_str() {
-        "F16" => bytes
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|&v| f16::from_le_bytes(v).to_f32())
-            .collect(),
-        "BF16" => bytes
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|&v| bf16::from_le_bytes(v).to_f32())
-            .collect(),
-        "F32" => bytes
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|&v| f32::from_le_bytes(v))
-            .collect(),
-        _ => bail!("expected floating HC weights"),
-    })
-}
 fn groups(n: u32) -> MTLSize {
     MTLSize::new(u64::from(n), 1, 1)
 }
@@ -142,21 +119,6 @@ impl<'a> FlashHc<'a> {
         Ok(&self.gpu.hc[usize::from(x.dtype == FloatType::F32)])
     }
 
-    fn command<T>(&self, encode: impl FnOnce(&CommandBufferRef) -> Result<T>) -> Result<T> {
-        objc::rc::autoreleasepool(|| {
-            let cmd = self.gpu.queue.new_command_buffer();
-            let value = encode(cmd)?;
-            cmd.commit();
-            cmd.wait_until_completed();
-            ensure!(
-                cmd.status() == MTLCommandBufferStatus::Completed,
-                "Flash HC command failed ({:?})",
-                cmd.status()
-            );
-            Ok(value)
-        })
-    }
-
     pub fn read(&self, x: &MatrixView, trace: bool) -> Result<FlashHcRead> {
         let p = self.pipeline(x, 10240)?;
         ensure!(
@@ -170,7 +132,7 @@ impl<'a> FlashHc<'a> {
             Storage::StorageModePrivate
         };
         let output = |w, mode| MatrixView::output(self.gpu, x.dtype, 1, w, mode);
-        let (normalized, down, active, up, mixed, gate) = self.command(|cmd| {
+        let (normalized, down, active, up, mixed, gate) = self.gpu.command(|cmd| {
             let normalized = output(10240, storage)?;
             Metal::encode(
                 cmd,
@@ -290,18 +252,16 @@ impl<'a> FlashHc<'a> {
         self.pipeline(branch, 2560)?;
         self.pipeline(gate, 4)?;
         ensure!(
-            gate.dtype == streams.dtype
-                && (streams.dtype == FloatType::F32 || branch.dtype == FloatType::F16),
-            "unsupported HC residual dtype promotion"
+            gate.dtype == streams.dtype,
+            "injection gate dtype disagrees with its streams"
         );
-        self.command(|cmd| {
-            let out = MatrixView::output(
-                self.gpu,
-                streams.dtype,
-                1,
-                10240,
-                Storage::StorageModeShared,
-            )?;
+        let dtype = if branch.dtype == FloatType::F32 {
+            FloatType::F32
+        } else {
+            streams.dtype
+        };
+        self.gpu.command(|cmd| {
+            let out = MatrixView::output(self.gpu, dtype, 1, 10240, Storage::StorageModeShared)?;
             Metal::encode(
                 cmd,
                 &p.write,

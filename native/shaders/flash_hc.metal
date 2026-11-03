@@ -83,12 +83,16 @@ kernel void hc_mix(const device T* weights [[buffer(0)]], const device T* normal
 }
 template <typename T>
 kernel void hc_write(const device T* streams [[buffer(0)]], const device void* branch [[buffer(1)]],
-    const device T* gate [[buffer(2)]], device T* out [[buffer(3)]], constant long* layout [[buffer(4)]],
+    const device T* gate [[buffer(2)]], device void* out [[buffer(3)]], constant long* layout [[buffer(4)]],
     uint i [[thread_position_in_grid]]) {
     #pragma clang fp contract(off)
     long b=layout[2]+long(i%2560)*layout[3], g=layout[4]+long(i/2560)*layout[5];
-    T value=layout[6]?T(((const device float*)branch)[b]):T(((const device half*)branch)[b]);
-    out[i]=streams[layout[0]+long(i)*layout[1]]+value*gate[g];
+    T residual=streams[layout[0]+long(i)*layout[1]];
+    if(layout[6]) {
+        ((device float*)out)[i]=float(residual)+((const device float*)branch)[b]*float(gate[g]);
+    } else {
+        ((device T*)out)[i]=residual+T(((const device half*)branch)[b])*gate[g];
+    }
 }
 
 #define HC_KERNELS(T, NORM, NARROW, WIDE, ACTIVE, MIX, WRITE) \
@@ -97,7 +101,7 @@ template [[host_name(NARROW)]] kernel void hc_narrow<T>(HC_GEMV_PARAMS(T)); \
 template [[host_name(WIDE)]] kernel void hc_wide<T>(HC_GEMV_PARAMS(T)); \
 template [[host_name(ACTIVE)]] kernel void hc_activate<T>(const device T*,device T*,constant uint*,uint); \
 template [[host_name(MIX)]] kernel void hc_mix<T>(const device T*,const device T*,device T*,constant uint*,uint); \
-template [[host_name(WRITE)]] kernel void hc_write<T>(const device T*,const device void*,const device T*,device T*,constant long*,uint);
+template [[host_name(WRITE)]] kernel void hc_write<T>(const device T*,const device void*,const device T*,device void*,constant long*,uint);
 HC_KERNELS(half,"hc_norm_half","hc_narrow_half","hc_wide_half","hc_activate_half","hc_mix_half","hc_write_half")
 HC_KERNELS(float,"hc_norm_float","hc_narrow_float","hc_wide_float","hc_activate_float","hc_mix_float","hc_write_float")
 #undef HC_KERNELS

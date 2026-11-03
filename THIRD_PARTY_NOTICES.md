@@ -250,6 +250,9 @@ The direct Flash hyper-connection uses the shared GEMV body and the last-axis su
 order from Apple's [Metal row reduction](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/reduction/reduce_row.h).
 Its sigmoid follows the [unary operator](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/unary_ops.h).
 
+The direct GDN uses the previously qualified MLXL3 Flash convolution and packed
+Gated DeltaNet bodies. The normalization follows Apple's [Metal RMS kernel](https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/kernels/rms_norm.metal).
+
 Sources: <https://github.com/ml-explore/mlx>, version 0.32.2, and
 <https://github.com/ml-explore/mlx-lm>, version 0.32.0.
 

@@ -202,6 +202,28 @@ impl<'a> FlashProjection<'a> {
         })
     }
 
+    pub(super) fn dimensions(&self) -> [u32; 2] {
+        [self.input, self.output]
+    }
+    pub(super) fn encode_row(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        storage: Storage,
+    ) -> Result<MatrixView> {
+        ensure!(x.shape()[0] == 1, "expected one projection row");
+        let b = self.encode(cmd, Activation::View(x), self.view_extents(x)?, storage)?;
+        Ok(MatrixView {
+            buffer: b,
+            layout: crate::tensor_layout::MatrixLayout {
+                shape: [1, self.output],
+                strides: [i64::from(self.output), 1],
+                offset: 0,
+            },
+            dtype: super::view::FloatType::F16,
+        })
+    }
+
     fn encode(
         &self,
         cmd: &CommandBufferRef,
