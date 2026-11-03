@@ -32,7 +32,9 @@ def validate_checkpoint_files(root: str | Path) -> None:
     descriptor = quantization_config(root)
     modules = list_exl3_modules(root)
     config_path = root / "config.json"
-    model_type = json.loads(config_path.read_text()).get("model_type") if config_path.is_file() else None
+    model_type = (
+        json.loads(config_path.read_text()).get("model_type") if config_path.is_file() else None
+    )
     tensors: dict[str, tuple[int, ...]] = {}
     owners: dict[str, str] = {}
     files = sorted(root.glob("model*.safetensors"))
@@ -40,7 +42,7 @@ def validate_checkpoint_files(root: str | Path) -> None:
         raise ValueError("checkpoint has no safetensors weights")
     for file in files:
         with safe_open(file, framework="numpy") as handle:
-            for key in handle:
+            for key in handle.keys():  # noqa: SIM118 -- safe_open is not iterable.
                 if key in tensors:
                     raise ValueError(f"duplicate tensor {key}")
                 tensors[key] = tuple(handle.get_slice(key).get_shape())

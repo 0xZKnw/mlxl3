@@ -1,0 +1,11 @@
+--- normal/native/src/ssd_moe.rs
++++ mutant/native/src/ssd_moe.rs
+@@ -1076,7 +1076,7 @@
+         #[cfg(test)]
+         crate::flash_profile::stage("routed_reduction_completion", &routed)?;
+         let shared = match shared {
+-            Some(value) => value,
++            Some(value) => Array::zeros_dtype(&value.shape(), value.dtype())?,
+             None => self.shared(x)?,
+         };
+         let output = routed.add(&shared)?;

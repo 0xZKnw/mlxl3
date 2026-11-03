@@ -1,0 +1,18 @@
+import json
+import runpy
+from pathlib import Path
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-41-les-critical-path")
+runpy.run_path(str(p / "quality-4gib/quality-supervisor.txt"))
+records = {}
+for sub in ["quality-initial.json", "quality-remaining/quality.json"]:
+    for r in json.loads((p / sub).read_text()):
+        if r["status"] == "passed":
+            records[r["name"]] = dict(r, evidence_directory=str(Path(sub).parent))
+for r in json.loads((p / "quality-4gib/quality.json").read_text()):
+    records[r["name"]] = dict(r, evidence_directory="quality-4gib")
+assert len(records) == 25 and all(r["status"] == "passed" and r["reaped"] for r in records.values())
+(p / "quality.json").write_text(json.dumps(list(records.values()), indent=2) + "\n")
+print(
+    "25qualityprocessescomplete; full-modelpathsvalidatedat4GiB; two5GiBstopsretained", flush=True
+)

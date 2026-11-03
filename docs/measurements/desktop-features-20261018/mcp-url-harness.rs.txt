@@ -1,0 +1,17 @@
+#[cfg(kani)]
+mod url_contract_verification {
+    #[kani::proof]
+    #[kani::unwind(64)]
+    fn mcp_loopback_url_contract() {
+        let local: bool = kani::any();
+        let url = if local {
+            "http://[::1]:9000/mcp"
+        } else {
+            "http://example.com/mcp"
+        };
+        assert_eq!(super::validate_url(url).is_ok(), local);
+        kani::cover!(local);
+        kani::cover!(!local);
+    }
+
+}

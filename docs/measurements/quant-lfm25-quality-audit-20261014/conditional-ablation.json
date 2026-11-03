@@ -1,0 +1,249 @@
+{
+  "status": "complete",
+  "cases": [
+    {
+      "key": "model.layers.2.feed_forward.experts.0.w2",
+      "status": "passed",
+      "train_routed_rows": 181,
+      "test_routed_rows": 143,
+      "baseline": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.03654857140863788,
+            "sse": 0.0381710057927685,
+            "reference_energy": 28.575431116819992
+          },
+          "routed": {
+            "rows": 181,
+            "relative_rms": 0.03336015319666887,
+            "sse": 0.004647356429112147,
+            "reference_energy": 4.175898261589885
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.0714617516394374,
+            "sse": 0.14573332601390088,
+            "reference_energy": 28.537213359729297
+          },
+          "routed": {
+            "rows": 143,
+            "relative_rms": 0.07053080908213631,
+            "sse": 0.01877943888683488,
+            "reference_energy": 3.7750688798606626
+          }
+        }
+      },
+      "activation_hashes": {
+        "train": "ee331883254a9195c4b1f6395b49de593e288027f1b071957d413572341cda48",
+        "heldout": "0778c5a1b4a00739dbcaa7ee73d891c7d26faac1011c6149d41cd6c97a24fe1a"
+      },
+      "conditional": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.06668231243201031,
+            "sse": 0.1270615343350475,
+            "reference_energy": 28.575431116819992
+          },
+          "routed": {
+            "rows": 181,
+            "relative_rms": 0.013949112162257402,
+            "sse": 0.0008125368049323254,
+            "reference_energy": 4.175898261589885
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.07440767954166452,
+            "sse": 0.15799636095048863,
+            "reference_energy": 28.537213359729297
+          },
+          "routed": {
+            "rows": 143,
+            "relative_rms": 0.06910808233649779,
+            "sse": 0.018029453557150632,
+            "reference_energy": 3.7750688798606626
+          }
+        }
+      },
+      "heldout_routed_proxy_change_percent": -2.01717060126404
+    },
+    {
+      "key": "model.layers.20.feed_forward.experts.31.w2",
+      "status": "passed",
+      "train_routed_rows": 66,
+      "test_routed_rows": 106,
+      "baseline": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.04691588867189066,
+            "sse": 1.0210232299868978,
+            "reference_energy": 463.8694048818145
+          },
+          "routed": {
+            "rows": 66,
+            "relative_rms": 0.04319414066461112,
+            "sse": 0.03617907171097038,
+            "reference_energy": 19.39133650707972
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.08445321240543241,
+            "sse": 3.2210114351592445,
+            "reference_energy": 451.6062243908658
+          },
+          "routed": {
+            "rows": 106,
+            "relative_rms": 0.0848281067478492,
+            "sse": 0.2119097610716283,
+            "reference_energy": 29.4490584060246
+          }
+        }
+      },
+      "activation_hashes": {
+        "train": "7fda0677429bfb81c2689c9b84800033528f0c352afee5984653b6cd355d39d1",
+        "heldout": "d1720b5b938b0312c56004de751c13bc8d270db822e0f4cb23f3cc9a5c13eba7"
+      },
+      "conditional": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.0713649655502694,
+            "sse": 2.362467539415742,
+            "reference_energy": 463.8694048818145
+          },
+          "routed": {
+            "rows": 66,
+            "relative_rms": 0.010355161317490964,
+            "sse": 0.0020793207178260494,
+            "reference_energy": 19.39133650707972
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.07409732491924716,
+            "sse": 2.479504938261134,
+            "reference_energy": 451.6062243908658
+          },
+          "routed": {
+            "rows": 106,
+            "relative_rms": 0.07386839863155564,
+            "sse": 0.16068997447220917,
+            "reference_energy": 29.4490584060246
+          }
+        }
+      },
+      "heldout_routed_proxy_change_percent": -12.91990183026387
+    },
+    {
+      "key": "model.layers.39.feed_forward.experts.63.w2",
+      "status": "passed",
+      "train_routed_rows": 26,
+      "test_routed_rows": 72,
+      "baseline": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.020828496027824845,
+            "sse": 48.86638645030378,
+            "reference_energy": 112640.45643360772
+          },
+          "routed": {
+            "rows": 26,
+            "relative_rms": 0.011210480685315596,
+            "sse": 1.2301974243235672,
+            "reference_energy": 9788.72987006465
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.04286812887348322,
+            "sse": 171.1019485602829,
+            "reference_energy": 93107.76464933774
+          },
+          "routed": {
+            "rows": 72,
+            "relative_rms": 0.02251177933330365,
+            "sse": 18.604975449489046,
+            "reference_energy": 36712.11923474549
+          }
+        }
+      },
+      "activation_hashes": {
+        "train": "e78718e25e6f118d7bc1429dc99065b895b15d41133740ee8c60e911037f4536",
+        "heldout": "ca8fafacf40b483ffa044044b851f45bf1290d4c10aa4c032737b17b8b73a8e1"
+      },
+      "conditional": {
+        "train": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.04071815485335074,
+            "sse": 186.75428744064294,
+            "reference_energy": 112640.45643360772
+          },
+          "routed": {
+            "rows": 26,
+            "relative_rms": 0.005178624812431582,
+            "sse": 0.26251567439884443,
+            "reference_energy": 9788.72987006465
+          }
+        },
+        "heldout": {
+          "all": {
+            "rows": 2048,
+            "relative_rms": 0.045686739018069994,
+            "sse": 194.34180015068625,
+            "reference_energy": 93107.76464933774
+          },
+          "routed": {
+            "rows": 72,
+            "relative_rms": 0.021510112048817344,
+            "sse": 16.986143964106205,
+            "reference_energy": 36712.11923474549
+          }
+        }
+      },
+      "heldout_routed_proxy_change_percent": -4.449525155945588
+    }
+  ],
+  "scope": "Local linear error ablation on independent heldout source activations, no whole-model PPL or quality proof",
+  "source_revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+  "calibration": "existing 2048-token WikiText train captures",
+  "heldout": "first 2048 WikiText test tokens, two 1024-token contexts",
+  "heldout_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+  "module_keys": [
+    "model.layers.2.feed_forward.experts.0.w1",
+    "model.layers.2.feed_forward.experts.0.w2",
+    "model.layers.20.feed_forward.experts.31.w1",
+    "model.layers.20.feed_forward.experts.31.w2",
+    "model.layers.39.feed_forward.experts.63.w1",
+    "model.layers.39.feed_forward.experts.63.w2"
+  ],
+  "previous_failed_attempt": "conditional-ablation.first-capture-failed.json",
+  "heldout_folder": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-audit-heldout",
+  "capture_summary": {
+    "output": "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/quality-audit-heldout",
+    "source_dir": "/Users/justin/Documents/mix-stq1_0/models/source/LFM2.5-24B-A2B",
+    "module_count": 6,
+    "captured_count": 6,
+    "rows": 2048,
+    "seq_len": 1024,
+    "seqs_run": 2,
+    "dtype": "float16",
+    "missing": [],
+    "expert_fallback": []
+  },
+  "hadamard_backend": "forced MLX for conditioned rows as well as v1 baseline",
+  "proxy_precision": "FP32 matrix multiply with FP64 sums, source BF16 weight values represented as FP32; EXL3 decoded by independent NumPy reference",
+  "whole_model_quality": "not measured",
+  "decision": "No default change from three local proxy tests. Published v1 remains unchanged."
+}

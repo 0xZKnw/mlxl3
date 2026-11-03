@@ -1,0 +1,102 @@
+{
+  "status": "passed",
+  "source_hashes": {
+    "bench-supervisor.txt": "98d03cee2a339be0132d330ba1e18d89af50dc5bbb7350cf20c580c54256b04f",
+    "guards-supervisor.txt": "3d890d117be845f392adc3d855c1b8a4b08506f0b66e6e818959645d418af1db"
+  },
+  "decision_cases": [
+    "prefix-0",
+    "prefix-1",
+    "prefix-2",
+    "prefix-3",
+    "prefix-4",
+    "prefix-5",
+    "prefix-6",
+    "prefix-7",
+    "prefix-8",
+    "prefix-9",
+    "prefix-10",
+    "prefix-11",
+    "prefix-12",
+    "prefix-13",
+    "prefix-14",
+    "prefix-15",
+    "('tps', True)",
+    "('tps', nan)",
+    "('tps', inf)",
+    "('tps', 0)",
+    "('tps', -1)",
+    "('peak_bytes', 0)",
+    "('peak_bytes', True)",
+    "('peak_bytes', 10737418241)",
+    "('status', 'running')",
+    "('reaped', False)",
+    "('swapin_bytes', -1)",
+    "('swapin_bytes', 268435457)",
+    "('swapout_bytes', 268435457)",
+    "('prompt', 'wrong')",
+    "('pair', 100)",
+    "('label', 'wrong')",
+    "invalid-order",
+    "invalid-order",
+    "invalid-order",
+    "effect-9.8",
+    "effect-9.95",
+    "effect-10.0",
+    "effect-10.1",
+    "range-or-memory-tps",
+    "range-or-memory-peak_bytes",
+    "control-drift-with-unchanged-paired-ratios"
+  ],
+  "scaling_cases": 200,
+  "seed": 43,
+  "monitor_cases": [
+    {
+      "case": "valid",
+      "observed": "ok"
+    },
+    {
+      "case": "swapout",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "swapin",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "negative",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "power",
+      "observed": "AssertionError"
+    },
+    {
+      "case": "probe-error",
+      "observed": "TimeoutExpired"
+    },
+    {
+      "case": "deadline",
+      "observed": "TimeoutExpired"
+    }
+  ],
+  "artifact_preflight_cases": [
+    {
+      "case": "incomplete",
+      "observed": "rejected"
+    },
+    {
+      "case": "missing-hash",
+      "observed": "rejected"
+    },
+    {
+      "case": "stale",
+      "observed": "rejected"
+    },
+    {
+      "case": "valid",
+      "observed": "passed_guard"
+    }
+  ],
+  "limits": "actual function AST with deterministic fake waits/OS probes, decision mutations and preflight; existing driver and process reaping patterns reused; not a proof"
+}

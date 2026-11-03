@@ -1,0 +1,125 @@
+{
+  "status": "finished",
+  "runs": [
+    {
+      "name": "kani-range",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "disk_destinations_cannot_wrap_or_exceed_owned_storage"
+      ],
+      "exit": 0,
+      "seconds": 1.7465604160000001,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/kani-range.log"
+    },
+    {
+      "name": "kani-suite",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "available_memory_count_covers_fields_within_buffer",
+        "--harness",
+        "pair_commit_preserves_exact_valid_prefix_without_overflow",
+        "--harness",
+        "tensor_source_interval_is_ordered_and_cannot_wrap",
+        "--harness",
+        "reference_partition",
+        "--harness",
+        "automatic_cache_cannot_spend_reserved_memory",
+        "--harness",
+        "automatic_cache_is_monotone",
+        "--harness",
+        "mtp_depth_one_commits_only_target_tokens_inside_budgets",
+        "--harness",
+        "mtp_all_depths_commit_target_prefix_within_budgets",
+        "--harness",
+        "greedy_acceptance_is_the_maximal_matching_prefix",
+        "--harness",
+        "disk_destinations_cannot_wrap_or_exceed_owned_storage"
+      ],
+      "exit": 0,
+      "seconds": 7.980579917000001,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/kani-suite.log"
+    },
+    {
+      "name": "kani-ffi",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--features",
+        "mlx",
+        "--harness",
+        "disk_batch_reads_real_owned_storage"
+      ],
+      "exit": 1,
+      "seconds": 2.998431041,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/kani-ffi.log"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.23802187499999938,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/fmt.log"
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 4.496246916999999,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/cpu.log"
+    },
+    {
+      "name": "release-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 42.039363667,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/release-tests.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 0.1262807499999994,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/build.log"
+    }
+  ],
+  "binaries": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3-rs": "d93bd5b790151d56defdd64264e47ddca7473ab27760c65bfa8e5b83a13de12b",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/readers/mlxl3_native-28585053ede733ec": "a9655ebc05b257cae55fe0a10b402c475d3539fe59fd915ea177cc78d71905b3"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "status": "cpu-verified-gpu-pending",
+  "source_commit": "428ec2541cee1e2f18ac8e1f0e5befe490eb75e1",
+  "files": {
+    "scripts/exl3_moe_calibration.py": "fffd85b5551e472be0ae123ec8fb1473588e748ee4ccce1abb3781b0d59efcb5",
+    "scripts/pilot_lfm25_calibration.py": "ae8089f531525a3a4f54e9e26b2e10fe537733ced7462b7bc5ff5a1dbd630aef",
+    "scripts/generate_lfm25_trace.py": "bf9842fce4c760393533c05f213370d7e5f6d52ccc3e8eab1cb39742ebf3ef6a",
+    "scripts/quantize_lfm25_modal.py": "ef2c4d30e9ef2ef660ea9d4bd3f5748c2e87f45baf1a50df68b6a66d163ef8a1",
+    "scripts/quantize_lfm25_v3_modal.py": "83c06a8c26f69cac9096653ecee87cf81b318b977a237789b042be2d9b2913e3",
+    "benchmarks/eval_lfm25_quality.py": "42914c7fa5cb02706404ff1ad11f34ce4240be14ef49302c2e31d8df8e024edc",
+    "benchmarks/eval_lfm25_candidate.py": "ea201d9ab4bf9bfbe49524d465cd4538b724bad15af777eada5471efda153021"
+  },
+  "full_tests": {
+    "passed": 662,
+    "skipped": 1,
+    "skip_reason": "local Ling model unavailable",
+    "seconds": 92.93
+  },
+  "focused_tests": 129,
+  "crosshair_score_bounds": {
+    "conditions_confirmed": 2,
+    "per_condition_timeout_seconds": 20,
+    "scope": "integer inclusive range count; tensor, I/O and GPU excluded"
+  },
+  "crosshair_expert_map": {
+    "conditions_inconclusive": 3,
+    "per_condition_timeout_seconds": 20
+  },
+  "mutations_detected": [
+    "affinity weights replaced by ones",
+    "scoring mask disabled"
+  ],
+  "ci": {
+    "commit": "428ec2541cee1e2f18ac8e1f0e5befe490eb75e1",
+    "run": 38734216745,
+    "conversion": "success",
+    "packing-proof": "success",
+    "remaining": "inspect later"
+  },
+  "h100_bf16_preflight": {
+    "path": "/data/prepare25-1792066838012915049/trace.json",
+    "status": "running",
+    "backend": "transformers-grouped_mm-bf16",
+    "source": "/__modal/volumes/vo-v1mIt6xXXyDhR2qVR9WFqA/hf/hub/models--LiquidAI--LFM2.5-24B-A2B/snapshots/1769516ac588c4c558089c94f27d96b0dc67b183",
+    "versions": {
+      "torch": "2.10.0+cu128",
+      "transformers": "5.16.1",
+      "accelerate": "1.12.0"
+    },
+    "preserved_fp32_router_biases": 38,
+    "expert_preflight": {
+      "shape": [
+        128,
+        2048
+      ],
+      "relative_rms": 0.0029542904552603633,
+      "tolerance": 0.02,
+      "native_calls": 2
+    },
+    "sampling": {
+      "seed": 20261015,
+      "batch_size": 64,
+      "max_new_tokens": 3072,
+      "temperature": 0.8,
+      "top_p": 0.95,
+      "top_k": 50,
+      "suppressed_padding_ids": [
+        125017,
+        128000
+      ],
+      "minimum_full_rows": 39
+    },
+    "elapsed_seconds": 29.818612147
+  },
+  "quality": "not measured",
+  "publication": false
+}

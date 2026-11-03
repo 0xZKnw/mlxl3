@@ -1,0 +1,21 @@
+{
+  "mutation": "remove actual copy overlap rejection",
+  "status": "detected",
+  "command": [
+    "c++",
+    "-std=c++17",
+    "-O1",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-I",
+    "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/les32-copy-mutant-51omofsx",
+    "native/tests/disk_reader.cpp",
+    "-o",
+    "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/les32-copy-mutant-51omofsx/test"
+  ],
+  "exit_code": -6,
+  "diagnostic": "Assertion failed: (failed && bank == original), function operator(), file disk_reader.cpp, line 41.\n",
+  "production_source_modified": false,
+  "restored_source_checks": "cpp-asan/cpp-tsan passed against original source"
+}

@@ -1,0 +1,123 @@
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 2266a955..bfdc81e7 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -297,7 +297,7 @@ impl Exl3Linear {
+             !self.mtp_hidden_batch || matrix_rows == 4,
+             "MTP hidden projection requires four streams"
+         );
+-        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
++        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 2 {
+             let matrix = x.reshape(&[matrix_rows, self.rows])?;
+             let rows = (0..matrix_rows)
+                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+@@ -469,7 +469,7 @@ impl Exl3Linear {
+         let splits = if self.mtp_hidden_batch {
+             2
+         } else {
+-            split_count(input_tiles, output_tiles)
++            self.splits(input_tiles, output_tiles)
+         };
+         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
+         let mut nt = if use_nt4 {
+@@ -500,6 +500,9 @@ impl Exl3Linear {
+         if mb == 3 {
+             nt = 1;
+         }
++        if self.reference_accumulation {
++            nt = 1;
++        }
+         let header = codebook_header(self.cb)
+             + &reference_reduction_header(self.mtp_hidden_batch)
+             + &format!(
+@@ -549,6 +552,18 @@ impl Exl3Linear {
+         .remove(0);
+         let output = if splits == 1 {
+             partials.reshape(&[matrix_rows, self.cols])?
++        } else if self.reference_accumulation && !self.mtp_hidden_batch {
++            // Preserve the single-row MLX reduction layout used by the reference.
++            let rows = (0..matrix_rows)
++                .map(|row| {
++                    partials
++                        .slice(0, row, row + 1)?
++                        .reshape(&[splits, self.cols])?
++                        .sum(0, false)?
++                        .reshape(&[1, self.cols])
++                })
++                .collect::<Result<Vec<_>>>()?;
++            Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?
+         } else {
+             partials.sum(1, false)?
+         };
+@@ -1311,6 +1326,71 @@ pub(crate) fn codebook_header(cb: Codebook) -> String {
+ 
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; exact T2 projections"]
++    fn flash_two_rows_preserve_single_row_bytes_and_reject_empty_inputs() -> anyhow::Result<()> {
++        use super::*;
++        use std::path::Path;
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        for prefix in [
++            "model.language_model.layers.0.mlp.shared_expert.gate_proj",
++            "model.language_model.layers.0.mlp.shared_expert.down_proj",
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            "model.language_model.layers.0.linear_attn.in_proj_z",
++            "model.language_model.layers.0.linear_attn.out_proj",
++            "model.language_model.layers.3.self_attn.q_proj",
++            "model.language_model.layers.3.self_attn.o_proj",
++            "lm_head",
++        ] {
++            let linear = Exl3Linear::from_checkpoint(&checkpoint, prefix)?;
++            ensure!(linear.reference_accumulation && !linear.mtp_hidden_batch);
++            let values = (0..linear.rows * 2)
++                .map(|i| (i as f32 * 0.173).sin())
++                .collect::<Vec<_>>();
++            let contiguous = Array::from_f32(&values, &[2, linear.rows])?;
++            let transposed = Array::from_f32(&values, &[linear.rows, 2])?.transpose(&[1, 0])?;
++            for input in [
++                contiguous.try_clone()?,
++                contiguous.astype(Dtype::Float16)?,
++                transposed,
++            ] {
++                let expected = Array::concatenate(
++                    &[
++                        &linear.forward(&input.slice(0, 0, 1)?)?,
++                        &linear.forward(&input.slice(0, 1, 2)?)?,
++                    ],
++                    0,
++                )?;
++                let actual = linear.forward(&input)?;
++                ensure!(actual.shape() == [2, linear.cols] && actual.dtype() == input.dtype());
++                let values = actual.to_f32()?;
++                ensure!(
++                    values.len() == 2 * linear.cols as usize
++                        && values.iter().all(|v| v.is_finite())
++                );
++                ensure!(values.iter().any(|v| *v != 0.0), "empty T2 oracle");
++                ensure!(
++                    actual.to_bytes()? == expected.to_bytes()?,
++                    "T2 projection differs {prefix}"
++                );
++                ensure!(
++                    linear
++                        .forward(&input.reshape(&[1, 2, linear.rows])?)?
++                        .to_bytes()?
++                        == expected.to_bytes()?,
++                    "T2 leading shape differs"
++                );
++            }
++            ensure!(
++                linear
++                    .forward(&Array::zeros_dtype(&[0, linear.rows], Dtype::Float16)?)
++                    .is_err()
++            );
++            println!("T2 projection exact: {prefix}");
++        }
++        Ok(())
++    }
+     #[test]
+     #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
+     fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {

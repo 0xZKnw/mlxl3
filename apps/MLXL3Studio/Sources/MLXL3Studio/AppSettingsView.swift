@@ -177,7 +177,7 @@ struct AppSettingsView: View {
                     VStack(alignment: .leading, spacing: 11) {
                         Label(L("Comment ça marche", "How it works"), systemImage: "shippingbox")
                             .font(.system(size: 13, weight: .semibold))
-                        Text(L("Le moteur MLXL3 et l’interface sont livrés dans le même DMG. Une nouvelle release GitHub met donc les deux à jour ensemble, sans désynchroniser leurs versions.", "The MLXL3 engine and interface ship in the same DMG. A GitHub release updates both together, keeping their versions in sync."))
+                        Text(L("Le DMG embarque un moteur compatible. Les versions Desktop et moteur sont indépendantes.", "The DMG includes a compatible engine. Desktop and engine versions are independent."))
                             .font(.system(size: 12.5, weight: .regular))
                             .foregroundStyle(StudioTheme.secondary)
                             .lineSpacing(4)
@@ -190,8 +190,6 @@ struct AppSettingsView: View {
                     }
                     .padding(.vertical, 17)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    Link("Powered by MTPLX", destination: URL(string: "https://github.com/youssofal/MTPLX")!)
-                        .font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
                 }
                 .padding(26)
             }
@@ -264,6 +262,17 @@ private struct UpdateSettingsCard: View {
                 updateAction
             }
 
+            Picker(L("Canal des mises à jour", "Update channel"), selection: Binding(
+                get: { updater.updateChannel }, set: { updater.setUpdateChannel($0) }
+            )) {
+                Text("Stable").tag(UpdateChannel.stable)
+                Text(L("Bêta", "Beta")).tag(UpdateChannel.beta)
+            }
+            .pickerStyle(.segmented)
+            .disabled(updater.isInstalling)
+            Text(L("Utilise Rechercher pour vérifier les versions du canal choisi.", "Use Search to check versions from the selected channel."))
+                .font(.system(size: 10.5)).foregroundStyle(StudioTheme.quiet)
+
             HStack(spacing: 10) {
                 stateIcon
                 VStack(alignment: .leading, spacing: 3) {
@@ -273,6 +282,9 @@ private struct UpdateSettingsCard: View {
                         .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(StudioTheme.quiet)
                         .lineLimit(3)
+                    if case .downloading = updater.state, let progress = updater.downloadProgress {
+                        UpdateTransferView(progress: progress)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -291,6 +303,9 @@ private struct UpdateSettingsCard: View {
                     Text(engineDetail)
                         .font(.system(size: 11))
                         .foregroundStyle(StudioTheme.quiet)
+                    if case .downloading = updater.engineState, let progress = updater.engineDownloadProgress {
+                        UpdateTransferView(progress: progress)
+                    }
                 }
                 Spacer()
             }
@@ -418,6 +433,41 @@ private struct UpdateSettingsCard: View {
         case let .failed(message):
             message
         }
+    }
+}
+
+struct UpdateTransferView: View {
+    let progress: UpdateDownloadProgress
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ProgressView(value: progress.transfer.fraction ?? 0)
+                .tint(StudioTheme.accent)
+                .accessibilityLabel(L("Téléchargement", "Download"))
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                HStack {
+                    if progress.isVerifying {
+                        Text(L("Vérification SHA-256…", "Verifying SHA-256…"))
+                    } else {
+                        Text("\(Int((progress.transfer.fraction ?? 0) * 100)) %")
+                        Text("\(bytes(progress.transfer.completed)) / \(bytes(progress.transfer.total))")
+                        Spacer(minLength: 5)
+                        let rate = ProcessInfo.processInfo.systemUptime - progress.observedAt > 2
+                            ? 0 : progress.transfer.bytesPerSecond
+                        Text(rate.map { bytes($0) + "/s" } ?? L("Calcul du débit…", "Measuring speed…"))
+                    }
+                }
+                .font(.system(size: 10, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.secondary)
+            }
+        }
+        .padding(.top, 5)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func bytes(_ value: Double) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(max(0, min(Double(Int64.max / 2), value))), countStyle: .file)
     }
 }
 

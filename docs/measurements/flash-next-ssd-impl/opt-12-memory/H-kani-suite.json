@@ -1,0 +1,29 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "--harness",
+    "available_memory_count_covers_fields_within_buffer",
+    "--harness",
+    "pair_commit_preserves_exact_valid_prefix_without_overflow",
+    "--harness",
+    "tensor_source_interval_is_ordered_and_cannot_wrap",
+    "--harness",
+    "reference_partition",
+    "--harness",
+    "automatic_cache_cannot_spend_reserved_memory",
+    "--harness",
+    "automatic_cache_is_monotone",
+    "--harness",
+    "mtp_depth_one_commits_only_target_tokens_inside_budgets",
+    "--harness",
+    "mtp_all_depths_commit_target_prefix_within_budgets",
+    "--harness",
+    "greedy_acceptance_is_the_maximal_matching_prefix"
+  ],
+  "exit": 0,
+  "seconds": 7.7317405,
+  "status": "passed"
+}

@@ -1,0 +1,50 @@
+..F..................................................................... [ 72%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_________ test_partial_or_divergent_reports_cannot_qualify[duplicate] __________
+
+bad = 'duplicate'
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "duplicate",
+            "status",
+            "unreaped",
+            "reader",
+            "missing",
+            "foreign",
+            "warm_diverge",
+            "diverge",
+        ],
+    )
+    def test_partial_or_divergent_reports_cannot_qualify(bad):
+        data = arms()
+        report = data[-1]["report"]
+        if bad == "partial":
+            data.pop()
+        elif bad == "duplicate":
+            data[-1] = copy.deepcopy(data[0])
+        elif bad == "status":
+            report["status"] = "failed"
+        elif bad == "unreaped":
+            report["reaped"] = False
+        elif bad == "reader":
+            report["reader_joined"] = False
+        elif bad == "missing":
+            report["runs"].pop()
+        elif bad == "foreign":
+            report["runs"][0]["prompt"] = "OTHER"
+        elif bad == "warm_diverge":
+            report["warmup"][0]["token_hash"] = "different"
+        else:
+            report["runs"][0]["text"] = "different"
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_flash_modes.py:122: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_modes.py::test_partial_or_divergent_reports_cannot_qualify[duplicate]
+1 failed, 99 passed in 11.60s

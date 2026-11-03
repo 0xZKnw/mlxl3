@@ -1,0 +1,124 @@
+{
+  "status": "inconclusive_drift",
+  "confirmed_gain": false,
+  "baseline": "MTP1",
+  "candidate": "A",
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 10.546205600197585,
+      "candidate_tps": 9.993924297597134,
+      "gain_percent": -5.236777316289976
+    },
+    {
+      "prompt": "MAIN",
+      "baseline_tps": 10.153864358501073,
+      "candidate_tps": 10.013123893998234,
+      "gain_percent": -1.386077847149958
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 9.58632154198171,
+      "candidate_tps": 8.985452340618014,
+      "gain_percent": -6.267985052788894
+    },
+    {
+      "prompt": "HOLD",
+      "baseline_tps": 9.69535567097409,
+      "candidate_tps": 9.282909805575505,
+      "gain_percent": -4.254056059370392
+    }
+  ],
+  "drift": {
+    "MAIN": {
+      "control_percent": 3.863959846657128,
+      "gain_spread_points": 3.8506994691400176
+    },
+    "HOLD": {
+      "control_percent": 1.137392779022517,
+      "gain_spread_points": 2.013928993418501
+    }
+  },
+  "memory_status": "passed_postflight30s_zero_new_swapout",
+  "parity": true,
+  "all_speed_generations_equal_to_fresh_OFF": 68,
+  "off_rows": [
+    {
+      "prompt": "MAIN",
+      "index": 0,
+      "variant": "OFF",
+      "binary_sha256": "85e7461491d481bd9d616ee8cdc747f09bd7ca96c38a7be1c065b41fe5ea309b",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "peak_bytes": 7141496688,
+      "mlx_peak_bytes": 6592628128,
+      "active_bytes": 6579498624,
+      "swapouts_bytes": 0,
+      "tps": 10.479524402063664,
+      "seconds": 12.118870583,
+      "token_hash": "f6b5f974c6db2e7a",
+      "text": "Nous devons r\u00e9pondre en fran\u00e7ais. L'utilisateur demande: \"Explique en fran\u00e7ais, avec un exemple concret, comment un cache LFU \u00e9vite les lectures SSD inutiles pendant l\u2019inf\u00e9rence d\u2019un mod\u00e8le MoE.\" Il faut expliquer avec exemple concret. Nous devons produire une r\u00e9ponse finale. Pas besoin d'outils externes. Il faut peut-\u00eatre mentionner MoE (Mixture of Experts), experts stock\u00e9s sur SSD, cache en RAM/GPU, LFU (Least Frequently Used) garde les experts fr\u00e9quemment utilis\u00e9s, \u00e9vite chargements SSD. Exemple concret: router s\u00e9lectionne experts selon tokens, certains experts chaud",
+      "speculation": {
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null
+      }
+    },
+    {
+      "prompt": "HOLD",
+      "index": 0,
+      "variant": "OFF",
+      "binary_sha256": "85e7461491d481bd9d616ee8cdc747f09bd7ca96c38a7be1c065b41fe5ea309b",
+      "status": "validated",
+      "reaped": true,
+      "reader_joined": true,
+      "peak_bytes": 7133452144,
+      "mlx_peak_bytes": 6592233888,
+      "active_bytes": 6579355264,
+      "swapouts_bytes": 0,
+      "tps": 10.457753255261332,
+      "seconds": 12.144099875,
+      "token_hash": "9d02c1a97e015196",
+      "text": "We need answer in French. User asks: \"\u00c9cris une fonction Python merge_intervals qui fusionne les intervalles qui se chevauchent, puis explique sa complexit\u00e9 et donne un exemple.\" Need provide code, complexity, example. Need final only. Need likely include function merge_intervals. Need maybe handle intervals as tuples/lists [start,end]. Sort by start, merge overlapping or adjacent? \"se chevauchent\" overlapping. Could include touching intervals? Usually merge if start <= current_end. If adjacent [1,2] and [2,3] overlap at point? Could mention if you want strict overlap use <. Provide",
+      "speculation": {
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_proposed_tokens": null,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null
+      }
+    }
+  ],
+  "scope": "fresh MTP1 vs selected A; OFF descriptive witnesses, no historical gains added",
+  "peak_range_bytes": {
+    "OFF": [
+      7133452144,
+      7141496688
+    ],
+    "MTP1": [
+      7915313704,
+      8195937584
+    ],
+    "A": [
+      8863406608,
+      8897600040
+    ]
+  },
+  "cumulative_vm_delta_bytes": {
+    "Swapins": 240009216,
+    "Swapouts": 0
+  }
+}

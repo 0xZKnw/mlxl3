@@ -1,0 +1,38 @@
+[
+  {
+    "name": "t18a-queue-mutation-build",
+    "command": [
+      "/usr/bin/clang++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-pthread",
+      "-I",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/mutation-source",
+      "native/tests/disk_work_queue.cpp",
+      "-o",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-queue-mutant"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "required_text": []
+  },
+  {
+    "name": "t18a-queue-mutation-detected",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t18a-20261031/disk-queue-mutant"
+    ],
+    "env": {},
+    "require_quiet": false,
+    "expected_exit": -6,
+    "timeout_seconds": 30,
+    "required_text": [
+      "Assertion failed"
+    ]
+  }
+]

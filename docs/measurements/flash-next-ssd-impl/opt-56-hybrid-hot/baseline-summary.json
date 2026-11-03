@@ -1,0 +1,51 @@
+{
+  "status": "observed_gain_retained_after_user_stability_waiver",
+  "strict_qualification": "inconclusive_drift",
+  "confirmed_by_original_all_prompt_gate": false,
+  "user_instruction": "on s'en fout des 10% de derive il fait quand meme monter le gain de ouf",
+  "scope": "OFF only; MTP pending, default MLXL3_SSD_GPU_HOT=0, opt-in1; app not replaced",
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 8.581779824090606,
+      "C_tps": 9.94736304517692,
+      "gain_percent": 15.912587471107953
+    },
+    {
+      "prompt": "MAIN",
+      "H_tps": 9.41284091195229,
+      "C_tps": 9.764469682915779,
+      "gain_percent": 3.7356285339635864
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.0045900184342,
+      "C_tps": 9.31540302417431,
+      "gain_percent": 3.451717458582948
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.312698442476234,
+      "C_tps": 9.797353947879841,
+      "gain_percent": 5.204243521867302
+    }
+  ],
+  "drifts": {
+    "MAIN": {
+      "control_percent": 9.684017824935864,
+      "gain_spread_points": 12.176958937144367
+    },
+    "HOLD": {
+      "control_percent": 3.4216818690387285,
+      "gain_spread_points": 1.7525260632843542
+    }
+  },
+  "all_four_pairs_positive": true,
+  "holdout_passes_original_per_prompt_gates": true,
+  "maximum_native_footprint_bytes": 7144626128,
+  "new_swapout_bytes": 0,
+  "campaign_maximum_swapin_bytes": 7061504,
+  "quality": "quality-summary.json",
+  "sources": "identity-v2.json",
+  "conditions": "M5 24GiB, macOS27.2, AC; 3GiB expert cache/53 slots per layer, 512MiB allocator, 4 readers, LFU, prefetch0, greedy128 outputs, MAIN/HOLD HCCH, warmup+measure in fresh process"
+}

@@ -1,0 +1,94 @@
+import json
+from types import SimpleNamespace
+
+import pytest
+from test_smallm_benchmark import BENCH, ROOT, load_screen
+
+SCREEN = load_screen("benchmark_smallm_reuse")
+
+
+def test_shared_decode_moves_each_conversion_outside_the_row_loop():
+    source = (ROOT / "native/shaders/_qmv_mapped_tile_kernel.metal").read_text()
+    candidate = SCREEN.shared_decode(source)
+    marker = "for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {"
+    body = candidate[candidate.index("float weight0") :]
+    for i in range(4):
+        declaration = f"float weight{i} = float(mlxl3_decode_codeword(cw{i}, CB));"
+        assert candidate.count(declaration) == 1
+        assert body.index(declaration) < body.index(marker)
+        assert f"x_values[batch_row][{i}],\n                                weight{i}," in candidate
+    assert candidate.count("fma(") == source.count("fma(")
+    for broken in ["", source + source, candidate]:
+        with pytest.raises(ValueError):
+            SCREEN.shared_decode(broken)
+
+
+def test_qmv_kernel_identity_includes_actual_source_and_rejects_empty_body():
+    calls = []
+    mx = SimpleNamespace(fast=SimpleNamespace(metal_kernel=lambda **kw: calls.append(kw)))
+    shape = {"input": 5120, "widths": [17408, 17408], "k": 2, "cb": 2}
+    stock = (ROOT / "native/shaders/_qmv_mapped_tile_kernel.metal").read_text()
+    BENCH.qmv(mx, shape, 2)
+    BENCH.qmv(mx, shape, 2, source=stock)
+    BENCH.qmv(mx, shape, 2, source=SCREEN.shared_decode(stock))
+    assert calls[0]["name"] == calls[1]["name"] != calls[2]["name"]
+    assert calls[0]["source"] == stock and calls[2]["source"] != stock
+    with pytest.raises(ValueError, match="empty"):
+        BENCH.qmv(mx, shape, 2, source=" \n")
+
+
+def test_speed_gate_uses_paired_orders_wins_and_drift():
+    result = SCREEN.speed_gate([[1.0] * 40, [0.8] * 40])
+    assert result["passed"] and result["wins"] == 40
+    assert result["gain_percent"] == pytest.approx(25)
+    assert result["AB_BA_gain_percent"] == pytest.approx([25, 25])
+    drift = [[1.0] * 20 + [1.04] * 20, [0.8] * 20 + [0.832] * 20]
+    assert not SCREEN.speed_gate(drift)["passed"]
+    bad_order = [[1.0] * 40, [1 / (1.02 if r % 2 == 0 else 1.08) for r in range(40)]]
+    result = SCREEN.speed_gate(bad_order)
+    assert result["wins"] == 40 and result["gain_percent"] > 3 and not result["passed"]
+    few_wins = [[1.0] * 40, [0.5] * 20 + [1.01] * 20]
+    assert not SCREEN.speed_gate(few_wins)["passed"]
+
+
+@pytest.mark.parametrize(
+    "bad", [[], [1.0] * 7, [1.0] * 9, [0.0] * 8, [True] * 8, [float("nan")] * 8]
+)
+def test_invalid_timing_pairs_are_rejected(bad):
+    with pytest.raises(ValueError):
+        SCREEN.speed_gate([bad, bad])
+
+
+@pytest.mark.parametrize("iterations", ["0", "7", "9"])
+def test_cli_rejects_invalid_protocol(iterations, tmp_path):
+    output = tmp_path / "result.json"
+    with pytest.raises(SystemExit) as error:
+        SCREEN.main(
+            ["--checkpoint", str(tmp_path), "--output", str(output), "--iterations", iterations]
+        )
+    assert error.value.code == 2 and not output.exists()
+
+
+def test_cli_preserves_previous_results(tmp_path):
+    output = tmp_path / "result.json"
+    output.write_text("previous failure")
+    with pytest.raises(SystemExit):
+        SCREEN.main(["--checkpoint", str(tmp_path), "--output", str(output)])
+    assert output.read_text() == "previous failure"
+
+
+@pytest.mark.parametrize("failure", [None, AssertionError("divergence"), KeyboardInterrupt()])
+def test_cli_never_promotes_empty_or_interrupted_reports(tmp_path, monkeypatch, failure):
+    def run(_, __, report, save):
+        report["checks"].append({"visited": True})
+        save()
+        if failure:
+            raise failure
+
+    monkeypatch.setattr(SCREEN, "run", run)
+    output = tmp_path / "result.json"
+    with pytest.raises(type(failure) if failure else AssertionError):
+        SCREEN.main(["--checkpoint", str(tmp_path), "--output", str(output)])
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is False
+    assert report["checks"] == [{"visited": True}]

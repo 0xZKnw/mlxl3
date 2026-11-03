@@ -1,0 +1,88 @@
+import copy
+import runpy
+from pathlib import Path
+
+import pytest
+
+metrics = runpy.run_path(
+    str(Path(__file__).resolve().parents[1] / "scripts/check_flash_fixed_width.py")
+)["metrics"]
+
+
+def fixture(width):
+    blocks = {1: 70, 3: 50, 7: 30}[width]
+    return {
+        "generation_mode": {"dflash_active": True, "mtp_active": False, "dflash_proposals": width},
+        "stats": {
+            "generated_tokens": 128,
+            "decode_tokens": 127,
+            "context_limit": 4096,
+            "prompt_tokens": 64,
+            "dflash_proposed_tokens": width * blocks,
+            "dflash_accepted_tokens": 126 - blocks,
+            "dflash_blocks": blocks,
+            "dflash_block_seconds": 11.2,
+            "dflash_profile": {
+                "verified_rows": (width + 1) * blocks,
+                "draft_seconds": 1.0,
+                "verification_seconds": 10.0,
+                "commit_cache_seconds": 0.1,
+                "expert_demand_bytes": 1248012 * 100,
+            },
+        },
+    }
+
+
+@pytest.mark.parametrize("width", [1, 3, 7])
+def test_real_mode_and_counters_both_confirm_exact_fixed_width(width):
+    result = metrics(fixture(width), width)
+    assert result["verified_width"] == width + 1
+    assert result["verification_ms_per_emitted"] == 10000 / 126
+
+
+@pytest.mark.parametrize("width", [3, 7])
+def test_multiple_rejected_final_windows_can_shrink_before_an_ordinary_tail(width):
+    data = fixture(width)
+    stats = data["stats"]
+    deficit = width * (width - 1) // 2
+    stats["dflash_proposed_tokens"] -= deficit
+    stats["dflash_profile"]["verified_rows"] -= deficit
+    assert metrics(data, width)["verified_width"] == width + 1
+    stats["dflash_proposed_tokens"] -= 1
+    stats["dflash_profile"]["verified_rows"] -= 1
+    with pytest.raises(AssertionError):
+        metrics(data, width)
+
+
+@pytest.mark.parametrize("prompt", [-1, 0, 4000, True])
+def test_context_clipping_is_outside_the_fixed_width_protocol(prompt):
+    data = fixture(7)
+    data["stats"]["prompt_tokens"] = prompt
+    with pytest.raises(AssertionError):
+        metrics(data, 7)
+
+
+@pytest.mark.parametrize(
+    "bad", ["mode", "ignored", "adaptive", "empty", "nan", "bytes", "rows", "bool"]
+)
+def test_wrong_modes_widths_or_partial_profiles_cannot_validate_a_benchmark(bad):
+    data = copy.deepcopy(fixture(3))
+    stats = data["stats"]
+    if bad == "mode":
+        data["generation_mode"]["dflash_proposals"] = 2
+    elif bad == "ignored":
+        stats["dflash_proposed_tokens"] = 100
+    elif bad == "adaptive":
+        stats["dflash_proposed_tokens"] = 120
+    elif bad == "empty":
+        stats["dflash_blocks"] = 0
+    elif bad == "nan":
+        stats["dflash_profile"]["verification_seconds"] = float("nan")
+    elif bad == "bytes":
+        stats["dflash_profile"]["expert_demand_bytes"] = 1
+    elif bad == "rows":
+        stats["dflash_profile"]["verified_rows"] = 0
+    else:
+        data["generation_mode"]["dflash_proposals"] = True
+    with pytest.raises(AssertionError):
+        metrics(data, 3)

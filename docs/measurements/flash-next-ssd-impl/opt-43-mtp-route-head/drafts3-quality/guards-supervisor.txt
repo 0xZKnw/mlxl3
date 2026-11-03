@@ -1,0 +1,644 @@
+from pathlib import Path
+import ast
+import copy
+import json
+import math
+import textwrap
+import hashlib
+import os
+import re
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+
+p = Path("docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/drafts3-quality")
+source = (p / "quality-supervisor.txt").read_text()
+hashes = {
+    name: hashlib.sha256((p / name).read_bytes()).hexdigest()
+    for name in ["quality-supervisor.txt", "guards-supervisor.txt"]
+}
+(p / "diagnostic-guards.json").write_text(
+    json.dumps({"status": "incomplete", "source_hashes": hashes}) + "\n"
+)
+tree = ast.parse(source)
+hash_node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "hash_file")
+hash_context = {"hashlib": hashlib}
+exec(compile(ast.Module(body=[hash_node], type_ignores=[]), "streaming-hash", "exec"), hash_context)
+with tempfile.TemporaryDirectory() as directory:
+    path = Path(directory) / "payload"
+    for payload in [b"", b"x", bytes(range(256)) * 4097]:
+        path.write_bytes(payload)
+        assert hash_context["hash_file"](path) == hashlib.sha256(payload).hexdigest()
+
+
+class BoundedReader:
+    def __init__(self):
+        self.remaining = 3 * (1 << 20) + 17
+
+    def open(self, mode):
+        assert mode == "rb"
+        return self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self, size):
+        assert 0 < size <= 1 << 20
+        count = min(size, self.remaining)
+        self.remaining -= count
+        return b"a" * count
+
+
+assert (
+    hash_context["hash_file"](BoundedReader())
+    == hashlib.sha256(b"a" * (3 * (1 << 20) + 17)).hexdigest()
+)
+fixture_tree = ast.parse(Path("tests/test_flash_drafts.py").read_text())
+fixture_node = next(
+    n
+    for n in fixture_tree.body
+    if isinstance(n, ast.FunctionDef) and n.name == "diagnostic_fixture"
+)
+fixture_context = {}
+exec(
+    compile(ast.Module(body=[fixture_node], type_ignores=[]), "draft-fixture", "exec"),
+    fixture_context,
+)
+node = next(
+    n
+    for n in ast.walk(tree)
+    if isinstance(n, ast.If) and ast.unparse(n.test) == "name.startswith('light-')"
+)
+lines = source.splitlines(keepends=True)
+body = textwrap.dedent("".join(lines[node.body[0].lineno - 1 : node.body[-1].end_lineno]))
+namespace = {"p": p, "json": json, "math": math}
+exec("def checked(log, prev, records, name, r):\n" + textwrap.indent(body, "    "), namespace)
+checked = namespace["checked"]
+records = json.loads(
+    Path("docs/measurements/flash-next-ssd-impl/opt-34-les-ready/quality.json").read_text()
+)
+cases = []
+
+
+def check(prev, profiles, accepted, case):
+    log = "\n".join("SSD_LIGHT_PROFILE " + json.dumps(v) for v in profiles)
+    result = {}
+    try:
+        checked(log, prev, records, prev["name"], result)
+        observed = True
+    except (AssertionError, ValueError, TypeError, KeyError, StopIteration, OverflowError):
+        observed = False
+    assert observed is accepted, case
+    assert observed == ("diagnostics" in result), "partial validation leaked"
+    cases.append({"case": prev["name"] + ":" + case, "accepted": observed})
+
+
+for prev in records:
+    if not prev["name"].startswith("light-") or prev["status"] != "passed":
+        continue
+    profiles = prev["diagnostics"]
+    check(prev, profiles, True, "valid")
+    check(prev, [], False, "empty")
+    check(prev, profiles[:1], False, "incomplete")
+    mutations = [
+        (["phase"], "wrong"),
+        (["tokens"], []),
+        (["tokens", 0], True),
+        (["tokens", 0], 248320),
+        (["text"], ""),
+        (["text"], "wrong"),
+        (["logit_count"], 0),
+        (["logits_finite"], False),
+        (["route_fill_import_seconds", 0], float("nan")),
+        (["candidate_scanned_hot_admitted_imported_overlap_rows", 0], -1),
+        (["memory", "process_lifetime_peak_bytes"], 0),
+        (["mtp"], not profiles[0]["mtp"]),
+        (["mtp_proposed_tokens"], 999999),
+    ]
+    if profiles[0]["lookahead_depth"]:
+        mutations += [
+            (["prefetch", "completed"], -1),
+            (["memory", "process_lifetime_peak_bytes"], 1 << 60),
+        ]
+    else:
+        mutations += [
+            (["prefetch"], {}),
+            (["candidate_scanned_hot_admitted_imported_overlap_rows", 3], 1),
+        ]
+    for keys, value in mutations:
+        altered = copy.deepcopy(profiles)
+        target = altered[0]
+        for key in keys[:-1]:
+            target = target[key]
+        target[keys[-1]] = value
+        check(prev, altered, False, str(keys))
+assert len(cases) >= 18, "no actual diagnostic exercised"
+events = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "event_deltas")
+event_context = {"re": re}
+exec(compile(ast.Module(body=[events], type_ignores=[]), "event-deltas", "exec"), event_context)
+delta = event_context["event_deltas"]
+
+
+def vm(page=16384, count=0):
+    return f"Mach Virtual Memory Statistics: (page size of {page} bytes)\n" + "".join(
+        f"{key}: {count}.\n"
+        for key in [
+            "Pages free",
+            "File-backed pages",
+            "Pages occupied by compressor",
+            "Pageins",
+            "Compressions",
+            "Decompressions",
+            "Swapins",
+            "Swapouts",
+        ]
+    )
+
+
+for page in [4096, 16384, 65536]:
+    assert set(delta(vm(page, 2), vm(page, 5)).values()) == {3 * page}
+    assert set(delta(vm(page, 2), vm(page, 2)).values()) == {0}
+for before, after in [
+    (vm(), vm(0)),
+    (vm(), vm(4096)),
+    (vm(count=2), vm(count=1)),
+    (vm(), ""),
+    (vm(), vm() + "Pageins: 0.\n"),
+    (vm(), vm().replace("Pageins: 0.\n", "")),
+]:
+    try:
+        delta(before, after)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid VM events accepted")
+
+component_node = next(
+    n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "check_component"
+)
+component_context = {"json": json, "math": math, "event_deltas": delta}
+exec(
+    compile(ast.Module(body=[component_node], type_ignores=[]), "component-check", "exec"),
+    component_context,
+)
+component_check = component_context["check_component"]
+component_profile = {
+    "status": "completed_original_components",
+    "gate_layers": 48,
+    "gate_logit_count": 49152,
+    "head_logit_count": 496640,
+    "warmup_sweeps": 2,
+    "samples": 5,
+    "sweeps_per_sample": 16,
+    "route_pair_48_layers_seconds": [0.01] * 5,
+    "head_pair_seconds": [0.001] * 5,
+    "memory": {"process_lifetime_peak_bytes": 1 << 30},
+}
+component_snapshots = [
+    {"phase": label, "seconds": i, "raw": vm(count=i)}
+    for i, label in enumerate(
+        [
+            "loaded",
+            "inputs_ready",
+            "warmup_done",
+            "route_begin",
+            "route_end",
+            "head_begin",
+            "head_end",
+        ]
+    )
+]
+
+
+def component_log(profiles, snapshots):
+    return "\n".join(
+        ["MTP43_VM " + json.dumps(v) for v in snapshots]
+        + ["MTP43_COMPONENT " + json.dumps(v) for v in profiles]
+    )
+
+
+component_cases = []
+
+
+def check_component(profiles, snapshots, accepted, case):
+    try:
+        result = component_check(component_log(profiles, snapshots))
+        assert set(result) == {"component", "phase_system_event_deltas"}
+        assert len(result["phase_system_event_deltas"]) == 6
+        observed = True
+    except (AssertionError, ValueError, TypeError, KeyError, IndexError, OverflowError):
+        observed = False
+    assert observed is accepted, case
+    component_cases.append({"case": case, "accepted": observed})
+
+
+check_component([component_profile], component_snapshots, True, "valid")
+check_component([], component_snapshots, False, "absent")
+check_component([component_profile] * 2, component_snapshots, False, "duplicate")
+for keys, value in [
+    (["status"], "incomplete"),
+    (["gate_layers"], 0),
+    (["gate_logit_count"], 0),
+    (["head_logit_count"], 0),
+    (["warmup_sweeps"], True),
+    (["samples"], 0),
+    (["sweeps_per_sample"], 0),
+    (["route_pair_48_layers_seconds"], []),
+    (["head_pair_seconds"], [0.01] * 4),
+    (["route_pair_48_layers_seconds", 0], float("nan")),
+    (["head_pair_seconds", 0], float("inf")),
+    (["head_pair_seconds", 0], True),
+    (["head_pair_seconds", 0], 0),
+    (["head_pair_seconds", 0], -1),
+    (["memory"], {}),
+    (["memory", "process_lifetime_peak_bytes"], 0),
+    (["memory", "process_lifetime_peak_bytes"], True),
+    (["memory", "process_lifetime_peak_bytes"], (10 << 30) + 1),
+]:
+    altered = copy.deepcopy(component_profile)
+    target = altered
+    for key in keys[:-1]:
+        target = target[key]
+    target[keys[-1]] = value
+    check_component([altered], component_snapshots, False, str(keys) + repr(value))
+for snapshots, case in [
+    ([], "no-vm"),
+    (component_snapshots[:-1], "missing-vm"),
+    (component_snapshots * 2, "duplicate-vm"),
+]:
+    check_component([component_profile], snapshots, False, case)
+for key, value in [
+    ("phase", "wrong"),
+    ("seconds", -1),
+    ("seconds", True),
+    ("seconds", float("nan")),
+    ("seconds", -0.1),
+    ("raw", ""),
+]:
+    altered = copy.deepcopy(component_snapshots)
+    altered[3][key] = value
+    check_component([component_profile], altered, False, str((key, value)))
+altered = copy.deepcopy(component_snapshots)
+altered[3]["seconds"] = 0
+check_component([component_profile], altered, False, "clock-reversed")
+assert len(component_cases) == 31
+
+head_node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "check_head")
+head_context = {"json": json, "math": math}
+exec(compile(ast.Module(body=[head_node], type_ignores=[]), "head-check", "exec"), head_context)
+head_profile = {
+    "status": "passed_exact_head_components",
+    "checked_logits": 1986560,
+    "head_rows": 2,
+    "input_cases": 4,
+    "blocks": [
+        {
+            "order": ["original", "joint"] if i % 2 == 0 else ["joint", "original"],
+            "original": 0.02,
+            "joint": 0.01,
+        }
+        for i in range(5)
+    ],
+    "memory": {"process_lifetime_peak_bytes": 1 << 30},
+}
+head_cases = []
+
+
+def check_head(profiles, accepted, case):
+    try:
+        result = head_context["check_head"](
+            "\n".join("MTP43_HEAD_PAIR " + json.dumps(v) for v in profiles)
+        )
+        assert set(result) == {"head_components"}
+        observed = True
+    except (AssertionError, ValueError, TypeError, KeyError, IndexError, OverflowError):
+        observed = False
+    assert observed is accepted, case
+    head_cases.append({"case": case, "accepted": observed})
+
+
+check_head([head_profile], True, "valid")
+check_head([], False, "absent")
+check_head([head_profile] * 2, False, "duplicate")
+for keys, value in [
+    (["status"], "incomplete"),
+    (["checked_logits"], 0),
+    (["head_rows"], 0),
+    (["input_cases"], True),
+    (["blocks"], []),
+    (["blocks", 0, "order"], ["joint", "original"]),
+    (["blocks", 0, "original"], 0),
+    (["blocks", 0, "joint"], True),
+    (["blocks", 0, "joint"], float("nan")),
+    (["blocks", 0, "joint"], float("inf")),
+    (["blocks", 0, "joint"], -1),
+    (["memory"], {}),
+    (["memory", "process_lifetime_peak_bytes"], 0),
+    (["memory", "process_lifetime_peak_bytes"], 1 << 60),
+]:
+    altered = copy.deepcopy(head_profile)
+    target = altered
+    for key in keys[:-1]:
+        target = target[key]
+    target[keys[-1]] = value
+    check_head([altered], False, str(keys) + repr(value))
+assert len(head_cases) == 17
+
+# Run the actual supervisor with disposable CPU children and fake OS probes.
+# The production GPU executable and its checkpoint are never invoked here.
+fixture_cases = []
+parser_source = Path("benchmarks/benchmark_flash_memory.py").read_text()
+parser_tree = ast.parse(parser_source)
+parser_nodes = [
+    n
+    for n in parser_tree.body
+    if isinstance(n, (ast.Assign, ast.FunctionDef))
+    and (
+        getattr(n, "name", None) == "parse_vm"
+        or isinstance(n, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "VM_KEYS" for t in n.targets)
+    )
+]
+parser_code = "import re\n" + "\n".join(
+    ast.get_source_segment(parser_source, n) for n in parser_nodes
+)
+assert len(parser_nodes) == 2
+stub = """#!PYTHON
+from pathlib import Path
+import os, sys
+tool = Path(sys.argv[0]).name
+scenario = os.environ['PROFILE_FIXTURE_SCENARIO']
+state = Path(os.environ['PROFILE_FIXTURE_ROOT']) / (tool + '-calls')
+n = int(state.read_text()) + 1 if state.exists() else 1
+state.write_text(str(n))
+if tool == 'pmset':
+    power = 'Battery Power' if scenario == 'initial-power' or scenario == 'changed-power' and n > 1 else 'AC Power'
+    print("Now drawing from '" + power + "'")
+elif tool == 'sysctl':
+    print('fixture swap usage')
+else:
+    if scenario == 'probe-error' and n > 1:
+        sys.exit(8)
+    print('Mach Virtual Memory Statistics: (page size of 16384 bytes)')
+    for key in ['Pages free','File-backed pages','Pages occupied by compressor','Pageins','Compressions','Decompressions','Swapins','Swapouts']:
+        count = 0
+        if n > 1 and ((scenario == 'swapout' and key == 'Swapouts') or (scenario == 'swapin' and key == 'Swapins')):
+            count = 16385
+        print(f'{key}: {count}.')
+""".replace("PYTHON", sys.executable)
+
+for scenario in [
+    "complete",
+    "zero-tests",
+    "crash",
+    "deadline",
+    "swapout",
+    "swapin",
+    "changed-power",
+    "initial-power",
+    "probe-error",
+    "interrupt",
+    "stale-proof",
+    "missing-proof",
+    "component-valid",
+    "component-invalid",
+    "head-valid",
+    "head-invalid",
+    "draft-valid",
+    "draft-invalid",
+]:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        target = root / p
+        target.mkdir(parents=True)
+        (root / "benchmarks").mkdir()
+        (root / "benchmarks/benchmark_flash_memory.py").write_text(parser_code)
+        for filename in hashes:
+            (target / filename).write_bytes((p / filename).read_bytes())
+        proof = {"status": "passed", "source_hashes": dict(hashes)}
+        if scenario == "stale-proof":
+            proof["source_hashes"]["quality-supervisor.txt"] = "0" * 64
+        if scenario == "missing-proof":
+            proof["source_hashes"] = {}
+        (target / "diagnostic-guards.json").write_text(json.dumps(proof))
+        unit = "print('test result: ok. 1 passed; 0 failed;')"
+        if scenario == "zero-tests":
+            unit = "print('test result: ok. 0 passed; 0 failed;')"
+        elif scenario == "crash":
+            unit = "raise SystemExit(7)"
+        elif scenario in [
+            "deadline",
+            "swapout",
+            "swapin",
+            "changed-power",
+            "probe-error",
+            "interrupt",
+        ]:
+            unit = "import time; time.sleep(300)"
+        matrix = [
+            {
+                "name": f"unit-fixture-{i}",
+                "command": [sys.executable, "-c", unit],
+                "env": {},
+                "expected_tests": 1,
+                "timeout_seconds": 0.25 if scenario == "deadline" else 30,
+            }
+            for i in range(1)
+        ]
+        if scenario in ["component-valid", "component-invalid"]:
+            component = copy.deepcopy(component_profile)
+            if scenario == "component-invalid":
+                component["head_logit_count"] = 0
+            log = component_log([component], component_snapshots)
+            matrix[0]["name"] = "component-baseline"
+            matrix[0]["command"] = [
+                sys.executable,
+                "-c",
+                "print(" + repr(log) + ");print('test result: ok. 1 passed; 0 failed;')",
+            ]
+        if scenario in ["head-valid", "head-invalid"]:
+            profile = copy.deepcopy(head_profile)
+            if scenario == "head-invalid":
+                profile["checked_logits"] = 0
+            log = "MTP43_HEAD_PAIR " + json.dumps(profile)
+            matrix[0]["name"] = "head-pair"
+            matrix[0]["command"] = [
+                sys.executable,
+                "-c",
+                "print(" + repr(log) + ");print('test result: ok. 1 passed; 0 failed;')",
+            ]
+        if scenario in ["draft-valid", "draft-invalid"]:
+            (root / "scripts").mkdir()
+            (root / "scripts/check_flash_drafts.py").write_bytes(
+                Path("scripts/check_flash_drafts.py").read_bytes()
+            )
+            profile, oracle = fixture_context["diagnostic_fixture"]("numpy")
+            if scenario == "draft-invalid":
+                profile["checks"] = []
+            oracle_dir = root / "oracle"
+            oracle_dir.mkdir()
+            (oracle_dir / "oracle.json").write_text(json.dumps(oracle))
+            matrix[0].update(
+                draft_diagnostic="numpy",
+                env={
+                    "MLXL3_FLASH_DRAFT_ORACLE": str(oracle_dir),
+                    "MLXL3_FLASH_DRAFT_KIND": "dflash2",
+                },
+            )
+            log = "FLASH_DRAFT_NUMPY " + json.dumps(profile)
+            matrix[0]["command"] = [
+                sys.executable,
+                "-c",
+                "print(" + repr(log) + ");print('test result: ok. 1 passed; 0 failed;')",
+            ]
+        (target / "quality-matrix.json").write_text(json.dumps(matrix))
+        identity = {
+            "binaries": {
+                sys.executable: hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest()
+            },
+            "files": {str(p / filename): digest for filename, digest in hashes.items()},
+        }
+        (target / "identity.json").write_text(json.dumps(identity))
+        binary_dir = root / "bin"
+        binary_dir.mkdir()
+        for tool in ["pmset", "vm_stat", "sysctl"]:
+            executable = binary_dir / tool
+            executable.write_text(stub)
+            executable.chmod(0o755)
+        env = {
+            **os.environ,
+            "PATH": str(binary_dir) + os.pathsep + os.environ["PATH"],
+            "PROFILE_FIXTURE_SCENARIO": scenario,
+            "PROFILE_FIXTURE_ROOT": directory,
+        }
+        child = subprocess.Popen(
+            [sys.executable, str((p / "quality-supervisor.txt").resolve())],
+            cwd=root,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            if scenario == "interrupt":
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    output = target / "quality.json"
+                    if output.exists() and json.loads(output.read_text()):
+                        time.sleep(0.15)
+                        child.send_signal(signal.SIGINT)
+                        break
+                    time.sleep(0.02)
+                else:
+                    raise AssertionError("fixture never started")
+            stdout, _ = child.communicate(timeout=15)
+            if scenario in ["stale-proof", "missing-proof"]:
+                assert child.returncode != 0 and not (target / "quality.json").exists(), stdout
+                results = []
+            else:
+                results = json.loads((target / "quality.json").read_text())
+                assert len(results) == 1, (scenario, stdout)
+                expected = (
+                    "passed"
+                    if scenario in ["complete", "component-valid", "head-valid", "draft-valid"]
+                    else "interrupted"
+                    if scenario == "interrupt"
+                    else "failed"
+                )
+                assert all(r["status"] == expected and r["reaped"] is True for r in results), (
+                    scenario,
+                    results,
+                    stdout,
+                )
+                assert (child.returncode == 0) is (
+                    scenario in ["complete", "component-valid", "head-valid", "draft-valid"]
+                ), stdout
+                for result in results:
+                    pid = result.get("pid")
+                    if pid is not None:
+                        try:
+                            os.kill(pid, 0)
+                        except ProcessLookupError:
+                            pass
+                        else:
+                            raise AssertionError("fixture child was not reaped")
+            fixture_cases.append(
+                {"scenario": scenario, "exit_code": child.returncode, "records": len(results)}
+            )
+        finally:
+            if child.poll() is None:
+                os.killpg(child.pid, signal.SIGINT)
+                try:
+                    child.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait()
+
+            output = target / "quality.json"
+            if output.exists():
+                for record in json.loads(output.read_text()):
+                    pid = record.get("pid")
+                    if pid is not None:
+                        try:
+                            os.killpg(pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+(p / "diagnostic-guards.json").write_text(
+    json.dumps(
+        {
+            "status": "incomplete",
+            "source_hashes": hashes,
+            "streaming_hash_cases": 4,
+            "event_delta_cases": 12,
+            "component_cases": component_cases,
+            "head_cases": head_cases,
+            "supervisor_integration_cases": fixture_cases,
+            "cases": cases,
+            "limits": "actual parent checker, finite mutations of physical profile records; not proof",
+        },
+        indent=2,
+    )
+    + "\n"
+)
+print(
+    {
+        "status": "incomplete",
+        "diagnostic_cases": len(cases),
+        "event_delta_cases": 12,
+        "component_cases": len(component_cases),
+        "head_cases": len(head_cases),
+        "supervisor_integration_cases": len(fixture_cases),
+    }
+)
+
+proof_path = p / "diagnostic-guards.json"
+proof = json.loads(proof_path.read_text())
+try:
+    command = [sys.executable, "-m", "pytest", "-q", "tests/test_flash_drafts.py"]
+    result = subprocess.run(
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60
+    )
+    (p / "native-validator-tests.log").write_text(result.stdout)
+    found = re.findall(r"(\d+) passed", result.stdout)
+    assert result.returncode == 0 and len(found) == 1 and int(found[0]) >= 24, (
+        "native diagnostic regression tests absent or failed"
+    )
+    proof["native_validator_regressions"] = int(found[0])
+    proof["status"] = "passed"
+except BaseException as error:
+    proof.update(status="failed_or_interrupted", error=repr(error))
+    raise
+finally:
+    proof_path.write_text(json.dumps(proof, indent=2) + "\n")
+print(
+    {
+        "status": proof["status"],
+        "native_validator_regressions": proof["native_validator_regressions"],
+    }
+)

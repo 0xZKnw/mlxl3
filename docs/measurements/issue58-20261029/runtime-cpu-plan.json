@@ -1,0 +1,90 @@
+[
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-cpu-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--",
+      "--test-threads=1"
+    ],
+    "timeout_seconds": 180,
+    "expected_exit": 0,
+    "required_text": [
+      "test result: ok."
+    ]
+  },
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-build-cli",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "timeout_seconds": 240,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-build-libtest",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "timeout_seconds": 240,
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "require_quiet": false,
+    "name": "pool-mlx-suite",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "timeout_seconds": 300,
+    "expected_exit": 0,
+    "required_text": [
+      "test result: ok."
+    ]
+  }
+]

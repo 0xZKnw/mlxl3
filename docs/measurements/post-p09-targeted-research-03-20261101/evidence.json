@@ -1,0 +1,200 @@
+{
+  "method": "Read existing P09 common-window CPU-idle samples; select exact scope host_async_submit. Presence counts overlap and are not durations. nearest_gpu_eval means first frame containing mlx::core:: equals gpu::eval(array&).",
+  "new_benchmark": false,
+  "modes": {
+    "AR": {
+      "steps": 27,
+      "first": 87,
+      "last": 113,
+      "all_cpu_idle_samples": 527,
+      "submit_samples": 329,
+      "presence_counts": {
+        "addCompletedHandler": 0,
+        "Block_copy": 10,
+        "autorelease": 1,
+        "unordered_set": 8,
+        "__hash_table": 52,
+        "gpu::eval": 276,
+        "eval_impl": 328,
+        "maybeInsertBarrier": 37,
+        "get_command_encoder": 42
+      },
+      "nearest_gpu_eval_count": 23,
+      "nearest_gpu_eval_leaf_counts": [
+        [
+          "_xzm_xzone_malloc_tiny",
+          7
+        ],
+        [
+          "<deduplicated_symbol>",
+          3
+        ],
+        [
+          "_xzm_free_main",
+          2
+        ],
+        [
+          "_Block_object_assign",
+          2
+        ],
+        [
+          "0x19e138a4d",
+          1
+        ],
+        [
+          "_xzm_xzone_malloc_freelist_outlined",
+          1
+        ],
+        [
+          "_xzm_chunk_list_pop",
+          1
+        ],
+        [
+          "_free",
+          1
+        ],
+        [
+          "_Block_copy",
+          1
+        ],
+        [
+          "AutoreleasePoolPage::releaseUntil(objc_object**)",
+          1
+        ],
+        [
+          "0x19e140b1d",
+          1
+        ],
+        [
+          "objc_msgSend",
+          1
+        ],
+        [
+          "mlx::core::gpu::eval(mlx::core::array&)",
+          1
+        ]
+      ]
+    },
+    "MTP": {
+      "steps": 27,
+      "first": 87,
+      "last": 113,
+      "all_cpu_idle_samples": 462,
+      "submit_samples": 258,
+      "presence_counts": {
+        "addCompletedHandler": 0,
+        "Block_copy": 5,
+        "autorelease": 2,
+        "unordered_set": 4,
+        "__hash_table": 27,
+        "gpu::eval": 205,
+        "eval_impl": 258,
+        "maybeInsertBarrier": 31,
+        "get_command_encoder": 35
+      },
+      "nearest_gpu_eval_count": 25,
+      "nearest_gpu_eval_leaf_counts": [
+        [
+          "_xzm_xzone_malloc_tiny",
+          9
+        ],
+        [
+          "_xzm_free_main",
+          5
+        ],
+        [
+          "<deduplicated_symbol>",
+          3
+        ],
+        [
+          "mlx::core::gpu::eval(mlx::core::array&)",
+          3
+        ],
+        [
+          "objc_autoreleasePoolPop",
+          1
+        ],
+        [
+          "_free",
+          1
+        ],
+        [
+          "_Block_copy",
+          1
+        ],
+        [
+          "DYLD-STUB$$operator delete(void*)",
+          1
+        ],
+        [
+          "objc_msgSend",
+          1
+        ]
+      ]
+    },
+    "DF": {
+      "steps": 27,
+      "first": 87,
+      "last": 113,
+      "all_cpu_idle_samples": 440,
+      "submit_samples": 233,
+      "presence_counts": {
+        "addCompletedHandler": 0,
+        "Block_copy": 3,
+        "autorelease": 0,
+        "unordered_set": 1,
+        "__hash_table": 26,
+        "gpu::eval": 179,
+        "eval_impl": 233,
+        "maybeInsertBarrier": 26,
+        "get_command_encoder": 27
+      },
+      "nearest_gpu_eval_count": 14,
+      "nearest_gpu_eval_leaf_counts": [
+        [
+          "_xzm_xzone_malloc_tiny",
+          5
+        ],
+        [
+          "<deduplicated_symbol>",
+          3
+        ],
+        [
+          "_xzm_free_main",
+          2
+        ],
+        [
+          "malloc_type_malloc",
+          1
+        ],
+        [
+          "_xzm_xzone_malloc_freelist_outlined",
+          1
+        ],
+        [
+          "DYLD-STUB$$_Block_object_assign",
+          1
+        ],
+        [
+          "_Block_copy",
+          1
+        ]
+      ]
+    }
+  },
+  "inputs": {
+    "docs/measurements/decode-profile-p09-20261101/AR-common/attribution.json": "49dbb988d1bc4349106d47b60687f0f74b3ea7a3cb854eaf934ce60e55cee419",
+    "docs/measurements/decode-profile-p09-20261101/MTP-common/attribution.json": "daf66754e1e9addfb414b6cae2f67261048a08365fa7da361962fad485c423ff",
+    "docs/measurements/decode-profile-p09-20261101/DF-common/attribution.json": "27b2eeb59abeb6e136709c88abb7c85ea0396c22ac5a3d8fd54aa295d3d0069c",
+    "native/src/linear.rs": "142566ca216930d0cf1ba21a0d7514c1844d8d0a79934196bd4b84de2ffbe327",
+    "native/src/ssd_moe.rs": "bb712ea6db3ca0a0ff56d5967b4b13a8c155060b5df9c9d353f01a502680807a",
+    "native/src/router.rs": "6248d7aa50917edfc7b9e62e3ee8c192f3be9cc5db5038924b251613655030aa",
+    "native/ffi/prepared_metal.h": "32bd0363b28eb1c338cda39804de1818e82d1e3688d5aa5022414ef372228fb8",
+    "native/ffi/disk_reader.h": "232587bc59483be17f9a3e5d53e9c841b1799c87d99e82409368caa48b241ee7",
+    "native/ffi/mlx_bridge.cpp": "077fbd320c7a02208b4219a7a6a5cf35bd8c0fbd02c7e016c630037e63686fcd",
+    "build.rs": "b270993f26dbcdcff8cea25140e40ebd1d8c762dc5326e30eae06bdec9adad1e",
+    "docs/measurements/sushi-20261027/main-sync-opportunity.json": "a2c99c0487cee910c3124a7f129abc3fff30d64631e683023ffd4cad44dbbfc3",
+    "docs/measurements/post-p09-targeted-research-03-20261101/mlx-eval-current.cpp.txt": "02bb25ee79f8ce26a0fa242644bf2db97407f77f35fbd7f45e7ae67c746fe71f",
+    "docs/measurements/post-p09-targeted-research-03-20261101/mlx-eval-v0322.cpp.txt": "4a7c9abe4e4d9e25933b83d85029c2a54d7441231bc0c20878e4199b859b7472"
+  }
+}

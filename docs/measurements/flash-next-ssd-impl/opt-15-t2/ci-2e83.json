@@ -1,0 +1,495 @@
+{
+  "38261863229": {
+    "conclusion": "",
+    "headSha": "2e83f157d986f8c673790c3dc2325254b08cab2f",
+    "jobs": [
+      {
+        "completedAt": "2026-10-12T14:20:31Z",
+        "conclusion": "success",
+        "databaseId": 114854753878,
+        "name": "kani-flash-contracts",
+        "startedAt": "2026-10-12T14:19:22Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-12T14:19:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-12T14:19:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:28Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-12T14:19:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:28Z",
+            "conclusion": "success",
+            "name": "Verify Flash offsets, partition and greedy commits independently",
+            "number": 3,
+            "startedAt": "2026-10-12T14:19:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:28Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 6,
+            "startedAt": "2026-10-12T14:20:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:28Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 7,
+            "startedAt": "2026-10-12T14:20:28Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38261863229/job/114854753878"
+      },
+      {
+        "completedAt": "0001-01-01T00:00:00Z",
+        "conclusion": "",
+        "databaseId": 114854754290,
+        "name": "kani",
+        "startedAt": "2026-10-12T14:19:22Z",
+        "status": "in_progress",
+        "steps": [
+          {
+            "completedAt": "2026-10-12T14:19:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-12T14:19:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:27Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-12T14:19:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Verify Rust safety contracts with Kani",
+            "number": 3,
+            "startedAt": "2026-10-12T14:19:27Z",
+            "status": "in_progress"
+          },
+          {
+            "completedAt": "0001-01-01T00:00:00Z",
+            "conclusion": "",
+            "name": "Post Run actions/checkout@v4",
+            "number": 6,
+            "startedAt": "0001-01-01T00:00:00Z",
+            "status": "pending"
+          }
+        ],
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38261863229/job/114854754290"
+      },
+      {
+        "completedAt": "2026-10-12T14:21:26Z",
+        "conclusion": "success",
+        "databaseId": 114854754525,
+        "name": "native (ubuntu-latest)",
+        "startedAt": "2026-10-12T14:19:22Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-12T14:19:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-12T14:19:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:28Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-12T14:19:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:30Z",
+            "conclusion": "success",
+            "name": "Install Rust tooling",
+            "number": 3,
+            "startedAt": "2026-10-12T14:19:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:32Z",
+            "conclusion": "success",
+            "name": "Run cargo fmt --check",
+            "number": 4,
+            "startedAt": "2026-10-12T14:19:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:56Z",
+            "conclusion": "success",
+            "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+            "number": 5,
+            "startedAt": "2026-10-12T14:19:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:16Z",
+            "conclusion": "success",
+            "name": "Run cargo test --locked --features chat",
+            "number": 6,
+            "startedAt": "2026-10-12T14:19:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:18Z",
+            "conclusion": "success",
+            "name": "Run cargo build --locked --features chat",
+            "number": 7,
+            "startedAt": "2026-10-12T14:20:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:23Z",
+            "conclusion": "success",
+            "name": "Check Metal cache key ordering and allocation regressions",
+            "number": 8,
+            "startedAt": "2026-10-12T14:20:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:23Z",
+            "conclusion": "skipped",
+            "name": "Check synchronous SSD readers and failure draining",
+            "number": 9,
+            "startedAt": "2026-10-12T14:20:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:23Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 10,
+            "startedAt": "2026-10-12T14:20:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:29Z",
+            "conclusion": "success",
+            "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+            "number": 11,
+            "startedAt": "2026-10-12T14:20:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:29Z",
+            "conclusion": "success",
+            "name": "Lint native verification scripts and regressions",
+            "number": 12,
+            "startedAt": "2026-10-12T14:20:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:21Z",
+            "conclusion": "success",
+            "name": "Check bridge and QMM validation tools",
+            "number": 13,
+            "startedAt": "2026-10-12T14:20:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:23Z",
+            "conclusion": "success",
+            "name": "Check idle-memory benchmark failure and parity gates",
+            "number": 14,
+            "startedAt": "2026-10-12T14:21:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:23Z",
+            "conclusion": "skipped",
+            "name": "Compile and lint the shipped MLX bridge",
+            "number": 15,
+            "startedAt": "2026-10-12T14:21:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:23Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 29,
+            "startedAt": "2026-10-12T14:21:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 30,
+            "startedAt": "2026-10-12T14:21:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:24Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-10-12T14:21:24Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38261863229/job/114854754525"
+      },
+      {
+        "completedAt": "2026-10-12T14:25:04Z",
+        "conclusion": "success",
+        "databaseId": 114854754916,
+        "name": "native (macos-26)",
+        "startedAt": "2026-10-12T14:19:27Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-12T14:19:29Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-12T14:19:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:34Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-12T14:19:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:42Z",
+            "conclusion": "success",
+            "name": "Install Rust tooling",
+            "number": 3,
+            "startedAt": "2026-10-12T14:19:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:19:42Z",
+            "conclusion": "success",
+            "name": "Run cargo fmt --check",
+            "number": 4,
+            "startedAt": "2026-10-12T14:19:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:16Z",
+            "conclusion": "success",
+            "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+            "number": 5,
+            "startedAt": "2026-10-12T14:19:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:20:58Z",
+            "conclusion": "success",
+            "name": "Run cargo test --locked --features chat",
+            "number": 6,
+            "startedAt": "2026-10-12T14:20:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:04Z",
+            "conclusion": "success",
+            "name": "Run cargo build --locked --features chat",
+            "number": 7,
+            "startedAt": "2026-10-12T14:20:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:10Z",
+            "conclusion": "success",
+            "name": "Check Metal cache key ordering and allocation regressions",
+            "number": 8,
+            "startedAt": "2026-10-12T14:21:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:18Z",
+            "conclusion": "success",
+            "name": "Check synchronous SSD readers and failure draining",
+            "number": 9,
+            "startedAt": "2026-10-12T14:21:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:18Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 10,
+            "startedAt": "2026-10-12T14:21:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:23Z",
+            "conclusion": "success",
+            "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+            "number": 11,
+            "startedAt": "2026-10-12T14:21:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:21:24Z",
+            "conclusion": "success",
+            "name": "Lint native verification scripts and regressions",
+            "number": 12,
+            "startedAt": "2026-10-12T14:21:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:22:39Z",
+            "conclusion": "success",
+            "name": "Check bridge and QMM validation tools",
+            "number": 13,
+            "startedAt": "2026-10-12T14:21:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:22:43Z",
+            "conclusion": "success",
+            "name": "Check idle-memory benchmark failure and parity gates",
+            "number": 14,
+            "startedAt": "2026-10-12T14:22:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:25:00Z",
+            "conclusion": "success",
+            "name": "Compile and lint the shipped MLX bridge",
+            "number": 15,
+            "startedAt": "2026-10-12T14:22:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:25:00Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 29,
+            "startedAt": "2026-10-12T14:25:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:25:01Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 30,
+            "startedAt": "2026-10-12T14:25:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:25:03Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-10-12T14:25:01Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38261863229/job/114854754916"
+      }
+    ],
+    "status": "in_progress"
+  },
+  "38261863247": {
+    "conclusion": "success",
+    "headSha": "2e83f157d986f8c673790c3dc2325254b08cab2f",
+    "jobs": [
+      {
+        "completedAt": "2026-10-12T14:30:38Z",
+        "conclusion": "success",
+        "databaseId": 114854125794,
+        "name": "desktop-and-protocol",
+        "startedAt": "2026-10-12T14:17:59Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-12T14:18:00Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-12T14:17:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:18:06Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-12T14:18:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:18:10Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-python@v5",
+            "number": 3,
+            "startedAt": "2026-10-12T14:18:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:18:32Z",
+            "conclusion": "success",
+            "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+            "number": 4,
+            "startedAt": "2026-10-12T14:18:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:30:32Z",
+            "conclusion": "success",
+            "name": "Run scripts/check-e2e.sh",
+            "number": 5,
+            "startedAt": "2026-10-12T14:18:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:30:33Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-python@v5",
+            "number": 9,
+            "startedAt": "2026-10-12T14:30:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:30:34Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 10,
+            "startedAt": "2026-10-12T14:30:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-12T14:30:36Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 11,
+            "startedAt": "2026-10-12T14:30:34Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38261863247/job/114854125794"
+      }
+    ],
+    "status": "completed"
+  }
+}

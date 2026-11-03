@@ -1,0 +1,12 @@
+unformatted: File would be reformatted
+   --> tests/test_flash_larger_cache.py:322:22
+    |
+321 |         "run_path",
+    -         lambda path: (
+    -             {"main": supervise} if "run-supervisor" in str(path) else {"snapshot": dict}
+    -         ),
+322 +         lambda path: {"main": supervise} if "run-supervisor" in str(path) else {"snapshot": dict},
+323 |     )
+    |
+
+1 file would be reformatted

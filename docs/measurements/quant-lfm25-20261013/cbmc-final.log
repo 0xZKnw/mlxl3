@@ -1,0 +1,80 @@
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_packing_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is UNSATISFIABLE
+
+** Results:
+tests/../src/mlxl3_quantizer/pack_trellis.metal function mlxl3_pack_word
+[mlxl3_pack_word.division-by-zero.1] line 4 division by zero in word / (16u * k): SUCCESS
+[mlxl3_pack_word.overflow.1] line 4 arithmetic overflow on unsigned * in 16u * k: SUCCESS
+[mlxl3_pack_word.division-by-zero.2] line 5 division by zero in word % (16u * k): SUCCESS
+[mlxl3_pack_word.division-by-zero.3] line 5 division by zero in (word % (16u * k)) / k: SUCCESS
+[mlxl3_pack_word.division-by-zero.4] line 6 division by zero in word % k: SUCCESS
+[mlxl3_pack_word.overflow.2] line 6 arithmetic overflow on unsigned * in (word % k) * 16u: SUCCESS
+[mlxl3_pack_word.division-by-zero.5] line 8 division by zero in begin / k: SUCCESS
+[mlxl3_pack_word.division-by-zero.6] line 8 division by zero in (begin + 15u) / k: SUCCESS
+[mlxl3_pack_word.overflow.3] line 8 arithmetic overflow on unsigned + in begin + 15u: SUCCESS
+[mlxl3_pack_word.overflow.15] line 8 arithmetic overflow on unsigned + in i + 1u: SUCCESS
+[mlxl3_pack_word.unwind.0] line 8 unwinding assertion loop 0: SUCCESS
+[mlxl3_pack_word.overflow.4] line 9 arithmetic overflow on unsigned * in tile * 256u: SUCCESS
+[mlxl3_pack_word.overflow.5] line 9 arithmetic overflow on unsigned * in span * 16u: SUCCESS
+[mlxl3_pack_word.overflow.6] line 9 arithmetic overflow on unsigned + in tile * 256u + span * 16u: SUCCESS
+[mlxl3_pack_word.overflow.7] line 9 arithmetic overflow on unsigned + in tile * 256u + span * 16u + i: SUCCESS
+[mlxl3_pack_word.overflow.8] line 9 arithmetic overflow on unsigned - in (1u << k) - 1u: SUCCESS
+[mlxl3_pack_word.pointer_dereference.1] line 9 dereference failure: pointer NULL in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.pointer_dereference.2] line 9 dereference failure: pointer invalid in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.pointer_dereference.3] line 9 dereference failure: deallocated dynamic object in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.pointer_dereference.4] line 9 dereference failure: dead object in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.pointer_dereference.5] line 9 dereference failure: pointer outside object bounds in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.pointer_dereference.6] line 9 dereference failure: invalid integer address in encoded[(signed long int)(tile * 256u + span * 16u + i)]: SUCCESS
+[mlxl3_pack_word.undefined-shift.1] line 9 shift distance too large in 1u << k: SUCCESS
+[mlxl3_pack_word.overflow.9] line 10 arithmetic overflow on unsigned + in i + 1u: SUCCESS
+[mlxl3_pack_word.overflow.10] line 10 arithmetic overflow on unsigned * in (i + 1u) * k: SUCCESS
+[mlxl3_pack_word.overflow.11] line 11 arithmetic overflow on unsigned + in begin + 16u: SUCCESS
+[mlxl3_pack_word.overflow.12] line 11 arithmetic overflow on unsigned - in (begin + 16u) - end: SUCCESS
+[mlxl3_pack_word.undefined-shift.2] line 11 shift distance too large in value << (begin + 16u) - end: SUCCESS
+[mlxl3_pack_word.overflow.13] line 12 arithmetic overflow on unsigned - in end - begin: SUCCESS
+[mlxl3_pack_word.overflow.14] line 12 arithmetic overflow on unsigned - in (end - begin) - 16u: SUCCESS
+[mlxl3_pack_word.undefined-shift.3] line 12 shift distance too large in value >> (end - begin) - 16u: SUCCESS
+
+tests/quantize_packing_proof.cpp function oracle
+[oracle.division-by-zero.1] line 21 division by zero in word / k: SUCCESS
+[oracle.division-by-zero.2] line 22 division by zero in word % k: SUCCESS
+[oracle.overflow.1] line 22 arithmetic overflow on unsigned * in (word % k) * 16u: SUCCESS
+[oracle.overflow.7] line 24 arithmetic overflow on unsigned + in bit + 1u: SUCCESS
+[oracle.overflow.2] line 25 arithmetic overflow on unsigned + in start + bit: SUCCESS
+[oracle.division-by-zero.3] line 26 division by zero in position / k: SUCCESS
+[oracle.overflow.3] line 26 arithmetic overflow on unsigned * in span * 16u: SUCCESS
+[oracle.overflow.4] line 26 arithmetic overflow on unsigned + in span * 16u + position / k: SUCCESS
+[oracle.pointer_dereference.1] line 26 dereference failure: pointer NULL in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.pointer_dereference.2] line 26 dereference failure: pointer invalid in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.pointer_dereference.3] line 26 dereference failure: deallocated dynamic object in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.pointer_dereference.4] line 26 dereference failure: dead object in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.pointer_dereference.5] line 26 dereference failure: pointer outside object bounds in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.pointer_dereference.6] line 26 dereference failure: invalid integer address in encoded[(signed long int)(span * 16u + position / k)]: SUCCESS
+[oracle.division-by-zero.4] line 27 division by zero in position % k: SUCCESS
+[oracle.overflow.5] line 27 arithmetic overflow on unsigned - in k - 1u: SUCCESS
+[oracle.overflow.6] line 27 arithmetic overflow on unsigned - in (k - 1u) - position % k: SUCCESS
+[oracle.undefined-shift.1] line 27 shift distance too large in symbol >> (k - 1u) - position % k: SUCCESS
+
+tests/quantize_packing_proof.cpp function proof
+[proof.array_bounds.1] line 37 array 'encoded' upper bound in encoded[(signed long int)i]: SUCCESS
+[proof.overflow.1] line 37 arithmetic overflow on unsigned + in i + 1u: SUCCESS
+[proof.overflow.2] line 40 arithmetic overflow on unsigned * in 32u * k: SUCCESS
+[proof.no-body.__CPROVER_cover] line 41 no body for callee __CPROVER_cover(bool): FAILURE
+[proof.overflow.3] line 45 arithmetic overflow on unsigned * in 32u * k: SUCCESS
+[proof.overflow.4] line 45 arithmetic overflow on unsigned - in 32u * k - 1u: SUCCESS
+[proof.overflow.5] line 46 arithmetic overflow on unsigned * in 16u * k: SUCCESS
+[proof.assertion.1] line 47 mlxl3_pack_word(encoded, k, word) == oracle(encoded, k, word): SUCCESS
+
+** 1 of 57 failed (2 iterations)
+VERIFICATION FAILED

@@ -1,0 +1,164 @@
+{
+  "status": "desktop_package_validated_with_limits",
+  "desktop_version": "1.5.0",
+  "desktop_build": 30,
+  "source_commit": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+  "source_repository": "https://github.com/0xZKnw/mlxl3",
+  "tag": "v1.5.0",
+  "architecture": "arm64",
+  "minimum_macos": "26.2",
+  "signing": "ad-hoc; not notarized",
+  "dmg": {
+    "name": "MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg",
+    "bytes": 73805588,
+    "sha256": "590003037dbd8daa7ee6bc32f7cb530846cc72c33768ebd458e0cb628113208d"
+  },
+  "engine": {
+    "bundled_version": "1.5.0",
+    "separate_release_published": false,
+    "independent_release_unchanged": "https://github.com/0xZKnw/mlxl3/releases/tag/engine-v1.4.8",
+    "mlx_version": "0.32.2"
+  },
+  "checks": {
+    "rust_cpu_passed": 167,
+    "rust_cpu_ignored": 3,
+    "rust_mlx_passed": 192,
+    "rust_mlx_ignored": 85,
+    "python_passed": 840,
+    "python_skipped": 115,
+    "new_desktop_checks": 219,
+    "local_e2e": "initial fixture failure retained; affected checks and remaining suite passed after fixture correction; not a single successful full script run",
+    "strict_rust_format_and_clippy": "passed; CPU and shipped MLX variants, all targets",
+    "strict_swift6_compilation": "passed",
+    "offscreen_views_inspected": 4,
+    "final_dmg_preflight": "passed; production updater mounted read-only, verified and executed runtime, then detached",
+    "signed_updater_cases": 15,
+    "disposable_engine_install_and_fallback": "passed",
+    "runtime_manifest_files_checked": 4,
+    "physical_json_checks": 6,
+    "physical_json_generated_tokens": 372,
+    "physical_json_token_budget": 1024,
+    "physical_json_oracle": "independent jsonschema validation",
+    "physical_json_failure_and_cancel_recovery": "passed",
+    "user_installed_app_replaced": false,
+    "ci_full_desktop_e2e": "passed on exact packaged source SHA",
+    "ci_native_linux": "passed",
+    "ci_native_macos_shipped_mlx": "passed",
+    "ci_exl3_conversion": "passed",
+    "release_selector_fixture_cases": 8,
+    "release_selector_invalid_input_cases": 3
+  },
+  "source_verification": {
+    "kind": "bounded CPU model checking; not a complete application proof",
+    "tool": "Kani 0.68.0 / CBMC 6.11",
+    "retry_budget": {
+      "harnesses_passed": 1,
+      "checks": 57,
+      "covers": 3,
+      "domain": "symbolic i64 and usize64 without assumptions; independent u128 budget oracle"
+    },
+    "library": {
+      "harnesses_passed": 70,
+      "harnesses_total": 93,
+      "harness_timeouts": 23,
+      "seconds_per_timeout": 60,
+      "checks_in_completed_harnesses": 9555,
+      "unreachable_checks": 160,
+      "covers": 202,
+      "status": "incomplete; timeout properties unverified"
+    },
+    "http_usage": {
+      "compiled_test_targets": 2,
+      "checks_per_target": 65,
+      "covers_per_target": 3,
+      "domain": "symbolic u64 prompt/completion and Option<u64> budget; checked saturation/rejection"
+    },
+    "swift_python_formal_proof": "not established"
+  },
+  "ci_observed_at": "2026-10-18T18:14:53.757985+00:00",
+  "ci": [
+    {
+      "name": "Native Rust checks",
+      "status": "in_progress",
+      "conclusion": "",
+      "head_sha": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944315",
+      "jobs": [
+        {
+          "name": "native (macos-26)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944315/job/117747221029",
+          "current_steps": []
+        },
+        {
+          "name": "kani",
+          "status": "in_progress",
+          "conclusion": "",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944315/job/117747221225",
+          "current_steps": [
+            "Verify Rust safety contracts with Kani"
+          ]
+        },
+        {
+          "name": "native (ubuntu-latest)",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944315/job/117747221253",
+          "current_steps": []
+        }
+      ]
+    },
+    {
+      "name": "Regression checks",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944336",
+      "jobs": [
+        {
+          "name": "desktop-and-protocol",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944336/job/117747221276",
+          "current_steps": []
+        }
+      ]
+    },
+    {
+      "name": "EXL3 conversion contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "head_sha": "eaf296468c7ea4d92edab9e656bf749ac71f3a36",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944365",
+      "jobs": [
+        {
+          "name": "packing-proof",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944365/job/117747221712",
+          "current_steps": []
+        },
+        {
+          "name": "conversion",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/39151944365/job/117747221786",
+          "current_steps": []
+        }
+      ]
+    }
+  ],
+  "performance": "no new speed, RAM or quality gain claimed; no performance campaign for this release",
+  "migration": "history format1 is read and migrated to format2; older Desktop cannot read format2; keep a separate old history copy for rollback",
+  "limits": [
+    "23 local library Kani timeouts, plus historical MCP URL verifier internal error, remain unverified",
+    "Skipped Rust/Python tests are not executed coverage",
+    "Microphone, dictation/speech quality and remote MCP services not qualified",
+    "JSON schema support is an explicit subset; unsupported constructs rejected",
+    "Tests and CPU contracts do not prove SwiftUI, MLX/Metal, concurrency or all models",
+    "Physical valid JSON request exhausted the initial 256-token budget; later 1024-token check passed; both results retained",
+    "CI statuses are the inspected snapshot, not an assertion that pending jobs passed"
+  ],
+  "evidence_policy": "This release asset contains release identifiers, checksums, test counts, public CI links and aggregate results; no local paths, raw logs or checkpoint file metadata."
+}

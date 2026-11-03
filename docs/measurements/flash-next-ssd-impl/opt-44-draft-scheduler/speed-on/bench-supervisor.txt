@@ -1,0 +1,558 @@
+import copy
+import json
+import math
+import os
+import runpy
+import signal
+import statistics
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+W = Path.cwd()
+ROOT = Path("/Users/justin/Documents/mix-stq1_0")
+BASE = W / "docs/measurements/flash-next-ssd-impl/opt-44-draft-scheduler"
+P = BASE / "speed-on"
+MODES = ["off", "dflash2", "mtp", "mtp", "dflash2", "off"]
+PLANNED = 2 * len(MODES)
+THINKING = True
+
+
+def token_hash(tokens):
+    value = 0xCBF29CE484222325
+    for token in tokens:
+        for byte in token.to_bytes(4, "little"):
+            value = ((value ^ byte) * 0x100000001B3) & ((1 << 64) - 1)
+    return f"{value:016x}"
+
+
+def number(value):
+    assert type(value) in [int, float] and math.isfinite(value) and value >= 0
+
+
+def integer(value):
+    assert type(value) is int and value >= 0
+
+
+def checked(log, mode, golden, mtp_counters):
+    reports = [
+        json.loads(s.split("FLASH_DRAFT_SPEED ", 1)[1])
+        for s in log.splitlines()
+        if "FLASH_DRAFT_SPEED " in s
+    ]
+    assert len(reports) == 1, "missing or duplicate speed report"
+    report = reports[0]
+    assert report["status"] == "completed_prototype_arm" and report["mode"] == mode
+    samples = report["samples"]
+    standalone = [
+        json.loads(s.split("FLASH_DRAFT_SPEED_SAMPLE ", 1)[1])
+        for s in log.splitlines()
+        if "FLASH_DRAFT_SPEED_SAMPLE " in s
+    ]
+    assert len(samples) == 3 and standalone == samples, "partial arm"
+    for i, sample in enumerate(samples):
+        assert type(sample["repetition"]) is int and sample["repetition"] == i
+        assert sample["warmup"] is (i == 0) and sample["mode"] == mode
+        assert type(sample["width"]) is int and sample["width"] == 3
+        for name in [
+            "decode_tokens",
+            "context_limit",
+            "prompt_tokens",
+            "proposed",
+            "accepted",
+            "blocks",
+        ]:
+            integer(sample[name])
+        assert sample["decode_tokens"] == 127 and sample["context_limit"] == 4096
+        assert 0 < sample["prompt_tokens"] <= 4096 - 127
+        ids = sample["generated"]
+        assert len(ids) == 128 and all(type(t) is int and 0 <= t < 248320 for t in ids)
+        assert token_hash(ids) == golden, "128-token independent hash diverged"
+        assert ids == samples[0]["generated"], "repetition divergence"
+        for name in ["decode_seconds", "decode_tps"]:
+            number(sample[name])
+            assert sample[name] > 0
+        assert math.isclose(sample["decode_tps"], 127 / sample["decode_seconds"], rel_tol=1e-12)
+        peak = sample["memory"]["process_lifetime_peak_bytes"]
+        assert type(peak) is int and 0 < peak <= 10 << 30
+        io = sample["target_io_including_prefill_hits_misses_bytes"]
+        assert len(io) == 3
+        for value in io:
+            integer(value)
+        assert sample["accepted"] <= sample["proposed"]
+        if mode == "off":
+            assert sample["proposed"] == sample["accepted"] == sample["blocks"] == 0
+        elif mode == "mtp" and mtp_counters is not None:
+            assert {
+                "mtp_proposed_tokens": sample["proposed"],
+                "mtp_accepted_tokens": sample["accepted"],
+                "mtp_blocks": sample["blocks"],
+            } == {
+                key: mtp_counters[key]
+                for key in ["mtp_proposed_tokens", "mtp_accepted_tokens", "mtp_blocks"]
+            }
+        elif mode != "mtp":
+            assert sample["blocks"] > 0
+            assert mode == "dspark" or sample["proposed"] > 0
+            assert sample["accepted"] + sample["blocks"] in [126, 127]
+            for key in ["draft_seconds", "verify_and_cache_seconds"]:
+                number(sample["profile"][key])
+            assert sum(
+                sample["profile"][k] for k in ["draft_seconds", "verify_and_cache_seconds"]
+            ) <= sample["decode_seconds"] * (1 + 1e-9)
+            histogram = sample["profile"]["prefix_histogram"]
+            assert len(histogram) == 8
+            for count in histogram:
+                integer(count)
+            assert sum(histogram) == sample["blocks"]
+            assert sum(i * count for i, count in enumerate(histogram)) == sample["proposed"]
+            assert histogram[4:] == [0] * 4
+            io = sample["profile"]["decode_io_hits_misses_bytes"]
+            assert len(io) == 3
+            for count, total in zip(
+                io, sample["target_io_including_prefill_hits_misses_bytes"], strict=True
+            ):
+                integer(count)
+                assert count <= total
+        if mode == "mtp":
+            assert sample["proposed"] == sample["blocks"] > 0
+            assert sample["accepted"] + sample["blocks"] in [126, 127]
+            phases = sample["profile"]["mtp_profile_seconds"]
+            assert len(phases) == 4
+            for value in phases:
+                number(value)
+            assert sum(phases[:3]) <= phases[3] * (1 + 1e-9)
+            assert phases[3] <= sample["decode_seconds"] * (1 + 1e-9)
+        assert [sample[k] for k in ["proposed", "accepted", "blocks"]] == [
+            samples[0][k] for k in ["proposed", "accepted", "blocks"]
+        ]
+    tps = [s["decode_tps"] for s in samples[1:]]
+    assert max(tps) / min(tps) <= 1.25, "within-arm drift exceeded"
+    return {
+        "samples": samples,
+        "tps": statistics.median(tps),
+        "peak_bytes": max(s["memory"]["process_lifetime_peak_bytes"] for s in samples),
+    }
+
+
+def summary(records):
+    assert len(records) == PLANNED and all(
+        r["status"] == "validated" and r["reaped"] for r in records
+    )
+    comparisons = []
+    for prompt in ["MAIN", "HOLD"]:
+        arms = [r for r in records if r["prompt"] == prompt]
+        assert [r["mode"] for r in arms] == MODES
+        controls = [arms[0], arms[-1]]
+        drift = max(r["tps"] for r in controls) / min(r["tps"] for r in controls)
+        for mode in dict.fromkeys(m for m in MODES if m != "off"):
+            cells = [r for r in arms if r["mode"] == mode]
+            ratios = [c["tps"] / h["tps"] for c, h in zip(cells, controls, strict=True)]
+            extra = [
+                c["peak_bytes"] - h["peak_bytes"] for c, h in zip(cells, controls, strict=True)
+            ]
+            limit = (1 << 30) if mode == "mtp" else (1536 << 20)
+            passed = (
+                drift <= 1.10
+                and min(ratios) >= 1
+                and math.prod(ratios) ** 0.5 >= 1.01
+                and max(extra) <= limit
+            )
+            comparisons.append(
+                {
+                    "prompt": prompt,
+                    "mode": mode,
+                    "ratios": ratios,
+                    "geometric_mean_ratio": math.prod(ratios) ** 0.5,
+                    "extra_peak_bytes": extra,
+                    "control_drift": drift,
+                    "eligible_prototype_gain": passed,
+                }
+            )
+    return {
+        "status": "completed_prototype_comparison",
+        "parity_complete": True,
+        "comparisons": comparisons,
+        "delivered_gain": False,
+    }
+
+
+def self_test():
+    ids = list(range(128))
+    sample = {
+        "repetition": 0,
+        "warmup": True,
+        "mode": "off",
+        "width": 3,
+        "generated": ids,
+        "decode_tokens": 127,
+        "context_limit": 4096,
+        "prompt_tokens": 70,
+        "proposed": 0,
+        "accepted": 0,
+        "blocks": 0,
+        "decode_seconds": 10.0,
+        "decode_tps": 12.7,
+        "memory": {"process_lifetime_peak_bytes": 8 << 30},
+        "target_io_including_prefill_hits_misses_bytes": [1, 2, 3],
+        "profile": {},
+    }
+    samples = [{**sample, "repetition": i, "warmup": i == 0} for i in range(3)]
+
+    def log(data, mode="off"):
+        return (
+            "\n".join("FLASH_DRAFT_SPEED_SAMPLE " + json.dumps(s) for s in data)
+            + "\nFLASH_DRAFT_SPEED "
+            + json.dumps({"status": "completed_prototype_arm", "mode": mode, "samples": data})
+        )
+
+    checked(log(samples), "off", token_hash(ids), {})
+    cases = 1
+    for path, value in [
+        (["generated"], []),
+        (["generated", 0], True),
+        (["generated", 0], 248320),
+        (["decode_tokens"], True),
+        (["width"], 7),
+        (["decode_seconds"], 0),
+        (["decode_tps"], float("nan")),
+        (["mode"], "mtp"),
+        (["memory", "process_lifetime_peak_bytes"], (10 << 30) + 1),
+        (["target_io_including_prefill_hits_misses_bytes"], []),
+        (["blocks"], 1),
+        (["repetition"], True),
+        (["warmup"], False),
+    ]:
+        data = copy.deepcopy(samples)
+        target = data[0]
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+        try:
+            checked(log(data), "off", token_hash(ids), {})
+        except (AssertionError, ValueError, TypeError, KeyError):
+            cases += 1
+        else:
+            raise AssertionError(f"undetected mutation {path}")
+    for value in ["", log(samples) + "\n" + log(samples), log(samples[:2])]:
+        try:
+            checked(value, "off", token_hash(ids), {})
+        except (AssertionError, ValueError, TypeError, KeyError):
+            cases += 1
+        else:
+            raise AssertionError("partial or duplicate arm accepted")
+    counters = {"mtp_proposed_tokens": 72, "mtp_accepted_tokens": 54, "mtp_blocks": 72}
+    for mode in ["mtp", "dflash2", "dspark"]:
+        data = copy.deepcopy(samples)
+        for sample in data:
+            sample.update(
+                mode=mode,
+                proposed=72 if mode == "mtp" else 216,
+                accepted=54,
+                blocks=72,
+                profile={"mtp_profile_seconds": [1.0, 6.0, 1.0, 9.0]}
+                if mode == "mtp"
+                else {
+                    "draft_seconds": 1.0,
+                    "verify_and_cache_seconds": 8.0,
+                    "prefix_histogram": [0, 0, 0, 72, 0, 0, 0, 0],
+                    "decode_io_hits_misses_bytes": [0, 0, 0],
+                },
+            )
+        checked(log(data, mode), mode, token_hash(ids), counters)
+        cases += 1
+        data[1]["accepted"] = 0
+        try:
+            checked(log(data, mode), mode, token_hash(ids), counters)
+        except AssertionError:
+            cases += 1
+        else:
+            raise AssertionError("partial acceptance counters accepted")
+        if mode != "mtp":
+            data[1]["accepted"] = 54
+            data[1]["profile"]["draft_seconds"] = float("nan")
+            try:
+                checked(log(data, mode), mode, token_hash(ids), counters)
+            except AssertionError:
+                cases += 1
+            else:
+                raise AssertionError("nonfinite draft profile accepted")
+    # Structured44 counters must be validated separately from scalar timings.
+    for mode in ["dspark", "dflash2"]:
+        data = copy.deepcopy(samples)
+        for sample in data:
+            sample.update(
+                mode=mode,
+                proposed=216,
+                accepted=54,
+                blocks=72,
+                profile={
+                    "draft_seconds": 1.0,
+                    "verify_and_cache_seconds": 8.0,
+                    "prefix_histogram": [0, 0, 0, 72, 0, 0, 0, 0],
+                    "decode_io_hits_misses_bytes": [0, 0, 0],
+                },
+            )
+        for key, value in [
+            ("prefix_histogram", []),
+            ("prefix_histogram", [0, 0, 0, 71, 0, 0, 0, 0]),
+            ("prefix_histogram", [0, 0, 0, 72, False, 0, 0, 0]),
+            ("decode_io_hits_misses_bytes", []),
+            ("decode_io_hits_misses_bytes", [2, 0, 0]),
+        ]:
+            invalid = copy.deepcopy(data)
+            invalid[1]["profile"][key] = value
+            try:
+                checked(log(invalid, mode), mode, token_hash(ids), None)
+            except (AssertionError, ValueError, TypeError, KeyError):
+                cases += 1
+            else:
+                raise AssertionError("invalid structured profile accepted")
+    data = copy.deepcopy(samples)
+    for sample in data:
+        sample.update(
+            mode="dspark",
+            proposed=0,
+            accepted=0,
+            blocks=126,
+            profile={
+                "draft_seconds": 1.0,
+                "verify_and_cache_seconds": 8.0,
+                "prefix_histogram": [126, 0, 0, 0, 0, 0, 0, 0],
+                "decode_io_hits_misses_bytes": [0, 0, 0],
+            },
+        )
+    checked(log(data, "dspark"), "dspark", token_hash(ids), None)
+    cases += 1
+    for sample in data:
+        sample.update(
+            mode="mtp",
+            proposed=72,
+            accepted=54,
+            blocks=72,
+            profile={"mtp_profile_seconds": [1.0, 6.0, 1.0, 9.0]},
+        )
+    checked(log(data, "mtp"), "mtp", token_hash(ids), None)
+    cases += 1
+    for phases in [[], [0.0, 0.0, 0.0, float("nan")], [3.0, 6.0, 1.0, 9.0], [1.0, 6.0, 1.0, 11.0]]:
+        invalid = copy.deepcopy(data)
+        invalid[1]["profile"]["mtp_profile_seconds"] = phases
+        try:
+            checked(log(invalid, "mtp"), "mtp", token_hash(ids), None)
+        except (AssertionError, ValueError, TypeError, KeyError):
+            cases += 1
+        else:
+            raise AssertionError("invalid MTP clocks accepted")
+    print(
+        json.dumps(
+            {
+                "status": "passed",
+                "diagnostic_cases": cases,
+                "scope": "finite CPU mutations, not a proof",
+            }
+        )
+    )
+
+
+def qualified(quality, mutation):
+    assert len(quality) == 10 and all(r["status"] == "passed" and r["reaped"] for r in quality)
+    assert (
+        mutation["status"] == "detected_restored_and_positive_rechecked"
+        and mutation["restored"] is True
+    )
+    assert mutation["source_before_sha256"] == mutation["source_after_sha256"]
+    commands = mutation["commands"]
+    assert len(commands) == 3 and all(r["reaped"] for r in commands)
+    assert [(r["name"], r["exit_code"]) for r in commands] == [
+        ("build-mutant", 0),
+        ("negative", 101),
+        ("positive", 0),
+    ]
+    assert commands[0]["status"] == "completed" and all(
+        r["status"] == "passed_expected_result" for r in commands[1:]
+    )
+
+
+def main():
+    quality = json.loads((BASE / "quality1/quality.json").read_text())
+    mutation = json.loads((BASE / "mutations/result.json").read_text())
+    qualified(quality, mutation)
+    calibration = json.loads((BASE / "calibration-off/quality.json").read_text())
+    assert len(calibration) == 5 and all(
+        r["status"] == "passed" and r["reaped"] for r in calibration
+    )
+    assert (
+        json.loads((BASE / "calibration-off/prefix-profile.json").read_text())["status"]
+        == "calibrated_greedy_profile"
+    )
+    identity = json.loads((P / "identity.json").read_text())
+    hasher = runpy.run_path(str(P / "guards-supervisor.txt"))["hash_file"]
+    proof = json.loads((P / "guard-checks.json").read_text())
+    assert proof["status"] == "passed"
+    assert set(proof["source_hashes"]) == {"bench-supervisor.txt", "guards-supervisor.txt"}
+    for filename, digest in proof["source_hashes"].items():
+        assert hasher(P / filename) == digest
+    for filename, digest in identity["files"].items():
+        assert hasher(W / filename) == digest, filename
+    for filename, digest in identity["binaries"].items():
+        assert hasher(Path(filename)) == digest, filename
+    previous = runpy.run_path(
+        str(BASE.parent / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt")
+    )
+    snapshot, monitor = previous["snapshot"], previous["monitor"]
+    parse_vm = runpy.run_path(str(W / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+    prompts = runpy.run_path(str(W / "scripts/benchmark-flash-bridge.py"))["PROMPTS"]
+    matrix = json.loads((P / "matrix.json").read_text())
+    assert [(r["prompt"], r["mode"]) for r in matrix] == [(p, m) for p in prompts for m in MODES]
+    assert not (P / "execution.json").exists(), "refusing to overwrite"
+    records = []
+    result = {"status": "running", "parity_complete": False, "delivered_gain": False}
+    try:
+        for item in matrix:
+            r = {**item, "status": "running", "before": snapshot(parse_vm)}
+            records.append(r)
+            child = None
+            started = time.monotonic()
+            try:
+                assert r["before"]["pmset -g batt"].splitlines()[0] == "Now drawing from 'AC Power'"
+                (P / "execution.json").write_text(json.dumps(records, indent=2) + "\n")
+                logfile = P / (r["name"] + ".log")
+                with logfile.open("w") as log:
+                    child = subprocess.Popen(
+                        r["command"],
+                        env={**os.environ, **r["env"]},
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    r["pid"] = child.pid
+                    (P / "execution.json").write_text(json.dumps(records, indent=2) + "\n")
+                    r["exit_code"] = monitor(child, r, parse_vm)
+                r["after"] = snapshot(parse_vm)
+                assert r["exit_code"] == 0
+                assert (
+                    r["after"]["pmset -g batt"].splitlines()[0]
+                    == r["before"]["pmset -g batt"].splitlines()[0]
+                )
+                log = logfile.read_text()
+                assert "test result: ok. 1 passed; 0 failed;" in log, (
+                    "selected physical test absent"
+                )
+                reference = P / ("reference128-" + r["prompt"] + ".json")
+                current_serial = None
+                if THINKING:
+                    golden = json.loads(
+                        (
+                            BASE.parent
+                            / "opt-39a-les-lru/confirmation"
+                            / ("reference128-" + r["prompt"] + ".json")
+                        ).read_text()
+                    )["token_hash"]
+                    counters = json.loads(
+                        (
+                            BASE.parent
+                            / "opt-41-les-critical-path/mtp"
+                            / ("counters-" + r["prompt"] + ".json")
+                        ).read_text()
+                    )
+                elif reference.exists():
+                    golden = json.loads(reference.read_text())["token_hash"]
+                    counters = None
+                else:
+                    assert r["mode"] == "off", "no current serial baseline"
+                    reports = [
+                        json.loads(line.split("FLASH_DRAFT_SPEED ", 1)[1])
+                        for line in log.splitlines()
+                        if "FLASH_DRAFT_SPEED " in line
+                    ]
+                    assert len(reports) == 1
+                    ids = reports[0]["samples"][0]["generated"]
+                    golden = token_hash(ids)
+                    current_serial = {
+                        "status": "validated_current_serial_reference",
+                        "token_hash": golden,
+                        "tokens": ids,
+                        "scope": "serial native44 baseline; not an independent second implementation of128tokens",
+                    }
+                    counters = None
+                actual_mode = "dspark" if r["mode"].startswith("dspark-") else r["mode"]
+                r.update(checked(log, actual_mode, golden, counters))
+                control = next(
+                    c for c in records if c["prompt"] == r["prompt"] and c["mode"] == "off"
+                )
+                assert r["samples"][0]["generated"] == control["samples"][0]["generated"]
+                for counter, key in [("Swapouts", "swapout_bytes"), ("Swapins", "swapin_bytes")]:
+                    r[key] = r["after"]["vm_bytes"][counter] - r["before"]["vm_bytes"][counter]
+                    assert 0 <= r[key] <= 256 << 20
+                assert r["swapout_bytes"] == 0, "new swapout disqualifies speed campaign"
+                r["status"] = "validated"
+                if current_serial is not None:
+                    reference.write_text(json.dumps(current_serial, indent=2) + "\n")
+            except BaseException as error:
+                r.update(
+                    status="interrupted" if isinstance(error, KeyboardInterrupt) else "failed",
+                    error=repr(error),
+                )
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGTERM)
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.wait(timeout=10)
+                r["reaped"] = child is None or child.poll() is not None
+                r["seconds"] = time.monotonic() - started
+                (P / "execution.json").write_text(json.dumps(records, indent=2) + "\n")
+                brief = {
+                    k: r[k]
+                    for k in [
+                        "name",
+                        "status",
+                        "tps",
+                        "peak_bytes",
+                        "swapout_bytes",
+                        "swapin_bytes",
+                    ]
+                    if k in r
+                }
+                print(brief, flush=True)
+                with (W / "opti.md").open("a") as journal:
+                    journal.write(
+                        "\n- 44-V brasprototype "
+                        + json.dumps(brief)
+                        + " ; speed-on/execution.json.\n"
+                    )
+        result = summary(records)
+    except (Exception, KeyboardInterrupt) as error:
+        result.update(
+            status="interrupted" if isinstance(error, KeyboardInterrupt) else "failed",
+            error=repr(error),
+        )
+    finally:
+        result.update(
+            completed_arms=sum(r["status"] == "validated" for r in records),
+            planned_arms=PLANNED,
+            not_started_arms=PLANNED - len(records),
+        )
+        (P / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+        with (W / "opti.md").open("a") as journal:
+            journal.write(
+                "\n- **44-V termine "
+                + result["status"]
+                + "**, "
+                + str(result["completed_arms"])
+                + "/"
+                + str(PLANNED)
+                + "bras ; speed-on/result.json.\n"
+            )
+        print(result, flush=True)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--self-test"]:
+        self_test()
+    else:
+        main()

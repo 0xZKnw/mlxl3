@@ -1,0 +1,190 @@
+{
+  "status": "complete_tests_only",
+  "source_command": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+  "source_command_sha256": "75bd738ddafe3c205a56342dc5a19fabaf2bc5d30e9af14a20de636f7434ade3",
+  "selfcheck_command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-guards.py"
+  ],
+  "selfcheck_sha256": "8bfa5010ab6617e30a44fda65eda4bf5a031e743ed289dc035150a7ba5e1e2ee",
+  "extraction": "Unmodified original FunctionDef AST nodes, compiled with original filename/line numbers; original top level not executed.",
+  "functions": {
+    "sha": {
+      "source_segment_sha256": "2000e263bb0061e107a60bbba3b49b90dd0faef1bd82318e7df9c504141d1fb0",
+      "original_line": 35,
+      "compiled_filename": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+      "compiled_firstlineno": 35
+    },
+    "checked_array": {
+      "source_segment_sha256": "8ba290a759a243030f89b4973eb77c999b6bf7d48841c9c7086285497070cf00",
+      "original_line": 60,
+      "compiled_filename": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+      "compiled_firstlineno": 60
+    },
+    "raw_cache": {
+      "source_segment_sha256": "c645696487ed26e9ed04e5881b1aaa3b95cd9c4e5d460bc55541cc9198fb5451",
+      "original_line": 116,
+      "compiled_filename": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+      "compiled_firstlineno": 116
+    },
+    "cache_prefix": {
+      "source_segment_sha256": "0dbb30f812bfbc24b3482207fe4480e4db48e8b813c86637b976a5bb451a5315",
+      "original_line": 138,
+      "compiled_filename": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+      "compiled_firstlineno": 138
+    },
+    "geometry_difference": {
+      "source_segment_sha256": "d534fa0b5ae42663db5c667ba3fbdfc55fc6cece62a2a831e777e4f75eb3b619",
+      "original_line": 157,
+      "compiled_filename": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-command.py",
+      "compiled_firstlineno": 157
+    }
+  },
+  "tests": [
+    {
+      "case": "cache_truncated_0",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_truncated_7",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_truncated_8",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_truncated_15",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_truncated_16",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_truncated_47",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_bad_magic",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_bad_format",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_bad_record_size",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "cache_bad_partial_record",
+      "status": "passed",
+      "error": "Invalid/incomplete raw tuning cache"
+    },
+    {
+      "case": "geometry_block_0",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "geometry_block_-1",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "geometry_sms_0",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "geometry_sms_-1",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "geometry_concurrency_0",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "geometry_concurrency_-1",
+      "status": "passed",
+      "error": "Invalid raw cache geometry"
+    },
+    {
+      "case": "identical_duplicate_records_retained",
+      "status": "passed",
+      "raw_records": 2,
+      "unique_keys": 1,
+      "duplicates": {
+        "000000000000007b": [
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "case": "prefix_bad_sha",
+      "status": "passed",
+      "error": "Final cache does not preserve the claimed historical prefix SHA"
+    },
+    {
+      "case": "array_wrong_shape_2x3",
+      "status": "passed",
+      "error": "Array shape/dtype mismatch: /var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/lfm25-analysis37-guards-qfkcdwuu/shape.npy"
+    },
+    {
+      "case": "array_sparse_1024x128000_nan",
+      "status": "passed",
+      "error": "Nonfinite array: /var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/lfm25-analysis37-guards-qfkcdwuu/nonfinite.npy"
+    },
+    {
+      "case": "geometry_contract_concrete_boundaries",
+      "status": "passed"
+    }
+  ],
+  "scope": "CPU adversarial I/O/NumPy tests only; no model, scorer calls, GPU or quality proof.",
+  "symbolic_scope": "One shared dictionary key; two arbitrary integer num_sms values; no assumptions. Excludes I/O, NumPy, CUDA and model quality.",
+  "elapsed_seconds": 0.36127879202831537,
+  "sparse_fixture": {
+    "shape": [
+      1024,
+      128000
+    ],
+    "dtype": "float16",
+    "logical_bytes": 262144128,
+    "allocated_bytes": 20480,
+    "nan_position": [
+      0,
+      0
+    ],
+    "disposable_directory_cleaned_on_exit": true
+  },
+  "symbolic_command": [
+    "/Users/justin/Documents/mix-stq1_0/build/formal-python/bin/crosshair",
+    "check",
+    "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-guards.py",
+    "--report_all",
+    "--per_condition_timeout=20"
+  ],
+  "symbolic_process_timeout_seconds": 30,
+  "symbolic": {
+    "status": "confirmed_bounded_domain",
+    "exit": 0,
+    "log": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-guards-crosshair.log",
+    "diagnostic": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/build/lfm25-tuning37-analysis-guards.py:48: info: Confirmed over all paths.\n"
+  },
+  "tests_passed": 21,
+  "scores_recomputed": 0,
+  "gpu_used": false
+}

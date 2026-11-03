@@ -1,0 +1,1681 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.5 (/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:834:17
+    |
+834 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.80s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.5 (/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 3`
+Checking harness mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/59fde2dfa2f9236c/out/mlxl3_native-59fde2dfa2f9236c__RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 194 column 11 function mtp::valid_draft_rows thread 0
+aborting path on assume(false) at file library/kani_core/src/models.rs line 203 column 17 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function <usize as kani::rustc_intrinsics::ToISize>::to_isize thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 304 column 13 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+Not unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3allNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rows0EB1H_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 309 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 2 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 3 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 4 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 5 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 6 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 7 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 8 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 9 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 413 column 13 function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 41 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 50 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 59 column 9 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 69 column 5 function core::slice::index::slice_index_fail::do_panic::runtime thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/intrinsics/mod.rs line 2641 column 9 function core::slice::index::slice_index_fail::do_panic thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic.rs line 177 column 9 function core::slice::index::slice_index_fail thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs line 545 column 13 function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index thread 0
+aborting path on assume(false) at file library/kani/src/lib.rs line 57 column 1 function kani::mem::cbmc::same_allocation thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs line 116 column 15 function <std::ops::ControlFlow<()> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2490 column 21 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+Not unwinding loop _RINvYINtNtNtCsjpISKbLQvZs_4core5slice4iter7WindowsmENtNtNtNtBa_4iter6traits8iterator8Iterator8try_folduNCINvNvBO_3all5checkRSmNCNvNtCsCV8ZZMda5S_12mlxl3_native3mtp16valid_draft_rowss_0E0INtNtNtBa_3ops12control_flow11ControlFlowuEEB26_.0 iteration 10 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs line 2489 column 9 function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>> thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<&[u32]>::is_some thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 1 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 2 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 3 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 4 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 5 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 6 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 7 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 8 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 9 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file native/src/mtp.rs line 1221 column 30 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+Not unwinding loop _RNvNtNtCsCV8ZZMda5S_12mlxl3_native3mtp29draft_projection_verification58compact_draft_ids_stay_sorted_and_inside_target_vocabulary.0 iteration 10 file native/src/mtp.rs line 1221 column 17 function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<&[u32]>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<&[u32]>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<&[u32]>::is_some thread 0
+Runtime Symex: 0.807818s
+size of program expression: 58555 steps
+slicing removed 44742 assignments
+Generated 1870 VCC(s), 602 remaining after simplification
+Runtime Postprocess Equation: 0.0124117s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0981937s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.042058s
+Solving with CaDiCaL 3.0.0
+211466 variables, 521387 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.33089s
+Runtime decision procedure: 0.432681s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211467 variables, 521388 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00425979s
+Runtime decision procedure: 0.00585696s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211468 variables, 521389 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00272425s
+Runtime decision procedure: 0.00415067s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211469 variables, 521390 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.026718s
+Runtime decision procedure: 0.02818s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211470 variables, 521391 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0103764s
+Runtime decision procedure: 0.0119368s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211471 variables, 521392 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0413027s
+Runtime decision procedure: 0.0429279s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211472 variables, 521393 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0191861s
+Runtime decision procedure: 0.0208462s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+211473 variables, 521394 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.542736s
+Runtime decision procedure: 0.543075s
+
+RESULTS:
+Check 1: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: rows > 0 && rows <= vocab"
+	 - Location: native/src/mtp.rs:1218:13 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 2: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: rows < vocab && rows as usize == len"
+	 - Location: native/src/mtp.rs:1220:17 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 3: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/mtp.rs:1221:30 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 4: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1222:29 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 5: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: ids[index] < vocab as u32"
+	 - Location: native/src/mtp.rs:1222:21 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 6: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to subtract with overflow"
+	 - Location: native/src/mtp.rs:1224:37 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 7: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.6
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1224:33 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 8: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.7
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1224:50 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 9: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.8
+	 - Status: SUCCESS
+	 - Description: "assertion failed: ids[index - 1] < ids[index]"
+	 - Location: native/src/mtp.rs:1224:25 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 10: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.9
+	 - Status: SUCCESS
+	 - Description: "assertion failed: rows == vocab"
+	 - Location: native/src/mtp.rs:1228:17 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 11: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid && map.is_some() && len == 8"
+	 - Location: native/src/mtp.rs:1231:9 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 12: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: valid && map.is_none()"
+	 - Location: native/src/mtp.rs:1232:9 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 13: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.10
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1233:61 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 14: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.assertion.11
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1233:71 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 15: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: !valid && map.is_some() && len == 2 && ids[0] == ids[1]"
+	 - Location: native/src/mtp.rs:1233:9 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 16: core::slice::index::slice_index_fail::do_panic::runtime.assertion.2
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:59:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 17: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 18: <std::ops::ControlFlow<()> as std::ops::FromResidual<std::ops::ControlFlow<(), std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:130:15 in function <std::ops::ControlFlow<()> as std::ops::FromResidual<std::ops::ControlFlow<(), std::convert::Infallible>>>::from_residual
+
+Check 19: core::num::<impl usize>::checked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1096:31 in function core::num::<impl usize>::checked_sub
+
+Check 20: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 21: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 22: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 23: kani::rustc_intrinsics::offset::<u32, *const u32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *const u32, usize>
+
+Check 24: <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2490:21 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>
+
+Check 25: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 26: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:405:5 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 27: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 28: <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:411:22 in function <std::ops::Range<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 29: std::option::Option::<&[u32]>::is_some.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:633:5 in function std::option::Option::<&[u32]>::is_some
+
+Check 30: core::slice::index::slice_index_fail::do_panic::runtime.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:41:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 31: core::slice::index::slice_index_fail::do_panic::runtime.assertion.3
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:69:5 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 32: core::num::<impl usize>::unchecked_add.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1013:17 in function core::num::<impl usize>::unchecked_add
+
+Check 33: std::option::expect_failed.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2257:5 in function std::option::expect_failed
+
+Check 34: <std::ops::ControlFlow<()> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:116:15 in function <std::ops::ControlFlow<()> as std::ops::Try>::branch
+
+Check 35: mtp::valid_draft_rows::{closure#1}.assertion.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 36: mtp::valid_draft_rows::{closure#1}.assertion.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 37: core::slice::index::slice_index_fail::do_panic::runtime.assertion.4
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:50:9 in function core::slice::index::slice_index_fail::do_panic::runtime
+
+Check 38: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 39: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 40: std::ptr::NonNull::<u32>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 41: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 42: mtp::valid_draft_rows.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/mtp.rs:194:11 in function mtp::valid_draft_rows
+
+Check 43: std::option::Option::<std::num::NonZero<usize>>::expect.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:967:15 in function std::option::Option::<std::num::NonZero<usize>>::expect
+
+Check 44: <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:304:13 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>
+
+Check 45: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 46: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 47: kani::rustc_intrinsics::offset::<u32, *mut u32, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<u32, *mut u32, usize>
+
+Check 48: <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:549:27 in function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 49: <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:550:13 in function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 50: <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:550:13 in function <std::ops::RangeFrom<usize> as std::slice::SliceIndex<[u32]>>::index
+
+Check 51: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 52: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 53: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 54: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 55: <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:37 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>
+
+Check 56: <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>
+
+Check 57: mtp::valid_draft_rows::{closure#0}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 58: mtp::valid_draft_rows::{closure#0}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 59: mtp::valid_draft_rows::{closure#0}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 60: mtp::valid_draft_rows::{closure#0}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 61: mtp::valid_draft_rows::{closure#0}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 62: mtp::valid_draft_rows::{closure#0}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:199:37 in function mtp::valid_draft_rows::{closure#0}
+
+Check 63: mtp::valid_draft_rows::{closure#0}.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 64: mtp::valid_draft_rows::{closure#0}.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 65: mtp::valid_draft_rows::{closure#0}.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 66: mtp::valid_draft_rows::{closure#0}.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 67: mtp::valid_draft_rows::{closure#0}.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 68: mtp::valid_draft_rows::{closure#0}.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 69: mtp::valid_draft_rows::{closure#0}.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 70: mtp::valid_draft_rows::{closure#0}.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 71: mtp::valid_draft_rows::{closure#0}.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 72: mtp::valid_draft_rows::{closure#0}.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 73: mtp::valid_draft_rows::{closure#0}.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 74: mtp::valid_draft_rows::{closure#0}.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:199:46 in function mtp::valid_draft_rows::{closure#0}
+
+Check 75: mtp::valid_draft_rows::{closure#1}.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 76: mtp::valid_draft_rows::{closure#1}.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 77: mtp::valid_draft_rows::{closure#1}.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 78: mtp::valid_draft_rows::{closure#1}.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 79: mtp::valid_draft_rows::{closure#1}.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 80: mtp::valid_draft_rows::{closure#1}.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:200:46 in function mtp::valid_draft_rows::{closure#1}
+
+Check 81: mtp::valid_draft_rows::{closure#1}.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 82: mtp::valid_draft_rows::{closure#1}.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 83: mtp::valid_draft_rows::{closure#1}.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 84: mtp::valid_draft_rows::{closure#1}.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 85: mtp::valid_draft_rows::{closure#1}.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 86: mtp::valid_draft_rows::{closure#1}.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/mtp.rs:200:56 in function mtp::valid_draft_rows::{closure#1}
+
+Check 87: std::option::Option::<std::num::NonZero<usize>>::expect.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:967:15 in function std::option::Option::<std::num::NonZero<usize>>::expect
+
+Check 88: std::option::Option::<&[u32]>::is_some.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 89: std::option::Option::<&[u32]>::is_some.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 90: std::option::Option::<&[u32]>::is_some.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 91: std::option::Option::<&[u32]>::is_some.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 92: std::option::Option::<&[u32]>::is_some.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 93: std::option::Option::<&[u32]>::is_some.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:634:18 in function std::option::Option::<&[u32]>::is_some
+
+Check 94: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 95: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 96: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 97: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 98: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 99: std::ptr::NonNull::<u32>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<u32>::as_ref::<'_>
+
+Check 100: mtp::valid_draft_rows.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:194:11 in function mtp::valid_draft_rows
+
+Check 101: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/mtp.rs:1215:63 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 102: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.array_bounds.1
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1222:29 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 103: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.array_bounds.2
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1224:33 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 104: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.array_bounds.3
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1224:50 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 105: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.array_bounds.4
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1233:61 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 106: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.array_bounds.5
+	 - Status: SUCCESS
+	 - Description: "index out of bounds: the length is less than or equal to the given index"
+	 - Location: native/src/mtp.rs:1233:71 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+Check 107: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 108: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 109: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 110: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 111: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 112: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 113: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 114: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 115: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 116: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 117: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 118: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 119: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 120: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 121: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 122: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 123: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 124: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 125: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 126: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 127: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 128: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 129: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 130: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 131: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 132: <std::slice::Iter<'_, u32> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::next
+
+Check 133: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 134: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 135: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 136: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 137: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 138: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1101:23 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 139: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 140: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 141: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 142: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 143: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 144: <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/range.rs:1103:13 in function <std::ops::Range<usize> as std::iter::range::RangeIteratorImpl>::spec_next
+
+Check 145: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 146: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 147: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 148: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 149: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 150: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:27 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 151: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 152: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 153: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 154: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 155: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 156: std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2399:34 in function std::cmp::impls::<impl std::cmp::PartialEq for &()>::eq
+
+Check 157: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 158: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 159: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 160: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 161: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 162: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 163: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 164: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 165: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 166: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 167: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 168: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 169: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 170: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 171: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 172: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 173: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 174: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 175: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 176: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 177: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 178: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 179: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 180: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 181: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 182: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 183: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 184: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 185: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 186: <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/control_flow.rs:88:23 in function <std::ops::ControlFlow<()> as std::cmp::PartialEq>::eq
+
+Check 187: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 188: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 189: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 190: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 191: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 192: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:50 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 193: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 194: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 195: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 196: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 197: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 198: std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:2192:59 in function std::cmp::impls::<impl std::cmp::PartialOrd for usize>::lt
+
+Check 199: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 200: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 201: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 202: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 203: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 204: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:12 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 205: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 206: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 207: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 208: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 209: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 210: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1355:30 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 211: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1356:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 212: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 213: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 214: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 215: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 216: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 217: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:29 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 218: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 219: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 220: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 221: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 222: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 223: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1358:38 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 224: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 225: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 226: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 227: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 228: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 229: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.31
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:23 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 230: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.32
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 231: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.33
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 232: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.34
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 233: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.35
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 234: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.36
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 235: <std::slice::Windows<'_, u32> as std::iter::Iterator>::next.pointer_dereference.37
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter.rs:1359:13 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::next
+
+Check 236: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 237: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 238: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 239: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 240: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 241: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 242: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 243: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 244: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 245: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 246: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 247: <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<u32> as std::cmp::PartialEq>::eq
+
+Check 248: <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:309:17 in function <std::slice::Iter<'_, u32> as std::iter::Iterator>::all::<{closure@native/src/mtp.rs:199:35: 199:40}>
+
+Check 249: <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/iterator.rs:2489:9 in function <std::slice::Windows<'_, u32> as std::iter::Iterator>::try_fold::<(), {closure@std::iter::Iterator::all::check<&[u32], {closure@native/src/mtp.rs:200:39: 200:45}>::{closure#0}}, std::ops::ControlFlow<()>>
+
+Check 250: mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary.unwind.0
+	 - Status: SUCCESS
+	 - Description: "unwinding assertion loop 0"
+	 - Location: native/src/mtp.rs:1221:17 in function mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary
+
+
+SUMMARY:
+ ** 0 of 247 failed (1 unreachable)
+
+ ** 3 of 3 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 2.6949599s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

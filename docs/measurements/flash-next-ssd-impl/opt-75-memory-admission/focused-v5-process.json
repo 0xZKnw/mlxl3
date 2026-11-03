@@ -1,0 +1,63 @@
+[
+  {
+    "label": "format-v5",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "-m",
+      "ruff",
+      "format",
+      "--check",
+      "scripts/profile_flash.py",
+      "tests/test_flash_profile.py",
+      "tests/test_flash_memory_admission.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07751687500058324,
+    "reaped": true
+  },
+  {
+    "label": "ruff-v5",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "-m",
+      "ruff",
+      "check",
+      "scripts/profile_flash.py",
+      "tests/test_flash_profile.py",
+      "tests/test_flash_memory_admission.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.0747466249995341,
+    "reaped": true
+  },
+  {
+    "label": "compile-v5",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "-m",
+      "py_compile",
+      "scripts/profile_flash.py",
+      "tests/test_flash_profile.py",
+      "tests/test_flash_memory_admission.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07671487500192598,
+    "reaped": true
+  },
+  {
+    "label": "tests-focused-v5",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/test_flash_memory_admission.py",
+      "tests/test_flash_profile.py"
+    ],
+    "exit_code": 0,
+    "seconds": 7.510737415999756,
+    "reaped": true
+  }
+]

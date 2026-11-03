@@ -1,0 +1,33 @@
+
+    #[test]
+    #[ignore = "physical Apple GPU; F01 flag0/1 target logits and semantic states"]
+    fn half_output_target_differential_preserves_all_layers() -> Result<()> {
+        let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+        let tokens = [EOS, 78768, 11, 261];
+        let mut golden = Vec::new();
+        ensure!(target.layers.len() == 48);
+        for enabled in [false, true] {
+            target.reset();
+            for layer in &mut target.layers {
+                ensure!(layer.moe.replace_half_output_for_test(enabled) != enabled, "F01 load/toggle not exercised");
+            }
+            for (step, &token) in tokens.iter().enumerate() {
+                let logits = target.forward(token)?;
+                ensure!(logits.shape() == [1, 248320]);
+                let values = logits.to_f32()?;
+                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+                let bytes = logits.to_bytes()?;
+                let states = state_bytes(&target)?;
+                ensure!(states.len() > 48 && states.iter().all(|v| !v.is_empty()));
+                if enabled {
+                    ensure!(bytes == golden[step].0, "F01 target logits differ at step{step}");
+                    ensure!(states == golden[step].1, "F01 target states differ at step{step}");
+                } else {
+                    golden.push((bytes, states));
+                }
+            }
+        }
+        println!("FLASH_HALF_TARGET tokens=4 layers=48 logits=byte_exact states=byte_exact one_model=true");
+        Ok(())
+    }

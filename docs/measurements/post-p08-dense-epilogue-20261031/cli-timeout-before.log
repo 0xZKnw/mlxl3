@@ -1,0 +1,40 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_cli_timeout_reaches_real_runner_and_joins_silent_bridge _________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-18/test_cli_timeout_reaches_real_0')
+
+    def test_cli_timeout_reaches_real_runner_and_joins_silent_bridge(tmp_path):
+        engine, pid_path = silent_cli_engine(tmp_path)
+        output = tmp_path / "timed-out"
+        with subprocess.Popen(
+            [
+                sys.executable,
+                spec.origin,
+                str(engine),
+                str(tmp_path),
+                str(output),
+                "--cache-gib",
+                "3",
+                "--tokens",
+                "17",
+                "--repeats",
+                "1",
+                "--timeout",
+                "0.2",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            start_new_session=True,
+        ) as child:
+            try:
+                _, stderr = child.communicate(timeout=5)
+>               assert child.returncode == 1 and "bridge deadline: complete" in stderr
+E               AssertionError: assert (2 == 1)
+E                +  where 2 = <Popen: returncode: 2 args: ['/Users/justin/Documents/mix-stq1_0/.venv/bin/p...>.returncode
+
+tests/test_flash_benchmark.py:372: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_benchmark.py::test_cli_timeout_reaches_real_runner_and_joins_silent_bridge
+1 failed, 69 deselected in 0.06s

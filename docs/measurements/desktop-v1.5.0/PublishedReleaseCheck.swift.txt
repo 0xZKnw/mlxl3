@@ -1,0 +1,28 @@
+import Foundation
+
+@main struct PublishedReleaseCheck {
+    static func main() {
+      do {
+        guard CommandLine.arguments.count == 2 else { exit(2) }
+        let data = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
+        let app = try UpdateManager.selectRelease(data, channel: .app)
+        guard app?.version == "1.5.0", app?.tag == "v1.5.0", app?.build == 30,
+          app?.asset.name == "MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg",
+          app?.asset.size == 73_805_588,
+          app?.asset.digest == "sha256:590003037dbd8daa7ee6bc32f7cb530846cc72c33768ebd458e0cb628113208d"
+        else {
+          FileHandle.standardError.write(Data("Unexpected Desktop release, build, asset size or digest\n".utf8))
+          exit(1)
+        }
+        let engine = try UpdateManager.selectRelease(data, channel: .engine)
+        guard engine?.tag == "engine-v1.4.8", engine?.version == "1.4.8" else {
+          FileHandle.standardError.write(Data("Unexpected independent engine channel\n".utf8))
+          exit(1)
+        }
+        print("Published updater selection passed: Desktop 1.5.0/build30, exact DMG digest/size, engine channel unchanged at 1.4.8")
+      } catch {
+        FileHandle.standardError.write(Data("Invalid release response: \(error)\n".utf8))
+        exit(1)
+      }
+    }
+}

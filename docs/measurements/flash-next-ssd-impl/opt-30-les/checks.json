@@ -1,0 +1,117 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.28747254100017017
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 10.76821879199997
+  },
+  {
+    "name": "cpu",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 12.291133999999147
+  },
+  {
+    "name": "release-suite",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 46.55504612499499
+  },
+  {
+    "name": "build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 240,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 34.38893950000056
+  },
+  {
+    "name": "kani-cache",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "speculative_reservations_preserve_demand_counts_and_checked_ids"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "error": "TimeoutExpired(['cargo', 'kani', '--lib', '--no-default-features', '--harness', 'speculative_reservations_preserve_demand_counts_and_checked_ids'], 120)",
+    "reaped": true,
+    "seconds": 120.00732395799423
+  },
+  {
+    "name": "kani-mlx",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_lookahead_model_path_checks_tokens_and_output_shape"
+    ],
+    "timeout_seconds": 60,
+    "exit_code": 1,
+    "status": "unverified",
+    "reaped": true,
+    "seconds": 4.340043333999347
+  }
+]

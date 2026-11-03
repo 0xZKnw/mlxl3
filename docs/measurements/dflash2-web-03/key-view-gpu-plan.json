@@ -1,0 +1,86 @@
+{
+  "id": "DFLASH2-2026-10-08-KEY-VIEW",
+  "status": "completed_validated_after_fixture_correction",
+  "identity": "key-view-identity.json",
+  "reason": "Validate new FFI full-key cache with exact CPU oracle, then repeat WEB02 cache/target/bridge/Tune checks specifically after shared Metal kernel-cache change; no speed claims",
+  "checks": [
+    {
+      "name": "cache-collision",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-lib",
+        "--ignored",
+        "--exact",
+        "array::tests::metal_cache_full_key_and_eviction_preserve_outputs",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 150
+    },
+    {
+      "name": "target-states",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-lib",
+        "--ignored",
+        "--exact",
+        "qwen35::tests::dflash_capture_verification_and_commits_match_serial_states",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 150
+    },
+    {
+      "name": "copy-adversarial",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "tests::dflash_copy_accepts_rejects_and_preserves_draft_cache",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 150
+    },
+    {
+      "name": "bridge-copy",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "tests::bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 150
+    },
+    {
+      "name": "tune-copy",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/build/dflash2-web-03/key-view/candidate/test-main",
+        "--ignored",
+        "--exact",
+        "mtp_tune::tests::dflash_copy_tune_uses_the_chat_policy",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 150
+    }
+  ],
+  "environment": {
+    "MLXL3_QWEN_TEST_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "MLXL3_DFLASH_CONTEXT_COPY": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "cache_collision_validation_environment": {
+    "MTL_DEBUG_LAYER": "1",
+    "MTL_SHADER_VALIDATION": "1",
+    "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+    "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+  },
+  "gpu_models": "35B only, one inference process at a time",
+  "timing": false,
+  "prior_failure": "key-view-gpu-quality-fixture-failure.json",
+  "correction": "test header trailing newline only, recompiled and all relevant Rust checks passed",
+  "preregistered_or_initial_status": "preregistered_after_fixture_correction",
+  "final_result": "key-view-gpu-quality.json"
+}

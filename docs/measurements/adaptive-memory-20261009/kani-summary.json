@@ -1,0 +1,471 @@
+{
+  "harness_summary": [
+    "Complete - 50 successfully verified harnesses, 0 failures, 50 total."
+  ],
+  "individual_statuses": {
+    "SUCCESS": 6265,
+    "UNREACHABLE": 76,
+    "SATISFIED": 132
+  },
+  "covers_satisfied": 132,
+  "covers_total": 132,
+  "unreachable": [
+    {
+      "check": "42",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "1",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "41",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "52",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.2",
+      "description": "\"attempt to calculate the remainder with a divisor of zero\"",
+      "location": "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>"
+    },
+    {
+      "check": "53",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.3",
+      "description": "\"attempt to calculate the remainder with overflow\"",
+      "location": "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<u8>"
+    },
+    {
+      "check": "57",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.4",
+      "description": "\"attempt to divide by zero\"",
+      "location": "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>"
+    },
+    {
+      "check": "58",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<u8>.assertion.5",
+      "description": "\"attempt to divide with overflow\"",
+      "location": "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<u8>"
+    },
+    {
+      "check": "3",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "6",
+      "name": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to"
+    },
+    {
+      "check": "27",
+      "name": "std::ptr::align_offset::mod_inv.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "28",
+      "name": "std::ptr::align_offset::mod_inv.assertion.2",
+      "description": "\"attempt to shift right with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "29",
+      "name": "std::ptr::align_offset::mod_inv.assertion.3",
+      "description": "\"index out of bounds: the length is less than or equal to the given index\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "75",
+      "name": "core::ub_checks::is_valid_allocation_size.assertion.1",
+      "description": "\"attempt to divide by zero\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size"
+    },
+    {
+      "check": "84",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "106",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.1",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "107",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.2",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "108",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.3",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "109",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.4",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "110",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.5",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "111",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.6",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "113",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.7",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "27",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "29",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.1",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "30",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.2",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "31",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.3",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "32",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.4",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "33",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.5",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "34",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.6",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "36",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.7",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "69",
+      "name": "std::ptr::align_offset::mod_inv.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "70",
+      "name": "std::ptr::align_offset::mod_inv.assertion.2",
+      "description": "\"attempt to shift right with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "71",
+      "name": "std::ptr::align_offset::mod_inv.assertion.3",
+      "description": "\"index out of bounds: the length is less than or equal to the given index\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "92",
+      "name": "core::ub_checks::is_valid_allocation_size.assertion.1",
+      "description": "\"attempt to divide by zero\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size"
+    },
+    {
+      "check": "96",
+      "name": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to"
+    },
+    {
+      "check": "9",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "21",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.1",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "22",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.2",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "23",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.3",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "24",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.4",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "25",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.5",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "26",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.6",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "28",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.7",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "50",
+      "name": "core::ub_checks::is_valid_allocation_size.assertion.1",
+      "description": "\"attempt to divide by zero\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size"
+    },
+    {
+      "check": "56",
+      "name": "std::ptr::align_offset::mod_inv.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "57",
+      "name": "std::ptr::align_offset::mod_inv.assertion.2",
+      "description": "\"attempt to shift right with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "58",
+      "name": "std::ptr::align_offset::mod_inv.assertion.3",
+      "description": "\"index out of bounds: the length is less than or equal to the given index\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "64",
+      "name": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to"
+    },
+    {
+      "check": "49",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "30",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "41",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "10",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "50",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "9",
+      "name": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to"
+    },
+    {
+      "check": "16",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.1",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:35 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "17",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.2",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:83:29 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "18",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.3",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:88:39 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "19",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.4",
+      "description": "\"attempt to multiply with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:27 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "20",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.5",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:97:17 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "21",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.6",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:105:75 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "23",
+      "name": "core::slice::memchr::memchr_aligned::runtime.assertion.7",
+      "description": "\"attempt to add with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/memchr.rs:106:60 in function core::slice::memchr::memchr_aligned::runtime"
+    },
+    {
+      "check": "26",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "56",
+      "name": "core::ub_checks::is_valid_allocation_size.assertion.1",
+      "description": "\"attempt to divide by zero\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ub_checks.rs:148:54 in function core::ub_checks::is_valid_allocation_size"
+    },
+    {
+      "check": "65",
+      "name": "std::ptr::align_offset::mod_inv.assertion.1",
+      "description": "\"attempt to subtract with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:49 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "66",
+      "name": "std::ptr::align_offset::mod_inv.assertion.2",
+      "description": "\"attempt to shift right with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:44 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "67",
+      "name": "std::ptr::align_offset::mod_inv.assertion.3",
+      "description": "\"index out of bounds: the length is less than or equal to the given index\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:2317:27 in function std::ptr::align_offset::mod_inv"
+    },
+    {
+      "check": "63",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "26",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "8",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1",
+      "description": "\"Cannot compute offset of a ZST\"",
+      "location": "library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    },
+    {
+      "check": "10",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2",
+      "description": "\"attempt to calculate the remainder with a divisor of zero\"",
+      "location": "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    },
+    {
+      "check": "11",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3",
+      "description": "\"attempt to calculate the remainder with overflow\"",
+      "location": "library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    },
+    {
+      "check": "15",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4",
+      "description": "\"attempt to divide by zero\"",
+      "location": "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    },
+    {
+      "check": "16",
+      "name": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5",
+      "description": "\"attempt to divide with overflow\"",
+      "location": "library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>"
+    },
+    {
+      "check": "43",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "4",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "38",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    },
+    {
+      "check": "26",
+      "name": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "description": "\"attempt to shift left with overflow\"",
+      "location": "../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str"
+    }
+  ],
+  "bounds": "memory_policy cache full usize64, MiB full usize64, depth full usize64/u64 costs with loops4; observation full symbolic costs/samples/counters, committed1..4 valid guards; capture IDs0..8bytes bounded, unwind10; array equality32byte unwind34; no MLX/Metal/concurrency proof"
+}

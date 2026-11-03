@@ -1,0 +1,29 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-cpu-chat",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 4.064518040977418
+    },
+    {
+      "name": "copy-python",
+      "command": [
+        ".venv/bin/python",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit": 0,
+      "seconds": 65.23355425003683
+    }
+  ]
+}

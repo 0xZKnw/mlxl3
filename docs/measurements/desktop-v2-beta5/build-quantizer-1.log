@@ -1,0 +1,66 @@
+Building for debugging...
+[Planning deferred tasks]
+[5 / 16] SwiftMath
+[16 / 27] SwiftMath
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[20 / 27] SwiftMath
+[20 / 27] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[23 / 91]
+[30 / 91]
+[32 / 91]
+[39 / 91]
+[40 / 91]
+[42 / 91]
+[43 / 91]
+[45 / 91]
+[57 / 91]
+[58 / 91]
+[59 / 91]
+[62 / 91]
+[63 / 91]
+[67 / 91]
+[69 / 91]
+[70 / 91]
+[71 / 91]
+[74 / 91]
+[86 / 91] MLXL3Studio-product
+[87 / 91] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/QuantizationStudio.swift:95:113: warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+ 82 |         error = nil; logs = ""; output = nil; quality = nil; progress = nil; converting = true; phase = L("Libération du modèle interactif…", "Unloading the interactive model…")
+ 83 |         let settings = settings
+ 84 |         task = Task {
+    |                     |- note: 'self' implicitly strongly captured here
+    |                     `- note: add 'self' as a capture list item to silence
+ 85 |             defer { if ticket == operation { converting = false } }
+ 86 |             await prepare()
+    :
+ 93 |                 let request: [String: Any] = ["operation": "convert", "source": sourceValue, "settings": try JSONSerialization.jsonObject(with: encoder.encode(settings)), "output": destination.path, "jobs": root.path]
+ 94 |                 let runner = CLICommand(executable: worker); command = runner
+ 95 |                 _ = try await runner.output([], input: JSONSerialization.data(withJSONObject: request)) { [weak self] line in
+    |                                                                                                                 |- warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+    |                                                                                                                 `- note: explicitly assign the capture list item to silence
+ 96 |                     guard let self, self.operation == ticket, !self.stopRequested else { return }
+ 97 |                     self.receive(line, destination: destination)
+
+[#ImplicitStrongCapture]: <https://docs.swift.org/compiler/documentation/diagnostics/implicit-strong-capture>
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[89 / 91] MLXL3Studio-product
+Build complete! (24,70 secs)

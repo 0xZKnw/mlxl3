@@ -1,0 +1,338 @@
+diff --git a/native/ffi/mlx_bridge.cpp b/native/ffi/mlx_bridge.cpp
+index fbd260ec..1d389ea8 100644
+--- a/native/ffi/mlx_bridge.cpp
++++ b/native/ffi/mlx_bridge.cpp
+@@ -3,6 +3,9 @@
+ #include <array>
+ #include <atomic>
+ #include <cerrno>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
+ #include <cstdint>
+ #include <cstring>
+ #include <limits>
+@@ -527,18 +530,58 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
+       if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+     for (size_t i = 0; i < noutputs; ++i)
+       if (!output_names[i]) throw std::invalid_argument("null Metal output name");
++    struct Profile {
++      bool enabled = std::getenv("MLXL3_PROFILE_KERNEL_KEYS") != nullptr;
++      uint64_t calls = 0, misses = 0, evictions = 0, key_ns = 0, factory_ns = 0;
++      uint64_t maximum = 0, hc_calls = 0, hc_misses = 0, hc_factory_ns = 0;
++      ~Profile() {
++        if (enabled) std::fprintf(stderr,
++          "{\"kernel_keys\":{\"calls\":%llu,\"misses\":%llu,\"evictions\":%llu,\"key_ns\":%llu,\"factory_ns\":%llu,\"max_entries\":%llu,\"hc_calls\":%llu,\"hc_misses\":%llu,\"hc_factory_ns\":%llu}}\n",
++          (unsigned long long)calls, (unsigned long long)misses,
++          (unsigned long long)evictions, (unsigned long long)key_ns,
++          (unsigned long long)factory_ns, (unsigned long long)maximum,
++          (unsigned long long)hc_calls, (unsigned long long)hc_misses,
++          (unsigned long long)hc_factory_ns);
++      }
++    };
++    thread_local Profile profile;
++    const auto started = profile.enabled ? std::chrono::steady_clock::now()
++      : std::chrono::steady_clock::time_point{};
++    const bool hc = profile.enabled && std::strcmp(name, "mlxl3_flash_hc_write") == 0;
+     thread_local std::map<mlxl3::OwnedKernelKey, mx::fast::CustomKernelFunction,
+                           mlxl3::KernelKeyOrder> cache;
+     mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
+     auto found = cache.find(key);
++    if (profile.enabled) {
++      ++profile.calls;
++      profile.key_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(
++        std::chrono::steady_clock::now() - started).count();
++      if (hc) ++profile.hc_calls;
++      if (found == cache.end()) {
++        ++profile.misses;
++        if (hc) ++profile.hc_misses;
++      }
++    }
+     if (found == cache.end()) {
++      const auto factory_started = profile.enabled ? std::chrono::steady_clock::now()
++        : std::chrono::steady_clock::time_point{};
+       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
+-      if (cache.size() >= 128) cache.erase(cache.begin());
++      if (cache.size() >= 128) {
++        cache.erase(cache.begin());
++        if (profile.enabled) ++profile.evictions;
++      }
+       mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                   strings(output_names, noutputs), header, source};
+       auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                              source, header, true, false, mx::CompileOptions{});
+       found = cache.emplace(std::move(owned), std::move(function)).first;
++      if (profile.enabled) {
++        const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
++          std::chrono::steady_clock::now() - factory_started).count();
++        profile.factory_ns += elapsed;
++        if (hc) profile.hc_factory_ns += elapsed;
++        profile.maximum = std::max<uint64_t>(profile.maximum, cache.size());
++      }
+     }
+     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
+     for (size_t i = 0; i < noutputs; ++i) {
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 90e9cbdc..3860d721 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -117,12 +117,36 @@ impl Hc {
+         Ok((mixed, injection))
+     }
+     fn write(streams: &Array, branch: &Array, gate: &Array) -> Result<Array> {
+-        streams.add(
+-            &branch
+-                .reshape(&[1, 1, H])?
+-                .mul(&gate.reshape(&[1, HC, 1])?)?
+-                .reshape(&[1, WIDTH])?,
+-        )
++        ensure!(
++            streams.shape() == [1, WIDTH]
++                && matches!(streams.dtype(), Dtype::Float16 | Dtype::Float32)
++                && branch.shape() == [1, H]
++                && matches!(branch.dtype(), Dtype::Float16 | Dtype::Float32)
++                && gate.shape() == [1, HC]
++                && matches!(gate.dtype(), Dtype::Float16 | Dtype::Float32),
++            "invalid Flash HC injection tensors"
++        );
++        if streams.dtype() != Dtype::Float32 || gate.dtype() != Dtype::Float32 {
++            return streams.add(
++                &branch
++                    .reshape(&[1, 1, H])?
++                    .mul(&gate.reshape(&[1, HC, 1])?)?
++                    .reshape(&[1, WIDTH])?,
++            );
++        }
++        Ok(array::metal_kernel(
++            "mlxl3_flash_hc_write",
++            &["streams", "branch", "gate"],
++            &["out"],
++            "",
++            include_str!("../shaders/flash_hc_write.metal"),
++            &[streams, branch, gate],
++            &[vec![1, WIDTH]],
++            &[Dtype::Float32],
++            [WIDTH, 1, 1],
++            [256, 1, 1],
++        )?
++        .remove(0))
+     }
+ }
+ 
+@@ -2160,6 +2184,216 @@ mod tests {
+         }
+         Ok(())
+     }
++    fn hc_write_graph(streams: &Array, branch: &Array, gate: &Array) -> Result<Array> {
++        streams.add(
++            &branch
++                .reshape(&[1, 1, H])?
++                .mul(&gate.reshape(&[1, HC, 1])?)?
++                .reshape(&[1, WIDTH])?,
++        )
++    }
++    #[test]
++    #[ignore = "physical Apple GPU; HC separate rounding, strides and invalid metadata"]
++    fn flash_hc_write_preserves_cpu_rounding_and_rejects_invalid_tensors() -> Result<()> {
++        let input = |values: &[f32], dtype, strided| -> Result<Array> {
++            let n = i32::try_from(values.len())?;
++            if strided {
++                Array::from_f32(
++                    &values.iter().flat_map(|&v| [v, 123.]).collect::<Vec<_>>(),
++                    &[1, n, 2],
++                )?
++                .astype(dtype)?
++                .slice(2, 0, 1)?
++                .reshape(&[1, n])
++            } else {
++                Array::from_f32(values, &[1, n])?.astype(dtype)
++            }
++        };
++        let mut s = (0..WIDTH)
++            .map(|i| ((i * 31 % 997) - 498) as f32 / 37.)
++            .collect::<Vec<_>>();
++        let mut b = (0..H)
++            .map(|i| ((i * 17 % 991) - 495) as f32 / 113.)
++            .collect::<Vec<_>>();
++        s[0] = -1.;
++        b[0] = 1. + f32::EPSILON;
++        b[1] = 0.;
++        b[2] = -0.;
++        b[3] = 65504.;
++        b[4] = -65504.;
++        let g = [1. - f32::EPSILON, -1.2345, 0., 1.75];
++        let rounded = b[0] * g[0];
++        ensure!((s[0] + rounded).to_bits() != b[0].mul_add(g[0], s[0]).to_bits());
++        for dtype in [Dtype::Float16, Dtype::Float32] {
++            for strided in [false, true] {
++                let streams = input(&s, Dtype::Float32, strided)?;
++                let branch = input(&b, dtype, strided)?;
++                let gate = input(&g, Dtype::Float32, strided)?;
++                let expected = s
++                    .iter()
++                    .enumerate()
++                    .flat_map(|(i, &value)| {
++                        let branch = b[i % H as usize];
++                        let branch = if dtype == Dtype::Float16 {
++                            f16::from_f32(branch).to_f32()
++                        } else {
++                            branch
++                        };
++                        let product = branch * g[i / H as usize];
++                        (value + product).to_le_bytes()
++                    })
++                    .collect::<Vec<_>>();
++                let actual = Hc::write(&streams, &branch, &gate)?;
++                ensure!(actual.shape() == [1, WIDTH] && actual.dtype() == Dtype::Float32);
++                ensure!(actual.to_f32()?.iter().all(|v| v.is_finite()));
++                ensure!(
++                    actual.to_bytes()? == expected,
++                    "HC differs from CPU {dtype:?}/{strided}"
++                );
++                ensure!(
++                    actual.to_bytes()? == hc_write_graph(&streams, &branch, &gate)?.to_bytes()?,
++                    "HC differs from unfused MLX {dtype:?}/{strided}"
++                );
++                for invalid in [streams.reshape(&[WIDTH])?, streams.astype(Dtype::Int32)?] {
++                    ensure!(Hc::write(&invalid, &branch, &gate).is_err());
++                }
++                for invalid in [branch.slice(1, 0, H - 1)?, branch.astype(Dtype::UInt32)?] {
++                    ensure!(Hc::write(&streams, &invalid, &gate).is_err());
++                }
++                for invalid in [gate.reshape(&[HC])?, gate.astype(Dtype::UInt32)?] {
++                    ensure!(Hc::write(&streams, &branch, &invalid).is_err());
++                }
++            }
++        }
++        Ok(())
++    }
++    #[test]
++    #[ignore = "physical Apple GPU; FP16 and mixed HC injection used by the MTP head"]
++    fn flash_hc_half_write_preserves_mtp_rounding() -> Result<()> {
++        use Dtype::{Float16, Float32};
++        let s = (0..WIDTH)
++            .map(|i| (i % 101 - 50) as f32 / 13.)
++            .collect::<Vec<_>>();
++        let b = (0..H)
++            .map(|i| (i % 79 - 39) as f32 / 17.)
++            .collect::<Vec<_>>();
++        let g = [0.3, -0.7, 0.9, 1.75];
++        let round = |value: f32, dtype| {
++            if dtype == Float16 {
++                f16::from_f32(value).to_f32()
++            } else {
++                value
++            }
++        };
++        for (sd, bd, gd) in [
++            (Float16, Float16, Float16),
++            (Float16, Float32, Float16),
++            (Float16, Float16, Float32),
++            (Float32, Float16, Float16),
++            (Float32, Float32, Float16),
++        ] {
++            let streams = Array::from_f32(&s, &[1, WIDTH])?.astype(sd)?;
++            let branch = Array::from_f32(&b, &[1, H])?.astype(bd)?;
++            let gate = Array::from_f32(&g, &[1, HC])?.astype(gd)?;
++            let product_dtype = if bd == Float32 || gd == Float32 {
++                Float32
++            } else {
++                Float16
++            };
++            let output_dtype = if sd == Float32 || product_dtype == Float32 {
++                Float32
++            } else {
++                Float16
++            };
++            let actual = Hc::write(&streams, &branch, &gate)?;
++            ensure!(actual.shape() == [1, WIDTH] && actual.dtype() == output_dtype);
++            ensure!(actual.to_bytes()? == hc_write_graph(&streams, &branch, &gate)?.to_bytes()?);
++            let values = actual.astype(Float32)?.to_f32()?;
++            ensure!(values.len() == WIDTH as usize && values.iter().all(|v| v.is_finite()));
++            for (i, &value) in values.iter().enumerate() {
++                let product = round(
++                    round(b[i % H as usize], bd) * round(g[i / H as usize], gd),
++                    product_dtype,
++                );
++                ensure!(
++                    value.to_bits() == round(round(s[i], sd) + product, output_dtype).to_bits(),
++                    "HC mixed rounding differs at {i}: {sd:?}/{bd:?}/{gd:?}"
++                );
++            }
++        }
++        Ok(())
++    }
++    #[cfg(kani)]
++    #[kani::proof]
++    fn physical_hc_write_preserves_separate_rounding() {
++        let s = kani::any::<i8>() as f32 / 17.;
++        let b = kani::any::<i8>() as f32 / 31.;
++        let g = kani::any::<i8>() as f32 / 29.;
++        let streams = Array::from_f32(&[s], &[1, 1])
++            .unwrap()
++            .broadcast_to(&[1, WIDTH])
++            .unwrap();
++        let branch = Array::from_f32(&[b], &[1, 1])
++            .unwrap()
++            .broadcast_to(&[1, H])
++            .unwrap();
++        let gate = Array::from_f32(&[g], &[1, 1])
++            .unwrap()
++            .broadcast_to(&[1, HC])
++            .unwrap();
++        let product = b * g;
++        let output = Hc::write(&streams, &branch, &gate)
++            .unwrap()
++            .to_f32()
++            .unwrap();
++        assert_eq!(output.len(), WIDTH as usize);
++        assert!(
++            output
++                .iter()
++                .all(|v| v.to_bits() == (s + product).to_bits())
++        );
++    }
++    #[test]
++    #[ignore = "physical Apple GPU; isolated HC microbenchmark, not model throughput"]
++    fn flash_hc_write_micro() -> Result<()> {
++        use std::time::Instant;
++        let streams = Array::from_f32(&vec![-1.; WIDTH as usize], &[1, WIDTH])?;
++        let branch = Array::from_f32(&vec![1. + f32::EPSILON; H as usize], &[1, H])?;
++        let gate = Array::from_f32(&[1. - f32::EPSILON; HC as usize], &[1, HC])?;
++        let oracle = hc_write_graph(&streams, &branch, &gate)?;
++        ensure!(
++            oracle.to_f32()?.len() == WIDTH as usize
++                && oracle.to_f32()?.iter().all(|v| v.is_finite())
++        );
++        ensure!(Hc::write(&streams, &branch, &gate)?.to_bytes()? == oracle.to_bytes()?);
++        for round in 0..5 {
++            for fused in if round % 2 == 0 {
++                [false, true]
++            } else {
++                [true, false]
++            } {
++                let run = || {
++                    if fused {
++                        Hc::write(&streams, &branch, &gate)
++                    } else {
++                        hc_write_graph(&streams, &branch, &gate)
++                    }
++                };
++                for _ in 0..16 {
++                    run()?.eval()?;
++                }
++                let start = Instant::now();
++                for _ in 0..256 {
++                    run()?.eval()?;
++                }
++                println!(
++                    "FLASH_HC_MICRO {}",
++                    serde_json::json!({"round":round, "fused":fused, "calls":256, "seconds":start.elapsed().as_secs_f64()})
++                );
++            }
++        }
++        Ok(())
++    }
+     #[test]
+     #[ignore = "physical Apple GPU and independent upstream norm fixture"]
+     fn flash_norms_match_upstream_rounding() -> Result<()> {

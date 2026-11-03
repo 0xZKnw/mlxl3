@@ -1,0 +1,78 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.293506291,
+      "log": "docs/measurements/dflash2-web-03/gate-up-format.log"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.186430084,
+      "log": "docs/measurements/dflash2-web-03/gate-up-fmt.log"
+    },
+    {
+      "name": "cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 3.024704,
+      "log": "docs/measurements/dflash2-web-03/gate-up-cpu.log"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 2.4174163749999997,
+      "log": "docs/measurements/dflash2-web-03/gate-up-clippy.log"
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 35.402216124999995,
+      "log": "docs/measurements/dflash2-web-03/gate-up-release.log"
+    }
+  ]
+}

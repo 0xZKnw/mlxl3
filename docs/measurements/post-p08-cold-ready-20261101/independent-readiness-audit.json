@@ -1,0 +1,74 @@
+{
+  "status": "independent_cpu_recalculation_passed_not_speed_or_proof",
+  "finite_core_cases": 6592,
+  "positive_window_cases": 1660,
+  "zero_window_cases": 4932,
+  "invalid_cases_reused": 6,
+  "native_batches": 1696,
+  "cohorts": [
+    {
+      "k": 1,
+      "selection": "first_ready",
+      "lower_ms_per_output": 15.4964449,
+      "upper_ms_per_output": 15.5691143,
+      "eligible_batches_with_window": 1381
+    },
+    {
+      "k": 1,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 9.382470025,
+      "upper_ms_per_output": 9.413425125,
+      "eligible_batches_with_window": 1209
+    },
+    {
+      "k": 2,
+      "selection": "first_ready",
+      "lower_ms_per_output": 9.0482244,
+      "upper_ms_per_output": 9.052704575,
+      "eligible_batches_with_window": 1071
+    },
+    {
+      "k": 2,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 5.6734159,
+      "upper_ms_per_output": 5.675432575,
+      "eligible_batches_with_window": 812
+    },
+    {
+      "k": 4,
+      "selection": "first_ready",
+      "lower_ms_per_output": 4.16546875,
+      "upper_ms_per_output": 4.16576875,
+      "eligible_batches_with_window": 488
+    },
+    {
+      "k": 4,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 3.73813635,
+      "upper_ms_per_output": 3.73843635,
+      "eligible_batches_with_window": 441
+    },
+    {
+      "k": 8,
+      "selection": "first_ready",
+      "lower_ms_per_output": 0.2176375,
+      "upper_ms_per_output": 0.2176375,
+      "eligible_batches_with_window": 29
+    },
+    {
+      "k": 8,
+      "selection": "job_prefix",
+      "lower_ms_per_output": 0.19891455,
+      "upper_ms_per_output": 0.19891455,
+      "eligible_batches_with_window": 26
+    }
+  ],
+  "source_hashes_verified": 3,
+  "job_prefix_is_occurrence_prefix": false,
+  "formula": "max(0, epoch+last-max(epoch+ready,frontier)); monotone in epoch; compare endpoints",
+  "limits": [
+    "Unknown reader epoch bounded by Rustspan only; timedreturn includes CPU timing tail, not publication/GPU begin.",
+    "Job prefix ignores cold occurrences with cache hits and duplicate slots; restore map required.",
+    "Synthetic integer oracle bounds small finite domains, not formal proof."
+  ]
+}

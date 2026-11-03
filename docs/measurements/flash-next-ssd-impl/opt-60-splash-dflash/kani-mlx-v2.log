@@ -1,0 +1,97 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no associated function or constant named `load` found for struct `qwen4::draft::Draft` in the current scope
+    --> native/src/flash_draft.rs:2355:28
+     |
+  57 | struct Draft {
+     | ------------ associated function or constant `load` not found for this struct
+...
+2355 |     let mut draft = Draft::load(
+     |                            ^^^^ associated function or constant not found in `qwen4::draft::Draft`
+     |
+note: if you're trying to build a new `qwen4::draft::Draft`, consider using `qwen4::draft::Draft::load_options` which returns `std::result::Result<qwen4::draft::Draft, anyhow::Error>`
+    --> native/src/flash_draft.rs:342:5
+     |
+ 342 |     fn load_options(path: &Path, kind: Kind, q4: bool, circular: bool) -> Result<Self> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `load`, perhaps you need to implement it:
+             candidate #1: `signal_hook::iterator::exfiltrator::sealed::Exfiltrator`
+
+error[E0425]: cannot find function `generate` in this scope
+    --> native/src/flash_draft.rs:2362:25
+     |
+2362 |     if let Ok(result) = generate(&mut target, &mut draft, &prompt, budget, 3) {
+     |                         ^^^^^^^^ not found in this scope
+
+error[E0599]: no variant, associated function, or constant named `Dspark` found for enum `qwen4::draft::Kind` in the current scope
+    --> native/src/flash_draft.rs:2383:15
+     |
+  12 | enum Kind {
+     | --------- variant, associated function, or constant `Dspark` not found for this enum
+...
+2383 |         Kind::Dspark
+     |               ^^^^^^ variant, associated function, or constant not found in `qwen4::draft::Kind`
+
+error[E0599]: no associated function or constant named `load` found for struct `qwen4::draft::Draft` in the current scope
+    --> native/src/flash_draft.rs:2385:31
+     |
+  57 | struct Draft {
+     | ------------ associated function or constant `load` not found for this struct
+...
+2385 |     if let Ok(draft) = Draft::load(Path::new(&path), kind) {
+     |                               ^^^^ associated function or constant not found in `qwen4::draft::Draft`
+     |
+note: if you're trying to build a new `qwen4::draft::Draft`, consider using `qwen4::draft::Draft::load_options` which returns `std::result::Result<qwen4::draft::Draft, anyhow::Error>`
+    --> native/src/flash_draft.rs:342:5
+     |
+ 342 |     fn load_options(path: &Path, kind: Kind, q4: bool, circular: bool) -> Result<Self> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `load`, perhaps you need to implement it:
+             candidate #1: `signal_hook::iterator::exfiltrator::sealed::Exfiltrator`
+
+error[E0599]: no associated function or constant named `load` found for struct `qwen4::draft::Draft` in the current scope
+    --> native/src/flash_draft.rs:2416:24
+     |
+  57 | struct Draft {
+     | ------------ associated function or constant `load` not found for this struct
+...
+2416 |     let draft = Draft::load(
+     |                        ^^^^ associated function or constant not found in `qwen4::draft::Draft`
+     |
+note: if you're trying to build a new `qwen4::draft::Draft`, consider using `qwen4::draft::Draft::load_options` which returns `std::result::Result<qwen4::draft::Draft, anyhow::Error>`
+    --> native/src/flash_draft.rs:342:5
+     |
+ 342 |     fn load_options(path: &Path, kind: Kind, q4: bool, circular: bool) -> Result<Self> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following trait defines an item `load`, perhaps you need to implement it:
+             candidate #1: `signal_hook::iterator::exfiltrator::sealed::Exfiltrator`
+
+Some errors have detailed explanations: E0425, E0599.
+For more information about an error, try `rustc --explain E0425`.
+error: could not compile `mlxl3-native` (lib) due to 5 previous errors; 4 warnings emitted
+error: Failed to execute cargo (exit status: 101). Found 5 compilation errors.

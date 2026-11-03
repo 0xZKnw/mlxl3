@@ -31,11 +31,24 @@ struct HubModel: Decodable, Identifiable, Hashable, Sendable {
     }
 }
 
+struct HubModelPreview: Decodable, Sendable, Hashable {
+    let modelType: String?
+    let architectureSupported: Bool
+    let maximumContext: UInt64?
+    let kvBytesPerToken: UInt64?
+    let recurrentBytes: UInt64?
+    enum CodingKeys: String, CodingKey {
+        case modelType = "model_type", architectureSupported = "architecture_supported"
+        case maximumContext = "maximum_context", kvBytesPerToken = "kv_bytes_per_token", recurrentBytes = "recurrent_bytes"
+    }
+}
+
 struct HubVariant: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let label: String
     let sizeBytes: Int64
-    enum CodingKeys: String, CodingKey { case id, label; case sizeBytes = "size_bytes" }
+    var preview: HubModelPreview? = nil
+    enum CodingKeys: String, CodingKey { case id, label, preview; case sizeBytes = "size_bytes" }
 }
 
 struct HubDetails: Decodable, Sendable {
@@ -57,6 +70,15 @@ private struct HubDownloadEvent: Decodable {
     let model: LocalModel?
 }
 
+struct RecommendedHubModel: Identifiable, Sendable {
+    let id: String
+    let title: String
+    let parameters: String
+    let quantization: String
+    let symbol: String
+    let revision: String
+}
+
 struct PendingDownload: Decodable, Identifiable {
     let id: String
     let repo: String
@@ -66,6 +88,13 @@ struct PendingDownload: Decodable, Identifiable {
 
 @MainActor
 final class ModelLibrary: ObservableObject {
+    static let recommendedModels: [RecommendedHubModel] = [
+        .init(id: "UnstableLlama/Qwen3.6-35B-A3B-exl3-2.49bpw", title: "Qwen3.6", parameters: "35B · A3B", quantization: "2.49 bpw", symbol: "sparkles", revision: "91a4efc46c1fece6426ece167f127d29d075f392"),
+        .init(id: "turboderp/Qwen3.8-27B-exl3", title: "Qwen3.8", parameters: "27B", quantization: "2.00 bpw", symbol: "square.stack.3d.up", revision: "e5e1f4b37c77641e465e24adf5f44d01bdd48de2"),
+        .init(id: "turboderp/Qwen3.8-Flash-Next-exl3", title: "Qwen3.8", parameters: "Flash Next", quantization: "2.05 bpw · SSD", symbol: "bolt", revision: "65c895314393431c09050b2e04e250836b3a6eb4"),
+        .init(id: "0xzknw/LFM2.5-24B-A2B-EXL3-4bpw", title: "LFM2.5", parameters: "24B · A2B", quantization: "4 bpw · v2", symbol: "waveform.path", revision: "649b501fcc29910453eea313a763b7f7a12f4b41"),
+    ]
+
     @Published var query = ""
     @Published private(set) var results: [HubModel] = []
     @Published private(set) var detail: HubDetails?

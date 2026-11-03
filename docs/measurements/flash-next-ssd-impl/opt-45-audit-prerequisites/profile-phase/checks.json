@@ -1,0 +1,33 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.2558462919841986
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "failed",
+    "exit_code": 101,
+    "reaped": true,
+    "seconds": 3.4914982079935726
+  }
+]

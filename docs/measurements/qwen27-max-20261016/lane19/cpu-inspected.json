@@ -1,0 +1,49 @@
+{
+  "status": "complete",
+  "passed": 179,
+  "ignored": 85,
+  "suites": [
+    [
+      "90",
+      "75"
+    ],
+    [
+      "42",
+      "8"
+    ],
+    [
+      "14",
+      "0"
+    ],
+    [
+      "33",
+      "0"
+    ],
+    [
+      "0",
+      "2"
+    ],
+    [
+      "0",
+      "0"
+    ]
+  ],
+  "controller_initial_failure": "required one suite above170; Rust outputs six separate suites, sum is179/85. Original failure retained; no CPU rerun needed.",
+  "formal": {
+    "status": "unverified",
+    "array_api": "unverified",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "lane_order_real_array_api"
+    ],
+    "error": "child exited 1",
+    "known_kani_ice": true,
+    "metal": "MSL fragments receive generated MLX headers/arguments; installed CBMC supports C/C++ not Metal dialect or GPU SIMDs. No surrogate C rewrite or shader proof claimed; exact physical oracle required."
+  }
+}

@@ -1,0 +1,39 @@
+"""Qualify only the preregistered resident-gate component, never tokens/sec."""
+
+import math
+import statistics
+
+
+def qualify(data):
+    assert data["status"] == "complete" and data["parity"] == "exact_route_ids"
+    assert data["layers"] == 48 and data["route_rows"] == 2 and data["route_count"] == 960
+    assert data["resident_gate_bytes"] == 240 << 20 and data["no_expert_io"] is True
+    assert type(data["warmup_sweeps"]) is int and data["warmup_sweeps"] >= 2
+    warmup = data["warmup_seconds"]
+    assert type(warmup) in [float, int] and math.isfinite(warmup) and warmup >= 2
+    assert data["sweeps_per_sample"] == 32
+    samples = data["samples"]
+    assert isinstance(samples, list) and len(samples) == 10
+    order = [(p, c) for p in range(5) for c in ([False, True] if p % 2 == 0 else [True, False])]
+    arms = {False: [], True: []}
+    for sample, (pair, candidate) in zip(samples, order, strict=True):
+        assert type(sample["pair"]) is int and sample["pair"] == pair
+        assert type(sample["candidate"]) is bool and sample["candidate"] == candidate
+        seconds = sample["seconds"]
+        assert type(seconds) in [float, int] and math.isfinite(seconds) and seconds > 0
+        arms[candidate].append(seconds)
+    medians = [statistics.median(arms[c]) for c in [False, True]]
+    gain = 100 * (medians[0] / medians[1] - 1)
+    drifts = [100 * (max(arms[c]) / min(arms[c]) - 1) for c in [False, True]]
+    stable = max(drifts) <= 5
+    eligible = stable and gain >= 1
+    return {
+        "status": "eligible_component_only"
+        if eligible
+        else ("rejected_component" if stable else "inconclusive_drift"),
+        "full_model_eligible": eligible,
+        "throughput_gain_confirmed": False,
+        "gain_percent": gain,
+        "drift_percent": drifts,
+        "median_sweep_seconds": medians,
+    }

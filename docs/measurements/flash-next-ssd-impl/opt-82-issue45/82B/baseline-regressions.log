@@ -1,0 +1,1864 @@
+FFFFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+__________________________ test_campaign[late_error] ___________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_late_error_0')
+fault = 'late_error'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106761d00>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+_________________________ test_campaign[late_invalid] __________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_late_invalid_0')
+fault = 'late_invalid'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106763ec0>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+___________________________ test_campaign[late_null] ___________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_late_null_0')
+fault = 'late_null'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106762570>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+_______________________ test_campaign[late_missing_type] _______________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_late_missing_typ0')
+fault = 'late_missing_type'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106762420>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+_________________________ test_campaign[df_late_error] _________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_df_late_error_0')
+fault = 'df_late_error'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106763230>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+>               with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:139: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 2, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 2, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+________________________ test_campaign[df_late_invalid] ________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_df_late_invalid_0')
+fault = 'df_late_invalid'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106763320>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+>               with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:139: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "dflash2", "repeat": 2, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "dflash2", "repeat": 2, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+______________________ test_campaign[compare_late_error] _______________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_compare_late_err0')
+fault = 'compare_late_error'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106763bf0>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "mtp", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "mtp", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "mtp", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "mtp", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+_____________________ test_campaign[compare_late_invalid] ______________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-24/test_campaign_compare_late_inv0')
+fault = 'compare_late_invalid'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10678c080>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "fixed_cache",
+            "one_prompt",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+            "df_ok",
+            "df_mode",
+            "df_hash",
+            "df_empty",
+            "df_timing",
+            "df_short",
+            "df_drift",
+            "df_invalid",
+            "df_silent",
+            "df_crash",
+            "df_counter_range",
+            "df_counter_type",
+            "df_missing_counter",
+            "late_status",
+            "late_error",
+            "late_invalid",
+            "late_null",
+            "late_missing_type",
+            "late_nonzero",
+            "eof",
+            "error",
+            "malformed",
+            "df_late_error",
+            "df_late_invalid",
+            "df_late_nonzero",
+            "compare_late_error",
+            "compare_late_invalid",
+            "compare_late_nonzero",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    fault = fault.removeprefix('df_')
+    if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown':
+            if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
+            if fault == 'late_invalid': print('invalid json', flush=True)
+            if fault == 'late_null': print('null', flush=True)
+            if fault == 'late_missing_type': print('{}', flush=True)
+            if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
+            sys.exit(7 if fault == 'late_nonzero' else 0)
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'eof': sys.exit(0)
+        if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
+        if fault == 'malformed': print('invalid json', flush=True); continue
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        if r.get('dflash2'):
+            assert os.path.isdir(r['dflash_draft_path']) and r['dflash_mode'] == 1 and not r['mtp']
+            e['stats'].update(dflash_proposed_tokens=7, dflash_accepted_tokens=6, dflash_blocks=1)
+            if fault == 'counter_range': e['stats']['dflash_accepted_tokens'] = 8
+            if fault == 'counter_type': e['stats']['dflash_blocks'] = True
+            if fault == 'missing_counter': del e['stats']['dflash_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault.startswith("df_"):
+            if fault == "df_ok":
+                result = bench.run(
+                    engine, tmp_path, output, tokens=8, repeats=2, timeout=2, dflash_draft=tmp_path
+                )
+                assert result["status"] == "validated" and result["mode"] == "dflash2"
+                assert len(result["runs"]) == 4 and len(result["warmup"]) == 2
+                assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+                assert all(r["mode"] == "dflash2" for r in result["runs"])
+                assert all(
+                    r["generation_mode"]["dflash_active"] is True
+                    for r in result["runs"] + result["warmup"]
+                )
+                assert result["reaped"] and result["reader_joined"]
+            else:
+                with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                    bench.run(
+                        engine,
+                        tmp_path,
+                        output,
+                        tokens=8,
+                        repeats=2,
+                        timeout=0.5,
+                        dflash_draft=tmp_path,
+                    )
+                result = json.loads((output / "report.json").read_text())
+                assert (
+                    result["status"] == "failed"
+                    and result["error"]
+                    and "median_decode_tps" not in result
+                )
+                assert result["reaped"] and result["reader_joined"]
+            return
+        if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+            if fault == "ok":
+                original_validate = bench.validate
+    
+                def legacy_validate(event, mode, mtp, budget):
+                    return original_validate(event, mode, mtp, budget)
+    
+                monkeypatch.setattr(bench, "validate", legacy_validate)
+            automatic = fault == "auto_cache"
+            budget = 4.75 if fault == "fixed_cache" else 8
+            result = bench.run(
+                engine,
+                tmp_path,
+                output,
+                tokens=2,
+                repeats=1,
+                timeout=2,
+                auto_cache=automatic,
+                cache_gib=budget,
+            )
+            assert result["status"] == "validated"
+            assert result["runtime"]["expert_cache"] == (None if automatic else str(budget))
+            assert result["expert_cache_gib"] == (None if automatic else budget)
+            assert len(result["runs"]) == len(result["warmup"]) == 2
+            assert result["median_decode_tps"] == {"MAIN": 10, "HOLD": 10}
+            assert all(
+                r["generation_mode"]["dflash_active"] is False
+                for r in result["runs"] + result["warmup"]
+            )
+            if fault == "one_prompt":
+                selected = bench.run(
+                    engine,
+                    tmp_path,
+                    tmp_path / "selected",
+                    tokens=2,
+                    repeats=1,
+                    timeout=2,
+                    prompt="HOLD",
+                    mtp=True,
+                )
+                assert selected["status"] == "validated"
+                assert selected["prompts"] == {"HOLD": bench.PROMPTS["HOLD"]}
+                assert selected["median_decode_tps"] == {"HOLD": 10}
+                assert len(selected["runs"]) == len(selected["warmup"]) == 1
+                assert selected["runs"][0]["mode"] == "mtp"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(tmp_path / "selected-cli"),
+                        "--prompt",
+                        "MAIN",
+                        "--repeats",
+                        "1",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                cli = json.loads((tmp_path / "selected-cli/report.json").read_text())
+                assert cli["status"] == "validated" and cli["prompts"] == {
+                    "MAIN": bench.PROMPTS["MAIN"]
+                }
+                assert len(cli["runs"]) == len(cli["warmup"]) == 1
+            comparison = bench.run(
+                engine, tmp_path, tmp_path / "comparison", tokens=2, repeats=2, timeout=2, compare=True
+            )
+            assert len(comparison["runs"]) == 8 and len(comparison["warmup"]) == 4
+            assert comparison["median_decode_tps"] == {
+                "baseline": {"MAIN": 10, "HOLD": 10},
+                "mtp": {"MAIN": 10, "HOLD": 10},
+            }
+            assert [r["mode"] for r in comparison["runs"]] == [
+                "mtp",
+                "baseline",
+                "mtp",
+                "baseline",
+                "baseline",
+                "mtp",
+                "baseline",
+                "mtp",
+            ]
+            if automatic or fault == "fixed_cache":
+                cli_output = tmp_path / "cli"
+                subprocess.run(
+                    [
+                        sys.executable,
+                        spec.origin,
+                        str(engine),
+                        str(tmp_path),
+                        str(cli_output),
+                        "--compare",
+                        *(["--auto-cache"] if automatic else ["--cache-gib", str(budget)]),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                cli = json.loads((cli_output / "report.json").read_text())
+                assert cli["status"] == "validated" and len(cli["runs"]) == 12
+                assert cli["runtime"]["expert_cache"] == (None if automatic else str(budget))
+                assert cli["expert_cache_gib"] == (None if automatic else budget)
+        else:
+>           with pytest.raises((ValueError, RuntimeError, TimeoutError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (ValueError, RuntimeError, TimeoutError)
+
+tests/test_flash_benchmark.py:263: Failed
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "mtp", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "mtp", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "mtp", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "mtp", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+=========================== short test summary info ============================
+FAILED tests/test_flash_benchmark.py::test_campaign[late_error] - Failed: DID...
+FAILED tests/test_flash_benchmark.py::test_campaign[late_invalid] - Failed: D...
+FAILED tests/test_flash_benchmark.py::test_campaign[late_null] - Failed: DID ...
+FAILED tests/test_flash_benchmark.py::test_campaign[late_missing_type] - Fail...
+FAILED tests/test_flash_benchmark.py::test_campaign[df_late_error] - Failed: ...
+FAILED tests/test_flash_benchmark.py::test_campaign[df_late_invalid] - Failed...
+FAILED tests/test_flash_benchmark.py::test_campaign[compare_late_error] - Fai...
+FAILED tests/test_flash_benchmark.py::test_campaign[compare_late_invalid] - F...
+8 failed, 55 deselected in 2.49s

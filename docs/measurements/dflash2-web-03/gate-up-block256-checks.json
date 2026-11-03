@@ -1,0 +1,127 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.20328025,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-format.log",
+      "status": "passed"
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.20445308299999998,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-fmt.log",
+      "status": "passed"
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.9719995419999998,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-clippy.log",
+      "status": "passed"
+    },
+    {
+      "name": "release",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 34.572961166,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-release.log",
+      "status": "passed"
+    },
+    {
+      "name": "kani-module",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "dflash::"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 3.2097865409999997,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-kani-module.log",
+      "status": "passed"
+    },
+    {
+      "name": "quality",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_gate_up_row_merge_is_exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.5576650830000034,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-quality.log",
+      "status": "passed"
+    },
+    {
+      "name": "validation",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_aligned_shared_sums_passes_apple_validation",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "MTL_DEBUG_LAYER": "1",
+        "MTL_SHADER_VALIDATION": "1",
+        "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+        "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+      },
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.7505990829999973,
+      "log": "docs/measurements/dflash2-web-03/gate-up-block256-validation.log",
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "status": "passed",
+  "source_commit": "0bebf7446a08db1e13879394288a8a4bacab1632",
+  "commands": [
+    {
+      "args": [
+        "/usr/bin/codesign",
+        "--verify",
+        "--deep",
+        "--strict",
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app"
+      ],
+      "exit_code": 0,
+      "log": "final-codesign.log"
+    },
+    {
+      "args": [
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "runtime-info"
+      ],
+      "exit_code": 0,
+      "log": "final-runtime-info.log"
+    },
+    {
+      "args": [
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+        "--check-mcp-preferences"
+      ],
+      "exit_code": 0,
+      "log": "final-mcp-check.log"
+    },
+    {
+      "args": [
+        "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+        "--check-chat-timeline"
+      ],
+      "exit_code": 0,
+      "log": "final-chat-check.log"
+    }
+  ],
+  "desktop": {
+    "version": "1.4.4",
+    "build": "26"
+  },
+  "engine_identity": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "0bebf7446a08",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.5"
+  },
+  "build_info": {
+    "version": "1.4.4",
+    "build": "26",
+    "commit": "0bebf7446a08db1e13879394288a8a4bacab1632",
+    "tracked_changes": false,
+    "runtime": "Rust + MLX 0.32.2",
+    "signing": "ad-hoc; not notarized",
+    "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+  },
+  "archive": {
+    "name": "MLXL3-Engine-v1.4.5-arm64.tar.gz",
+    "size": 66910870,
+    "sha256": "5785aa7637ca1c96019a495455a0268e7a736bc32f84f44d0ae80ef059f59801"
+  },
+  "files": {
+    "Contents/MacOS/MLXL3Studio": {
+      "size": 6823968,
+      "sha256": "08d93401abbb7272c47aa93c2c10b323530e6bc7fc1bd1cbab12d1b92a292c60"
+    },
+    "Contents/Resources/build-info.json": {
+      "size": 272,
+      "sha256": "cd4d7e42db2d633fc905996d3ece805532e2eff3fe67cbe97557a184504b0d5e"
+    },
+    "Contents/Resources/runtime/engine.json": {
+      "size": 13587,
+      "sha256": "4db1daa83c7bcb11779d141e526680269cef7a91d4845d8d212d997f77ea7dbd"
+    },
+    "Contents/Resources/runtime/libjaccl.dylib": {
+      "size": 1546672,
+      "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3"
+    },
+    "Contents/Resources/runtime/libmlx.dylib": {
+      "size": 21815104,
+      "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2"
+    },
+    "Contents/Resources/runtime/mlx.metallib": {
+      "size": 182351120,
+      "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed"
+    },
+    "Contents/Resources/runtime/mlxl3": {
+      "size": 9827584,
+      "sha256": "395fc4b6f6cab735c7e3130348c1bb42a3beaad1e86acf22e475ac68df91d8c1"
+    }
+  }
+}

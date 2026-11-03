@@ -1,0 +1,499 @@
+{
+  "harnesses": 43,
+  "successful": 43,
+  "properties": {
+    "SUCCESS": 5719,
+    "UNREACHABLE": 72,
+    "SATISFIED": 112
+  },
+  "rows": [
+    {
+      "harness": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "success": true,
+      "properties": {
+        "SUCCESS": 191,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "51.591118"
+      ]
+    },
+    {
+      "harness": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+      "success": true,
+      "properties": {
+        "SUCCESS": 81,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.15243"
+      ]
+    },
+    {
+      "harness": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+      "success": true,
+      "properties": {
+        "SUCCESS": 76,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.10870037"
+      ]
+    },
+    {
+      "harness": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+      "success": true,
+      "properties": {
+        "SUCCESS": 56,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.038237624"
+      ]
+    },
+    {
+      "harness": "contracts::idle_cache_release_preserves_small_working_sets",
+      "success": true,
+      "properties": {
+        "SUCCESS": 4,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.015669793"
+      ]
+    },
+    {
+      "harness": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+      "success": true,
+      "properties": {
+        "SUCCESS": 180,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.9380756"
+      ]
+    },
+    {
+      "harness": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+      "success": true,
+      "properties": {
+        "SUCCESS": 192,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "1.2667382"
+      ]
+    },
+    {
+      "harness": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+      "success": true,
+      "properties": {
+        "SUCCESS": 5,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.06688629"
+      ]
+    },
+    {
+      "harness": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "success": true,
+      "properties": {
+        "SUCCESS": 351,
+        "UNREACHABLE": 1,
+        "SATISFIED": 1
+      },
+      "seconds": [
+        "2.9402127"
+      ]
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "success": true,
+      "properties": {
+        "SUCCESS": 325,
+        "UNREACHABLE": 5,
+        "SATISFIED": 1
+      },
+      "seconds": [
+        "7.3348436"
+      ]
+    },
+    {
+      "harness": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "success": true,
+      "properties": {
+        "SUCCESS": 96,
+        "UNREACHABLE": 1,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "1.0715989"
+      ]
+    },
+    {
+      "harness": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+      "success": true,
+      "properties": {
+        "SUCCESS": 11,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.041635916"
+      ]
+    },
+    {
+      "harness": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+      "success": true,
+      "properties": {
+        "SUCCESS": 12,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.042162456"
+      ]
+    },
+    {
+      "harness": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+      "success": true,
+      "properties": {
+        "SUCCESS": 66,
+        "SATISFIED": 5
+      },
+      "seconds": [
+        "0.04792171"
+      ]
+    },
+    {
+      "harness": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+      "success": true,
+      "properties": {
+        "SUCCESS": 2,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.012962083"
+      ]
+    },
+    {
+      "harness": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+      "success": true,
+      "properties": {
+        "SUCCESS": 85,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.25866416"
+      ]
+    },
+    {
+      "harness": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+      "success": true,
+      "properties": {
+        "SUCCESS": 61,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.044732586"
+      ]
+    },
+    {
+      "harness": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "success": true,
+      "properties": {
+        "SUCCESS": 7,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.03141467"
+      ]
+    },
+    {
+      "harness": "contracts::mtp_add_norm_launch_bounds",
+      "success": true,
+      "properties": {
+        "SUCCESS": 109,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.10487396"
+      ]
+    },
+    {
+      "harness": "contracts::pipeline_layer_has_no_final_or_outside_submission",
+      "success": true,
+      "properties": {
+        "SUCCESS": 13,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.06066954"
+      ]
+    },
+    {
+      "harness": "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+      "success": true,
+      "properties": {
+        "SUCCESS": 1,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.024093583"
+      ]
+    },
+    {
+      "harness": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+      "success": true,
+      "properties": {
+        "SUCCESS": 49,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.303752"
+      ]
+    },
+    {
+      "harness": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+      "success": true,
+      "properties": {
+        "SUCCESS": 11
+      },
+      "seconds": [
+        "0.021798624"
+      ]
+    },
+    {
+      "harness": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+      "success": true,
+      "properties": {
+        "SUCCESS": 34,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.07735454"
+      ]
+    },
+    {
+      "harness": "dflash::dflash_layouts_have_bounded_published_geometry",
+      "success": true,
+      "properties": {
+        "SUCCESS": 30,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.07444208"
+      ]
+    },
+    {
+      "harness": "dflash::dflash_device_draft_reserves_anchor_and_matches_vocabulary",
+      "success": true,
+      "properties": {
+        "SUCCESS": 108,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.08742587"
+      ]
+    },
+    {
+      "harness": "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+      "success": true,
+      "properties": {
+        "SUCCESS": 480,
+        "UNREACHABLE": 13,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "35.697224"
+      ]
+    },
+    {
+      "harness": "hub::verification::repository_names_have_one_nonempty_safe_separator",
+      "success": true,
+      "properties": {
+        "SUCCESS": 325,
+        "SATISFIED": 2,
+        "UNREACHABLE": 13
+      },
+      "seconds": [
+        "5.3896275"
+      ]
+    },
+    {
+      "harness": "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+      "success": true,
+      "properties": {
+        "SUCCESS": 219,
+        "UNREACHABLE": 13,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "2.7784166"
+      ]
+    },
+    {
+      "harness": "mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary",
+      "success": true,
+      "properties": {
+        "SUCCESS": 246,
+        "SATISFIED": 3,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "2.9771214"
+      ]
+    },
+    {
+      "harness": "mtp::draft_projection_verification::optional_projection_guards_dimensions_and_quantization",
+      "success": true,
+      "properties": {
+        "SUCCESS": 69,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.19991745"
+      ]
+    },
+    {
+      "harness": "mtp::managed_mtp_never_crosses_architectures",
+      "success": true,
+      "properties": {
+        "SUCCESS": 181,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.1514611"
+      ]
+    },
+    {
+      "harness": "registry::verification::model_name_validation_matches_the_registry_contract",
+      "success": true,
+      "properties": {
+        "SUCCESS": 222,
+        "UNREACHABLE": 13,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "3.2093902"
+      ]
+    },
+    {
+      "harness": "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+      "success": true,
+      "properties": {
+        "SUCCESS": 215,
+        "SATISFIED": 2,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "1.8272316"
+      ]
+    },
+    {
+      "harness": "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+      "success": true,
+      "properties": {
+        "SUCCESS": 34,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.6017588"
+      ]
+    },
+    {
+      "harness": "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+      "success": true,
+      "properties": {
+        "SUCCESS": 28,
+        "SATISFIED": 3
+      },
+      "seconds": [
+        "0.082226455"
+      ]
+    },
+    {
+      "harness": "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "success": true,
+      "properties": {
+        "SUCCESS": 219,
+        "SATISFIED": 4,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "0.36591268"
+      ]
+    },
+    {
+      "harness": "speculative::verification::tuning_never_selects_missing_or_slower_candidate",
+      "success": true,
+      "properties": {
+        "SUCCESS": 389,
+        "SATISFIED": 2,
+        "UNREACHABLE": 6
+      },
+      "seconds": [
+        "99.76063"
+      ]
+    },
+    {
+      "harness": "speculative::verification::mtp_all_depths_commit_target_prefix_within_budgets",
+      "success": true,
+      "properties": {
+        "SUCCESS": 273,
+        "SATISFIED": 4,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "2.041281"
+      ]
+    },
+    {
+      "harness": "speculative::verification::tuning_requires_parity_and_nonzero_acceptance",
+      "success": true,
+      "properties": {
+        "SUCCESS": 17,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "0.029613668"
+      ]
+    },
+    {
+      "harness": "speculative::verification::lookup_proposes_only_latest_in_bounds_history",
+      "success": true,
+      "properties": {
+        "SUCCESS": 371,
+        "SATISFIED": 5,
+        "UNREACHABLE": 1
+      },
+      "seconds": [
+        "273.04636"
+      ]
+    },
+    {
+      "harness": "speculative::dflash_modes_preserve_context_and_output_budgets",
+      "success": true,
+      "properties": {
+        "SUCCESS": 114,
+        "SATISFIED": 4
+      },
+      "seconds": [
+        "0.15984276"
+      ]
+    },
+    {
+      "harness": "tool_call::verification::marker_suffix_is_the_longest_possible_prefix",
+      "success": true,
+      "properties": {
+        "SUCCESS": 161,
+        "UNREACHABLE": 1,
+        "SATISFIED": 2
+      },
+      "seconds": [
+        "4.5062876"
+      ]
+    }
+  ],
+  "unreachable": 72,
+  "unreachable_application": []
+}

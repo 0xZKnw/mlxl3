@@ -1,0 +1,143 @@
+{
+  "status": "complete_read_only_scope_audit",
+  "speed_gain_claimed": false,
+  "rows": [
+    {
+      "prompt": "MAIN",
+      "phase": "trace_1",
+      "source": "docs/measurements/flash-next-ssd-impl/opt-64-verifier-profile/D/MAIN/trace_1-decode.json.gz",
+      "sha256": "f627ae1fca9980085bc3feeb3a84df17a20afa3e738731388e754f33e7dc365f",
+      "verify_windows_by_rows": {
+        "1": 1,
+        "2": 8,
+        "3": 1,
+        "4": 1,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "split_verify_windows": 5,
+      "split_layer_cohorts": 240,
+      "all_target_calls_including_ordinary": 17,
+      "all_verify_windows": 17,
+      "ordinary_target_calls": 0,
+      "split_fraction_of_verify_windows": 0.29411764705882354,
+      "split_fraction_of_target_calls": 0.29411764705882354,
+      "split_width_layer_counts": {
+        "6": 48,
+        "8": 192
+      },
+      "verify_host_inclusive_seconds_by_rows": {
+        "1": 0.084584208,
+        "2": 1.307256416,
+        "3": 0.22461475,
+        "4": 0.311955333,
+        "5": 0.385794125,
+        "6": 0.62735025,
+        "8": 2.336280833
+      },
+      "large_verify_host_inclusive_fraction": 0.5615239144849391
+    },
+    {
+      "prompt": "MAIN",
+      "phase": "trace_2",
+      "source": "docs/measurements/flash-next-ssd-impl/opt-64-verifier-profile/D/MAIN/trace_2-decode.json.gz",
+      "sha256": "61265eb9cb82ac1b43f6ae58f4546a12887cd2cb587b081334c1fa6923e92552",
+      "verify_windows_by_rows": {
+        "1": 3,
+        "2": 7,
+        "3": 2,
+        "5": 1,
+        "6": 1,
+        "8": 4
+      },
+      "split_verify_windows": 5,
+      "split_layer_cohorts": 240,
+      "all_target_calls_including_ordinary": 18,
+      "all_verify_windows": 18,
+      "ordinary_target_calls": 0,
+      "split_fraction_of_verify_windows": 0.2777777777777778,
+      "split_fraction_of_target_calls": 0.2777777777777778,
+      "split_width_layer_counts": {
+        "6": 48,
+        "8": 192
+      },
+      "verify_host_inclusive_seconds_by_rows": {
+        "1": 0.284205208,
+        "2": 1.136429415,
+        "3": 0.47398450000000003,
+        "5": 0.367600834,
+        "6": 0.481418666,
+        "8": 2.3397755410000003
+      },
+      "large_verify_host_inclusive_fraction": 0.55498019952403
+    },
+    {
+      "prompt": "HOLD",
+      "phase": "trace_1",
+      "source": "docs/measurements/flash-next-ssd-impl/opt-64-verifier-profile/D/HOLD/trace_1-decode.json.gz",
+      "sha256": "7f4d57dad3a503ff263f8bc0d31632503960e4647784c8ecbb55c0fe7ce99a20",
+      "verify_windows_by_rows": {
+        "1": 7,
+        "2": 5,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "split_verify_windows": 3,
+      "split_layer_cohorts": 144,
+      "all_target_calls_including_ordinary": 22,
+      "all_verify_windows": 21,
+      "ordinary_target_calls": 1,
+      "split_fraction_of_verify_windows": 0.14285714285714285,
+      "split_fraction_of_target_calls": 0.13636363636363635,
+      "split_width_layer_counts": {
+        "8": 144
+      },
+      "verify_host_inclusive_seconds_by_rows": {
+        "1": 0.626119835,
+        "2": 0.8527679579999999,
+        "3": 0.42933475,
+        "4": 0.579217584,
+        "5": 0.730442375,
+        "8": 1.7664502499999999
+      },
+      "large_verify_host_inclusive_fraction": 0.35440054624988643
+    },
+    {
+      "prompt": "HOLD",
+      "phase": "trace_2",
+      "source": "docs/measurements/flash-next-ssd-impl/opt-64-verifier-profile/D/HOLD/trace_2-decode.json.gz",
+      "sha256": "5b010da22a35c1651619c26d5bb5de684af5d9f447924cc683dc5d5ee7ca8e20",
+      "verify_windows_by_rows": {
+        "1": 7,
+        "2": 5,
+        "3": 2,
+        "4": 2,
+        "5": 2,
+        "8": 3
+      },
+      "split_verify_windows": 3,
+      "split_layer_cohorts": 144,
+      "all_target_calls_including_ordinary": 22,
+      "all_verify_windows": 21,
+      "ordinary_target_calls": 1,
+      "split_fraction_of_verify_windows": 0.14285714285714285,
+      "split_fraction_of_target_calls": 0.13636363636363635,
+      "split_width_layer_counts": {
+        "8": 144
+      },
+      "verify_host_inclusive_seconds_by_rows": {
+        "1": 0.632482001,
+        "2": 0.853608167,
+        "3": 0.421008166,
+        "4": 0.568402666,
+        "5": 0.714243792,
+        "8": 1.7769073340000001
+      },
+      "large_verify_host_inclusive_fraction": 0.357767624734183
+    }
+  ],
+  "limits": "Original 64P adaptive traces, 64 generated/63 decoded outputs. Counts are calls, not GPU time fractions; all split events were verified inside decode. Does not establish the width distribution of later128-output campaigns. Verify durations are nested host inclusive intervals; their fraction is not an exclusive GPU or optimizable-overhead fraction."
+}

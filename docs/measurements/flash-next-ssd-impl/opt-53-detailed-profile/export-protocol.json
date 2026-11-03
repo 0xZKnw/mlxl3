@@ -1,0 +1,26 @@
+{
+  "status": "preregistered_before_export_code",
+  "purpose": "reproducible cross-case CSV and exact per-output/MTP-block attribution, not a new speed experiment",
+  "inputs": "all validated3GiB cases plus small quality profiles; preserve6GiB failures separately",
+  "exports": [
+    "all phases and controls index",
+    "merged existing components CSV",
+    "per-output step/MTP block rows with accepted/proposed/queued/fallback, target route/SSD/commit/head/verify intervals and bytes",
+    "per-layer cache/I/O summaries",
+    "system sample timeline",
+    "artifact manifest SHA256 and final dependency/checkpoint metadata"
+  ],
+  "checks": [
+    "all raw trace trees nonempty and nested",
+    "root duration agrees with independently stored prefill/decode wall within max20ms/1%",
+    "sum host-self intervals exactly equals root wall",
+    "per-layer route/hit/bytes counts conserved",
+    "per-output target rows2 for proposal,1 fallback/serial,0 queued; offset increments1+accepted,1 fallback,0 queued",
+    "per-block proposal/verify/commit span counts match session counters",
+    "distributions checked with NumPy independent nearest-rank quantiles",
+    "MTP acceptance equality with fresh release controls",
+    "no mixing33 and128 token acceptance or fenced/natural timings"
+  ],
+  "verification": "pure export helper regression tests, invalid/missing steps/nesting/counters, CPU integration on real captured data, Ruff, CrossHair attempt (previously absent); no native/kernel changes or model reruns",
+  "limits": "completion walls include dispatch/wait, no exclusive GPU; system counters global; missing6GiB/longcontext/drafts explicit"
+}

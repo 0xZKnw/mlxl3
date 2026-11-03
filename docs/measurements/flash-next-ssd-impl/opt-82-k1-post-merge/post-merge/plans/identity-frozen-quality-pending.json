@@ -1,0 +1,64 @@
+{
+  "status": "frozen_source_and_binaries_quality_pending",
+  "experiment": "82K1PM",
+  "allow_gpu_launch": true,
+  "cwd": "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0",
+  "base_commit": "9c8474ca1292e29bae3c7d4d6383bd1820549349",
+  "source_patch_sha256": "9782c74c49613acc520a38975376eefac5a52217941cfc254909702521dd358b",
+  "source_manifest": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/candidate-source-sha256.json",
+  "source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+  "source_count": 100,
+  "baseline": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/baseline-cli",
+    "sha256": "d8757fa6d9f62648d66f7a2d58617d6d54ff33905fefd408475519edd85105a6",
+    "source_manifest": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/merge-review/validation/merged-native-source-sha256.json",
+    "source_manifest_sha256": "6f546b505179e47f1d6eb11f48028db51486fd7b3aebab608c08fd29f909d43d",
+    "source_count": 91,
+    "note": "Merged runtime sources match main9c; embedded metadata e551-dirty is not the source identity. No old 80M baseline."
+  },
+  "candidate": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-cli",
+    "sha256": "cc9669ad864dd73dadbed0bb503a440fefcec2c736e065d61f7ec0936639e9a4"
+  },
+  "native_tests": {
+    "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/runtime/candidate-tests",
+    "sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd"
+  },
+  "drivers": {
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/scripts/benchmark-flash-bridge.py": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/scripts/native_json_process.py": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/benchmarks/benchmark_flash_memory.py": "95cba3a5ec5b5d33d7a16f6fa590d42dfbb5313e3d2183869dc469820b0dd35c",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt": "045eb98d42cb52899a431e996a8e7ff4685882d4921ef199a4916a73f495c112",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt": "69365356f31c9ef8875576103f05507c19e1d9575cf4749f3a4cbf45527c47c7",
+    "/Users/justin/.codex/worktrees/v2-merge/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt": "b5d71993cda1eca3f8b0706a1c419ae1c827d05e1d7b03e3e5d48d3f34bf4ca3"
+  },
+  "fixtures": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/component-fixtures.json": "50bf33e3adf1189e5175c772926c38b25a27e742a7f833597d7d341eee6369c7"
+  },
+  "plans": {
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/quality/run.json": "870ab19195408f8fbb54f37da3af40452fdd49f442eb7aae0b85d776afdfc7ac",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/run.json": "527f1010f70b5d2c938d5172509b4c228e2174fc86bca223154ba79c05fa7f79",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/run.json": "cdc7bd9e125977aede8c918ec7d89af5d28bc3b83146186fa6caa64f0cc26554",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/screen/run.json": "e97d2bb4f2db8451e4128cfc6862beb88ff841ded3e6c2b8475e7bfbaff78f69",
+    "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/confirm/run.json": "ba02b1d576503223c9b0310767b83e356e9cba3e05978a5536bcbf026fe7f649"
+  },
+  "quality_gates": {
+    "fmt_clippy_cpu_mlx_suites_reviewed": true,
+    "CPU_Kani_and_MLX_attempt_reviewed": true,
+    "numerical_quality_7_selections": true,
+    "micro_h128704": true,
+    "micro_activation192": true,
+    "MSL_mutants_and_restoration_before_promotion": null,
+    "bridge43_before_promotion": null,
+    "review_notes": "Kani804SUCCESS/6unreachable/18covers; native164/160ignored; actualMLXICE notproof.100sources restored after6mutantbuilds."
+  },
+  "physical_checks_in_this_preparation": "none",
+  "main_default_env_overrides_explicitly_unset": [
+    "MLXL3_EXL3_LANE_ORDER",
+    "MLXL3_EXPERIMENTAL_GROUPED_MB3",
+    "MLXL3_DENSE_DECODE_NT4",
+    "MLXL3_DENSE_PREFILL_M64"
+  ],
+  "guard": "Stock AC45/49/43 unchanged; globalSwapouts target0, stock cap256MiB per phase; process footpring12e9, private ledger and global VM separate; 77B compression failed remains failed."
+}

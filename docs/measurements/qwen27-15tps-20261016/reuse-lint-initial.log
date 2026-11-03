@@ -1,0 +1,177 @@
+B023 Function definition does not bind loop variable `suh`
+   --> benchmarks/benchmark_smallm_reuse.py:105:38
+    |
+103 |         def transform(value):
+104 |             return mx.hadamard_transform(
+105 |                 (value[:, None, :] * suh).reshape(4, dims // 128, 128), scale=1 / 128**0.5
+    |                                      ^^^
+106 |             ).reshape(2, 2, dims)
+    |
+
+B023 Function definition does not bind loop variable `dims`
+   --> benchmarks/benchmark_smallm_reuse.py:105:54
+    |
+103 |         def transform(value):
+104 |             return mx.hadamard_transform(
+105 |                 (value[:, None, :] * suh).reshape(4, dims // 128, 128), scale=1 / 128**0.5
+    |                                                      ^^^^
+106 |             ).reshape(2, 2, dims)
+    |
+
+B023 Function definition does not bind loop variable `dims`
+   --> benchmarks/benchmark_smallm_reuse.py:106:29
+    |
+104 |             return mx.hadamard_transform(
+105 |                 (value[:, None, :] * suh).reshape(4, dims // 128, 128), scale=1 / 128**0.5
+106 |             ).reshape(2, 2, dims)
+    |                             ^^^^
+107 |
+108 |         def chain(steps, kernel):
+    |
+
+B023 Function definition does not bind loop variable `x`
+   --> benchmarks/benchmark_smallm_reuse.py:109:21
+    |
+108 |         def chain(steps, kernel):
+109 |             value = x
+    |                     ^
+110 |             for _ in range(steps):
+111 |                 y = kernel(transform(value), weights, sub).sum(axis=1).astype(mx.float16)
+    |
+
+B023 Function definition does not bind loop variable `weights`
+   --> benchmarks/benchmark_smallm_reuse.py:111:46
+    |
+109 |             value = x
+110 |             for _ in range(steps):
+111 |                 y = kernel(transform(value), weights, sub).sum(axis=1).astype(mx.float16)
+    |                                              ^^^^^^^
+112 |                 y = (
+113 |                     mx.hadamard_transform(
+    |
+
+B023 Function definition does not bind loop variable `sub`
+   --> benchmarks/benchmark_smallm_reuse.py:111:55
+    |
+109 |             value = x
+110 |             for _ in range(steps):
+111 |                 y = kernel(transform(value), weights, sub).sum(axis=1).astype(mx.float16)
+    |                                                       ^^^
+112 |                 y = (
+113 |                     mx.hadamard_transform(
+    |
+
+B023 Function definition does not bind loop variable `widths`
+   --> benchmarks/benchmark_smallm_reuse.py:114:42
+    |
+112 |                 y = (
+113 |                     mx.hadamard_transform(
+114 |                         y.reshape(2, sum(widths) // 128, 128), scale=1 / 128**0.5
+    |                                          ^^^^^^
+115 |                     ).reshape(2, sum(widths))
+116 |                     * svh
+    |
+
+B023 Function definition does not bind loop variable `widths`
+   --> benchmarks/benchmark_smallm_reuse.py:115:38
+    |
+113 |                     mx.hadamard_transform(
+114 |                         y.reshape(2, sum(widths) // 128, 128), scale=1 / 128**0.5
+115 |                     ).reshape(2, sum(widths))
+    |                                      ^^^^^^
+116 |                     * svh
+117 |                 )
+    |
+
+B023 Function definition does not bind loop variable `svh`
+   --> benchmarks/benchmark_smallm_reuse.py:116:23
+    |
+114 |                         y.reshape(2, sum(widths) // 128, 128), scale=1 / 128**0.5
+115 |                     ).reshape(2, sum(widths))
+116 |                     * svh
+    |                       ^^^
+117 |                 )
+118 |                 value = (mx.tanh(y[:, :dims]) * 0.2).astype(mx.float16)
+    |
+
+B023 Function definition does not bind loop variable `dims`
+   --> benchmarks/benchmark_smallm_reuse.py:118:40
+    |
+116 |                     * svh
+117 |                 )
+118 |                 value = (mx.tanh(y[:, :dims]) * 0.2).astype(mx.float16)
+    |                                        ^^^^
+119 |             return value
+    |
+
+B023 Function definition does not bind loop variable `xhat`
+   --> benchmarks/benchmark_smallm_reuse.py:144:35
+    |
+142 |             entry["isolated"] = paired(
+143 |                 mx,
+144 |                 [lambda _, k=k: k(xhat, weights, sub) for k in (baseline, kernel)],
+    |                                   ^^^^
+145 |                 iterations,
+146 |             )
+    |
+
+B023 Function definition does not bind loop variable `weights`
+   --> benchmarks/benchmark_smallm_reuse.py:144:41
+    |
+142 |             entry["isolated"] = paired(
+143 |                 mx,
+144 |                 [lambda _, k=k: k(xhat, weights, sub) for k in (baseline, kernel)],
+    |                                         ^^^^^^^
+145 |                 iterations,
+146 |             )
+    |
+
+B023 Function definition does not bind loop variable `sub`
+   --> benchmarks/benchmark_smallm_reuse.py:144:50
+    |
+142 |             entry["isolated"] = paired(
+143 |                 mx,
+144 |                 [lambda _, k=k: k(xhat, weights, sub) for k in (baseline, kernel)],
+    |                                                  ^^^
+145 |                 iterations,
+146 |             )
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+ --> tests/test_smallm_reuse.py:1:1
+  |
+1 | / import json
+2 | | from pathlib import Path
+3 | | from types import SimpleNamespace
+4 | |
+5 | | import pytest
+6 | |
+7 | | from test_smallm_benchmark import BENCH, ROOT, load_screen
+  | |__________________________________________________________^
+8 |
+9 |   SCREEN = load_screen("benchmark_smallm_reuse")
+  |
+help: Organize imports
+  |
+5 | import pytest
+  -
+6 | from test_smallm_benchmark import BENCH, ROOT, load_screen
+  |
+
+F401 [*] `pathlib.Path` imported but unused
+ --> tests/test_smallm_reuse.py:2:21
+  |
+1 | import json
+2 | from pathlib import Path
+  |                     ^^^^
+3 | from types import SimpleNamespace
+  |
+help: Remove unused import: `pathlib.Path`
+  |
+1 | import json
+  - from pathlib import Path
+2 | from types import SimpleNamespace
+  |
+
+Found 15 errors.
+[*] 2 fixable with the `--fix` option.

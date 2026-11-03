@@ -1,0 +1,31 @@
+[
+  {
+    "name": "cpp-asan-build-r2",
+    "command": [
+      "/usr/bin/c++",
+      "-std=c++17",
+      "-O1",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-I",
+      "native/ffi",
+      "native/tests/disk_reader_async.cpp",
+      "-o",
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-asan"
+    ],
+    "exit": 0,
+    "seconds": 2.171445500003756
+  },
+  {
+    "name": "cpp-asan-tests",
+    "command": [
+      "build/post-p08-cold-ready-20261101/cpp/disk-reader-async-asan"
+    ],
+    "exit": -6,
+    "seconds": 0.7582102910018875
+  }
+]

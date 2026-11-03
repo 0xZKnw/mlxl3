@@ -1,0 +1,273 @@
+[
+  {
+    "name": "56B-raw-bits",
+    "native_test": "array::tests::scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "array::tests::scheduled_and_strided_readbacks_preserve_raw_bytes_and_validate_ranges",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "MLX_READBACK_BITS cases=39"
+    ]
+  },
+  {
+    "name": "56B-readback",
+    "native_test": "array::tests::scheduled_route_readback_does_not_wait_for_later_gpu_work",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "array::tests::scheduled_route_readback_does_not_wait_for_later_gpu_work",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "MLX_SCHEDULED_READBACK later_gpu_pending=true"
+    ]
+  },
+  {
+    "name": "56B-overlap",
+    "native_test": "ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "ssd_moe::hybrid_tests::demanded_reads_start_while_gpu_resident_experts_are_pending",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_GPU_HOT_SCHEDULE"
+    ]
+  },
+  {
+    "name": "56B-early-error",
+    "native_test": "ssd_moe::hybrid_tests::early_hot_failure_preserves_ready_keys_and_recovers",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "ssd_moe::hybrid_tests::early_hot_failure_preserves_ready_keys_and_recovers",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_GPU_HOT_EARLY_FAILURE parity=byte_exact"
+    ]
+  },
+  {
+    "name": "56B-reserved-error",
+    "native_test": "ssd_moe::tests::failed_hot_compute_invalidates_reserved_routes_and_recovers",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "ssd_moe::tests::failed_hot_compute_invalidates_reserved_routes_and_recovers",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "56B-moe-matrix",
+    "native_test": "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "56B-lookahead",
+    "native_test": "ssd_moe::tests::lookahead_preserves_exact_routes_and_invalidates_failed_predictions",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/v2/mlxl3_native",
+      "ssd_moe::tests::lookahead_preserves_exact_routes_and_invalidates_failed_predictions",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1"
+    },
+    "expected_exit": 0,
+    "required_text": []
+  },
+  {
+    "name": "56B-sanitizers",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-56/readback-sanitizers",
+      "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx/lib/mlx.metallib"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "ASAN_OPTIONS": "halt_on_error=1",
+      "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "READBACK_SANITIZERS cases=10"
+    ]
+  }
+]

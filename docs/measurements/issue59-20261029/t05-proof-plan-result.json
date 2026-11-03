@@ -1,0 +1,51 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "a5f4e0cb4e08063cfa5fd2d49bb10193233677e9922a09a494bb97156caacdb9",
+  "matrix_sha256": "ce75c3574b67b273a38852403afb987839b203d4e44ea62fa0063d90859cbc10",
+  "commands": [
+    {
+      "name": "t05-kani-address",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "weighted_geometry_bounds_every_symbolic_address"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "1",
+        "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+      },
+      "require_quiet": false,
+      "timeout_seconds": 90,
+      "expected_exit": 0,
+      "required_text": [
+        "VERIFICATION:- SUCCESSFUL"
+      ],
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    20842.\nPages active:                                 550866.\nPages inactive:                               597604.\nPages speculative:                             25297.\nPages throttled:                                   0.\nPages wired down:                             206114.\nPages purgeable:                               20766.\n\"Translation faults\":                     1998012102.\nPages copy-on-write:                        84126901.\nPages zero filled:                        2167067350.\nPages reactivated:                         156852107.\nPages purged:                               19817743.\nFile-backed pages:                            389657.\nAnonymous pages:                              784110.\nPages stored in compressor:                   226812.\nPages occupied by compressor:                 117975.\nDecompressions:                            368373177.\nCompressions:                              444357999.\nPageins:                                  2366561563.\nPageouts:                                     385731.\nSwapins:                                     3279069.\nSwapouts:                                    8597711.\nPages tagged:                                 143553.\nPages tagged resident:                        129123.\nPages tagged compressed:                       14430.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 6111.\nPages tag-storage free:                           71.\nPages tag-storage non-tag pageable:            42302.\nPages tag-storage non-tag wired:                  82.\nBytes of compressed tags:                    2206912.\nTagged compressions:                         9391144.\nTagged decompressions:                       9087130.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 640.56M  free = 1407.44M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 341475328,
+          "File-backed pages": 6384140288,
+          "Pages occupied by compressor": 1932902400,
+          "Swapins": 53724266496,
+          "Swapouts": 140864897024
+        }
+      },
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "pid": 63187,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 245760,
+      "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--no-default-features', '--harness', 'weighted_geometry_bounds_every_symbolic_address'], 90)",
+      "exit_code": -15,
+      "reaped": true,
+      "seconds": 90.02437287502107
+    }
+  ],
+  "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--no-default-features', '--harness', 'weighted_geometry_bounds_every_symbolic_address'], 90)"
+}

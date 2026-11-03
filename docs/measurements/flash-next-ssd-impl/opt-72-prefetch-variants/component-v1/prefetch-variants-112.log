@@ -1,0 +1,32 @@
+
+running 1 test
+test ssd_moe::prefetch_tests::draft_prefetch_preserves_hot_splits_and_next_layer_outputs ... PREFETCH_VARIANT variant=Legacy cases=16 used=32
+PREFETCH_VARIANT variant=Late cases=16 used=32
+PREFETCH_VARIANT variant=Bounded cases=16 used=32
+PREFETCH_VARIANT variant=Unused cases=16 used=32
+PREFETCH_VARIANT variant=Lfu cases=16 used=32
+PREFETCH_VARIANT variant=Weighted cases=16 used=32
+PREFETCH_VARIANT variant=Packed cases=16 used=32
+SSD_DRAFT_PIPELINE cases=112 split_cases=49 hot_preserved=true predictions=verified next_outputs=byte_exact
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 276 filtered out; finished in 2.97s
+
+        2.98 real         1.17 user         1.71 sys
+          1139982336  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              151637  page reclaims
+                 215  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 118  voluntary context switches
+               14211  involuntary context switches
+         30937193434  instructions retired
+         12242258533  cycles elapsed
+           885311192  peak memory footprint

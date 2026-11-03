@@ -1,0 +1,177 @@
+{
+  "status": "complete",
+  "parity": true,
+  "cases": 32,
+  "completions": 24,
+  "expected_errors": 4,
+  "cancellations": 4,
+  "engines_reaped": 4,
+  "prefix_tokens": 687,
+  "cached_tokens": 512,
+  "prefix_budget_mib": 1024,
+  "allocator_cache_mib": 0,
+  "candidate": "cache compaction + packed embeddings",
+  "speed": "not_measured_battery_conditions",
+  "rows": [
+    {
+      "order": "AB",
+      "case": "short-normal",
+      "baseline_footprint": 9471628256,
+      "candidate_footprint": 9179945440,
+      "footprint_reduction": 291682816,
+      "baseline_mlx_active": 9171871676,
+      "candidate_mlx_active": 8870406076,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "AB",
+      "case": "short-mtp",
+      "baseline_footprint": 9641022552,
+      "candidate_footprint": 9432996488,
+      "footprint_reduction": 208026064,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "AB",
+      "case": "cache-cold",
+      "baseline_footprint": 10082653272,
+      "candidate_footprint": 9619331720,
+      "footprint_reduction": 463321552,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "AB",
+      "case": "cache-warm",
+      "baseline_footprint": 10100479064,
+      "candidate_footprint": 9446365832,
+      "footprint_reduction": 654113232,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "AB",
+      "case": "invalid-depth",
+      "baseline_footprint": 10037564504,
+      "candidate_footprint": 9446365832,
+      "footprint_reduction": 591198672,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "AB",
+      "case": "cache-after-error",
+      "baseline_footprint": 10102838360,
+      "candidate_footprint": 9539033736,
+      "footprint_reduction": 563804624,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "AB",
+      "case": "cancel",
+      "baseline_footprint": 9693566040,
+      "candidate_footprint": 9379977864,
+      "footprint_reduction": 313588176,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "AB",
+      "case": "recovery",
+      "baseline_footprint": 9664222320,
+      "candidate_footprint": 9361283720,
+      "footprint_reduction": 302938600,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "BA",
+      "case": "short-normal",
+      "baseline_footprint": 9486340968,
+      "candidate_footprint": 9180764592,
+      "footprint_reduction": 305576376,
+      "baseline_mlx_active": 9171871676,
+      "candidate_mlx_active": 8870406076,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "BA",
+      "case": "short-mtp",
+      "baseline_footprint": 9627096056,
+      "candidate_footprint": 9343801920,
+      "footprint_reduction": 283294136,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "BA",
+      "case": "cache-cold",
+      "baseline_footprint": 10100839416,
+      "candidate_footprint": 9530350144,
+      "footprint_reduction": 570489272,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "BA",
+      "case": "cache-warm",
+      "baseline_footprint": 10100888568,
+      "candidate_footprint": 9534708312,
+      "footprint_reduction": 566180256,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "BA",
+      "case": "invalid-depth",
+      "baseline_footprint": 10037974008,
+      "candidate_footprint": 9456065112,
+      "footprint_reduction": 581908896,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "BA",
+      "case": "cache-after-error",
+      "baseline_footprint": 10100888592,
+      "candidate_footprint": 9548618328,
+      "footprint_reduction": 552270264,
+      "baseline_mlx_active": 9855382460,
+      "candidate_mlx_active": 9299647420,
+      "mlx_active_reduction": 555735040
+    },
+    {
+      "order": "BA",
+      "case": "cancel",
+      "baseline_footprint": 9709179920,
+      "candidate_footprint": 9383893592,
+      "footprint_reduction": 325286328,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    },
+    {
+      "order": "BA",
+      "case": "recovery",
+      "baseline_footprint": 9653589008,
+      "candidate_footprint": 9355254360,
+      "footprint_reduction": 298334648,
+      "baseline_mlx_active": 9410802620,
+      "candidate_mlx_active": 9109337020,
+      "mlx_active_reduction": 301465600
+    }
+  ]
+}

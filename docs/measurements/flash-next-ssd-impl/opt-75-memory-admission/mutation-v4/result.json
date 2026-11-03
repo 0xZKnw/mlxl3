@@ -1,0 +1,120 @@
+{
+  "status": "all_three_mutants_detected_and_restored",
+  "runs": [
+    {
+      "name": "normal",
+      "cases": [
+        "short",
+        "after_swap",
+        "after_swapin"
+      ],
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-normal",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swap]",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swapin]"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "source_sha256": "e1215bb8a5f563bd2f5512c078dbcf62787c80c8c371ae080ab136114f280887",
+      "reaped": true
+    },
+    {
+      "name": "no-admission",
+      "cases": [
+        "short"
+      ],
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-no-admission",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "source_sha256": "90dd85fb76c36aa262d8387ba19562e87d2faf95024c401c61224391c3db3699",
+      "reaped": true
+    },
+    {
+      "name": "no-final-probe",
+      "cases": [
+        "after_swap"
+      ],
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-no-final-probe",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swap]"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "source_sha256": "d774f98a03c01e251252ea0ba77f6f84275630f3f3b95bdc9e9f96b5cad2d83c",
+      "reaped": true
+    },
+    {
+      "name": "no-incoming-check",
+      "cases": [
+        "after_swapin"
+      ],
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-no-incoming-check",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swapin]"
+      ],
+      "exit": 1,
+      "expected_exit": 1,
+      "source_sha256": "1842898bad7238c6d8f3667c871e8ac8dd321a4088da700bac91990619d995bf",
+      "reaped": true
+    },
+    {
+      "name": "restored",
+      "cases": [
+        "short",
+        "after_swap",
+        "after_swapin"
+      ],
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp",
+        "/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/flash-75m-mutation-v4-y6ni40z_/pytest-restored",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[short]",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swap]",
+        "tests/test_flash_memory_admission.py::test_real_sampler_admission_and_pressure_reap_owned_children[after_swapin]"
+      ],
+      "exit": 0,
+      "expected_exit": 0,
+      "source_sha256": "e1215bb8a5f563bd2f5512c078dbcf62787c80c8c371ae080ab136114f280887",
+      "reaped": true
+    }
+  ],
+  "production_source_unchanged": true,
+  "scratch_removed": true
+}

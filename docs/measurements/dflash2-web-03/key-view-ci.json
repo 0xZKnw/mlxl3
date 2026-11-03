@@ -1,0 +1,59 @@
+{
+  "status": "base_runs_inspected_candidate_uncommitted",
+  "candidate_ci": "not_run_no_push_authorized",
+  "head": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "runs": [
+    {
+      "id": "37819626308",
+      "headSha": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+      "conclusion": "success",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/37819626308",
+      "jobs": [
+        {
+          "name": "native (macos-26)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "native (ubuntu-latest)",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "name": "kani",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "command": [
+        "/opt/homebrew/bin/gh",
+        "run",
+        "view",
+        "37819626308",
+        "--json",
+        "headSha,status,conclusion,jobs,url"
+      ]
+    },
+    {
+      "id": "37819626483",
+      "headSha": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+      "conclusion": "success",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/37819626483",
+      "jobs": [
+        {
+          "name": "desktop-and-protocol",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "command": [
+        "/opt/homebrew/bin/gh",
+        "run",
+        "view",
+        "37819626483",
+        "--json",
+        "headSha,status,conclusion,jobs,url"
+      ]
+    }
+  ]
+}

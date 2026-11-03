@@ -1,0 +1,104 @@
+[
+  {
+    "name": "phase4-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 76807,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.3979174169944599
+  },
+  {
+    "name": "phase4-fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 76810,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2892389170010574
+  },
+  {
+    "name": "phase4-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 76813,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.349585999996634
+  },
+  {
+    "name": "phase4-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 76862,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 46.51997295800538
+  },
+  {
+    "name": "phase4-release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 77026,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.12841420900076628
+  },
+  {
+    "name": "phase4-kani-generation",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_draft_generation_checks_empty_decode_and_committed_state"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 77029,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 4.59673470800044
+  }
+]

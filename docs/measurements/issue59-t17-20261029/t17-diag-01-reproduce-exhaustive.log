@@ -1,0 +1,16 @@
+
+running 1 test
+test gdn_epilogue::tests::exhaustive_finite_half_gates_and_fp32_products_match_stock ... GDN_EPILOGUE_FIRST_MISMATCH rows=1 index=1244 row=0 column=1244 norm_f32_bits=0x3f801001 norm_f32=1.0004884 gate_f16_bits=0xc8dc gate_f32=-9.71875 actual_f16_bits=0x03f1 actual_f32=6.0141087e-5 stock_f16_bits=0x03f2 stock_f32=6.020069e-5 stock_sigmoid_f32_bits=0x387c4076 stock_sigmoid_f32=6.0141516e-5
+Error: GDN exhaustive case rows=1 phase=2 batch=8 real_gate_count=6144 values=6144
+
+Caused by:
+    GDN epilogue differs from stock MLX oracle
+FAILED
+
+failures:
+
+failures:
+    gdn_epilogue::tests::exhaustive_finite_half_gates_and_fp32_products_match_stock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 370 filtered out; finished in 0.12s
+

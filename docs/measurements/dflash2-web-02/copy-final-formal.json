@@ -1,0 +1,113 @@
+{
+  "status": "partial_indeterminate_global_limit",
+  "resource_limit_seconds_per_command": 180,
+  "checks": [
+    {
+      "name": "copy-final-disabled",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "speculative::verification::dflash_disabled_copy_never_proposes"
+      ],
+      "exit": 0,
+      "global_timeout": false,
+      "seconds": 2.2408830000204034
+    },
+    {
+      "name": "copy-final-full-attempt",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features"
+      ],
+      "exit": -15,
+      "global_timeout": true,
+      "seconds": 180.00789695902495
+    },
+    {
+      "status": "verified_bounded_empty_history",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--exact",
+        "--harness",
+        "speculative::verification::dflash_copy_len_0"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 128.39093612501165,
+      "source_sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+      "log": "copy-final-zero.log",
+      "properties": {
+        "successful_assertions": 161,
+        "unreachable_assertions": 12,
+        "satisfied_covers": 8,
+        "unreachable_covers": 1
+      },
+      "unreachable_scope": {
+        "application_assertions": {
+          "full1024_accepted_branch": 1,
+          "old_prompt_region_at_initial_len0": 3
+        },
+        "standard_library_assertions": 8,
+        "cover": "conditional old-prompt cover retained as unreachable for LEN0; expected, not a claim about positive initial lengths"
+      },
+      "bounds": "Initial history0; accepted0..7 fullu32, anchoru32/copy/enabled symbolic, every valid output index via0..31, unwind33, no assume/stub",
+      "limits": "Lengths1..20 and full1024 truncation remain unverified; no GPU/FFI/concurrency proof."
+    }
+  ],
+  "completed_full_harnesses": [
+    "codec::verification::exl3_permutation_and_inverse_are_bijections",
+    "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+    "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+    "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+    "contracts::idle_cache_release_preserves_small_working_sets",
+    "contracts::verification::qmv_shape_matches_wide_arithmetic",
+    "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+    "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+    "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+    "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+    "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+    "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+    "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+    "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+    "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+    "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+    "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+    "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+    "contracts::mtp_add_norm_launch_bounds",
+    "contracts::pipeline_layer_has_no_final_or_outside_submission",
+    "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+    "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+    "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+    "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+    "dflash::dflash_layouts_have_bounded_published_geometry",
+    "hub::verification::accepted_checkpoint_paths_have_no_traversal_component",
+    "hub::verification::repository_names_have_one_nonempty_safe_separator",
+    "mcp::verification::mcp_server_names_are_nonempty_and_shell_neutral",
+    "mtp::draft_projection_verification::compact_draft_ids_stay_sorted_and_inside_target_vocabulary",
+    "mtp::draft_projection_verification::optional_projection_guards_dimensions_and_quantization",
+    "mtp::managed_mtp_never_crosses_architectures",
+    "registry::verification::model_name_validation_matches_the_registry_contract",
+    "speculative::verification::greedy_acceptance_is_the_maximal_matching_prefix",
+    "speculative::verification::adaptive_work_never_exceeds_the_existing_budget",
+    "speculative::verification::speculative_work_reserves_target_within_both_budgets",
+    "speculative::verification::mtp_depth_one_commits_only_target_tokens_inside_budgets"
+  ],
+  "full_suite_complete": false,
+  "new_contracts": {
+    "empty_initial_history": "verified_exact_retained_harness128.39s_161success_12expected_unreachable_assertions_8of9covers",
+    "disabled": "verified_separately2.24s",
+    "lengths1_to20": "not_verified_resource_limit",
+    "full1024_truncation": "outside_model_check_domain_deterministic_oracle_tests_only"
+  },
+  "final_source_sha256": "3420da250b71280759b77302ce4eb5462af7216e858f5a967b6bbbf9ea5119dc",
+  "exact_source_recheck": "copy-final-zero.json"
+}

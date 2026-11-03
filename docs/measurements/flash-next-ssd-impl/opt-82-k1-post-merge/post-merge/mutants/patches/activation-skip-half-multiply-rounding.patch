@@ -1,0 +1,13 @@
+--- a/native/src/ssd_moe/hot_activation.rs
++++ b/native/src/ssd_moe/hot_activation.rs
+@@ -24,8 +24,8 @@
+ half gate = gu[row * 1280u + col];
+ half up = gu[row * 1280u + 640u + col];
+ half sigmoid = Mlxl3HotSigmoid()(gate);
+-half silu = Mlxl3HotMultiply()(gate, sigmoid);
+-activated[i] = Mlxl3HotMultiply()(silu, up);
++float silu = float(gate) * float(sigmoid);
++activated[i] = half(silu * float(up));
+ "#;
+ 
+ pub(super) fn apply(gu: &Array, slots: &linear::ExpertSlots) -> Result<Array> {

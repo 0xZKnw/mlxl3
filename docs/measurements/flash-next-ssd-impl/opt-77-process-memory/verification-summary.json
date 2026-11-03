@@ -1,0 +1,83 @@
+{
+  "status": "bounded_Rust_decoder_verified_Cpp_SDK_parser_unsupported_mutant_detected",
+  "kani": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "memory_stats_decoder_preserves_validity_and_values",
+      "-Z",
+      "unstable-options",
+      "--harness-timeout",
+      "180s",
+      "--export-json",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/kani.json"
+    ],
+    "exit": 0,
+    "seconds": 5.689709750000475,
+    "sampled_rss_group_max_bytes": 594526208,
+    "proof": "bounded_model_check_actual_MemoryStats_from_raw",
+    "domain": "12 arbitrary u64 values plus arbitrary u32 process_id; no assumptions; unwind13",
+    "properties": {
+      "total_properties": 130,
+      "passed": 127,
+      "failed": 0,
+      "unreachable": 0,
+      "undetermined": 0,
+      "solver_error": 0,
+      "satisfied": 3,
+      "unsatisfiable": 0,
+      "covered": 0,
+      "uncovered": 0
+    },
+    "swapouts_delta_bytes": 0
+  },
+  "cbmc": {
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "--cpp11",
+      "-I",
+      "native/ffi",
+      "docs/measurements/flash-next-ssd-impl/opt-77-process-memory/process-memory-cbmc.cpp",
+      "--function",
+      "main",
+      "--unwind",
+      "13",
+      "--unwinding-assertions",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unsigned-overflow-check",
+      "--trace"
+    ],
+    "exit": 6,
+    "seconds": 0.521841375000804,
+    "status": "Apple libc++ parse error before obligations",
+    "proof": false,
+    "sdk_stubs": false,
+    "esbmc_path": null,
+    "swapouts_delta_bytes": 0
+  },
+  "mutation": {
+    "status": "validity_mutation_detected_and_restored",
+    "normal_exit": 0,
+    "mutant_exit": -6,
+    "restored_exit": 0,
+    "production_source_unchanged": true,
+    "scratch_deleted": true
+  },
+  "not_proved": [
+    "C++ SDK encoder and FFI",
+    "macOS kernel accounting",
+    "Metal/MLX",
+    "global swapout attribution"
+  ],
+  "all_processes_reaped": true,
+  "physical_reference": "fresh-controls-v1/summary.json",
+  "physical_component": "passed1/1_by_parent",
+  "fresh_controls": "four_baseline_cases_only_not_a_qualified_gain",
+  "77B_compression_caps": "failed_preserved_not_relaxed"
+}

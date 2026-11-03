@@ -1,0 +1,30 @@
+[
+  {
+    "name": "failure-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "exit_code": 0,
+    "seconds": 31.608670916990377
+  },
+  {
+    "name": "failure-oracle",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "exit_code": 101,
+    "seconds": 1.5013487089890987
+  }
+]

@@ -12,10 +12,31 @@ private struct DFlashInstallEvent: Decodable {
 
 @MainActor
 final class StudioModel: ObservableObject {
+    @Published private(set) var selectedMode: StudioMode = .chat
+    @Published private(set) var labSamples: [LabSample] = []
+    let localServer = LocalServer()
+    let quantizer = QuantizationModel()
+    private var quantizationObservation: AnyCancellable?
+    private var labConfiguration: ((GenerationStats) -> LabSample)?
+    private var modeTransition: Task<Void, Never>?
+    private var serverObservation: AnyCancellable?
+    private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = []
     @Published var selectedModelName: String?
     @Published var conversations: [Conversation] = [Conversation()]
     @Published var selectedConversationID: UUID?
+    @Published var projects: [WorkspaceProject] = []
+    @Published var profiles: [GenerationProfile] = []
+    @Published var documents: [LibraryDocument] = []
+    @Published var selectedProjectID: UUID?
+    @Published var showWorkspace = false
+    @Published var showMCPManager = false
+    @Published var responseSchema = ""
+    @Published var featureError: String?
+    @Published var libraryImporting = false
+    @Published var mcpTools: [MCPToolDescriptor] = []
+    @Published private(set) var workspaceFeaturesAvailable = false
+    let voice = VoiceController()
     @Published var draft = ""
     @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:]
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
@@ -47,6 +68,21 @@ final class StudioModel: ObservableObject {
     @Published private(set) var dflashDownloadError: String?
     @Published private(set) var dflashActive: Bool?
     @Published private(set) var dflashSupported: Bool?
+    @Published private(set) var dflashMode = 1
+    @Published private(set) var dflashTuneRows: [MTPTuningRow] = []
+    @Published private(set) var dflashTuneSupported = false
+    private var dflashTunedAt: Date?
+    private var dflashTuningKey: String?
+    private var dflashConfigureSupported = false
+    private var dflashOperationID = UUID()
+    private var dflashConfigurationPending = false {
+        didSet { updateModelIdleUnload() }
+    }
+    private var dflashLegacyModelName: String?
+    private var tuneIsDFlash = false
+    var isTuningDFlash: Bool { isTuningMTP && tuneIsDFlash }
+    var dflashTuneProgress: Double { mtpTuneProgress }
+    var dflashTuneStatus: String { mtpTuneStatus }
     @Published private(set) var mtpEnabled = false
     @Published private(set) var mtpHeadPath = ""
     @Published private(set) var mtpDownloading = false {
@@ -115,7 +151,23 @@ final class StudioModel: ObservableObject {
     private var didStart = false
     private var modelLoadTask: Task<Void, Never>?
     private var modelLoadID = UUID()
-    private var activeRequestID: String?
+    private var activeRequestID: String? {
+        didSet {
+            if activeRequestID == nil {
+                generationWatchdog?.cancel(); generationWatchdog = nil
+                cancellationFallback?.cancel(); cancellationFallback = nil
+                cancellationReason = nil
+                generationStartedAt = nil; generationLastActivity = nil
+            }
+        }
+    }
+    @Published var agentStudioBusy = false
+    @Published var studioDocument: StudioDocument?
+    private var generationWatchdog: Task<Void, Never>?
+    private var cancellationFallback: Task<Void, Never>?
+    private var cancellationReason: String?
+    private var generationStartedAt: ContinuousClock.Instant?
+    private var generationLastActivity: ContinuousClock.Instant?
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
     private let preferences: UserDefaults
@@ -153,14 +205,13 @@ final class StudioModel: ObservableObject {
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
-        // DFlash remains available to the CLI; Desktop v1.2 moves to native MTP.
-        self.dflash2Enabled = false
-        preferences.set(false, forKey: "studio.dflash2Enabled")
+        self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
         self.mtpEnabled = preferences.bool(forKey: "studio.mtpEnabled")
         conversationStore = ConversationStore(fileURL: conversationFileURL)
         AppLocalization.set(language)
+        quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         do {
         if let snapshot = try ConversationStore.load(from: conversationFileURL),
            !snapshot.conversations.isEmpty {
@@ -173,6 +224,12 @@ final class StudioModel: ObservableObject {
             topK = snapshot.topK
             repetitionPenalty = snapshot.repetitionPenalty
             systemPrompt = snapshot.systemPrompt
+            labSamples = Array((snapshot.labSamples ?? []).filter(\.valid).suffix(1000))
+            projects = snapshot.projects ?? []
+            profiles = snapshot.profiles ?? []
+            documents = snapshot.documents ?? []
+            responseSchema = snapshot.responseSchema ?? ""
+            selectedProjectID = conversations.first(where: { $0.id == selectedConversationID })?.projectID
         } else {
             selectedConversationID = conversations.first?.id
         }
@@ -181,25 +238,25 @@ final class StudioModel: ObservableObject {
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
             selectedConversationID = conversations.first?.id
         }
-        if mtpEnabled {
-            temperature = 0; topK = 1; repetitionPenalty = 1
+        if dflash2Enabled && mtpEnabled {
+            mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
         }
         if dflash2Enabled {
             if dflashDraftPath.isEmpty {
                 dflash2Enabled = false
                 preferences.set(false, forKey: "studio.dflash2Enabled")
-            } else {
-                temperature = 0
-                topK = 1
-                repetitionPenalty = 1
             }
         }
         mtpLegacyModelName = selectedModelName
+        dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
+        serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        selectedMode = currentConversation?.agent == true ? .agent : .chat
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
             self.readyInfo = nil
             self.cancelMTPPreparation()
+            self.cancelDFlashPreparation()
             self.finishMTPTuning(error: nil)
             self.loadSelectedModel()
         }
@@ -207,6 +264,7 @@ final class StudioModel: ObservableObject {
             guard let self, let message, !message.isEmpty else { return }
             self.readyInfo = nil
             self.cancelMTPPreparation()
+            self.cancelDFlashPreparation()
             self.finishMTPTuning(error: message)
             self.mtpTuneSupported = false; self.mtpTuningKey = nil
             self.dflashActive = nil
@@ -236,8 +294,18 @@ final class StudioModel: ObservableObject {
     }
 
     var mtpAvailable: Bool {
-        mtpSupported ?? ["qwen3_5", "qwen3_5_moe"].contains(selectedModel?.modelType ?? "")
+        mtpSupported ?? ["qwen3_5", "qwen3_5_moe", "qwen4_exp"].contains(selectedModel?.modelType ?? "")
     }
+    var mtpBuiltIn: Bool { selectedModel?.modelType == "qwen4_exp" }
+    var mtpEffectiveHeadPath: String { mtpBuiltIn ? selectedModel?.path ?? "" : mtpHeadPath }
+    // Saved intent can survive an incompatible model; applicability is not engine activity.
+    var mtpApplicable: Bool { mtpEnabled && mtpAvailable }
+    var dflash2Applicable: Bool { dflash2Enabled && dflash2Available }
+    var samplingLocked: Bool { mtpApplicable || dflash2Applicable }
+    var samplingTemperature: Double { samplingLocked ? 0 : temperature }
+    var samplingTopK: Int { samplingLocked ? 1 : topK }
+    var samplingRepetitionPenalty: Double { samplingLocked ? 1 : repetitionPenalty }
+
     var mtpAutomaticDownloadAvailable: Bool {
         mtpAutoDownloadSupported ?? false
     }
@@ -322,7 +390,7 @@ final class StudioModel: ObservableObject {
     private var canAutomaticallyUnloadModel: Bool {
         !isPreview && engineState.isReady && readyInfo != nil && bridge.isRunning
             && !isGenerating && !mcpUpdating && !mtpDownloading
-            && !dflashDownloading && !mtpConfigurationPending
+            && !dflashDownloading && !dflashConfigurationPending && !mtpConfigurationPending
     }
 
     private func updateModelIdleUnload() {
@@ -357,6 +425,15 @@ final class StudioModel: ObservableObject {
         return contextMemory?.bytes(tokens: contextLengthDraft == 0 ? maximum : contextLengthDraft)
     }
 
+    var recommendedContextLength: Int? {
+        guard let profile = contextMemory, let maximum = modelContextLimit,
+              let resident = modelResidentBytes else { return nil }
+        let observed = bridge.engineMemoryFootprintBytes().map(Double.init) ?? 0
+        return profile.recommendedTokens(maximum: maximum,
+            physicalBytes: Double(ProcessInfo.processInfo.physicalMemory),
+            residentBytes: max(resident, observed))
+    }
+
     func saveContextAndReload() {
         guard canSaveContext, let name = selectedModelName else { return }
         var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]
@@ -371,7 +448,9 @@ final class StudioModel: ObservableObject {
     }
 
     var canSend: Bool {
-        engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
+        !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
+            && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
+            && engineState.isReady && !isTuningMTP && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty)
     }
 
@@ -610,6 +689,16 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    func prepareForQuantization() async {
+        ejectModel()
+        await bridge.stopAndWait()
+    }
+
+    func addQuantizedModel(_ url: URL) {
+        guard !quantizer.converting, !isGenerating else { return }
+        registerModelFolder(url)
+    }
+
     func importModelFolder() {
         chooseModelFolder(replacing: nil)
     }
@@ -637,7 +726,7 @@ final class StudioModel: ObservableObject {
     }
 
     func selectModel(_ name: String) {
-        guard !isGenerating else { return }
+        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
         if name == selectedModelName, bridge.isRunning {
             switch engineState {
             case .loading, .ready, .generating: return
@@ -659,6 +748,7 @@ final class StudioModel: ObservableObject {
         modelLoadID = UUID()
         modelLoadTask?.cancel(); modelLoadTask = nil
         modelIdleUnloader.cancel()
+        cancelDFlashPreparation()
         activeMessage()?.fail(L("Modèle éjecté", "Model unloaded"))
         activeRequestID = nil
         activeResponseID = nil
@@ -680,6 +770,7 @@ final class StudioModel: ObservableObject {
         contextMemory = nil
         modelResidentBytes = nil
         bridge.stop()
+        bridgeUsesAgentRegistry = false
         engineState = .idle
         mcpUpdating = false
         mcpServerCount = 0
@@ -689,12 +780,18 @@ final class StudioModel: ObservableObject {
     }
 
     func newConversation() {
+        guard !isGenerating || currentConversation?.agent != true else { return }
+        voice.stop()
         if let id = selectedConversationID { drafts[id] = draft }
-        let conversation = Conversation()
+        var conversation = Conversation()
+        conversation.projectID = selectedProjectID
+        conversation.agent = selectedMode == .agent
+        if selectedMode == .lab || selectedMode == .server { selectMode(.chat) }
         conversations.insert(conversation, at: 0)
         selectedConversationID = conversation.id
         draft = ""
         schedulePersistence()
+        if conversation.agent { refreshAgentWorkspace() }
     }
 
     func deleteConversation(_ id: UUID) {
@@ -702,27 +799,39 @@ final class StudioModel: ObservableObject {
         clearAttachmentDraft(id)
         drafts[id] = nil
         if removed.messages.contains(where: { $0.id == activeResponseID }) {
-            activeMessage()?.fail(L("Conversation supprimée", "Conversation deleted"))
-            _ = bridge.cancelGeneration()
+            forceStopGeneration(L("Conversation supprimée", "Conversation deleted"))
         }
         deletedConversation = removed
         guard conversations.count > 1 else {
             if let index = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[index] = Conversation(id: id)
+                conversations[index].projectID = removed.projectID
+                conversations[index].agent = removed.agent
             }
+            voice.stop(); draft = ""
             schedulePersistence()
             return
         }
         conversations.removeAll { $0.id == id }
-        if selectedConversationID == id {
-            selectedConversationID = conversations.first?.id
-            draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
+        if selectedConversationID == id, let next = conversations.first {
+            selectConversation(next.id)
+            drafts[id] = nil
         }
         schedulePersistence()
     }
 
     func send() {
-        guard canSend, let conversationIndex else { return }
+        guard canSend, !agentStudioBusy, let conversationIndex else { return }
+        if selectedMode != .agent && !responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard workspaceFeaturesAvailable else { featureError = L("Ce moteur ne prend pas en charge le JSON validé. Mettez le moteur à jour.", "This engine does not support validated JSON. Update the engine."); return }
+            do {
+                guard try JSONSerialization.jsonObject(with: Data(responseSchema.utf8)) is [String: Any] else { throw MCPSettingsError.invalid }
+            } catch { featureError = L("Le schéma doit être un objet JSON valide.", "The schema must be a valid JSON object."); return }
+        }
+        if mcpEnabled && currentProject != nil && !workspaceFeaturesAvailable {
+            featureError = L("Ce moteur ne prend pas en charge les permissions par projet. Mettez le moteur à jour.", "This engine does not support per-project permissions. Update the engine."); return
+        }
+        voice.stop()
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let text = trimmed.isEmpty ? L("Analyse les fichiers joints.", "Analyze the attached files.") : trimmed
         let attachments = pendingAttachments
@@ -733,10 +842,13 @@ final class StudioModel: ObservableObject {
         if conversations[conversationIndex].messages.isEmpty {
             conversations[conversationIndex].title = title(for: trimmed.isEmpty ? attachments.first?.fileName ?? text : text)
         }
-        conversations[conversationIndex].messages.append(
-            ChatMessage(role: .user, content: text, attachments: attachments)
-        )
+        let projectDocuments = documents.filter { $0.projectID == conversations[conversationIndex].projectID }
+        let sources = DocumentSearch.search(text, documents: projectDocuments)
+        let user = ChatMessage(role: .user, content: text, attachments: attachments)
+        user.sources = sources
+        conversations[conversationIndex].messages.append(user)
         let assistant = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        assistant.sources = sources
         conversations[conversationIndex].messages.append(assistant)
         schedulePersistence()
 
@@ -744,11 +856,34 @@ final class StudioModel: ObservableObject {
         activeRequestID = requestID
         cancelledGenerationID = nil
         activeResponseID = assistant.id
+        if selectedMode == .agent {
+            generationStartedAt = .now
+            generationLastActivity = .now
+            generationWatchdog = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled, let self else { return }
+                    self.checkAgentGenerationDeadline(at: .now)
+                }
+            }
+        }
+        labConfiguration = nil
+        if let model = selectedModel {
+            let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
+            let system = ProcessInfo.processInfo.operatingSystemVersionString, hardware = LabHardware.identity
+            let context = activeContextLimit ?? 0, temperature = samplingTemperature, topK = samplingTopK
+            let mtp = mtpApplicable, dflash = dflash2Applicable
+            labConfiguration = { stats in LabSample(model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
+                runtime: runtime, system: system, hardware: hardware, context: context, temperature: temperature,
+                topK: topK, mtp: mtp, dflash: dflash, stats: stats) }
+        }
         dflashActive = nil
         engineState = .generating
 
         var messages: [PromptMessage] = []
-        let system = systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
+            selectedMode == .agent ? "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands use macOS system tools, have no network or personal-file access, and have a configurable deadline (at most 30 seconds) and 32 KiB output limit. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
         }
@@ -766,17 +901,20 @@ final class StudioModel: ObservableObject {
                     requestID: requestID,
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
-                    maxTokens: -1,
-                    temperature: temperature,
-                    topK: topK,
-                    repetitionPenalty: repetitionPenalty,
-                    mcpEnabled: mcpEnabled,
-                    dflash2: dflash2Enabled && dflash2Available,
+                    maxTokens: selectedMode == .agent ? 4096 : -1,
+                    temperature: samplingTemperature,
+                    topK: samplingTopK,
+                    repetitionPenalty: samplingRepetitionPenalty,
+                    mcpEnabled: selectedMode == .agent || (mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+                    dflash2: dflash2Applicable,
                     dflashDraftPath: dflashDraftPath,
-                    mtp: mtpEnabled && mtpAvailable,
-                    mtpHeadPath: mtpHeadPath,
+                    dflashMode: dflashMode,
+                    mtp: mtpApplicable,
+                    mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
-                    memorySaver: memorySaverEnabled && memorySaverSupported
+                    memorySaver: memorySaverEnabled && memorySaverSupported,
+                    allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
+                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
                 )
             )
         } catch {
@@ -787,16 +925,40 @@ final class StudioModel: ObservableObject {
     func stopGeneration() {
         if isTuningMTP { cancelMTPTuning(); return }
         guard isGenerating else { return }
-        cancelledGenerationID = activeRequestID
-        if bridge.cancelGeneration() {
-            return
+        requestGenerationStop(L("Génération arrêtée", "Generation stopped"))
+    }
+
+    private func requestGenerationStop(_ reason: String) {
+        guard let request = activeRequestID else { return }
+        cancelledGenerationID = request
+        cancellationReason = reason
+        guard cancellationFallback == nil, bridge.cancelGeneration() else {
+            forceStopGeneration(reason); return
         }
-        activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
-        activeRequestID = nil
-        activeResponseID = nil
-        bridge.stop()
+        activeMessage()?.processing(L("Arrêt de la génération…", "Stopping generation…"))
+        cancellationFallback = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, self?.activeRequestID == request else { return }
+            self?.forceStopGeneration(reason)
+        }
+    }
+
+    private func forceStopGeneration(_ reason: String) {
+        activeMessage()?.fail(reason)
+        labConfiguration = nil
+        activeRequestID = nil; activeResponseID = nil
+        ejectModel()
         schedulePersistence()
-        loadSelectedModel()
+    }
+
+    private func checkAgentGenerationDeadline(at now: ContinuousClock.Instant) {
+        guard activeRequestID != nil, cancellationFallback == nil,
+              let start = generationStartedAt, let last = generationLastActivity else { return }
+        if now - start >= .seconds(600) {
+            requestGenerationStop(L("Limite de 10 minutes atteinte. La réponse partielle est conservée.", "10-minute Agent limit reached. Partial output was kept."))
+        } else if now - last >= .seconds(120) {
+            requestGenerationStop(L("L’agent ne répond plus depuis 2 minutes. La réponse partielle est conservée.", "Agent has not responded for 2 minutes. Partial output was kept."))
+        }
     }
 
     func reloadMCPServers() {
@@ -817,7 +979,7 @@ final class StudioModel: ObservableObject {
         guard !isPreview, bridge.isRunning else { return }
         mcpUpdating = true
         do {
-            try bridge.setMCPEnabled(mcpEnabled)
+            try bridge.setMCPEnabled(bridgeUsesAgentRegistry || mcpEnabled)
         } catch {
             mcpUpdating = false
             mcpErrors = ["connexion": error.localizedDescription]
@@ -839,49 +1001,145 @@ final class StudioModel: ObservableObject {
         schedulePersistence()
     }
 
-    func setDFlash2Enabled(_ enabled: Bool) {
+    private func cancelDFlashPreparation() {
+        dflashOperationID = UUID()
+        dflashDownloadTask?.cancel(); dflashDownloadTask = nil
+        dflashDownloading = false; dflashConfigurationPending = false
+    }
+
+    func setDFlash2Enabled(_ enabled: Bool, downloadCompatible: Bool = false) {
+        guard !isGenerating else { return }
         if !enabled {
-            dflashDownloadTask?.cancel()
+            cancelDFlashPreparation()
             dflash2Enabled = false
             preferences.set(false, forKey: "studio.dflash2Enabled")
+            saveDFlashSelection()
+            if dflashConfigureSupported && bridge.isRunning {
+                do {
+                    dflashConfigurationPending = true
+                    try bridge.setDFlash(requestID: dflashOperationID.uuidString, enabled: false, draftPath: "")
+                    let operation = dflashOperationID
+                    dflashDownloadTask = Task { [weak self] in
+                        do { try await Task.sleep(for: .seconds(30)) }
+                        catch { return }
+                        guard let self, operation == self.dflashOperationID, self.dflashConfigurationPending else { return }
+                        self.dflashDownloadError = L("La configuration DFlash ne répond pas.", "DFlash configuration did not respond.")
+                        self.dflashActive = nil
+                        self.cancelDFlashPreparation()
+                    }
+                }
+                catch { dflashDownloadError = error.localizedDescription; dflashActive = nil; cancelDFlashPreparation() }
+            }
             return
         }
-        guard dflash2Available, !isGenerating, !dflashDownloading else { return }
-        dflashDownloadError = nil
-        dflashDownloadCompleted = 0
-        dflashDownloadTotal = 0
+        guard dflash2Available, engineState.isReady, !dflashDownloading, let model = selectedModel else { return }
+        cancelDFlashPreparation()
+        let operation = dflashOperationID
+        dflashDownloadError = nil; dflashDownloadCompleted = 0; dflashDownloadTotal = 0
+        let flashDraft = model.modelType == "qwen4_exp"
+        if flashDraft && (!dflashConfigureSupported || (!downloadCompatible && dflashDraftPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)) {
+            dflash2Enabled = false
+            preferences.set(false, forKey: "studio.dflash2Enabled")
+            dflashDownloadError = !dflashConfigureSupported
+                ? L("Mets le moteur à jour pour charger un draft Flash Next.", "Update the engine to load a Flash Next draft.")
+                : L("Télécharge le draft compatible avec le bouton ci-dessous, ou choisis son dossier local.", "Download the compatible draft with the button below, or choose its local folder.")
+            return
+        }
         dflashDownloading = true
         dflashDownloadTask = Task { [self] in
             do {
                 var data: Data?
-                if !dflashDraftPath.isEmpty {
-                    data = try? await CLICommand().output(["dflash-draft", "--inspect", dflashDraftPath])
-                }
-                try Task.checkCancellation()
-                if data == nil {
-                    data = try await CLICommand().output(["dflash-draft"]) { [weak self] line in
-                        guard let self,
-                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line),
-                              event.type == "progress" else { return }
-                        self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
-                        self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
+                if !flashDraft || downloadCompatible {
+                    if !downloadCompatible && !dflashDraftPath.isEmpty {
+                        data = try? await CLICommand().output(["dflash-draft", "--target", model.path, "--inspect", dflashDraftPath])
+                    }
+                    try Task.checkCancellation()
+                    if data == nil {
+                        data = try await CLICommand().output(["dflash-draft", "--target", model.path]) { [weak self] line in
+                            guard let self, operation == self.dflashOperationID,
+                                  let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                            self.dflashDownloadCompleted = event.completed ?? self.dflashDownloadCompleted
+                            self.dflashDownloadTotal = event.total ?? self.dflashDownloadTotal
+                        }
                     }
                 }
                 try Task.checkCancellation()
-                guard let data,
-                      let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
-                      event.type == "installed", let path = event.path else {
-                    throw MLXL3BridgeError.invalidResponse
+                guard operation == dflashOperationID, selectedModel?.path == model.path else { return }
+                let path: String
+                if flashDraft && !downloadCompatible {
+                    // Raw Flash drafts are validated by the resident loader and its acknowledgement.
+                    path = dflashDraftPath
+                } else {
+                    guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                          event.type == "installed", let installedPath = event.path, !installedPath.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                    path = installedPath
                 }
-                dflashDraftPath = path
-                preferences.set(path, forKey: "studio.dflashDraftPath")
+                if !downloadCompatible { commitDFlashDraft(path, modelPath: model.path) }
+                cancelMTPPreparation(); mtpEnabled = false
+                preferences.set(false, forKey: "studio.mtpEnabled")
+                if dflashConfigureSupported {
+                    dflashConfigurationPending = true
+                    try bridge.setDFlash(requestID: operation.uuidString, enabled: true, draftPath: path)
+                    // Bound an unresponsive resident engine; stale tasks never enable a new model.
+                    for _ in 0..<300 where dflashConfigurationPending {
+                        try await Task.sleep(for: .milliseconds(100))
+                        try Task.checkCancellation()
+                    }
+                    guard !dflashConfigurationPending else { throw MLXL3BridgeError.commandFailed(L("Le draft ne répond pas.", "Draft loading did not respond.")) }
+                    guard dflashActive == true else { throw MLXL3BridgeError.commandFailed(dflashDownloadError ?? "DFlash loading failed") }
+                }
+                if downloadCompatible { commitDFlashDraft(path, modelPath: model.path) }
                 enableDFlashGreedy()
+                saveDFlashSelection()
             } catch is CancellationError { }
-            catch { dflashDownloadError = error.localizedDescription }
-            dflashDownloading = false
-            dflashDownloadTask = nil
+            catch {
+                if operation == dflashOperationID {
+                    dflashDownloadError = (downloadCompatible
+                        ? L("Impossible de préparer le draft Flash Next : ", "Unable to prepare the Flash Next draft: ") : "") + error.localizedDescription
+                    dflash2Enabled = false
+                }
+            }
+            if operation == dflashOperationID {
+                dflashDownloading = false; dflashConfigurationPending = false; dflashDownloadTask = nil
+            }
         }
     }
+
+    private var currentDFlashConfiguration: MTPConfigurationKey? {
+        guard let model = selectedModel, let runtime = dflashTuningKey, !dflashDraftPath.isEmpty else { return nil }
+        return MTPConfigurationKey(modelPath: model.path, headPath: dflashDraftPath, runtime: runtime, packedDraft: true)
+    }
+    var canTuneDFlash: Bool {
+        dflash2Available && dflashTuneSupported && engineState.isReady && !isGenerating
+            && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending
+            && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking && currentDFlashConfiguration != nil
+    }
+    func setDFlashMode(_ mode: Int) {
+        guard !isGenerating, (1...3).contains(mode) else { return }
+        dflashMode = mode; saveDFlashSelection()
+    }
+    private func saveDFlashSelection() {
+        guard let key = currentDFlashConfiguration else { return }
+        MTPTuning.save(MTPSelection(key: key, depth: dflashMode,
+            rows: dflashTuneRows, tunedAt: dflashTunedAt), preferences: preferences, storageKey: "studio.dflashSelections")
+    }
+    private func restoreDFlashSelection() {
+        dflashMode = 1; dflashTuneRows = []; dflashTunedAt = nil
+        guard let key = currentDFlashConfiguration,
+              let saved = MTPTuning.load(key: key, preferences: preferences, storageKey: "studio.dflashSelections") else { return }
+        dflashMode = max(1, saved.depth); dflashTuneRows = saved.rows; dflashTunedAt = saved.tunedAt
+    }
+    func tuneDFlash() {
+        guard canTuneDFlash, let key = currentDFlashConfiguration else { return }
+        let request = UUID().uuidString
+        tuneIsDFlash = true; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
+        isTuningMTP = true; mtpTuneProgress = 0; dflashDownloadError = nil
+        mtpTuneStatus = L("Préparation du test…", "Preparing test…")
+        do { try bridge.tuneDFlash(requestID: request, draftPath: dflashDraftPath,
+                                  memorySaver: memorySaverEnabled && memorySaverSupported) }
+        catch { finishMTPTuning(error: error.localizedDescription) }
+    }
+    func cancelDFlashTuning() { cancelMTPTuning() }
 
     private func cancelMTPPreparation() {
         mtpOperationID = UUID()
@@ -924,45 +1182,56 @@ final class StudioModel: ObservableObject {
             return
         }
         guard mtpAvailable, engineState.isReady, !mtpDownloading, let model = selectedModel else { return }
+        cancelDFlashPreparation()
+        dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
         cancelMTPPreparation()
         let operation = mtpOperationID
         preferences.set(true, forKey: "studio.mtpEnabled")
+        if mtpBuiltIn {
+            mtpError = nil
+            mtpDepth = 1
+            activateMTP()
+            if !mtpConfigureSupported { return }
+        }
         mtpError = nil; mtpDownloadCompleted = 0; mtpDownloadTotal = 0
         mtpDownloading = true
         mtpDownloadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                var data: Data?
-                let target = mtpConfigureSupported ? ["--target", model.path] : []
-                if !mtpHeadPath.isEmpty {
-                    do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
-                    catch is CancellationError { throw CancellationError() }
-                    catch { if !mtpAutomaticDownloadAvailable { throw error } }
-                }
-                if data == nil {
-                    guard mtpAutomaticDownloadAvailable else {
-                        throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
-                    }
-                    data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
-                        guard let self, operation == self.mtpOperationID,
-                              let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
-                        self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
-                        self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
-                    }
-                }
                 try Task.checkCancellation()
                 guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
-                guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
-                      event.type == "installed", let path = event.path, !path.isEmpty else { throw MLXL3BridgeError.invalidResponse }
-                mtpHeadPath = path
-                preferences.set(path, forKey: "studio.mtpHeadPath")
-                preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
-                dflash2Enabled = false
-                mtpEnabled = true
-                temperature = 0; topK = 1; repetitionPenalty = 1
-                preferences.set(true, forKey: "studio.mtpEnabled")
-                saveMTPSelection()
-                schedulePersistence()
+                let path: String
+                if mtpBuiltIn {
+                    path = model.path
+                } else {
+                    var data: Data?
+                    let target = mtpConfigureSupported ? ["--target", model.path] : []
+                    if !mtpHeadPath.isEmpty {
+                        do { data = try await CLICommand().output(["mtp-head", "--inspect", mtpHeadPath] + target) }
+                        catch is CancellationError { throw CancellationError() }
+                        catch { if !mtpAutomaticDownloadAvailable { throw error } }
+                    }
+                    if data == nil {
+                        guard mtpAutomaticDownloadAvailable else {
+                            throw MLXL3BridgeError.commandFailed(L("Choisis la tête MTP de ce modèle.", "Choose this model’s MTP head."))
+                        }
+                        data = try await CLICommand().output(["mtp-head"] + target) { [weak self] line in
+                            guard let self, operation == self.mtpOperationID,
+                                  let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                            self.mtpDownloadCompleted = event.completed ?? self.mtpDownloadCompleted
+                            self.mtpDownloadTotal = event.total ?? self.mtpDownloadTotal
+                        }
+                    }
+                    try Task.checkCancellation()
+                    guard operation == mtpOperationID, model == selectedModel, mtpAvailable else { throw CancellationError() }
+                    guard let data, let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                          event.type == "installed", let installedPath = event.path, !installedPath.isEmpty else { throw MLXL3BridgeError.invalidResponse }
+                    path = installedPath
+                    mtpHeadPath = path
+                    preferences.set(path, forKey: "studio.mtpHeadPath")
+                    preferences.set(path, forKey: "studio.mtpHead.\(model.path)")
+                }
+                activateMTP()
                 if mtpConfigureSupported {
                     try configureMTP(requestID: operation.uuidString, enabled: true, headPath: path)
                     try await Task.sleep(for: .seconds(30))
@@ -985,8 +1254,17 @@ final class StudioModel: ObservableObject {
         }
     }
 
+    private func activateMTP() {
+        dflash2Enabled = false
+        mtpEnabled = true
+        // Greedy request values are derived without changing saved ordinary sampling.
+        preferences.set(true, forKey: "studio.mtpEnabled")
+        saveMTPSelection()
+        schedulePersistence()
+    }
+
     func chooseMTPHead() {
-        guard !isGenerating, !mtpDownloading else { return }
+        guard !isGenerating, !mtpDownloading, !mtpBuiltIn else { return }
         let picker = NSOpenPanel()
         picker.canChooseDirectories = true; picker.canChooseFiles = false; picker.allowsMultipleSelection = false
         picker.prompt = L("Utiliser cette tête MTP", "Use this MTP head")
@@ -998,13 +1276,13 @@ final class StudioModel: ObservableObject {
     }
 
     private var currentMTPConfiguration: MTPConfigurationKey? {
-        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpHeadPath.isEmpty else { return nil }
-        return MTPConfigurationKey(modelPath: model.path, headPath: mtpHeadPath, runtime: runtime)
+        guard let model = selectedModel, let runtime = mtpTuningKey, !mtpEffectiveHeadPath.isEmpty else { return nil }
+        return MTPConfigurationKey(modelPath: model.path, headPath: mtpEffectiveHeadPath, runtime: runtime)
     }
 
     var canTuneMTP: Bool {
         mtpAvailable && mtpTuneSupported && engineState.isReady && !isGenerating
-            && !mtpDownloading && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking
+            && !mtpDownloading && !dflashDownloading && !dflashConfigurationPending && !mcpUpdating && !updateManager.isInstalling && !modelInstallState.isWorking
             && currentMTPConfiguration != nil
     }
 
@@ -1025,16 +1303,15 @@ final class StudioModel: ObservableObject {
         guard let key = currentMTPConfiguration,
               let saved = MTPTuning.load(key: key, preferences: preferences), saved.depth <= mtpMaxDepth else { return }
         mtpDepth = max(1, saved.depth)
-        // The global switch owns ON/OFF; saved tuning only restores the depth.
+        // Integrated heads retain their per-model choice; external heads use the global switch.
+        if mtpBuiltIn { mtpEnabled = saved.depth > 0 }
         mtpTuneRows = saved.rows; mtpTunedAt = saved.tunedAt
-        if mtpEnabled { temperature = 0; topK = 1; repetitionPenalty = 1 }
     }
 
     func tuneMTP() {
         guard canTuneMTP, let key = currentMTPConfiguration else { return }
-        showInspector = true
         let request = UUID().uuidString
-        tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
+        tuneIsDFlash = false; tuneRequestID = request; tuneConfiguration = key; tuneCancellationRequested = false
         isTuningMTP = true; mtpTuneProgress = 0; mtpError = nil
         mtpTuneStatus = L("Préparation du test…", "Preparing test…")
         do { try bridge.tuneMTP(requestID: request, headPath: mtpHeadPath, memorySaver: memorySaverEnabled && memorySaverSupported) }
@@ -1052,39 +1329,62 @@ final class StudioModel: ObservableObject {
 
     private func finishMTPTuning(error: String?) {
         isTuningMTP = false; tuneRequestID = nil; tuneConfiguration = nil
-        if let error { mtpError = error }
+        if let error { if tuneIsDFlash { dflashDownloadError = error } else { mtpError = error } }
+        tuneIsDFlash = false
     }
 
     private func handleMTPTuning(_ event: BridgeEvent) {
         switch event.type {
-        case "mtp_tune_progress":
+        case "mtp_tune_progress", "dflash_tune_progress":
             guard !tuneCancellationRequested else { return }
             if let completed = event.completed, let total = event.total, total > 0 {
                 mtpTuneProgress = min(1, max(0, Double(completed) / Double(total)))
             }
-            let mode = event.depth.map { $0 == 0 ? "Baseline" : "MTP\($0)" } ?? "MTP"
+            let mode = event.depth.map { tuneIsDFlash ? ["Baseline", "Auto", "2 tokens", "7 tokens"][min(3, max(0, $0))] : $0 == 0 ? "Baseline" : "MTP\($0)" } ?? "Tune"
             mtpTuneStatus = event.phase == "warmup"
                 ? L("Échauffement · ", "Warmup · ") + mode
                 : event.phase == "loading_head" ? L("Chargement de la tête MTP…", "Loading MTP head…")
                 : L("Mesure · ", "Measuring · ") + mode
-        case "mtp_tune_complete":
+        case "mtp_tune_complete", "dflash_tune_complete":
             guard !tuneCancellationRequested, let key = tuneConfiguration,
-                  key == currentMTPConfiguration, event.tuningKey == key.runtime,
+                  key == (tuneIsDFlash ? currentDFlashConfiguration : currentMTPConfiguration), event.tuningKey == key.runtime,
                   let rows = event.rows, let best = MTPTuning.winner(rows), best == event.bestDepth else {
                 finishMTPTuning(error: L("Test incomplet ou annulé. Réglage conservé.", "Incomplete or cancelled test. Setting preserved.")); return
             }
-            mtpDepth = max(1, best); mtpEnabled = best > 0; mtpTuneRows = rows.sorted { $0.depth < $1.depth }
-            mtpTunedAt = Date(); mtpTuneProgress = 1
-            // Baseline is also measured in greedy mode, keeping the comparison valid.
-            temperature = 0; topK = 1; repetitionPenalty = 1
-            preferences.set(mtpEnabled, forKey: "studio.mtpEnabled")
-            saveMTPSelection(); schedulePersistence(); finishMTPTuning(error: nil)
+            if tuneIsDFlash {
+                dflashMode = max(1, best); dflash2Enabled = best > 0
+                dflashTuneRows = rows.sorted { $0.depth < $1.depth }; dflashTunedAt = Date()
+                mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
+                preferences.set(dflash2Enabled, forKey: "studio.dflash2Enabled")
+                saveDFlashSelection()
+                if best == 0 { try? bridge.setDFlash(requestID: UUID().uuidString, enabled: false, draftPath: "") }
+            } else {
+                mtpDepth = max(1, best); mtpEnabled = best > 0; mtpTuneRows = rows.sorted { $0.depth < $1.depth }
+                mtpTunedAt = Date()
+                dflash2Enabled = false; preferences.set(false, forKey: "studio.dflash2Enabled")
+                preferences.set(mtpEnabled, forKey: "studio.mtpEnabled"); saveMTPSelection()
+            }
+            mtpTuneProgress = 1
+            // Tuning uses greedy internally; retain the user's ordinary sampling settings.
+            schedulePersistence(); finishMTPTuning(error: nil)
         case "cancelled":
             finishMTPTuning(error: L("Test arrêté. Réglage conservé.", "Test stopped. Setting preserved."))
         case "error":
             finishMTPTuning(error: event.message ?? L("Le test MTP a échoué. Réglage conservé.", "MTP test failed. Setting preserved."))
         default: break
         }
+    }
+
+    private func commitDFlashDraft(_ path: String, modelPath: String) {
+        dflashDraftPath = path
+        preferences.set(path, forKey: "studio.dflashDraftPath")
+        preferences.set(path, forKey: "studio.dflashDraft.\(modelPath)")
+        restoreDFlashSelection()
+    }
+
+    func downloadCompatibleDFlashDraft() {
+        guard selectedModel?.modelType == "qwen4_exp" else { return }
+        setDFlash2Enabled(true, downloadCompatible: true)
     }
 
     func chooseDFlashDraft() {
@@ -1095,23 +1395,32 @@ final class StudioModel: ObservableObject {
         picker.prompt = L("Utiliser ce draft", "Use this draft")
         guard picker.runModal() == .OK, let path = picker.url?.path else { return }
         dflashDraftPath = path
+        if let model = selectedModel { preferences.set(path, forKey: "studio.dflashDraft.\(model.path)") }
         preferences.set(path, forKey: "studio.dflashDraftPath")
+        setDFlash2Enabled(true)
     }
 
     func enableDFlashGreedy() {
-        temperature = 0
-        topK = 1
-        repetitionPenalty = 1
+        mtpEnabled = false; preferences.set(false, forKey: "studio.mtpEnabled")
         dflash2Enabled = true
         preferences.set(true, forKey: "studio.dflash2Enabled")
         settingsDidChange()
     }
 
     func selectConversation(_ id: UUID) {
-        guard conversations.contains(where: { $0.id == id }) else { return }
+        guard let conversation = conversations.first(where: { $0.id == id }) else { return }
+        guard !localServer.active, modeTransition == nil else { return }
+        if isGenerating && (currentConversation?.agent == true || conversation.agent) && selectedConversationID != id { return }
+        let previousID = selectedConversationID
+        let previousAgent = bridgeUsesAgentRegistry
         if let previous = selectedConversationID { drafts[previous] = draft }
+        voice.stop()
         selectedConversationID = id
+        selectedProjectID = currentConversation?.projectID
         draft = drafts[id] ?? ""
+        selectedMode = conversation.agent ? .agent : .chat
+        if previousAgent != conversation.agent { loadSelectedModel() }
+        else if conversation.agent && previousID != id { refreshAgentWorkspace() }
         schedulePersistence()
     }
 
@@ -1142,6 +1451,11 @@ final class StudioModel: ObservableObject {
             if let backup = try? ConversationStore.load(from: backupURL) {
                 conversations = backup.conversations.map(Conversation.init(snapshot:))
                 selectedConversationID = conversations.first?.id
+                projects = backup.projects ?? []
+                profiles = backup.profiles ?? []
+                documents = backup.documents ?? []
+                responseSchema = backup.responseSchema ?? ""
+                selectedProjectID = currentConversation?.projectID
             } else if FileManager.default.fileExists(atPath: backupURL.path) {
                 try FileManager.default.moveItem(at: backupURL, to: backupURL.appendingPathExtension("unreadable-" + UUID().uuidString))
             }
@@ -1155,7 +1469,7 @@ final class StudioModel: ObservableObject {
         guard let restored = deletedConversation else { return }
         conversations.removeAll { $0.id == restored.id }
         conversations.insert(restored, at: 0)
-        selectedConversationID = restored.id
+        selectConversation(restored.id)
         deletedConversation = nil
         schedulePersistence()
     }
@@ -1177,9 +1491,25 @@ final class StudioModel: ObservableObject {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        importWorkspace(from: url)
+    }
+
+    func importWorkspace(from url: URL) {
+        guard !isGenerating else { return }
         do {
             guard let snapshot = try ConversationStore.load(from: url) else { return }
             let known = Set(conversations.map(\.id))
+            var merged = workspaceSnapshot
+            let knownProjects = Set(projects.map(\.id))
+            merged.projects = projects + (snapshot.projects ?? []).filter { !knownProjects.contains($0.id) }
+            let knownProfiles = Set(profiles.map(\.id))
+            merged.profiles = profiles + (snapshot.profiles ?? []).filter { !knownProfiles.contains($0.id) }
+            let knownDocuments = Set(documents.map(\.id))
+            merged.documents = documents + (snapshot.documents ?? []).filter { !knownDocuments.contains($0.id) }
+            try ConversationStore.validate(merged)
+            projects = merged.projects ?? []
+            profiles = merged.profiles ?? []
+            documents = merged.documents ?? []
             conversations.insert(contentsOf: snapshot.conversations.filter { !known.contains($0.id) }.map(Conversation.init(snapshot:)), at: 0)
             persistNow()
         } catch { storageError = error.localizedDescription }
@@ -1191,11 +1521,17 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !isGenerating else { return }
+        guard !quantizer.converting, !isGenerating, !localServer.active, modeTransition == nil else { return }
         modelLoadTask?.cancel()
         let operation = UUID()
         modelLoadID = operation
         modelIdleUnloader.cancel()
+        cancelDFlashPreparation()
+        dflashTuneSupported = false; dflashTuningKey = nil; dflashConfigureSupported = false
+        dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
+        dflashDraftPath = selectedModel.flatMap { preferences.string(forKey: "studio.dflashDraft.\($0.path)") }
+            ?? (selectedModelName == dflashLegacyModelName ? preferences.string(forKey: "studio.dflashDraftPath") ?? "" : "")
+        dflashTuneRows = []; dflashMode = 1
         dflashActive = nil
         dflashSupported = nil
         mtpActive = nil
@@ -1229,12 +1565,15 @@ final class StudioModel: ObservableObject {
         mcpErrors = [:]
         activeRequestID = nil
         activeResponseID = nil
+        let agentMode = selectedMode == .agent
         let contextLength = savedContextLength
         modelLoadTask = Task { [weak self] in
             guard let self, modelLoadID == operation, !Task.isCancelled else { return }
             defer { if modelLoadID == operation { modelLoadTask = nil } }
             do {
-                try await bridge.start(model: selectedModelName, contextLength: contextLength)
+                let registry = try agentMode ? prepareAgentRegistry() : nil
+                bridgeUsesAgentRegistry = agentMode
+                try await bridge.start(model: selectedModelName, contextLength: contextLength, registry: registry)
             } catch is CancellationError { }
             catch {
                 guard modelLoadID == operation, !Task.isCancelled else { return }
@@ -1270,6 +1609,22 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
+        if let activeRequestID, event.requestID == activeRequestID { generationLastActivity = .now }
+        if dflashConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
+            dflashDownloadError = event.message ?? L("La configuration DFlash a échoué.", "DFlash configuration failed.")
+            dflash2Enabled = false; dflashActive = nil
+            cancelDFlashPreparation()
+        }
+        if event.requestID == dflashOperationID.uuidString && ["dflash_status", "error"].contains(event.type) {
+            dflashConfigurationPending = false
+            dflashActive = event.type == "dflash_status" ? event.dflashActive : false
+            if event.type == "error" { dflashDownloadError = event.message }
+            else if event.dflashActive != dflashDownloading {
+                dflashDownloadError = L("Réponse de configuration DFlash invalide.", "Invalid DFlash configuration response.")
+            }
+            if !dflashDownloading { dflashDownloadTask?.cancel(); dflashDownloadTask = nil }
+            return
+        }
         if mtpConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             mtpError = event.message ?? L("La configuration MTP a échoué.", "MTP configuration failed.")
             mtpEnabled = false; mtpActive = nil
@@ -1298,7 +1653,12 @@ final class StudioModel: ObservableObject {
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
+            workspaceFeaturesAvailable = event.workspaceFeatures == true
+            if let tools = event.mcpToolCatalog { mcpTools = tools }
             dflashSupported = event.dflashSupported
+            dflashTuneSupported = event.dflashTuneSupported == true
+            dflashConfigureSupported = event.dflashConfigureSupported == true
+            dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
             mtpConfigureSupported = event.mtpConfigureSupported == true
@@ -1317,7 +1677,9 @@ final class StudioModel: ObservableObject {
                 residentGB: event.residentGB ?? 0
             )
             readyInfo = info
+            if mtpBuiltIn { mtpEnabled = false }
             restoreMTPSelection()
+            restoreDFlashSelection()
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
             mcpErrors = event.mcpErrors ?? [:]
@@ -1326,9 +1688,11 @@ final class StudioModel: ObservableObject {
                 modules: info.modules,
                 residentGB: info.residentGB
             )
-            if mcpEnabled { updateMCPConnection() }
-            if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
+            if mcpEnabled || bridgeUsesAgentRegistry { updateMCPConnection() }
+            if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
+            else if mtpEnabled && mtpAvailable { setMTPEnabled(true) }
         case "mcp_status":
+            if let tools = event.mcpToolCatalog { mcpTools = tools }
             mcpUpdating = false
             mcpServerCount = event.mcpServers ?? 0
             mcpToolCount = event.mcpTools ?? 0
@@ -1383,6 +1747,11 @@ final class StudioModel: ObservableObject {
             schedulePersistence()
         case "complete":
             guard let requestID = activeRequestID, event.requestID == requestID else { return }
+            if event.contextFull != true, let stats = event.stats, let sample = labConfiguration?(stats), sample.valid {
+                labSamples.append(sample)
+                labSamples = Array(labSamples.suffix(1000))
+            }
+            labConfiguration = nil
             if let stats = event.stats, let name = selectedModelName,
                let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
                let limit = stats.contextLimit ?? conversations[index].contextUsage?.limit ?? activeContextLimit,
@@ -1398,17 +1767,21 @@ final class StudioModel: ObservableObject {
             )
             if event.contextFull == true {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
+            } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
+                message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
             }
             if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
             }
+            finishAgentTurn()
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
             restoreReadyState()
         case "cancelled":
             guard event.requestID == activeRequestID else { return }
-            activeMessage()?.fail(L("Génération arrêtée", "Generation stopped"))
+            labConfiguration = nil
+            activeMessage()?.fail(cancellationReason ?? L("Génération arrêtée", "Generation stopped"))
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -1434,6 +1807,7 @@ final class StudioModel: ObservableObject {
     }
 
     private func failActiveTurn(_ message: String) {
+        labConfiguration = nil
         mcpUpdating = false
         let detail = message.hasPrefix("Context full (")
             ? L("Contexte plein. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", message)
@@ -1468,15 +1842,21 @@ final class StudioModel: ObservableObject {
     }
 
     private var workspaceSnapshot: WorkspaceSnapshot {
-        WorkspaceSnapshot(
+        var snapshot = WorkspaceSnapshot(
             selectedConversationID: selectedConversationID,
             selectedModelName: selectedModelName,
             conversations: conversations.map(\.snapshot),
             temperature: temperature,
             topK: topK,
             repetitionPenalty: repetitionPenalty,
-            systemPrompt: systemPrompt
+            systemPrompt: systemPrompt,
+            projects: projects,
+            profiles: profiles,
+            documents: documents,
+            responseSchema: responseSchema
         )
+        snapshot.labSamples = labSamples
+        return snapshot
     }
 
     private func schedulePersistence() {
@@ -1492,6 +1872,334 @@ final class StudioModel: ObservableObject {
             do {
                 try await Task.detached(priority: .utility) { try store.save(snapshot, revision: revision) }.value
             } catch { storageError = L("Échec de sauvegarde : ", "Save failed: ") + error.localizedDescription }
+        }
+    }
+}
+
+extension StudioModel {
+    func selectMode(_ mode: StudioMode) {
+        guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
+        voice.stop()
+        if mode == .server || mode == .lab { selectedMode = mode; return }
+        if localServer.active {
+            localServer.stop()
+            modeTransition = Task {
+                while localServer.active && !Task.isCancelled { try? await Task.sleep(for: .milliseconds(50)) }
+                modeTransition = nil
+                guard !Task.isCancelled else { return }
+                selectMode(mode)
+                loadSelectedModel()
+            }
+            return
+        }
+        selectedMode = mode
+        if let conversation = conversations.first(where: { $0.agent == (mode == .agent) && $0.projectID == selectedProjectID }) {
+            selectConversation(conversation.id)
+        } else {
+            newConversation()
+            if mode != .agent { loadSelectedModel() }
+        }
+    }
+
+    var agentWorkspaceURL: URL? {
+        guard let id = selectedConversationID else { return nil }
+        return conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
+    }
+
+    func openAgentProject(_ source: URL) async {
+        guard !isGenerating, !agentStudioBusy else { return }
+        agentStudioBusy = true
+        defer { agentStudioBusy = false }
+        var conversation = Conversation(title: source.lastPathComponent)
+        conversation.agent = true
+        conversation.projectID = selectedProjectID
+        let workspace = conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appendingPathComponent("agent-workspaces/\(conversation.id.uuidString)/files")
+        do {
+            try await Task.detached { try AgentProjectStore(workspace: workspace).importProject(source) }.value
+            if let id = selectedConversationID { drafts[id] = draft }
+            conversations.insert(conversation, at: 0)
+            selectedConversationID = conversation.id
+            selectedMode = .agent
+            draft = ""
+            studioDocument = StudioDocument(workspace: workspace)
+            schedulePersistence()
+            refreshAgentWorkspace()
+        } catch { featureError = error.localizedDescription }
+    }
+
+    func openAgentWorkspace() {
+        guard let url = agentWorkspaceURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            NSWorkspace.shared.open(url)
+        } catch { featureError = error.localizedDescription }
+    }
+
+    private func prepareAgentRegistry() throws -> URL {
+        guard let root = agentWorkspaceURL, let model = selectedModel,
+              FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else { throw MLXL3BridgeError.invalidResponse }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        guard root.standardizedFileURL.path == root.resolvingSymlinksInPath().path else { throw CocoaError(.fileReadNoPermission) }
+        let store = AgentProjectStore(workspace: root)
+        try store.ensureState()
+        if try store.versions().isEmpty { _ = try store.checkpoint("Initial workspace") }
+        _ = try AgentSandbox.profile(root: root)
+        let metadata = conversationFileURL.deletingLastPathComponent().appending(path: "agent-runtime", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let entry = try JSONSerialization.jsonObject(with: JSONEncoder().encode(model))
+        let registry = metadata.appending(path: "models.json")
+        try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
+            .write(to: registry, options: .atomic)
+        let config: [String: Any] = ["version": 1, "mcpServers": [
+            "exa": ["enabled": false, "url": "https://mcp.exa.ai/mcp"],
+            "sandbox": ["enabled": true, "command": Bundle.main.executableURL?.path ?? CommandLine.arguments[0],
+                "args": ["--agent-tools", root.path, store.metadata.appendingPathComponent("project.json").path]]]]
+        try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
+        return registry
+    }
+
+    private func refreshAgentWorkspace() {
+        if engineState.isReady && bridge.isRunning && bridgeUsesAgentRegistry {
+            do { _ = try prepareAgentRegistry(); updateMCPConnection() }
+            catch { mcpToolCount = 0; mcpErrors = ["sandbox": error.localizedDescription] }
+        } else { loadSelectedModel() }
+    }
+
+    func refreshAgentPermissions() {
+        guard !isGenerating, engineState.isReady, bridgeUsesAgentRegistry else { return }
+        do { _ = try prepareAgentRegistry(); updateMCPConnection() }
+        catch { featureError = error.localizedDescription }
+    }
+
+    private func finishAgentTurn() {
+        guard currentConversation?.agent == true, let workspace = agentWorkspaceURL else { return }
+        let store = AgentProjectStore(workspace: workspace)
+        agentStudioBusy = true
+        Task {
+            defer { agentStudioBusy = false }
+            do { _ = try await Task.detached { try store.checkpoint("Agent turn") }.value }
+            catch { featureError = error.localizedDescription }
+        }
+    }
+
+    func startServer(port: Int) {
+        guard !quantizer.converting, !isGenerating, modeTransition == nil, !localServer.active, let name = selectedModelName,
+              (1024...65535).contains(port) else { featureError = L("Choisissez un modèle et un port entre 1024 et 65535.", "Choose a model and a port between 1024 and 65535."); return }
+        selectedMode = .server
+        modeTransition = Task {
+            await bridge.stopAndWait()
+            ejectModel()
+            modeTransition = nil
+            guard !Task.isCancelled else { return }
+            localServer.start(model: name, port: port, context: savedContextLength)
+        }
+    }
+
+    func stopServices() {
+        modelLoadID = UUID()
+        modelLoadTask?.cancel(); modelLoadTask = nil
+        quantizer.cancel()
+        generationWatchdog?.cancel(); generationWatchdog = nil
+        cancellationFallback?.cancel(); cancellationFallback = nil
+        modeTransition?.cancel(); modeTransition = nil
+        localServer.stop()
+        bridge.stop()
+    }
+
+    func exportLab() {
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "MLXL3-Lab.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601
+            try encoder.encode(labSamples).write(to: url, options: .atomic)
+        } catch { featureError = error.localizedDescription }
+    }
+
+    var currentProject: WorkspaceProject? { projects.first { $0.id == selectedProjectID } }
+    var voiceLocale: String { language == .fr ? "fr-FR" : "en-US" }
+
+    func chooseProject(_ id: UUID?) {
+        guard !isGenerating else { return }
+        voice.stop()
+        selectedProjectID = id
+        if let conversation = conversations.first(where: { $0.projectID == id && $0.agent == (selectedMode == .agent) }) { selectConversation(conversation.id) }
+        else { newConversation() }
+        if let profileID = currentProject?.profileID, let profile = profiles.first(where: { $0.id == profileID }) { applyProfile(profile) }
+    }
+
+    func addProject(_ name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 100, projects.count < 256, !isGenerating else { return }
+        let project = WorkspaceProject(name: name)
+        projects.append(project)
+        chooseProject(project.id)
+        schedulePersistence()
+    }
+
+    func deleteProject(_ id: UUID) {
+        guard !isGenerating else { return }
+        projects.removeAll { $0.id == id }
+        documents.removeAll { $0.projectID == id }
+        for index in conversations.indices where conversations[index].projectID == id { conversations[index].projectID = nil }
+        if selectedProjectID == id { chooseProject(nil) }
+        schedulePersistence()
+    }
+
+    func updateProject(_ project: WorkspaceProject) {
+        guard !isGenerating, let index = projects.firstIndex(where: { $0.id == project.id }),
+            !project.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, project.name.count <= 100 else { return }
+        projects[index] = project
+        schedulePersistence()
+    }
+
+    func saveProfile(_ name: String) {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !isGenerating, !name.isEmpty, name.count <= 100, profiles.count < 128 else { return }
+        profiles.append(GenerationProfile(name: name, model: selectedModelName, systemPrompt: systemPrompt,
+            temperature: temperature, topK: topK, repetitionPenalty: repetitionPenalty,
+            contextLength: savedContextLength, responseSchema: responseSchema))
+        schedulePersistence()
+    }
+
+    func applyProfile(_ profile: GenerationProfile) {
+        guard !isGenerating, profile.temperature.isFinite, (0...2).contains(profile.temperature),
+            (0...10000).contains(profile.topK), profile.repetitionPenalty.isFinite, (0.1...4).contains(profile.repetitionPenalty), profile.contextLength >= 0 else {
+            featureError = L("Profil invalide ou génération en cours.", "Invalid profile or generation in progress."); return
+        }
+        systemPrompt = profile.systemPrompt
+        responseSchema = profile.responseSchema
+        temperature = profile.temperature; topK = profile.topK; repetitionPenalty = profile.repetitionPenalty
+        if let name = profile.model, models.contains(where: { $0.name == name }) {
+            let previousContext = savedContextLength
+            var lengths = preferences.dictionary(forKey: "studio.contextLengths") ?? [:]
+            lengths[name] = profile.contextLength
+            preferences.set(lengths, forKey: "studio.contextLengths")
+            if name != selectedModelName { selectModel(name) }
+            else if previousContext != profile.contextLength { contextLengthDraft = profile.contextLength; loadSelectedModel() }
+        }
+        if mtpEnabled { setMTPEnabled(false) }
+        schedulePersistence()
+    }
+
+    func deleteProfile(_ id: UUID) {
+        guard !isGenerating else { return }
+        profiles.removeAll { $0.id == id }
+        for index in projects.indices where projects[index].profileID == id { projects[index].profileID = nil }
+        schedulePersistence()
+    }
+
+    @discardableResult
+    func branchConversation(at messageID: UUID, includeMessage: Bool = true) -> Bool {
+        guard !isGenerating, let original = currentConversation,
+            let index = original.messages.firstIndex(where: { $0.id == messageID }) else { return false }
+        var branch = Conversation(title: original.title + L(" · branche", " · branch"))
+        branch.agent = original.agent
+        branch.projectID = original.projectID
+        branch.parentConversationID = original.id
+        branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }
+        conversations.insert(branch, at: 0)
+        selectConversation(branch.id)
+        schedulePersistence()
+        return true
+    }
+
+    func editMessage(_ id: UUID) {
+        guard let message = currentConversation?.messages.first(where: { $0.id == id }), message.role == .user,
+            branchConversation(at: id, includeMessage: false), let conversation = selectedConversationID else { return }
+        draft = message.content
+        attachmentDrafts[conversation] = message.attachments
+        drafts[conversation] = draft
+    }
+
+    func regenerate(_ id: UUID) {
+        guard !isGenerating, engineState.isReady, let messages = currentConversation?.messages,
+            let index = messages.firstIndex(where: { $0.id == id }), messages[index].role == .assistant,
+            let user = messages[..<index].last(where: { $0.role == .user }) else { return }
+        editMessage(user.id)
+        send()
+    }
+
+    func exportMarkdown() {
+        guard let conversation = currentConversation else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "MLXL3-conversation.md"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try Data(MarkdownExport.render(conversation.snapshot).utf8).write(to: url, options: .atomic) }
+        catch { featureError = error.localizedDescription }
+    }
+
+    func chooseLibraryFiles(folder: Bool) {
+        guard currentProject != nil, !libraryImporting else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = folder; panel.canChooseFiles = !folder
+        panel.allowsMultipleSelection = !folder
+        if !folder { panel.allowedContentTypes = ChatAttachmentImporter.contentTypes }
+        guard panel.runModal() == .OK else { return }
+        Task { await importLibraryFiles(panel.urls) }
+    }
+
+    func importLibraryFiles(_ urls: [URL]) async {
+        guard let projectID = selectedProjectID, !libraryImporting else { return }
+        libraryImporting = true
+        defer { libraryImporting = false }
+        let existing = documents
+        let result = await Task.detached(priority: .userInitiated) {
+            var imported: [LibraryDocument] = []
+            var failures: [String] = []
+            var paths: [URL] = []
+            for url in urls {
+                let accessed = url.startAccessingSecurityScopedResource()
+                defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                    let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants])
+                    guard enumerator != nil else { failures.append(url.lastPathComponent + L(" : dossier illisible.", ": folder could not be read.")); continue }
+                    var visited = 0
+                    while let file = enumerator?.nextObject() as? URL {
+                        visited += 1
+                        if visited > 4000 { failures.append(L("Dossier limité à 4000 entrées.", "Folder limited to 4000 entries.")); break }
+                        let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+                        if values?.isSymbolicLink == true { enumerator?.skipDescendants(); continue }
+                        if values?.isRegularFile == true { paths.append(file) }
+                    }
+                } else { paths.append(url) }
+                var total = existing.reduce(0) { $0 + $1.text.utf8.count } + imported.reduce(0) { $0 + $1.text.utf8.count }
+                for file in paths.sorted(by: { $0.path < $1.path }) {
+                    guard existing.count + imported.count < DocumentSearch.maximumDocuments else { failures.append(L("Limite de 128 documents atteinte.", "128 document limit reached.")); break }
+                    let result = ChatAttachmentImporter.load([file], existing: [])
+                    if let attachment = result.attachments.first {
+                        if existing.contains(where: { $0.projectID == projectID && $0.originalPath == file.path && $0.text == attachment.text }) || imported.contains(where: { $0.originalPath == file.path }) { continue }
+                        guard attachment.text.utf8.count <= DocumentSearch.maximumLibraryBytes - total else { failures.append(L("Bibliothèque limitée à 16 Mio de texte.", "Library limited to 16 MiB of text.")); break }
+                        imported.append(LibraryDocument(projectID: projectID, fileName: attachment.fileName, originalPath: file.path, text: attachment.text))
+                        total += attachment.text.utf8.count
+                    } else { failures += result.errors }
+                }
+                paths.removeAll()
+            }
+            return (imported, Array(failures.prefix(10)))
+        }.value
+        guard projects.contains(where: { $0.id == projectID }) else { return }
+        documents += result.0
+        if !result.1.isEmpty { featureError = result.1.joined(separator: "\n") }
+        persistNow()
+    }
+
+    func removeLibraryDocument(_ id: UUID) {
+        documents.removeAll { $0.id == id }
+        schedulePersistence()
+    }
+
+    func startDictation() {
+        guard !isGenerating else { return }
+        let conversation = selectedConversationID
+        let prefix = draft
+        Task { [weak self] in
+            guard let self else { return }
+            await voice.start(locale: voiceLocale) { [weak self] text in
+                guard let self, self.selectedConversationID == conversation, !self.isGenerating else { return }
+                self.draft = prefix + (prefix.isEmpty ? "" : " ") + text
+            }
         }
     }
 }

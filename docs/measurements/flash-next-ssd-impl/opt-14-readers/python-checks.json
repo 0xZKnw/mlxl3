@@ -1,0 +1,43 @@
+[
+  {
+    "name": "ruff",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "ruff",
+      "check",
+      "scripts/benchmark-flash-bridge.py",
+      "tests/test_flash_benchmark.py"
+    ],
+    "exit": 1,
+    "seconds": 0.078171416,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/ruff.log"
+  },
+  {
+    "name": "python",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    "exit": 0,
+    "seconds": 85.25112725000001,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/python.log"
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/localqwen3.8flash/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "scripts/benchmark-flash-bridge.py",
+      "--analysis_kind=asserts",
+      "--per_condition_timeout=5"
+    ],
+    "exit": 0,
+    "seconds": 0.182747875000004,
+    "log": "docs/measurements/flash-next-ssd-impl/opt-14-readers/crosshair.log"
+  }
+]

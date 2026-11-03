@@ -1,0 +1,9 @@
+build/app-fluidite/ResponseUICombined.swift:1634:53: error: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
+1632 |       Text("A long paragraph with words and a newly arriving suffix. " + String(repeating: "abc fi 👩‍💻 e\u{301} ", count: 12)),
+1633 |       Text("Italic ffi AV e\u{301} 👩‍💻 العربية עברית 中文").italic(),
+1634 |       Text("let value = ").foregroundColor(.orange) + Text("\"hello 👋\"\n// suffix").foregroundColor(.green),
+     |                                                     `- error: '+' was deprecated in macOS 26.0: Use string interpolation on `Text` instead: `Text("Hello \(name)")` [#DeprecatedDeclaration]
+1635 |       Text(try! AttributedString(markdown: "**Bold** and *italic* and `code` with [link](https://example.com).")),
+1636 |       Text(""), Text("x"), Text("👩‍💻"),
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>

@@ -1,0 +1,51 @@
+{
+  "status": "complete",
+  "research": "primary sources and historical rejection audit completed",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "local_modified": true,
+  "report": "../../dflash2-exact-optimisations-2026-10-08.md",
+  "trials": {
+    "GATE-UP": "rejected below3percent, retired",
+    "GATE-UP-SUMS": "blocked by inherited alignment validation failure, retired, no timing",
+    "GATE-UP-ALIGNED": "rejected stable regression, retired",
+    "GATE-UP-BLOCK256": "rejected; ABBA drift invalid, BAAB stable regression, retired",
+    "KEY-VIEW": "retained local, targeted numerical/bridge quality validated, CPU lookup latency qualified; final C++ formal proof unverified",
+    "STOCK-ALIGNMENT": "old stock production entry reproduces violation; inherited issue open"
+  },
+  "generation_speed_gain": "not measured for retained change",
+  "copy_default": false,
+  "27b_gpu": "not run",
+  "integration": "local source and generated signed bundle only",
+  "active_trials": [],
+  "new_engine": {
+    "path": "dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "bytes": 9764752,
+    "sha256": "23e0f3c16ec08a54be6b54ee83009f16e4a1e3be43253a609088181661c55e69"
+  },
+  "ci_candidate": "not run; base jobs inspected",
+  "dated_revisions": [
+    {
+      "date": "2026-10-10",
+      "kind": "First actual generation measurement, CPU microgain conclusions preserved",
+      "status": "closed_inconclusive_interference_and_timeout",
+      "report": "../../dflash2-key-view-tps-2026-10-09.md",
+      "evidence": "../dflash2-key-view-tps-2026-10-09/final.json",
+      "established_generation_gain": false
+    },
+    {
+      "date": "2026-10-10",
+      "kind": "Isolation-corrected unique ABBA, first failed trial preserved",
+      "status": "closed_nonconclusive_speed_drift",
+      "report": "../../dflash2-key-view-tps-isolated-2026-10-10.md",
+      "evidence": "../dflash2-key-view-tps-isolated-2026-10-10/final.json",
+      "established_generation_gain": false,
+      "code_observed_tps": {
+        "A": 65.20956655417854,
+        "B": 67.17914592731587,
+        "delta": 1.9695793731373357
+      },
+      "maximum_speed_drift_percent": 4.205935962446949,
+      "campaign_parity": true
+    }
+  ]
+}

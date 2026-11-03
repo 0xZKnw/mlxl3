@@ -1,0 +1,9 @@
+{
+  "command": [
+    "/Users/justin/Documents/localqwen3.8flash/.venv/bin/python",
+    "-c",
+    "import json\nimport mlx.core as mx\nold = mx.set_wired_limit(0)\ntry:\n    data = {\"status\":\"queried_no_model\", \"mlx_version\":mx.__version__, \"previous_wired_limit_bytes\":old, \"device_info\":mx.device_info(), \"active_bytes\":mx.get_active_memory(), \"peak_bytes\":mx.get_peak_memory()}\nfinally:\n    replaced = mx.set_wired_limit(old)\nassert replaced == 0\nprint(json.dumps(data))\n"
+  ],
+  "timeout_seconds": 20,
+  "scope": "fresh isolated process, no weights or arrays; restore previous limit; no system setting"
+}

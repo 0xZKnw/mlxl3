@@ -1,0 +1,104 @@
+{
+  "status": "passed",
+  "runs": [
+    {
+      "name": "format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "scripts/benchmark-flash-bridge.py",
+        "tests/test_flash_benchmark.py"
+      ],
+      "exit": 0,
+      "seconds": 0.08396879199426621,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-format.log"
+    },
+    {
+      "name": "lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "scripts/benchmark-flash-bridge.py",
+        "tests/test_flash_benchmark.py",
+        "benchmarks/benchmark_flash_memory.py",
+        "tests/test_flash_memory.py"
+      ],
+      "exit": 0,
+      "seconds": 0.04027012502774596,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-lint.log"
+    },
+    {
+      "name": "focused",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_flash_benchmark.py",
+        "tests/test_flash_memory.py",
+        "tests/test_native_json_process.py"
+      ],
+      "exit": 0,
+      "seconds": 12.692743583000265,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-focused.log"
+    },
+    {
+      "name": "mutant-force8",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_flash_benchmark.py",
+        "-k",
+        "auto_cache"
+      ],
+      "exit": 1,
+      "seconds": 0.3078784589888528,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-mutant-force8.log"
+    },
+    {
+      "name": "full-python",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q"
+      ],
+      "exit": 0,
+      "seconds": 80.16384091699729,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-full-python.log"
+    },
+    {
+      "name": "compile",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "scripts/benchmark-flash-bridge.py",
+        "benchmarks/benchmark_flash_memory.py"
+      ],
+      "exit": 0,
+      "seconds": 0.04784641700098291,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-compile.log"
+    },
+    {
+      "name": "crosshair",
+      "command": [
+        "/Users/justin/Documents/localqwen3.8flash/.venv/bin/crosshair",
+        "check",
+        "scripts/benchmark-flash-bridge.py",
+        "--analysis_kind=asserts",
+        "--per_condition_timeout=5",
+        "--per_path_timeout=1"
+      ],
+      "exit": 0,
+      "seconds": 0.14699999999720603,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/S-crosshair.log"
+    }
+  ]
+}

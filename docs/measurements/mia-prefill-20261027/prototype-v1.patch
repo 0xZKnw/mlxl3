@@ -1,0 +1,212 @@
+diff --git a/native/src/contracts.rs b/native/src/contracts.rs
+index 15b8f5a9..49da8de3 100644
+--- a/native/src/contracts.rs
++++ b/native/src/contracts.rs
+@@ -1,5 +1,44 @@
+ //! Checked arithmetic shared by checkpoint and GPU-facing production paths.
+ 
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn exl3_prefill_tile_rows(width: u32) -> Option<u32> {
++    (2..=4).contains(&width).then_some(width)
++}
++
++#[test]
++fn prefill_tile_widths_preserve_thread_and_shared_memory_bounds() {
++    for width in 0..=80 {
++        let actual = exl3_prefill_tile_rows(width);
++        assert_eq!(
++            actual,
++            [None, None, Some(2), Some(3), Some(4)]
++                .get(width as usize)
++                .copied()
++                .flatten()
++        );
++        if let Some(rows) = actual {
++            assert!(rows * 128 <= 512);
++            assert!(rows * 4 * 256 * 4 + 4 * 256 * 4 <= 20 * 1024);
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn exl3_prefill_tile_has_bounded_threadgroups() {
++    let width: u32 = kani::any();
++    let result = exl3_prefill_tile_rows(width);
++    assert_eq!(result.is_some(), width == 2 || width == 3 || width == 4);
++    if let Some(rows) = result {
++        assert_eq!(rows, width);
++        assert!(rows * 128 <= 512);
++        assert!(rows * 4 * 256 * 4 + 4 * 256 * 4 <= 20 * 1024);
++    }
++    kani::cover!(result == Some(4));
++    kani::cover!(result == Some(2));
++    kani::cover!(result.is_none());
++}
++
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn biased_router_domain(rows: i32, experts: i32, top_k: usize) -> bool {
+     rows > 0
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index 8b057b1b..ed9c3345 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1195,8 +1195,13 @@ pub fn expert_mapped(
+ struct GroupedRoutes {
+     origins: Vec<(i32, Array)>,
+     restore: Vec<u32>,
++    shared_tile: bool,
+ }
+ 
++#[cfg(test)]
++pub(crate) static PREFILL_TILE_LAUNCHES: std::sync::atomic::AtomicUsize =
++    std::sync::atomic::AtomicUsize::new(0);
++
+ /// CPU-origin indices validated once, before any expert graph is submitted.
+ pub(crate) struct ExpertSlots {
+     indices: Array,
+@@ -1220,17 +1225,26 @@ impl ExpertSlots {
+     }
+ 
+     pub(crate) fn grouped(ids: &[u32], capacity: i32) -> Result<Self> {
++        Self::grouped_impl(ids, capacity, false)
++    }
++
++    #[cfg(test)]
++    pub(crate) fn prefill_tile(ids: &[u32], capacity: i32) -> Result<Self> {
++        Self::grouped_impl(ids, capacity, true)
++    }
++
++    fn grouped_impl(ids: &[u32], capacity: i32, shared_tile: bool) -> Result<Self> {
+         ensure!(
+             ids.len() <= 80 && capacity <= 512,
+             "invalid grouped expert slots"
+         );
+         let mut slots = Self::new(ids, capacity)?;
+-        if ids.len() < 16 {
++        if ids.len() == 1 || (!shared_tile && ids.len() < 16) {
+             return Ok(slots);
+         }
+         let chunks = crate::flash_support::expert_group_chunks(ids)
+             .context("invalid grouped expert route count")?;
+-        if !crate::flash_support::expert_grouping_worthwhile(ids.len(), chunks) {
++        if !shared_tile && !crate::flash_support::expert_grouping_worthwhile(ids.len(), chunks) {
+             return Ok(slots);
+         }
+         let groups = crate::flash_support::expert_route_groups(ids, capacity)
+@@ -1251,7 +1265,11 @@ impl ExpertSlots {
+                 Array::from_u32(rows, &[rows.len() as i32])?,
+             ));
+         }
+-        slots.groups = Some(GroupedRoutes { origins, restore });
++        slots.groups = Some(GroupedRoutes {
++            origins,
++            restore,
++            shared_tile,
++        });
+         Ok(slots)
+     }
+ 
+@@ -1355,6 +1373,35 @@ pub(crate) fn expert_slots(
+     )
+ }
+ 
++#[cfg(test)]
++pub(crate) fn expert_tile_raw(
++    xhat: &Array,
++    bank: &Array,
++    selected: &ExpertSlots,
++    output: i32,
++    projections: i32,
++) -> Result<Array> {
++    ensure!(bank.shape().first() == Some(&selected.capacity));
++    expert_mapped_layout(
++        xhat,
++        bank,
++        None,
++        None,
++        selected.indices(),
++        output,
++        projections,
++        0,
++        2,
++        Codebook::Mul1,
++        true,
++        true,
++        true,
++        false,
++        selected.groups.as_ref(),
++        false,
++    )
++}
++
+ #[allow(clippy::too_many_arguments)]
+ fn expert_mapped_layout(
+     x: &Array,
+@@ -1501,10 +1548,6 @@ fn expert_mapped_layout(
+     };
+     let kernel_source = include_str!("../shaders/_qmv_mapped_tile_kernel.metal");
+     // MLX detects shape bindings in the body, not in the header.
+-    let stable_source = stable_shapes.then(|| format!("uint {} = uint({}_shape[0]) * uint(ROUTING_REPEAT) * uint(OUTPUT_TILES) * 16u;\n{kernel_source}",
+-        if groups.is_some() { "mlxl3_group_output_dims" } else { "mlxl3_route_output_dims" },
+-        if groups.is_some() { "tile_sub" } else { "tile_map" },
+-    ));
+     let header = codebook_header(cb)
+         + &masked_header
+         + reference_reduction_header(slot_major)
+@@ -1536,6 +1579,28 @@ fn expert_mapped_layout(
+         },
+     );
+     let dispatch = |group: Option<(i32, &Array)>| -> Result<Array> {
++        let tile_rows = group
++            .filter(|_| groups.is_some_and(|g| g.shared_tile))
++            .and_then(|(width, _)| crate::contracts::exl3_prefill_tile_rows(width as u32));
++        #[cfg(test)]
++        if tile_rows.is_some() {
++            PREFILL_TILE_LAUNCHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++        }
++        let kernel_source = if tile_rows.is_some() {
++            include_str!("../shaders/exl3_prefill_shared.metal")
++        } else {
++            kernel_source
++        };
++        let stable_source = stable_shapes.then(|| format!("uint {} = uint({}_shape[0]) * uint(ROUTING_REPEAT) * uint(OUTPUT_TILES) * 16u;\n{kernel_source}",
++            if groups.is_some() { "mlxl3_group_output_dims" } else { "mlxl3_route_output_dims" },
++            if groups.is_some() { "tile_sub" } else { "tile_map" },
++        ));
++        let threads = simdgroups * 32 * tile_rows.unwrap_or(1) as i32;
++        let name = if tile_rows.is_some() {
++            format!("{name}_sharedtile")
++        } else {
++            name.clone()
++        };
+         let (route_rows, work_tiles) = group.map_or((rows, local_tiles), |(width, origins)| {
+             let grouped_rows = origins.shape()[0] * projections_per_route;
+             (grouped_rows, grouped_rows / width * output_tiles)
+@@ -1573,12 +1638,12 @@ fn expert_mapped_layout(
+             &[Dtype::Float32],
+             [
+                 (work_tiles / nt)
+-                    .checked_mul(simdgroups * 32)
++                    .checked_mul(threads)
+                     .context("expert QMV grid overflow")?,
+                 1,
+                 splits,
+             ],
+-            [simdgroups * 32, 1, 1],
++            [threads, 1, 1],
+         )?
+         .remove(0))
+     };
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a8f1fbb7..772e8fc5 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -2292,3 +2292,7 @@ mod tests {
+ #[cfg(test)]
+ #[path = "ssd_moe/grouped_micro.rs"]
+ mod grouped_micro;
++
++#[cfg(test)]
++#[path = "ssd_moe/mia_tile.rs"]
++mod mia_tile;

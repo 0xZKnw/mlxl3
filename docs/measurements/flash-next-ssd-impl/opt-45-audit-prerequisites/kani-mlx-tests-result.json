@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "ssd_moe::tests::actual_hot_failure_recovers_reserved_routes",
+    "--harness",
+    "qwen4::draft::actual_flash_draft_norm_and_selector_preserve_shapes",
+    "--output-format",
+    "terse"
+  ],
+  "timeout_seconds": 120,
+  "status": "failed_or_unsupported",
+  "correction": "include cfg(test) modules and fully qualified harness names",
+  "exit_code": 1,
+  "seconds": 2.901784499990754,
+  "reaped": true
+}

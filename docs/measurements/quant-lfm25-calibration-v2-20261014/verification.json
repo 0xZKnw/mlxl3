@@ -1,0 +1,133 @@
+{
+  "status": "local_implementation_verified_full_model_quality_unmeasured",
+  "baseline_commit": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "branch": "codex/lfm25-calibration-v2",
+  "source_revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+  "quantization_v2_started": false,
+  "modal_gpu_job_started": false,
+  "source_files": {
+    "scripts/quantize_lfm25_moe.py": "1ae97af02b08fdd4da471ceebb2bfb8deb6e4150bc6969d82526f26627199dbe",
+    "tests/test_lfm25_moe_conversion.py": "bd8b65c32255280d2efb026b20984d3a439ec64177ea5160e90402c9e7801313",
+    "tests/lfm25_calibration_contracts.py": "39e11bf7d63c0d27429e20e1de88c854bef3119e51fbe95c051e12bf4fd96e63",
+    ".github/workflows/quantization.yml": "8cc277d4ab3837be3b8ef80df83c49ac7c64054b2e3c1b58f675c3eb44e8fbe7"
+  },
+  "versions": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.32.0",
+    "numpy": "2.5.2",
+    "pytest": "9.1.1",
+    "ruff": "0.16.5",
+    "transformers": "5.16.1"
+  },
+  "formal_runtime": {
+    "crosshair": "0.0.101",
+    "z3": "5.1.0"
+  },
+  "checks": {
+    "focused": {
+      "passed": 50,
+      "seconds": 15.07,
+      "native_bridges": 2
+    },
+    "full_python": {
+      "passed": 556,
+      "skipped": 1,
+      "seconds": 94.81,
+      "skip_reason": "local Ling model not installed"
+    },
+    "crosshair": {
+      "confirmed_conditions": 3,
+      "claim": "symbolic counterexample search of actual alignment guard, unbounded Python integers; excludes NumPy/MLX/Metal"
+    },
+    "mutation": {
+      "name": "all tokens per expert",
+      "detected": true,
+      "restored_byte_exact": true
+    },
+    "workflow": {
+      "yaml_parse": true,
+      "triggers": [
+        "pull_request",
+        "push main"
+      ],
+      "github_run": "not_run_unpublished_local_branch"
+    }
+  },
+  "sushi": {
+    "repository_commit": "2df81de2938fdbcf519604945b1e01d1dbd6766c",
+    "model": "beamster/Qwen3.8-Flash-Next-Sushi-4bpw",
+    "model_revision": "f25c0c4acdc44289a9cc6dab7f0eb788d1125ded",
+    "expert_quant": {
+      "format": "exl3",
+      "k": 4,
+      "codebook": "mcg",
+      "window": 15,
+      "out_scales": "svh",
+      "source": "convert",
+      "quantizer": "ldlq-rotated",
+      "calibration": "imatrix-diagonal",
+      "imatrix_sha256": "0ccd556feb976a22c335ff4b2db7cf93bb1af99422b6f8ef8c01342aa71d070e",
+      "converter": "qwen4-exl3-2-upstream-skew"
+    },
+    "trunk": {
+      "bits": 8,
+      "group_size": 64,
+      "mode": "affine"
+    },
+    "config_sha256": "08a0cdca437ea94e6e16281d0c884bca670a3bb923cb39293fb0b048d3ca7576",
+    "converter": "private, not inspected",
+    "downloaded_weights": false
+  },
+  "upstream_cuda": {
+    "commit": "058b8630fd081f3ff46fce6246955b157c3a2e3b",
+    "architecture_file_sha256": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+    "architecture": "Lfm2MoeForCausalLM",
+    "gpu_execution": "unverified"
+  },
+  "evidence": {
+    "first-tests.log": {
+      "bytes": 9749,
+      "sha256": "7fe0f1655d505d5732fc5d7eb422ccc0702afbe185a8cd5334a1fc6979e25782"
+    },
+    "hardlink-regression.log": {
+      "bytes": 12271,
+      "sha256": "7f718a727a1d2dfc871b18a8e37895de7655469c55d1856201b57d7cf3851f79"
+    },
+    "oracle-empty-gemm-crash.log": {
+      "bytes": 4586,
+      "sha256": "ffd188255c5c78c44514f18d18dcaff9239efd4565af8f55f732c4e440a70c9f"
+    },
+    "routed-fixed-tests.log": {
+      "bytes": 2250,
+      "sha256": "c2cffe0a21f0fb33a7c312ac149b2c7689bf9f35e49f436ccff6ef828f12a861"
+    },
+    "focused-tests.log": {
+      "bytes": 5244,
+      "sha256": "6a9a7499500452fda6fb5503a543b7af65561c95fa49686fc972ac7901cf238d"
+    },
+    "full-tests.log": {
+      "bytes": 841,
+      "sha256": "7ff6e402535e0c623d22c825f7deda1e07afa46447f7d84dbdab5f807baf2e6c"
+    },
+    "mutation.log": {
+      "bytes": 5610,
+      "sha256": "14c78d974bbcef47df9fb36fe82f3b61ec5ec029aede58e95c121f6ed54f8e9b"
+    },
+    "crosshair-missing.log": {
+      "bytes": 89,
+      "sha256": "599ef7abad1607f5ecfca08464c394a2740f29a9df72109e8cd69b5b3c13fdeb"
+    },
+    "crosshair.log": {
+      "bytes": 396,
+      "sha256": "f50413228bd4a88aa00c07126dfdfe40b887dda7462f2f7c202ad23a61776d5a"
+    },
+    "sushi-expert-header.json": {
+      "bytes": 923,
+      "sha256": "08c17677f9a120e924ed2d887bc339211edfea0dfa4a7c9736c6654bbebb231a"
+    },
+    "protection-size.json": {
+      "bytes": 571,
+      "sha256": "246a014e6d2298438e13cf247561add7c7c5ca7b69b17a1c37fcbeaea77ada61"
+    }
+  }
+}

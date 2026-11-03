@@ -1,0 +1,118 @@
+{
+  "id": "DFLASH2-2026-10-09-KEY-VIEW-TPS",
+  "status": "closed_inconclusive_interference_and_timeout",
+  "campaign_status": "failed",
+  "parity": null,
+  "completed_rows_equal": true,
+  "measured_runs": 12,
+  "completed_warmups": 4,
+  "error": {
+    "type": "TimeoutError",
+    "message": "native process timed out waiting for JSON"
+  },
+  "wrapper_error": "AssertionError: ",
+  "observed_partial": [
+    {
+      "prompt": "short",
+      "first_pass_A_tps": 55.94048593011437,
+      "first_pass_B_tps": 41.220360128011855,
+      "observed_delta_tps": -14.720125802102515,
+      "observed_percent": -26.31390406671146,
+      "qualified": false,
+      "same_variant_pass_drift_percent": null,
+      "within_pass_ranges": [
+        {
+          "pass": 0,
+          "label": "A",
+          "status": "complete",
+          "warmup_complete": true,
+          "runs": 3,
+          "tps": [
+            56.30161350671274,
+            55.94048593011437,
+            50.17074760650118
+          ],
+          "pass_median_tps": 55.94048593011437
+        },
+        {
+          "pass": 1,
+          "label": "B",
+          "status": "complete",
+          "warmup_complete": true,
+          "runs": 3,
+          "tps": [
+            56.80296900620913,
+            41.220360128011855,
+            15.948049542553116
+          ],
+          "pass_median_tps": 41.220360128011855
+        },
+        {
+          "pass": 2,
+          "label": "B",
+          "status": "failed",
+          "warmup_complete": false,
+          "runs": 0,
+          "tps": [],
+          "pass_median_tps": null
+        }
+      ],
+      "meaning": "Partial campaign; not an established gain or engine regression"
+    },
+    {
+      "prompt": "document",
+      "first_pass_A_tps": 62.49542510113987,
+      "first_pass_B_tps": 48.90950341016217,
+      "observed_delta_tps": -13.585921690977699,
+      "observed_percent": -21.739065970014337,
+      "qualified": false,
+      "same_variant_pass_drift_percent": null,
+      "within_pass_ranges": [
+        {
+          "pass": 0,
+          "label": "A",
+          "status": "complete",
+          "warmup_complete": true,
+          "runs": 3,
+          "tps": [
+            63.47091048833682,
+            62.49542510113987,
+            61.70534253479838
+          ],
+          "pass_median_tps": 62.49542510113987
+        },
+        {
+          "pass": 1,
+          "label": "B",
+          "status": "complete",
+          "warmup_complete": true,
+          "runs": 3,
+          "tps": [
+            55.458108623336244,
+            48.35307032436358,
+            48.90950341016217
+          ],
+          "pass_median_tps": 48.90950341016217
+        }
+      ],
+      "meaning": "Partial campaign; not an established gain or engine regression"
+    }
+  ],
+  "same_variant_drift": "not measured, incomplete order",
+  "established_generation_gain": false,
+  "BAAB_started": false,
+  "repeat_started": false,
+  "report": "../../dflash2-key-view-tps-2026-10-09.md",
+  "raw": "abba/results.json",
+  "snapshot": "abba/results-at-failure.json",
+  "inspection": "inspection.json",
+  "user_clarification_2026_10_10": "User confirms having launched MLXL3 concurrently by accident, explaining the observed swap increase. Exact start, loaded model and memory attribution not measured. Separate cargo-kani process also overlapped; neither effect is quantified.",
+  "launch_guard_failure": "The recorded conflicts_before=[] did not guarantee actual isolation; CPU proof and user MLXL3 concurrency invalidate the protocol.",
+  "source_identity_failures": [],
+  "integration": "Retained local CPU key optimization; no generation throughput gain claimed; personal installed app untouched",
+  "open_limits": [
+    "Inherited stock Q4 MPP alignment alert",
+    "C++ source formal proof unverified",
+    "No 27B GPU or MTP comparison"
+  ]
+}

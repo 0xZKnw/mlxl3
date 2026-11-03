@@ -1,0 +1,59 @@
+[
+  {
+    "name": "restore-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.3804345829994418
+  },
+  {
+    "name": "restore-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 3.661302207969129
+  },
+  {
+    "name": "restore-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 39.96937025000807
+  },
+  {
+    "name": "restore-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 0.08291087503312156
+  }
+]

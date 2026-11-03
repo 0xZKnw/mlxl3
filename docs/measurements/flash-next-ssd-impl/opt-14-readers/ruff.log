@@ -1,0 +1,12 @@
+PLW1510 `subprocess.run` without explicit `check` argument
+   --> tests/test_flash_benchmark.py:166:14
+    |
+165 | def test_mutually_exclusive_cache_modes(tmp_path):
+166 |     result = subprocess.run(
+    |              ^^^^^^^^^^^^^^
+167 |         [
+168 |             sys.executable,
+    |
+help: Add explicit `check=False`
+
+Found 1 error.

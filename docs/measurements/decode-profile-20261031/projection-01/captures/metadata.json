@@ -1,0 +1,129 @@
+{
+  "capture_bytes": 585003775,
+  "captures": [
+    {
+      "capture": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-out.gputrace",
+      "capture_bytes": 190577627,
+      "compared_f32_bytes": 10240,
+      "compared_f32_values": 2560,
+      "dispatches": "inspection_pending",
+      "finite": true,
+      "fixture_root": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "gpu_duration": "not_measured_by_test",
+      "input_dtype": "Float16",
+      "input_fixture": {
+        "count": 6144,
+        "file": "p8-input.f32",
+        "shape": [
+          1,
+          6144
+        ]
+      },
+      "input_shape": [
+        1,
+        6144
+      ],
+      "name": "gdn0-out",
+      "output_dtype": "Float32",
+      "output_fixture": {
+        "count": 2560,
+        "file": "p8-output.f32",
+        "shape": [
+          1,
+          2560
+        ]
+      },
+      "output_shape": [
+        1,
+        2560
+      ],
+      "parity": "bit_exact_independent_upstream_f32",
+      "prefix": "model.language_model.layers.0.linear_attn.out_proj"
+    },
+    {
+      "capture": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/projection-01/captures/qsa15-out.gputrace",
+      "capture_bytes": 190577959,
+      "compared_f32_bytes": 10240,
+      "compared_f32_values": 2560,
+      "dispatches": "inspection_pending",
+      "finite": true,
+      "fixture_root": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "gpu_duration": "not_measured_by_test",
+      "input_dtype": "Float16",
+      "input_fixture": {
+        "count": 6144,
+        "file": "a15-s0-gated.f32",
+        "shape": [
+          1,
+          1,
+          6144
+        ]
+      },
+      "input_shape": [
+        1,
+        6144
+      ],
+      "name": "qsa15-out",
+      "output_dtype": "Float32",
+      "output_fixture": {
+        "count": 2560,
+        "file": "a15-s0-out.f32",
+        "shape": [
+          1,
+          1,
+          2560
+        ]
+      },
+      "output_shape": [
+        1,
+        2560
+      ],
+      "parity": "bit_exact_independent_upstream_f32",
+      "prefix": "model.language_model.layers.15.self_attn.o_proj"
+    },
+    {
+      "capture": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/projection-01/captures/gdn0-qkv.gputrace",
+      "capture_bytes": 203848189,
+      "compared_f32_bytes": 40960,
+      "compared_f32_values": 10240,
+      "dispatches": "inspection_pending",
+      "finite": true,
+      "fixture_root": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "gpu_duration": "not_measured_by_test",
+      "input_dtype": "Float16",
+      "input_fixture": {
+        "count": 2560,
+        "file": "p4-input.f32",
+        "shape": [
+          1,
+          2560
+        ]
+      },
+      "input_shape": [
+        1,
+        2560
+      ],
+      "name": "gdn0-qkv",
+      "output_dtype": "Float16",
+      "output_fixture": {
+        "count": 10240,
+        "file": "p4-output.f32",
+        "shape": [
+          1,
+          10240
+        ]
+      },
+      "output_shape": [
+        1,
+        1,
+        10240
+      ],
+      "parity": "bit_exact_independent_upstream_f32",
+      "prefix": "model.language_model.layers.0.linear_attn.in_proj_qkv"
+    }
+  ],
+  "limits": "no model throughput, exclusive GPU time or hardware counter result inferred by this test",
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "scope": "three isolated B1 production projection chains; QSA15 substitutes geometry of QSA3, not its values",
+  "status": "validated_captures_gpu_inspection_pending"
+}

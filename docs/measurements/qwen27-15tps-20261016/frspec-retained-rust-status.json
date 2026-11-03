@@ -1,0 +1,68 @@
+[
+  {
+    "name": "kani-numeric-harness",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--tests",
+      "--harness",
+      "q4_projection_reference_entry"
+    ],
+    "seconds": 3.0504256249405444,
+    "exit_code": 1,
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "reaped": true
+  },
+  {
+    "name": "rust-fmt-retained",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "seconds": 0.2635392079828307,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 30,
+    "reaped": true
+  },
+  {
+    "name": "rust-clippy-retained",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "seconds": 1.9799735830165446,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 180,
+    "reaped": true
+  },
+  {
+    "name": "rust-tests-retained",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "seconds": 41.551077291951515,
+    "exit_code": 0,
+    "timed_out": false,
+    "timeout_seconds": 240,
+    "reaped": true
+  }
+]

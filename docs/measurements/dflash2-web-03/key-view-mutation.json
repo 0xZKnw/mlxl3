@@ -1,0 +1,22 @@
+{
+  "status": "mutation_detected_and_original_rechecked",
+  "mutation": "ignore header field in the real comparator copy; production header untouched",
+  "compile_command": [
+    "c++",
+    "-std=c++17",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-I",
+    "build/dflash2-web-03/key-view/mutation",
+    "native/tests/kernel_cache_key.cpp",
+    "-o",
+    "build/dflash2-web-03/key-view/mutation/kernel-cache-key"
+  ],
+  "mutant_exit": -6,
+  "seconds": 0.368986083,
+  "original_exit": 0,
+  "source_sha256": "05f1deaea931c29b9340a72a747f966fe732c999bb64a9fb4ee8e9fb5d27965f",
+  "log": "docs/measurements/dflash2-web-03/key-view-mutation.log"
+}

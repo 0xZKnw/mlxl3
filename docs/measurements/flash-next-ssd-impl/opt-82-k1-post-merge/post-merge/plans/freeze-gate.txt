@@ -1,0 +1,64 @@
+# Prepared preflight command body, not run by the preparer. No model execution.
+# Parent invokes with Python3.12 and a single absolute selected run.json path.
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path('/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans')
+identity = json.loads((root / 'identity-frozen-quality-pending.json').read_text())
+gates = json.loads((root / 'gates-before-launch.json').read_text())
+selected = Path(sys.argv[1]).resolve()
+assert selected.parent.parent == root.resolve() and selected.name == 'run.json'
+assert str(selected) in identity['plans']
+assert identity['allow_gpu_launch'] is True and gates['allow_gpu_launch'] is True
+for name in ['CPU_Kani_and_MLX_attempt_inspected', 'all_builds_provers_and_other_models_joined',
+             'AC_power_confirmed', 'selected_plan_outputs_absent']:
+    assert gates[name] is True, name
+for name in ['fmt_clippy_cpu_mlx_suites_reviewed', 'CPU_Kani_and_MLX_attempt_reviewed']:
+    assert identity['quality_gates'][name] is True, name
+if selected.parent.name != 'quality':
+    assert identity['quality_gates']['numerical_quality_7_selections'] is True
+if selected.parent.name in ['screen', 'confirm']:
+    assert identity['quality_gates']['micro_h128704'] is True
+    assert identity['quality_gates']['micro_activation192'] is True
+sha = lambda path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+for arm in ['baseline', 'candidate', 'native_tests']:
+    item = identity[arm]
+    assert isinstance(item['sha256'], str) and re.fullmatch('[0-9a-f]{64}', item['sha256'])
+    assert sha(item['path']) == item['sha256'], arm
+assert sha(identity['baseline']['source_manifest']) == identity['baseline']['source_manifest_sha256']
+assert sha(identity['source_manifest']) == identity['source_manifest_sha256']
+sources = json.loads(Path(identity['source_manifest']).read_text())
+assert len(sources) == identity['source_count'] == 100
+for path, digest in sources.items():
+    assert sha(Path(identity['cwd']) / path) == digest, path
+for path, digest in {**identity['drivers'], **identity['fixtures'], **identity['plans']}.items():
+    assert sha(path) == digest, path
+for name in ['run-result.json', 'vm-curve.json', 'system-samples.json', 'component.json']:
+    assert not (selected.parent / name).exists(), name
+# libtest --list registers/prints names only; no test body/model is executed.
+listed = subprocess.run([identity['native_tests']['path'], '--list', '--ignored'],
+                        check=True, capture_output=True, text=True, timeout=30).stdout
+matrix = json.loads(selected.read_text())
+assert matrix and len({item['name'] for item in matrix}) == len(matrix)
+for item in matrix[1:-1]:
+    assert item['command'][0] == '/usr/bin/env' and item['expected_exit'] == 0
+    if item.get('native_test'):
+        test = item['native_test']
+        assert listed.splitlines().count(test + ': test') == 1, test
+        assert item['command'].count(test) == 1
+        assert identity['native_tests']['path'] in item['command']
+        assert item['native_tests_sha256'] == identity['native_tests']['sha256']
+        assert '--exact' in item['command'] and '--ignored' in item['command']
+        assert item['required_text']
+    else:
+        arm = 'baseline' if item['variant'] == 'H' else 'candidate'
+        assert item['engine_sha256'] == identity[arm]['sha256']
+        assert identity[arm]['path'] in item['command']
+        assert item['benchmark_sha256'] == identity['drivers'][str(Path(identity['cwd']) / 'scripts/benchmark-flash-bridge.py')]
+        output = Path(item['command'][item['command'].index('--tokens') - 1])
+        assert not output.exists(), output
+print('K1PM_FROZEN_PREFLIGHT_OK', selected, 'no model or test body executed')

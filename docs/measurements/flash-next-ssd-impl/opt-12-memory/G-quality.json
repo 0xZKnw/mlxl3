@@ -1,0 +1,156 @@
+{
+  "status": "validated",
+  "parity": true,
+  "runs": [
+    {
+      "name": "numerical-original-mtp",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture",
+        "--skip",
+        "qwen4::tests::flash_decode_cost_profile_preserves_tokens_logits_and_states"
+      ],
+      "expected_tests": 11,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "exit_code": 0,
+      "seconds": 43.514207916974556,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-numerical-original-mtp.log",
+      "status": "passed"
+    },
+    {
+      "name": "target-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "exit_code": 0,
+      "seconds": 5.430556332983542,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-target-held.log",
+      "status": "passed"
+    },
+    {
+      "name": "components-held",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-08",
+      "exit_code": 0,
+      "seconds": 6.737879457999952,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-components-held.log",
+      "status": "passed"
+    },
+    {
+      "name": "ssd-cohorts",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "exit_code": 0,
+      "seconds": 1.2116665419889614,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-ssd-cohorts.log",
+      "status": "passed"
+    },
+    {
+      "name": "slots",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "linear::tests::streamed_slots_match_resident_exl3_and_reject_invalid_routes",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "exit_code": 0,
+      "seconds": 0.2923340419656597,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-slots.log",
+      "status": "passed"
+    },
+    {
+      "name": "disk-records",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "ssd_moe::tests::disk_records_fill_only_owned_ranges_and_reject_bad_sources",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": null,
+      "exit_code": 0,
+      "seconds": 0.040321916982065886,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-disk-records.log",
+      "status": "passed"
+    },
+    {
+      "name": "allocator-default",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": null,
+      "exit_code": 0,
+      "seconds": 0.040390207956079394,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-allocator-default.log",
+      "status": "passed"
+    },
+    {
+      "name": "allocator-override-0",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "array::tests::allocator_cache_limit_preserves_live_arrays",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": "0",
+      "exit_code": 0,
+      "seconds": 0.03813208302017301,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-allocator-override-0.log",
+      "status": "passed"
+    },
+    {
+      "name": "allocator-override-1",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-15/memory-G/mlxl3_native-28585053ede733ec",
+        "array::tests::allocator_cache_limit_preserves_live_arrays",
+        "--ignored",
+        "--exact",
+        "--nocapture"
+      ],
+      "expected_tests": 1,
+      "fixture": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "allocator_override": "1",
+      "exit_code": 0,
+      "seconds": 0.03798408404691145,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/G-allocator-override-1.log",
+      "status": "passed"
+    }
+  ]
+}

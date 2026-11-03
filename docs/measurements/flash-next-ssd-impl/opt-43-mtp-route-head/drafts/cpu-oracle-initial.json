@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "format": "ruff format scripts/check_flash_drafts.py tests/test_flash_drafts.py",
+  "lint": "ruff check scripts/check_flash_drafts.py tests/test_flash_drafts.py --output-format concise",
+  "tests": "python -m pytest -q tests/test_flash_drafts.py",
+  "passed": 21,
+  "ignored": 0,
+  "seconds": 0.24,
+  "coverage": "BF16 ties/signs/finite sampled100x257, bounded header/range failures, independent five-layer mean and missing captures, RoPE bases/energy, convolution reset/sides, output shape/count/hash/nonfinite rejection",
+  "limitations": "CPU sampled tests, not a formal proof; CLI interruption not yet tested"
+}

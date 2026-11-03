@@ -1,0 +1,16 @@
+{
+  "command": "patch --batch --fuzz=0 -p1 -d build/flash-opt-82/F05/application-check-v2 < build/flash-opt-82/F05/combined.patch",
+  "exit_code": 0,
+  "files_matched": [
+    "native/src/ssd_moe.rs",
+    "native/src/flash_support.rs",
+    "native/src/ssd_moe/batch_route_tests.rs",
+    ".github/workflows/rust.yml"
+  ],
+  "production_hunks_byte_identical_to_v1": true,
+  "ci_patch_byte_identical_to_v1": true,
+  "tests_run": 0,
+  "builds_run": 0,
+  "proofs_run": 0,
+  "GPU_run": 0
+}

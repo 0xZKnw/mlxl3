@@ -1,0 +1,82 @@
+{
+  "base_sha": "b4dfd3915e262b2d33581102ae3320042acee5c9",
+  "branch": "codex/exl3-quant-lfm25",
+  "state": "isolated worktree; modified sources before PR commit; primary checkout changes excluded",
+  "source_sha256": {
+    "pyproject.toml": "3c4e7d9233441ed60dc6fe153cfd41f4704a4d6dd29ddf7c44bace544ba8fe35",
+    "packaging/constraints-macos.txt": "8da7b53697fd46790c9c1ebb2984445c40067cc26e1d754fec7abd37cd9288e2",
+    "src/mlxl3_quantizer/__init__.py": "66f8063ccc3c7c05e737b2b18e37e9fd9f110f8502c9818a6e73e8ebde7896df",
+    "src/mlxl3_quantizer/checkpoint.py": "6e1d8b0624d6c842c8fbb8b9cce70b3be51f7eda7c70824b596fbe7ad331d787",
+    "src/mlxl3_quantizer/metal.py": "346aedbe61e1ff7542947840fb5dc1f46b77b092d9f219624d85886804394b50",
+    "src/mlxl3_quantizer/packing.py": "a32f86c1ab769b24d2d92123df03296fee80754a1eedc811192efa37c49afa0c",
+    "src/mlxl3_quantizer/pack_trellis.metal": "290d2ca09af83e8332412b51136df7bbad6c01be25681639ef255365b6091fa2",
+    "scripts/quantize_lfm25_moe.py": "9762f2e2a11db0b1fe1ce10cfd8ab492422003f22374b6adef636ae67f2ed87b",
+    "scripts/quantize_lfm26.py": "260448e47057bcd6bc34ce54844b50365ed3223b8b55a9b0095461d83ab899a4",
+    "scripts/quantize_ling.py": "4b8e88b7455c3fcd850d123c643415239c7768561b03dbab836baf20ea8cafed",
+    "scripts/patches/ponyexl3-mlxl3-conversion.patch": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "benchmarks/bench_quantize_packing.py": "2ff3a73597c0da50838a83c678229d5f833e820c184f7e6734457fc4a2364032",
+    "tests/test_lfm25_moe_conversion.py": "5b62375820321a9d78eb25cf8f3540cff42be7ab4abebb2072d6759741e9dcf6",
+    "tests/test_quantize_packing.py": "a4917be3b692ef7bec6828470dde098bfab2e5c6df6b1cf6e4d66d825c57e705",
+    "tests/test_quantize_packing_benchmark.py": "e0194d92b0bb59fee09fc25168847e0eccaf6260c13cd1bb1cabb25327aee7d8",
+    "tests/quantize_conversion_contracts.py": "22d2f7e5b6f303ff4d7c3e3b7384ec92fe90cf6763ad963130168c18f748e49b",
+    "tests/quantize_packing_proof.cpp": "d44d344e3e0d56416f3384e5444ee9a60c355be3d07bba34d1d0da684f9295b1",
+    ".github/workflows/quantization.yml": "7e194cd3472e65bb28646b1f3bcb9d28b3a240dd602d7be604e38851fb77d868"
+  },
+  "reference": {
+    "commit": "8e7fa6b1556f59fc669e25087903b279b9b0346f",
+    "diff_sha256": "dd15eac59cef61563f3016b356029eadd3cad19c5fa6cce1835f848d3d84faba",
+    "pinned_patch_reverse_check": "passed"
+  },
+  "benchmark_source_at_packing_measurement_sha256": "268cae7559612a001a7f32b8823cbd0af202f25c3e77cf0ff22e40cd109fdfec",
+  "benchmark_changes_after_measurement": "input guards only; numerical kernel and measurement loop unchanged",
+  "native_binary": {
+    "path": "target/release/mlxl3-rs",
+    "sha256": "a253210c5f67404edf507f169c3fd11cdd67806853ddff6c18401f270c75b81e",
+    "bytes": 9875488,
+    "source": "unmodified Rust/Metal at base_sha",
+    "features": [
+      "mlx",
+      "chat"
+    ],
+    "build_command": "cargo build --locked --release --features mlx,chat"
+  },
+  "wheel": {
+    "path": "build/wheel/mlxl3-1.0.3-py3-none-any.whl",
+    "sha256": "1e82711ce228db9d64b8d66378e0411fbe81a24a6503b731aa976c348ef27dc4",
+    "bytes": 20507,
+    "metal_shader_included": true
+  },
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "python": "3.12.14",
+  "versions": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.32.0",
+    "numpy": "2.5.2",
+    "safetensors": "0.8.0",
+    "pytest": "9.1.1",
+    "ruff": "0.16.5",
+    "huggingface-hub": "1.29.0",
+    "transformers": "5.16.1",
+    "tokenizers": "0.23.1"
+  },
+  "verification_tools": {
+    "cbmc": "6.11.0, isolated Homebrew arm64 bottle, host address-space abstraction",
+    "crosshair": "0.0.101, existing isolated environment, no proof claim"
+  },
+  "environment": {
+    "python_runtime": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "PYTHONPATH": "src:references/PonyExl3:scripts",
+    "MLXL3_QUANT_TEST_ENGINE": "/Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/target/release/mlxl3-rs",
+    "PONYEXL3_FIXED_EXPERT_SCALE": "cleared by LFM adapter; regression injects 0.908 to check removal",
+    "MLXL3_SKIP_METAL_CHECK": "unset for physical checks; 1 for hosted CPU simulation"
+  },
+  "model": {
+    "id": "LiquidAI/LFM2.5-24B-A2B",
+    "revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+    "weights_downloaded": false,
+    "complete_24b_quantization": "not run",
+    "ppl_kl_24b": "not measured"
+  },
+  "temporary_data": "Miniature checkpoint/workdirs/corpus were disposable and cleaned; raw reports and all failed logs retained. LDLQ and CLI campaign one-off drivers are not retained as runnable scripts; seeds/options/source and output fingerprints are recorded."
+}

@@ -1,0 +1,212 @@
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -149,6 +149,8 @@
+     simdgroups: i32,
+     reference_accumulation: bool,
+     mtp_hidden_batch: bool,
++    #[cfg(test)]
++    reference_nt_override: Option<i32>,
+ }
+ 
+ impl Exl3Linear {
+@@ -260,6 +262,8 @@
+             simdgroups,
+             reference_accumulation: false,
+             mtp_hidden_batch: false,
++            #[cfg(test)]
++            reference_nt_override: None,
+         })
+     }
+ 
+@@ -297,7 +301,7 @@
+             !self.mtp_hidden_batch || matrix_rows == 4,
+             "MTP hidden projection requires four streams"
+         );
+-        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
++        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 2 {
+             let matrix = x.reshape(&[matrix_rows, self.rows])?;
+             let rows = (0..matrix_rows)
+                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+@@ -377,7 +381,7 @@
+         } else {
+             let splits = self.splits(input_tiles, output_tiles);
+             let nt = if self.reference_accumulation {
+-                1
++                crate::flash_support::dense_output_tiles(output_tiles)
+             } else if dense_decode_nt4_enabled()
+                 && crate::contracts::dense_decode_nt4(
+                     self.rows,
+@@ -397,6 +401,8 @@
+             } else {
+                 1
+             };
++            #[cfg(test)]
++            let nt = self.reference_nt_override.unwrap_or(nt);
+             header += &format!(
+                 "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_MB 1u\n#define MLXL3_MATRIX_ROWS 1u\n#define MLXL3_QMV_SG {}u\n#define MLXL3_K_BITS {}u\n#define MLXL3_FUSE_OUTPUT 0\n#define K {}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {}\n#define TILES_K {input_tiles}\n#define TILES_N {output_tiles}\n#define N_SPLITS {splits}\n#define OUTPUT_DIMS {}\n",
+                 self.simdgroups,
+@@ -469,7 +475,7 @@
+         let splits = if self.mtp_hidden_batch {
+             2
+         } else {
+-            split_count(input_tiles, output_tiles)
++            self.splits(input_tiles, output_tiles)
+         };
+         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
+         let mut nt = if use_nt4 {
+@@ -500,8 +506,11 @@
+         if mb == 3 {
+             nt = 1;
+         }
++        if self.reference_accumulation {
++            nt = 1;
++        }
+         let header = codebook_header(self.cb)
+-            + &reference_reduction_header(self.mtp_hidden_batch)
++            + &reference_reduction_header(self.reference_accumulation)
+             + &format!(
+                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
+                 u8::from(self.mtp_hidden_batch)
+@@ -549,6 +558,17 @@
+         .remove(0);
+         let output = if splits == 1 {
+             partials.reshape(&[matrix_rows, self.cols])?
++        } else if self.reference_accumulation && !self.mtp_hidden_batch {
++            // Preserve the single-row MLX reduction layout used by the reference.
++            let rows = (0..matrix_rows)
++                .map(|row| {
++                    partials.slice(0, row, row + 1)?
++                        .reshape(&[splits, self.cols])?
++                        .sum(0, false)?
++                        .reshape(&[1, self.cols])
++                })
++                .collect::<Result<Vec<_>>>()?;
++            Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?
+         } else {
+             partials.sum(1, false)?
+         };
+@@ -1312,6 +1332,124 @@
+ #[cfg(test)]
+ mod tests {
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; exact T2 projections"]
++    fn flash_two_rows_preserve_single_row_bytes_and_reject_empty_inputs() -> anyhow::Result<()> {
++        use super::*;
++        use std::path::Path;
++        let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        for prefix in [
++            "model.language_model.layers.0.mlp.shared_expert.gate_proj",
++            "model.language_model.layers.0.mlp.shared_expert.down_proj",
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            "model.language_model.layers.0.linear_attn.in_proj_z",
++            "model.language_model.layers.0.linear_attn.out_proj",
++            "model.language_model.layers.3.self_attn.q_proj",
++            "model.language_model.layers.3.self_attn.o_proj",
++            "lm_head",
++        ] {
++            let linear = Exl3Linear::from_checkpoint(&checkpoint, prefix)?;
++            ensure!(linear.reference_accumulation && !linear.mtp_hidden_batch);
++            let values = (0..linear.rows * 2)
++                .map(|i| (i as f32 * 0.173).sin())
++                .collect::<Vec<_>>();
++            let contiguous = Array::from_f32(&values, &[2, linear.rows])?;
++            let transposed = Array::from_f32(&values, &[linear.rows, 2])?.transpose(&[1, 0])?;
++            for input in [contiguous.try_clone()?, contiguous.astype(Dtype::Float16)?, transposed] {
++                let expected = Array::concatenate(&[
++                    &linear.forward(&input.slice(0, 0, 1)?)?,
++                    &linear.forward(&input.slice(0, 1, 2)?)?,
++                ], 0)?;
++                let actual = linear.forward(&input)?;
++                ensure!(actual.shape() == [2, linear.cols] && actual.dtype() == input.dtype());
++                let values = actual.to_f32()?;
++                ensure!(values.len() == 2 * linear.cols as usize && values.iter().all(|v| v.is_finite()));
++                ensure!(values.iter().any(|v| *v != 0.0), "empty T2 oracle");
++                ensure!(actual.to_bytes()? == expected.to_bytes()?, "T2 projection differs {prefix}");
++                ensure!(linear.forward(&input.reshape(&[1, 2, linear.rows])?)?.to_bytes()? == expected.to_bytes()?, "T2 leading shape differs");
++            }
++            ensure!(linear.forward(&Array::zeros_dtype(&[0, linear.rows], Dtype::Float16)?).is_err());
++            println!("T2 projection exact: {prefix}");
++        }
++        Ok(())
++    }
++    #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; projection microbenchmark only"]
++    fn flash_nt2_large_projections_are_exact_before_timing() -> anyhow::Result<()> {
++        use super::*;
++        use std::{path::Path, time::Instant};
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut cases = Vec::new();
++        for prefix in [
++            "model.language_model.layers.0.mlp.shared_expert.down_proj",
++            "model.language_model.layers.0.linear_attn.in_proj_qkv",
++            "model.language_model.layers.0.linear_attn.in_proj_z",
++            "model.language_model.layers.0.linear_attn.out_proj",
++            "model.language_model.layers.3.self_attn.q_proj",
++            "model.language_model.layers.3.self_attn.o_proj",
++            "lm_head",
++            "mtp.fc_embedding",
++        ] {
++            let mut linear = Exl3Linear::from_checkpoint(&checkpoint, prefix)?;
++            ensure!(linear.reference_accumulation && !linear.mtp_hidden_batch);
++            ensure!(crate::flash_support::dense_output_tiles(linear.cols / 16) == 2);
++            let values = (0..linear.rows)
++                .map(|i| (i as f32 * 0.173).sin())
++                .collect::<Vec<_>>();
++            let x = Array::from_f32(&values, &[1, linear.rows])?;
++            linear.reference_nt_override = Some(1);
++            let expected = linear.forward(&x)?;
++            let values = expected.to_f32()?;
++            ensure!(values.len() == linear.cols as usize && values.iter().all(|v| v.is_finite()));
++            ensure!(values.iter().any(|v| *v != 0.0), "empty projection oracle");
++            let expected = expected.to_bytes()?;
++            linear.reference_nt_override = None;
++            ensure!(
++                linear.forward(&x)?.to_bytes()? == expected,
++                "NT2 projection differs {prefix}"
++            );
++            cases.push((prefix, linear, x));
++        }
++        ensure!(cases.len() == 8, "projection cases absent");
++        for (_, linear, x) in &mut cases {
++            for nt in [Some(1), None] {
++                linear.reference_nt_override = nt;
++                for _ in 0..2 {
++                    linear.forward(x)?.eval()?;
++                }
++            }
++        }
++        for (prefix, linear, x) in &mut cases {
++            let mut times = Vec::new();
++            for repeat in 0..5 {
++                let order = if repeat % 2 == 0 {
++                    [None, Some(1)]
++                } else {
++                    [Some(1), None]
++                };
++                for nt in order {
++                    linear.reference_nt_override = nt;
++                    let start = Instant::now();
++                    for _ in 0..32 {
++                        linear.forward(x)?.eval()?;
++                    }
++                    let ms = start.elapsed().as_secs_f64() * 1000.0 / 32.0;
++                    ensure!(ms.is_finite() && ms > 0.0);
++                    times.push(serde_json::json!({"repeat":repeat,"nt":nt.unwrap_or(2),"ms":ms}));
++                }
++            }
++            println!(
++                "FLASH_NT2_PROJECTION {}",
++                serde_json::json!({
++                    "status":"validated_microbenchmark", "prefix":prefix, "input":linear.rows,
++                    "output":linear.cols,"times":times,"parity":"all output bytes",
++                    "limit":"synthetic input and wall time; not generation throughput"
++                })
++            );
++        }
++        Ok(())
++    }
++    #[test]
+     #[ignore = "physical Apple GPU; exact SSD slot layout versus resident EXL3"]
+     fn streamed_slots_match_resident_exl3_and_reject_invalid_routes() -> anyhow::Result<()> {
+         use super::*;

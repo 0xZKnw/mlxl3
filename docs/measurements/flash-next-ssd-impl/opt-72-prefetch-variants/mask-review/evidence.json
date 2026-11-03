@@ -1,0 +1,193 @@
+{
+  "status": "complete_read_only_source_and_checkpoint_row_audit",
+  "date_local": "2026-10-23",
+  "timezone": "Europe/Paris",
+  "scope": "Mask input identity/dtype/rounding and existing prefetch/LFU mechanics; no GPU, build, prover or speed test executed by this audit.",
+  "workspace": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "target_checkpoint": {
+    "directory": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "pinned_revision": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "quantization": "EXL3 2.05 bpw",
+    "full_checkpoint_sha256": "not recomputed; model name/pinned revision plus selected tensor header and row were checked"
+  },
+  "draft_checkpoint": {
+    "directory": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+    "pinned_revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+    "config_mask_token_id": 248077,
+    "config_dtype": "bfloat16",
+    "config_hidden_size": 2560,
+    "config_block_size": 8,
+    "config_architectures": [
+      "DFlash2DraftModel"
+    ],
+    "full_checkpoint_sha256": "not recomputed; config.json read only"
+  },
+  "mask_row_cpu_result": {
+    "file": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531/model-00001-of-00005.safetensors",
+    "header_bytes": 8189220,
+    "tensor": "model.language_model.embed_tokens.weight",
+    "dtype": "BF16",
+    "shape": [
+      248320,
+      2560
+    ],
+    "mask_id": 248077,
+    "absolute_offset": 1278343468,
+    "row_bytes": 5120,
+    "row_sha256": "860615491bdf6786178b8c14e96397f51e3895c556d0336e2b5ad8cc8e061a19",
+    "finite_count": 2560,
+    "bf16_nonzero": 2550,
+    "min": -0.0169677734375,
+    "max": 0.0166015625,
+    "max_abs": 0.0169677734375,
+    "mean_abs": 0.004154026923060883,
+    "fp16_nonzero": 2550,
+    "fp16_changed": 5,
+    "fp16_became_zero": 0,
+    "first_bf16_values": [
+      -0.002288818359375,
+      0.00159454345703125,
+      0.004180908203125,
+      -0.01055908203125,
+      0.0030670166015625,
+      0.00469970703125,
+      0.0007476806640625,
+      0.0019073486328125
+    ],
+    "first_fp16_values": [
+      -0.002288818359375,
+      0.00159454345703125,
+      0.004180908203125,
+      -0.01055908203125,
+      0.0030670166015625,
+      0.00469970703125,
+      0.0007476806640625,
+      0.0019073486328125
+    ]
+  },
+  "actual_cpu_command": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12 - <<'PYCPU'\nimport json,struct,hashlib,math\nfrom pathlib import Path\nroot=Path('/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531')\nname='model.language_model.embed_tokens.weight'\nindex=json.loads((root/'model.safetensors.index.json').read_text())\nfile=root/index['weight_map'][name]\nwith file.open('rb') as f:\n size=struct.unpack('<Q',f.read(8))[0]\n header=json.loads(f.read(size))\n info=header[name]\n assert info['shape']==[248320,2560] and info['dtype']=='BF16'\n offset=8+size+info['data_offsets'][0]+248077*5120\n f.seek(offset);raw=f.read(5120)\n assert len(raw)==5120\n bf16=struct.unpack('<2560H',raw)\n values=[struct.unpack('<f',struct.pack('<I',v<<16))[0] for v in bf16]\n fp16=[struct.unpack('<e',struct.pack('<e',v))[0] for v in values]\n print(json.dumps({'file':str(file),'header_bytes':size,'tensor':name,'dtype':info['dtype'],'shape':info['shape'],'mask_id':248077,'absolute_offset':offset,'row_bytes':len(raw),'row_sha256':hashlib.sha256(raw).hexdigest(),'finite_count':sum(map(math.isfinite,values)),'bf16_nonzero':sum(v!=0 for v in values),'min':min(values),'max':max(values),'max_abs':max(map(abs,values)),'mean_abs':sum(map(abs,values))/2560,'fp16_nonzero':sum(v!=0 for v in fp16),'fp16_changed':sum(a!=b for a,b in zip(values,fp16)),'fp16_became_zero':sum(a!=0 and b==0 for a,b in zip(values,fp16)),'first_bf16_values':values[:8],'first_fp16_values':fp16[:8]},indent=2))\nPYCPU",
+  "command_exit_code": 0,
+  "commands_also_used_read_only": [
+    "rg -n -i 'mask.*(embed|bf16|bfloat|draft)|bf16.*mask|embedding.*mask|4dd195e' opti.md native/src/{flash_draft.rs,flash_draft_runtime.rs,qwen4.rs}",
+    "sed -n '1,80p' native/src/flash_draft.rs; sed -n '330,530p' native/src/flash_draft.rs; sed -n '530,719p' native/src/flash_draft.rs; sed -n '1100,1127p' native/src/flash_draft.rs; sed -n '1440,1454p' native/src/qwen4.rs",
+    "cat /Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744/config.json",
+    "nl -ba native/ffi/mlx_bridge.cpp | sed -n '20,74p'; nl -ba native/ffi/mlx_bridge.cpp | sed -n '245,281p'; nl -ba native/ffi/mlx_bridge.cpp | sed -n '515,530p'; nl -ba native/src/array.rs | sed -n '566,584p'; nl -ba native/src/array.rs | sed -n '1190,1205p'"
+  ],
+  "source_trace": [
+    {
+      "file": "native/src/flash_draft_runtime.rs",
+      "line": 131,
+      "fact": "Production Session::advance obtains input from target.draft_input(anchor, Kind::Dflash2, count), then invokes Draft::forward."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 34,
+      "fact": "Kind::Dflash2 mask token is248077; DSpark test kind has distinct248070."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 368,
+      "fact": "Draft loader validates config mask_token_id against Kind::mask."
+    },
+    {
+      "file": "native/src/qwen4.rs",
+      "line": 1376,
+      "fact": "Target embedding source must be BF16 with shape[248320,2560]."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 1112,
+      "fact": "draft_input reads anchor then mask rows directly from target embedding file as BF16; row width5120 bytes; concatenates without a Float16 cast."
+    },
+    {
+      "file": "native/src/array.rs",
+      "line": 571,
+      "fact": "from_file forwards the requested Dtype to the C ABI."
+    },
+    {
+      "file": "native/ffi/mlx_bridge.cpp",
+      "line": 61,
+      "fact": "Dtype code12 maps to mx::bfloat16."
+    },
+    {
+      "file": "native/ffi/mlx_bridge.cpp",
+      "line": 255,
+      "fact": "Array from_file allocates requested dtype and fills it using pread_exact; no decode/FP16 quantization."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 673,
+      "fact": "Draft::forward requires BF16 input and immediately applies first layer input norm."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 501,
+      "fact": "Norm calls rms_norm with BF16 stored norm weight and eps1e-6."
+    },
+    {
+      "file": "native/ffi/mlx_bridge.cpp",
+      "line": 525,
+      "fact": "rms_norm C ABI calls mx::fast::rms_norm directly; no local Float16 cast."
+    },
+    {
+      "file": "native/src/flash_draft.rs",
+      "line": 457,
+      "fact": "Q4 quantization applies only to2D .weight matrices loaded for draft; input embedding is external target BF16 and not quantized by this branch."
+    },
+    {
+      "file": "native/src/qwen4.rs",
+      "line": 1445,
+      "fact": "Ordinary target embedding() casts BF16 to Float16, but the DFlash draft-input path does not call this method."
+    }
+  ],
+  "upstream": {
+    "commit": "4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+    "url": "https://github.com/incoai/splash/commit/4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+    "research_agent_archive": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-72/upstream-review-agent/splash-mask-4dd195e.json",
+    "research_agent_archive_sha256": "04c034f86536c26f289ac4155ecdd6aa02751fc13085be119f7110a72020d246",
+    "scope_reported_by_research_agent": "Qwen3.5-122B/Ornith mask around1e-6 rounded to zero through FP16 GGUF Q8/K-quant scales; optional BF16 mask_embedding.safetensors replaces only mask positions after draft gather. Reported2.3→4.9tokens/cycle on that model, not a local Flash Next gain.",
+    "fetch_limits": "Direct web open had cache miss and local urllib request failed DNS; primary patch archive supplied by sibling research agent. No upstream code copied."
+  },
+  "decision": "No mask sidecar or BF16 fix is needed for this checkpoint and current DFlash input path. The observed GGUF tiny-mask failure mode is absent locally.",
+  "prefetch_review": {
+    "weighted_test_guard": {
+      "file": "native/src/flash_draft.rs",
+      "line_at_initial_review": 1943,
+      "status": "real test-contract mismatch in frozen v1; parent informed",
+      "fact": "Old prefix guard required47*16*min(width,2) IDs for every mode; weighted intentionally aggregates rows and emits only16 IDs per layer. The FAILED log therefore does not establish logits/state divergence. Keep a strict variant-aware expected count; parent handles correction and affected checks."
+    },
+    "late_order": {
+      "file": "native/src/ssd_moe.rs",
+      "line": 974,
+      "status": "performance limitation, not numerical bug",
+      "fact": "Late prediction is prepared after route readback, wait_demand and reservation; it follows Hot but does not overlap those earlier waits."
+    },
+    "early_shared": {
+      "file": "native/src/ssd_moe.rs",
+      "line": 819,
+      "status": "performance hypothesis, not measured in this audit",
+      "fact": "When no Hot exists, early shared can be queued before selected routes are scheduled for CPU readback, potentially delaying urgent routing."
+    },
+    "bounded": {
+      "file": "native/src/ssd_moe.rs",
+      "line": 1178,
+      "status": "matches preregistered prefix semantics; not a confirmed bug",
+      "fact": "Protects first min(ids,budget,4) candidates, not the IDs actually admitted. With resident A/B followed by cold C/D at budget2, A/B are protected and C/D can be admitted. Do not describe as protection of actual prefetch admissions."
+    },
+    "lfu_counter": {
+      "file": "native/src/flash_support.rs",
+      "line": 979,
+      "status": "existing behavior; possible future hypothesis only, no new trial or performance claim",
+      "fact": "reserve deduplicates input IDs, increments counts once per unique expert per reservation, increments clock once per reserve, and halves counts every16 clock ticks. Thus an expert appearing twice in B2 still gains1, versus2 across two B1 reservations. publish_prefetch also advances the same clock at line1117ff. This is cohort-frequency semantics, not directly occurrence-frequency; changing it needs its own preregistration and real workload evidence."
+    },
+    "slot_io_review": "No new unsafe eviction or retained pending lease found in reviewed72/73 diff. Pending slots remain excluded, demand cohort protected, failed fills invalidated, Hot retained until reads finish. This static review is not a concurrency proof."
+  },
+  "limits": [
+    "No GPU or full model inference run by this review.",
+    "No new speed/acceptance measurement; no15tok/s claim.",
+    "Complete checkpoint/model files not hashed. Only selected raw row SHA computed.",
+    "No source-level proof of MLX/Metal, allocator or concurrency.",
+    "Source line numbers refer to files inspected during this audit; parent may subsequently alter the test guard.",
+    "No workspace W file changed by this subagent."
+  ]
+}

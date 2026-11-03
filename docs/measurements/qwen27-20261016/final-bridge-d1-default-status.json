@@ -1,0 +1,97 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "benchmarks/compare_native.py",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--baseline",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--candidate",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/release/mlxl3-rs",
+    "--output",
+    "docs/measurements/qwen27-20261016/final-bridge-d1-default-abba",
+    "--prompt-file",
+    "docs/measurements/qwen27-20261016/prompt-code.txt",
+    "--tokens",
+    "256",
+    "--warmup-tokens",
+    "64",
+    "--mtp-depth",
+    "1",
+    "--mtp-head",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+    "--repeats",
+    "1",
+    "--order",
+    "ABBA",
+    "--load-timeout",
+    "120",
+    "--request-timeout",
+    "180",
+    "--campaign-timeout",
+    "900",
+    "--baseline-env",
+    "MLXL3_EXPERIMENTAL_DENSE_MLP_BATCH=0"
+  ],
+  "sha256": "4db446744abcd61ec0ff497fe83b4990202ebde1bf48ec28526d9f4f26793b55",
+  "common_environment": {
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "allocator_cache": "absent/default",
+  "candidate_batch": "absent/default",
+  "reaped": true,
+  "exit_code": 0,
+  "prompts": {
+    "short": {
+      "A_tps": [
+        9.187310540096615,
+        9.164947962850297
+      ],
+      "B_tps": [
+        10.978647215246705,
+        11.174356549528046
+      ],
+      "median_gain_percent": 20.70995927404542,
+      "max_min_drift_percent": {
+        "A": 0.24400113712552685,
+        "B": 1.7826361521986689
+      },
+      "tokens": 130,
+      "mtp_counters": [
+        71,
+        71,
+        60
+      ],
+      "parity": true,
+      "speed_gate_passed": true
+    },
+    "document": {
+      "A_tps": [
+        8.946575170924655,
+        9.07464226892747
+      ],
+      "B_tps": [
+        10.880188415849528,
+        10.992302126901146
+      ],
+      "median_gain_percent": 21.370770957914576,
+      "max_min_drift_percent": {
+        "A": 1.4314650640729898,
+        "B": 1.0304390582822842
+      },
+      "tokens": 256,
+      "mtp_counters": [
+        142,
+        142,
+        113
+      ],
+      "parity": true,
+      "speed_gate_passed": true
+    }
+  },
+  "speed_gate_passed": true,
+  "seconds": 233.3207122499589
+}

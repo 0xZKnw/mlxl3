@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_selection_uses_both_seeds_and_rejects_domain_or_single_projection_regression _
+
+    def test_selection_uses_both_seeds_and_rejects_domain_or_single_projection_regression():
+        data = matrix()
+        assert choose_settings(data)["selected"]["profile"] == "mul1-scaled"
+        for r in data["validation"]:
+            if r["profile"] == "mul1-scaled" and r["window"] < 2:
+                r["kl"] = 1.2
+>       assert choose_settings(data)["selected"]["profile"] == "mcg-scaled"
+E       AssertionError: assert 'mul1-scaled' == 'mcg-scaled'
+E         
+E         - mcg-scaled
+E         ?  ^^
+E         + mul1-scaled
+E         ?  ^^^
+
+tests/test_lfm25_settings.py:89: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_settings.py::test_selection_uses_both_seeds_and_rejects_domain_or_single_projection_regression
+1 failed in 0.39s

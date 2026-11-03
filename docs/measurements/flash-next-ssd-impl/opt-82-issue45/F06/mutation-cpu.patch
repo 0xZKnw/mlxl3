@@ -1,0 +1,11 @@
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2497,7 +2497,7 @@
+ /// Only the Flash legacy top-10 may skip ranks already known to be losers.
+ #[cfg(any(feature = "mlx", test, kani))]
+ pub(crate) fn flash_top10_early_exit(experts: i32, top_k: usize, requested: bool) -> bool {
+-    requested && experts == 512 && top_k == 10
++    requested && experts >= 511 && top_k == 10
+ }
+ 
+ #[cfg(test)]

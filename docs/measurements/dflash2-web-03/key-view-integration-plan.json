@@ -1,0 +1,28 @@
+{
+  "id": "DFLASH2-2026-10-08-KEY-VIEW",
+  "status": "completed_local_checks_passed",
+  "identity": "key-view-identity.json",
+  "package_command": [
+    "/bin/zsh",
+    "scripts/build-macos-app.sh"
+  ],
+  "package_timeout": 240,
+  "python_command": [
+    ".venv/bin/python",
+    "-m",
+    "pytest",
+    "-q"
+  ],
+  "python_timeout": 180,
+  "environment": {
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MLXL3_MACOS_SDK": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2"
+  },
+  "target": "generated dist/MLXL3 Desktop.app only; personal installed application unchanged",
+  "signed_bridge_check": "after package, 35B only and compare complete token hashes/cache contexts against WEB02 signed ad0bef report",
+  "previous_full_desktop": "copy-package-checks.json, same Swift sources not changed by KEY-VIEW; full Desktop suite not repeated for this native-only trial",
+  "gpu_timing": false,
+  "preregistered_or_initial_status": "preregistered_local_integration_checks",
+  "final_result": "key-view-package.json"
+}

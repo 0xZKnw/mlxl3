@@ -1,0 +1,165 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:465:29
+    |
+465 |                     None => assert!(!(2..24).contains(&rows)),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:529:21
+    |
+529 |             None => assert!(!(1..=8).contains(&time)),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/flash_support.rs:149:25
+    |
+149 |                 None => assert!(!(10..=512).contains(&capacity)),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/linear.rs:1546:44
+     |
+1546 |             with_grouped_mb3_test(true, || assert!(grouped_mb3_enabled()));
+     |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:2707:43
+     |
+2707 |             with_dense_mlp_batch(true, || assert!(dense_mlp_batch_enabled()));
+     |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3004:24
+     |
+3004 |             Ok("0") => assert!(!model.pipeline && !model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+    --> native/src/qwen35.rs:3005:24
+     |
+3005 |             Ok("1") => assert!(model.pipeline && model.mtp_pipeline),
+     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `step`
+   --> native/src/flash_support.rs:800:17
+    |
+800 |               for step in 0..10_000 {
+    |                   ^^^^
+...
+826 | /                             assert!(
+827 | |                                 !(free && matches!(slots[slot], Slot::Ready(_))),
+828 | |                                 "free slot ignored: capacity={capacity}, step={step}"
+829 | |                             );
+    | |_____________________________- you might have meant to use string interpolation in this string literal
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+    |
+800 |             for _step in 0..10_000 {
+    |                 +
+
+warning: unused variable: `index`
+    --> native/src/linear.rs:1699:18
+     |
+1699 |               for (index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                    ^^^^^
+1700 | /                 assert_eq!(
+1701 | |                     left.to_f16_bits()?,
+1702 | |                     right.to_f16_bits()?,
+1703 | |                     "grouped batch M={matrix_rows} output {index} differs"
+1704 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+1699 |             for (_index, (left, right)) in expected.iter().zip(&actual).enumerate() {
+     |                  +
+
+warning: unused variable: `name`
+    --> native/src/qwen35.rs:3518:18
+     |
+3518 |               for (name, actual, expected) in [
+     |                    ^^^^
+...
+3524 | /                 assert_eq!(
+3525 | |                     actual.to_f16_bits()?,
+3526 | |                     expected.to_f16_bits()?,
+3527 | |                     "fused GDN {name} differs at T={time}"
+3528 | |                 );
+     | |_________________- you might have meant to use string interpolation in this string literal
+     |
+help: if this is intentional, prefix it with an underscore
+     |
+3518 |             for (_name, actual, expected) in [
+     |                  +
+
+error[E0502]: cannot borrow `target` as immutable because it is also borrowed as mutable
+    --> native/src/flash_draft.rs:1394:20
+     |
+1390 |     if let Ok(verification) = target.verify_draft(&tokens, Kind::Dflash2) {
+     |                               -------------------------------------------
+     |                               |
+     |                               mutable borrow occurs here
+     |                               a temporary with access to the mutable borrow is created here ...
+...
+1394 |         assert_eq!(target.offset(), retained as i32);
+     |                    ^^^^^^ immutable borrow occurs here
+...
+1397 |     }
+     |     - ... and the mutable borrow might be used here, when that temporary is dropped and runs the destructor for type `std::result::Result<qwen4::draft::Verification<'_>, anyhow::Error>`
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error; 21 warnings emitted
+error: Failed to execute cargo (exit status: 101). Found 1 compilation errors.

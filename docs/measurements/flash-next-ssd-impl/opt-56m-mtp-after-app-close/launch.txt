@@ -1,0 +1,8 @@
+from pathlib import Path
+import runpy
+
+api = runpy.run_path("docs/measurements/flash-next-ssd-impl/opt-56-hybrid-hot/bench.py")
+api["main"].__globals__["BASE"] = Path(
+    "docs/measurements/flash-next-ssd-impl/opt-56m-mtp-after-app-close"
+).resolve()
+api["main"]("mtp")

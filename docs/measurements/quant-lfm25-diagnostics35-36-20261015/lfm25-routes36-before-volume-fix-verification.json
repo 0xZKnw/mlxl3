@@ -1,0 +1,49 @@
+{
+  "status": "cpu_verified_gpu_not_run",
+  "files": {
+    "scripts/diagnose_lfm25_routes.py": "8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1",
+    "scripts/diagnose_lfm25_routes_modal.py": "50170aad35a6110e8d0c7568020945db4953cc7e06088d09ec77a9612ee6bb8a",
+    "tests/test_lfm25_routes.py": "01b621b173945b2edb6a3a3ab81a9df05bca93666c5564d66ecb827b367e14cb"
+  },
+  "focused_tests": {
+    "passed": 72,
+    "skipped": 0,
+    "log": "build/lfm25-routes36-focused-restored.log"
+  },
+  "mutation": {
+    "mutation": "omit forced IDs while keeping original buffer",
+    "detected": true,
+    "pytest_exit": 1,
+    "failed_cases": 2,
+    "passed_cases": 2,
+    "source_restored_byteexact": true
+  },
+  "symbolic_search": {
+    "target": "diagnose_lfm25_routes.checked_position",
+    "confirmed_postconditions": 2,
+    "tool": "CrossHair",
+    "timeout_seconds_per_condition": 20,
+    "log": "build/lfm25-routes36-crosshair.log",
+    "scope": "index return equals supplied integer and lies inside total; no GPU/tensor/I/O proof"
+  },
+  "checks": {
+    "ruff_format": "3 files already formatted",
+    "ruff_lint": "All checks passed!",
+    "compileall_exit": 0,
+    "cli_help_exit": 0,
+    "actual_frozen_plan": {
+      "frozen_windows": 2,
+      "tokens_per_window": 1024,
+      "v2_shards": 4,
+      "matches": true
+    }
+  },
+  "initial_failures": "Ruff SIM102, import sorting, and TRY004 corrected; early lint logs were overwritten, diagnostics remain in tool outputs.",
+  "unverified": [
+    "No GPU, Modal job, or new numerical model measurement launched.",
+    "Actual routing_sel_norm wheel binding and fused own-route bitexactness await H100.",
+    "CPU orchestration uses explicit fake models/caches; exact historical KL/NLL checks remain external after download.",
+    "No source-level proof of CUDA/tensors/concurrency/filesystem transport.",
+    "Full suite and CI integration left to root agent."
+  ]
+}

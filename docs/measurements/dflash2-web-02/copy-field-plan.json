@@ -1,0 +1,29 @@
+{
+  "status": "closed_attempt_recorded_indeterminate",
+  "reason": "Fixed1024 array exceeds CBMC default field-sensitivity64. New solver representation1024 preserves full array and every safety/unwinding property; fixed-buffer record inputs unchanged. CLI solver cadical overrides attribute, per cargo kani --help. Previous KiSSAT len0 verified126.96s; len4 still costly. No production changes. One final representation experiment before explicit practical limitation.",
+  "commands": [
+    [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--exact",
+      "--harness",
+      "speculative::verification::dflash_copy_len_4",
+      "--solver",
+      "cadical",
+      "-Z",
+      "unstable-options",
+      "--harness-timeout",
+      "180s",
+      "--cbmc-args",
+      "--max-field-sensitivity-array-size",
+      "1024"
+    ]
+  ],
+  "followup": "If focused succeeds,21 lengths, disabled and whole CPU suite using same settings; otherwise retain unverified contract, no further producer rewrite.",
+  "gpu_started": false,
+  "original_preregistration_status": "preregistered_before_attempt",
+  "result": "copy-field-formal.json",
+  "final_outcome": "Resource interruption or timeout; no functional counterexample and no full proof. Domains/properties and original logs retained; see copy-final-formal.json for successes and limits."
+}

@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "Game Performance",
+    "--instrument",
+    "Processor Trace",
+    "--time-limit",
+    "3s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/locked-smoke/probe.trace",
+    "--launch",
+    "--",
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "-c",
+    "import time; time.sleep(2)"
+  ],
+  "status": "finished_inspection_required",
+  "scope": "owned disposable sleeping process, no model; qualify trace while Mac locked",
+  "timeout_seconds": 60,
+  "maximum_trace_bytes": 1073741824,
+  "exit_code": 2,
+  "reaped": true,
+  "seconds": 8.78743820899399
+}

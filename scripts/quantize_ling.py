@@ -79,14 +79,15 @@ def save_rows(folder, key, values):
     np.save(folder / (key + ".npy"), values)
 
 
-def capture_experts(folder, prefix, switch, inputs, selected):
+def capture_experts(folder, prefix, switch, inputs, selected, *, names=("gate_proj", "up_proj", "down_proj")):
     """The gate/up share inputs; each down projection gets its own SwiGLU."""
     from mlx_lm.models.activations import swiglu
+    gate_name, up_name, down_name = names
 
     shared_inputs = [
         f"{prefix}.experts.{expert}.{proj}"
         for expert in range(switch.gate_proj.num_experts)
-        for proj in ("gate_proj", "up_proj")
+        for proj in (gate_name, up_name)
         if f"{prefix}.experts.{expert}.{proj}" in selected
     ]
     if shared_inputs:
@@ -98,7 +99,7 @@ def capture_experts(folder, prefix, switch, inputs, selected):
             os.link(source, target)
     down_experts = [
         expert for expert in range(switch.gate_proj.num_experts)
-        if f"{prefix}.experts.{expert}.down_proj" in selected
+        if f"{prefix}.experts.{expert}.{down_name}" in selected
     ]
     for start in range(0, len(down_experts), 8):
         experts = down_experts[start:start + 8]
@@ -111,7 +112,7 @@ def capture_experts(folder, prefix, switch, inputs, selected):
         down_inputs = swiglu(gate, up)
         mx.eval(down_inputs)
         for index, expert in enumerate(experts):
-            save_rows(folder, f"{prefix}.experts.{expert}.down_proj", down_inputs[index])
+            save_rows(folder, f"{prefix}.experts.{expert}.{down_name}", down_inputs[index])
         del gate, up, down_inputs
     mx.clear_cache()
 

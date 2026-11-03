@@ -1,0 +1,49 @@
+{
+  "status": "passed_except_real_os_verifier",
+  "runs": [
+    {
+      "name": "focused",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "flash_support::tests::available_memory",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 1.161720667,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-focused.log"
+    },
+    {
+      "name": "kani-count",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "available_memory_count_covers_fields_within_buffer"
+      ],
+      "exit": 0,
+      "seconds": 1.594685625,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-kani-count.log"
+    },
+    {
+      "name": "kani-os",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "available_memory_real_os_path"
+      ],
+      "exit": 1,
+      "seconds": 0.999599667,
+      "log": "docs/measurements/flash-next-ssd-impl/opt-12-memory/H-kani-os.log"
+    }
+  ]
+}

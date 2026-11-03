@@ -1,0 +1,199 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.49s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 9`
+Checking harness weighted_epilogue::weighted_geometry_bounds_every_symbolic_address...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/f87cf42e8a800e23/out/mlxl3_native-f87cf42e8a800e23__RNvNtCscwqYaKHqkTp_12mlxl3_native17weighted_epilogue47weighted_geometry_bounds_every_symbolic_address.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<usize> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 2869 column 15 function <std::option::Option<usize> as std::ops::Try>::branch thread 0
+aborting path on assume(false) at file native/src/lib.rs line 0 column 0 function weighted_epilogue::geometry thread 0
+Unwinding loop _RINvXs2J_NtNtCsjpISKbLQvZs_4core5slice4iterINtB7_4ItermENtNtNtNtBb_4iter6traits8iterator8Iterator3anyNCNvNtCscwqYaKHqkTp_12mlxl3_native17weighted_epilogue8geometry0EB1H_.0 iteration 1 file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs line 326 column 17 function <std::slice::Iter<'_, u32> as std::iter::Iterator>::any::<{closure@native/src/weighted_epilogue.rs:29:29: 29:35}> thread 0
+aborting path on assume(false) at file native/src/weighted_epilogue.rs line 204 column 1 function weighted_epilogue::weighted_geometry_bounds_every_symbolic_address thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs line 633 column 5 function std::option::Option::<weighted_epilogue::Geometry>::is_some thread 0
+Runtime Symex: 0.0713247s
+size of program expression: 6642 steps
+slicing removed 4455 assignments
+Generated 453 VCC(s), 59 remaining after simplification
+Runtime Postprocess Equation: 0.0008465s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0315687s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.975e-05s
+Solving with CaDiCaL 3.0.0
+64923 variables, 301336 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00300179s
+Runtime decision procedure: 0.0348819s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64924 variables, 301337 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00148033s
+Runtime decision procedure: 0.00173671s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64925 variables, 301338 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00144275s
+Runtime decision procedure: 0.001659s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64926 variables, 301339 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00348358s
+Runtime decision procedure: 0.00370354s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64927 variables, 301340 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00235479s
+Runtime decision procedure: 0.00257133s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64928 variables, 301341 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00511625s
+Runtime decision procedure: 0.00537254s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64929 variables, 301342 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0313008s
+Runtime decision procedure: 0.0315679s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+64930 variables, 301343 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00271429s
+Runtime decision procedure: 0.00293242s
+Running propositional reduction

@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/replay_flash_cache53.py", line 76, in <module>
+    main(Path(sys.argv[1]), Path(sys.argv[2]))
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/replay_flash_cache53.py", line 55, in main
+    parts[part] = routes(API["load_events"](path), part)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py", line 222, in load_events
+    return json.loads(path.read_text())
+                      ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1028, in read_text
+    return f.read()
+           ^^^^^^^^
+  File "<frozen codecs>", line 322, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte

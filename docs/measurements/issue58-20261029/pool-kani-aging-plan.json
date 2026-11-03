@@ -1,0 +1,23 @@
+[
+  {
+    "name": "pool-kani-aging",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "global_frequency_aging_matches_wide_arithmetic_for_all_counters"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 60,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]

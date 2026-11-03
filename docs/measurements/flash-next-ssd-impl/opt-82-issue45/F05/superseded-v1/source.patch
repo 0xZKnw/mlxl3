@@ -1,0 +1,666 @@
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -46,6 +46,11 @@
+     readers: usize,
+     gpu_hot: bool,
+     gpu_hot_wide: bool,
++    batch_routes: bool,
++    #[cfg(test)]
++    route_batch_calls: std::cell::Cell<usize>,
++    #[cfg(test)]
++    route_gate_calls: std::cell::Cell<usize>,
+     unique_cohorts: bool,
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
+@@ -117,6 +122,9 @@
+         let gpu_hot_wide =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_GPU_HOT_WIDE", "0")?)
+                 .context("MLXL3_SSD_GPU_HOT_WIDE must be 0 or 1")?;
++        let batch_routes =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_BATCH_ROUTES", "0")?)
++                .context("MLXL3_SSD_BATCH_ROUTES must be 0 or 1")?;
+         let unique_cohorts =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_UNIQUE_COHORT", "0")?)
+                 .context("MLXL3_SSD_UNIQUE_COHORT must be 0 or 1")?;
+@@ -230,6 +238,11 @@
+         Ok(Self {
+             gpu_hot,
+             gpu_hot_wide,
++            batch_routes,
++            #[cfg(test)]
++            route_batch_calls: std::cell::Cell::new(0),
++            #[cfg(test)]
++            route_gate_calls: std::cell::Cell::new(0),
+             unique_cohorts,
+             shared_exl3,
+             stable_expert_kernels,
+@@ -390,6 +403,8 @@
+     }
+ 
+     fn gate_logits(&self, x: &Array) -> Result<Array> {
++        #[cfg(test)]
++        self.route_gate_calls.set(self.route_gate_calls.get() + 1);
+         match &self.resident_gate {
+             Some(weight) if x.dtype() == Dtype::Float32 => x.matmul(weight),
+             _ => self.gate.forward(x),
+@@ -409,6 +424,44 @@
+             router::topk(&probabilities, 10, true)
+         }
+     }
++    fn gate_logits_rows(&self, x: &Array) -> Result<Array> {
++        // Preserve every scalar GEMV and its input stride before grouping the reductions.
++        let logits = (0..x.shape()[0])
++            .map(|row| self.gate_logits(&x.slice(0, row, row + 1)?))
++            .collect::<Result<Vec<_>>>()?;
++        Array::concatenate(&logits.iter().collect::<Vec<_>>(), 0)
++    }
++
++    fn route_rows(&self, x: &Array) -> Result<(Array, Array)> {
++        ensure!(
++            matches!(x.shape(), [rows, H] if (1..=8).contains(rows))
++                && matches!(x.dtype(), Dtype::Float16 | Dtype::Float32),
++            "invalid streamed MoE route rows"
++        );
++        if self.batch_routes
++            && crate::flash_support::flash_route_batch_eligible(
++                x.shape(),
++                x.dtype() == Dtype::Float32,
++            )
++        {
++            let logits = self.gate_logits_rows(x)?;
++            ensure!(
++                logits.shape() == [x.shape()[0], 512] && logits.dtype() == Dtype::Float32,
++                "batch routes require exact FP32 gate logits"
++            );
++            #[cfg(test)]
++            self.route_batch_calls.set(self.route_batch_calls.get() + 1);
++            return router::topk(&logits.softmax_precise()?, 10, true);
++        }
++        let pairs = (0..x.shape()[0])
++            .map(|row| self.route(&x.slice(0, row, row + 1)?))
++            .collect::<Result<Vec<_>>>()?;
++        Ok((
++            Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?,
++            Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?,
++        ))
++    }
++
+     fn predict(&self, x: &Array) -> Result<Array> {
+         let x = if self.predictor_half {
+             x.astype(Dtype::Float16)?
+@@ -573,11 +626,7 @@
+         #[cfg(test)]
+         let submissions_before = self.hybrid_submissions;
+         let rows = x.shape()[0];
+-        let pairs = (0..rows)
+-            .map(|row| self.route(&x.slice(0, row, row + 1)?))
+-            .collect::<Result<Vec<_>>>()?;
+-        let selected = Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+-        let weights = Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++        let (selected, weights) = self.route_rows(x)?;
+         let mut hot = self.prepare_resident_hot(x, &selected)?;
+         #[cfg(test)]
+         self.window_hot_before_readback
+@@ -749,13 +798,7 @@
+                 prepared.hot,
+             ),
+             None => {
+-                let pairs = (0..rows)
+-                    .map(|row| self.route(&x.slice(0, row, row + 1)?))
+-                    .collect::<Result<Vec<_>>>()?;
+-                let selected =
+-                    Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
+-                let weights =
+-                    Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                let (selected, weights) = self.route_rows(x)?;
+                 let hot = if hybrid {
+                     self.prepare_resident_hot(x, &selected)?
+                 } else {
+@@ -1199,6 +1242,10 @@
+         &self.gate
+     }
+ }
++
++#[cfg(test)]
++#[path = "ssd_moe/batch_route_tests.rs"]
++mod batch_route_tests;
+ 
+ #[cfg(test)]
+ #[path = "ssd_moe/hybrid_tests.rs"]
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,45 @@
+         }
+     }
+ }
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn flash_route_batch_eligible(shape: &[i32], fp32: bool) -> bool {
++    matches!(shape, [rows, 2560] if fp32 && (2..=8).contains(rows))
++}
++
++#[cfg(test)]
++#[test]
++fn flash_route_batch_rejects_every_other_shape_and_precision() {
++    for rows in [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, i32::MAX] {
++        for columns in [-1, 0, 2559, 2560, 2561, i32::MAX] {
++            for fp32 in [false, true] {
++                assert_eq!(
++                    flash_route_batch_eligible(&[rows, columns], fp32),
++                    fp32 && (2..=8).contains(&rows) && columns == 2560
++                );
++            }
++        }
++    }
++    for shape in [vec![], vec![2560], vec![1, 2, 2560], vec![1, 1, 2, 2560]] {
++        assert!(!flash_route_batch_eligible(&shape, true));
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(5)]
++fn flash_route_batch_preserves_scalar_fallback_domain() {
++    let dimensions: [i32; 4] = kani::any();
++    let rank: usize = kani::any();
++    let fp32: bool = kani::any();
++    kani::assume(rank <= 4);
++    let actual = flash_route_batch_eligible(&dimensions[..rank], fp32);
++    let expected =
++        rank == 2 && fp32 && dimensions[0] >= 2 && dimensions[0] <= 8 && dimensions[1] == 2560;
++    assert_eq!(actual, expected);
++    kani::cover!(actual && dimensions[0] == 2);
++    kani::cover!(actual && dimensions[0] == 8);
++    kani::cover!(!actual && rank == 2 && dimensions[0] == 1 && dimensions[1] == 2560);
++    kani::cover!(!actual && rank == 2 && !fp32 && dimensions[0] == 2 && dimensions[1] == 2560);
++    kani::cover!(!actual && rank == 4);
++}
+--- /dev/null
++++ b/native/src/ssd_moe/batch_route_tests.rs
+@@ -0,0 +1,486 @@
++use super::*;
++use serde_json::Value;
++use std::{fs, path::Path};
++
++fn fixture() -> Result<(Checkpoint, std::path::PathBuf, Value)> {
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    let root = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_REFERENCE")?);
++    let reference: Value = serde_json::from_reader(fs::File::open(root.join("reference.json"))?)?;
++    ensure!(reference["status"] == "complete" && reference["mode"] == "eval");
++    Ok((checkpoint, root, reference))
++}
++
++fn semantic_bytes(root: &Path, entry: &Value) -> Result<Vec<u8>> {
++    ensure!(entry["count"] == H, "invalid MoE fixture count");
++    let bytes = fs::read(root.join(entry["file"].as_str().context("missing fixture")?))?;
++    ensure!(
++        bytes.len() == H as usize * 4
++            && bytes
++                .as_chunks::<4>()
++                .0
++                .iter()
++                .all(|&v| f32::from_le_bytes(v).is_finite()),
++        "empty or nonfinite MoE fixture"
++    );
++    Ok(bytes)
++}
++
++fn input(values: &[Vec<f32>], rows: i32, dtype: Dtype, strided: bool) -> Result<Array> {
++    let data = if strided {
++        (0..H)
++            .flat_map(|column| {
++                (0..rows).map(move |row| values[row as usize % values.len()][column as usize])
++            })
++            .collect::<Vec<_>>()
++    } else {
++        (0..rows)
++            .flat_map(|row| values[row as usize % values.len()].iter().copied())
++            .collect()
++    };
++    let shape = if strided { [H, rows] } else { [rows, H] };
++    let value = Array::from_f32(&data, &shape)?.astype(dtype)?;
++    if strided {
++        value.transpose(&[1, 0])
++    } else {
++        Ok(value)
++    }
++}
++
++#[test]
++#[ignore = "physical Apple GPU; scalar/batched softmax+top10 edge contracts, no model"]
++fn batch_probability_rows_preserve_extremes_ties_and_nonfinite_bits() -> Result<()> {
++    let mut cases = 0;
++    for rows in [2, 3, 4, 8] {
++        for pattern in 0..7 {
++            let values = (0..rows * 512)
++                .map(|i| {
++                    let row = i / 512;
++                    let col = i % 512;
++                    match pattern {
++                        0 => {
++                            if (row + col) % 2 == 0 {
++                                0.
++                            } else {
++                                -0.
++                            }
++                        }
++                        1 => {
++                            if col == row + 1 {
++                                10000.
++                            } else {
++                                -10000.
++                            }
++                        }
++                        2 => ((col * 17 + row * 37) % 97) as f32 / 1048576.,
++                        3 => f32::NEG_INFINITY,
++                        4 => {
++                            if col == row {
++                                f32::from_bits(0x7fc00017)
++                            } else {
++                                col as f32 / 512.
++                            }
++                        }
++                        5 => {
++                            if col == row {
++                                f32::INFINITY
++                            } else {
++                                -1.
++                            }
++                        }
++                        6 => {
++                            if col < 10 + row {
++                                1.
++                            } else {
++                                f32::NEG_INFINITY
++                            }
++                        }
++                        _ => unreachable!(),
++                    }
++                })
++                .collect::<Vec<_>>();
++            let logits = Array::from_f32(&values, &[rows, 512])?;
++            let probabilities = (0..rows)
++                .map(|r| logits.slice(0, r, r + 1)?.softmax_precise())
++                .collect::<Result<Vec<_>>>()?;
++            let expected_p = Array::concatenate(&probabilities.iter().collect::<Vec<_>>(), 0)?;
++            let expected = probabilities
++                .iter()
++                .map(|p| router::topk(p, 10, true))
++                .collect::<Result<Vec<_>>>()?;
++            let expected_ids =
++                Array::concatenate(&expected.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
++            let expected_weights =
++                Array::concatenate(&expected.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++            let actual_p = logits.softmax_precise()?;
++            let (actual_ids, actual_weights) = router::topk(&actual_p, 10, true)?;
++            ensure!(
++                actual_p.shape() == [rows, 512]
++                    && actual_ids.shape() == [rows, 10]
++                    && actual_weights.shape() == [rows, 10]
++            );
++            ensure!(
++                actual_p.to_bytes()? == expected_p.to_bytes()?,
++                "edge probabilities changed B{rows}/pattern{pattern}"
++            );
++            ensure!(
++                actual_ids.to_bytes()? == expected_ids.to_bytes()?
++                    && actual_weights.to_bytes()? == expected_weights.to_bytes()?,
++                "edge route bits changed B{rows}/pattern{pattern}"
++            );
++            cases += 1;
++        }
++    }
++    ensure!(cases == 28);
++    println!(
++        "FLASH_BATCH_ROUTE_EDGES cases={cases} probability_ids_weight_bits=exact nonfinite_historical_contract=true"
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; 48 real gates, scalar GEMV oracle and FP32 batch routes; run alone"]
++fn batch_routes_match_real_scalar_logits_probabilities_ids_and_weights() -> Result<()> {
++    let (checkpoint, root, reference) = fixture()?;
++    let mut cases = 0;
++    let mut fast_cases = 0;
++    for layer in 0..48 {
++        let prefix = format!("model.language_model.layers.{layer}.mlp");
++        let mut moe = SsdMoe::load(&checkpoint, &prefix, 20, true)?;
++        ensure!(
++            moe.batch_routes,
++            "requires BATCH_ROUTES=1 through the real loader"
++        );
++        let values = [0, 1]
++            .into_iter()
++            .map(|step| {
++                let bytes = semantic_bytes(
++                    &root,
++                    &reference["steps"][step]["components"][layer]["mlp"]["input"],
++                )?;
++                Ok(bytes
++                    .as_chunks::<4>()
++                    .0
++                    .iter()
++                    .map(|&b| f32::from_le_bytes(b))
++                    .collect::<Vec<_>>())
++            })
++            .collect::<Result<Vec<_>>>()?;
++        let widths: &[i32] = if layer == 0 {
++            &[1, 2, 3, 4, 5, 6, 7, 8]
++        } else {
++            &[1, 2, 3, 4, 8]
++        };
++        for resident in [false, true] {
++            if resident && layer != 0 {
++                continue;
++            }
++            moe.resident_gate = if resident {
++                Some(
++                    linear::checkpoint_array(&checkpoint, &format!("{prefix}.gate.weight"))?
++                        .astype(Dtype::Float16)?
++                        .transpose(&[1, 0])?
++                        .astype(Dtype::Float32)?,
++                )
++            } else {
++                None
++            };
++            for &rows in widths {
++                for dtype in [Dtype::Float16, Dtype::Float32] {
++                    for strided in [false, true] {
++                        let x = input(&values, rows, dtype, strided)?;
++                        let logits = (0..rows)
++                            .map(|r| moe.gate.forward(&x.slice(0, r, r + 1)?))
++                            .collect::<Result<Vec<_>>>()?;
++                        let probabilities = logits
++                            .iter()
++                            .map(Array::softmax_precise)
++                            .collect::<Result<Vec<_>>>()?;
++                        let serial_logits =
++                            Array::concatenate(&logits.iter().collect::<Vec<_>>(), 0)?;
++                        let serial_probabilities =
++                            Array::concatenate(&probabilities.iter().collect::<Vec<_>>(), 0)?;
++                        moe.route_gate_calls.set(0);
++                        let actual_logits = moe.gate_logits_rows(&x)?;
++                        ensure!(
++                            moe.route_gate_calls.get() == rows as usize,
++                            "scalar GEMV count changed"
++                        );
++                        ensure!(
++                            actual_logits.shape() == [rows, 512] && actual_logits.dtype() == dtype
++                        );
++                        ensure!(
++                            actual_logits.to_bytes()? == serial_logits.to_bytes()?,
++                            "gate logits differ layer={layer}"
++                        );
++                        let actual_probabilities = if dtype == Dtype::Float32 && rows > 1 {
++                            actual_logits.softmax_precise()?
++                        } else {
++                            let rows = (0..rows)
++                                .map(|r| actual_logits.slice(0, r, r + 1)?.softmax_precise())
++                                .collect::<Result<Vec<_>>>()?;
++                            Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?
++                        };
++                        ensure!(
++                            actual_probabilities.to_bytes()? == serial_probabilities.to_bytes()?,
++                            "probabilities differ layer={layer}/B{rows}/{dtype:?}/strided={strided}/resident={resident}"
++                        );
++                        let pairs = (0..rows)
++                            .map(|r| moe.route(&x.slice(0, r, r + 1)?))
++                            .collect::<Result<Vec<_>>>()?;
++                        let expected_ids =
++                            Array::concatenate(&pairs.iter().map(|p| &p.0).collect::<Vec<_>>(), 0)?;
++                        let expected_weights =
++                            Array::concatenate(&pairs.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                        moe.route_gate_calls.set(0);
++                        moe.route_batch_calls.set(0);
++                        let (ids, weights) = moe.route_rows(&x)?;
++                        let fast = dtype == Dtype::Float32 && rows > 1;
++                        ensure!(
++                            moe.route_gate_calls.get() == rows as usize
++                                && moe.route_batch_calls.get() == usize::from(fast),
++                            "routing branch or scalar GEMV count changed"
++                        );
++                        ensure!(
++                            ids.shape() == [rows, 10]
++                                && weights.shape() == [rows, 10]
++                                && weights.dtype() == dtype
++                        );
++                        ensure!(
++                            ids.to_bytes()? == expected_ids.to_bytes()?
++                                && weights.to_bytes()? == expected_weights.to_bytes()?,
++                            "routes differ layer={layer}/B{rows}/{dtype:?}/strided={strided}/resident={resident}"
++                        );
++                        let p = serial_probabilities.to_f32()?;
++                        let ids = ids.to_u32()?;
++                        let weights = weights.to_f32()?;
++                        ensure!(p.len() == rows as usize * 512 && p.iter().all(|v| v.is_finite()));
++                        ensure!(
++                            ids.len() == rows as usize * 10
++                                && weights.len() == ids.len()
++                                && weights.iter().all(|v| v.is_finite())
++                        );
++                        for r in 0..rows as usize {
++                            let mut order = (0..512u32).collect::<Vec<_>>();
++                            order.sort_by(|&a, &b| {
++                                p[r * 512 + a as usize]
++                                    .total_cmp(&p[r * 512 + b as usize])
++                                    .then(a.cmp(&b))
++                            });
++                            ensure!(
++                                ids[r * 10..(r + 1) * 10] == order[502..],
++                                "independent CPU rank oracle differs"
++                            );
++                        }
++                        cases += 1;
++                        fast_cases += usize::from(fast);
++                    }
++                }
++            }
++        }
++        if layer == 0 {
++            let before = (
++                moe.hits,
++                moe.misses,
++                moe.read_bytes,
++                moe.route_gate_calls.get(),
++                moe.route_batch_calls.get(),
++            );
++            for shape in [
++                vec![],
++                vec![H],
++                vec![0, H],
++                vec![9, H],
++                vec![2, H - 1],
++                vec![1, 2, H],
++            ] {
++                ensure!(
++                    moe.route_rows(&Array::zeros_dtype(&shape, Dtype::Float32)?)
++                        .is_err()
++                );
++            }
++            ensure!(
++                moe.route_rows(&Array::zeros_dtype(&[2, H], Dtype::UInt32)?)
++                    .is_err()
++            );
++            ensure!(
++                before
++                    == (
++                        moe.hits,
++                        moe.misses,
++                        moe.read_bytes,
++                        moe.route_gate_calls.get(),
++                        moe.route_batch_calls.get()
++                    )
++            );
++        }
++        moe.drain()?;
++    }
++    ensure!(
++        cases == 1004 && fast_cases == 404,
++        "incomplete gate coverage"
++    );
++    println!(
++        "FLASH_BATCH_ROUTES gates=48 cases={cases} fast_cases={fast_cases} scalar_gemv=true logits_probabilities_ids_weights=byte_exact"
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; real MoE outputs, Hot before routes, both cohorts and pending leases"]
++fn batch_routes_preserve_hot_cohorts_pending_slots_and_outputs() -> Result<()> {
++    let (checkpoint, root, reference) = fixture()?;
++    let inputs = [0, 1, 4]
++        .into_iter()
++        .map(|step| {
++            let entry = &reference["steps"][step]["components"][0]["mlp"];
++            let x = Array::from_bytes(
++                &semantic_bytes(&root, &entry["input"])?,
++                &[1, H],
++                Dtype::Float32,
++            )?;
++            Ok((x, semantic_bytes(&root, &entry["output"])?))
++        })
++        .collect::<Result<Vec<_>>>()?;
++    let mut cases = 0;
++    for (capacity, pending) in [(20, 0), (53, 0), (53, 4)] {
++        for unique in [false, true] {
++            for rows in [1usize, 2, 3, 8] {
++                let mut moe = SsdMoe::load(
++                    &checkpoint,
++                    "model.language_model.layers.0.mlp",
++                    capacity,
++                    true,
++                )?;
++                ensure!(
++                    moe.batch_routes,
++                    "requires BATCH_ROUTES=1 through the real loader"
++                );
++                moe.gpu_hot = true;
++                moe.gpu_hot_wide = true;
++                moe.unique_cohorts = unique;
++                let x = Array::concatenate(
++                    &(0..rows).map(|r| &inputs[r % 3].0).collect::<Vec<_>>(),
++                    0,
++                )?;
++                let all_ids = (0..rows)
++                    .map(|r| moe.route(&x.slice(0, r as i32, r as i32 + 1)?)?.0.to_u32())
++                    .collect::<Result<Vec<_>>>()?
++                    .concat();
++                let prime = &all_ids[..5];
++                let routes = moe.cache.borrow_mut().reserve(prime)?;
++                let jobs = prime
++                    .iter()
++                    .zip(routes)
++                    .map(|(&id, (slot, _))| (id, slot))
++                    .collect::<Vec<_>>();
++                moe.fill_many(&jobs)?;
++                let mut claims = Vec::new();
++                for id in (0..512).filter(|id| !all_ids.contains(id)) {
++                    if claims.len() == pending {
++                        break;
++                    }
++                    claims.push((
++                        moe.cache
++                            .borrow_mut()
++                            .claim_prefetch(id)?
++                            .context("missing pending slot")?,
++                        id,
++                    ));
++                }
++                ensure!(claims.len() == pending);
++                moe.route_batch_calls.set(0);
++                moe.route_gate_calls.set(0);
++                let output = moe.forward_draft_rows(&x)?;
++                let expected = (0..rows)
++                    .flat_map(|r| inputs[r % 3].1.iter().copied())
++                    .collect::<Vec<_>>();
++                ensure!(output.shape() == [rows as i32, H] && output.to_bytes()? == expected);
++                ensure!(
++                    moe.route_batch_calls.get() > 0 || rows == 1,
++                    "batch routes not exercised"
++                );
++                ensure!(moe.hybrid_submissions > 0 && moe.route_readbacks > 0);
++                if unique && rows * 10 > capacity - pending {
++                    ensure!(
++                        moe.window_hot_before_readback == [true],
++                        "U moved Hot behind route readback"
++                    );
++                }
++                moe.drain()?;
++                ensure!(moe.cache.borrow().available_slots() == capacity - pending);
++                for (slot, id) in claims {
++                    ensure!(!moe.cache.borrow_mut().publish_prefetch(slot, id, false));
++                }
++                ensure!(moe.cache.borrow().available_slots() == capacity);
++                cases += 1;
++            }
++        }
++    }
++    ensure!(cases == 24);
++    println!(
++        "FLASH_BATCH_ROUTE_MOE cases={cases} cohorts=legacy,unique hot_before_readback=true pending=preserved parity=byte_exact"
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "isolated environment and physical Apple GPU loader; run this test alone"]
++fn batch_route_flag_reaches_real_loader_and_rejects_invalid_literals() -> Result<()> {
++    const KEY: &str = "MLXL3_SSD_BATCH_ROUTES";
++    struct Restore(Option<std::ffi::OsString>);
++    impl Drop for Restore {
++        fn drop(&mut self) {
++            // This test is selected alone, with no concurrent environment readers.
++            unsafe {
++                match &self.0 {
++                    Some(v) => std::env::set_var(KEY, v),
++                    None => std::env::remove_var(KEY),
++                }
++            }
++        }
++    }
++    let _restore = Restore(std::env::var_os(KEY));
++    let checkpoint = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    for (value, expected) in [(None, false), (Some("0"), false), (Some("1"), true)] {
++        // SAFETY: the runbook selects only this test in this process.
++        unsafe {
++            match value {
++                Some(v) => std::env::set_var(KEY, v),
++                None => std::env::remove_var(KEY),
++            }
++        }
++        let moe = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 20, true)?;
++        ensure!(
++            moe.batch_routes == expected,
++            "real loader ignored batch route option"
++        );
++    }
++    for value in ["", "2", "01", "true", " 1", "1\n"] {
++        unsafe { std::env::set_var(KEY, value) };
++        let error = SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 20, true)
++            .err()
++            .context("invalid batch route flag accepted")?;
++        ensure!(
++            error
++                .to_string()
++                .contains("MLXL3_SSD_BATCH_ROUTES must be 0 or 1")
++        );
++    }
++    #[cfg(unix)]
++    {
++        use std::os::unix::ffi::OsStringExt;
++        unsafe { std::env::set_var(KEY, std::ffi::OsString::from_vec(vec![0xff])) };
++        ensure!(SsdMoe::load(&checkpoint, "model.language_model.layers.0.mlp", 20, true).is_err());
++    }
++    println!(
++        "FLASH_BATCH_ROUTE_FLAG default=0 valid=2 ascii_invalid=6 nonunicode_checked={} real_loader=true",
++        cfg!(unix)
++    );
++    Ok(())
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn actual_batch_routes_preserve_real_gate_logits_and_weights() {
++    batch_routes_match_real_scalar_logits_probabilities_ids_and_weights().unwrap();
++}

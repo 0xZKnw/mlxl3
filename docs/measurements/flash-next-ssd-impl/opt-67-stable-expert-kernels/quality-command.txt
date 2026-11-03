@@ -1,0 +1,60 @@
+import hashlib,json,re,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-67-stable-expert-kernels')
+api=runpy.run_path('scripts/profile_flash.py');parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+identity=json.loads((base/'identity-v1.json').read_text())
+def source_check():
+ for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256'],row['path']
+def take():
+ return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+start=take();common_out=121528483840;assert start['vm_bytes']['Swapouts']==common_out
+for stage in ['quality-native','quality-bridge']:
+ p=base/stage;origin=take();baseline={k:origin['vm_bytes'][k] for k in ['Swapins','Swapouts']};assert baseline['Swapouts']==common_out
+ (p/'origin.json').write_text(json.dumps(origin,indent=2)+'\n')
+ result={'status':'incomplete','parity':False,'identity':'identity-v1.json','original_vm_baseline':baseline,'common_swapout_anchor':common_out}
+ def watch(seconds,path):
+  records=[]
+  try:
+   deadline=time.monotonic()+seconds
+   while True:
+    row=take();records.append(row)
+    assert row['power'].splitlines()[0]=="Now drawing from 'AC Power'"
+    assert row['vm_bytes']['Swapouts']==common_out
+    assert 0<=row['vm_bytes']['Swapins']-baseline['Swapins']<=256<<20
+    if time.monotonic()>=deadline:break
+    time.sleep(min(2,deadline-time.monotonic()))
+  finally:path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+ try:
+  source_check();watch(20,p/'preflight.json');api['run_sampler'](p/'run.json',baseline)
+  run=json.loads((p/'run-result.json').read_text());assert run['status']=='completed_expected_outcomes_not_speed'
+  expected=5 if stage=='quality-native' else 1
+  assert len(run['commands'])==expected and all(row['reaped'] and row['swapouts_bytes']==0 and row['status']=='completed_expected_outcome' for row in run['commands'])
+  if stage=='quality-native':
+   slots=(p/'grouped-slots.log').read_text()
+   assert 'FLASH_SLOT_SHAPES cases=176 wrong_slot_controls=16 parity=byte_exact' in slots
+   assert 'FLASH_MASKED_SLOT_SHAPES cases=528' in slots
+   assert 'FLASH_SHARED_SLOT_SHAPES cases=176 enabled=112 fallback=64' in slots
+   signature=re.search(r'FLASH_STABLE_KERNEL_KEYS baseline=(\d+) stable=(\d+) equality=full_metadata',slots)
+   assert signature and 0<int(signature[2])<int(signature[1])
+   result['factory_keys']={'baseline':int(signature[1]),'stable':int(signature[2]),'meaning':'actual metadata equality, not measured factory misses or GPU duration'}
+   assert 'SSD_UNIQUE_WINDOW cases=32' in (p/'unique-window.log').read_text()
+   marker=next(line.split('FLASH_DRAFT_PREFIX ',1)[1] for line in (p/'target-prefixes.log').read_text().splitlines() if 'FLASH_DRAFT_PREFIX ' in line)
+   prefix=json.loads(marker);assert prefix['status']=='passed' and prefix['prefix_cases']==36 and prefix['target_logits_and_states']=='byte_exact' and prefix['captures']['count']==64000 and prefix['captures']['byte_equal'] is True
+   peaks=[int(re.search(r'(\d+)\s+peak memory footprint',(p/(row['name']+'.log')).read_text())[1]) for row in run['commands']]
+   assert all(0<peak<=12_000_000_000 for peak in peaks);result['peak_physical_bytes']=max(peaks)
+  else:
+   checks=json.loads((p/'checks.json').read_text());assert checks['status']=='complete' and checks['checks']==43 and checks['parity'] is True
+   modes=[e for e in checks['events'] if e.get('type')=='generation_mode' and e.get('dflash_active')];assert modes
+   footprints=[event.get('stats',{}).get('memory',{}).get('process_lifetime_peak_bytes',0) for event in checks['events']]
+   result['peak_physical_bytes']=max(footprints);assert 0<max(footprints)<=12_000_000_000
+  source_check();result.update(status='passed_quality_pending_postflight',parity=True)
+ except BaseException as error:
+  result.update(status='failed_or_interrupted',parity=False,error=repr(error));raise
+ finally:
+  try:
+   watch(30,p/'postflight.json')
+   if result['parity']:result['status']='passed_quality_and_postflight30s'
+  except BaseException as error:
+   result.update(status='failed_postflight',parity=False,postflight_error=repr(error));raise
+  finally:
+   (p/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n');print(stage,result,flush=True)

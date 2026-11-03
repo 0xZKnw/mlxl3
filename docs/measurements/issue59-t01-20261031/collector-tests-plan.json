@@ -1,0 +1,25 @@
+[
+  {
+    "name": "t01-collector-tests",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--no-default-features",
+      "kernel_build_profile::tests::",
+      "--",
+      "--test-threads=1"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "required_text": [
+      "4 passed; 0 failed; 0 ignored"
+    ]
+  }
+]

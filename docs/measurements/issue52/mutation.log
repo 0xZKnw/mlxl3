@@ -1,0 +1,94 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_partial_or_divergent_reports_cannot_qualify[warm_diverge] ________
+
+bad = 'warm_diverge'
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "duplicate",
+            "status",
+            "unreaped",
+            "reader",
+            "missing",
+            "foreign",
+            "warm_diverge",
+            "diverge",
+        ],
+    )
+    def test_partial_or_divergent_reports_cannot_qualify(bad):
+        data = arms()
+        report = data[-1]["report"]
+        if bad == "partial":
+            data.pop()
+        elif bad == "duplicate":
+            data[-1] = copy.deepcopy(data[0])
+        elif bad == "status":
+            report["status"] = "failed"
+        elif bad == "unreaped":
+            report["reaped"] = False
+        elif bad == "reader":
+            report["reader_joined"] = False
+        elif bad == "missing":
+            report["runs"].pop()
+        elif bad == "foreign":
+            report["runs"][0]["prompt"] = "OTHER"
+        elif bad == "warm_diverge":
+            report["warmup"][0]["token_hash"] = "different"
+        else:
+            report["runs"][0]["text"] = "different"
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_flash_modes.py:126: Failed
+__________ test_partial_or_divergent_reports_cannot_qualify[diverge] ___________
+
+bad = 'diverge'
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "partial",
+            "duplicate",
+            "status",
+            "unreaped",
+            "reader",
+            "missing",
+            "foreign",
+            "warm_diverge",
+            "diverge",
+        ],
+    )
+    def test_partial_or_divergent_reports_cannot_qualify(bad):
+        data = arms()
+        report = data[-1]["report"]
+        if bad == "partial":
+            data.pop()
+        elif bad == "duplicate":
+            data[-1] = copy.deepcopy(data[0])
+        elif bad == "status":
+            report["status"] = "failed"
+        elif bad == "unreaped":
+            report["reaped"] = False
+        elif bad == "reader":
+            report["reader_joined"] = False
+        elif bad == "missing":
+            report["runs"].pop()
+        elif bad == "foreign":
+            report["runs"][0]["prompt"] = "OTHER"
+        elif bad == "warm_diverge":
+            report["warmup"][0]["token_hash"] = "different"
+        else:
+            report["runs"][0]["text"] = "different"
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_flash_modes.py:126: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_modes.py::test_partial_or_divergent_reports_cannot_qualify[warm_diverge]
+FAILED tests/test_flash_modes.py::test_partial_or_divergent_reports_cannot_qualify[diverge]
+2 failed in 0.03s

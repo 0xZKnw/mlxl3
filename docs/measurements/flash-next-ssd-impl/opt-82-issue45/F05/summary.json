@@ -1,0 +1,314 @@
+{
+  "experiment": "82F05",
+  "status": "quality_passed_tested_domain_no_positive_HC_signal_runtime_withdrawn",
+  "final_date": "2026-10-25",
+  "integration": {
+    "retired": true,
+    "method": "Exact inverse F05 hunks only in three tracked files; the pre-K1 audit confirms all three match HEAD b5898866.",
+    "pre_K1_evidence": "withdrawal-static-pre-K1.json",
+    "preserved_detached_test": "native/src/ssd_moe/batch_route_tests.rs",
+    "referenced_or_compiled": false,
+    "installed_app": "unchanged",
+    "future_K1": "Independent restored 80M baseline; future K1 changes are not F05 residue."
+  },
+  "raw_summary": "summary-final.json",
+  "results": {
+    "status": "quality_passed_throughput_no_gain_observed_screen_only_runtime_source_withdrawn",
+    "pairs": {
+      "MAIN": {
+        "H": 10.180175139502241,
+        "C": 9.807009791014018,
+        "percent": -3.665608335560222,
+        "warm_to_measured_percent": {
+          "H": 4.931400089837035,
+          "C": -0.6502028186304853
+        }
+      },
+      "HOLD": {
+        "H": 9.652618751047475,
+        "C": 8.869685411898157,
+        "percent": -8.111097717024784,
+        "warm_to_measured_percent": {
+          "H": 0.7036708450268714,
+          "C": -5.951815287196116
+        }
+      }
+    },
+    "gold_responses_checked": 8,
+    "global_swapins_bytes": 131072,
+    "global_swapouts_bytes": 0,
+    "process_lifetime_peak_bytes": 7846877496,
+    "process_compressed_current_max_bytes": 3947593728,
+    "process_ledger_swapins_max": 0,
+    "decision": "No positive H-C signal; withdraw conservatively. No C-H, OFF/MTP speed or replay executed; no universal causal regression established. Preserve exact quality and negative data; K1 diagnostic follows on the restored 80M base."
+  },
+  "quality": {
+    "edge_cases": 28,
+    "edge_widths": [
+      2,
+      3,
+      4,
+      8
+    ],
+    "edge_patterns": 7,
+    "edge_dtype": "Float32",
+    "edge_scope": "Scalar vs batched precise softmax/top10 probabilities/IDs/weights, intentional NaN/Inf/signed-zero extremes; historical nonfinite behavior preserved rather than arbitrary finitude claim.",
+    "real_gate_cases": 1004,
+    "real_gate_fast_cases": 404,
+    "real_gate_layers": 48,
+    "real_gate_oracles": [
+      "Every gate GEMV remains scalar per row, independent direct gate.forward oracle.",
+      "Precise probabilities and scalar routes compared byte-for-byte; shape/dtype/finite/nonempty checks.",
+      "Independent CPU rank sort of finite actual probabilities; no copy of new batching branch."
+    ],
+    "real_gate_domain": {
+      "layer0_widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "other_layer_widths": [
+        1,
+        2,
+        3,
+        4,
+        8
+      ],
+      "source_captures": 2,
+      "dtypes": [
+        "Float16",
+        "Float32"
+      ],
+      "layouts": [
+        "contiguous",
+        "strided"
+      ],
+      "resident_gate_extra_layer": 0
+    },
+    "full_moe_cases": 24,
+    "full_moe_domain": {
+      "capacities_pending": [
+        [
+          20,
+          0
+        ],
+        [
+          53,
+          0
+        ],
+        [
+          53,
+          4
+        ]
+      ],
+      "cohorts": [
+        "legacy",
+        "unique"
+      ],
+      "rows": [
+        1,
+        2,
+        3,
+        8
+      ],
+      "input_dtype": "Float32",
+      "oracle": "Independent captured semantic output bytes, repeated by input row."
+    },
+    "hot_order_assertions": 4,
+    "hot_order_scope": "Only overflowing UNIQUE windows assert Hot submitted before CPU readback. The other 20 MoE cases require submissions/readbacks but do not independently prove chronology.",
+    "historical_unique_cases": 32,
+    "historical_unique_scope": "Rows 6–8, capacities 20/24/53; pending excluded, fallback 6+2 and 4+4, Hot result survives eviction, Cold cache-hit re-computation, I/O failure/recovery. These are not 32 UInt32 dtype cases.",
+    "loader_fixed_processes": 9,
+    "loader_valid_modes": [
+      "absent",
+      "0",
+      "1"
+    ],
+    "loader_valid_actual_route_calls_per_mode": 2,
+    "loader_invalid_literal_count": 6,
+    "loader_environment_mutated_after_mlx": false,
+    "loader_load_once_scope": "Stored field, static production wiring and separate processes only; no dynamic environment mutation after load.",
+    "loader_native_invalid_expected_exit": 0,
+    "loader_native_invalid_exit_note": "The test successfully asserts the production load error; this is not acceptance of an invalid flag.",
+    "external_cli_nonunicode": "Byte 0xff rejected before ready, exit 2; independent of native invalid-literal tests.",
+    "prefix": {
+      "captures": {
+        "byte_equal": true,
+        "count": 64000,
+        "name": "captured",
+        "relative_rmse": 0.0,
+        "tolerance": 0.004
+      },
+      "kind": "Dflash2",
+      "memory": {
+        "mlx_active_bytes": 6460126752,
+        "mlx_cache_bytes": 67113764,
+        "mlx_peak_bytes": 6783715688,
+        "process_compressed_lifetime_logical_bytes": 3422633984,
+        "process_compressed_logical_bytes": 3375710208,
+        "process_compressed_peak_logical_bytes": 3377102848,
+        "process_decompressions": 200614,
+        "process_footprint_bytes": 7367252160,
+        "process_id": 99457,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7401593024,
+        "process_start_abstime": 1459317546704
+      },
+      "prefix_cases": 36,
+      "status": "passed",
+      "target_logits_and_states": "byte_exact",
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    "prefix_scope": "Serial-versus-wide and commit/state tests under common BATCH_ROUTES=1. Scalar route B1 falls back; wide F32 exercises the new batch route. No full-target separate-process flag 0/1 differential claimed. Independent NumPy captures use tolerance 0.004; the 64 000 observed values were byte-equal.",
+    "mtp_budgets": [
+      {
+        "budget": 1,
+        "proposed": 0,
+        "accepted": 0,
+        "blocks": 0
+      },
+      {
+        "budget": 2,
+        "proposed": 1,
+        "accepted": 0,
+        "blocks": 1
+      },
+      {
+        "budget": 3,
+        "proposed": 2,
+        "accepted": 0,
+        "blocks": 2
+      },
+      {
+        "budget": 17,
+        "proposed": 12,
+        "accepted": 5,
+        "blocks": 12
+      }
+    ],
+    "mtp_proposed_total": 15,
+    "mtp_accepted_total": 5,
+    "mtp_scope": "Greedy sequence and target/head states, budget alignment/pending/invalid inputs, acceptance and rejection; tested under common flag1."
+  },
+  "proof": {
+    "harness": "flash_route_batch_preserves_scalar_fallback_domain",
+    "status_counts": {
+      "SUCCESS": 97,
+      "SATISFIED": 5
+    },
+    "tool": "Kani 0.68 / CBMC 6.11",
+    "symbolic_domain": "Four arbitrary i32 dimensions; usize rank assumed <= 4 only to index the fixed four-element symbolic array; arbitrary bool fp32.",
+    "bound": "Unwind 5",
+    "assumptions": 1,
+    "covers": {
+      "B2": true,
+      "B8": true,
+      "B1_fallback": true,
+      "F16_fallback": true,
+      "rank4_fallback": true
+    },
+    "scope": "Real production eligibility helper; no numerical GEMV/softmax/topk, Metal, allocator, lifetime or concurrency proof. No UNREACHABLE status; stdlib unreachable-code checks report SUCCESS."
+  },
+  "mlx_attempt": {
+    "v1": "Failed to match ignored #[test] name; preserved and not a verification.",
+    "v2": {
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--tests",
+        "--features",
+        "mlx,chat",
+        "--harness",
+        "ssd_moe::batch_route_tests::actual_batch_routes_preserve_real_gate_logits_and_weights",
+        "--exact"
+      ],
+      "exit_code": 1,
+      "reaped": true,
+      "limit_reason": null,
+      "elapsed_seconds": 4.623694583999168,
+      "rss_group_peak_bytes": 748535808,
+      "rss_limit_bytes": 4294967296
+    },
+    "v2_diagnostic": "Real cfg(test)+cfg(kani) wrapper selected with --lib --tests --exact, compiler ICE intrinsics.rs:243. No obligations discharged, no stub, unverified.",
+    "no_additional_attempt": true
+  },
+  "mutations": {
+    "cpu": {
+      "mutation": "Admit B1 outside batch domain",
+      "mutant_exit": 101,
+      "restored_test_exit": 0,
+      "restored_kani_exit": 0,
+      "reaped": true
+    },
+    "gpu_drop_normalization": {
+      "mutant_exit": 101,
+      "failure": "routes differ layer=0/B2/Float32/strided=false/resident=false",
+      "normal_release_before_mutants_exit": 0,
+      "normal_release_after_restoration_quality_exit": 0,
+      "reaped": true
+    },
+    "gpu_replace_scalar_GEMVs": {
+      "mutant_exit": 101,
+      "failure": "scalar GEMV count changed",
+      "limit": "Detects structural violation before a numerical difference; do not claim measured numerical divergence from GEMM itself.",
+      "normal_release_after_restoration_quality_exit": 0,
+      "reaped": true
+    },
+    "build_scope": "Two GPU mutants are disposable debug binaries; release normal source restored byte-exact and rehashed. No TPS comparison across build modes."
+  },
+  "cpu_counts_corrected": {
+    "lib_passed": 117,
+    "lib_ignored": 5,
+    "integration_passed": 16,
+    "initial_metadata6ignored": "preserved but corrected by actual log"
+  },
+  "memory": {
+    "screen": {
+      "snapshot_count": 12,
+      "process_lifetime_peak_bytes": 7846877496,
+      "current_footprint_max_bytes": 7738972448,
+      "compressed_current_max_bytes": 3947593728,
+      "ledger_swapins_max": 0,
+      "system_swapouts_bytes": 0,
+      "system_swapins_bytes": 131072,
+      "attribution": "Unknown; global swap-in of 131 072 B only on MAIN-C, no model ownership proved. Own swap-in ledger 0 does not prove absence of private swap-out; failed 77B compression caps retained."
+    },
+    "bridge": {
+      "global_swapins_bytes": 851968,
+      "global_swapouts_bytes": 136314880,
+      "process_lifetime_peak_bytes": 7937071584,
+      "process_compressed_logical_max_bytes": 3994877952,
+      "process_ledger_swapins_max": 0,
+      "raw_memory_observations": 70
+    },
+    "caps77B": "FAILED retained; global page ownership unknown; own swap-in ledger 0 does not prove absence of private swap-out."
+  },
+  "source": {
+    "snapshot_members": 86,
+    "snapshot_sha256": "2886c2859001b309bce82dd3fde24221323fa2b9a8a550556713e3ec21709258",
+    "identity": "identity-frozen.json",
+    "engine_sha256": "bb7d25de91d4e5d78afd508aab4f96bb769a3262a3754a46af4ff275379fb4cb",
+    "native_tests_sha256": "c11724af5a332d234e0023ee9f9d625821ed3c7bd52561de33bf82d3afd2c482"
+  },
+  "not_executed": [
+    "C-H throughput confirmation",
+    "OFF/MTP1 throughput controls",
+    "Throughput replay after negative H-C screen"
+  ],
+  "publication": "Documents only: no engine boost, model, runtime, base/candidate/application-check or superseded full source copies. Patches, manifests, failures and versions retained."
+}

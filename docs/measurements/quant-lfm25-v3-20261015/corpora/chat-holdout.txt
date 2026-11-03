@@ -1,0 +1,55 @@
+<|startoftext|><|im_start|>user
+Nous organisons un atelier fictif à Port-Nacre. Trois équipes disposent chacune de douze cartes bleues et huit cartes jaunes. La coordinatrice veut répartir les cartes en quatre piles de même composition. Explique le calcul et termine par une phrase de vérification.
+<|im_end|>
+<|im_start|>assistant
+Les équipes réunissent trente-six cartes bleues et vingt-quatre cartes jaunes. En divisant chaque couleur par quatre, on obtient neuf cartes bleues et six cartes jaunes par pile, soit quinze cartes au total. Quatre piles contiennent bien trente-six cartes bleues et vingt-quatre cartes jaunes.
+<|im_end|>
+<|im_start|>user
+Maintenant les équipes souhaitent conserver une pile pour les visiteurs et distribuer les autres aux responsables. Combien de cartes de chaque couleur restent disponibles pour les responsables ?
+<|im_end|>
+<|im_start|>assistant
+Après avoir réservé une pile, il reste trois piles. Elles contiennent vingt-sept cartes bleues et dix-huit cartes jaunes, soit quarante-cinq cartes. On peut vérifier ce résultat en retirant les neuf cartes bleues et les six cartes jaunes réservées aux totaux de départ.
+<|im_end|>
+<|im_start|>user
+Write a short note for the visitors in English. Mention that the workshop is fictional, that the cards are reusable, and that anyone may ask for help. Do not invent a date or a real address.
+<|im_end|>
+<|im_start|>assistant
+Welcome to our fictional Port-Nacre workshop. The blue and yellow cards are reusable, so please return them to their trays when you finish. You may work alone or with a partner. If an instruction is unclear or a card is missing, ask a coordinator for help. No prior experience is required.
+<|im_end|>
+<|im_start|>user
+A visitor accidentally mixes two piles. Explain a calm recovery procedure with three concrete steps and no blame. Then give a small Python function that counts the total number of cards from the counts of each colour.
+<|im_end|>
+<|im_start|>assistant
+First, place all mixed cards on a clear table and sort them by colour. Second, count the blue cards and yellow cards separately, checking the counts together with another person. Third, rebuild each pile with nine blue cards and six yellow cards and put any extra cards aside for a final check. The function can be written as follows:
+```python
+def total_cards(blue, yellow):
+    if blue < 0 or yellow < 0:
+        raise ValueError("Card counts must be nonnegative")
+    return blue + yellow
+```
+The function adds two counts. For example, nine blue cards and six yellow cards produce a total of fifteen. A negative count is rejected because it cannot describe a physical pile.
+<|im_end|>
+<|im_start|>user
+Pourquoi est-il utile de vérifier les couleurs séparément, au lieu de seulement regarder le nombre total de cartes ? Donne un contre-exemple simple et propose une ligne pour le cahier de suivi.
+<|im_end|>
+<|im_start|>assistant
+Un total correct peut masquer une mauvaise composition. Une pile de dix cartes bleues et cinq cartes jaunes contient quinze cartes, mais elle ne respecte pas la répartition demandée de neuf bleues et six jaunes. Il faut donc contrôler à la fois le total et chaque couleur. Le cahier peut indiquer : « Quatre piles vérifiées, chacune composée de neuf cartes bleues et six cartes jaunes ; cartes réutilisées puis rangées. »
+<|im_end|>
+<|im_start|>user
+Before leaving, summarize the shared plan in two sentences, keeping the reserved visitor pile distinct from the three remaining piles.
+<|im_end|>
+<|im_start|>assistant
+We will reserve one checked pile of nine blue and six yellow cards for the visitors, then distribute the other three checked piles to the coordinators. At the end, everyone will sort and return the reusable cards, recording any missing or damaged items before closing the workshop.
+<|im_end|>
+<|im_start|>user
+Une autre équipe prépare le rangement. Elle dispose de trois plateaux numérotés et souhaite indiquer clairement lesquels sont vides, lesquels sont déjà contrôlés, et lesquels attendent encore une vérification. Propose une procédure simple qui permette à une nouvelle personne de reprendre le travail sans devoir interroger tous les participants.
+<|im_end|>
+<|im_start|>assistant
+Chaque plateau reçoit une fiche avec son numéro et un état écrit en toutes lettres : vide, à vérifier ou vérifié. La personne qui termine une vérification inscrit ses initiales et l'heure sur cette fiche. Elle note séparément les éléments manquants et remet le plateau à sa place numérotée. La nouvelle personne consulte les fiches avant de commencer, s'occupe des plateaux à vérifier et ne transforme pas un doute en confirmation. Si une fiche est illisible, elle compare le contenu avec la liste de référence et laisse une note sur ce contrôle supplémentaire.
+<|im_end|>
+<|im_start|>user
+Translate the last instruction into clear English, keeping the distinction between an unreadable record and a missing item. Then explain why an empty tray should have an explicit label.
+<|im_end|>
+<|im_start|>assistant
+If a record is unreadable, compare the tray with the reference list and leave a note describing the extra check. An unreadable record does not itself mean that an item is missing; missing items should be recorded separately after inspection. An explicit empty label shows that somebody checked the tray and found no contents, while an unlabelled tray leaves that state uncertain.
+<|im_end|>

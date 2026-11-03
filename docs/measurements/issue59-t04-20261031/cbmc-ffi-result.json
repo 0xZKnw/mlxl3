@@ -1,0 +1,10 @@
+{
+  "status": "unverified_source_parsing_failed",
+  "source": "native/ffi/mlx_bridge.cpp",
+  "function": "mlxl3_array_swiglu_scaled",
+  "tool": "CBMC 6.11.0",
+  "exit_code": 6,
+  "command": ["/Users/justin/.kani/kani-0.68.0/bin/cbmc", "native/ffi/mlx_bridge.cpp", "--function", "mlxl3_array_swiglu_scaled", "--cpp11", "-I", "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include", "--unwind", "17", "--unwinding-assertions", "--bounds-check", "--pointer-check", "--signed-overflow-check", "--unsigned-overflow-check"],
+  "limits": "Actual source and MLX include root, no stub or translation. Verifier supports at most C++11; the real bridge requires C++20. Failure precedes proof obligations and establishes no FFI/MLX/GPU property.",
+  "log": "cbmc-ffi.log"
+}

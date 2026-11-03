@@ -1,0 +1,7 @@
+native/tests/disk_reader_async.cpp:61:78: error: comparison of integers of different signs: '__iterator_difference_type<std::__wrap_iter<const unsigned char *>>' (aka 'long') and 'const unsigned long' [-Werror,-Wsign-compare]
+   61 |       assert(mask.size() == count && std::count(mask.begin(), mask.end(), 1) >= std::min(count, size_t(2)));
+      |                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^  ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/assert.h:72:25: note: expanded from macro 'assert'
+   72 |     (__builtin_expect(!(e), 0) ? __assert_rtn(__func__, __ASSERT_FILE_NAME, __LINE__, #e) : (void)0)
+      |                         ^
+1 error generated.

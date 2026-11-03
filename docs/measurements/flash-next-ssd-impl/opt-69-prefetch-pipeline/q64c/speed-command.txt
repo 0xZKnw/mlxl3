@@ -1,0 +1,112 @@
+import hashlib,json,os,runpy,subprocess,time
+from pathlib import Path
+base=Path('docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/q64c')
+phase=os.environ['FLASH_SHARED_MODE'];assert phase in ['MTP-before', 'B2', 'ADAPT', 'MTP-after', 'B2-70-before', 'MTP-70-before', 'PRECAP', 'MTP-70-after', 'B2-70-after']
+control=phase.startswith(('MTP-','B2-70-'));mode='MTP' if phase.startswith('MTP-') else 'B2' if phase.startswith('B2') else 'ADAPT';dest=base/'speed'/phase
+identity=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/identity-v3.json').read_text())
+cli=next(row for row in identity['artifacts'] if row['path'].endswith('mlxl3-rs'))
+api=runpy.run_path('scripts/profile_flash.py')
+parse=runpy.run_path('benchmarks/benchmark_flash_memory.py')['parse_vm']
+qualify=runpy.run_path('docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/qualify.py')['qualify']
+def source_check():
+ for row in identity['files']+identity['artifacts']:assert hashlib.sha256(Path(row['path']).read_bytes()).hexdigest()==row['sha256'],row['path']
+def take():return {'epoch':time.time(),'vm_bytes':parse(subprocess.check_output(['vm_stat'],text=True,timeout=5)),'power':subprocess.check_output(['pmset','-g','batt'],text=True,timeout=5)}
+assert all(json.loads((base/folder/'campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s' for folder in ['bridge69','long70','bridge70'])
+assert json.loads((base/'invalid69/checks.json').read_text())['status']=='passed_six_real_cli_rejections'
+assert json.loads((base/'invalid70/campaign-result.json').read_text())['status']=='passed_quality_and_postflight30s'
+campaign_origin=json.loads((base/'origin.json').read_text());baseline={'Swapins':0,'Swapouts':157024256};assert campaign_origin['vm_bytes']['Swapouts']==baseline['Swapouts']
+origin=take();power=campaign_origin['power'].splitlines()[0]
+assert not (dest/'origin.json').exists();(dest/'origin.json').write_text(json.dumps(origin,indent=2)+'\n')
+result={'status':'incomplete','parity':False,'confirmed_gain':False,'phase':phase,'identity':'../../opt-70-pre-draft/identity-v3.json','original_vm_baseline':baseline,'common_swapout_anchor':157024256,'historical_69_failed_swapout_bytes':106037248,'rows':[]}
+def save():(dest/'campaign-result.json').write_text(json.dumps(result,indent=2)+'\n')
+def watch(seconds,path):
+ records=[]
+ try:
+  end=time.monotonic()+seconds
+  while True:
+   row=take();records.append(row)
+   assert row['power'].splitlines()[0]==power
+   assert row['vm_bytes']['Swapouts']==baseline['Swapouts']
+   assert 0<=row['vm_bytes']['Swapins']-baseline['Swapins']<=256<<20
+   if time.monotonic()>=end:break
+   time.sleep(min(2,end-time.monotonic()))
+ finally:path.write_text(json.dumps({'samples':records},indent=2)+'\n')
+def run_plan(folder):
+ plan=folder/'run.json';matrix=json.loads(plan.read_text());assert len(matrix)==(2 if control else 4)
+ for item in matrix:
+  assert item['command'][2]==cli['path'] and item['env']['MLXL3_SSD_UNIQUE_COHORT']=='1'
+  assert item['env']['MLXL3_SSD_SHARED_EXL3']=='0' and item['env']['MLXL3_SSD_STABLE_EXPERT_KERNELS']=='0'
+  assert item['env'].get('MLXL3_FLASH_DRAFT_WIDTH')==('1' if mode=='B2' else None)
+  assert item['env']['MLXL3_SSD_SHARED_BATCH']=='0' and item['env']['MLXL3_ALLOCATOR_CACHE_MIB']=='64'
+  treatment=not control and item['variant']=='C'
+  assert item['env']['MLXL3_FLASH_DRAFT_PRECAP']==str(int(treatment and phase=='PRECAP'))
+  assert item['env']['MLXL3_SSD_PREFETCH_PIPELINE']==str(int(treatment and phase!='PRECAP'))
+  assert item['env']['MLXL3_SSD_LOOKAHEAD_DEPTH']==('2' if treatment and phase!='PRECAP' else '0')
+  assert item['env']['MLXL3_SSD_CACHE_POLICY']==('auto' if control or phase=='PRECAP' else 'lru')
+ source_check();api['run_sampler'](plan,baseline)
+ raw=json.loads((folder/'run-result.json').read_text());assert raw['status']=='completed_expected_outcomes_not_speed' and len(raw['commands'])==(2 if control else 4)
+ for item,process in zip(matrix,raw['commands'],strict=True):
+  assert process['reaped'] and process['status']=='completed_expected_outcome' and process['swapouts_bytes']==0
+  report_file=folder/item['name']/'report.json';report=json.loads(report_file.read_text())
+  assert report['status']=='validated' and report['reaped'] and report['reader_joined'] and report['binary_sha256']==cli['sha256']
+  assert len(report['runs'])==len(report['warmup'])==1
+  golden=json.loads(Path('docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final',item['prompt']+'-0-OFF','report.json').read_text())['runs'][0]
+  for sample in report['runs']+report['warmup']:
+   assert (sample['token_hash'],sample['text'])==(golden['token_hash'],golden['text'])
+   assert sample['stats']['decode_tokens']==127 and sample['stats']['generated_tokens']==128
+   assert 0<sample['stats']['memory']['process_lifetime_peak_bytes']<=12_000_000_000
+   selected=sample['generation_mode']
+   assert selected['mtp_active'] is (mode=='MTP') and selected['dflash_active'] is (mode in ['B2','ADAPT'])
+   if mode in ['B2','ADAPT']:
+    assert selected['dflash_proposals']==(1 if mode=='B2' else 3 if phase=='PRECAP' and item['variant']=='C' else 7)
+    if mode=='B2':runpy.run_path('scripts/check_flash_fixed_width.py')['metrics'](sample,1)
+    stats=sample['stats'];profile=stats['dflash_profile']
+    assert len(profile['drafted_widths'])==len(profile['verified_widths'])==len(profile['ssd_prefetch'])==8
+    assert profile['drafted_rows']==sum((i+1)*n for i,n in enumerate(profile['drafted_widths']))
+    assert sum(profile['drafted_widths'])==sum(profile['verified_widths'])==stats['dflash_blocks']
+    assert profile['verified_rows']==sum((i+1)*n for i,n in enumerate(profile['verified_widths']))
+    if phase=='PRECAP':
+     assert profile['ssd_prefetch']==[0]*8
+     if item['variant']=='C':assert sum(profile['drafted_widths'][4:])==0 and all(n>0 for n in profile['drafted_widths'][1:4])
+     else:assert profile['drafted_widths'][7]>0
+    elif not control and item['variant']=='C':assert profile['ssd_prefetch'][0]>0 and profile['ssd_prefetch'][1]>0 and profile['ssd_prefetch'][2]>0
+    else:assert profile['ssd_prefetch']==[0]*8
+    assert profile['verified_rows']==stats['dflash_proposed_tokens']+stats['dflash_blocks'] and 0<profile['verified_rows']
+    assert stats['decode_tokens']-(stats['dflash_accepted_tokens']+stats['dflash_blocks']) in (0,1)
+  measured=report['runs'][0];stats=measured['stats'];peak=max(s['stats']['memory']['process_lifetime_peak_bytes'] for s in report['runs']+report['warmup'])
+  row={**{k:item[k] for k in ['name','prompt','index','variant','mode']},'status':'validated','reaped':True,'reader_joined':True,'peak_bytes':peak,'swapouts_bytes':0,'tps':stats['decode_tps'],'seconds':stats['decode_seconds'],'binary_sha256':cli['sha256'],'token_hash':measured['token_hash'],'text':measured['text'],'stats':stats,'generation_mode':measured['generation_mode'],'report':str(report_file),'report_sha256':hashlib.sha256(report_file.read_bytes()).hexdigest()}
+  if mode!='MTP':
+   pr=stats['dflash_profile'];emitted=stats['dflash_accepted_tokens']+stats['dflash_blocks'];assert emitted>0
+   row['metrics']={'positions_emitted_by_blocks':emitted,'verification_ms_per_position_emitted':1000*pr['verification_seconds']/emitted,'verification_ms_per_verified_row':1000*pr['verification_seconds']/pr['verified_rows'],'verification_ms_per_decode_token':1000*pr['verification_seconds']/stats['decode_tokens'],'draft_ms_per_decode_token':1000*pr['draft_seconds']/stats['decode_tokens'],'draft_ms_per_position_emitted':1000*pr['draft_seconds']/emitted,'io_stats_completed_api_bytes_per_decode_token':pr['expert_demand_bytes']/stats['decode_tokens'],'pool_completed_api_bytes_per_decode_token':pr['ssd_prefetch'][6]/stats['decode_tokens'],'demand_wait_ms_per_decode_token':pr['ssd_prefetch'][5]/1e6/stats['decode_tokens'],'limits':'inclusive wall times; completed API bytes include file-cache hits, not physical NVMe; no subtraction of separately sampled async counters'}
+  result['rows'].append(row);save();print({k:row[k] for k in ['name','tps','peak_bytes']},flush=True)
+ if control:return
+ for prompt in ['MAIN','HOLD']:
+  cells={r['variant']:r for r in result['rows'][-4:] if r['prompt']==prompt}
+  assert set(cells)=={'H','C'}
+  assert cells['C']['peak_bytes']-cells['H']['peak_bytes']<=256<<20,'paired physical memory increase exceeds256MiB'
+save()
+try:
+ source_check();watch(20,dest/'preflight.json')
+ if control:run_plan(dest)
+ else:
+  run_plan(dest/'screen')
+  screen={p:100*(next(r['tps'] for r in result['rows'] if r['prompt']==p and r['variant']=='C')/next(r['tps'] for r in result['rows'] if r['prompt']==p and r['variant']=='H')-1) for p in ['MAIN','HOLD']}
+  result['screen_gain_percent']=screen;save();print({'phase':phase,'screen_gain_percent':screen},flush=True)
+  if all(g>=1 for g in screen.values()):
+   run_plan(dest/'validation')
+   ordered=sorted(result['rows'],key=lambda r:(0 if r['prompt']=='MAIN' else 1,r['index']))
+   result['qualification']=qualify(ordered,'H','C')
+  else:result['qualification']={'status':'screen_below_threshold_not_a_confirmed_regression','confirmed_gain':False,'validation_launched':False}
+ source_check();result.update(status='passed_speed_pending_postflight',parity=True)
+except BaseException as error:
+ result.update(status='failed_or_interrupted',parity=False,confirmed_gain=False,error=repr(error));raise
+finally:
+ try:
+  watch(30,dest/'postflight.json')
+  if result['parity']:
+   result['status']='passed_speed_and_postflight30s'
+   result['confirmed_gain']=not control and result['qualification']['confirmed_gain']
+ except BaseException as error:
+  result.update(status='failed_postflight',parity=False,confirmed_gain=False,postflight_error=repr(error));raise
+ finally:
+  save();print({k:v for k,v in result.items() if k not in ['rows']},flush=True)

@@ -1,0 +1,38 @@
+{
+  "status": "failed",
+  "checks": [
+    {
+      "name": "copy-format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.341146791994106
+    },
+    {
+      "name": "copy-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.1859566660132259
+    },
+    {
+      "name": "copy-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib"
+      ],
+      "exit": 101,
+      "seconds": 1.2592436249833554
+    }
+  ]
+}

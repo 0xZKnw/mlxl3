@@ -1,0 +1,9 @@
+{
+  "status": "passed_project_checks",
+  "commands": [
+    "ruff format --check --stdin-filename flash-les-verification.py",
+    "ruff check --select F,E9 --stdin-filename flash-les-verification.py"
+  ],
+  "unfiltered_check": "failed before CPU guards: imports I001, trusted-local AST exec S102, adjacent zip RUF007; project CI uses F,E9 for archived verification scripts",
+  "gpu_launched_during_failure": false
+}

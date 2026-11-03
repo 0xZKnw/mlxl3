@@ -1,0 +1,100 @@
+{
+  "status": "passed_stop_liveness_only_not_model_or_cause_validation",
+  "observed_epoch": 1793462196.28225,
+  "actual_sources_match": {
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/stop-witness-01/r2/witness.py": true,
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/stop-witness-01/r2/cpu-helper.py": true,
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/recording-options.json": true,
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/gpu-witness-01/anchor.json": true,
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/decode-profile-20261031/capture.py": true
+  },
+  "cases": [
+    {
+      "mode": "group",
+      "seconds_to_exit": 4.391636375001326,
+      "exit": 0,
+      "tracer": {
+        "pid": 24091,
+        "ppid": 24080,
+        "pgid": 24091,
+        "uid": 501,
+        "stat": "Ss",
+        "rss_bytes": 345096192,
+        "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace"
+      },
+      "service": {
+        "pid": 24102,
+        "ppid": 24091,
+        "pgid": 24102,
+        "uid": 501,
+        "stat": "S",
+        "rss_bytes": 204849152,
+        "command": "/Applications/Xcode.app/Contents/SharedFrameworks/DVTInstrumentsFoundation.framework/Resources/DTServiceHub"
+      },
+      "cleanup": [
+        {
+          "pid": 24091,
+          "reaped": true,
+          "exit": 0
+        },
+        {
+          "pid": 24090,
+          "reaped": true,
+          "exit": -15
+        }
+      ],
+      "rss_max_bytes": 1365262336,
+      "terminal_samples": [],
+      "swapouts": 0,
+      "swapins": 0,
+      "toc_sha256": "e11b2cb1b86e14acf15eb2ba9cd390139bf89a4018caede82d352ed8aebcf64f"
+    },
+    {
+      "mode": "parent",
+      "seconds_to_exit": 3.948628166999697,
+      "exit": 0,
+      "tracer": {
+        "pid": 24315,
+        "ppid": 24080,
+        "pgid": 24315,
+        "uid": 501,
+        "stat": "Ss",
+        "rss_bytes": 345587712,
+        "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace"
+      },
+      "service": {
+        "pid": 24326,
+        "ppid": 24315,
+        "pgid": 24326,
+        "uid": 501,
+        "stat": "S",
+        "rss_bytes": 208076800,
+        "command": "/Applications/Xcode.app/Contents/SharedFrameworks/DVTInstrumentsFoundation.framework/Resources/DTServiceHub"
+      },
+      "cleanup": [
+        {
+          "pid": 24315,
+          "reaped": true,
+          "exit": 0
+        },
+        {
+          "pid": 24314,
+          "reaped": true,
+          "exit": -15
+        }
+      ],
+      "rss_max_bytes": 1303576576,
+      "terminal_samples": [],
+      "swapouts": 0,
+      "swapins": 0,
+      "toc_sha256": "e50aed783d4b686309787ab8c948dd056cce6947c445ff26395a7f64dbf023c5"
+    }
+  ],
+  "no_original_pids_remaining": true,
+  "limitations": [
+    "CPU-only Python helper; GPU instrument present but no model/GPU calculation requested",
+    "two individual stop observations; no performance or sample attribution",
+    "separate DTServiceHub PGID refutes proposed direct group signal mechanism on this witness",
+    "does not explain sixty-second model-stop failures; no change to capture.py justified by this comparison"
+  ]
+}

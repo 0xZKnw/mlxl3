@@ -1,0 +1,52 @@
+{
+  "status": "validated",
+  "checks": [
+    {
+      "status": "validated",
+      "name": "quality",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_gate_up_row_merge_is_exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {},
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.6214013749999999,
+      "log": "docs/measurements/dflash2-web-03/gate-up-aligned-quality.log",
+      "parity": true,
+      "gpu_timing": false,
+      "source_sha256": "63e40f13e2c5d5eca27a43ff97652673f61bc75da5926033201d00681cd8baaf",
+      "binary_sha256": "706243f742a03b95362e49e02bb2b9b80796c2d89810bd619232dac6d9f9e99d"
+    },
+    {
+      "status": "validated",
+      "name": "validation",
+      "command": [
+        "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+        "--ignored",
+        "--exact",
+        "dflash::tests::q4_aligned_shared_sums_passes_apple_validation",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "MTL_DEBUG_LAYER": "1",
+        "MTL_SHADER_VALIDATION": "1",
+        "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+        "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1"
+      },
+      "exit": 0,
+      "timeout": false,
+      "seconds": 1.0850753750000002,
+      "log": "docs/measurements/dflash2-web-03/gate-up-aligned-validation.log",
+      "parity": null,
+      "gpu_timing": false,
+      "source_sha256": "63e40f13e2c5d5eca27a43ff97652673f61bc75da5926033201d00681cd8baaf",
+      "binary_sha256": "706243f742a03b95362e49e02bb2b9b80796c2d89810bd619232dac6d9f9e99d"
+    }
+  ]
+}

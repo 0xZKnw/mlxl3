@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "compose-bridge17-AR-2-G",
+  "phase": "bridge17",
+  "mode": "AR",
+  "arm": "G",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-2-G/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "4b46ba2824c9f47c",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 87,
+      "decode_seconds": 1.497250082999999,
+      "decode_tps": 10.686257547530897,
+      "prefill_tps": 10.088377568848978,
+      "prefill_seconds": 8.623785084,
+      "ttft_seconds": 8.625294209,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7087003456,
+      "lifetime_peak_bytes": 7087003456
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "bf1f7927af918558",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 82,
+      "decode_seconds": 1.5064681249999996,
+      "decode_tps": 10.62086859620744,
+      "prefill_tps": 10.793469693687484,
+      "prefill_seconds": 7.597186292,
+      "ttft_seconds": 7.598249459,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7087232856,
+      "lifetime_peak_bytes": 7087232856
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "4b46ba2824c9f47c",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 87,
+      "decode_seconds": 1.5266817499999998,
+      "decode_tps": 10.480245801064958,
+      "prefill_tps": 10.731155291282379,
+      "prefill_seconds": 8.107235208,
+      "ttft_seconds": 8.107787541,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7090198384,
+      "lifetime_peak_bytes": 7090198384
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "bf1f7927af918558",
+      "generated_tokens": 17,
+      "decode_tokens": 16,
+      "prompt_tokens": 82,
+      "decode_seconds": 1.4673669169999997,
+      "decode_tps": 10.903884921101845,
+      "prefill_tps": 10.819998477357034,
+      "prefill_seconds": 7.578559292,
+      "ttft_seconds": 7.5789209159999995,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7091214192,
+      "lifetime_peak_bytes": 7091214192
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 262144,
+    "Swapins": 0
+  },
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "swap_anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8",
+  "report_sha256": "4f1d346762e861c24a176e02e9e2475bc51b8431a1307551db2d5a84378416e2",
+  "cumulative_swapouts_before_bytes": 15400960,
+  "cumulative_swapouts_after_bytes": 15400960,
+  "maximum_cumulative_swapouts_bytes": 15400960,
+  "cumulative_swapins_before_bytes": 5767168,
+  "cumulative_swapins_after_bytes": 5767168,
+  "maximum_cumulative_swapins_bytes": 5767168,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-2-G-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

@@ -1,0 +1,715 @@
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index b6da24b1..458945a5 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -853,18 +853,6 @@ fn top16(logits: &Array) -> Result<(Array, Array, Array)> {
+     Ok((candidates, unary, valid))
+ }
+ 
+-fn mean_streams(streams: &Array) -> Result<Array> {
+-    ensure!(
+-        streams.shape() == [1, WIDTH] && streams.dtype() == Dtype::Float32,
+-        "invalid captured HC streams"
+-    );
+-    streams
+-        .reshape(&[1, HC, H])?
+-        .sum(1, false)?
+-        .scalar_mul(0.25)?
+-        .astype(Dtype::BFloat16)
+-}
+-
+ struct BlockParts {
+     logits: Array,
+     captured: Array,
+@@ -922,6 +910,16 @@ impl Drop for Verification<'_> {
+ 
+ impl FlashNext {
+     fn forward_captured(&mut self, token: u32, kind: Kind) -> Result<(Array, Array)> {
++        let (logits, captured) = self.forward_captured_optional(token, kind, true)?;
++        Ok((logits.context("missing captured logits")?, captured))
++    }
++
++    fn forward_captured_optional(
++        &mut self,
++        token: u32,
++        kind: Kind,
++        head: bool,
++    ) -> Result<(Option<Array>, Array)> {
+         ensure!(
+             self.verification.is_none() && self.offset < self.context && token < 248320,
+             "invalid captured Flash forward"
+@@ -944,7 +942,12 @@ impl FlashNext {
+             }
+             ensure!(captures.len() == 5, "incomplete Flash captures");
+             let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
+-            let logits = self.logits(&streams)?;
++            let logits = if head {
++                Some(self.logits(&streams)?)
++            } else {
++                streams.eval()?;
++                None
++            };
+             captured.eval()?;
+             self.drain()?;
+             self.last_hidden = Some(streams);
+diff --git a/native/src/flash_draft_runtime.rs b/native/src/flash_draft_runtime.rs
+index 8d36ff6d..fee730ba 100644
+--- a/native/src/flash_draft_runtime.rs
++++ b/native/src/flash_draft_runtime.rs
+@@ -294,11 +294,37 @@ impl FlashNext {
+                 "invalid DFlash prompt"
+             );
+             let mut last = None;
+-            for &token in tokens {
++            if self.layer_local_prefill() {
++                for (index, part) in tokens.chunks(128).enumerate() {
++                    let start = self.offset;
++                    let (logits, captured) = self.forward_prefill_local(
++                        part,
++                        &Kind::Dflash2.captures(),
++                        index == (tokens.len() - 1) / 128,
++                        cancelled,
++                    )?;
++                    let captured = captured.context("missing local prefill captures")?;
++                    for row in 0..part.len() {
++                        ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                        session.draft.append(
++                            &captured.slice(0, row as i32, row as i32 + 1)?,
++                            start + row as i32,
++                        )?;
++                    }
++                    last = logits;
++                }
++                return last.context("missing final DFlash logits");
++            }
++            for (index, &token) in tokens.iter().enumerate() {
+                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+-                let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
++                let (logits, captured) = if self.prefill_heads && index + 1 < tokens.len() {
++                    self.forward_captured_optional(token, Kind::Dflash2, false)?
++                } else {
++                    let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
++                    (Some(logits), captured)
++                };
+                 session.draft.append(&captured, self.offset - 1)?;
+-                last = Some(logits);
++                last = logits;
+             }
+             last.context("empty DFlash prompt")
+         })();
+@@ -327,6 +353,295 @@ impl FlashNext {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++
++    #[test]
++    #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; isolated serial prefill qualification"]
++    fn final_prefill_head_preserves_states_draft_and_continuation() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&c)?;
++        ensure!(
++            target.lookahead_depth == 0,
++            "local qualification requires nofetch"
++        );
++        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
++        let lengths = std::env::var("MLXL3_PREFILL_TEST_LENGTHS")
++            .unwrap_or_else(|_| "1,2,7,8,9,17".into())
++            .split(',')
++            .map(str::parse::<usize>)
++            .collect::<std::result::Result<Vec<_>, _>>()?;
++        ensure!(!lengths.is_empty() && lengths.iter().all(|&n| (1..=512).contains(&n)));
++        let cancel = AtomicBool::new(false);
++        let saved = tempfile::tempdir()?;
++        let mut cases = 0;
++        for &length in &lengths {
++            let tokens = std::iter::once(EOS)
++                .chain((1..length).map(|i| i as u32))
++                .collect::<Vec<_>>();
++            for dflash in [false, true] {
++                let mut expected_logits = Vec::new();
++                let mut expected_ids = Vec::new();
++                let mut expected_policy = Vec::new();
++                let mut expected_continued_policy = Vec::new();
++                let mut expected_io = None;
++                for mode in 0..3 {
++                    let optimized = mode != 0;
++                    target.reset();
++                    for layer in &mut target.layers {
++                        layer.moe.reset_cache_for_test()?;
++                    }
++                    target.prefill_heads = optimized;
++                    target.prefill_layers = mode == 2;
++                    ensure!(target.layer_local_prefill() == (mode == 2));
++                    ensure!(target.prefill_chunk_size() == if mode == 2 { 128 } else { 8 });
++                    let before = target.io_stats();
++                    if length <= 17 {
++                        crate::flash_profile::start(false)?;
++                    }
++                    let result = if dflash {
++                        target.prefill_dflash2(&tokens, &cancel)
++                    } else {
++                        target.forward_tokens(&tokens)
++                    };
++                    if length <= 17 {
++                        let trace = serde_json::to_value(crate::flash_profile::finish()?)?;
++                        let heads = trace
++                            .as_array()
++                            .unwrap()
++                            .iter()
++                            .filter(|e| e["name"] == "logits")
++                            .count();
++                        ensure!(
++                            heads == if optimized { 1 } else { length },
++                            "unused heads executed"
++                        );
++                    }
++                    let logits = result?;
++                    let after = target.io_stats();
++                    let io = (
++                        after
++                            .0
++                            .checked_sub(before.0)
++                            .context("hit counter reversed")?,
++                        after
++                            .1
++                            .checked_sub(before.1)
++                            .context("miss counter reversed")?,
++                        after
++                            .2
++                            .checked_sub(before.2)
++                            .context("byte counter reversed")?,
++                    );
++                    let policy = target
++                        .layers
++                        .iter()
++                        .map(|l| l.moe.cache_state_for_test())
++                        .collect::<Vec<_>>();
++                    if optimized {
++                        ensure!(Some(io) == expected_io, "prefill expert I/O differs");
++                        ensure!(policy == expected_policy, "prefill LFU policy differs");
++                    } else {
++                        expected_io = Some(io);
++                        expected_policy = policy;
++                    }
++                    let values = logits.to_f32()?;
++                    ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                    if optimized {
++                        ensure!(logits.to_bytes()? == expected_logits, "final logits differ");
++                    } else {
++                        expected_logits = logits.to_bytes()?;
++                    }
++                    ensure!(disk_state(&target, saved.path(), "prefill", !optimized)? > 0);
++                    if dflash {
++                        let draft = &target.dflash.as_ref().unwrap().draft;
++                        ensure!(draft.offset == length as i32 && draft.cache.len() == 5);
++                        for (index, pair) in draft.cache.iter().enumerate() {
++                            let (k, v) = pair.as_ref().context("missing draft KV")?;
++                            for (part, value) in [k, v].into_iter().enumerate() {
++                                ensure!(
++                                    value.shape().len() == 4
++                                        && value.shape().iter().all(|&n| n > 0)
++                                );
++                                let values = value.to_f32()?;
++                                ensure!(!values.is_empty() && values.iter().all(|v| v.is_finite()));
++                                let metadata = serde_json::to_vec(&(
++                                    value.shape(),
++                                    format!("{:?}", value.dtype()),
++                                ))?;
++                                for (suffix, bytes) in
++                                    [("meta", metadata), ("data", value.to_bytes()?)]
++                                {
++                                    let file =
++                                        saved.path().join(format!("kv-{index}-{part}-{suffix}"));
++                                    if optimized {
++                                        ensure!(std::fs::read(file)? == bytes, "draft KV differs");
++                                    } else {
++                                        std::fs::write(file, bytes)?;
++                                    }
++                                }
++                            }
++                        }
++                    }
++                    let mut id = logits.chat_greedy_ids()?[0];
++                    for (index, remaining) in (1..=3).rev().enumerate() {
++                        id = if dflash {
++                            target.advance_dflash2(id, remaining)?
++                        } else {
++                            target.forward(id)?.chat_greedy_ids()?[0]
++                        };
++                        if optimized {
++                            ensure!(id == expected_ids[index], "continuation differs");
++                        } else {
++                            expected_ids.push(id);
++                        }
++                    }
++                    disk_state(&target, saved.path(), "continued", !optimized)?;
++                    let policy = target
++                        .layers
++                        .iter()
++                        .map(|l| l.moe.cache_state_for_test())
++                        .collect::<Vec<_>>();
++                    if optimized {
++                        ensure!(
++                            policy == expected_continued_policy,
++                            "continued LFU policy differs"
++                        );
++                    } else {
++                        expected_continued_policy = policy;
++                    }
++                }
++                cases += 2;
++            }
++            println!("FINAL_HEAD_LENGTH length={length} cases={cases} parity=true");
++        }
++        // Check the captured values themselves, independently of draft cache equality.
++        let mut captures = Vec::new();
++        for head in [true, false] {
++            target.reset();
++            for index in 0..17 {
++                let (logits, captured) =
++                    target.forward_captured_optional(index, Kind::Dflash2, head)?;
++                ensure!(logits.is_some() == head && captured.shape() == [1, 12800]);
++                let values = captured.astype(Dtype::Float32)?.to_f32()?;
++                ensure!(values.len() == 12800 && values.iter().all(|v| v.is_finite()));
++                if head {
++                    captures.push(captured.to_bytes()?);
++                } else {
++                    ensure!(
++                        captured.to_bytes()? == captures[index as usize],
++                        "captures differ"
++                    );
++                }
++            }
++            disk_state(&target, saved.path(), "captures", head)?;
++        }
++        target.reset();
++        target.prefill_heads = true;
++        target.prefill_layers = true;
++        let ids = (0..17).collect::<Vec<u32>>();
++        let (logits, captured) =
++            target.forward_prefill_local(&ids, &Kind::Dflash2.captures(), true, &cancel)?;
++        let captured = captured.context("missing local captures")?;
++        ensure!(
++            logits.context("missing local logits")?.shape() == [1, 248320]
++                && captured.shape() == [17, 12800]
++                && captured.dtype() == Dtype::BFloat16
++        );
++        let expected = captures.concat();
++        ensure!(
++            expected.len() == 17 * 12800 * 2 && captured.to_bytes()? == expected,
++            "local captures differ"
++        );
++        disk_state(&target, saved.path(), "captures", false)?;
++        for rows in [2, 128 * 48 + 2] {
++            for dflash in [false, true] {
++                target.reset();
++                disk_state(&target, saved.path(), "cancel-reset", true)?;
++                target.prefill_cancel_after = Some(rows);
++                cancel.store(false, Ordering::Relaxed);
++                let result = if dflash {
++                    target.prefill_dflash2(&[EOS; 129], &cancel)
++                } else {
++                    target.prefill_tokens(&[EOS; 129], &cancel)
++                };
++                ensure!(
++                    result.is_err() && cancel.load(Ordering::Relaxed),
++                    "mid-prefill cancellation missed"
++                );
++                disk_state(&target, saved.path(), "cancel-reset", false)?;
++                ensure!(
++                    target.dflash.as_ref().unwrap().draft.offset == 0
++                        && target
++                            .dflash
++                            .as_ref()
++                            .unwrap()
++                            .draft
++                            .cache
++                            .iter()
++                            .all(Option::is_none)
++                );
++                target.prefill_cancel_after = None;
++                cancel.store(false, Ordering::Relaxed);
++                ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
++            }
++        }
++        target.reset();
++        for invalid in [vec![], vec![EOS, 248320]] {
++            ensure!(target.forward_tokens(&invalid).is_err() && target.offset == 0);
++            ensure!(target.prefill_dflash2(&invalid, &cancel).is_err() && target.offset == 0);
++            ensure!(
++                target
++                    .dflash
++                    .as_ref()
++                    .unwrap()
++                    .draft
++                    .cache
++                    .iter()
++                    .all(Option::is_none)
++            );
++        }
++        ensure!(
++            target
++                .prefill_dflash2(&[EOS, 7], &AtomicBool::new(true))
++                .is_err()
++        );
++        ensure!(target.offset == 0);
++        ensure!(target.prefill_dflash2(&[EOS, 7], &cancel)?.shape() == [1, 248320]);
++        target.reset();
++        target.context = 4;
++        ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
++        ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
++        ensure!(target.forward_tokens(&[7]).is_err());
++        ensure!(cases == lengths.len() * 4);
++        println!(
++            "FINAL_HEAD_PARITY lengths={lengths:?} cases={cases} full_logits_states_captures_draft_continuation=true head_count=true LFU_and_IO_exact=true cancellation_mid_block=true errors=true"
++        );
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_final_prefill_head_contract() {
++        let token: u32 = kani::any();
++        let heads: bool = kani::any();
++        let layers: bool = kani::any();
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL").unwrap()))
++            .unwrap();
++        let mut target = FlashNext::from_checkpoint(&c).unwrap();
++        target.prefill_heads = heads;
++        target.prefill_layers = layers;
++        let result = target.prefill_tokens(&[EOS, token], &AtomicBool::new(false));
++        if token < 248320 {
++            assert_eq!(result.unwrap().shape(), [1, 248320]);
++            assert_eq!(target.offset, 2);
++        } else {
++            assert!(result.is_err());
++            assert_eq!(target.offset, 0);
++        }
++        kani::cover!(token == 7 && heads && layers);
++        kani::cover!(token == EOS && !heads);
++        kani::cover!(token >= 248320);
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; real terminal fallback; run alone"]
+     fn runtime_profile_counts_terminal_target_reads() -> Result<()> {
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..42e8914c 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -843,6 +843,7 @@ pub fn segment_tokens(current: u32, previous: [u32; 2], eos: u32) -> [u32; 3] {
+ 
+ /// Reservation is atomic: every routed expert gets a distinct protected slot.
+ /// A failed read must invalidate its reservation before it can become a hit.
++#[cfg_attr(test, derive(Clone, Debug, PartialEq, Eq))]
+ pub struct ExpertCache {
+     keys: Vec<Option<u32>>,
+     pending: Vec<Option<u32>>,
+@@ -885,6 +886,8 @@ impl Drop for ExpertFill {
+ }
+ 
+ impl ExpertCache {
++    #[cfg(test)]
++    pub(crate) fn corrupt_clock_for_test(&mut self) { self.clock += 1; }
+     pub fn new(slots: usize) -> Result<Self, CacheError> {
+         if !(10..=512).contains(&slots) {
+             return Err(CacheError::Capacity);
+diff --git a/native/src/main.rs b/native/src/main.rs
+index 49f0b295..8b802d37 100644
+--- a/native/src/main.rs
++++ b/native/src/main.rs
+@@ -1489,7 +1489,7 @@ impl NativeChatModel {
+             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
+             Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
+             Self::Qwen(_) => 256,
+-            Self::Flash(_) => 8,
++            Self::Flash(model) => model.prefill_chunk_size(),
+             Self::Ling(_) => 128,
+             Self::Lfm2(_) => 1,
+         }
+@@ -1913,6 +1913,8 @@ fn prefill_round(
+                 } else {
+                     session.prefill(target, weights, chunk)?
+                 }
++            } else if let NativeChatModel::Flash(target) = &mut *model {
++                target.prefill_tokens(chunk, cancelled)?
+             } else {
+                 model.forward_many(chunk)?
+             },
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..d5c759a4 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -20,7 +20,7 @@ use std::{
+     os::unix::fs::FileExt,
+     path::PathBuf,
+     rc::Rc,
+-    sync::atomic::Ordering,
++    sync::atomic::{AtomicBool, Ordering},
+ };
+ 
+ const H: i32 = 2560;
+@@ -28,6 +28,18 @@ const HC: i32 = 4;
+ const WIDTH: i32 = H * HC;
+ const EOS: u32 = 248044;
+ 
++fn mean_streams(streams: &Array) -> Result<Array> {
++    ensure!(
++        streams.shape() == [1, WIDTH] && streams.dtype() == Dtype::Float32,
++        "invalid captured HC streams"
++    );
++    streams
++        .reshape(&[1, HC, H])?
++        .sum(1, false)?
++        .scalar_mul(0.25)?
++        .astype(Dtype::BFloat16)
++}
++
+ #[cfg(feature = "chat")]
+ #[path = "flash_draft.rs"]
+ mod draft;
+@@ -1240,6 +1252,10 @@ pub struct FlashNext {
+     pub last_hidden: Option<Array>,
+     verification: Option<PairState>,
+     multi_token: bool,
++    prefill_heads: bool,
++    prefill_layers: bool,
++    #[cfg(test)]
++    prefill_cancel_after: Option<usize>,
+     lookahead_depth: usize,
+     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
+     #[cfg(feature = "chat")]
+@@ -1254,6 +1270,18 @@ impl FlashNext {
+     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
+         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+         let multi_token = flash_support::multi_token_verifier()?;
++        let prefill_heads = match std::env::var("MLXL3_FLASH_PREFILL_HEADS") {
++            Ok(v) if v == "0" => false,
++            Ok(v) if v == "1" => true,
++            Err(std::env::VarError::NotPresent) => true,
++            _ => anyhow::bail!("MLXL3_FLASH_PREFILL_HEADS must be 0 or 1"),
++        };
++        let prefill_layers = match std::env::var("MLXL3_FLASH_PREFILL_LAYERS") {
++            Ok(v) if v == "0" => false,
++            Ok(v) if v == "1" => true,
++            Err(std::env::VarError::NotPresent) => false,
++            _ => anyhow::bail!("MLXL3_FLASH_PREFILL_LAYERS must be 0 or 1"),
++        };
+         let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+             Ok(value) => value
+                 .parse::<usize>()
+@@ -1436,6 +1464,10 @@ impl FlashNext {
+             last_hidden: None,
+             verification: None,
+             multi_token,
++            prefill_heads,
++            prefill_layers,
++            #[cfg(test)]
++            prefill_cancel_after: None,
+             lookahead_depth,
+             lookahead_pool,
+             #[cfg(feature = "chat")]
+@@ -1450,22 +1482,25 @@ impl FlashNext {
+         Array::from_file(file, offset, &[1, H], Dtype::BFloat16)?.astype(Dtype::Float16)
+     }
+     pub fn forward(&mut self, token: u32) -> Result<Array> {
+-        Ok(self.forward_inner(token, false)?.0)
++        self.forward_inner(token, None, true)?
++            .context("missing Flash logits")
+     }
+     pub fn forward_trace(&mut self, token: u32) -> Result<(Array, Vec<(String, Array)>)> {
+-        self.forward_inner(token, true)
++        let mut trace = Vec::new();
++        let logits = self.forward_inner(token, Some(&mut trace), true)?;
++        Ok((logits.context("missing Flash trace logits")?, trace))
+     }
+     fn forward_inner(
+         &mut self,
+         token: u32,
+-        capture: bool,
+-    ) -> Result<(Array, Vec<(String, Array)>)> {
++        mut trace: Option<&mut Vec<(String, Array)>>,
++        head: bool,
++    ) -> Result<Option<Array>> {
+         ensure!(
+             self.verification.is_none(),
+             "uncommitted Flash verification"
+         );
+         ensure!(self.offset < self.context, "Flash context exhausted");
+-        let mut trace = Vec::new();
+         let mut streams = self.streams(token)?;
+         #[cfg(test)]
+         crate::flash_profile::stage("embedding_streams", &streams)?;
+@@ -1478,7 +1513,7 @@ impl FlashNext {
+                 .then(|| rest.first_mut().map(|l| &mut l.moe))
+                 .flatten();
+             streams = layer.forward_lookahead(&streams, token, next, self.lookahead_depth)?;
+-            if capture {
++            if let Some(trace) = &mut trace {
+                 trace.push((format!("layer_{i}"), streams.try_clone()?));
+                 if let Attention::Gdn(gdn) = &layer.attention
+                     && let Some(state) = &gdn.state
+@@ -1487,11 +1522,16 @@ impl FlashNext {
+                 }
+             }
+         }
+-        let logits = self.logits(&streams)?;
++        let logits = if head {
++            Some(self.logits(&streams)?)
++        } else {
++            streams.eval()?;
++            None
++        };
+         self.drain()?;
+         self.last_hidden = Some(streams);
+         self.offset += 1;
+-        Ok((logits, trace))
++        Ok(logits)
+     }
+     fn streams(&self, token: u32) -> Result<Array> {
+         self.embedding(token)?
+@@ -1618,6 +1658,15 @@ impl FlashNext {
+         Ok(())
+     }
+     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
++        self.prefill_tokens(tokens, &AtomicBool::new(false))
++    }
++    fn layer_local_prefill(&self) -> bool {
++        self.prefill_layers && self.prefill_heads && self.lookahead_depth == 0
++    }
++    pub fn prefill_chunk_size(&self) -> usize {
++        if self.layer_local_prefill() { 128 } else { 8 }
++    }
++    pub fn prefill_tokens(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
+         ensure!(
+             !tokens.is_empty()
+                 && tokens.len() <= usize::try_from(self.context - self.offset)?
+@@ -1625,11 +1674,99 @@ impl FlashNext {
+             "invalid Flash token batch"
+         );
+         let mut last = None;
+-        for &token in tokens {
+-            last = Some(self.forward(token)?);
++        if self.layer_local_prefill() {
++            for (index, part) in tokens.chunks(128).enumerate() {
++                last = self
++                    .forward_prefill_local(part, &[], index == (tokens.len() - 1) / 128, cancelled)?
++                    .0;
++            }
++            return last.context("missing final Flash prefill logits");
++        }
++        for (index, &token) in tokens.iter().enumerate() {
++            if cancelled.load(Ordering::Relaxed) {
++                self.reset();
++                anyhow::bail!("generation cancelled");
++            }
++            last = self.forward_inner(
++                token,
++                None,
++                !self.prefill_heads || index + 1 == tokens.len(),
++            )?;
+         }
+         last.context("empty Flash token batch")
+     }
++
++    fn forward_prefill_local(
++        &mut self,
++        tokens: &[u32],
++        capture_layers: &[usize],
++        head: bool,
++        cancelled: &AtomicBool,
++    ) -> Result<(Option<Array>, Option<Array>)> {
++        ensure!(
++            self.verification.is_none()
++                && self.lookahead_depth == 0
++                && (1..=128).contains(&tokens.len())
++                && tokens.len() <= usize::try_from(self.context - self.offset)?
++                && tokens.iter().all(|&t| t < 248320),
++            "invalid Flash local prefill"
++        );
++        ensure!(
++            capture_layers.iter().all(|&i| i < self.layers.len())
++                && capture_layers.windows(2).all(|p| p[0] < p[1]),
++            "invalid capture layers"
++        );
++        let result = (|| {
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            let mut streams = tokens
++                .iter()
++                .map(|&t| self.streams(t))
++                .collect::<Result<Vec<_>>>()?;
++            let mut captures = Vec::with_capacity(capture_layers.len());
++            for (index, layer) in self.layers.iter_mut().enumerate() {
++                for (&token, stream) in tokens.iter().zip(&mut streams) {
++                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                    *stream = layer.forward_lookahead(stream, token, None, 0)?;
++                    stream.eval()?;
++                    #[cfg(test)]
++                    layer.moe.corrupt_clock_for_test();
++                    #[cfg(test)]
++                    if let Some(remaining) = &mut self.prefill_cancel_after {
++                        *remaining = remaining.saturating_sub(1);
++                        if *remaining == 0 {
++                            cancelled.store(true, Ordering::Relaxed);
++                        }
++                    }
++                }
++                ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                if capture_layers.contains(&index) {
++                    let rows = streams
++                        .iter()
++                        .map(mean_streams)
++                        .collect::<Result<Vec<_>>>()?;
++                    captures.push(Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?);
++                }
++            }
++            let hidden = streams.pop().context("missing prefill hidden")?;
++            let logits = head.then(|| self.logits(&hidden)).transpose()?;
++            let captured = if captures.is_empty() {
++                None
++            } else {
++                let captured = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?;
++                captured.eval()?;
++                Some(captured)
++            };
++            self.drain()?;
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            self.last_hidden = Some(hidden);
++            self.offset += tokens.len() as i32;
++            Ok((logits, captured))
++        })();
++        if result.is_err() {
++            self.reset();
++        }
++        result
++    }
+     pub fn reset(&mut self) {
+         for layer in &mut self.layers {
+             layer.reset();
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a8f1fbb7..f98ca75b 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -1205,6 +1205,22 @@ impl SsdMoe {
+         slots
+     }
+ 
++    #[cfg(test)]
++    pub(crate) fn corrupt_clock_for_test(&mut self) { self.cache.borrow_mut().corrupt_clock_for_test(); }
++
++    #[cfg(test)]
++    pub(crate) fn cache_state_for_test(&self) -> ExpertCache {
++        self.cache.borrow().clone()
++    }
++
++    #[cfg(test)]
++    pub(crate) fn reset_cache_for_test(&mut self) -> Result<()> {
++        self.drain()?;
++        let cache = ExpertCache::new(self.slots_for_test())?;
++        *self.cache.borrow_mut() = cache;
++        Ok(())
++    }
++
+     #[cfg(test)]
+     pub(crate) fn gate_for_test(&self) -> &Projection {
+         &self.gate

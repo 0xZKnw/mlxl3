@@ -2,6 +2,84 @@ import AppKit
 import CryptoKit
 import Darwin
 import Foundation
+import Synchronization
+
+struct UpdateDownloadProgress: Sendable {
+    var transfer: ModelDownloadProgress
+    var isVerifying = false
+    var observedAt = ProcessInfo.processInfo.systemUptime
+}
+
+private final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate, Sendable {
+    private let samples: Mutex<(ModelDownloadProgress, Double)>
+    private let report: @Sendable (UpdateDownloadProgress) -> Void
+    private let expectedSize: Int64
+    private let location: URL
+    private let completion = Mutex<CheckedContinuation<Void, any Error>?>(nil)
+
+    init(size: Int64, location: URL, report: @escaping @Sendable (UpdateDownloadProgress) -> Void) {
+        expectedSize = size
+        self.location = location
+        var tracker = ModelDownloadProgress(total: Double(size))
+        tracker.update(completed: 0, total: Double(size), at: ProcessInfo.processInfo.systemUptime)
+        samples = Mutex((tracker, -.infinity))
+        self.report = report
+    }
+
+    var snapshot: UpdateDownloadProgress { samples.withLock { UpdateDownloadProgress(transfer: $0.0) } }
+
+    func download(_ request: URLRequest, configuration: URLSessionConfiguration) async throws {
+        let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        let task = session.downloadTask(with: request)
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { continuation in
+                completion.withLock { $0 = continuation }
+                task.resume()
+            }
+        } onCancel: { task.cancel() }
+        try Task.checkCancellation()
+    }
+
+    private func finish(_ result: Result<Void, any Error>) {
+        let continuation = completion.withLock { value in
+            let pending = value; value = nil; return pending
+        }
+        continuation?.resume(with: result)
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard totalBytesWritten <= expectedSize else { downloadTask.cancel(); return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let progress = samples.withLock { state -> UpdateDownloadProgress? in
+            state.0.update(completed: Double(totalBytesWritten), total: Double(expectedSize), at: now)
+            guard now - state.1 >= 0.2 || totalBytesWritten == expectedSize else { return nil }
+            state.1 = now
+            return UpdateDownloadProgress(transfer: state.0)
+        }
+        if let progress { report(progress) }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo temporaryURL: URL) {
+        do {
+            guard let response = downloadTask.response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode) else { throw URLError(.badServerResponse) }
+            // URLSession removes its temporary file as soon as this callback returns.
+            try FileManager.default.moveItem(at: temporaryURL, to: location)
+            finish(.success(()))
+        } catch { finish(.failure(error)) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
+        finish(.failure(error ?? URLError(.badServerResponse)))
+    }
+}
+
+enum UpdateChannel: String, CaseIterable, Sendable { case stable, beta }
 
 struct AppUpdateRelease: Sendable, Equatable {
     let version: String
@@ -10,6 +88,10 @@ struct AppUpdateRelease: Sendable, Equatable {
     let notes: String
     let pageURL: URL
     let asset: AppUpdateAsset
+    var betaNumber: Int? {
+        let parts = tag.components(separatedBy: "-beta.")
+        return parts.count == 2 ? Int(parts[1]) : nil
+    }
     var build: Int {
         guard let range = asset.name.range(of: "-b[0-9]+-", options: .regularExpression) else { return 0 }
         return Int(asset.name[range].dropFirst(2).dropLast()) ?? 0
@@ -83,7 +165,15 @@ final class UpdateManager: ObservableObject {
     @Published private(set) var latestRelease: AppUpdateRelease?
     @Published private(set) var engineState: AppUpdateState = .idle
     @Published private(set) var engineRelease: AppUpdateRelease?
+    @Published private(set) var downloadProgress: UpdateDownloadProgress?
+    @Published private(set) var engineDownloadProgress: UpdateDownloadProgress?
     @Published private(set) var currentEngineVersion: String
+    @Published private(set) var updateChannel: UpdateChannel
+
+    private let preferences: UserDefaults
+    private let session: URLSession
+    private let cacheDirectory: URL?
+    private var updateOperationID = UUID()
 
     let currentVersion: String
     let currentBuild: Int
@@ -95,14 +185,22 @@ final class UpdateManager: ObservableObject {
         currentVersion: String = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "0.0.0",
+        currentBuild: Int? = nil,
         releasesURL: URL = URL(
             string: "https://api.github.com/repos/0xZKnw/mlxl3/releases?per_page=100"
-        )!
+        )!,
+        preferences: UserDefaults = .standard,
+        session: URLSession = .shared,
+        cacheDirectory: URL? = nil
     ) {
         self.currentVersion = currentVersion
-        self.currentBuild = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
+        self.currentBuild = currentBuild ?? Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
         self.releasesURL = releasesURL
         self.currentEngineVersion = EngineRuntimeStore.installedVersion()
+        self.preferences = preferences
+        self.session = session
+        self.cacheDirectory = cacheDirectory
+        self.updateChannel = UpdateChannel(rawValue: preferences.string(forKey: "updates.channel") ?? "") ?? .stable
     }
 
     deinit {
@@ -145,46 +243,89 @@ final class UpdateManager: ObservableObject {
         checkForUpdates()
     }
 
+    func setUpdateChannel(_ channel: UpdateChannel) {
+        guard channel != updateChannel, !isInstalling else { return }
+        updateOperationID = UUID()
+        updateTask?.cancel()
+        updateTask = nil
+        updateChannel = channel
+        preferences.set(channel.rawValue, forKey: "updates.channel")
+        latestRelease = nil
+        engineRelease = nil
+        state = .idle
+        engineState = .idle
+        downloadProgress = nil
+        engineDownloadProgress = nil
+    }
+
     func checkForUpdates() {
         guard !isBusy else { return }
         updateTask?.cancel()
+        updateOperationID = UUID()
+        let operation = updateOperationID
+        let selectedChannel = updateChannel
+        latestRelease = nil
+        engineRelease = nil
+        downloadProgress = nil
+        engineDownloadProgress = nil
         state = .checking
         engineState = .checking
         updateTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let data = try await Self.fetchReleases(from: releasesURL, currentVersion: currentVersion)
+                let data = try await Self.fetchReleases(from: releasesURL, currentVersion: currentVersion, session: session)
                 try Task.checkCancellation()
-                let release = try Self.selectRelease(data, channel: .app)
+                guard operation == updateOperationID else { return }
+                let release = try Self.selectRelease(data, channel: .app, updateChannel: selectedChannel)
                 latestRelease = release
                 if let release, let current = SemanticVersion(currentVersion),
                    let latest = SemanticVersion(release.version),
                    latest > current || (latest == current && release.build > currentBuild) {
                     state = .downloading(release)
                     do {
-                        let diskImage = try await Self.downloadAndVerify(release: release)
+                        let diskImage = try await Self.downloadAndVerify(release: release, session: session, cacheDirectory: cacheDirectory) { [weak self] progress in
+                            guard let self, operation == self.updateOperationID,
+                                  self.state == .downloading(release) else { return }
+                            if self.downloadProgress?.isVerifying == true && !progress.isVerifying && progress.transfer.completed > 0 { return }
+                            self.downloadProgress = progress
+                        }
                         try Task.checkCancellation()
+                        guard operation == updateOperationID else { return }
                         state = .ready(release: release, diskImage: diskImage)
-                    } catch { state = .failed(error.localizedDescription) }
+                    } catch {
+                        guard !Task.isCancelled, operation == updateOperationID else { return }
+                        state = .failed(error.localizedDescription)
+                    }
                 } else {
                     state = .upToDate(checkedAt: Date())
                 }
-                let engine = try Self.selectRelease(data, channel: .engine)
+                let engine = try Self.selectRelease(data, channel: .engine, updateChannel: selectedChannel)
                 engineRelease = engine
                 if let engine, let current = SemanticVersion(currentEngineVersion),
                    let latest = SemanticVersion(engine.version), latest > current {
                     engineState = .downloading(engine)
                     do {
-                        let archive = try await Self.downloadAndVerify(release: engine)
+                        let archive = try await Self.downloadAndVerify(release: engine, session: session, cacheDirectory: cacheDirectory) { [weak self] progress in
+                            guard let self, operation == self.updateOperationID,
+                                  self.engineState == .downloading(engine) else { return }
+                            if self.engineDownloadProgress?.isVerifying == true && !progress.isVerifying && progress.transfer.completed > 0 { return }
+                            self.engineDownloadProgress = progress
+                        }
                         try Task.checkCancellation()
+                        guard operation == updateOperationID else { return }
                         engineState = .ready(release: engine, diskImage: archive)
-                    } catch { engineState = .failed(error.localizedDescription) }
+                    } catch {
+                        guard !Task.isCancelled, operation == updateOperationID else { return }
+                        engineState = .failed(error.localizedDescription)
+                    }
                 } else { engineState = .upToDate(checkedAt: Date()) }
                 try Task.checkCancellation()
             } catch is CancellationError {
+                guard operation == updateOperationID else { return }
                 state = .idle
                 engineState = .idle
             } catch {
+                guard !Task.isCancelled, operation == updateOperationID else { return }
                 if state == .checking { state = .failed(error.localizedDescription) }
                 engineState = .failed(error.localizedDescription)
             }
@@ -236,7 +377,8 @@ final class UpdateManager: ObservableObject {
 
     private static func fetchReleases(
         from url: URL,
-        currentVersion: String
+        currentVersion: String,
+        session: URLSession
     ) async throws -> Data {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -244,7 +386,7 @@ final class UpdateManager: ObservableObject {
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("MLXL3-Desktop/\(currentVersion)", forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw UpdateError.releaseLookupFailed
         }
@@ -253,7 +395,7 @@ final class UpdateManager: ObservableObject {
         // first GitHub page. Engine tags are published with latest=false.
         if url.host == "api.github.com", url.path == "/repos/\(repository)/releases" {
             request.url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
-            let (latestData, latestResponse) = try await URLSession.shared.data(for: request)
+            let (latestData, latestResponse) = try await session.data(for: request)
             guard let latestHTTP = latestResponse as? HTTPURLResponse, latestHTTP.statusCode == 200,
                   latestData.count <= 16 * 1_024 * 1_024,
                   var releases = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
@@ -268,22 +410,32 @@ final class UpdateManager: ObservableObject {
 
     enum ReleaseChannel { case app, engine }
 
-    nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel) throws -> AppUpdateRelease? {
+    nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel, updateChannel: UpdateChannel = .stable) throws -> AppUpdateRelease? {
         let payloads: [GitHubRelease]
         if let list = try? JSONDecoder().decode([GitHubRelease].self, from: data) { payloads = list }
         else { payloads = [try JSONDecoder().decode(GitHubRelease.self, from: data)] }
         let prefix = channel == .app ? "v" : "engine-v"
         let releases = payloads.compactMap { payload -> AppUpdateRelease? in
-            guard !payload.draft, !payload.prerelease, payload.tagName.hasPrefix(prefix) else { return nil }
-            let version = String(payload.tagName.dropFirst(prefix.count))
+            guard !payload.draft, payload.tagName.hasPrefix(prefix) else { return nil }
+            let rawVersion = String(payload.tagName.dropFirst(prefix.count))
+            let parts = rawVersion.components(separatedBy: "-beta.")
+            if parts.count == 1 {
+                guard !payload.prerelease else { return nil }
+            } else if parts.count == 2 {
+                let suffix = parts[1]
+                guard updateChannel == .beta, payload.prerelease,
+                      !suffix.isEmpty, suffix.utf8.allSatisfy({ (48...57).contains($0) }),
+                      !suffix.hasPrefix("0"), let number = Int(suffix), number > 0 else { return nil }
+            } else { return nil }
+            let version = parts[0]
             guard version.split(separator: ".", omittingEmptySubsequences: false).count == 3,
                   version.utf8.allSatisfy({ (48...57).contains($0) || $0 == 46 }),
                   SemanticVersion(version) != nil,
                   let page = URL(string: payload.htmlURL),
                   trustedURL(page, path: "/\(repository)/releases/tag/\(payload.tagName)") else { return nil }
             let pattern = channel == .app
-                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: version))-b[0-9]+-Apple-Silicon\\.dmg$"
-                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: version))-arm64\\.tar\\.gz$"
+                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: rawVersion))-b[0-9]+-Apple-Silicon\\.dmg$"
+                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: rawVersion))-arm64\\.tar\\.gz$"
             let assets = payload.assets.compactMap { asset -> AppUpdateAsset? in
                 guard asset.name.range(of: pattern, options: .regularExpression) != nil,
                       asset.size > 0, asset.size <= 1_500_000_000,
@@ -298,7 +450,13 @@ final class UpdateManager: ObservableObject {
         }
         return releases.max {
             let left = SemanticVersion($0.version)!, right = SemanticVersion($1.version)!
-            return left == right ? $0.build < $1.build : left < right
+            if left != right { return left < right }
+            if $0.build != $1.build { return $0.build < $1.build }
+            switch ($0.betaNumber, $1.betaNumber) {
+            case let (.some(a), .some(b)): return a < b
+            case (.some, .none): return true
+            default: return false
+            }
         }
     }
 
@@ -313,30 +471,40 @@ final class UpdateManager: ObservableObject {
         }
     }
 
-    private static func downloadAndVerify(release: AppUpdateRelease) async throws -> URL {
-        let cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    private static func downloadAndVerify(release: AppUpdateRelease, session: URLSession, cacheDirectory: URL?,
+                                         progress: @escaping @MainActor @Sendable (UpdateDownloadProgress) -> Void = { _ in }) async throws -> URL {
+        try Task.checkCancellation()
+        let cacheRoot = cacheDirectory ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appending(path: "io.mlxl3.desktop/Updates", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: cacheRoot, withIntermediateDirectories: true)
         let destination = cacheRoot.appending(path: release.asset.name)
 
-        if FileManager.default.fileExists(atPath: destination.path),
-           try await verifyAsset(at: destination, asset: release.asset) {
-            return destination
+        var initial = UpdateDownloadProgress(transfer: ModelDownloadProgress(total: Double(release.asset.size)))
+        if FileManager.default.fileExists(atPath: destination.path) {
+            initial.isVerifying = true
+            progress(initial)
+            if try await verifyAsset(at: destination, asset: release.asset) {
+                try Task.checkCancellation()
+                return destination
+            }
         }
-
-        let (temporaryURL, response) = try await URLSession.shared.download(
-            from: release.asset.downloadURL
-        )
-        guard let http = response as? HTTPURLResponse,
-              (200..<300).contains(http.statusCode)
-        else { throw UpdateError.downloadFailed }
-
+        initial.isVerifying = false
+        progress(initial)
         let staged = cacheRoot.appending(path: UUID().uuidString + ".download")
-        try FileManager.default.moveItem(at: temporaryURL, to: staged)
+        let delegate = UpdateDownloadDelegate(size: release.asset.size, location: staged) { value in
+            Task { @MainActor in progress(value) }
+        }
+        var request = URLRequest(url: release.asset.downloadURL)
+        request.timeoutInterval = 30
         do {
+            try await delegate.download(request, configuration: session.configuration)
+            var final = delegate.snapshot
+            final.isVerifying = true
+            progress(final)
             guard try await verifyAsset(at: staged, asset: release.asset) else {
                 throw UpdateError.integrityCheckFailed
             }
+            try Task.checkCancellation()
             if FileManager.default.fileExists(atPath: destination.path) {
                 try FileManager.default.removeItem(at: destination)
             }
@@ -495,8 +663,10 @@ final class UpdateManager: ObservableObject {
               let installedOS = SemanticVersion(EngineRuntimeStore.osVersion), installedOS >= required,
               incoming > current || (incoming == current && (Int(info["CFBundleVersion"] as? String ?? "0") ?? 0) > currentBuild)
         else { throw UpdateError.invalidApplication }
-        _ = try runProcess("/usr/bin/lipo", arguments: ["-verify_arch", "arm64", app.appending(path: "Contents/MacOS/MLXL3Studio").path])
-        try EngineRuntimeStore.verify(app.appending(path: "Contents/Resources/runtime"), appVersion: version, expectedVersion: version)
+        _ = try runProcess("/usr/bin/lipo", arguments: [app.appending(path: "Contents/MacOS/MLXL3Studio").path, "-verify_arch", "arm64"])
+        let runtime = app.appending(path: "Contents/Resources/runtime")
+        let engineVersion = try EngineRuntimeStore.readManifest(runtime).version
+        try EngineRuntimeStore.verify(runtime, appVersion: version, expectedVersion: engineVersion)
     }
 
     nonisolated private static func verifyFile(source: URL, asset: AppUpdateAsset) throws -> Bool {
@@ -624,7 +794,7 @@ fi
 # signature/version check leaves both the installed app and its backup intact.
 /usr/bin/ditto "$source_app" "$staged_app" || exit 21
 /usr/bin/codesign --verify --deep --strict "$staged_app" || exit 24
-/usr/bin/lipo -verify_arch arm64 "$staged_app/Contents/MacOS/MLXL3Studio" || exit 24
+/usr/bin/lipo "$staged_app/Contents/MacOS/MLXL3Studio" -verify_arch arm64 || exit 24
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$staged_app/Contents/Info.plist")" == "$expected_version" ]] || exit 24
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$staged_app/Contents/Info.plist")" == "$expected_build" ]] || exit 24
 "$staged_app/Contents/Resources/runtime/mlxl3" runtime-info || exit 24

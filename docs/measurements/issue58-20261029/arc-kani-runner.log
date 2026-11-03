@@ -1,0 +1,10 @@
+{'name': 'arc-kani', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 120.01848983301898, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 250, in <module>
+    main(Path(sys.argv[1]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 181, in main
+    record["exit_code"] = previous["monitor"](child, record, monitored_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 45, in monitor
+    raise subprocess.TimeoutExpired(r["command"], seconds)
+subprocess.TimeoutExpired: Command '['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'arc_two_symbolic_batches_preserve_capacity_and_protected_membership']' timed out after 120 seconds

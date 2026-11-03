@@ -1,0 +1,13 @@
+   Compiling mlxl3-native v1.3.0 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: unused variable: `target`
+    --> native/src/main.rs:2673:47
+     |
+2673 |                     let NativeChatModel::Qwen(target) = &model else {
+     |                                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_target`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (bin "mlxl3-rs") generated 1 warning (run `cargo fix --bin "mlxl3-rs" -p mlxl3-native` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.82s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

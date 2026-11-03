@@ -1,0 +1,28 @@
+{
+  "status": "prepared_not_executed",
+  "files": {
+    "native/src/lfm2.rs": "3f4b87262df488c75df9b0342d0f306868427a909f4202bc2b2ec77ec87a3d93",
+    "native/src/qwen4.rs": "636d6503f387b8139c6ce7f9993fc920520df0b5ae0fb227486375451fb14886",
+    "native/shaders/flash_hc_gemv.metal": "c92c556c9c022bafd6fd949f07902a80b23b5840c3c539580546fb419a69aea6"
+  },
+  "tests_included": [
+    "paired GEMV 298 matrices vs two original MLX calls, contiguous/strided",
+    "HC mixed/gate/write pair vs serial plus invalid shapes/dtypes",
+    "symbolic actual two-row path"
+  ],
+  "production_checkout_changed": false,
+  "reason": "await20C after AC power restored; no compiler/prover/GPU22 during speed20C",
+  "static_review": "corrected two-row gate reshape before execution; no compiler or GPU run",
+  "static_scope": {
+    "callers": [
+      "Projection::forward_flash_hc -> Hc::read",
+      "Hc::read/write -> Layer::forward_pair",
+      "Hc::read -> FlashNext::logits -> verify_pair"
+    ],
+    "weights": "Dense is private; only production constructor half_weight converts and checks [output,input] F16",
+    "kernel_contract": "K/N fixed; BM1 BN8 for down/inject, BM8 BN1 for up; row-contiguous guaranteed by existing Metal FFI",
+    "state": "first PLE history+previous saved before second PLE; snapshot first GDN/QSA after first attention; restore commits exact prefix",
+    "head": "Flash reference_accumulation recursively evaluates EXL3 rows individually; no new T2 EXL3 path",
+    "executable_validation": "not executed; static review is not numerical or formal proof"
+  }
+}

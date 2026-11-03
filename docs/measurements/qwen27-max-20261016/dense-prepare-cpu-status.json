@@ -1,0 +1,102 @@
+{
+  "state": "cpu_complete_gpu_not_started",
+  "date": "2026-10-16",
+  "sources": [
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense_prepare.py",
+      "bytes": 12085,
+      "sha256": "05475c20b3762e53f4c2933375d4ef647694e25eaf948d531d13e28724006d4b"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/test_dense_prepare.py",
+      "bytes": 3645,
+      "sha256": "d836d1b1458e826b8c2263410d4e48999d23e043d704507e2406f4c1a7fff0de"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense-prepare-source/mlx/backend/metal/hadamard.cpp",
+      "bytes": 6092,
+      "sha256": "8168395b79f20dbc288af883d8865ff4a32c4e2f52772f0a6fb6bd33fd67ca19"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense-prepare-source/mlx/backend/metal/compiled.cpp",
+      "bytes": 14716,
+      "sha256": "ad0c1b874d0d006f09ae566c00289ee8604ee4676857ddfdf699e24d1d4de446"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense-prepare-source/mlx/backend/metal/kernels/binary_ops.h",
+      "bytes": 7631,
+      "sha256": "2dd13c2496f5d6f0856e4ca99db2ceb5c6d7dc0c344b9ba8e41ef3b7d7ed8a97"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense-prepare-source/mlx/backend/metal/kernels/unary_ops.h",
+      "bytes": 9326,
+      "sha256": "0a5492b65ae39ecb6d8b04e64ea5007e0a4ff60d8d9428559bfbfd03387ece2a"
+    },
+    {
+      "path": "/tmp/mlxl3-q27-max-20261016/dense-prepare-source/mlx/backend/metal/kernels/hadamard.h",
+      "bytes": 4959,
+      "sha256": "9c4b749b4d2985203416c2da42dbdf7d59070c6c49c81f6112907b6ce407edc5"
+    }
+  ],
+  "installed_header_comparison": [
+    {
+      "local": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/binary_ops.h",
+      "sha256": "2dd13c2496f5d6f0856e4ca99db2ceb5c6d7dc0c344b9ba8e41ef3b7d7ed8a97",
+      "equals_pinned_source": true
+    },
+    {
+      "local": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/unary_ops.h",
+      "sha256": "0a5492b65ae39ecb6d8b04e64ea5007e0a4ff60d8d9428559bfbfd03387ece2a",
+      "equals_pinned_source": true
+    },
+    {
+      "local": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx/include/mlx/backend/metal/kernels/hadamard.h",
+      "sha256": "9c4b749b4d2985203416c2da42dbdf7d59070c6c49c81f6112907b6ce407edc5",
+      "equals_pinned_source": true
+    }
+  ],
+  "commands": [
+    {
+      "command": ".venv/bin/ruff format dense_prepare.py test_dense_prepare.py",
+      "exit_code": 0,
+      "result": "2 files formatted initially; final both formatted"
+    },
+    {
+      "command": ".venv/bin/ruff check --select E,F,I,B,UP,SIM,PLW dense_prepare.py test_dense_prepare.py",
+      "first_exit_code": 1,
+      "first_diagnostics": [
+        "E402 imports following sys.path insert",
+        "E501 scope string"
+      ],
+      "fix": "benchmark imports moved inside run and string split",
+      "final_exit_code": 0,
+      "result": "All checks passed"
+    },
+    {
+      "command": ".venv/bin/python -m pytest -q test_dense_prepare.py",
+      "exit_code": 0,
+      "passed": 7,
+      "skipped": 0,
+      "seconds": 0.01
+    },
+    {
+      "command": ".venv/bin/python -m py_compile dense_prepare.py test_dense_prepare.py",
+      "exit_code": 0
+    },
+    {
+      "command": ".venv/bin/python -m crosshair check dense_prepare.py --analysis_kind=asserts",
+      "exit_code": 1,
+      "diagnostic": "No module named crosshair",
+      "property_status": "not_verified"
+    }
+  ],
+  "coverage": [
+    "M1/M2/H17408 and bad types/bounds",
+    "source mutation refuses absent/duplicate rounding marker",
+    "requires all64 denseEXL3down records and exact dimensions/codebook",
+    "divergence/timeout/KeyboardInterrupt save failed/parityfalse",
+    "CLI refuses overwrite and other pair count"
+  ],
+  "verification_limit": "Python sampled CPU tests only; no formal proof, no MSL/GPU execution, no speed measured",
+  "pending_gpu": "parent alone launches after lane16 and frozen identity; candidate starts with actual MLX independent oracle and stops on first mismatch"
+}

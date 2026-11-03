@@ -1,0 +1,50 @@
+"""Disposable parent runner: own one process group and always reap it."""
+
+import json
+import math
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+
+
+def execute(command, log, timeout):
+    if not math.isfinite(timeout) or timeout <= 0 or not command:
+        raise ValueError("positive timeout and nonempty command required")
+    status = {"status": "running", "parity": False, "command": command, "timeout_seconds": timeout}
+    path = Path(str(log) + ".status.json")
+    if path.exists() or Path(log).exists():
+        raise FileExistsError("preserve previous stage evidence")
+    path.write_text(json.dumps(status, indent=2) + "\n")
+    child = None
+    started = time.monotonic()
+    try:
+        with Path(log).open("w") as output:
+            child = subprocess.Popen(
+                command, stdout=output, stderr=subprocess.STDOUT, start_new_session=True
+            )
+            status["pid"] = child.pid
+            path.write_text(json.dumps(status, indent=2) + "\n")
+            try:
+                code = child.wait(timeout=timeout)
+            except BaseException:
+                os.killpg(child.pid, signal.SIGTERM)
+                try:
+                    child.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait(timeout=5)
+                raise
+        if code != 0:
+            raise RuntimeError(f"child exited {code}")
+        status["status"] = "process_complete"
+        return status
+    except BaseException as error:
+        status.update(status="failed", parity=False, error=repr(error))
+        raise
+    finally:
+        status["seconds"] = time.monotonic() - started
+        if child is not None:
+            status.update(exit_code=child.poll(), reaped=child.poll() is not None)
+        path.write_text(json.dumps(status, indent=2) + "\n")

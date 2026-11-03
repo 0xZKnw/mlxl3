@@ -391,12 +391,16 @@ mod native {
     }
 
     impl Cache {
-        /// Only saved prefill checkpoints are detached, never rollback snapshots.
-        pub fn compact_for_cache(self) -> Result<Self> {
-            Ok(Self {
-                keys: self.keys.compact_for_cache()?,
-                values: self.values.compact_for_cache()?,
-            })
+        pub fn compact_for_cache(mut self) -> Result<Self> {
+            self.keys = self.keys.compact_for_cache()?;
+            self.values = self.values.compact_for_cache()?;
+            Ok(self)
+        }
+        pub fn retained_bytes(&self) -> Result<usize> {
+            self.keys
+                .retained_bytes()?
+                .checked_add(self.values.retained_bytes()?)
+                .context("MTP cache size overflow")
         }
     }
 
@@ -784,24 +788,28 @@ mod native {
 
     pub struct Session {
         depth: usize,
+        adaptive: Option<crate::memory_policy::AdaptiveMtp>,
         pending: VecDeque<u32>,
         history: Vec<u32>,
         pub proposed: usize,
         pub accepted: usize,
         pub blocks: usize,
         pub lookup_blocks: usize,
+        pub depth_blocks: [usize; 4],
     }
 
     impl Default for Session {
         fn default() -> Self {
             Self {
                 depth: 1,
+                adaptive: None,
                 pending: VecDeque::new(),
                 history: Vec::new(),
                 proposed: 0,
                 accepted: 0,
                 blocks: 0,
                 lookup_blocks: 0,
+                depth_blocks: [0; 4],
             }
         }
     }
@@ -813,6 +821,28 @@ mod native {
                 depth,
                 ..Default::default()
             })
+        }
+
+        pub fn enable_adaptive(&mut self) {
+            self.adaptive = Some(crate::memory_policy::AdaptiveMtp::default());
+        }
+
+        #[cfg(test)]
+        pub(crate) fn force_depth_for_check(&mut self, depth: usize) {
+            assert!(depth <= 3);
+            self.depth = depth;
+            self.enable_adaptive();
+        }
+
+        fn observe_block(&mut self, started: std::time::Instant, committed: usize) {
+            self.depth_blocks[self.depth] = self.depth_blocks[self.depth].saturating_add(1);
+            if let Some(policy) = &mut self.adaptive {
+                policy.observe(
+                    self.depth,
+                    started.elapsed().as_nanos().min(u64::MAX as u128) as u64,
+                    committed,
+                );
+            }
         }
 
         /// Seed once after prefill. Only committed target inputs are remembered.
@@ -849,20 +879,38 @@ mod native {
             if let Some(next) = self.pending.pop_front() {
                 return Ok(next);
             }
+            if let Some(policy) = &mut self.adaptive {
+                self.depth = policy.next(self.depth);
+            }
+            let started = std::time::Instant::now();
             let remaining = context_limit
                 .checked_sub(usize::try_from(target.offset())?)
                 .context("MTP context exhausted")?;
-            let width = crate::speculative::mtp_width(self.depth, remaining, output_remaining)
-                .context("MTP depth or budget exhausted")?;
+            let width = if self.depth == 0 && self.adaptive.is_some() {
+                crate::speculative::bounded_proposals(remaining, output_remaining).map(|_| 0)
+            } else {
+                crate::speculative::mtp_width(self.depth, remaining, output_remaining)
+            }
+            .context("MTP depth or budget exhausted")?;
             let hidden = target.mtp_hidden()?.try_clone()?;
             if width == 0 {
+                // Pair the previous trunk hidden with this committed input.
+                // Required before resuming speculative decoding after D0.
+                if self.adaptive.is_some() {
+                    head.append_cache(target, &hidden, &[anchor])?;
+                }
                 let logits = target.forward(anchor)?;
                 self.remember(&[anchor]);
-                return logits
+                let next = logits
                     .chat_greedy_ids()?
                     .last()
                     .copied()
-                    .context("missing MTP fallback token");
+                    .context("missing MTP fallback token")?;
+                if self.adaptive.is_some() {
+                    head.eval_cache()?;
+                }
+                self.observe_block(started, 1);
+                return Ok(next);
             }
             let lookup =
                 crate::speculative::prompt_lookup(&self.history, anchor, width, allow_lookup);
@@ -916,6 +964,7 @@ mod native {
             self.accepted += accepted.accepted_draft_tokens;
             self.blocks += 1;
             self.lookup_blocks += usize::from(is_lookup);
+            self.observe_block(started, retained);
             self.pending.pop_front().context("missing MTP target token")
         }
     }
@@ -983,7 +1032,7 @@ mod native {
                 let expected = bytes(&complete)?;
                 let expected_prediction = head.hidden(&target, &probe, &[37])?.to_bytes()?;
                 match initial {
-                    Some(cache) => head.restore(cache.compact_for_cache()?)?,
+                    Some(cache) => head.restore(cache)?,
                     None => head.reset()?,
                 }
                 head.extend_cache(&target, &hidden, &tokens)?;

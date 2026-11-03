@@ -1,0 +1,4 @@
+set -e
+FLASH_CONTROL_PHASE=before bash docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/controls-lfu-v6-command.txt
+bash docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/speed-lfu-v6-command.txt
+FLASH_CONTROL_PHASE=after bash docs/measurements/flash-next-ssd-impl/opt-64-unique-cohort/controls-lfu-v6-command.txt

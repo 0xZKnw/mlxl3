@@ -1,0 +1,270 @@
+{
+  "status": "pilot_complete_decision_pending_adaptation_audit",
+  "processes": 12,
+  "measured_rows": 24,
+  "warmup_rows": 24,
+  "peak_native_lifetime_bytes": 7881677376,
+  "modes": {
+    "AR": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 10.413437610586723,
+            "prefill_tps": 10.150842837169323,
+            "mean_ttft_seconds": 8.571209458999999,
+            "decode_tps_range": [
+              10.18566407053822,
+              10.651631185960454
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 10.461347178282828,
+            "prefill_tps": 10.09987626354846,
+            "mean_ttft_seconds": 8.614471625499998,
+            "decode_tps_range": [
+              10.457455309791976,
+              10.465241944664038
+            ]
+          }
+        },
+        "decode_delta_percent": 0.4600744680834268,
+        "prefill_delta_percent": -0.5020920374635196,
+        "ttft_delta_percent": 0.5047381785142857
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 10.23223138539522,
+            "prefill_tps": 10.069125879639074,
+            "mean_ttft_seconds": 8.144112937500001,
+            "decode_tps_range": [
+              10.092577211316554,
+              10.375804667109831
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 10.207064416368338,
+            "prefill_tps": 10.235128251820955,
+            "mean_ttft_seconds": 8.0120616035,
+            "decode_tps_range": [
+              10.168425930296971,
+              10.245997663334562
+            ]
+          }
+        },
+        "decode_delta_percent": -0.24595777869921287,
+        "prefill_delta_percent": 1.6486274396227074,
+        "ttft_delta_percent": -1.6214329910869019
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "rows": 4,
+            "decode_tps": 10.32203927803335,
+            "prefill_tps": 10.11102818853809,
+            "mean_ttft_seconds": 8.35766119825,
+            "decode_tps_range": [
+              10.092577211316554,
+              10.651631185960454
+            ]
+          },
+          "C": {
+            "rows": 4,
+            "decode_tps": 10.33264158125821,
+            "prefill_tps": 10.165052177388308,
+            "mean_ttft_seconds": 8.3132666145,
+            "decode_tps_range": [
+              10.168425930296971,
+              10.465241944664038
+            ]
+          }
+        },
+        "decode_delta_percent": 0.10271519938336304,
+        "prefill_delta_percent": 0.534307568358483,
+        "ttft_delta_percent": -0.5311842954258017
+      },
+      "baseline_drift_percent": {
+        "MAIN": -4.374608050984808,
+        "HOLD": -2.729691478204843
+      }
+    },
+    "MTP": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 11.050266006875875,
+            "prefill_tps": 9.863627927474836,
+            "mean_ttft_seconds": 8.820897063,
+            "decode_tps_range": [
+              10.953201615981031,
+              11.149066097271279
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 11.138335575147304,
+            "prefill_tps": 9.869018812809795,
+            "mean_ttft_seconds": 8.8160449995,
+            "decode_tps_range": [
+              11.117155395674713,
+              11.159596612767778
+            ]
+          }
+        },
+        "decode_delta_percent": 0.7969904816465867,
+        "prefill_delta_percent": 0.05465418378103326,
+        "ttft_delta_percent": -0.05500646323548519
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 10.17888320208194,
+            "prefill_tps": 9.856849149886942,
+            "mean_ttft_seconds": 8.3196101455,
+            "decode_tps_range": [
+              10.080880378098344,
+              10.278810231477589
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 10.237114975857693,
+            "prefill_tps": 9.896376514507752,
+            "mean_ttft_seconds": 8.286406771,
+            "decode_tps_range": [
+              10.207761435511538,
+              10.266637821725837
+            ]
+          }
+        },
+        "decode_delta_percent": 0.5720841139413402,
+        "prefill_delta_percent": 0.4010141985510973,
+        "ttft_delta_percent": -0.3990977211589697
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "rows": 4,
+            "decode_tps": 10.596690986416386,
+            "prefill_tps": 9.860337652384882,
+            "mean_ttft_seconds": 8.57025360425,
+            "decode_tps_range": [
+              10.080880378098344,
+              11.149066097271279
+            ]
+          },
+          "C": {
+            "rows": 4,
+            "decode_tps": 10.66872687903254,
+            "prefill_tps": 9.882274048089952,
+            "mean_ttft_seconds": 8.55122588525,
+            "decode_tps_range": [
+              10.207761435511538,
+              11.159596612767778
+            ]
+          }
+        },
+        "decode_delta_percent": 0.6797961052982915,
+        "prefill_delta_percent": 0.222471039820471,
+        "ttft_delta_percent": -0.22202048945861863
+      },
+      "baseline_drift_percent": {
+        "MAIN": 1.7881938830056399,
+        "HOLD": 1.96341833208602
+      }
+    },
+    "DF": {
+      "MAIN": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 11.735541150879332,
+            "prefill_tps": 10.224517852333534,
+            "mean_ttft_seconds": 8.5094506455,
+            "decode_tps_range": [
+              11.603888740623525,
+              11.870215179000573
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 11.7133674423153,
+            "prefill_tps": 10.18286091954482,
+            "mean_ttft_seconds": 8.5443526875,
+            "decode_tps_range": [
+              11.600075786455449,
+              11.828893840143236
+            ]
+          }
+        },
+        "decode_delta_percent": -0.18894491765614196,
+        "prefill_delta_percent": -0.4074219771566634,
+        "ttft_delta_percent": 0.41015623045486116
+      },
+      "HOLD": {
+        "arms": {
+          "A": {
+            "rows": 2,
+            "decode_tps": 11.18814482411293,
+            "prefill_tps": 10.178491143428383,
+            "mean_ttft_seconds": 8.0566654585,
+            "decode_tps_range": [
+              11.094886134058093,
+              11.28298458629823
+            ]
+          },
+          "C": {
+            "rows": 2,
+            "decode_tps": 11.254292443631003,
+            "prefill_tps": 8.923625147394205,
+            "mean_ttft_seconds": 9.189600062,
+            "decode_tps_range": [
+              11.25130353438881,
+              11.257282941302888
+            ]
+          }
+        },
+        "decode_delta_percent": 0.5912295609144191,
+        "prefill_delta_percent": -12.328605275098825,
+        "ttft_delta_percent": 14.062078279602929
+      },
+      "ALL": {
+        "arms": {
+          "A": {
+            "rows": 4,
+            "decode_tps": 11.455307329598787,
+            "prefill_tps": 10.202133493005213,
+            "mean_ttft_seconds": 8.283058052000001,
+            "decode_tps_range": [
+              11.094886134058093,
+              11.870215179000573
+            ]
+          },
+          "C": {
+            "rows": 4,
+            "decode_tps": 11.479241973291796,
+            "prefill_tps": 9.530330386123127,
+            "mean_ttft_seconds": 8.86697637475,
+            "decode_tps_range": [
+              11.25130353438881,
+              11.828893840143236
+            ]
+          }
+        },
+        "decode_delta_percent": 0.20893934142793835,
+        "prefill_delta_percent": -6.5849276265860235,
+        "ttft_delta_percent": 7.049550046422848
+      },
+      "baseline_drift_percent": {
+        "MAIN": 2.295148155330695,
+        "HOLD": 1.6953617186095338
+      }
+    }
+  }
+}

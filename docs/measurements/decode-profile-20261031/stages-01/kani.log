@@ -1,0 +1,674 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:658:17
+    |
+658 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:780:29
+    |
+780 |                     None => assert!(!(2..24).contains(&rows)),
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:811:17
+    |
+811 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:844:21
+    |
+844 |             None => assert!(!(1..=8).contains(&time)),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/flash_support.rs:494:25
+    |
+494 |                 None => assert!(!(10..=512).contains(&capacity)),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `step`
+    --> native/src/flash_support.rs:1567:17
+     |
+1567 |               for step in 0..10_000 {
+     |                   ^^^^
+...
+1593 | /                             assert!(
+1594 | |                                 !(free && matches!(slots[slot], Slot::Ready(_))),
+1595 | |                                 "free slot ignored: capacity={capacity}, step={step}"
+1596 | |                             );
+     | |_____________________________- you might have meant to use string interpolation in this string literal
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+help: if this is intentional, prefix it with an underscore
+     |
+1567 |             for _step in 0..10_000 {
+     |                 +
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Kani currently does not support concurrency. The following constructs will be treated as sequential operations:
+             - thread local (replaced by static variable) (1)
+         
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.67s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 6`
+Checking harness flash_profile::stage_retention_restores_symbolic_nested_scopes...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/d71fc51f9571628b/out/mlxl3_native-d71fc51f9571628b__RNvNtCs6eYgyRC0yTY_12mlxl3_native13flash_profile47stage_retention_restores_symbolic_nested_scopes.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 428 column 15 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 386 column 5 function std::thread::local::panic_access_error thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 430 column 25 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 428 column 15 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 386 column 5 function std::thread::local::panic_access_error thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 430 column 25 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 428 column 15 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 386 column 5 function std::thread::local::panic_access_error thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 430 column 25 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 428 column 15 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 386 column 5 function std::thread::local::panic_access_error thread 0
+aborting path on assume(false) at file /Users/runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs line 430 column 25 function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool> thread 0
+Runtime Symex: 0.047495s
+size of program expression: 3792 steps
+slicing removed 2413 assignments
+Generated 287 VCC(s), 24 remaining after simplification
+Runtime Postprocess Equation: 0.000359375s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00331183s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.3167e-05s
+Solving with CaDiCaL 3.0.0
+13419 variables, 13859 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000124333s
+Runtime decision procedure: 0.00355029s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13420 variables, 13860 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.8083e-05s
+Runtime decision procedure: 9.7875e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13421 variables, 13861 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.6041e-05s
+Runtime decision procedure: 8.9625e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13422 variables, 13862 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.7791e-05s
+Runtime decision procedure: 0.000103292s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13423 variables, 13863 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.4e-05s
+Runtime decision procedure: 8.7417e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13424 variables, 13864 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.0375e-05s
+Runtime decision procedure: 9.3333e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13425 variables, 13865 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.3708e-05s
+Runtime decision procedure: 9.6916e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13426 variables, 13866 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.1417e-05s
+Runtime decision procedure: 9.6584e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+13427 variables, 13867 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 9.5e-06s
+Runtime decision procedure: 3.4167e-05s
+
+RESULTS:
+Check 1: std::thread::LocalKey::<std::cell::Cell<bool>>::set::{closure#0}.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:525:48 in function std::thread::LocalKey::<std::cell::Cell<bool>>::set::{closure#0}
+
+Check 2: std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:428:15 in function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 3: std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:428:15 in function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 4: <std::result::Result<bool, std::thread::AccessError> as std::ops::FromResidual<std::result::Result<std::convert::Infallible, std::thread::AccessError>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:2192:15 in function <std::result::Result<bool, std::thread::AccessError> as std::ops::FromResidual<std::result::Result<std::convert::Infallible, std::thread::AccessError>>>::from_residual
+
+Check 5: std::thread::local::panic_access_error.assertion.1
+	 - Status: SUCCESS
+	 - Description: "This is a placeholder message; Kani doesn't support message formatted at runtime"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:386:5 in function std::thread::local::panic_access_error
+
+Check 6: <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:2177:15 in function <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch
+
+Check 7: <std::thread::local::LocalKey<core::cell::Cell<bool>>>::try_with::<<std::thread::local::LocalKey<core::cell::Cell<bool>>>::replace::{closure#0}, bool>.missing_definition.1
+	 - Status: SUCCESS
+	 - Description: "assertion"
+	 - Location: Unknown file in function <std::thread::local::LocalKey<core::cell::Cell<bool>>>::try_with::<<std::thread::local::LocalKey<core::cell::Cell<bool>>>::replace::{closure#0}, bool>
+
+Check 8: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 9: <std::thread::local::LocalKey<core::cell::Cell<bool>>>::initialize_with::<<std::thread::local::LocalKey<core::cell::Cell<bool>>>::set::{closure#0}, ()>.missing_definition.1
+	 - Status: SUCCESS
+	 - Description: "assertion"
+	 - Location: Unknown file in function <std::thread::local::LocalKey<core::cell::Cell<bool>>>::initialize_with::<<std::thread::local::LocalKey<core::cell::Cell<bool>>>::set::{closure#0}, ()>
+
+Check 10: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 11: flash_profile::stage_retention_restores_symbolic_nested_scopes.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: retain_test_stages()"
+	 - Location: native/src/flash_profile.rs:145:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 12: flash_profile::stage_retention_restores_symbolic_nested_scopes.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: retain_test_stages() == outer"
+	 - Location: native/src/flash_profile.rs:148:9 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 13: flash_profile::stage_retention_restores_symbolic_nested_scopes.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: retain_test_stages() == inner"
+	 - Location: native/src/flash_profile.rs:151:13 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 14: flash_profile::stage_retention_restores_symbolic_nested_scopes.assertion.4
+	 - Status: SUCCESS
+	 - Description: "assertion failed: retain_test_stages() == outer"
+	 - Location: native/src/flash_profile.rs:153:9 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 15: flash_profile::stage_retention_restores_symbolic_nested_scopes.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: retain_test_stages()"
+	 - Location: native/src/flash_profile.rs:155:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 16: flash_profile::stage_retention_restores_symbolic_nested_scopes.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: !outer && !inner"
+	 - Location: native/src/flash_profile.rs:156:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 17: flash_profile::stage_retention_restores_symbolic_nested_scopes.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: !outer && inner"
+	 - Location: native/src/flash_profile.rs:157:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 18: flash_profile::stage_retention_restores_symbolic_nested_scopes.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: outer && !inner"
+	 - Location: native/src/flash_profile.rs:158:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 19: flash_profile::stage_retention_restores_symbolic_nested_scopes.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: outer && inner"
+	 - Location: native/src/flash_profile.rs:159:5 in function flash_profile::stage_retention_restores_symbolic_nested_scopes
+
+Check 20: std::cell::Cell::<bool>::replace.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:516:31 in function std::cell::Cell::<bool>::replace
+
+Check 21: std::cell::Cell::<bool>::replace.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:516:31 in function std::cell::Cell::<bool>::replace
+
+Check 22: std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:270:57 in function std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>
+
+Check 23: std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:270:57 in function std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>
+
+Check 24: <std::thread::local::LocalKey<core::cell::Cell<bool>>>::try_with::<<core::cell::Cell<bool>>::get, bool>.missing_definition.1
+	 - Status: SUCCESS
+	 - Description: "assertion"
+	 - Location: Unknown file in function <std::thread::local::LocalKey<core::cell::Cell<bool>>>::try_with::<<core::cell::Cell<bool>>::get, bool>
+
+Check 25: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 26: std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1334:15 in function std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>
+
+Check 27: std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1334:15 in function std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>
+
+Check 28: std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1336:21 in function std::option::Option::<&std::cell::Cell<bool>>::ok_or::<std::thread::AccessError>
+
+Check 29: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 30: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 31: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 32: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 33: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 34: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 35: pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+
+Check 36: pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+
+Check 37: pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+
+Check 38: pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+
+Check 39: pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+
+Check 40: pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+
+Check 41: std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:486:19 in function std::thread::LocalKey::<std::cell::Cell<bool>>::initialize_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::set::{closure#0}}, ()>
+
+Check 42: std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:428:15 in function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 43: std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:428:15 in function std::thread::LocalKey::<std::cell::Cell<bool>>::with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 44: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 45: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 46: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 47: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 48: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 49: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 50: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:50 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 51: pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+
+Check 52: pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+
+Check 53: pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+
+Check 54: pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+
+Check 55: pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+
+Check 56: pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+
+Check 57: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<{closure@std::thread::LocalKey<std::cell::Cell<bool>>::replace::{closure#0}}, bool>
+
+Check 58: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 59: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 60: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 61: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 62: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 63: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 64: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:50 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 65: pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+
+Check 66: pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+
+Check 67: pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+
+Check 68: pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+
+Check 69: pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+
+Check 70: pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+
+Check 71: std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:37 in function std::thread::LocalKey::<std::cell::Cell<bool>>::try_with::<for<'a> fn(&'a std::cell::Cell<bool>) -> bool {std::cell::Cell::<bool>::get}, bool>
+
+Check 72: std::mem::replace::<bool>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 73: std::mem::replace::<bool>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 74: std::mem::replace::<bool>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 75: std::mem::replace::<bool>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 76: std::mem::replace::<bool>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 77: std::mem::replace::<bool>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:975:22 in function std::mem::replace::<bool>
+
+Check 78: std::mem::replace::<bool>.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 79: std::mem::replace::<bool>.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 80: std::mem::replace::<bool>.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 81: std::mem::replace::<bool>.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 82: std::mem::replace::<bool>.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 83: std::mem::replace::<bool>.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/mem/mod.rs:976:49 in function std::mem::replace::<bool>
+
+Check 84: std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:270:29 in function std::ptr::const_ptr::<impl *const std::cell::Cell<bool>>::as_ref::<'_>
+
+Check 85: std::cell::Cell::<bool>::get.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 86: std::cell::Cell::<bool>::get.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 87: std::cell::Cell::<bool>::get.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 88: std::cell::Cell::<bool>::get.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 89: std::cell::Cell::<bool>::get.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 90: std::cell::Cell::<bool>::get.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell.rs:558:18 in function std::cell::Cell::<bool>::get
+
+Check 91: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 92: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 93: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 94: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 95: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 96: <flash_profile::StageRetention as std::ops::Drop>::drop.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_profile.rs:98:32 in function <flash_profile::StageRetention as std::ops::Drop>::drop
+
+Check 97: <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:2177:15 in function <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch
+
+Check 98: <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:2179:23 in function <std::result::Result<&std::cell::Cell<bool>, std::thread::AccessError> as std::ops::Try>::branch
+
+Check 99: <std::result::Result<bool, std::thread::AccessError> as std::ops::FromResidual<std::result::Result<std::convert::Infallible, std::thread::AccessError>>>::from_residual.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:2193:23 in function <std::result::Result<bool, std::thread::AccessError> as std::ops::FromResidual<std::result::Result<std::convert::Infallible, std::thread::AccessError>>>::from_residual
+
+
+SUMMARY:
+ ** 0 of 95 failed
+
+ ** 4 of 4 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.21066329s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

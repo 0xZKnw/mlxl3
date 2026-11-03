@@ -1,0 +1,46 @@
+{
+  "status": "completed_read_only_before_t17_resume",
+  "date": "2026-10-30",
+  "repository": "0xZKnw/mlxl3",
+  "new_issues_after_60": [],
+  "new_pull_requests": [
+    {
+      "number": 61,
+      "head": "a36ba5077bf386466660d6b478058fbe6880245c",
+      "draft": true,
+      "decision": "Do not import wholesale. Retain local T17 F32 and direct per-row inputs.",
+      "findings": [
+        "Two F16 norm guards prevent T17 execution with real Flash F32 norm output; real integration counter would detect this, but physical tests were not run.",
+        "Multi-row path concatenates F32 normals before fallback. Synthetic oracle uses F16 normals.",
+        "Adopt staged focused smoke/qualification/confirmation protocol prospectively without weakening exactness or removing final checks."
+      ]
+    },
+    {
+      "number": 62,
+      "head": "16c765aade25ad6ff85f974aa6da16e3d93ae4df",
+      "draft": true,
+      "decision": "Compatibility/recovery work separate from T17 comparison; no blocker on current M5/macOS27.2/raw affineQ4 draft.",
+      "ci": "Exact-head Native Linux/macOS pass, global Kani failure and Flash cancelled; not globally green."
+    },
+    {
+      "number": 63,
+      "head": "01c678ebcbb67b52ffbfa7fb98480edeb44400d3",
+      "draft": true,
+      "decision": "CI repair remains incomplete. Preserve local Kissat PATH/test-only and T05/T17 proofs if later integrated.",
+      "ci": {
+        "run": "https://github.com/0xZKnw/mlxl3/actions/runs/41109151863",
+        "library_passed": 318,
+        "library_required": 322,
+        "api_passed": 2,
+        "remaining": "4timeouts600s: sidecar_collection, grouping8, grouping80, two_routes",
+        "native_linux": "success",
+        "native_macos": "success",
+        "global": "failure",
+        "limits": "CPU evidence; current PR body refers to earlier heads/verdicts."
+      }
+    }
+  ],
+  "local_state": "T17 prototype written, no compiled/physical result yet; test submodules absent before resume; source changes preserved.",
+  "mutation_actions": "No GitHub comments, edits, merge, push, rerun or cancellation.",
+  "review_scope": "triage and source comparison, not a whole-PR formal review"
+}

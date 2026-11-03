@@ -1,0 +1,62 @@
+{
+  "status": "failed",
+  "kind": "sampled integration checks through production Swift release selector; synthetic publication fixture is not evidence of actual publication",
+  "cases": [
+    {
+      "name": "actual-draft-ignored",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "synthetic-published",
+      "expected_returncode": 0,
+      "returncode": 1,
+      "passed": false,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "draft-ignored",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-digest",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-size",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "wrong-build",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    },
+    {
+      "name": "missing-engine",
+      "expected_returncode": 1,
+      "returncode": 1,
+      "passed": true,
+      "stdout": "",
+      "stderr": "Unexpected Desktop release, build, asset size or digest\n"
+    }
+  ]
+}

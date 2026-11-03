@@ -1,0 +1,60 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+warning: unused import: `Context`
+ --> native/src/flash_cache_profile/shared.rs:4:14
+  |
+4 | use anyhow::{Context, Result, ensure};
+  |              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: the trait bound `[[u64; 3]; 48]: serde::Serialize` is not satisfied
+   --> native/src/flash_cache_profile/shared.rs:193:24
+    |
+193 | ...sh(serde_json::json!({"policy":format!("{policy:?}"),"floor":floor,"phases_prefill_decode_layers":phases,"second_decode_jobs":jobs,"read_reduction_percent":reduction,"eligible_for_current_trace_validation":reduction>=1.0,"slots_by_layer_after":pool.resident}));
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |       |
+    |       the trait `Serialize` is not implemented for `[[u64; 3]; 48]`
+    |       required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `[[u64; 3]; 48]` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `Serialize`:
+              [T; 0]
+              [T]
+              [T; 1]
+              [T; 2]
+              [T; 3]
+              [T; 4]
+              [T; 5]
+              [T; 6]
+            and 26 others
+    = note: required for `Vec<[[u64; 3]; 48]>` to implement `Serialize`
+    = note: 2 redundant requirements hidden
+    = note: required for `&Vec<Vec<[[u64; 3]; 48]>>` to implement `Serialize`
+note: required by a bound in `to_value`
+   --> /Users/justin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/value/mod.rs:997:8
+    |
+995 | pub fn to_value<T>(value: T) -> Result<Value, Error>
+    |        -------- required by a bound in this function
+996 | where
+997 |     T: Serialize,
+    |        ^^^^^^^^^ required by this bound in `to_value`
+    = note: this error originates in the macro `$crate::json_internal` which comes from the expansion of the macro `serde_json::json` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `std::fs::File: AsRef<std::path::Path>` is not satisfied
+   --> native/src/flash_cache_profile/shared.rs:203:9
+    |
+202 |       fs::write(
+    |       --------- required by a bound introduced by this call
+203 | /         fs::OpenOptions::new()
+204 | |             .write(true)
+205 | |             .create_new(true)
+206 | |             .open(output)?,
+    | |__________________________^ the trait `AsRef<std::path::Path>` is not implemented for `std::fs::File`
+    |
+note: required by a bound in `std::fs::write`
+   --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/fs.rs:419:0
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `mlxl3-native` (lib test) generated 1 warning
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors; 1 warning emitted

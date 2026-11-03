@@ -1,0 +1,229 @@
+"""Trial50: fresh bridge per sample, bounded memory, fixed HCCH comparisons."""
+
+import hashlib
+import json
+import math
+import re
+import runpy
+import sys
+from pathlib import Path
+
+MAX_FOOTPRINT = 12_000_000_000
+BASE = Path(__file__).resolve().parent
+FLASH = "scripts/benchmark-flash-bridge.py"
+
+
+def check_event(event, mode, mtp, budget, golden):
+    runpy.run_path(FLASH)["validate"](event, mode, mtp, budget)
+    assert (event["token_hash"], event["cache_context"]) == (
+        golden["token_hash"],
+        golden["cache_context"],
+    ), "golden output divergence"
+    peak = event["stats"]["memory"]["process_lifetime_peak_bytes"]
+    assert type(peak) is int and 0 < peak <= MAX_FOOTPRINT, "process footprint limit"
+
+
+def generate(engine, model, dest, mode, prompt, cache, golden):
+    assert mode in ("baseline", "mtp") and prompt in ("MAIN", "HOLD")
+    assert cache in (3, 4, 5, 6)
+    api = runpy.run_path(FLASH)
+    reference = json.loads(Path(golden).read_text())
+    api["run"].__globals__["validate"] = lambda event, active, mtp, budget: check_event(
+        event, active, mtp, budget, reference
+    )
+    return api["run"](
+        Path(engine),
+        Path(model),
+        Path(dest),
+        mtp=mode == "mtp",
+        tokens=128,
+        repeats=1,
+        timeout=120,
+        cache_gib=cache,
+        prompt=prompt,
+    )
+
+
+def native_footprint(text):
+    values = re.findall(r"(?m)^\s*(\d+)\s+peak memory footprint\s*$", text)
+    assert len(values) == 1, "missing/duplicate native footprint"
+    peak = int(values[0])
+    assert 0 < peak <= MAX_FOOTPRINT, "native footprint limit"
+    return peak
+
+
+def check_report(data, item, stderr, golden):
+    assert data["status"] == "validated" and data["tokens"] == 128 and data["repeats"] == 1
+    assert all(data[k] == item[k] for k in ("engine", "model", "binary_sha256"))
+    assert data["expert_cache_gib"] == item["cache_gib"]
+    assert len(data["warmup"]) == len(data["runs"]) == 1
+    rows = data["warmup"] + data["runs"]
+    assert [r["repeat"] for r in rows] == [0, 1]
+    counts = []
+    for row in rows:
+        assert row["mode"] == item["mode"] and row["prompt"] == item["prompt"]
+        mtp = item["mode"] == "mtp"
+        check_event(
+            {"stats": row["stats"], "token_hash": row["token_hash"], "cache_context": row["text"]},
+            {"mtp_active": mtp, "dflash_active": False},
+            mtp,
+            128,
+            golden,
+        )
+        counts.append(
+            [
+                row["stats"].get(k)
+                for k in ("mtp_proposed_tokens", "mtp_accepted_tokens", "mtp_blocks")
+            ]
+        )
+    assert counts[0] == counts[1], "MTP counters differ after warmup"
+    times = [r["stats"]["decode_tps"] for r in rows]
+    assert max(times) / min(times) <= 1.25, "warmup drift"
+    banks = re.findall(
+        r"(?m)^Flash Next: loading layer (\d+)/48, (\d+) exact expert slots$", stderr
+    )
+    slots = {3: 53, 4: 71, 5: 89, 6: 107}[item["cache_gib"]]
+    assert [(int(l), int(s)) for l, s in banks] == [(l, slots) for l in range(1, 49)], (
+        "bank allocation differs"
+    )
+    return {
+        **{k: item[k] for k in ("mode", "prompt", "label", "index", "cache_gib")},
+        "status": "validated",
+        "tps": times[1],
+        "peak_bytes": max(r["stats"]["memory"]["process_lifetime_peak_bytes"] for r in rows),
+        "token_hash": rows[0]["token_hash"],
+        "text": rows[0]["text"],
+        "mtp_counts": counts[0],
+    }
+
+
+def qualify(records, mode):
+    assert mode in ("baseline", "mtp")
+    expected = [(p, i, label) for p in ("MAIN", "HOLD") for i, label in enumerate("HCCH")]
+    assert len(records) == 8
+    assert [(r["prompt"], r["index"], r["label"]) for r in records] == expected
+    assert len({r["cache_gib"] for r in records if r["label"] == "C"}) == 1
+    assert all(
+        r["mode"] == mode
+        and r["status"] == "validated"
+        and r["swapouts_bytes"] == 0
+        and type(r["tps"]) in (int, float)
+        and math.isfinite(r["tps"])
+        and r["tps"] > 0
+        and type(r["peak_bytes"]) is int
+        and 0 < r["peak_bytes"] <= MAX_FOOTPRINT
+        for r in records
+    )
+    pairs, drifts = [], {}
+    for prompt, group in zip(("MAIN", "HOLD"), (records[:4], records[4:]), strict=True):
+        assert all(
+            (r["token_hash"], r["text"], r["mtp_counts"])
+            == (group[0]["token_hash"], group[0]["text"], group[0]["mtp_counts"])
+            for r in group
+        )
+        gains = []
+        for a, b in (group[:2], group[2:]):
+            h, c = (a, b) if a["label"] == "H" else (b, a)
+            assert h["cache_gib"] == 3 and c["cache_gib"] in (4, 5, 6)
+            assert c["cache_gib"] == group[1]["cache_gib"]
+            gain = 100 * (c["tps"] / h["tps"] - 1)
+            gains.append(gain)
+            pairs.append(
+                {"prompt": prompt, "H_tps": h["tps"], "C_tps": c["tps"], "gain_percent": gain}
+            )
+        controls = [group[0]["tps"], group[3]["tps"]]
+        drifts[prompt] = {
+            "control_percent": 100 * (max(controls) / min(controls) - 1),
+            "gain_spread_points": max(gains) - min(gains),
+        }
+    stable = all(
+        v["control_percent"] <= 5 and v["gain_spread_points"] <= 3 for v in drifts.values()
+    )
+    gain = stable and all(p["gain_percent"] >= 1 for p in pairs)
+    return {
+        "status": "validated_gain" if gain else "rejected_gain" if stable else "inconclusive_drift",
+        "confirmed_gain": gain,
+        "pairs": pairs,
+        "drifts": drifts,
+    }
+
+
+def main(mode):
+    assert mode in ("baseline", "mtp")
+    output = BASE / (mode + "-result.json")
+    assert not output.exists(), "refusing to overwrite results"
+    result = {"status": "incomplete", "confirmed_gain": False, "records": []}
+    output.write_text(json.dumps(result, indent=2) + "\n")
+    try:
+        matrix = json.loads((BASE / (mode + "-matrix.json")).read_text())
+        identity = json.loads((BASE / "speed-identity.json").read_text())
+        quality = json.loads((BASE / "quality-summary.json").read_text())
+        assert quality["status"] == "validated_quality_not_speed"
+        assert len(matrix) == 8 and identity
+        assert [(i["prompt"], i["index"], i["label"]) for i in matrix] == [
+            (p, n, label) for p in ("MAIN", "HOLD") for n, label in enumerate("HCCH")
+        ], "unexpected schedule"
+        supervise = runpy.run_path(
+            "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt"
+        )["main"]
+        snapshot = runpy.run_path(
+            "docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt"
+        )["snapshot"]
+        for item in matrix:
+            assert item["mode"] == mode and item["cache_gib"] in (3, quality["cache_gib"])
+            for path, sha in identity.items():
+                assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == sha, path
+            record = {**item, "status": "running", "system_before": snapshot()}
+            result["records"].append(record)
+            output.write_text(json.dumps(result, indent=2) + "\n")
+            plan = BASE / item["plan"]
+            supervise(plan)
+            process = json.loads(plan.with_name(plan.stem + "-result.json").read_text())[
+                "commands"
+            ][0]
+            record.update(process=process, system_after=snapshot())
+            assert (
+                process["status"] == "completed_expected_outcome"
+                and process["reaped"]
+                and process["swapouts_bytes"] == 0
+            )
+            report = BASE / item["report"]
+            record.update(
+                check_report(
+                    json.loads(report.read_text()),
+                    item,
+                    report.with_name("stderr.log").read_text(),
+                    json.loads(Path(item["golden"]).read_text()),
+                )
+            )
+            record["swapouts_bytes"] = process["swapouts_bytes"]
+            output.write_text(json.dumps(result, indent=2) + "\n")
+            print(
+                {k: record[k] for k in ("mode", "prompt", "label", "index", "tps", "peak_bytes")},
+                flush=True,
+            )
+        result.update(qualify(result["records"], mode))
+    except BaseException as error:
+        result.update(status="failed_or_interrupted", confirmed_gain=False, error=repr(error))
+        if result["records"] and result["records"][-1]["status"] == "running":
+            record = result["records"][-1]
+            record.update(status="failed_or_interrupted", error=repr(error))
+            plan = BASE / record["plan"]
+            evidence = plan.with_name(plan.stem + "-result.json")
+            if evidence.exists():
+                record["process"] = json.loads(evidence.read_text())["commands"][0]
+        raise
+    finally:
+        output.write_text(json.dumps(result, indent=2) + "\n")
+        with Path("opti.md").open("a") as stream:
+            stream.write(
+                f"\n- 50 {mode} : **{result['status']}**, gain confirmé={result['confirmed_gain']} ; {output}.\n"
+            )
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "generate":
+        engine, model, dest, mode, prompt, cache, golden = sys.argv[2:]
+        generate(engine, model, dest, mode, prompt, int(cache), golden)
+    else:
+        main(sys.argv[1])

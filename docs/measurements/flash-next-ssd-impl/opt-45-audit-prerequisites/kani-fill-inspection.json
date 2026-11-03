@@ -1,0 +1,190 @@
+{
+  "status": "inspected_bounded_success",
+  "properties": 1249,
+  "unreachable_checks": [
+    {
+      "property": "core::num::<impl usize>::abs_diff.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "core::num::<impl usize>::abs_diff.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3182:21 in function core::num::<impl usize>::abs_diff\n"
+    },
+    {
+      "property": "core::num::<impl usize>::abs_diff.assertion.2",
+      "status": "UNREACHABLE",
+      "detail": "core::num::<impl usize>::abs_diff.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:3184:21 in function core::num::<impl usize>::abs_diff\n"
+    },
+    {
+      "property": "std::alloc::Global::grow_impl_runtime.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "std::alloc::Global::grow_impl_runtime.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/alloc.rs:354:58 in function std::alloc::Global::grow_impl_runtime\n"
+    },
+    {
+      "property": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"Cannot compute offset of a ZST\"\n\t - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n"
+    },
+    {
+      "property": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2",
+      "status": "UNREACHABLE",
+      "detail": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.2\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with a divisor of zero\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n"
+    },
+    {
+      "property": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3",
+      "status": "UNREACHABLE",
+      "detail": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.3\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to calculate the remainder with overflow\"\n\t - Location: library/kani_core/src/models.rs:93:25 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n"
+    },
+    {
+      "property": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4",
+      "status": "UNREACHABLE",
+      "detail": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.4\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide by zero\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n"
+    },
+    {
+      "property": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5",
+      "status": "UNREACHABLE",
+      "detail": "kani::rustc_intrinsics::ptr_offset_from::<()>.assertion.5\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to divide with overflow\"\n\t - Location: library/kani_core/src/models.rs:97:21 in function kani::rustc_intrinsics::ptr_offset_from::<()>\n"
+    },
+    {
+      "property": "std::vec::set_len_on_drop::SetLenOnDrop::<'_>::increment_len.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "std::vec::set_len_on_drop::SetLenOnDrop::<'_>::increment_len.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to add with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/vec/set_len_on_drop.rs:19:9 in function std::vec::set_len_on_drop::SetLenOnDrop::<'_>::increment_len\n"
+    },
+    {
+      "property": "alloc::raw_vec::RawVecInner::grow_amortized.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "alloc::raw_vec::RawVecInner::grow_amortized.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to multiply with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/raw_vec/mod.rs:523:28 in function alloc::raw_vec::RawVecInner::grow_amortized\n"
+    },
+    {
+      "property": "std::fmt::Arguments::<'_>::from_str.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "std::fmt::Arguments::<'_>::from_str.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to shift left with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str\n"
+    },
+    {
+      "property": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1",
+      "status": "UNREACHABLE",
+      "detail": "std::ptr::const_ptr::<impl *const ()>::is_aligned_to.assertion.1\n\t - Status: UNREACHABLE\n\t - Description: \"attempt to subtract with overflow\"\n\t - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/const_ptr.rs:1360:23 in function std::ptr::const_ptr::<impl *const ()>::is_aligned_to\n"
+    }
+  ],
+  "project_checks": [
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.unreachable.1",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.unreachable.1\n\t - Status: SUCCESS\n\t - Description: \"unreachable code\"\n\t - Location: native/src/flash_support.rs:1203:18 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.1",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.1\n\t - Status: SUCCESS\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: native/src/flash_support.rs:1204:53 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.2",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.2\n\t - Status: SUCCESS\n\t - Description: \"assertion failed: state.keys[i] == if complete { keys[i] } else { None }\"\n\t - Location: native/src/flash_support.rs:1204:13 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.3",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.3\n\t - Status: SUCCESS\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: native/src/flash_support.rs:1205:57 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.4",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.4\n\t - Status: SUCCESS\n\t - Description: \"assertion failed: state.prefetched[i] == complete && prefetched[i]\"\n\t - Location: native/src/flash_support.rs:1205:13 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.5",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.5\n\t - Status: SUCCESS\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: native/src/flash_support.rs:1206:42 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.6",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.assertion.6\n\t - Status: SUCCESS\n\t - Description: \"assertion failed: state.pending[i] == pending[i]\"\n\t - Location: native/src/flash_support.rs:1206:13 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.cover.1",
+      "status": "SATISFIED",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.cover.1\n\t - Status: SATISFIED\n\t - Description: \"cover condition: complete\"\n\t - Location: native/src/flash_support.rs:1208:9 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.cover.2",
+      "status": "SATISFIED",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.cover.2\n\t - Status: SATISFIED\n\t - Description: \"cover condition: !complete\"\n\t - Location: native/src/flash_support.rs:1209:9 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::ExpertCache::new.pointer_dereference.1",
+      "status": "SUCCESS",
+      "detail": "flash_support::ExpertCache::new.pointer_dereference.1\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: dead object\"\n\t - Location: native/src/flash_support.rs:444:20 in function flash_support::ExpertCache::new\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.array_bounds.1",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.array_bounds.1\n\t - Status: SUCCESS\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: native/src/flash_support.rs:1204:53 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.1",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.1\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer NULL\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.2",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.2\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer invalid\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.3",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.3\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: deallocated dynamic object\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.4",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.4\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: dead object\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.5",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.5\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer outside object bounds\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.6",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.pointer_dereference.6\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: invalid integer address\"\n\t - Location: native/src/flash_support.rs:1205:24 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.array_bounds.2",
+      "status": "SUCCESS",
+      "detail": "flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots.array_bounds.2\n\t - Status: SUCCESS\n\t - Description: \"index out of bounds: the length is less than or equal to the given index\"\n\t - Location: native/src/flash_support.rs:1205:57 in function flash_support::verification::failed_fill_invalidates_ready_keys_without_releasing_pending_slots\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.1",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.1\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer NULL\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.2",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.2\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer invalid\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.3",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.3\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: deallocated dynamic object\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.4",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.4\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: dead object\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.5",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.5\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: pointer outside object bounds\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    },
+    {
+      "property": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.6",
+      "status": "SUCCESS",
+      "detail": "<flash_support::ExpertFill as std::ops::Drop>::drop.pointer_dereference.6\n\t - Status: SUCCESS\n\t - Description: \"dereference failure: invalid integer address\"\n\t - Location: native/src/flash_support.rs:435:13 in function <flash_support::ExpertFill as std::ops::Drop>::drop\n"
+    }
+  ],
+  "bounds": "24 arbitrary Option<u32> ready keys/pending entries and flags, commit bool; unwind27; no caller invariant assumption",
+  "limits": "Does not prove cache reserve/publication, other capacities, MLX, Metal or concurrency"
+}

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "s2-prefill",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/prototype-tests",
+      "qwen4::draft::runtime::tests::prefill_variants_preserve_logits_draft_caches_states_and_continuation",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1"
+    },
+    "native_test": "qwen4::draft::runtime::tests::prefill_variants_preserve_logits_draft_caches_states_and_continuation",
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "s3-prefix",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/prototype-tests",
+      "qwen4::draft::runtime::tests::prompt_checkpoint_replays_exactly_after_generation_and_respects_opt_out",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1"
+    },
+    "native_test": "qwen4::draft::runtime::tests::prompt_checkpoint_replays_exactly_after_generation_and_respects_opt_out",
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "s5-off",
+    "command": [
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/slotstream/prototype-tests",
+      "qwen4::draft::runtime::tests::cost_off_calibrates_and_skips_draft_while_preserving_target_steps",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1"
+    },
+    "native_test": "qwen4::draft::runtime::tests::cost_off_calibrates_and_skips_draft_while_preserving_target_steps",
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  }
+]

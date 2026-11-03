@@ -21,11 +21,15 @@ extension UpdateManager {
         let suite = "io.mlxl3.check." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
-        func make(_ name: String) async throws -> StudioModel {
+        let flashModel = root.appendingPathComponent("flash-model")
+        try FileManager.default.createDirectory(at: flashModel, withIntermediateDirectories: true)
+        try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: flashModel.appendingPathComponent("config.json"))
+        func make(_ name: String, type: String = "audit", pathOverride: URL? = nil) async throws -> StudioModel {
             let model = StudioModel(conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-            model.models = [LocalModel(name: name, path: root.path, modelType: "audit", format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+            let path = pathOverride?.path ?? (type == "qwen4_exp" ? flashModel.path : name.hasPrefix("dflash-") ? root.appendingPathComponent(name).path : root.path)
+            model.models = [LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
             model.selectModel(name)
-            for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            for _ in 0..<200 where !model.engineState.isReady || model.mtpDownloading || model.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
             precondition(model.engineState.isReady, "Fixture not ready")
             return model
         }
@@ -59,6 +63,201 @@ extension UpdateManager {
             }
             return false
         }
+        func renderTuneToolbar(_ model: StudioModel, _ state: String, dflash: Bool = false) async throws {
+            _ = NSApplication.shared
+            let host = NSHostingView(rootView: MTPTuningToolbarControl(dflash: dflash).environmentObject(model)
+                .padding(12).background(StudioTheme.sidebar).preferredColorScheme(.dark))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 260, height: 95),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(20))
+            precondition(host.fittingSize.height > 0, "Tune toolbar must render in state \(state)")
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                preconditionFailure("Tune toolbar failed native rendering")
+            }
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            if let output = ProcessInfo.processInfo.environment["MLXL3_TUNE_CHECK_IMAGE_DIR"],
+               let data = bitmap.representation(using: .png, properties: [:]) {
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("toolbar-\(state).png"))
+            }
+        }
+        // Real Flash uses a raw BF16 draft folder, not the legacy MDFD0004 downloader.
+        let localFlashDraft = root.appendingPathComponent("flash-local-draft").path
+        func flashDFlash(_ name: String, path: String) async throws -> StudioModel {
+            prefs.set(false, forKey: "studio.dflash2Enabled")
+            prefs.set(path, forKey: "studio.dflashDraft.\(flashModel.path)")
+            return try await make(name, type: "qwen4_exp")
+        }
+        func dflashOperations(_ name: String) throws -> [[String: Any]] {
+            let file = root.appendingPathComponent("dflash-operations.jsonl")
+            guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+            return try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map {
+                try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+            }.filter { $0["model"] as? String == name }
+        }
+        let compatibleFlashDraft = root.appendingPathComponent("flash-compatible-draft").path
+        func flashDownload(_ name: String, previousPath: String = "") async throws -> StudioModel {
+            let folder = root.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data(#"{"model_type":"qwen4_exp"}"#.utf8).write(to: folder.appendingPathComponent("config.json"))
+            prefs.set(false, forKey: "studio.dflash2Enabled")
+            prefs.set(previousPath, forKey: "studio.dflashDraft.\(folder.path)")
+            return try await make(name, type: "qwen4_exp", pathOverride: folder)
+        }
+        func flashInstalls(_ target: String) throws -> [[String: Any]] {
+            let file = root.appendingPathComponent("flash-draft-installs.jsonl")
+            guard FileManager.default.fileExists(atPath: file.path) else { return [] }
+            return try String(contentsOf: file, encoding: .utf8).split(separator: "\n").map {
+                try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+            }.filter { $0["target"] as? String == target }
+        }
+        for (name, previous) in [("flash-download-good", ""), ("flash-download-cache", localFlashDraft)] {
+            let downloaded = try await flashDownload(name, previousPath: previous)
+            defer { downloaded.ejectModel() }
+            downloaded.downloadCompatibleDFlashDraft()
+            guard downloaded.dflashDownloading else {
+                throw MLXL3BridgeError.commandFailed("Explicit Flash download did not start the native installer: " + (downloaded.dflashDownloadError ?? "no error"))
+            }
+            for _ in 0..<200 where try dflashOperations(name).isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+            guard try !dflashOperations(name).isEmpty else {
+                throw MLXL3BridgeError.commandFailed("Downloaded Flash draft never reached resident validation")
+            }
+            let target = downloaded.selectedModel!.path
+            let installs = try flashInstalls(target)
+            precondition(installs.count == 1 && installs[0]["args"] as? [String] == ["dflash-draft", "--target", target])
+            precondition(downloaded.dflashDraftPath == previous && prefs.string(forKey: "studio.dflashDraft.\(target)") == previous,
+                "Download path was committed before the resident acknowledgement")
+            if name == "flash-download-good" {
+                precondition(downloaded.dflashDownloadTotal == 1_206_141_244 && downloaded.dflashDownloadCompleted > 0)
+            }
+            try Data().write(to: root.appendingPathComponent(name + "-ack-release"))
+            for _ in 0..<200 where downloaded.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(downloaded.dflash2Enabled && downloaded.dflashActive == true && !downloaded.canTuneDFlash)
+            precondition(downloaded.dflashDraftPath == compatibleFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == compatibleFlashDraft)
+            downloaded.setDFlash2Enabled(false)
+            for _ in 0..<200 where downloaded.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        }
+        for name in ["flash-download-error", "flash-download-malformed", "flash-download-wrong", "flash-download-old"] {
+            let failed = try await flashDownload(name, previousPath: localFlashDraft)
+            defer { failed.ejectModel() }
+            failed.downloadCompatibleDFlashDraft()
+            for _ in 0..<200 where failed.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!failed.dflash2Enabled && failed.dflashDownloadError != nil, "Download failure enabled Flash DFlash: \(name)")
+            let target = failed.selectedModel!.path
+            precondition(failed.dflashDraftPath == localFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+            let installs = try flashInstalls(target)
+            precondition(installs.count == (name == "flash-download-old" ? 0 : 1))
+            let operations = try dflashOperations(name).filter { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }
+            precondition(operations.count == (name == "flash-download-wrong" ? 1 : 0))
+        }
+        for name in ["flash-download-cancel", "flash-download-switch"] {
+            let stopped = try await flashDownload(name, previousPath: localFlashDraft)
+            defer { stopped.ejectModel() }
+            let target = stopped.selectedModel!.path
+            stopped.downloadCompatibleDFlashDraft()
+            let ready = root.appendingPathComponent(name + "-ready")
+            for _ in 0..<200 where !FileManager.default.fileExists(atPath: ready.path) { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(FileManager.default.fileExists(atPath: ready.path) && stopped.dflashDownloading && stopped.dflashDownloadCompleted > 0)
+            let pid = Int32(try String(contentsOf: ready, encoding: .utf8))!
+            if name == "flash-download-switch" {
+                stopped.models.append(LocalModel(name: "download-following", path: root.path, modelType: "audit", format: "EXL3", bits: 3,
+                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B"))
+                stopped.selectModel("download-following")
+                for _ in 0..<200 where !stopped.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+                precondition(stopped.selectedModelName == "download-following" && stopped.engineState.isReady)
+            } else { stopped.setDFlash2Enabled(false) }
+            for _ in 0..<200 where kill(pid, 0) == 0 { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(kill(pid, 0) == -1 && errno == ESRCH, "Cancelled native download process was not reaped")
+            precondition(!stopped.dflash2Enabled && !stopped.dflashDownloading)
+            precondition(prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+            let operations = try dflashOperations(name).filter { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }
+            precondition(operations.isEmpty, "Cancelled download reached resident activation")
+        }
+        do {
+            let stopped = try await flashDownload("flash-download-ack-cancel", previousPath: localFlashDraft)
+            defer { stopped.ejectModel() }
+            let target = stopped.selectedModel!.path
+            stopped.downloadCompatibleDFlashDraft()
+            for _ in 0..<200 where try dflashOperations("flash-download-ack-cancel").isEmpty { try await Task.sleep(for: .milliseconds(20)) }
+            let beforeCancel = try dflashOperations("flash-download-ack-cancel")
+            precondition(!beforeCancel.isEmpty)
+            stopped.setDFlash2Enabled(false)
+            try Data().write(to: root.appendingPathComponent("flash-download-ack-cancel-ack-release"))
+            for _ in 0..<200 where stopped.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!stopped.dflash2Enabled && stopped.dflashActive == false)
+            precondition(stopped.dflashDraftPath == localFlashDraft && prefs.string(forKey: "studio.dflashDraft.\(target)") == localFlashDraft)
+        }
+        print("Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping")
+        do {
+            let local = try await flashDFlash("flash-dflash-good", path: localFlashDraft)
+            defer { local.ejectModel() }
+            precondition(local.dflash2Available && !local.canTuneDFlash)
+            local.setDFlash2Enabled(true)
+            for _ in 0..<200 where local.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            guard local.dflash2Enabled && local.dflashActive == true else {
+                throw MLXL3BridgeError.commandFailed("Flash local draft must reach resident configure without legacy dflash-draft: " + (local.dflashDownloadError ?? "no error"))
+            }
+            let operations = try dflashOperations("flash-dflash-good")
+            precondition(operations.count == 1)
+            precondition((operations[0]["request"] as? [String: Any])?["dflash_draft_path"] as? String == localFlashDraft)
+            precondition(prefs.string(forKey: "studio.dflashDraft.\(flashModel.path)") == localFlashDraft)
+            local.draft = "Flash draft roundtrip"; local.send()
+            for _ in 0..<200 where local.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+            let wire = try JSONSerialization.jsonObject(with: Data(local.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+            precondition(wire["dflash2"] as? Bool == true && wire["dflash_draft_path"] as? String == localFlashDraft)
+            precondition(wire["temperature"] as? Double == 0 && wire["top_k"] as? Int == 1)
+            local.setDFlash2Enabled(false)
+            for _ in 0..<200 where local.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!local.dflash2Enabled && local.dflashActive == false)
+        }
+        for (name, path) in [("flash-dflash-empty", " \n"), ("flash-dflash-old", localFlashDraft),
+                             ("flash-dflash-invalid", root.appendingPathComponent("foreign-draft").path),
+                             ("flash-dflash-wrong", localFlashDraft)] {
+            let rejected = try await flashDFlash(name, path: path)
+            defer { rejected.ejectModel() }
+            rejected.setDFlash2Enabled(true)
+            for _ in 0..<200 where rejected.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(!rejected.dflash2Enabled && rejected.dflashDownloadError != nil, "Invalid Flash draft/protocol was enabled: \(name)")
+            let operations = try dflashOperations(name)
+            precondition(operations.count == (name == "flash-dflash-empty" || name == "flash-dflash-old" ? 0 : 1))
+            if name == "flash-dflash-empty" {
+                precondition(rejected.dflashDownloadError!.contains("draft"), "Missing path must explain what to choose")
+            }
+        }
+        do {
+            let stale = try await flashDFlash("flash-dflash-stale", path: localFlashDraft)
+            defer { stale.ejectModel() }
+            stale.setDFlash2Enabled(true)
+            for _ in 0..<100 where try dflashOperations("flash-dflash-stale").isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+            try await Task.sleep(for: .milliseconds(80))
+            precondition(stale.dflashDownloading && !stale.dflash2Enabled, "An unrelated ack enabled Flash DFlash")
+            for _ in 0..<200 where stale.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(stale.dflash2Enabled && stale.dflashActive == true)
+            stale.setDFlash2Enabled(false)
+        }
+        for switchModel in [false, true] {
+            let cancelled = try await flashDFlash("flash-dflash-slow", path: localFlashDraft)
+            defer { cancelled.ejectModel() }
+            cancelled.setDFlash2Enabled(true)
+            let previous = try dflashOperations("flash-dflash-slow").count
+            for _ in 0..<100 where try dflashOperations("flash-dflash-slow").count == previous { try await Task.sleep(for: .milliseconds(10)) }
+            if switchModel {
+                cancelled.models.append(LocalModel(name: "after-flash", path: root.path, modelType: "audit", format: "EXL3", bits: 3,
+                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B"))
+                cancelled.selectModel("after-flash")
+            } else { cancelled.setDFlash2Enabled(false) }
+            try await Task.sleep(for: .milliseconds(650))
+            precondition(!cancelled.dflash2Enabled && !cancelled.dflashDownloading, "Cancelled/stale Flash activation resumed")
+            if switchModel { precondition(cancelled.selectedModelName == "after-flash" && cancelled.engineState.isReady) }
+            else { precondition(cancelled.dflashActive == false) }
+        }
+        let legacyCalls = root.appendingPathComponent("dflash-legacy-operations.jsonl")
+        precondition(!FileManager.default.fileExists(atPath: legacyCalls.path), "Flash used the incompatible packed legacy draft CLI")
+        prefs.set(false, forKey: "studio.dflash2Enabled")
+        prefs.removeObject(forKey: "studio.dflashDraft.\(flashModel.path)")
+        print("Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI")
         let updates = try await make("updates")
         defer { updates.ejectModel() }
         updates.draft = "send during background update"
@@ -97,6 +296,15 @@ extension UpdateManager {
         let saver = try await make("mtp-memory-saver")
         defer { saver.ejectModel() }
         precondition(saver.memorySaverEnabled && saver.memorySaverSupported, "Memory preference/capability not restored")
+        let advised = saver.recommendedContextLength
+        precondition(advised == 2048, "Ready profile must reach the production context adviser")
+        precondition(saver.contextLengthDraft == 0, "Recommendation must preserve the user's setting")
+        saver.contextLengthDraft = advised!
+        precondition(saver.canSaveContext)
+        saver.saveContextAndReload()
+        for _ in 0..<200 where !saver.engineState.isReady { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(saver.engineState.isReady && !saver.canSaveContext)
+        precondition((prefs.dictionary(forKey: "studio.contextLengths")?["mtp-memory-saver"] as? Int) == advised)
         saver.setMTPEnabled(true)
         for _ in 0..<200 where saver.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(saver.canTuneMTP)
@@ -130,13 +338,99 @@ extension UpdateManager {
         saver.setMemorySaverEnabled(true)
         let legacySaver = try await make("mtp-old")
         precondition(legacySaver.memorySaverEnabled && !legacySaver.memorySaverSupported, "Legacy capability assumed")
+        precondition(legacySaver.recommendedContextLength == nil, "Legacy engine must not fabricate a recommendation")
         legacySaver.ejectModel(); legacySaver.setMemorySaverEnabled(false)
+        let flashSaver = try await make("dflash-memory-saver")
+        defer { flashSaver.ejectModel() }
+        flashSaver.setMemorySaverEnabled(true)
+        flashSaver.setDFlash2Enabled(true)
+        for _ in 0..<200 where flashSaver.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashSaver.canTuneDFlash && flashSaver.memorySaverSupported)
+        for saverEnabled in [true, false] {
+            flashSaver.setMemorySaverEnabled(saverEnabled)
+            flashSaver.tuneDFlash()
+            for _ in 0..<200 where flashSaver.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(flashSaver.dflash2Enabled && flashSaver.dflashTuneRows.count == 4)
+        }
+        let flashWire = try String(contentsOf: root.appendingPathComponent("memory-saver-requests.jsonl"), encoding: .utf8)
+        let flashTunes = try flashWire.split(separator: "\n").map {
+            try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
+        }.filter { $0["type"] as? String == "tune_dflash" }
+        precondition(flashTunes.count == 2 && flashTunes[0]["memory_saver"] as? Bool == true
+                     && flashTunes[1]["memory_saver"] as? Bool == false, "DFlash Tune did not receive the memory policy")
+        precondition(flashSaver.conversations[0].messages.isEmpty, "DFlash Tune changed history")
+        flashSaver.ejectModel()
         print("Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability")
         print("Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection")
+        let flash = try await make("dflash-good")
+        flash.setDFlash2Enabled(true)
+        for _ in 0..<200 where flash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflash2Enabled && flash.dflashActive == true && flash.canTuneDFlash, "One click must install and activate the matching draft")
+        precondition(flash.samplingTemperature == 0 && flash.samplingTopK == 1 && flash.samplingRepetitionPenalty == 1)
+        let history = flash.conversations[0].messages.count
+        try await renderTuneToolbar(flash, "dflash-idle", dflash: true)
+        precondition(!flash.showInspector)
+        flash.tuneDFlash()
+        precondition(flash.isTuningDFlash && !flash.canSend)
+        precondition(!flash.showInspector, "DFlash Tune must preserve the conversation")
+        try await renderTuneToolbar(flash, "dflash-running", dflash: true)
+        for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflash2Enabled && flash.dflashMode == 2 && flash.dflashTuneRows.count == 4)
+        precondition(flash.conversations[0].messages.count == history, "Tune DFlash entered chat history")
+        try await renderTuneToolbar(flash, "dflash-complete", dflash: true)
+        flash.draft = "use selected mode"; flash.send()
+        for _ in 0..<200 where flash.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.conversations[0].messages.last!.content.contains("\"dflash_mode\": 2"), "Selected DFlash policy must reach production request")
+        flash.tuneDFlash(); flash.cancelDFlashTuning()
+        for _ in 0..<200 where flash.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflashMode == 2 && flash.dflashDownloadError != nil, "Cancelled tuning changed setting")
+        try await renderTuneToolbar(flash, "dflash-cancelled", dflash: true)
+        flash.setDFlash2Enabled(false)
+        for _ in 0..<200 where flash.dflashActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flash.dflashActive == false, "OFF did not release the resident draft")
+        flash.ejectModel()
+        let flashAgain = try await make("dflash-good")
+        precondition(flashAgain.dflashMode == 2 && flashAgain.dflashTuneRows.count == 4, "DFlash tuning was not restored")
+        flashAgain.setDFlash2Enabled(true)
+        for _ in 0..<200 where flashAgain.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        flashAgain.ejectModel()
+        for name in ["dflash-error", "dflash-malformed", "dflash-invalid", "dflash-mismatch", "dflash-baseline", "dflash-load-error", "dflash-dense"] {
+            let candidate = try await make(name)
+            candidate.setDFlash2Enabled(true)
+            for _ in 0..<200 where candidate.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            if name == "dflash-load-error" {
+                precondition(!candidate.dflash2Enabled && candidate.dflashDownloadError != nil)
+            } else {
+                precondition(candidate.dflash2Enabled && candidate.dflashActive == true, "DFlash activation failed for \(name): \(candidate.dflashDownloadError ?? "no error")")
+                candidate.showInspector = name == "dflash-dense"
+                candidate.tuneDFlash()
+                for _ in 0..<200 where candidate.isTuningDFlash { try await Task.sleep(for: .milliseconds(20)) }
+                if name == "dflash-baseline" { precondition(!candidate.dflash2Enabled && candidate.dflashTuneRows.count == 4) }
+                else if name == "dflash-dense" { precondition(candidate.dflashMode == 2 && candidate.dflashDraftPath.hasSuffix("dense")) }
+                else { precondition(candidate.dflashMode == 1 && candidate.dflashTuneRows.isEmpty && candidate.dflashDownloadError != nil) }
+                precondition(candidate.showInspector == (name == "dflash-dense"), "DFlash Tune changed inspector navigation")
+                try await renderTuneToolbar(candidate, name, dflash: true)
+            }
+            candidate.ejectModel()
+        }
+        for name in ["dflash-off-error", "dflash-off-malformed", "dflash-off-missing", "dflash-off-wrong", "dflash-off-silent"] {
+            let candidate = try await make(name)
+            candidate.setDFlash2Enabled(true)
+            for _ in 0..<200 where candidate.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(candidate.dflashActive == true)
+            candidate.setDFlash2Enabled(false)
+            candidate.draft = "next request"
+            precondition(!candidate.canSend, "OFF must wait for resident release")
+            for _ in 0..<1600 where !candidate.canSend { try await Task.sleep(for: .milliseconds(20)) }
+            precondition(candidate.canSend && candidate.dflashDownloadError != nil, "Failed OFF left composer blocked: \(name)")
+            candidate.ejectModel()
+        }
+        print("DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures")
         let tuned = try await make("mtp-good")
         tuned.setMTPEnabled(true)
         for _ in 0..<200 where tuned.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.canTuneMTP && tuned.mtpMaxDepth == 3)
+        try await renderTuneToolbar(tuned, "idle")
         tuned.updateManager.setStatesForCheck(app: .checking, engine: .downloading(release))
         precondition(tuned.canTuneMTP, "Background updates must not disable MTP tuning")
         tuned.updateManager.setStatesForCheck(app: .idle, engine: .installing(release))
@@ -147,13 +441,15 @@ extension UpdateManager {
         let before = tuned.conversations[0].messages.count
         precondition(!tuned.showInspector)
         tuned.tuneMTP()
-        precondition(tuned.showInspector, "Header tuning must reveal progress, results and errors")
+        precondition(!tuned.showInspector, "Header tuning must keep the conversation visible")
         precondition(tuned.isTuningMTP && tuned.isGenerating)
+        try await renderTuneToolbar(tuned, "running")
         tuned.draft = "should wait"; tuned.send()
         precondition(tuned.conversations[0].messages.count == before && !tuned.canSend)
         for _ in 0..<200 where tuned.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(tuned.mtpEnabled && tuned.mtpDepth == 2 && tuned.mtpTuneRows.count == 4 && tuned.mtpTuneProgress == 1)
-        precondition(tuned.showInspector, "Completed tuning results must stay visible")
+        precondition(!tuned.showInspector, "Finishing Tune must preserve the user's navigation")
+        try await renderTuneToolbar(tuned, "complete")
         precondition(tuned.conversations[0].messages.count == before, "Tuning must not enter chat history")
         tuned.send()
         for _ in 0..<200 where tuned.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
@@ -161,9 +457,12 @@ extension UpdateManager {
         tuned.ejectModel()
         let restoredTune = try await make("mtp-good")
         precondition(restoredTune.mtpEnabled && restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4)
+        restoredTune.showInspector = true
         restoredTune.tuneMTP()
+        precondition(restoredTune.showInspector, "Tune must preserve an already open inspector")
         for _ in 0..<200 where restoredTune.mtpTuneProgress == 0 { try await Task.sleep(for: .milliseconds(10)) }
         restoredTune.cancelMTPTuning()
+        try await renderTuneToolbar(restoredTune, "cancelled")
         for _ in 0..<200 where restoredTune.isTuningMTP { try await Task.sleep(for: .milliseconds(20)) }
         precondition(restoredTune.mtpDepth == 2 && restoredTune.mtpTuneRows.count == 4 && restoredTune.mtpError != nil)
         precondition(restoredTune.showInspector, "Tuning cancellation must stay visible")
@@ -185,7 +484,8 @@ extension UpdateManager {
             } else {
                 precondition(candidate.mtpDepth == 1 && candidate.mtpEnabled && candidate.mtpError != nil)
             }
-            precondition(candidate.showInspector, "Tuning feedback must stay visible, including malformed replies and errors")
+            precondition(!candidate.showInspector, "Baseline, invalid replies and errors must preserve the conversation")
+            try await renderTuneToolbar(candidate, name)
             if name == "mtp-error" || name == "mtp-malformed" {
                 let visible = try await tuningErrorIsVisible(candidate)
                 precondition(visible, "Tuning error must be rendered inside the 600-point inspector viewport")
@@ -450,28 +750,76 @@ extension UpdateManager {
         message.fail("interrupted")
         precondition(ChatMessage(snapshot: message.snapshot)!.toolActivities[0].state == .failed)
         precondition(SemanticVersion("1.0") == SemanticVersion("1.0.0"))
-        let dflash = StudioModel(conversationFileURL: root.appendingPathComponent("dflash.json"), preferences: prefs)
-        dflash.models = [LocalModel(name: "qwen3.6-35b-a3b", path: root.path + "/Qwen3.6-35B-A3B",
-                                    modelType: "qwen3_5_moe", format: "EXL3", bits: 2.49,
-                                    sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
-        dflash.selectedModelName = "qwen3.6-35b-a3b"
-        dflash.setDFlash2Enabled(true)
-        for _ in 0..<200 where dflash.dflashDownloading { try await Task.sleep(for: .milliseconds(20)) }
-        precondition(dflash.dflash2Enabled && dflash.dflashDraftPath == "/tmp/mlxl3-fixture-dflash")
-        precondition(dflash.temperature == 0 && dflash.topK == 1 && dflash.repetitionPenalty == 1)
-        dflash.setDFlash2Enabled(false)
-        precondition(!dflash.dflash2Enabled)
         let renamed = try await make("renamed")
         precondition(renamed.mtpAvailable, "MTP capability must come from the engine")
         renamed.setMTPEnabled(true)
         for _ in 0..<200 where renamed.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
         precondition(renamed.mtpEnabled && renamed.mtpHeadPath == "/tmp/mlxl3-fixture-mtp")
-        precondition(renamed.temperature == 0 && renamed.topK == 1 && renamed.repetitionPenalty == 1)
+        precondition(renamed.samplingTemperature == 0 && renamed.samplingTopK == 1 && renamed.samplingRepetitionPenalty == 1)
         precondition(renamed.dflash2Available, "Engine capability must override the directory name")
         precondition(renamed.runtimeIdentity == "fixture · release · MLX 0.32.2")
         renamed.ejectModel()
         precondition(!renamed.mtpAvailable, "Ejection must discard the MTP capability")
         precondition(!renamed.dflash2Available && renamed.runtimeIdentity == nil)
+        prefs.set(true, forKey: "studio.mtpEnabled")
+        let legacyHead = prefs.string(forKey: "studio.mtpHeadPath")!
+        let flashNext = try await make("flash", type: "qwen4_exp")
+        precondition(flashNext.mtpBuiltIn && flashNext.mtpAvailable && flashNext.mtpMaxDepth == 1 && !flashNext.canTuneMTP)
+        precondition(!flashNext.mtpEnabled && flashNext.mtpEffectiveHeadPath == flashModel.path, "Another model's MTP setting leaked to a new Flash model")
+        let flashReady = flashNext.engineState
+        flashNext.engineState = .loading("flash")
+        flashNext.setMTPEnabled(true)
+        precondition(!flashNext.mtpEnabled && !flashNext.mtpDownloading, "Built-in MTP activated before the runtime was ready")
+        flashNext.engineState = flashReady
+        flashNext.temperature = 0.73; flashNext.topK = 47; flashNext.repetitionPenalty = 1.17
+        flashNext.setMTPEnabled(true)
+        precondition(flashNext.mtpEnabled && !flashNext.mtpDownloading && flashNext.mtpHeadPath.isEmpty)
+        precondition(prefs.string(forKey: "studio.mtpHeadPath") == legacyHead, "Built-in MTP replaced the other model's head")
+        precondition(prefs.string(forKey: "studio.mtpHead.\(root.path)") == legacyHead, "Built-in MTP replaced the saved per-model head")
+        precondition(flashNext.samplingTemperature == 0 && flashNext.samplingTopK == 1 && flashNext.samplingRepetitionPenalty == 1)
+        precondition(flashNext.temperature == 0.73 && flashNext.topK == 47 && flashNext.repetitionPenalty == 1.17,
+            "Built-in MTP must preserve ordinary sampling settings")
+        flashNext.setMTPDepth(3); precondition(flashNext.mtpDepth == 1)
+        flashNext.draft = "salut"; flashNext.send()
+        for _ in 0..<200 where flashNext.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+        let request = try JSONSerialization.jsonObject(with: Data(flashNext.conversations[0].messages.last!.content.utf8)) as! [String: Any]
+        precondition(request["mtp"] as? Bool == true && request["mtp_depth"] as? Int == 1)
+        precondition(request["mtp_head_path"] as? String == flashModel.path, "Built-in head path did not reach the bridge")
+        precondition(request["temperature"] as? Double == 0 && request["top_k"] as? Int == 1
+            && request["repetition_penalty"] as? Double == 1, "Built-in MTP must send greedy sampling")
+        flashNext.setMTPEnabled(false)
+        precondition(flashNext.samplingTemperature == 0.73 && flashNext.samplingTopK == 47
+            && flashNext.samplingRepetitionPenalty == 1.17, "MTP OFF must restore ordinary sampling")
+        flashNext.setMTPEnabled(true)
+        flashNext.ejectModel()
+        prefs.removeObject(forKey: "studio.mtpHeadPath")
+        let flashRestored = try await make("flash", type: "qwen4_exp")
+        precondition(flashRestored.mtpEnabled && flashRestored.mtpDepth == 1 && flashRestored.mtpHeadPath.isEmpty, "Built-in MTP required an external head after restart")
+        flashRestored.setMTPEnabled(false); flashRestored.ejectModel()
+        let flashOff = try await make("flash", type: "qwen4_exp")
+        precondition(!flashOff.mtpEnabled && flashOff.mtpDepth == 1, "Built-in MTP OFF selection did not persist")
+        flashOff.ejectModel()
+        let flashConfigured = try await make("flash-config", type: "qwen4_exp")
+        flashConfigured.setMTPEnabled(true)
+        for _ in 0..<200 where flashConfigured.mtpDownloading { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(flashConfigured.mtpEnabled && flashConfigured.mtpActive == true, "Built-in head was not configured")
+        flashConfigured.setMTPEnabled(false)
+        for _ in 0..<200 where flashConfigured.mtpActive != false { try await Task.sleep(for: .milliseconds(20)) }
+        precondition(!flashConfigured.mtpEnabled && flashConfigured.mtpActive == false, "Built-in head was not released")
+        let flashOperations = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8)
+            .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+            .filter { $0["model"] as? String == "flash-config" }
+        let flashOn = flashOperations.first { ($0["request"] as? [String: Any])?["enabled"] as? Bool == true }!
+        precondition((flashOn["request"] as! [String: Any])["mtp_head_path"] as? String == flashModel.path)
+        flashConfigured.ejectModel()
+        let flashCancelled = try await make("flash-config", type: "qwen4_exp")
+        let flashOperationCount = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        flashCancelled.setMTPEnabled(true)
+        flashCancelled.ejectModel()
+        try await Task.sleep(for: .milliseconds(100))
+        precondition(!flashCancelled.mtpDownloading && flashCancelled.engineState == .idle)
+        let flashAfterCancel = try String(contentsOf: root.appendingPathComponent("mtp-operations.jsonl"), encoding: .utf8).split(separator: "\n").count
+        precondition(flashAfterCancel == flashOperationCount, "Cancelled built-in preparation reached the bridge")
         let complete = try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"complete","stats":{"ttft_seconds":0.4,"prefill_tps":300,"decode_tps":16,"prompt_tokens":300,"generated_tokens":42,"model_size_gb":12.5,"elapsed_seconds":8,"end_to_end_ttft_seconds":0.5,"tool_rounds":1,"dflash_proposed_tokens":50,"dflash_accepted_tokens":28,"memory":{"mlx_active_bytes":12000000000,"mlx_cache_bytes":500000000,"mlx_peak_bytes":13000000000,"process_footprint_bytes":14000000000,"process_lifetime_peak_bytes":15000000000}}}"#.utf8))
         precondition(complete.stats?.peakMemoryGB == nil && complete.stats?.modelSizeGB == 12.5)
         precondition(complete.stats?.memory?.processFootprintBytes == 14_000_000_000)

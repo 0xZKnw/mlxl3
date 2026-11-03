@@ -1,0 +1,66 @@
+[
+  {
+    "name": "mutant-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 29.69108329201117
+  },
+  {
+    "name": "mutant-physical",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "linear::tests::flash_two_rows_preserve_single_row_bytes_and_reject_empty_inputs",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "failed",
+    "exit": 101,
+    "seconds": 1.2935736670042388
+  },
+  {
+    "name": "restore-source",
+    "status": "passed"
+  },
+  {
+    "name": "restored-build",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 29.767302207998
+  },
+  {
+    "name": "restored-projection",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "linear::tests::flash_two_rows_preserve_single_row_bytes_and_reject_empty_inputs",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "status": "passed",
+    "exit": 0,
+    "seconds": 1.4861180409789085
+  }
+]

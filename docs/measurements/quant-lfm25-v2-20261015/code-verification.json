@@ -1,0 +1,33 @@
+{
+  "status": "code_checks_passed",
+  "base_commit": "c9aa43a312c63246eeb4b5a680ada26092c65a1c",
+  "code_sha256": {
+    "scripts/quantize_lfm25_moe.py": "57e1a91e7a3015a8bd3d5bd273b6d66332612509e1bd6651d3ba3dbfcd4ad9ce",
+    "scripts/quantize_lfm25_modal.py": "7cb2281e560adcadbbd1ac357dae8a349986259eb85d7c0f186d87c6c71b8d71",
+    "tests/test_lfm25_moe_conversion.py": "1cae0334626b3cbb2dbd52647eddfee6aa2da904d75861318f9a277c7158fab5",
+    "tests/test_lfm25_modal.py": "6b643843d69fa807db6d9e693a4f83360361b95b33279f7283d2e0cf4fd54cc6",
+    "tests/lfm25_calibration_contracts.py": "39e11bf7d63c0d27429e20e1de88c854bef3119e51fbe95c051e12bf4fd96e63",
+    "tests/lfm25_modal_contracts.py": "8340baa51669ac5ac3f85368bf9ed9cf5a029719f7de3618a4276bf76d024d62",
+    "pyproject.toml": "9b078da07102462af76e11a4b562ab033c96d3860099051c4f7e2a6942eacf20",
+    ".github/workflows/quantization.yml": "dac7fe08939c7fe77096cd0d63f3f4421b63bb65524c458eab6ceeaa7e1d1ed4"
+  },
+  "tests": {
+    "full_passed": 570,
+    "skipped": 1,
+    "seconds": 81.02,
+    "skip_reason": "local Ling model absent",
+    "calibration_focused": 52,
+    "modal_focused": 12,
+    "modal_offline": 12
+  },
+  "crosshair": {
+    "calibration_conditions": 3,
+    "launch_conditions": 2,
+    "scope": "symbolic counterexample search; unbounded Python integer alignment and two boolean launch cases; excludes NumPy/MLX/Metal/CUDA/I/O/global quality"
+  },
+  "format_lint_compileall": "passed after TRY004 correction",
+  "github_ci": "not_run_local_branch_not_yet_pushed",
+  "full_v2_conversion": "running",
+  "v2_quality": "not_measured",
+  "hf_v2_published": false
+}

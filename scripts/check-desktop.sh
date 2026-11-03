@@ -8,12 +8,37 @@ fi
 test_dir="$(mktemp -d -t mlxl3-check)"
 trap 'rm -rf "${test_dir}"' EXIT
 
+# The new I/O fixtures must also be reaped if a Swift assertion aborts the check.
+run_fixture_check() {
+    "${test_python}" - "$@" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+process = subprocess.Popen(sys.argv[1:], start_new_session=True)
+try:
+    code = process.wait(timeout=90)
+except subprocess.TimeoutExpired:
+    print("Desktop fixture exceeded its 90-second limit", file=sys.stderr)
+    code = 1
+finally:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait(timeout=3)
+sys.exit(code)
+PY
+}
+
 # CI normally selects the active Xcode toolchain. A local Command Line Tools
 # install can opt into an installed SDK explicitly (for example 26.5).
 swift_args=(--package-path apps/MLXL3Studio)
-swiftc_args=(-swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
+swiftc_args=(-warnings-as-errors -swift-version 6 -parse-as-library -module-cache-path "${test_dir}/modules")
 if [[ -n "${MLXL3_MACOS_SDK:-}" ]]; then
-    swift_args+=(--sdk "${MLXL3_MACOS_SDK}")
+    # shortcut: native honors this SDK override; revisit when Swift Build handles cached modules correctly.
+    swift_args+=(--build-system native --sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
 fi
 swift build "${swift_args[@]}"
@@ -21,6 +46,10 @@ binary_dir="$(swift build "${swift_args[@]}" --show-bin-path)"
 sources=(apps/MLXL3Studio/Sources/MLXL3Studio/*.swift)
 sources=("${(@)sources:#*/MLXL3StudioApp.swift}")
 swiftc_args+=(-I "${binary_dir}")
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ContextMemoryProfile.swift \
+    tests/context-memory-check.swift -o "${test_dir}/context-memory-check"
+"${test_dir}/context-memory-check"
 [[ -d "${binary_dir}/Modules" ]] && swiftc_args+=(-I "${binary_dir}/Modules")
 if [[ -f "${binary_dir}/SwiftMath.o" ]]; then
     math_objects=("${binary_dir}/SwiftMath.o")
@@ -42,6 +71,20 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
     tests/model-idle-unload-check.swift > "${test_dir}/ModelIdleUnloadCombined.swift"
 idle_sources=("${sources[@]}")
 idle_sources=("${(@)idle_sources:#*/StudioModel.swift}")
+
+swiftc "${swiftc_args[@]}" -O \
+    apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift \
+    tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
+"${test_dir}/agent-sandbox-check"
+"${test_python}" tests/check-agent-protocol.py "${test_dir}/agent-sandbox-check"
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/studio-modes-check.swift > "${test_dir}/StudioModesCombined.swift"
+swiftc "${swiftc_args[@]}" \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/StudioModesCombined.swift" -o "${test_dir}/studio-modes-check"
+"${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py"
+
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/ModelIdleUnloadCombined.swift" -o "${test_dir}/idle-unload-check"
@@ -53,16 +96,24 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/DesktopPreferencesCombined.swift" -o "${test_dir}/preferences-check"
-"${test_dir}/preferences-check" "$PWD/tests/fake-desktop-engine.py"
+run_fixture_check "${test_dir}/preferences-check" "$PWD/tests/fake-desktop-engine.py"
 
 awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
     tests/completion-notifications-check.swift > "${test_dir}/CompletionNotificationsCombined.swift"
 swiftc "${swiftc_args[@]}" -warnings-as-errors \
     "${idle_sources[@]}" "${math_objects[@]}" \
     "${test_dir}/CompletionNotificationsCombined.swift" -o "${test_dir}/notification-check"
-"${test_dir}/notification-check" "$PWD/tests/fake-desktop-engine.py"
+run_fixture_check "${test_dir}/notification-check" "$PWD/tests/fake-desktop-engine.py"
 
 
+# Keep global speculative preferences independent of current-model sampling.
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/StudioModel.swift \
+    tests/speculative-sampling-check.swift > "${test_dir}/SpeculativeSamplingCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    "${idle_sources[@]}" "${math_objects[@]}" \
+    "${test_dir}/SpeculativeSamplingCombined.swift" -o "${test_dir}/sampling-check"
+"${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
+    "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
 
 "${test_python}" tests/update-archive-fixtures.py "${test_dir}/archives"
 swiftc "${swiftc_args[@]}" \
@@ -70,10 +121,37 @@ swiftc "${swiftc_args[@]}" \
     tests/updater-check.swift -o "${test_dir}/updater-check"
 "${test_dir}/updater-check" "${test_dir}/archives" ${MLXL3_TEST_ENGINE_ARCHIVE:+"${MLXL3_TEST_ENGINE_ARCHIVE}"} ${MLXL3_TEST_ENGINE_VERSION:+"${MLXL3_TEST_ENGINE_VERSION}"}
 
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/updater-application-check.swift > "${test_dir}/UpdaterApplicationCombined.swift"
+swiftc "${swiftc_args[@]}" -warnings-as-errors \
+    apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+    "${test_dir}/UpdaterApplicationCombined.swift" -o "${test_dir}/updater-application-check"
+"${test_dir}/updater-application-check" "${test_dir}/archives" ${MLXL3_TEST_APP_DMG:+"${MLXL3_TEST_APP_DMG}"} ${MLXL3_TEST_APP_VERSION:+"${MLXL3_TEST_APP_VERSION}"}
+
+awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift \
+    tests/updater-progress-check.swift > "${test_dir}/UpdaterProgressCombined.swift"
+swiftc "${swiftc_args[@]}" \
+    apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift \
+    apps/MLXL3Studio/Sources/MLXL3Studio/ModelDownloadProgress.swift \
+    "${test_dir}/UpdaterProgressCombined.swift" -o "${test_dir}/updater-progress-check"
+run_fixture_check "${test_dir}/updater-progress-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
+
+swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" \
+    tests/html-preview-check.swift -o "${test_dir}/html-preview-check"
+run_fixture_check "${test_dir}/html-preview-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
+
 swiftc "${swiftc_args[@]}" \
     "${sources[@]}" "${math_objects[@]}" \
     tests/file-import-check.swift -o "${test_dir}/file-import-check"
 "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
+
+swiftc "${swiftc_args[@]}" \
+    "${sources[@]}" "${math_objects[@]}" \
+    tests/workspace-features-check.swift -o "${test_dir}/workspace-features-check"
+"${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
 
 "${binary_dir}/MLXL3Studio" --check-chat-timeline
 "${binary_dir}/MLXL3Studio" --check-mcp-preferences
@@ -100,10 +178,15 @@ awk '{ print }' apps/MLXL3Studio/Sources/MLXL3Studio/MarkdownResponseView.swift 
     tests/response-ui-check.swift > "${test_dir}/ResponseUICombined.swift"
 response_sources=("${sources[@]}")
 response_sources=("${(@)response_sources:#*/MarkdownResponseView.swift}")
+response_app="${test_dir}/MLXL3 Response Check.app"
+mkdir -p "${response_app}/Contents/MacOS"
+cp tests/response-check-Info.plist "${response_app}/Contents/Info.plist"
 swiftc "${swiftc_args[@]}" -O \
     "${response_sources[@]}" "${math_objects[@]}" \
-    "${test_dir}/ResponseUICombined.swift" -o "${test_dir}/response-check"
-"${test_dir}/response-check" "$PWD/tests/fake-desktop-engine.py"
+    "${test_dir}/ResponseUICombined.swift" -o "${response_app}/Contents/MacOS/response-check"
+"${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
+# A registered app and a fresh process make physical viewport visibility observable.
+run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
 
 # Exercise the cancellable CLICommand transport independently of the model
 # bridge (large pipe output, line progress, cancellation and stderr errors).
@@ -124,4 +207,9 @@ swiftc "${swiftc_args[@]}" -O apps/MLXL3Studio/Sources/MLXL3Studio/MCPConfigurat
     -o "${test_dir}/mcp-configuration-check"
 "${test_dir}/mcp-configuration-check"
 
-print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport"
+# Beta 5 project/artifact integration shares the already-built app sources.
+MLXL3_STUDIOS_TMP="${test_dir}" zsh scripts/check-studios.sh
+
+# CPU-only full-window Studio navigation, editing and reviewed snapshot safety.
+zsh scripts/check-studio-workspace.sh
+print "Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering, CLI transport and Studios"

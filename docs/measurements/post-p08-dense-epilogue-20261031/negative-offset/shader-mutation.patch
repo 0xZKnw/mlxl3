@@ -1,0 +1,11 @@
+--- native/shaders/flash_dense_epilogue.metal (positive)
++++ native/shaders/flash_dense_epilogue.metal (compiled mutant)
+@@ -21,7 +21,7 @@
+ uint block = threadgroup_position_in_grid.y;
+ uint row = block / 20u;
+ uint column_base = (block % 20u) * 128u;
+-uint partial_base = row * (2u * WIDTH) + column_base;
++uint partial_base = column_base;
+ threadgroup half buf[128];
+ 
+ #pragma clang loop unroll(full)

@@ -1,0 +1,60 @@
+{
+  "proofs": [
+    {
+      "name": "kani-target",
+      "success_obligations": 91,
+      "unreachable_obligations": 0,
+      "failed_obligations": 0,
+      "covers": [
+        [
+          "3",
+          "3"
+        ]
+      ],
+      "summary": "Manual Harness Summary:\nComplete - 1 successfully verified harnesses, 0 failures, 1 total."
+    },
+    {
+      "name": "kani-module",
+      "success_obligations": 215,
+      "unreachable_obligations": 0,
+      "failed_obligations": 0,
+      "covers": [
+        [
+          "2",
+          "2"
+        ],
+        [
+          "3",
+          "3"
+        ],
+        [
+          "3",
+          "3"
+        ],
+        [
+          "2",
+          "2"
+        ]
+      ],
+      "summary": "Manual Harness Summary:\nComplete - 5 successfully verified harnesses, 0 failures, 5 total."
+    }
+  ],
+  "test_counts": {
+    "cpu": {
+      "passed": 64,
+      "ignored": 2,
+      "nonempty_test_groups": 5
+    },
+    "release": {
+      "passed": 78,
+      "ignored": 67,
+      "nonempty_test_groups": 5
+    },
+    "final-lib": {
+      "passed": 55,
+      "ignored": 57,
+      "nonempty_test_groups": 1
+    }
+  },
+  "formal_scope": "CPU packed-row merge guard over all signed i32 dimensions; no assumptions, no loops. MLX/Metal/FFI arithmetic unproved; physical exactness check separately."
+}

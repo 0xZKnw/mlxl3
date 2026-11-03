@@ -1,0 +1,68 @@
+[
+  {
+    "name": "pre20",
+    "command": [
+      "/bin/sleep",
+      "20"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 25
+  },
+  {
+    "name": "bridge",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_dflash2.py",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-72/v2/mlxl3-rs",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--timeout",
+      "840",
+      "--skip-tune",
+      "--output",
+      "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/bridge-unused-v2/checks.json"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "2",
+      "MLXL3_SSD_LES": "0",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_SHARED_EXL3": "0",
+      "MLXL3_SSD_STABLE_EXPERT_KERNELS": "0",
+      "MLXL3_SSD_SHARED_BATCH": "0",
+      "MLXL3_SSD_PREFETCH_PIPELINE": "1",
+      "MLXL3_FLASH_DRAFT_PRECAP": "0",
+      "MLXL3_SSD_PREFETCH_VARIANT": "unused",
+      "MLXL3_SSD_EARLY_SHARED": "0"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 900
+  },
+  {
+    "name": "post30",
+    "command": [
+      "/bin/sleep",
+      "30"
+    ],
+    "env": {},
+    "expected_exit": 0,
+    "timeout_seconds": 35
+  }
+]

@@ -1,0 +1,533 @@
+{
+  "status": "validated_native_diagnostic_not_release_gain",
+  "arms": {
+    "C": {
+      "controls": [
+        {
+          "phase": "warmup",
+          "prefill_seconds": 8.024795458,
+          "decode_seconds": 11.556089458,
+          "diagnostic_tps": 10.989876849047839
+        },
+        {
+          "phase": "control_before",
+          "prefill_seconds": 7.4613376670000005,
+          "decode_seconds": 11.579532292,
+          "diagnostic_tps": 10.967627776101201
+        },
+        {
+          "phase": "control_after",
+          "prefill_seconds": 7.531816542,
+          "decode_seconds": 11.434368667,
+          "diagnostic_tps": 11.106865949366018
+        }
+      ],
+      "parts": {
+        "prefill": {
+          "totals_over_three_traces": {
+            "cold_ready_batch_wall_ms": 5939.0514059999705,
+            "batches": 10730.0,
+            "jobs": 39589.0,
+            "dynamic_eligible_batches": 3421.0,
+            "cold_split_batches": 6648.0,
+            "cold_ready_begin_wall_ms": 98.50627600000064,
+            "cold_ready_wait_wall_ms": 3300.65294199999,
+            "cold_ready_first_build_wall_ms": 185.54725600000037,
+            "cold_ready_snapshot_before_submit_wall_ms": 3.58942799999995,
+            "cold_ready_first_submit_wall_ms": 382.6343409999995,
+            "cold_ready_snapshot_after_submit_wall_ms": 2.6166279999999653,
+            "cold_ready_rest_build_wall_ms": 151.8212879999996,
+            "cold_ready_finish_wall_ms": 1778.2622500000025
+          },
+          "batch_types": {
+            "cold_ready_batch": 6717,
+            "disk_read_batch": 4013
+          },
+          "counts_per_trace": [
+            [
+              26172,
+              13188,
+              16458782256
+            ],
+            [
+              26164,
+              13196,
+              16468766352
+            ],
+            [
+              26155,
+              13205,
+              16479998460
+            ]
+          ],
+          "samples": {
+            "w1_rows": {
+              "n": 6717,
+              "mean": 2.0446627958910226,
+              "median": 2,
+              "p95": 3,
+              "min": 0,
+              "max": 4
+            },
+            "w2_rows": {
+              "n": 6717,
+              "mean": 2.9459580169718627,
+              "median": 3,
+              "p95": 7,
+              "min": 1,
+              "max": 8
+            },
+            "ready_initial": {
+              "n": 6717,
+              "mean": 2.079797528658627,
+              "median": 2,
+              "p95": 3,
+              "min": 2,
+              "max": 4
+            },
+            "inflight_concurrency": {
+              "n": 3421,
+              "mean": 3.1291023254285912,
+              "median": 3.252286665088549,
+              "p95": 3.5964111614595753,
+              "min": 1.7960666766781799,
+              "max": 3.9369257577616885
+            },
+            "max_inflight": {
+              "n": 3421,
+              "mean": 3.999123063431745,
+              "median": 4,
+              "p95": 4,
+              "min": 3,
+              "max": 4
+            },
+            "workers_used": {
+              "n": 3421,
+              "mean": 3.999123063431745,
+              "median": 4,
+              "p95": 4,
+              "min": 3,
+              "max": 4
+            },
+            "jobs_per_eligible_batch": {
+              "n": 3421,
+              "mean": 6.4475299619994155,
+              "median": 6,
+              "p95": 10,
+              "min": 5,
+              "max": 10
+            },
+            "read_makespan_us": {
+              "n": 3421,
+              "mean": 1038.2940950014615,
+              "median": 985.625,
+              "p95": 1841.292,
+              "min": 265.041,
+              "max": 2981.042
+            },
+            "worker_finish_spread_us": {
+              "n": 3421,
+              "mean": 394.2737073954984,
+              "median": 403.5,
+              "p95": 635.416,
+              "min": 13.791,
+              "max": 2338.792
+            },
+            "between_jobs_gap_us": {
+              "n": 3421,
+              "mean": 2.7816816720257234,
+              "median": 2.792,
+              "p95": 4.209,
+              "min": 0.125,
+              "max": 55.791
+            }
+          }
+        },
+        "decode": {
+          "totals_over_three_traces": {
+            "cold_ready_batch_wall_ms": 8911.277237000013,
+            "batches": 11007.0,
+            "jobs": 66316.0,
+            "dynamic_eligible_batches": 6733.0,
+            "cold_split_batches": 9192.0,
+            "cold_ready_begin_wall_ms": 178.61582199999995,
+            "cold_ready_wait_wall_ms": 3620.782252000011,
+            "cold_ready_first_build_wall_ms": 321.1517890000004,
+            "cold_ready_snapshot_before_submit_wall_ms": 6.176401000000004,
+            "cold_ready_first_submit_wall_ms": 610.2174670000005,
+            "cold_ready_snapshot_after_submit_wall_ms": 4.878703999999946,
+            "cold_ready_rest_build_wall_ms": 256.00795099999914,
+            "cold_ready_finish_wall_ms": 3853.572279999992
+          },
+          "batch_types": {
+            "cold_ready_batch": 9224,
+            "disk_read_batch": 1783
+          },
+          "counts_per_trace": [
+            [
+              52226,
+              23914,
+              27628489656
+            ],
+            [
+              52273,
+              23867,
+              27578569176
+            ],
+            [
+              52285,
+              23855,
+              27556104960
+            ]
+          ],
+          "samples": {
+            "w1_rows": {
+              "n": 9224,
+              "mean": 2.4147875108412835,
+              "median": 2.0,
+              "p95": 4,
+              "min": 0,
+              "max": 8
+            },
+            "w2_rows": {
+              "n": 9224,
+              "mean": 5.019405897658283,
+              "median": 4.0,
+              "p95": 11,
+              "min": 1,
+              "max": 18
+            },
+            "ready_initial": {
+              "n": 9224,
+              "mean": 2.1605594102341716,
+              "median": 2.0,
+              "p95": 3,
+              "min": 2,
+              "max": 6
+            },
+            "inflight_concurrency": {
+              "n": 6733,
+              "mean": 3.1901691641454955,
+              "median": 3.265547098834562,
+              "p95": 3.698211828653414,
+              "min": 1.1645710398673246,
+              "max": 3.9534183010490587
+            },
+            "max_inflight": {
+              "n": 6733,
+              "mean": 3.998811822367444,
+              "median": 4,
+              "p95": 4,
+              "min": 2,
+              "max": 4
+            },
+            "workers_used": {
+              "n": 6733,
+              "mean": 3.998811822367444,
+              "median": 4,
+              "p95": 4,
+              "min": 2,
+              "max": 4
+            },
+            "jobs_per_eligible_batch": {
+              "n": 6733,
+              "mean": 8.12995692856082,
+              "median": 7,
+              "p95": 14,
+              "min": 5,
+              "max": 20
+            },
+            "read_makespan_us": {
+              "n": 6733,
+              "mean": 1045.423564829942,
+              "median": 980.583,
+              "p95": 1816.375,
+              "min": 275.083,
+              "max": 5684.292
+            },
+            "worker_finish_spread_us": {
+              "n": 6733,
+              "mean": 362.6710274766078,
+              "median": 376.875,
+              "p95": 578.417,
+              "min": 4.166,
+              "max": 5025.334
+            },
+            "between_jobs_gap_us": {
+              "n": 6733,
+              "mean": 3.4972973414525472,
+              "median": 3.209,
+              "p95": 5.374,
+              "min": 0.125,
+              "max": 82.166
+            }
+          }
+        }
+      }
+    },
+    "A": {
+      "controls": [
+        {
+          "phase": "warmup",
+          "prefill_seconds": 8.231891667,
+          "decode_seconds": 11.716279875,
+          "diagnostic_tps": 10.839618151405759
+        },
+        {
+          "phase": "control_before",
+          "prefill_seconds": 7.535362667,
+          "decode_seconds": 11.45762875,
+          "diagnostic_tps": 11.084317948423665
+        },
+        {
+          "phase": "control_after",
+          "prefill_seconds": 7.481473708,
+          "decode_seconds": 11.591365666,
+          "diagnostic_tps": 10.956431162595333
+        }
+      ],
+      "parts": {
+        "prefill": {
+          "totals_over_three_traces": {
+            "cold_ready_batch_wall_ms": 6141.390651000014,
+            "batches": 10730.0,
+            "jobs": 39589.0,
+            "dynamic_eligible_batches": 3421.0,
+            "cold_split_batches": 6659.0,
+            "cold_ready_begin_wall_ms": 95.27695700000037,
+            "cold_ready_wait_wall_ms": 3437.012183000007,
+            "cold_ready_first_build_wall_ms": 185.36424200000053,
+            "cold_ready_snapshot_before_submit_wall_ms": 3.2837689999999267,
+            "cold_ready_first_submit_wall_ms": 375.65294799999936,
+            "cold_ready_snapshot_after_submit_wall_ms": 2.6750339999999455,
+            "cold_ready_rest_build_wall_ms": 150.8095709999988,
+            "cold_ready_finish_wall_ms": 1857.694168000002
+          },
+          "batch_types": {
+            "cold_ready_batch": 6717,
+            "disk_read_batch": 4013
+          },
+          "counts_per_trace": [
+            [
+              26172,
+              13188,
+              16458782256
+            ],
+            [
+              26164,
+              13196,
+              16468766352
+            ],
+            [
+              26155,
+              13205,
+              16479998460
+            ]
+          ],
+          "samples": {
+            "w1_rows": {
+              "n": 6717,
+              "mean": 2.0398987643293136,
+              "median": 2,
+              "p95": 3,
+              "min": 0,
+              "max": 5
+            },
+            "w2_rows": {
+              "n": 6717,
+              "mean": 2.9507220485335717,
+              "median": 3,
+              "p95": 7,
+              "min": 1,
+              "max": 8
+            },
+            "ready_initial": {
+              "n": 6717,
+              "mean": 2.069376209617389,
+              "median": 2,
+              "p95": 3,
+              "min": 2,
+              "max": 5
+            },
+            "inflight_concurrency": {
+              "n": 3421,
+              "mean": 2.9084199222996223,
+              "median": 2.9875024615573214,
+              "p95": 3.5512758706548615,
+              "min": 1.1953598542855646,
+              "max": 3.9324820186622067
+            },
+            "max_inflight": {
+              "n": 3421,
+              "mean": 3.9997076878105817,
+              "median": 4,
+              "p95": 4,
+              "min": 3,
+              "max": 4
+            },
+            "workers_used": {
+              "n": 3421,
+              "mean": 4,
+              "median": 4,
+              "p95": 4,
+              "min": 4,
+              "max": 4
+            },
+            "jobs_per_eligible_batch": {
+              "n": 3421,
+              "mean": 6.4475299619994155,
+              "median": 6,
+              "p95": 10,
+              "min": 5,
+              "max": 10
+            },
+            "read_makespan_us": {
+              "n": 3421,
+              "mean": 1083.999816427945,
+              "median": 1015.084,
+              "p95": 1889.959,
+              "min": 263.209,
+              "max": 8470.917
+            },
+            "worker_finish_spread_us": {
+              "n": 3421,
+              "mean": 558.828626425022,
+              "median": 516.583,
+              "p95": 1012.292,
+              "min": 14.0,
+              "max": 2780.417
+            },
+            "between_jobs_gap_us": {
+              "n": 3421,
+              "mean": 2.2162440806781643,
+              "median": 2.042,
+              "p95": 3.917,
+              "min": 0.0,
+              "max": 88.0
+            }
+          }
+        },
+        "decode": {
+          "totals_over_three_traces": {
+            "cold_ready_batch_wall_ms": 9172.223623999984,
+            "batches": 11007.0,
+            "jobs": 66316.0,
+            "dynamic_eligible_batches": 6733.0,
+            "cold_split_batches": 9186.0,
+            "cold_ready_begin_wall_ms": 173.21597800000004,
+            "cold_ready_wait_wall_ms": 3700.1687830000205,
+            "cold_ready_first_build_wall_ms": 315.07698200000016,
+            "cold_ready_snapshot_before_submit_wall_ms": 5.8072219999999755,
+            "cold_ready_first_submit_wall_ms": 590.4191950000015,
+            "cold_ready_snapshot_after_submit_wall_ms": 4.782129999999966,
+            "cold_ready_rest_build_wall_ms": 242.48405200000045,
+            "cold_ready_finish_wall_ms": 4081.8091259999997
+          },
+          "batch_types": {
+            "cold_ready_batch": 9224,
+            "disk_read_batch": 1783
+          },
+          "counts_per_trace": [
+            [
+              52226,
+              23914,
+              27628489656
+            ],
+            [
+              52273,
+              23867,
+              27578569176
+            ],
+            [
+              52285,
+              23855,
+              27556104960
+            ]
+          ],
+          "samples": {
+            "w1_rows": {
+              "n": 9224,
+              "mean": 2.418256721595837,
+              "median": 2.0,
+              "p95": 4,
+              "min": 0,
+              "max": 8
+            },
+            "w2_rows": {
+              "n": 9224,
+              "mean": 5.015936686903729,
+              "median": 4.0,
+              "p95": 11,
+              "min": 1,
+              "max": 18
+            },
+            "ready_initial": {
+              "n": 9224,
+              "mean": 2.1616435385949697,
+              "median": 2.0,
+              "p95": 3,
+              "min": 2,
+              "max": 4
+            },
+            "inflight_concurrency": {
+              "n": 6733,
+              "mean": 2.931914652547958,
+              "median": 2.951241383633742,
+              "p95": 3.542846135848583,
+              "min": 1.291562885838017,
+              "max": 3.903974383987697
+            },
+            "max_inflight": {
+              "n": 6733,
+              "mean": 4,
+              "median": 4,
+              "p95": 4,
+              "min": 4,
+              "max": 4
+            },
+            "workers_used": {
+              "n": 6733,
+              "mean": 4,
+              "median": 4,
+              "p95": 4,
+              "min": 4,
+              "max": 4
+            },
+            "jobs_per_eligible_batch": {
+              "n": 6733,
+              "mean": 8.12995692856082,
+              "median": 7,
+              "p95": 14,
+              "min": 5,
+              "max": 20
+            },
+            "read_makespan_us": {
+              "n": 6733,
+              "mean": 1085.0382818951434,
+              "median": 1010.333,
+              "p95": 1888.625,
+              "min": 280.708,
+              "max": 4174.709
+            },
+            "worker_finish_spread_us": {
+              "n": 6733,
+              "mean": 559.0986552799643,
+              "median": 519.834,
+              "p95": 1035.917,
+              "min": 12.875,
+              "max": 3392.0
+            },
+            "between_jobs_gap_us": {
+              "n": 6733,
+              "mean": 3.0202119411852073,
+              "median": 2.875,
+              "p95": 5.0,
+              "min": 0.0,
+              "max": 91.833
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+
+running 1 test
+test ssd_moe::prefetch_tests::draft_prefetch_preserves_hot_splits_and_next_layer_outputs ... Error: Condition failed: `pool.borrow().counters.used.load(std::sync::atomic::Ordering::Relaxed) > used` (4 vs 4)
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::prefetch_tests::draft_prefetch_preserves_hot_splits_and_next_layer_outputs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 260 filtered out; finished in 1.32s
+
+        1.33 real         0.73 user         0.27 sys
+           854130688  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               53135  page reclaims
+                 143  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                 105  voluntary context switches
+                1129  involuntary context switches
+         20192167865  instructions retired
+          4464319577  cycles elapsed
+           632538576  peak memory footprint

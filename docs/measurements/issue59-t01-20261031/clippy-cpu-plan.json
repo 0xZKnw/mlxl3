@@ -1,0 +1,22 @@
+[
+  {
+    "name": "t01-clippy-cpu",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "require_quiet": false,
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "required_text": []
+  }
+]

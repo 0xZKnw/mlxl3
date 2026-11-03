@@ -1,0 +1,31 @@
+{
+  "status": "complete",
+  "windows": {
+    "window1": {
+      "positions": 1024,
+      "source_f16_ppl": 11.584762075165694,
+      "teacher_bf16_ppl": 11.427788486151284,
+      "teacher_to_source_f16_kl": 0.029743887541132653,
+      "source_f16_to_v2_cuda_kl": 0.06276177383814012,
+      "source_f16_to_v2_native_kl": 0.06313871297680954,
+      "teacher_to_v2_cuda_kl": 0.07189789101013916,
+      "teacher_to_v2_native_kl": 0.06577057793059396,
+      "source_teacher_argmax_matches": 948,
+      "source_output_sha256": "99c1eec9c4a05f646c7138e17e170183f70ee21460fbaf2a1ab23a492eebd38b"
+    },
+    "window5": {
+      "positions": 1024,
+      "source_f16_ppl": 62.15598760226837,
+      "teacher_bf16_ppl": 64.07936142060659,
+      "teacher_to_source_f16_kl": 0.05988124431502736,
+      "source_f16_to_v2_cuda_kl": 0.452807852294555,
+      "source_f16_to_v2_native_kl": 0.4608481669268493,
+      "teacher_to_v2_cuda_kl": 0.5197751079397274,
+      "teacher_to_v2_native_kl": 0.5265056418210282,
+      "source_teacher_argmax_matches": 899,
+      "source_output_sha256": "069e3cf6c53e90eb047e24cd735fc01fa32776f4b7c4b279a1d5520028c756fc"
+    }
+  },
+  "source_backend": "unquantized original weights loaded as F16 by ExLlamaV3 1.5.4 CUDA",
+  "note": "KL is not additive; no subtraction is interpreted as quantization-only loss"
+}

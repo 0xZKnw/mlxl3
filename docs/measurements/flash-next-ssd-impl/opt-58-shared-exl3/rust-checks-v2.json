@@ -1,0 +1,64 @@
+[
+  {
+    "name": "clippy-final-v2",
+    "command": [
+      "cargo",
+      "clippy",
+      "--features",
+      "mlx,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "rust-cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--no-default-features"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "build-tests-v1",
+    "command": [
+      "cargo",
+      "test",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "rust-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "build-cli-v1",
+    "command": [
+      "cargo",
+      "build",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "exit": 0
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "rust": {
+    "command": "cargo kani --lib --tests --features mlx,chat --harness actual_mixed_hc_path_matches_mlx",
+    "domain": "two independent symbolic i8 values, no assumptions, converted to F32; actual 320x10240 F16 weights and 1x10240 F32 activation broadcast; calls production Projection.forward_flash_hc and independent MLX matmul",
+    "result": "unverified: Kani 0.68.0 compiler ICE in intrinsics.rs:243 before obligations, not a counterexample or timeout"
+  },
+  "metal": {
+    "command": "cbmc native/shaders/flash_hc_gemv.metal --bounds-check --pointer-check --unwinding-assertions --unwind 81",
+    "result": "unverified: CBMC 6.11 cannot identify MSL input; no translation/stub proof"
+  },
+  "sampled": {
+    "synthetic_f32_values": 21128,
+    "real_matrices": 298,
+    "real_f32_values": 1056392,
+    "parity": "bitwise for all checked MLX outputs; exact dyadic CPU sum oracle; finite outputs and shapes checked",
+    "mutation": "reverse real shader BN8 accumulation; test fails with mixed GEMV differs, original restored and passed; exact test SHA restored"
+  },
+  "regression": {
+    "cpu_passed": 87,
+    "cpu_ignored": 2,
+    "release_passed": 107,
+    "release_ignored": 98
+  },
+  "full_kani": "not repeated: no CPU contract change, prior exact-branch full CI has 1h timeout history; actual changed GPU path attempted directly"
+}

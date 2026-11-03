@@ -1,0 +1,356 @@
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -297,7 +301,7 @@
+             !self.mtp_hidden_batch || matrix_rows == 4,
+             "MTP hidden projection requires four streams"
+         );
+-        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 1 {
++        if self.reference_accumulation && !self.mtp_hidden_batch && matrix_rows > 2 {
+             let matrix = x.reshape(&[matrix_rows, self.rows])?;
+             let rows = (0..matrix_rows)
+                 .map(|row| self.forward(&matrix.slice(0, row, row + 1)?))
+@@ -469,7 +475,7 @@
+         let splits = if self.mtp_hidden_batch {
+             2
+         } else {
+-            split_count(input_tiles, output_tiles)
++            self.splits(input_tiles, output_tiles)
+         };
+         let use_nt4 = matrix_rows >= 8 && output_tiles % 4 == 0 && array::is_m5_gpu()?;
+         let mut nt = if use_nt4 {
+@@ -500,8 +506,11 @@
+         if mb == 3 {
+             nt = 1;
+         }
++        if self.reference_accumulation {
++            nt = 1;
++        }
+         let header = codebook_header(self.cb)
+-            + &reference_reduction_header(self.mtp_hidden_batch)
++            + &reference_reduction_header(self.reference_accumulation)
+             + &format!(
+                 "\n#define MLXL3_REFERENCE_MTP_BATCH {}\n",
+                 u8::from(self.mtp_hidden_batch)
+@@ -549,6 +558,17 @@
+         .remove(0);
+         let output = if splits == 1 {
+             partials.reshape(&[matrix_rows, self.cols])?
++        } else if self.reference_accumulation && !self.mtp_hidden_batch {
++            // Preserve the single-row MLX reduction layout used by the reference.
++            let rows = (0..matrix_rows)
++                .map(|row| {
++                    partials.slice(0, row, row + 1)?
++                        .reshape(&[splits, self.cols])?
++                        .sum(0, false)?
++                        .reshape(&[1, self.cols])
++                })
++                .collect::<Result<Vec<_>>>()?;
++            Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?
+         } else {
+             partials.sum(1, false)?
+         };
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -86,6 +86,18 @@
+     }
+ }
+ 
++fn project_rows(projection: &Projection, input: &Array) -> Result<Array> {
++    ensure!(input.shape().len() >= 2 && (1..=2).contains(&input.shape()[0]), "invalid Flash projection rows");
++    if input.shape()[0] == 1 || projection.is_exl3() {
++        return projection.forward(input);
++    }
++    // Dense GEMM changes the reference GEMV rounding; retain its row layout.
++    Array::concatenate(&[
++        &projection.forward(&input.slice(0, 0, 1)?)?,
++        &projection.forward(&input.slice(0, 1, 2)?)?,
++    ], 0)
++}
++
+ struct Hc {
+     norm: Norm,
+     down: Projection,
+@@ -104,24 +116,27 @@
+         })
+     }
+     fn read(&self, streams: &Array) -> Result<(Array, Option<Array>)> {
+-        let normalized = self.norm.forward(&streams.reshape(&[1, 1, WIDTH])?)?;
+-        let weights = self
+-            .up
+-            .forward(&self.down.forward(&normalized)?.qwen4_hc_activate()?)?;
+-        let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[1, H])?;
++        ensure!(streams.shape().len() == 2 && (1..=2).contains(&streams.shape()[0]) && streams.shape()[1] == WIDTH, "invalid Flash HC rows");
++        let rows = streams.shape()[0];
++        let normalized = self.norm.forward(&streams.reshape(&[rows, 1, WIDTH])?)?;
++        let weights = project_rows(&self.up, &project_rows(&self.down, &normalized)?.qwen4_hc_activate()?)?;
++        let mixed = weights.qwen4_hc_mix(&normalized)?.reshape(&[rows, H])?;
+         let injection = self
+             .inject
+             .as_ref()
+-            .map(|p| p.forward(&normalized)?.qwen4_hc_gate()?.reshape(&[1, HC]))
++            .map(|p| project_rows(p, &normalized)?.qwen4_hc_gate()?.reshape(&[rows, HC]))
+             .transpose()?;
+         Ok((mixed, injection))
+     }
+     fn write(streams: &Array, branch: &Array, gate: &Array) -> Result<Array> {
++        ensure!(streams.shape().len() == 2 && (1..=2).contains(&streams.shape()[0]) && streams.shape()[1] == WIDTH, "invalid Flash HC write rows");
++        let rows = streams.shape()[0];
++        ensure!(branch.shape() == [rows, H] && gate.shape() == [rows, HC], "invalid Flash HC branch or gate");
+         streams.add(
+             &branch
+-                .reshape(&[1, 1, H])?
+-                .mul(&gate.reshape(&[1, HC, 1])?)?
+-                .reshape(&[1, WIDTH])?,
++                .reshape(&[rows, 1, H])?
++                .mul(&gate.reshape(&[rows, HC, 1])?)?
++                .reshape(&[rows, WIDTH])?,
+         )
+     }
+ }
+@@ -163,6 +178,35 @@
+         })
+     }
+     fn forward(&mut self, x: &Array) -> Result<Array> {
++        let x = x.astype(Dtype::Float16)?;
++        let value = self.recurrent(
++            &self.qkv.forward(&x)?, &self.a.forward(&x)?,
++            &self.b.forward(&x)?, &self.z.forward(&x)?,
++        )?;
++        self.out.forward(&value)?.astype(Dtype::Float32)
++    }
++    fn forward_pair(&mut self, x: &Array) -> Result<(Array, AttentionState)> {
++        ensure!(x.shape() == [2, H], "invalid Flash GDN pair");
++        let x = x.astype(Dtype::Float16)?;
++        let qkv = self.qkv.forward(&x)?;
++        let a = project_rows(&self.a, &x)?;
++        let b = project_rows(&self.b, &x)?;
++        let z = self.z.forward(&x)?;
++        let first = self.recurrent(
++            &qkv.slice(0, 0, 1)?, &a.slice(0, 0, 1)?,
++            &b.slice(0, 0, 1)?, &z.slice(0, 0, 1)?,
++        )?;
++        let state = AttentionState::Gdn {
++            history: clone_array(&self.history)?,
++            state: clone_array(&self.state)?,
++        };
++        let second = self.recurrent(
++            &qkv.slice(0, 1, 2)?, &a.slice(0, 1, 2)?,
++            &b.slice(0, 1, 2)?, &z.slice(0, 1, 2)?,
++        )?;
++        Ok((self.out.forward(&Array::concatenate(&[&first, &second], 0)?)?.astype(Dtype::Float32)?, state))
++    }
++    fn recurrent(&mut self, qkv: &Array, a: &Array, b: &Array, z: &Array) -> Result<Array> {
+         #[cfg(test)]
+         self.stages.clear();
+         macro_rules! stage {
+@@ -171,11 +215,7 @@
+                 self.stages.push(($name.into(), $value.try_clone()?));
+             };
+         }
+-        let half_input = x.astype(Dtype::Float16)?;
+-        let x = &half_input;
+-        let qkv = self
+-            .qkv
+-            .forward(x)?
++        let qkv = qkv
+             .astype(Dtype::Float16)?
+             .reshape(&[1, 1, 10240])?;
+         stage!("qkv", qkv);
+@@ -209,14 +249,10 @@
+             Some(s) => s.try_clone()?,
+             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
+         };
+-        let a = self
+-            .a
+-            .forward(x)?
++        let a = a
+             .astype(Dtype::Float16)?
+             .reshape(&[1, 1, 48])?;
+-        let b = self
+-            .b
+-            .forward(x)?
++        let b = b
+             .astype(Dtype::Float16)?
+             .reshape(&[1, 1, 48])?;
+         stage!("a", a);
+@@ -225,9 +261,7 @@
+             gated_delta::step_with_gates(&q, &k, &v, &a, &b, &self.a_log, &self.dt_bias, &state)?;
+         stage!("delta", value);
+         self.state = Some(state);
+-        let z = self
+-            .z
+-            .forward(x)?
++        let z = z
+             .astype(Dtype::Float16)?
+             .reshape(&[1, 1, 48, 128])?;
+         stage!("z", z);
+@@ -238,9 +272,7 @@
+             .mul(&z.astype(Dtype::Float32)?.sigmoid()?)?
+             .astype(Dtype::Float16)?;
+         stage!("gated", gated);
+-        self.out
+-            .forward(&gated.reshape(&[1, 6144])?)?
+-            .astype(Dtype::Float32)
++        gated.reshape(&[1, 6144])
+     }
+     fn reset(&mut self) {
+         self.state = None;
+@@ -853,22 +885,6 @@
+         }
+         Ok((streams, mixed, gate.context("missing MoE injection")?))
+     }
+-    fn snapshot(&self) -> Result<LayerState> {
+-        Ok(LayerState {
+-            attention: match &self.attention {
+-                Attention::Gdn(g) => AttentionState::Gdn {
+-                    history: clone_array(&g.history)?,
+-                    state: clone_array(&g.state)?,
+-                },
+-                Attention::Qsa(q) => AttentionState::Qsa(q.snapshot()?),
+-            },
+-            ple: self
+-                .ple
+-                .as_ref()
+-                .map(|p| -> Result<_> { Ok((clone_array(&p.history)?, p.rows.previous)) })
+-                .transpose()?,
+-        })
+-    }
+     fn restore(&mut self, state: LayerState) -> Result<()> {
+         match (&mut self.attention, state.attention) {
+             (Attention::Gdn(g), AttentionState::Gdn { history, state }) => {
+@@ -890,18 +906,31 @@
+         streams: &[Array; 2],
+         tokens: [u32; 2],
+     ) -> Result<([Array; 2], LayerState)> {
+-        let a = self.prepare(&streams[0], tokens[0])?;
+-        let first = self.snapshot()?;
+-        let b = self.prepare(&streams[1], tokens[1])?;
+-        let output = self
+-            .moe
+-            .forward_many(&Array::concatenate(&[&a.1, &b.1], 0)?)?;
++        let (streams, ple) = match &mut self.ple {
++            Some(ple) => {
++                let a = ple.forward(&streams[0], tokens[0])?;
++                let first = (clone_array(&ple.history)?, ple.rows.previous);
++                let b = ple.forward(&streams[1], tokens[1])?;
++                (Array::concatenate(&[&a, &b], 0)?, Some(first))
++            }
++            None => (Array::concatenate(&[&streams[0], &streams[1]], 0)?, None),
++        };
++        let (mixed, gate) = self.attn_hc.read(&streams)?;
++        let (branch, attention) = match &mut self.attention {
++            Attention::Gdn(gdn) => gdn.forward_pair(&mixed)?,
++            Attention::Qsa(qsa) => {
++                let a = qsa.forward(&mixed.slice(0, 0, 1)?)?;
++                let first = AttentionState::Qsa(qsa.snapshot()?);
++                let b = qsa.forward(&mixed.slice(0, 1, 2)?)?;
++                (Array::concatenate(&[&a, &b], 0)?, first)
++            }
++        };
++        let streams = Hc::write(&streams, &branch, &gate.context("missing attention injection")?)?;
++        let (mixed, gate) = self.mlp_hc.read(&streams)?;
++        let output = Hc::write(&streams, &self.moe.forward_many(&mixed)?, &gate.context("missing MoE injection")?)?;
+         Ok((
+-            [
+-                Hc::write(&a.0, &output.slice(0, 0, 1)?, &a.2)?,
+-                Hc::write(&b.0, &output.slice(0, 1, 2)?, &b.2)?,
+-            ],
+-            first,
++            [output.slice(0, 0, 1)?, output.slice(0, 1, 2)?],
++            LayerState { attention, ple },
+         ))
+     }
+     fn reset(&mut self) {
+@@ -1178,9 +1188,8 @@
+             streams = output;
+             states.push(first);
+         }
+-        let logits =
+-            Array::concatenate(&[&self.logits(&streams[0])?, &self.logits(&streams[1])?], 0)?;
+         let hidden = Array::concatenate(&[&streams[0], &streams[1]], 0)?;
++        let logits = self.logits(&hidden)?;
+         self.drain()?;
+         self.verification = Some(PairState {
+             base,
+@@ -2161,6 +2170,40 @@
+         Ok(())
+     }
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; exact HC pair and shape boundaries"]
++    fn flash_hc_pair_preserves_serial_rounding_and_rejects_invalid_shapes() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let hc = Hc::load(&c, "model.language_model.layers.0.attn_hyper_connection", 1e-6, true)?;
++        let values = (0..2 * WIDTH).map(|i| (i as f32 * 0.017).sin()).collect::<Vec<_>>();
++        for dtype in [Dtype::Float16, Dtype::Float32] {
++            let input = Array::from_f32(&values, &[2, WIDTH])?.astype(dtype)?;
++            let a = hc.read(&input.slice(0, 0, 1)?)?;
++            let b = hc.read(&input.slice(0, 1, 2)?)?;
++            let (mixed, gate) = hc.read(&input)?;
++            let gate = gate.context("missing pair gate")?;
++            ensure!(mixed.shape() == [2, H] && gate.shape() == [2, HC]);
++            ensure!(mixed.to_f32()?.iter().all(|v| v.is_finite()));
++            ensure!(mixed.to_bytes()? == Array::concatenate(&[&a.0, &b.0], 0)?.to_bytes()?, "HC pair mixed differs");
++            ensure!(gate.to_bytes()? == Array::concatenate(&[&a.1.context("first gate")?, &b.1.context("second gate")?], 0)?.to_bytes()?, "HC pair gate differs");
++            let expected = Array::concatenate(&[
++                &Hc::write(&input.slice(0, 0, 1)?, &mixed.slice(0, 0, 1)?, &gate.slice(0, 0, 1)?)?,
++                &Hc::write(&input.slice(0, 1, 2)?, &mixed.slice(0, 1, 2)?, &gate.slice(0, 1, 2)?)?,
++            ], 0)?;
++            ensure!(Hc::write(&input, &mixed, &gate)?.to_bytes()? == expected.to_bytes()?, "HC pair write differs");
++            ensure!(Hc::write(&input, &mixed.slice(0, 0, 1)?, &gate).is_err());
++            ensure!(Hc::write(&input, &mixed, &gate.slice(0, 0, 1)?).is_err());
++        }
++        for shape in [vec![WIDTH], vec![0, WIDTH], vec![3, WIDTH], vec![1, WIDTH - 1]] {
++            ensure!(hc.read(&Array::zeros_dtype(&shape, Dtype::Float32)?).is_err());
++        }
++        Ok(())
++    }
++    #[cfg(all(kani, feature = "chat"))]
++    #[kani::proof]
++    fn physical_t2_preserves_real_path() {
++        flash_pair_verification_preserves_serial_logits_and_all_states().unwrap();
++    }
++    #[test]
+     #[ignore = "physical Apple GPU and independent upstream norm fixture"]
+     fn flash_norms_match_upstream_rounding() -> Result<()> {
+         let root = std::env::var("MLXL3_FLASH_NORM_REFERENCE")?;
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -374,25 +341,19 @@
+             .mul(&weights.reshape(&[rows * 10, 1])?)?
+             .reshape(&[rows, 10, H])?
+             .sum(1, false)?;
+-        let mut shared_rows = Vec::new();
++        let shared = self.shared_down.forward(
++            &self.shared_gate.forward(x)?.astype(Dtype::Float16)?
++                .swiglu(&self.shared_up.forward(x)?.astype(Dtype::Float16)?)?,
++        )?.astype(x.dtype())?;
++        let mut multipliers = Vec::new();
+         for row in 0..rows {
+             let x = x.slice(0, row, row + 1)?;
+-            let shared = self
+-                .shared_down
+-                .forward(
+-                    &self
+-                        .shared_gate
+-                        .forward(&x)?
+-                        .astype(Dtype::Float16)?
+-                        .swiglu(&self.shared_up.forward(&x)?.astype(Dtype::Float16)?)?,
+-                )?
+-                .astype(x.dtype())?;
+-            shared_rows.push(shared.mul(&self.multiplier.forward(&x)?.sigmoid()?)?);
+-        }
+-        let output = routed.add(&Array::concatenate(
+-            &shared_rows.iter().collect::<Vec<_>>(),
++            multipliers.push(self.multiplier.forward(&x)?.sigmoid()?);
++        }
++        let output = routed.add(&shared.mul(&Array::concatenate(
++            &multipliers.iter().collect::<Vec<_>>(),
+             0,
+-        )?)?;
++        )?)?)?;
+         self.last = Some(output.try_clone()?);
+         Ok(output)
+     }

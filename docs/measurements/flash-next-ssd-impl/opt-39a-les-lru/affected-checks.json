@@ -1,0 +1,109 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 36863,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2345166659943061
+  },
+  {
+    "name": "cpu-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 36866,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.8855121249944204
+  },
+  {
+    "name": "cpu-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 36915,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.17074387500179
+  },
+  {
+    "name": "mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 37016,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.415662083993084
+  },
+  {
+    "name": "release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 37068,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 40.93104662500264
+  },
+  {
+    "name": "release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 37232,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 31.071061082999222
+  }
+]

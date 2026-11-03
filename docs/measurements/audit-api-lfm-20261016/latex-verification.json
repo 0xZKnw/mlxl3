@@ -1,0 +1,127 @@
+{
+  "status": "complete",
+  "kind": "deterministic regression and integration tests; not formal Swift proof",
+  "source_sha256": {
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTTypesetter.swift": "080e3fc90b6762a413137c0c2bd96f7151f5f14a05ff9bf79ea4256524ffa911",
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTMathListBuilder.swift": "825fe256e15bfd490312ef390a73f72adae3f208101e5bca08189f07e5f5d389",
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTMathListDisplay.swift": "9dd768baf869419d335ecac76d38fa0b07fadeb2f3b0689df75e0acfdaa7506b",
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTMathImage.swift": "47a3122e0655b0fe28f49cb1642a1e8f9cd46da7f25d4cb065f6288daad4c712",
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTMathAtomFactory.swift": "d7df01827e9cbd2a3201b1376dffec2a375c469454ae07ed209428ad2a60796e",
+    "apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathRender/MTMathList.swift": "eec9b01c40c5630253385780a51c4a77a9354d757645406c0cb78f9d60c68f36",
+    "tests/response-ui-check.swift": "40b8ea4245ee19713b5d10e441e5ca30999662f0764dc12c1e09526caea8702f"
+  },
+  "old_compiled_object_sha256": "31fb398c16ce892635e257619d010aadf0b445d89998c7c5077d25ff40d2afe1",
+  "old_red": {
+    "status": "expected_failure",
+    "exit_code": -5,
+    "bug": "unsupported standard LaTeX command; actual old object"
+  },
+  "desktop_full_coverage": "attempt1 passed all prior components then new harness compile failed; fixed only the test copy constructor and reran response plus every remaining component, warnings-as-errors; all pass",
+  "new_cases": {
+    "formulas": 9,
+    "image_styles": 2,
+    "inline_delimiters_times_formulas": 8,
+    "prepared_chunks_cases": 63,
+    "invalid_formulas": 3
+  },
+  "visual_review": [
+    "formula-0.png: full equation with sums and fractions",
+    "formula-1.png: actual rectangular frame"
+  ],
+  "native_unchanged_from_proven_manifest": true,
+  "formal_swift": "No compatible source verifier configured; type checking and tests only",
+  "build_sdk": "26.5",
+  "tested_host": "macOS27.2/26B5091g; AppleM5/24GiB",
+  "limitations": [
+    "No complete TeX implementation",
+    "No mathematical reasoning/content evaluation",
+    "App installed by user remains unchanged"
+  ],
+  "archive": {
+    "name": "latex-evidence.tar.gz",
+    "bytes": 20673,
+    "sha256": "92f11d5bb8ae794a4e2683b2e1a521f7b2e7b42bf3f176542cf85a51f2fa7d57",
+    "entries": [
+      {
+        "name": "verification.json",
+        "bytes": 2330,
+        "sha256": "c4073b82784debc5bb374fdbbd1118670c1d4344db183f999826621e96c6c6dd"
+      },
+      {
+        "name": "diagnose.swift",
+        "bytes": 508,
+        "sha256": "ff64c0493fb214f514189bd9dd302a939051f8da4b36655874210e45d1576f6f"
+      },
+      {
+        "name": "red-expected.swift",
+        "bytes": 257,
+        "sha256": "0aa7c8182299ceea3e14907ee012bcef6d6af8ef74d9ca5dc16ec71911fb825f"
+      },
+      {
+        "name": "red.json",
+        "bytes": 111,
+        "sha256": "9f4926d4ccd1973e01f7a4439deed98a41da0e836a064c75f75c8d494e199420"
+      },
+      {
+        "name": "red.stdout",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "red.stderr",
+        "bytes": 86,
+        "sha256": "ea518b49686b82a1a6f1826d55b6d4d01604139a401950934bf564ef669be582"
+      },
+      {
+        "name": "red-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "desktop-check-attempt1.log",
+        "bytes": 4677,
+        "sha256": "0aad9b13c471376180a2f075ec46f39f423e3c83ae776ff372f7730a8a3957f6"
+      },
+      {
+        "name": "remaining.log",
+        "bytes": 790,
+        "sha256": "97eb7a250945ee53cf87d1ae5236fd7776844f879318c80cef518a78c8049169"
+      },
+      {
+        "name": "check-remaining.zsh",
+        "bytes": 1798,
+        "sha256": "fba644ea8fc1a47c5403281a0e1f95c9c860862320f87243b5fac4d0c5608ab9"
+      },
+      {
+        "name": "capture.swift",
+        "bytes": 916,
+        "sha256": "7a18d796cafec58a4a644cdc9ed800ab4b117249ae10287750bdde9681d3d1cb"
+      },
+      {
+        "name": "capture-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "name": "capture.log",
+        "bytes": 39,
+        "sha256": "b6fd685f2a2619b618254fd06466ab32b8e4766e424898a785cbb8120d017341"
+      },
+      {
+        "name": "formula-0.png",
+        "bytes": 10317,
+        "sha256": "7eb5629436012426317cea86125e4544d83bdba664bdb30abb00eae4b224a434"
+      },
+      {
+        "name": "formula-1.png",
+        "bytes": 2890,
+        "sha256": "0a8f9e2378182ffa0f17dc9acf2874a97610f01c177bc7447a7cbe655b892724"
+      },
+      {
+        "name": "formula-2.png",
+        "bytes": 2250,
+        "sha256": "77c884f0c42b7740bf1d69844c0e496f4954b63a953bbb853166dacc23f0d6f5"
+      }
+    ]
+  }
+}

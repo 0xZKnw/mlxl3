@@ -1,0 +1,51 @@
+{
+  "status": "complete",
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/llama-b11620/llama-perplexity",
+    "-m",
+    "/Users/justin/.lmstudio/models/unsloth/LFM2.5-24B-A2B-Preview-GGUF/LFM2.5-24B-A2B-Preview-UD-Q4_K_XL.gguf",
+    "-f",
+    "/Users/justin/Documents/mix-stq1_0/benchmarks/data/wikitext-2-raw/wiki.test.raw",
+    "-c",
+    "1024",
+    "-b",
+    "128",
+    "-ub",
+    "128",
+    "-ngl",
+    "99",
+    "--chunks",
+    "8",
+    "--save-all-logits",
+    "/Users/justin/Documents/mix-stq1_0/build/lfm25-eval/gguf-paired-logits.bin",
+    "--offline"
+  ],
+  "gguf_sha256": "a235d23638cc5549cb1ff61da7522c8a7e97f056f27093462a1e56f35aba91d8",
+  "backend_sha256": "b968e79ab89e65a869b6e420b0da93d7b783c857697a6663d7bb7b0a6f0652bb",
+  "scored_tokens": 4088,
+  "chunks": 8,
+  "context": 1024,
+  "stage": "done",
+  "comparison_complete": true,
+  "timeout_s": 300,
+  "exit_code": 0,
+  "perplexity": 18.3467,
+  "reported_standard_error": 0.97099,
+  "mean_nll_from_rounded_ppl": 2.909449721815793,
+  "effective_token_sha256": "e02f2e7b5e2a1e5ae068674dddbdab062024d6967d8e7827d5ee967b2c06fea7",
+  "dump_bytes": 1046593492,
+  "exact_scored_positions_match": true,
+  "bf16": {
+    "mean_nll": 2.8653969129383037,
+    "perplexity": 17.55602003337925
+  },
+  "native_exl3": {
+    "mean_nll": 2.910477228479458,
+    "perplexity": 18.36556104477144
+  },
+  "gguf_vs_bf16_ppl_change_percent": 4.503754069073906,
+  "gguf_vs_native_exl3_ppl_change_percent": -0.10269789594481438,
+  "kl_comparison": "not measured: saved probabilities are clamped/uint16 quantized",
+  "source_equivalence": "38 routing matrices bit-exact, tokenizer/config equal; full source weight provenance not proven",
+  "elapsed_s": 15.68564687500475
+}

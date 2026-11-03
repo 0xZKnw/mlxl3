@@ -1,0 +1,46 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+error[E0631]: type mismatch in function arguments
+  --> native/src/router/flash_top10_tests.rs:91:35
+   |
+ 4 | fn expected_ids(values: &[f32]) -> Vec<u32> {
+   | ------------------------------------------- found signature defined here
+...
+91 |                         .flat_map(expected_ids)
+   |                          -------- ^^^^^^^^^^^^ expected due to this
+   |                          |
+   |                          required by a bound introduced by this call
+   |
+   = note: expected function signature `fn(&[f32; 512]) -> _`
+              found function signature `fn(&[f32]) -> _`
+note: required by a bound in `std::iter::Iterator::flat_map`
+  --> /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/iter/traits/iterator.rs:1533:4
+help: consider wrapping the function in a closure
+   |
+91 |                         .flat_map(|arg0: &[f32; 512]| expected_ids(/* &[f32] */))
+   |                                   +++++++++++++++++++             ++++++++++++++
+
+error[E0599]: the method `collect` exists for struct `FlatMap<Iter<'_, [f32; 512]>, _, fn(&[f32]) -> ... {expected_ids}>`, but its trait bounds were not satisfied
+  --> native/src/router/flash_top10_tests.rs:92:26
+   |
+89 |                       let expected = represented
+   |  ____________________________________-
+90 | |                         .as_chunks::<512>().0.iter()
+91 | |                         .flat_map(expected_ids)
+92 | |                         .collect::<Vec<_>>();
+   | |                         -^^^^^^^ method cannot be called due to unsatisfied trait bounds
+   | |_________________________|
+   |
+   |
+   = note: the following trait bounds were not satisfied:
+           `<for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids} as std::ops::FnOnce<(&[f32; 512],)>>::Output = _`
+           which is required by `std::iter::FlatMap<std::slice::Iter<'_, [f32; 512]>, _, for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids}>: std::iter::Iterator`
+           `for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids}: std::ops::FnMut<(&[f32; 512],)>`
+           which is required by `std::iter::FlatMap<std::slice::Iter<'_, [f32; 512]>, _, for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids}>: std::iter::Iterator`
+           `std::iter::FlatMap<std::slice::Iter<'_, [f32; 512]>, _, for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids}>: std::iter::Iterator`
+           which is required by `&mut std::iter::FlatMap<std::slice::Iter<'_, [f32; 512]>, _, for<'a> fn(&'a [f32]) -> std::vec::Vec<u32> {router::flash_top10_tests::expected_ids}>: std::iter::Iterator`
+   = note: the full name for the type has been written to '/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-dae0bb8a9f3d8035.long-type-5532813406555364370.txt'
+   = note: consider using `--verbose` to print the full type name to the console
+
+Some errors have detailed explanations: E0599, E0631.
+For more information about an error, try `rustc --explain E0599`.
+error: could not compile `mlxl3-native` (lib test) due to 2 previous errors

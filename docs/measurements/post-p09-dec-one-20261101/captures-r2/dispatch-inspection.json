@@ -1,0 +1,46 @@
+{
+  "status": "six_captures_inspected",
+  "method": "Xcode27.2 UI replay, Profile after replay unchecked; no speed derived from replay",
+  "counts": {
+    "gdn0-out": {
+      "A": 8,
+      "C": 5
+    },
+    "qsa15-out": {
+      "A": 8,
+      "C": 5
+    },
+    "gdn0-qkv": {
+      "A": 6,
+      "C": 6
+    }
+  },
+  "command_buffers": 2,
+  "compute_encoders": 1,
+  "candidate_gdn": {
+    "kernel": "custom_kernel_mlxl3_flash_dec_one_s2_b1_v1_float16_t_uint32_t_float16_t_uint32_t",
+    "grid": [
+      20480,
+      1,
+      2
+    ],
+    "threadgroup": [
+      128,
+      1,
+      1
+    ],
+    "fill_grid": [
+      6420,
+      1,
+      1
+    ],
+    "output_offset_bytes": 20560,
+    "allocated_state_buffer_bytes": 32768
+  },
+  "GPU_time": "not_measured",
+  "limitations": [
+    "Metadata enabled/kernel_requests refer to F02 (zero both arms), not DEC-ONE",
+    "Transient AX RuntimeIssue annotations disappeared on selection; no stable diagnostic observed; not complete Metal validation"
+  ],
+  "xcode_closed": true
+}

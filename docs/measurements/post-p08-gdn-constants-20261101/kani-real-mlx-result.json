@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--lib",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "prepared_conv_preserves_symbolic_half_endpoints_through_real_mlx",
+    "--jobs",
+    "1"
+  ],
+  "status": "finished",
+  "exit_code": 1,
+  "seconds": 4.851173707997077,
+  "joined": true,
+  "timeout_seconds": 180,
+  "domain": "one symbolic u16 repeated over real40960elementF16tensor; actualGdn::prepare_conv andMLX; shapes,dtype,andfirst/lastF32values; loopunwind3; noassumptions; noCPUstub"
+}

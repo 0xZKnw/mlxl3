@@ -1,0 +1,377 @@
+//! Demand-only ARC (Megiddo/Modha FAST'03, figure 4), with complete-batch pins.
+use super::Key;
+use crate::flash_support::CacheError;
+use std::collections::VecDeque;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ReplayArc {
+    pub(super) slots: Vec<Option<Key>>,
+    t1: VecDeque<(Key, usize)>,
+    t2: VecDeque<(Key, usize)>,
+    b1: VecDeque<Key>,
+    b2: VecDeque<Key>,
+    pub(super) target: usize,
+    layers: usize,
+}
+
+impl ReplayArc {
+    pub(super) fn sizes(&self) -> [usize; 4] {
+        [self.t1.len(), self.t2.len(), self.b1.len(), self.b2.len()]
+    }
+
+    pub(super) fn metadata_allocation_bytes(&self) -> usize {
+        self.slots.capacity() * std::mem::size_of::<Option<Key>>()
+            + (self.t1.capacity() + self.t2.capacity()) * std::mem::size_of::<(Key, usize)>()
+            + (self.b1.capacity() + self.b2.capacity()) * std::mem::size_of::<Key>()
+    }
+
+    pub(super) fn new(layers: usize, capacity: usize) -> Result<Self, CacheError> {
+        if !(1..=48).contains(&layers) || capacity == 0 || capacity > layers * 512 {
+            return Err(CacheError::Capacity);
+        }
+        Ok(Self {
+            slots: vec![None; capacity],
+            t1: VecDeque::new(),
+            t2: VecDeque::new(),
+            b1: VecDeque::new(),
+            b2: VecDeque::new(),
+            target: 0,
+            layers,
+        })
+    }
+
+    fn eligible(list: &VecDeque<(Key, usize)>, layer: usize, demand: &[u32]) -> Option<usize> {
+        list.iter()
+            .position(|(key, _)| key.layer != layer || !demand.contains(&key.expert))
+    }
+
+    fn evict(
+        &mut self,
+        recent: bool,
+        layer: usize,
+        demand: &[u32],
+        remember: bool,
+    ) -> Result<(), CacheError> {
+        let (list, ghost) = if recent {
+            (&mut self.t1, &mut self.b1)
+        } else {
+            (&mut self.t2, &mut self.b2)
+        };
+        let index = Self::eligible(list, layer, demand).ok_or(CacheError::NoSlot)?;
+        let (key, slot) = list.remove(index).expect("eligible resident");
+        self.slots[slot] = None;
+        if remember {
+            ghost.push_back(key);
+        }
+        Ok(())
+    }
+
+    fn replace(&mut self, in_b2: bool, layer: usize, demand: &[u32]) -> Result<(), CacheError> {
+        let mut recent = !self.t1.is_empty()
+            && (self.t1.len() > self.target || (in_b2 && self.t1.len() == self.target));
+        let preferred = if recent { &self.t1 } else { &self.t2 };
+        // Batch consumers pin every demand key; fall back only if the preferred list is fully pinned.
+        if Self::eligible(preferred, layer, demand).is_none() {
+            recent = !recent;
+        }
+        self.evict(recent, layer, demand, true)
+    }
+
+    fn access(&mut self, key: Key, demand: &[u32]) -> Result<(usize, bool), CacheError> {
+        let entry = if let Some(index) = self.t1.iter().position(|(k, _)| *k == key) {
+            self.t1.remove(index)
+        } else {
+            self.t2
+                .iter()
+                .position(|(k, _)| *k == key)
+                .and_then(|index| self.t2.remove(index))
+        };
+        if let Some(entry) = entry {
+            self.t2.push_back(entry);
+            return Ok((entry.1, true));
+        }
+        let capacity = self.slots.len();
+        let in_b1 = self.b1.contains(&key);
+        let in_b2 = self.b2.contains(&key);
+        if in_b1 || in_b2 {
+            if in_b1 {
+                self.target = capacity.min(self.target + (self.b2.len() / self.b1.len()).max(1));
+            } else {
+                self.target = self
+                    .target
+                    .saturating_sub((self.b1.len() / self.b2.len()).max(1));
+            }
+            self.replace(in_b2, key.layer, demand)?;
+            let ghosts = if in_b1 { &mut self.b1 } else { &mut self.b2 };
+            let index = ghosts.iter().position(|k| *k == key).expect("ghost");
+            ghosts.remove(index);
+        } else {
+            if self.t1.len() + self.b1.len() == capacity {
+                if self.t1.len() < capacity {
+                    self.b1.pop_front().expect("recent history");
+                    self.replace(false, key.layer, demand)?;
+                } else {
+                    self.evict(true, key.layer, demand, false)?;
+                }
+            } else {
+                let total = self.t1.len() + self.t2.len() + self.b1.len() + self.b2.len();
+                if total >= capacity {
+                    if total == 2 * capacity {
+                        self.b2.pop_front().expect("frequent history");
+                    }
+                    self.replace(false, key.layer, demand)?;
+                }
+            }
+        }
+        let slot = self
+            .slots
+            .iter()
+            .position(Option::is_none)
+            .ok_or(CacheError::NoSlot)?;
+        self.slots[slot] = Some(key);
+        let list = if in_b1 || in_b2 {
+            &mut self.t2
+        } else {
+            &mut self.t1
+        };
+        list.push_back((key, slot));
+        Ok((slot, false))
+    }
+
+    pub(super) fn reserve(
+        &mut self,
+        layer: usize,
+        ids: &[u32],
+    ) -> Result<Vec<(usize, bool)>, CacheError> {
+        if layer >= self.layers
+            || ids.is_empty()
+            || ids.len() > 80
+            || ids.iter().any(|id| *id >= 512)
+        {
+            return Err(CacheError::InvalidIds);
+        }
+        let mut unique = ids.to_vec();
+        unique.sort_unstable();
+        unique.dedup();
+        if unique.len() > self.slots.len() {
+            return Err(CacheError::Capacity);
+        }
+        let mut mapped = Vec::with_capacity(unique.len());
+        for &expert in &unique {
+            mapped.push(self.access(Key { layer, expert }, &unique)?);
+        }
+        Ok(ids
+            .iter()
+            .map(|id| mapped[unique.binary_search(id).expect("reserved key")])
+            .collect())
+    }
+}
+
+#[test]
+fn arc_ghost_feedback_and_replace_follow_literal_scalar_states() -> anyhow::Result<()> {
+    let mut cache = ReplayArc::new(1, 2)?;
+    let key = |expert| Key { layer: 0, expert };
+    for expert in [0, 1, 0, 2] {
+        cache.reserve(0, &[expert])?;
+    }
+    assert_eq!(cache.target, 0);
+    assert_eq!(
+        cache.t1.iter().map(|x| x.0).collect::<Vec<_>>(),
+        vec![key(2)]
+    );
+    assert_eq!(
+        cache.t2.iter().map(|x| x.0).collect::<Vec<_>>(),
+        vec![key(0)]
+    );
+    assert_eq!(cache.b1, VecDeque::from([key(1)]));
+    assert!(!cache.reserve(0, &[1])?[0].1);
+    assert_eq!(cache.target, 1);
+    assert_eq!(cache.b2, VecDeque::from([key(0)]));
+    cache.reserve(0, &[0])?;
+    assert_eq!(cache.target, 0);
+    assert_eq!(cache.b1, VecDeque::from([key(2)]));
+    assert!(cache.t1.is_empty());
+    assert_eq!(
+        cache.t2.iter().map(|x| x.0).collect::<Vec<_>>(),
+        vec![key(1), key(0)]
+    );
+    cache.reserve(0, &[3])?;
+    assert_eq!(cache.b2, VecDeque::from([key(1)]));
+    cache.reserve(0, &[4])?;
+    assert_eq!(cache.b1, VecDeque::from([key(3)]));
+    assert_eq!(
+        cache.t1.iter().map(|x| x.0).collect::<Vec<_>>(),
+        vec![key(4)]
+    );
+    assert_eq!(
+        cache.t2.iter().map(|x| x.0).collect::<Vec<_>>(),
+        vec![key(0)]
+    );
+    Ok(())
+}
+
+#[test]
+fn arc_ghost_ratios_target_clamps_and_b2_tie_choose_the_paper_victim() -> anyhow::Result<()> {
+    let mut cache = ReplayArc::new(1, 4)?;
+    let key = |expert| Key { layer: 0, expert };
+    for id in [0, 1, 2, 3, 0, 1, 4, 5, 2, 3, 4, 0, 6, 7, 8] {
+        cache.reserve(0, &[id])?;
+        invariants(&cache);
+    }
+    assert_eq!(cache.target, 2);
+    assert_eq!(
+        cache.t1.iter().map(|e| e.0).collect::<Vec<_>>(),
+        vec![key(6), key(7), key(8)]
+    );
+    assert_eq!(
+        cache.t2.iter().map(|e| e.0).collect::<Vec<_>>(),
+        vec![key(0)]
+    );
+    assert_eq!(cache.b1, VecDeque::from([key(5)]));
+    assert_eq!(cache.b2, VecDeque::from([key(2), key(3), key(4)]));
+    cache.reserve(0, &[5])?;
+    assert_eq!(cache.target, 4, "B2/B1=3 must increase and clamp p");
+    assert!(cache.b1.is_empty());
+    assert_eq!(cache.b2, VecDeque::from([key(2), key(3), key(4), key(0)]));
+    cache.reserve(0, &[2])?;
+    assert_eq!(cache.target, 3);
+    assert_eq!(
+        cache.b1,
+        VecDeque::from([key(6)]),
+        "B2 hit at |T1|=p must evict from T1"
+    );
+    assert_eq!(
+        cache.t2.iter().map(|e| e.0).collect::<Vec<_>>(),
+        vec![key(5), key(2)]
+    );
+    invariants(&cache);
+    let mut cache = ReplayArc::new(1, 4)?;
+    for id in [0, 1, 0, 1].into_iter().chain(2..100) {
+        cache.reserve(0, &[id])?;
+        invariants(&cache);
+    }
+    assert!(
+        cache.reserve(0, &[0, 1])?.iter().all(|(_, hit)| *hit),
+        "one-pass scan must retain repeated experts"
+    );
+    Ok(())
+}
+
+fn invariants(cache: &ReplayArc) {
+    let mut directory = std::collections::BTreeSet::new();
+    for key in cache
+        .t1
+        .iter()
+        .chain(&cache.t2)
+        .map(|x| x.0)
+        .chain(cache.b1.iter().chain(&cache.b2).copied())
+    {
+        assert!(
+            directory.insert((key.layer, key.expert)),
+            "duplicate directory key"
+        );
+    }
+    assert!(cache.target <= cache.slots.len());
+    assert!(cache.t1.len() + cache.t2.len() <= cache.slots.len());
+    assert!(cache.t1.len() + cache.b1.len() <= cache.slots.len());
+    assert!(cache.b1.len() + cache.b2.len() <= cache.slots.len());
+    assert!(directory.len() <= 2 * cache.slots.len());
+    assert_eq!(
+        cache.slots.iter().flatten().count(),
+        cache.t1.len() + cache.t2.len()
+    );
+    for (key, slot) in cache.t1.iter().chain(&cache.t2) {
+        assert_eq!(cache.slots[*slot], Some(*key));
+    }
+}
+
+#[test]
+fn arc_complete_batches_protect_late_hits_and_reject_invalid_requests_atomically()
+-> anyhow::Result<()> {
+    let mut cache = ReplayArc::new(2, 2)?;
+    cache.reserve(0, &[3, 4])?;
+    let mapped = cache.reserve(0, &[2, 3, 2])?;
+    assert_eq!(mapped[0], mapped[2]);
+    assert!(!mapped[0].1 && mapped[1].1 && mapped[0].0 != mapped[1].0);
+    invariants(&cache);
+    for (layer, ids) in [
+        (2, vec![0]),
+        (0, vec![]),
+        (0, vec![512]),
+        (0, vec![0; 81]),
+        (0, vec![0, 1, 2]),
+    ] {
+        let previous = cache.clone();
+        assert!(cache.reserve(layer, &ids).is_err());
+        assert_eq!(cache, previous);
+    }
+    for (layers, capacity) in [(0, 1), (49, 1), (1, 0), (1, 513)] {
+        assert!(ReplayArc::new(layers, capacity).is_err());
+    }
+    for seed in 0..32u32 {
+        let mut cache = ReplayArc::new(4, 16)?;
+        let mut random = seed + 1;
+        for step in 0..256 {
+            let layer = step % 4;
+            let ids = (0..1 + step % 8)
+                .map(|_| {
+                    random = random.wrapping_mul(1664525).wrapping_add(1013904223);
+                    random % 23
+                })
+                .collect::<Vec<_>>();
+            let expected = ids
+                .iter()
+                .map(|expert| {
+                    cache.slots.contains(&Some(Key {
+                        layer,
+                        expert: *expert,
+                    }))
+                })
+                .collect::<Vec<_>>();
+            let mapped = cache.reserve(layer, &ids)?;
+            for ((&id, &hit), &(slot, actual)) in ids.iter().zip(&expected).zip(&mapped) {
+                assert_eq!(actual, hit);
+                assert_eq!(cache.slots[slot], Some(Key { layer, expert: id }));
+            }
+            invariants(&cache);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(8)]
+fn arc_two_symbolic_batches_preserve_capacity_and_protected_membership() {
+    let mut cache = ReplayArc::new(2, 3).unwrap();
+    let first: [u8; 2] = kani::any();
+    let second: [u8; 2] = kani::any();
+    let layer = usize::from(kani::any::<bool>());
+    let mut had_hit = false;
+    for (current, batch) in [(0, first), (layer, second)] {
+        let ids = batch.map(|id| u32::from(id % 6));
+        let before = ids.map(|expert| {
+            cache.slots.contains(&Some(Key {
+                layer: current,
+                expert,
+            }))
+        });
+        let mapped = cache.reserve(current, &ids).unwrap();
+        for i in 0..2 {
+            assert!(mapped[i].0 < 3 && mapped[i].1 == before[i]);
+            assert!(
+                cache.slots[mapped[i].0]
+                    == Some(Key {
+                        layer: current,
+                        expert: ids[i]
+                    })
+            );
+            had_hit |= mapped[i].1;
+        }
+        assert!((mapped[0].0 == mapped[1].0) == (ids[0] == ids[1]));
+        invariants(&cache);
+    }
+    kani::cover!(had_hit);
+    kani::cover!(!cache.b1.is_empty());
+    kani::cover!(layer == 1);
+}

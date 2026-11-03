@@ -1,0 +1,35 @@
+{
+  "status": "detected_and_restored",
+  "source_sha256": "2ec7a7f947387356ad568995e8cb57046607b2f80b4349767df8acfc85bfda41",
+  "production_mutated": false,
+  "scratch_removed": true,
+  "records": [
+    {
+      "stage": "normal",
+      "exit_code": 0,
+      "expected_tests": 2,
+      "joined": true
+    },
+    {
+      "stage": "mutant",
+      "exit_code": 1,
+      "expected_tests": 2,
+      "joined": true
+    },
+    {
+      "stage": "restored",
+      "exit_code": 0,
+      "expected_tests": 2,
+      "joined": true
+    }
+  ],
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "-o",
+    "cache_dir=/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-process-memory/analyzer-cpu/mutation-pytest-cache",
+    "tests/test_flash_process_memory.py::test_identity_changes_are_rejected"
+  ]
+}

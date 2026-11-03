@@ -1,0 +1,390 @@
+--- before/native/ffi/disk_read_batch.h
++++ after/native/ffi/disk_read_batch.h
+@@ -13,8 +13,12 @@
+ class DiskReadBatch {
+  public:
+   explicit DiskReadBatch(std::vector<DiskRead> reads, size_t workers, bool profile = false,
+-                         size_t held_job = std::numeric_limits<size_t>::max())
+-      : reads_(std::move(reads)), errors_(reads_.size()),
++                         size_t held_job = std::numeric_limits<size_t>::max(),
++                         DiskSchedule schedule = DiskSchedule::Static)
++      : reads_(std::move(reads)),
++        schedule_(effective_disk_schedule(schedule, reads_.size(), workers)),
++        jobs_(reads_.size(), std::min(workers, reads_.size()), schedule_),
++        errors_(reads_.size()),
+         states_(std::make_unique<std::atomic<uint8_t>[]>(reads_.size())),
+         held_job_(held_job), tail_released_(held_job == std::numeric_limits<size_t>::max()) {
+     if (!workers || workers > 4) throw std::invalid_argument("invalid disk worker count");
+@@ -41,6 +45,7 @@
+   }
+ 
+   size_t size() const noexcept { return reads_.size(); }
++  DiskSchedule schedule() const noexcept { return schedule_; }
+ 
+   std::vector<uint8_t> ready() const {
+     std::vector<uint8_t> mask(reads_.size());
+@@ -95,7 +100,9 @@
+   static void run_worker(void* opaque) noexcept {
+     auto& context = *static_cast<Worker*>(opaque);
+     auto& batch = *context.batch;
+-    for (size_t i = context.worker; i < batch.reads_.size(); i += batch.workers_) {
++    size_t cursor = context.worker;
++    for (size_t i = batch.jobs_.claim(cursor); i < batch.reads_.size();
++         i = batch.jobs_.claim(cursor)) {
+       if (i == batch.held_job_) {
+         std::unique_lock<std::mutex> lock(batch.mutex_);
+         batch.progress_.wait(lock, [&] { return batch.tail_released_; });
+@@ -123,6 +130,8 @@
+   }
+ 
+   std::vector<DiskRead> reads_;
++  const DiskSchedule schedule_;
++  DiskWorkQueue jobs_;
+   std::vector<std::exception_ptr> errors_;
+   std::unique_ptr<std::atomic<uint8_t>[]> states_;
+   std::vector<DiskTiming> timings_;
+--- before/native/ffi/mlx_bridge.cpp
++++ after/native/ffi/mlx_bridge.cpp
+@@ -392,8 +392,10 @@
+     }
+     disk_profile.clear();
+     disk_profile_dynamic = false;
++    thread_local const auto requested = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
+     prepared->batch = std::make_unique<mlxl3::DiskReadBatch>(
+-        std::move(reads), workers, disk_profile_enabled, held_job);
++        std::move(reads), workers, disk_profile_enabled, held_job, requested);
++    disk_profile_dynamic = prepared->batch->schedule() == mlxl3::DiskSchedule::Dynamic;
+     *out = prepared.release();
+   });
+ }
+@@ -422,7 +424,7 @@
+     auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+     batch.join();
+     disk_profile = batch.timings();
+-    disk_profile_dynamic = false;
++    disk_profile_dynamic = batch.schedule() == mlxl3::DiskSchedule::Dynamic;
+     batch.finish();
+   });
+ }
+--- before/native/src/ssd_moe.rs
++++ after/native/src/ssd_moe.rs
+@@ -175,11 +175,7 @@
+         let cold_ready =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_COLD_READY", "1")?)
+                 .context("MLXL3_SSD_COLD_READY must be 0 or 1")?;
+-        let cold_ready = cold_ready
+-            && !crate::flash_support::parse_gpu_hot_wide(&control(
+-                "MLXL3_SSD_DYNAMIC_READERS",
+-                "0",
+-            )?)
++        crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_DYNAMIC_READERS", "0")?)
+             .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
+         let prefetch_pipeline =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_PREFETCH_PIPELINE", "0")?)
+--- before/native/src/array.rs
++++ after/native/src/array.rs
+@@ -1710,6 +1710,14 @@
+                 .to_string()
+                 .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
+         );
++        let error = unsafe { Array::begin_read_records(&[(&file, 0); 5], &mut banks, &views, 4) }
++            .err()
++            .context("invalid option accepted by async FFI")?;
++        ensure!(
++            error
++                .to_string()
++                .contains("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")
++        );
+         for bank in banks {
+             ensure!(bank.to_bytes()? == [0xa5; 8]);
+         }
+@@ -1741,64 +1749,75 @@
+         let (mut cases, mut dynamic_batches, mut records, mut bytes) = (0, 0, 0, 0);
+         for workers in [1, 2, 4] {
+             for count in [1usize, 4, 5, 9, 17, 512] {
+-                let mut banks = (0..count)
+-                    .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
+-                    .collect::<Result<Vec<_>>>()?;
+-                let sources = (0..count)
+-                    .map(|i| (&file, (i * 32) as u64))
+-                    .collect::<Vec<_>>();
+-                let ranges = (0..count)
+-                    .map(|i| vec![(i, 4, 16), (i, 40, 16)])
+-                    .collect::<Vec<_>>();
+-                let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
+-                disk_profile_enable(true);
+-                ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
+-                Array::read_records(&sources, &mut banks, &views, workers)?;
+-                let dynamic = dynamic_requested && workers > 1 && count > workers;
+-                ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
+-                let timings = disk_profile()?;
+-                ensure!(timings.len() == count);
+-                let mut worker_end = [0u64; 4];
+-                let mut per_worker = [0usize; 4];
+-                for (job, &[index, worker, begin, end, read_bytes, failed]) in
+-                    timings.iter().enumerate()
+-                {
+-                    ensure!(
+-                        index == job as u64
+-                            && worker < count.min(workers) as u64
+-                            && end >= begin
+-                            && read_bytes == 32
+-                            && failed == 0
+-                    );
+-                    if !dynamic {
+-                        ensure!(worker as usize == job % count.min(workers));
++                for asynchronous in [false, true] {
++                    let mut banks = (0..count)
++                        .map(|_| Array::from_bytes(&[0xa5; 64], &[64], Dtype::UInt8))
++                        .collect::<Result<Vec<_>>>()?;
++                    let sources = (0..count)
++                        .map(|i| (&file, (i * 32) as u64))
++                        .collect::<Vec<_>>();
++                    let ranges = (0..count)
++                        .map(|i| vec![(i, 4, 16), (i, 40, 16)])
++                        .collect::<Vec<_>>();
++                    let views = ranges.iter().map(Vec::as_slice).collect::<Vec<_>>();
++                    disk_profile_enable(true);
++                    ensure!(disk_profile_schedule() == "static" && disk_profile()?.is_empty());
++                    if asynchronous {
++                        let mut batch = unsafe {
++                            Array::begin_read_records(&sources, &mut banks, &views, workers)?
++                        };
++                        let ready = batch.wait_ready(2)?;
++                        ensure!(ready.iter().filter(|&&done| done).count() >= count.min(2));
++                        batch.finish()?;
++                    } else {
++                        Array::read_records(&sources, &mut banks, &views, workers)?;
+                     }
+-                    ensure!(begin >= worker_end[worker as usize]);
+-                    worker_end[worker as usize] = end;
+-                    per_worker[worker as usize] += 1;
++                    let dynamic = dynamic_requested && workers > 1 && count > workers;
++                    ensure!(disk_profile_schedule() == if dynamic { "dynamic" } else { "static" });
++                    let timings = disk_profile()?;
++                    ensure!(timings.len() == count);
++                    let mut worker_end = [0u64; 4];
++                    let mut per_worker = [0usize; 4];
++                    for (job, &[index, worker, begin, end, read_bytes, failed]) in
++                        timings.iter().enumerate()
++                    {
++                        ensure!(
++                            index == job as u64
++                                && worker < count.min(workers) as u64
++                                && end >= begin
++                                && read_bytes == 32
++                                && failed == 0
++                        );
++                        if !dynamic {
++                            ensure!(worker as usize == job % count.min(workers));
++                        }
++                        ensure!(begin >= worker_end[worker as usize]);
++                        worker_end[worker as usize] = end;
++                        per_worker[worker as usize] += 1;
++                    }
++                    ensure!(per_worker.iter().sum::<usize>() == count);
++                    for (i, bank) in banks.iter().enumerate() {
++                        let mut expected = [0xa5; 64];
++                        expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
++                        expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
++                        ensure!(
++                            bank.shape() == [64]
++                                && bank.dtype() == Dtype::UInt8
++                                && bank.to_bytes()? == expected
++                        );
++                    }
++                    cases += 1;
++                    dynamic_batches += usize::from(dynamic);
++                    records += count;
++                    bytes += count * 32;
+                 }
+-                ensure!(per_worker.iter().sum::<usize>() == count);
+-                for (i, bank) in banks.iter().enumerate() {
+-                    let mut expected = [0xa5; 64];
+-                    expected[4..20].copy_from_slice(&source[i * 32..i * 32 + 16]);
+-                    expected[40..56].copy_from_slice(&source[i * 32 + 16..i * 32 + 32]);
+-                    ensure!(
+-                        bank.shape() == [64]
+-                            && bank.dtype() == Dtype::UInt8
+-                            && bank.to_bytes()? == expected
+-                    );
+-                }
+-                cases += 1;
+-                dynamic_batches += usize::from(dynamic);
+-                records += count;
+-                bytes += count * 32;
+             }
+         }
+         ensure!(
+-            cases == 18
+-                && records == 1644
+-                && bytes == 52608
+-                && dynamic_batches == if dynamic_requested { 9 } else { 0 }
++            cases == 36
++                && records == 3288
++                && bytes == 105216
++                && dynamic_batches == if dynamic_requested { 18 } else { 0 }
+         );
+         println!(
+             "T18A_STORAGE cases={cases} records={records} payload_bytes={bytes} dynamic_batches={dynamic_batches} static_batches={}",
+--- before/native/src/ssd_moe/cold_ready_tests.rs
++++ after/native/src/ssd_moe/cold_ready_tests.rs
+@@ -160,6 +160,13 @@
+                 crate::array::hold_read_batch_job_for_test(Some(0));
+                 let output = moe.forward_many(&x)?;
+                 check(&output, &oracle, pair.len())?;
++                let dynamic = std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() == Ok("1")
++                    && missing > moe.readers;
++                ensure!(
++                    crate::array::disk_profile_schedule()
++                        == if dynamic { "dynamic" } else { "static" },
++                    "Cold batch did not use the requested effective schedule"
++                );
+                 ensure!(
+                     moe.cold_ready_waves.len() == before.0 + 1
+                         && moe.cold_ready_verified_overlap == overlaps + 1,
+--- before/native/tests/disk_reader_async.cpp
++++ after/native/tests/disk_reader_async.cpp
+@@ -53,10 +53,13 @@
+   assert(std::fwrite(source.data(), 1, source.size(), file) == source.size());
+   assert(std::fflush(file) == 0);
+   size_t cases = 0;
++  for (auto schedule : {mlxl3::DiskSchedule::Static, mlxl3::DiskSchedule::Dynamic}) {
+   for (size_t workers = 1; workers <= 4; ++workers) {
+     for (size_t count : {1, 2, 3, 6, 20, 512}) {
+       std::vector<Bank> banks(count);
+-      mlxl3::DiskReadBatch batch(records(fd, banks), workers, true);
++      mlxl3::DiskReadBatch batch(records(fd, banks), workers, true, SIZE_MAX, schedule);
++      const bool dynamic = schedule == mlxl3::DiskSchedule::Dynamic && workers > 1 && count > workers;
++      assert((batch.schedule() == mlxl3::DiskSchedule::Dynamic) == dynamic);
+       const auto mask = batch.wait_ready(2);
+       assert(mask.size() == count && size_t(std::count(mask.begin(), mask.end(), 1)) >= std::min(count, size_t(2)));
+       batch.finish(); batch.finish();
+@@ -66,7 +69,8 @@
+       assert(timings.size() == count);
+       for (size_t i = 0; i < count; ++i) {
+         assert(batch.bytes(i) == 8 && timings[i].job == i);
+-        assert(timings[i].worker == i % std::min(workers, count));
++        assert(timings[i].worker < std::min(workers, count));
++        if (!dynamic) assert(timings[i].worker == i % std::min(workers, count));
+         assert(timings[i].end_ns >= timings[i].start_ns && timings[i].bytes == 8 && !timings[i].failed);
+       }
+       exact(banks, source); ++cases;
+@@ -74,7 +78,7 @@
+   }
+   for (size_t held : {size_t(0), size_t(2)}) {
+     std::vector<Bank> banks(6);
+-    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, held);
++    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, held, schedule);
+     const auto early = batch.wait_ready(2);
+     assert(!early[held] && batch.bytes(held) == 0);
+     assert(std::count(early.begin(), early.end(), 1) >= 2);
+@@ -85,7 +89,7 @@
+   {
+     std::vector<Bank> banks(6);
+     {
+-      mlxl3::DiskReadBatch batch(records(fd, banks), 4, false, 0);
++      mlxl3::DiskReadBatch batch(records(fd, banks), 4, false, 0, schedule);
+       assert(!batch.wait_ready(2)[0]);
+     }  // Drop releases the gate and joins before destination storage is examined/freed.
+     exact(banks, source); ++cases;
+@@ -97,7 +101,7 @@
+     reads[0].offset = first_truncated ? source.size() - 1 : 0;
+     reads[3].fd = first_truncated ? -1 : fd;
+     reads[3].offset = first_truncated ? 0 : source.size() - 1;
+-    mlxl3::DiskReadBatch batch(std::move(reads), 4, true, 0);
++    mlxl3::DiskReadBatch batch(std::move(reads), 4, true, 0, schedule);
+     for (size_t repeat = 0; repeat < 2; ++repeat) {
+       bool failed = false;
+       try { if (!repeat) batch.wait_ready(512); else batch.finish(); }
+@@ -120,7 +124,7 @@
+   {
+     std::vector<Bank> banks(3);
+     {
+-      mlxl3::DiskReadBatch batch(records(fd, banks), 1, false, 0);
++      mlxl3::DiskReadBatch batch(records(fd, banks), 1, false, 0, schedule);
+       bool timed_out = false;
+       try { batch.wait_ready(2, std::chrono::milliseconds(1)); }
+       catch (const std::runtime_error&) { timed_out = true; }
+@@ -147,7 +151,7 @@
+     auto reject = [&](std::vector<mlxl3::DiskRead> reads, size_t workers, size_t held = SIZE_MAX) {
+       for (auto& bank : banks) bank.fill(0xa5);
+       bool failed = false;
+-      try { mlxl3::DiskReadBatch batch(std::move(reads), workers, false, held); }
++      try { mlxl3::DiskReadBatch batch(std::move(reads), workers, false, held, schedule); }
+       catch (const std::exception&) { failed = true; }
+       assert(failed);
+       for (const auto& bank : banks) assert(std::all_of(bank.begin(), bank.end(), [](auto v) { return v == 0xa5; }));
+@@ -160,6 +164,16 @@
+     reject({{fd, 0, {{nullptr, 8}}}}, 4);
+     reject({{fd, 0, {{banks[0].data(), 0}}}}, 4);
+   }
++  }
++  {
++    std::vector<Bank> banks(12);
++    mlxl3::DiskReadBatch batch(records(fd, banks), 4, true, 0, mlxl3::DiskSchedule::Dynamic);
++    // A blocked worker must not strand jobs 4 and 8 in its former static stripe.
++    const auto ready = batch.wait_ready(11, std::chrono::seconds(2));
++    assert(!ready[0] && std::count(ready.begin(), ready.end(), 1) == 11);
++    assert(batch.bytes(0) == 0);
++    batch.finish(); exact(banks, source); ++cases;
++  }
+   assert(std::fclose(file) == 0);
+   std::cout << cases << " async disk reader cases passed\n";
+ }
+--- before/native/tests/disk_reader_async_proof.cpp
++++ after/native/tests/disk_reader_async_proof.cpp
+@@ -8,15 +8,20 @@
+ // Actual constructor/validator/worker API, without stubbing GCD, atomics or preadv.
+ void async_prepare_proof() {
+   size_t start = 0;
++  bool dynamic = false;
+   __CPROVER_havoc_object(&start);
++  __CPROVER_havoc_object(&dynamic);
+   __CPROVER_assume(start <= 8);
+-  uint8_t bank[16] = {};
++  uint8_t bank[24] = {};
+   bool rejected = false;
+   try {
+-    mlxl3::DiskReadBatch batch({{-1, 0, {{bank, 8}}}, {-1, 0, {{bank + start, 8}}}}, 2);
++    mlxl3::DiskReadBatch batch(
++        {{-1, 0, {{bank, 8}}}, {-1, 0, {{bank + start, 8}}}, {-1, 0, {{bank + 16, 8}}}},
++        2, false, SIZE_MAX, dynamic ? mlxl3::DiskSchedule::Dynamic : mlxl3::DiskSchedule::Static);
+     try { batch.finish(); } catch (const std::runtime_error&) {}
+   } catch (const std::invalid_argument&) { rejected = true; }
+   __CPROVER_assert(rejected == (start < 8), "actual async validator rejects cross-job overlap");
+   for (auto byte : bank) __CPROVER_assert(byte == 0, "invalid file descriptors never write bytes");
+   __CPROVER_cover(rejected); __CPROVER_cover(!rejected);
++  __CPROVER_cover(dynamic && !rejected); __CPROVER_cover(!dynamic && !rejected);
+ }
+--- before/tests/test_flash_profile.py
++++ after/tests/test_flash_profile.py
+@@ -89,9 +89,14 @@
+         assert result["disk_batches"][0]["operation"] == "cold_ready_batch"
+ 
+ 
+-def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation():
++@pytest.mark.parametrize("cold", [False, True])
++def test_dynamic_job_assignment_preserves_intervals_and_legacy_static_validation(cold):
+     rows = trace()
+     data = rows[3]["data"]
++    if cold:
++        rows[3]["name"] = "cold_ready_batch"
++        data["jobs_mapping"] = data.pop("jobs")
++        data.update(jobs=10, status="finished", io_ok=data.pop("ok"))
+     data["schedule"] = "dynamic"
+     # One worker may drain the batch while the others have not started.
+     data["timings_job_worker_start_end_bytes_failed"] = [
+--- before/native/src/qwen4.rs
++++ after/native/src/qwen4.rs
+@@ -4360,9 +4360,7 @@
+             model.forward(248320).is_err(),
+             "invalid vocabulary accepted"
+         );
+-        if std::env::var("MLXL3_SSD_COLD_READY").as_deref() == Ok("1")
+-            && std::env::var("MLXL3_SSD_DYNAMIC_READERS").as_deref() != Ok("1")
+-        {
++        if std::env::var("MLXL3_SSD_COLD_READY").as_deref() == Ok("1") {
+             let waves: usize = model
+                 .layers
+                 .iter()

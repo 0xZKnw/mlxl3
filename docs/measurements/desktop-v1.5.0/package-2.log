@@ -1,0 +1,117 @@
+   Compiling mlxl3-native v1.5.0 (/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 4m 30s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/mlxl3: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/libmlx.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/libjaccl.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Engine-v1.5.0-arm64.tar.gz
+Building for production...
+[Computing dependencies]
+[Pre-planning 1 / 66]
+[Planning deferred tasks]
+[1 / 5]
+[2 / 6] SwiftMath
+[13 / 106]
+[17 / 106]
+[25 / 106]
+[27 / 106]
+[28 / 106]
+[34 / 106]
+[37 / 106]
+[40 / 106]
+[44 / 106]
+[46 / 106]
+[49 / 106]
+[50 / 106]
+[60 / 106]
+[63 / 106]
+[65 / 106]
+[66 / 106]
+[72 / 106]
+[73 / 106]
+[79 / 106]
+[80 / 106]
+[83 / 106]
+[85 / 106]
+[93 / 106]
+[97 / 106]
+[100 / 106]
+[101 / 106]
+[102 / 106]
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgF[103 / 106] SwiftMath
+ont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[108 / 111] MLXL3Studio-product
+[118 / 235]
+[122 / 235]
+[130 / 235]
+[132 / 235]
+[133 / 235]
+[139 / 235]
+[142 / 235]
+[150 / 235]
+[155 / 235]
+[156 / 235]
+[165 / 235]
+[168 / 235]
+[169 / 235]
+[170 / 235]
+[171 / 235]
+[175 / 235]
+[176 / 235]
+[179 / 235]
+[180 / 235]
+[181 / 235]
+[183 / 235]
+[184 / 235]
+[190 / 235]
+[191 / 235]
+[192 / 235]
+[197 / 235]
+[198 / 235]
+[199 / 235]
+[201 / 235]
+[202 / 235]
+[203 / 235]
+[204 / 235]
+[214 / 235]
+[215 / 235]
+[216 / 235]
+[217 / 235]
+[220 / 235]
+[221 / 235]
+[224 / 235]
+[225 / 235]
+[226 / 235]
+[227 / 235]
+[228 / 235]
+[229 / 235]
+[231 / 235]
+[232 / 235] MLXL3Studio-product
+[234 / 235] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[235 / 235] MLXL3Studio-product
+Build complete! (212,43 secs)
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3 Desktop.app: replacing existing signature
+Application créée : /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3 Desktop.app
+created: /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmghdiutil: WARNING: 'hdiutil create -volname -format ...' is deprecated. Please use 'diskutil image create from/blank --volumeName --format ...' instead.
+
+DMG autonome créé : /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg

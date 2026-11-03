@@ -1,0 +1,48 @@
+[
+  {
+    "label": "choice",
+    "harness": "pre_draft_choice_is_bounded_for_all_states",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pre_draft_choice_is_bounded_for_all_states",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/choice.json"
+    ],
+    "exit": 0,
+    "reason": null,
+    "seconds": 3.6133538340000086,
+    "peak_group_rss_bytes": 407060480,
+    "reaped": true
+  },
+  {
+    "label": "observe",
+    "harness": "pre_draft_observation_is_atomic_and_checked",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "pre_draft_observation_is_atomic_and_checked",
+      "--output-format",
+      "regular",
+      "-Z",
+      "unstable-options",
+      "--export-json",
+      "docs/measurements/flash-next-ssd-impl/opt-70-pre-draft/observe.json"
+    ],
+    "exit": 1,
+    "reason": null,
+    "seconds": 2.58803779200025,
+    "peak_group_rss_bytes": 411041792,
+    "reaped": true
+  }
+]

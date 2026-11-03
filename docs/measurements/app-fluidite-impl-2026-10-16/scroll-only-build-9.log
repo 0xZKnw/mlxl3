@@ -1,0 +1,9 @@
+build/app-fluidite/ScrollOnly.swift:130:9: warning: initialization of immutable value 'moving' was never used; consider replacing with assignment to '_' or removing it [#NoUsage]
+128 |       positions.append(offset())
+129 |     }
+130 |     let moving = Set(positions.map { Int(($0 * 10).rounded()) })
+    |         `- warning: initialization of immutable value 'moving' was never used; consider replacing with assignment to '_' or removing it [#NoUsage]
+131 |     require(
+132 |       abs(offset() - before) > 10, "Scroll jumped instead of interpolating: delta=\(offset() - before) positions=\(positions)")
+
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>

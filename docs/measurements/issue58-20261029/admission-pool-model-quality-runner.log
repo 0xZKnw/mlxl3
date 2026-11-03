@@ -1,0 +1,12 @@
+{'name': 'pool-uniform-oracle', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 7.333001121878624e-06, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 87, in <module>
+    run(*(Path(value) for value in sys.argv[1:]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 83, in run
+    supervisor["main"](plan)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 157, in main
+    previous["before_launch"](record)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 57, in before
+    assert available >= record["minimum_available_bytes"], "load headroom estimate"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: load headroom estimate

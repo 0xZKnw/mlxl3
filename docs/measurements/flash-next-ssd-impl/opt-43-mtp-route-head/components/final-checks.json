@@ -1,0 +1,119 @@
+[
+  {
+    "name": "final-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 55253,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.28682508299243636
+  },
+  {
+    "name": "final-fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 55256,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.24202162500296254
+  },
+  {
+    "name": "final-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 55261,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.13093862500682008
+  },
+  {
+    "name": "final-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 55263,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 41.31600512500154
+  },
+  {
+    "name": "final-release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 55406,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.12767816700215917
+  },
+  {
+    "name": "final-kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_lookahead_model_path_checks_tokens_and_output_shape"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 55409,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 4.170884416991612
+  },
+  {
+    "name": "crosshair-availability",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "--help"
+    ],
+    "timeout_seconds": 30,
+    "status": "unverified",
+    "pid": 55484,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 0.02020004199584946
+  }
+]

@@ -1,0 +1,4 @@
+native/tests/indirect_metal.cpp:34:74: error: default argument references local variable 'threads' of enclosing function
+   34 |     auto launch = [&](void* indirect, size_t offset, const int32_t* tg = threads) {
+      |                                                                          ^~~~~~~
+1 error generated.

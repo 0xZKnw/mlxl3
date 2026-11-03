@@ -1,0 +1,535 @@
+//! Bounded CPU staging; the inference thread never waits for a prediction.
+use crate::{checkpoint::TensorInfo, flash_support::EXPERT_BYTES};
+use anyhow::{Result, ensure};
+use std::{
+    os::unix::fs::FileExt,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+        mpsc::{self, Receiver, SyncSender, TrySendError},
+    },
+    thread::{self, JoinHandle},
+};
+
+pub(crate) const PREDICTION_RANKS: usize = 16;
+
+#[cfg(any(test, kani))]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PredictionPoint {
+    pub actual: Vec<u32>,
+    pub cold: Vec<u32>,
+    pub predicted: Option<Vec<u32>>,
+}
+
+#[cfg(any(test, kani))]
+impl PredictionPoint {
+    pub fn valid(&self) -> bool {
+        matches!(self.actual.len(), 10 | 20)
+            && self.actual.iter().all(|&id| id < 512)
+            && self.cold.len() <= self.actual.len()
+            && self.cold.iter().enumerate().all(|(i, id)| {
+                self.actual.contains(id) && !self.cold[i + 1..].contains(id)
+            })
+            && self.predicted.as_ref().is_none_or(|ids| {
+                ids.len() == self.actual.len() / 10 * PREDICTION_RANKS
+                    && ids.iter().all(|&id| id < 512)
+            })
+    }
+}
+
+#[cfg(all(test, feature = "mlx"))]
+pub(crate) enum PredictionTrace {
+    Capture(Vec<PredictionPoint>),
+    Replay(std::collections::VecDeque<PredictionPoint>),
+}
+
+/// Strongest rank first, alternating target rows before using the next rank.
+pub(crate) fn order_predictions(ids: &mut [u32], rows: usize) -> bool {
+    if !(1..=2).contains(&rows)
+        || ids.len() != rows * PREDICTION_RANKS
+        || ids.iter().any(|&id| id >= 512)
+    {
+        return false;
+    }
+    let mut source = [0u32; 2 * PREDICTION_RANKS];
+    source[..ids.len()].copy_from_slice(ids);
+    let mut position = 0;
+    for rank in (0..PREDICTION_RANKS).rev() {
+        for row in 0..rows {
+            ids[position] = source[row * PREDICTION_RANKS + rank];
+            position += 1;
+        }
+    }
+    true
+}
+
+#[derive(Default)]
+pub(crate) struct Counters {
+    pub submitted: AtomicU64,
+    pub completed: AtomicU64,
+    pub used: AtomicU64,
+    pub discarded: AtomicU64,
+    pub failed: AtomicU64,
+    pub late_needed: AtomicU64,
+    pub bytes: AtomicU64,
+}
+
+struct Job {
+    layer: usize,
+    expert: u32,
+    source: TensorInfo,
+    bytes: Vec<u8>,
+}
+struct Completed {
+    job: Job,
+    valid: bool,
+}
+struct Worker {
+    tx: Option<SyncSender<Job>>,
+    rx: Receiver<Completed>,
+    thread: Option<JoinHandle<()>>,
+    pending: Option<(usize, u32)>,
+    buffer: Option<Vec<u8>>,
+    ready: Option<Completed>,
+}
+pub(crate) struct Staged {
+    pub expert: u32,
+    pub bytes: Vec<u8>,
+    worker: usize,
+}
+pub(crate) struct ReaderPool {
+    workers: Vec<Worker>,
+    pub counters: Arc<Counters>,
+}
+
+fn read(job: &mut Job, counters: &Counters) -> Result<()> {
+    ensure!(
+        job.bytes.len() == EXPERT_BYTES as usize,
+        "invalid staging buffer"
+    );
+    let (file, offset) = job.source.source()?;
+    ensure!(
+        offset.checked_add(EXPERT_BYTES).is_some_and(
+            |end| end <= i64::MAX as u64 && file.metadata().is_ok_and(|m| end <= m.len())
+        ),
+        "invalid speculative record range"
+    );
+    let mut done = 0;
+    while done < job.bytes.len() {
+        match file.read_at(&mut job.bytes[done..], offset + done as u64) {
+            Ok(0) => anyhow::bail!("speculative checkpoint truncated"),
+            Ok(n) => {
+                done += n;
+                counters.bytes.fetch_add(n as u64, Ordering::Relaxed);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(())
+}
+
+impl ReaderPool {
+    pub fn new() -> Result<Self> {
+        let mut pool = Self {
+            workers: Vec::new(),
+            counters: Arc::default(),
+        };
+        for index in 0..4 {
+            let (tx, jobs) = mpsc::sync_channel::<Job>(1);
+            let (results, rx) = mpsc::sync_channel(1);
+            let counters = Arc::clone(&pool.counters);
+            let thread = thread::Builder::new()
+                .name(format!("ssd-lookahead-{index}"))
+                .spawn(move || {
+                    while let Ok(mut job) = jobs.recv() {
+                        let valid = read(&mut job, &counters).is_ok();
+                        counters.completed.fetch_add(1, Ordering::Relaxed);
+                        if !valid {
+                            counters.failed.fetch_add(1, Ordering::Relaxed);
+                        }
+                        if results.send(Completed { job, valid }).is_err() {
+                            break;
+                        }
+                    }
+                })?;
+            pool.workers.push(Worker {
+                tx: Some(tx),
+                rx,
+                thread: Some(thread),
+                pending: None,
+                buffer: Some(vec![0; EXPERT_BYTES as usize]),
+                ready: None,
+            });
+        }
+        Ok(pool)
+    }
+
+    pub fn submit(&mut self, layer: usize, expert: u32, source: TensorInfo) -> bool {
+        if expert >= 512
+            || self
+                .workers
+                .iter()
+                .any(|w| w.pending == Some((layer, expert)))
+        {
+            return false;
+        }
+        let Some(worker) = self
+            .workers
+            .iter_mut()
+            .find(|w| w.pending.is_none() && w.buffer.is_some() && w.tx.is_some())
+        else {
+            return false;
+        };
+        let bytes = worker.buffer.take().expect("available staging buffer");
+        match worker.tx.as_ref().expect("available worker").try_send(Job {
+            layer,
+            expert,
+            source,
+            bytes,
+        }) {
+            Ok(()) => {
+                worker.pending = Some((layer, expert));
+                self.counters.submitted.fetch_add(1, Ordering::Relaxed);
+                true
+            }
+            Err(TrySendError::Full(job)) => {
+                worker.buffer = Some(job.bytes);
+                false
+            }
+            Err(TrySendError::Disconnected(job)) => {
+                worker.buffer = Some(job.bytes);
+                worker.tx = None;
+                false
+            }
+        }
+    }
+
+    /// Recycle stale completions once per cohort, retaining useful target-layer records.
+    pub fn reclaim(&mut self, layer: usize, ids: &[u32]) {
+        for worker in &mut self.workers {
+            let Some(completed) = worker.ready.take().or_else(|| worker.rx.try_recv().ok()) else {
+                continue;
+            };
+            if completed.valid
+                && completed.job.layer == layer
+                && ids.contains(&completed.job.expert)
+            {
+                worker.ready = Some(completed);
+            } else {
+                worker.pending = None;
+                worker.buffer = Some(completed.job.bytes);
+                self.counters.discarded.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    pub fn take(&mut self, layer: usize, ids: &[u32]) -> Vec<Staged> {
+        let mut staged = Vec::new();
+        for (index, worker) in self.workers.iter_mut().enumerate() {
+            let completed = worker.ready.take().or_else(|| worker.rx.try_recv().ok());
+            let Some(completed) = completed else {
+                if worker.pending.is_some_and(|(pending_layer, expert)| {
+                    pending_layer == layer && ids.contains(&expert)
+                }) {
+                    self.counters.late_needed.fetch_add(1, Ordering::Relaxed);
+                }
+                continue;
+            };
+            worker.pending = None;
+            let job = completed.job;
+            if completed.valid && job.layer == layer && ids.contains(&job.expert) {
+                staged.push(Staged {
+                    expert: job.expert,
+                    bytes: job.bytes,
+                    worker: index,
+                });
+            } else {
+                self.counters.discarded.fetch_add(1, Ordering::Relaxed);
+                worker.buffer = Some(job.bytes);
+            }
+        }
+        staged
+    }
+
+    #[cfg(test)]
+    pub fn wait_for_test(&mut self) -> Result<()> {
+        for worker in &mut self.workers {
+            if worker.pending.is_some() && worker.ready.is_none() {
+                worker.ready = Some(worker.rx.recv_timeout(std::time::Duration::from_secs(5))?);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn recycle(&mut self, staged: Staged, used: bool) {
+        self.workers[staged.worker].buffer = Some(staged.bytes);
+        if used {
+            self.counters.used.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.counters.discarded.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+impl Drop for ReaderPool {
+    fn drop(&mut self) {
+        for worker in &mut self.workers {
+            worker.tx.take();
+        }
+        for worker in &mut self.workers {
+            if let Some(thread) = worker.thread.take() {
+                let _ = thread.join();
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn replay_points_require_nonempty_shapes_valid_ids_and_unique_cold_subsets() {
+        for rows in [1, 2] {
+            let point = PredictionPoint {
+                actual: (0..rows * 10).collect(),
+                cold: vec![0, 9],
+                predicted: Some(vec![3; rows as usize * PREDICTION_RANKS]),
+            };
+            assert!(point.valid());
+            let mut changed = point.clone();
+            changed.actual.clear();
+            assert!(!changed.valid());
+            changed = point.clone(); changed.actual[0] = 512;
+            assert!(!changed.valid());
+            changed = point.clone(); changed.cold = vec![511];
+            assert!(!changed.valid());
+            changed = point.clone(); changed.cold = vec![0, 0];
+            assert!(!changed.valid());
+            for length in [0, 1, 15, 17, 31, 33] {
+                changed = point.clone(); changed.predicted = Some(vec![3; length]);
+                assert!(!changed.valid());
+            }
+            changed = point.clone(); changed.predicted.as_mut().unwrap()[0] = 512;
+            assert!(!changed.valid());
+            changed = point.clone(); changed.predicted = None;
+            assert!(changed.valid());
+            changed = point.clone(); changed.cold.clear();
+            assert!(changed.valid());
+            let json = serde_json::to_vec(&point).unwrap();
+            assert_eq!(serde_json::from_slice::<PredictionPoint>(&json).unwrap(), point);
+            assert!(serde_json::from_slice::<PredictionPoint>(&json[..json.len()-1]).is_err());
+            assert!(serde_json::from_str::<PredictionPoint>("{}").is_err());
+        }
+    }
+    use anyhow::Context;
+    use std::{
+        fs,
+        time::{Duration, Instant},
+    };
+
+    #[test]
+    fn candidates_interleave_strongest_ranks_and_reject_invalid_shapes() {
+        let original = (0..32).collect::<Vec<_>>();
+        let mut ids = original.clone();
+        assert!(order_predictions(&mut ids, 2));
+        assert_eq!(
+            ids,
+            (0..16).rev().flat_map(|i| [i, i + 16]).collect::<Vec<_>>()
+        );
+        let mut ids = original[..16].to_vec();
+        assert!(order_predictions(&mut ids, 1));
+        assert_eq!(ids, (0..16).rev().collect::<Vec<_>>());
+        for rows in [0, 3, usize::MAX] {
+            let mut ids = original.clone();
+            assert!(!order_predictions(&mut ids, rows));
+            assert_eq!(ids, original);
+        }
+        for len in [0, 1, 15, 17, 31] {
+            let mut ids = original[..len].to_vec();
+            let before = ids.clone();
+            assert!(!order_predictions(&mut ids, 2));
+            assert_eq!(ids, before);
+        }
+        let mut invalid = original;
+        invalid[31] = 512;
+        let before = invalid.clone();
+        assert!(!order_predictions(&mut invalid, 2));
+        assert_eq!(invalid, before);
+        let mut duplicates = [511; 16];
+        assert!(order_predictions(&mut duplicates, 1));
+        assert_eq!(duplicates, [511; 16]);
+    }
+
+    #[test]
+    fn staging_is_bounded_exact_and_recovers_after_failed_or_wrong_predictions() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let bytes: Vec<_> = (0..EXPERT_BYTES as usize)
+            .map(|i| (i.wrapping_mul(31) % 251) as u8)
+            .collect();
+        let header = format!(
+            "{{\"record\":{{\"dtype\":\"U8\",\"shape\":[{}],\"data_offsets\":[0,{}]}}}}",
+            bytes.len(),
+            bytes.len()
+        );
+        let file = temp.path().join("experts.safetensors");
+        let mut payload = (header.len() as u64).to_le_bytes().to_vec();
+        payload.extend(header.bytes());
+        payload.extend(&bytes);
+        fs::write(&file, payload)?;
+        let record = crate::checkpoint::read_header(&file)?
+            .remove("record")
+            .context("missing fixture")?;
+        let mut pool = ReaderPool::new()?;
+        assert!(pool.take(0, &[0]).is_empty());
+        for expert in 0..10 {
+            pool.submit(0, expert, record.clone());
+        }
+        pool.submit(0, 0, record.clone());
+        assert_eq!(pool.counters.submitted.load(Ordering::Relaxed), 4);
+        pool.wait_for_test()?;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut seen = Vec::new();
+        while seen.len() < 4 {
+            ensure!(Instant::now() < deadline, "staging completion timeout");
+            for staged in pool.take(0, &[0, 1, 2, 3]) {
+                assert_eq!(staged.bytes, bytes);
+                seen.push(staged.expert);
+                pool.recycle(staged, true);
+            }
+            thread::yield_now();
+        }
+        seen.sort_unstable();
+        assert_eq!(seen, [0, 1, 2, 3]);
+        assert_eq!(
+            pool.counters.bytes.load(Ordering::Relaxed),
+            4 * EXPERT_BYTES
+        );
+        let mut invalid = record.clone();
+        invalid.data_offsets = [u64::MAX - 1, u64::MAX];
+        pool.submit(1, 1, invalid);
+        pool.submit(1, 2, record.clone());
+        pool.wait_for_test()?;
+        while pool.counters.discarded.load(Ordering::Relaxed) < 2 {
+            ensure!(
+                Instant::now() < deadline,
+                "failed staging completion timeout"
+            );
+            assert!(pool.take(9, &[1, 2]).is_empty());
+            thread::yield_now();
+        }
+        assert_eq!(pool.counters.failed.load(Ordering::Relaxed), 1);
+        pool.submit(3, 511, record.clone());
+        let counters = Arc::clone(&pool.counters);
+        drop(pool);
+        assert_eq!(
+            counters.completed.load(Ordering::Relaxed),
+            counters.submitted.load(Ordering::Relaxed)
+        );
+        assert_eq!(counters.used.load(Ordering::Relaxed), 4);
+        let mut pool = ReaderPool::new()?;
+        for expert in 0..4 {
+            assert!(pool.submit(0, expert, record.clone()));
+        }
+        pool.wait_for_test()?;
+        pool.reclaim(1, &[511]);
+        assert_eq!(pool.counters.discarded.load(Ordering::Relaxed), 4);
+        assert!(pool.submit(1, 511, record.clone()));
+        pool.wait_for_test()?;
+        pool.reclaim(1, &[511]);
+        assert!(
+            !pool.submit(1, 511, record.clone()),
+            "ready target record must remain deduplicated"
+        );
+        assert!(!pool.submit(1, 512, record));
+        let staged = pool.take(1, &[511]);
+        assert_eq!(staged.len(), 1);
+        for record in staged {
+            assert_eq!(record.bytes, bytes);
+            pool.recycle(record, true);
+        }
+        Ok(())
+    }
+
+    #[cfg(kani)]
+    #[kani::proof]
+    fn actual_worker_pool_bounds_and_empty_poll() {
+        let mut pool = ReaderPool::new().unwrap();
+        let layer = kani::any::<usize>();
+        let expert = kani::any::<u32>();
+        assert!(pool.take(layer, &[expert]).is_empty());
+        assert_eq!(pool.workers.len(), 4);
+        assert!(
+            pool.workers
+                .iter()
+                .all(|w| w.buffer.as_ref().unwrap().len() == EXPERT_BYTES as usize)
+        );
+        kani::cover!(expert >= 512);
+    }
+}
+
+#[cfg(kani)]
+mod verification {
+    use super::*;
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn replay_points_cannot_admit_empty_invalid_or_unrelated_experts() {
+        let actual: [u32; 20] = kani::any();
+        let predicted: [u32; 32] = kani::any();
+        let cold: [u32; 20] = kani::any();
+        let n = usize::from(kani::any::<u8>()).min(20);
+        let p = usize::from(kani::any::<u8>()).min(32);
+        let c = usize::from(kani::any::<u8>()).min(20);
+        let point = PredictionPoint {
+            actual: actual[..n].to_vec(), cold: cold[..c].to_vec(),
+            predicted: kani::any::<bool>().then(|| predicted[..p].to_vec()),
+        };
+        if point.valid() {
+            assert!(n == 10 || n == 20);
+            assert!(point.actual.iter().all(|&id| id < 512));
+            assert!(point.cold.iter().all(|id| point.actual.contains(id)));
+            if let Some(ids) = &point.predicted {
+                assert!(ids.len() == n / 10 * 16);
+                assert!(ids.iter().all(|&id| id < 512));
+            }
+            kani::cover!(n == 10 && point.predicted.is_some());
+            kani::cover!(n == 20 && point.predicted.is_some());
+            kani::cover!(point.predicted.is_none());
+        } else { kani::cover!(n == 0); kani::cover!(c > 0); }
+    }
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn prediction_order_preserves_all_values_within_two_rows() {
+        let ids: [u32; 32] = kani::any();
+        let length = usize::from(kani::any::<u8>()).min(32);
+        let rows: usize = kani::any();
+        let mut output = ids;
+        let valid = (1..=2).contains(&rows)
+            && length == rows * 16
+            && ids[..length].iter().all(|&id| id < 512);
+        let result = order_predictions(&mut output[..length], rows);
+        assert_eq!(result, valid);
+        if result {
+            for position in 0..length {
+                let expected = if rows == 1 {
+                    ids[15 - position]
+                } else {
+                    ids[(position % 2) * 16 + 15 - position / 2]
+                };
+                assert_eq!(output[position], expected);
+                assert!(output[position] < 512);
+            }
+            kani::cover!(rows == 1);
+            kani::cover!(rows == 2);
+        } else {
+            for position in 0..32 {
+                assert_eq!(output[position], ids[position]);
+            }
+            kani::cover!(rows > 2);
+            kani::cover!(rows == 0);
+            kani::cover!(length == 0);
+            kani::cover!(length == 32 && rows == 2 && ids[31] >= 512);
+        }
+    }
+}

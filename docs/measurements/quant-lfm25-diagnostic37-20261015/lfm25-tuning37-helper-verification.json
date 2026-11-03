@@ -1,0 +1,50 @@
+{
+  "status": "cpu_verified_no_gpu_started",
+  "files": {
+    "scripts/diagnose_lfm25_tuning.py": "e94d9f87ff67f04edf4ca97fbfd41010962add81aed24605f1ea17773c9e1ec2",
+    "tests/test_lfm25_tuning.py": "a75060e38e2080b9c9171232c6d35b2e016ac866428e4cb99b5f3926343b6fc7"
+  },
+  "legacy_sha256": "99c650616348c59a2d5a2c28f5b4519051a3a6295c305329f2aa0b2e5a617910",
+  "focused_tests": {
+    "passed": 47,
+    "skipped": 0,
+    "warning": "Modal1.5.5 get_raw_f deprecation for1.6; pinned and explicitly requested API.",
+    "log": "build/lfm25-tuning37-helper-tests-restored.log"
+  },
+  "mutations": {
+    "mutations": [
+      {
+        "mutation": "retune",
+        "detected": true,
+        "exit_code": 1
+      },
+      {
+        "mutation": "sdk-unwrap",
+        "detected": true,
+        "exit_code": 1
+      }
+    ],
+    "source_restored_byteexact": true
+  },
+  "crosshair": {
+    "postconditions_confirmed": 2,
+    "target": "diagnose_lfm25_tuning.cold_stage",
+    "timeout_per_condition": 20,
+    "log": "build/lfm25-tuning37-helper-crosshair.log",
+    "scope": "symbolic stage/cache choice only, no GPU/tensor/I/O proof"
+  },
+  "checks": {
+    "ruff_format": "2 files already formatted",
+    "ruff_lint": "All checks passed!",
+    "compileall_exit": 0,
+    "cli_help_exit": 0,
+    "actual_cli_python_legacy_import": "build/lfm25-tuning37-helper-cli-python.log"
+  },
+  "initial_failure": "Actual get_raw_f returned a synchronicity wrapper; real source import test detected it. Fixed by inspect.unwrap and checking co_filename. Regression reproduced/preserved by sdk-unwrap mutation log.",
+  "unverified": [
+    "No H100 stage or numerical measurement launched.",
+    "Real CUDA cache consumption/geometry and legacy/runtime parity await root execution.",
+    "Runtime metadata and run_stage orchestration use explicit CPU test doubles; actual legacy import uses real pinned Modal SDK.",
+    "Full suite and CI execution delegated to root."
+  ]
+}

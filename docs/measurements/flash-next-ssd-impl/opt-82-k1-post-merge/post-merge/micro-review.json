@@ -1,0 +1,90 @@
+{
+  "status": "complete_component_micro_review_not_throughput",
+  "observed_utc": "2026-10-25T22:26:43.300646+00:00",
+  "source_identity": {
+    "base_commit": "9c8474ca1292e29bae3c7d4d6383bd1820549349",
+    "source_patch_sha256": "9782c74c49613acc520a38975376eefac5a52217941cfc254909702521dd358b",
+    "source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+    "source_count": 100,
+    "all100_current_paths_match": true,
+    "native_tests_sha256": "041b3b092383f30bdc50f9f51c737bfef0b52114f3ef7ee07cfa37fe0dcdd3dd",
+    "candidate_cli_sha256": "cc9669ad864dd73dadbed0bb503a440fefcec2c736e065d61f7ec0936639e9a4",
+    "baseline_cli_sha256": "d8757fa6d9f62648d66f7a2d58617d6d54ff33905fefd408475519edd85105a6",
+    "fixtures_sha256": "50bf33e3adf1189e5175c772926c38b25a27e742a7f833597d7d341eee6369c7"
+  },
+  "H128": {
+    "analysis_path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/h128-micro/analysis.json",
+    "analysis_sha256": "2f5fbd4cfc1bc8c8011133e77fe6919221ada2230158f4d233868e5e46cb6a80",
+    "component_sha256": "795029be4a2347bcc3f30e783e2d4516c3ad4099764140b6238591a42509f0a4",
+    "sample_count": 704,
+    "cell_count": 32,
+    "setup_count": 32,
+    "resident_plans": 8,
+    "parity_contract": "single and32-chain Hot byte exact vs native MLX,finite; candidate Cold+0,stock Cold signed zero allowed",
+    "timing_contract": "setup outside,8warmups/arm,AA then5ABBA,32fresh chained transforms/sample,one final eval; host/dispatch/completion wall,not exclusiveGPU or releaseTPS",
+    "counts_not_aggregate_gain": {
+      "median_candidate_faster_cells": 17,
+      "median_candidate_slower_cells": 15,
+      "cell_speedup_percent_range": [
+        -5.702729959273755,
+        45.423412565044565
+      ],
+      "maximum_AA_max_min_ratio": 1.5980915686846995
+    },
+    "VM": {
+      "all_three_phases_joined": true,
+      "sampler_joined": true,
+      "samples": 35,
+      "curve_samples": 23,
+      "endpoint_swapins_bytes": 0,
+      "endpoint_swapouts_bytes": 0,
+      "system_compressor_physical_peak_bytes": 4300652544,
+      "power": "AC at all phase endpoints"
+    }
+  },
+  "SwiGLU": {
+    "analysis_path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/K1/post-merge/plans/activation-micro/analysis.json",
+    "analysis_sha256": "e492b652b08c9716437280a7286efae2d66414659b7e6b2c2dd63220d8a7b1ff",
+    "component_sha256": "b96ef6e9d0e4a8f0a0920c001ba52670b4fe15e5f33462e9c9492dcbebe1b1d8",
+    "sample_count": 192,
+    "cell_count": 8,
+    "parity_contract": "Every32-call full-chain output is byte-exact to native and finite, nonempty[20,640]Float16; Cold positivezero. SyntheticGU plus frozen real slot masks, not captured intermediate activations.",
+    "warmup_contract": "8warmup iterations perarm perfixture, one activation periteration; not8fullchains. Setup/host reads outsideclock.",
+    "counts_not_aggregate_gain": {
+      "median_candidate_faster_cells": 6,
+      "median_candidate_slower_cells": 2,
+      "cell_speedup_percent_range": [
+        -1.4027051859584971,
+        7.142466190525543
+      ],
+      "maximum_AA_max_min_ratio": 2.903091154738172
+    },
+    "VM": {
+      "all_three_phases_joined": true,
+      "sampler_joined": true,
+      "samples": 34,
+      "curve_samples": 23,
+      "endpoint_swapins_bytes": 0,
+      "endpoint_swapouts_bytes": 0,
+      "system_compressor_physical_min_bytes": 4157390848,
+      "system_compressor_physical_peak_bytes": 4164976640,
+      "power": "AC at all phase endpoints",
+      "model_footprint_peak_bytes": null,
+      "private_swapout_bytes": null,
+      "scope": "VM system observations; micro is not a full model run. No private swap-out or process physical-peak measurement inferred from zero global delta. Subsecond timed phase has no live VM sample, null is not zero."
+    }
+  },
+  "decision": "No micro-only promotion. Real HC/CH DFlash2 measurements are separate and ongoing under parent; no tok/s result included here.",
+  "combined_global_gain_percent": null,
+  "measured_exclusive_GPU_time": false,
+  "donation_or_clock_cause_established": false,
+  "no_build_proof_test_GPU_launched_by_reviewer": true,
+  "limitations": [
+    "Eight frozen geometry/mask fixtures are not representative trace weights; do not sum H128 stages or combine cell ratios into full-model benefit.",
+    "H128 uses32sequential same-transform calls, unlike four transforms interleavedwithQMV/scales inproduction. SwiGLU uses32calls plus31commonrecurrences.",
+    "Setup, full-chain parity andhostreadbacks outsideclock; graphconstruction,dispatch andfinaleval insideclock.",
+    "A/A andABBA show temporalheterogeneity; no baseline sample removed andno causal clock/donation attribution.",
+    "Zero endpointglobalVM delta is not proof ofzero private swapouts, measuredprocesspeak, orabsence ofmemorypressure.",
+    "StaticCPUguards/Kani andphysicaltests do not constitute completeproof ofMLX/MSL/concurrency orperformance."
+  ]
+}

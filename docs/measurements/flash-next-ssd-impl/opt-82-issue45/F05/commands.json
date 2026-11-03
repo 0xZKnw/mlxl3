@@ -1,0 +1,267 @@
+{
+  "status": "prepared_not_executed",
+  "worktree": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "base_commit": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "build_and_proofs_after_parent_permission_only": [
+    [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "mlx,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_route_batch_preserves_scalar_fallback_domain"
+    ],
+    [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_batch_routes_preserve_real_gate_logits_and_weights"
+    ],
+    [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "mlx,chat"
+    ],
+    [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "mlx,chat",
+      "--lib",
+      "--no-run"
+    ]
+  ],
+  "physical_only_after_builds_provers_joined": {
+    "common_env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_SSD_BATCH_ROUTES": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_PREFETCH_PIPELINE": "0",
+      "MLXL3_SSD_LES": "0",
+      "MLXL3_SSD_RESIDENT_GATES": "0",
+      "MLXL3_SSD_SHARED_EXL3": "0",
+      "MLXL3_SSD_SHARED_BATCH": "0",
+      "MLXL3_SSD_STABLE_EXPERT_KERNELS": "0"
+    },
+    "tests": [
+      {
+        "exact_test": "ssd_moe::batch_route_tests::batch_route_flag_reaches_real_loader_and_rejects_invalid_literals",
+        "args": [
+          "ssd_moe::batch_route_tests::batch_route_flag_reaches_real_loader_and_rejects_invalid_literals",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "required_text": [
+          "test result: ok. 1 passed; 0 failed;"
+        ],
+        "run_as_fresh_process_for_each_fixed_env": [
+          {
+            "unset_env": [
+              "MLXL3_SSD_BATCH_ROUTES"
+            ],
+            "env": {},
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=default accepted=true stored=false route_calls=2 real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "0"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=0 accepted=true stored=false route_calls=2 real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "1"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=1 accepted=true stored=true route_calls=2 real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": ""
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "2"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "01"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "true"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": " 1"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          },
+          {
+            "env": {
+              "MLXL3_SSD_BATCH_ROUTES": "1\n"
+            },
+            "required_text": [
+              "FLASH_BATCH_ROUTE_FLAG fixed_env=invalid accepted=false real_loader=true"
+            ]
+          }
+        ],
+        "nonunicode_case": "Not prepared by this ASCII JSON launch matrix; never claim executed.",
+        "load_once_evidence": "Stored field, actual route_rows branch and source review; no runtime environment mutation."
+      },
+      {
+        "exact_test": "ssd_moe::batch_route_tests::batch_probability_rows_preserve_extremes_ties_and_nonfinite_bits",
+        "args": [
+          "ssd_moe::batch_route_tests::batch_probability_rows_preserve_extremes_ties_and_nonfinite_bits",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "required_text": [
+          "FLASH_BATCH_ROUTE_EDGES cases=28 probability_ids_weight_bits=exact"
+        ]
+      },
+      {
+        "exact_test": "ssd_moe::batch_route_tests::batch_routes_match_real_scalar_logits_probabilities_ids_and_weights",
+        "args": [
+          "ssd_moe::batch_route_tests::batch_routes_match_real_scalar_logits_probabilities_ids_and_weights",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "required_text": [
+          "FLASH_BATCH_ROUTES gates=48 cases=1004 fast_cases=404"
+        ]
+      },
+      {
+        "exact_test": "ssd_moe::batch_route_tests::batch_routes_preserve_hot_cohorts_pending_slots_and_outputs",
+        "args": [
+          "ssd_moe::batch_route_tests::batch_routes_preserve_hot_cohorts_pending_slots_and_outputs",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "required_text": [
+          "FLASH_BATCH_ROUTE_MOE cases=24 cohorts=legacy,unique",
+          "hot_before_readback_checked=4 unique_overflow_only=true"
+        ]
+      },
+      {
+        "exact_test": "ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback",
+        "args": [
+          "ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback",
+          "--exact",
+          "--ignored",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "required_text": [
+          "SSD_UNIQUE_WINDOW",
+          "hot_before_readback=true",
+          "hot_survives_eviction=true",
+          "io_recovery=true",
+          "parity=byte_exact"
+        ]
+      }
+    ]
+  },
+  "after_components": [
+    "36 DFlash prefix/capture/logit/state byte-exact oracle under BATCH_ROUTES1.",
+    "MTP session target/head states and budgets1/2/3/17 under BATCH_ROUTES1.",
+    "Real bridge43 ADAPTIVE1 without WIDTH, BATCH_ROUTES1; errors/cancel/restart and exact output checks.",
+    "Then isolated same-binary flag0/1 B2 MAIN/HOLD H-C and C-H, cache3GiB,128warm+128measure,127decode, golden60; fresh OFF/MTP controls before promotion."
+  ],
+  "mutation_detection": {
+    "admit-B1.patch": "CPU shape unit and Kani must reject newly admitted B1.",
+    "drop-normalization.patch": "Actual route_rows normalized weights differ from independent unchanged scalar route oracle.",
+    "replace-scalar-GEMVs.patch": "Actual gate_logits call counter must remain rows, not1; logit/probability bytes are also compared."
+  },
+  "not_run": [
+    "No code applied to W",
+    "No build/test/prover/GPU/benchmark",
+    "No speed or memory gain measured",
+    "Actual MLX Kani may ICE intrinsics243 or be unsupported; preserve diagnostics, no stubs or false proof."
+  ]
+}

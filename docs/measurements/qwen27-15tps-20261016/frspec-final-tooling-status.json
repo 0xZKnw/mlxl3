@@ -1,0 +1,75 @@
+[
+  {
+    "name": "format-final",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "format",
+      "--check",
+      "benchmarks/compare_native.py",
+      "tests/test_compare_native.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.010789291001856327
+  },
+  {
+    "name": "lint-final",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "benchmarks/compare_native.py",
+      "tests/test_compare_native.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.010243084048852324
+  },
+  {
+    "name": "compile-final",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "py_compile",
+      "benchmarks/compare_native.py",
+      "tests/test_compare_native.py",
+      "scripts/experimental-draft-head.py",
+      "tests/test_experimental_draft_head.py"
+    ],
+    "exit_code": 0,
+    "seconds": 0.029882042086683214
+  },
+  {
+    "name": "crosshair-driver",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "benchmarks/compare_native.py",
+      "--analysis_kind=asserts"
+    ],
+    "exit_code": 1,
+    "seconds": 0.01603337493725121
+  },
+  {
+    "name": "tests-final",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_smallm_reuse.py",
+      "tests/test_smallm_benchmark.py",
+      "tests/test_smallm_profile.py",
+      "tests/test_compare_native.py",
+      "tests/test_native_json_process.py",
+      "tests/test_qmm_tiles.py",
+      "tests/test_decode_microbenchmarks.py",
+      "tests/test_experimental_draft_head.py"
+    ],
+    "exit_code": 0,
+    "seconds": 63.01438066596165
+  }
+]

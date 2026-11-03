@@ -1,0 +1,47 @@
+{
+  "status": "complete",
+  "parity": true,
+  "command": [
+    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+    "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+    "--checkpoint",
+    "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "--output",
+    "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-max-20261016/funnel-v2-profile.json",
+    "--affected-m1"
+  ],
+  "expected_cells": 11,
+  "sources": {
+    "funnel_screen_v2.py": "d544a114e0ee0ea310c23c5e35ffa3326f7a7e77c060e7b306241d2edfd3bc01",
+    "bounded_stage.py": "b1410a2e9b71d8995f580e2229b0c548044cfbd13f3a7b534d883c84420dec66",
+    "run_filters.py": "f1593006931c2315ac0243f95c8f0eb84cbc2aa164384892e83e1fd09b6a2111",
+    "funnel_screen.py": "e144bd4378eaf4b6e6fec37eb8750c517ea18d547a18d03fe9ad24843de5fa5e"
+  },
+  "power": {
+    "exit_code": 0,
+    "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t97%; discharging; 5:53 remaining present: true\n"
+  },
+  "swap": {
+    "exit_code": 0,
+    "stdout": "vm.swapusage: total = 4096.00M  used = 3012.12M  free = 1083.88M  (encrypted)\n"
+  },
+  "child": {
+    "status": "process_complete",
+    "parity": false,
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/tmp/mlxl3-q27-max-20261016/funnel_screen_v2.py",
+      "--checkpoint",
+      "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "--output",
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/docs/measurements/qwen27-max-20261016/funnel-v2-profile.json",
+      "--affected-m1"
+    ],
+    "timeout_seconds": 600,
+    "pid": 10890,
+    "seconds": 3.707803083001636,
+    "exit_code": 0,
+    "reaped": true
+  },
+  "passing_cells": 0
+}

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--tests",
+    "--features",
+    "mlx,chat",
+    "--harness",
+    "ssd_moe::batch_route_tests::batch_routes_match_real_scalar_logits_probabilities_ids_and_weights",
+    "--exact"
+  ],
+  "exit_code": 1,
+  "limit_reason": null,
+  "timeout_seconds": 180,
+  "rss_group_peak_bytes": 686309376,
+  "rss_limit_bytes": 4294967296,
+  "reaped": true,
+  "elapsed_seconds": 4.796646499999042
+}

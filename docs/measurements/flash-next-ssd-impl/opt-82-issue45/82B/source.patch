@@ -1,0 +1,138 @@
+--- a/scripts/benchmark-flash-bridge.py
++++ b/scripts/benchmark-flash-bridge.py
+@@ -133,6 +133,7 @@
+             env=env,
+         )
+         events = queue.Queue()
++        reader_done = object()
+ 
+         def read():
+             try:
+@@ -140,8 +141,8 @@
+                     events.put(json.loads(line))
+             except (ValueError, OSError) as error:
+                 events.put({"type": "error", "message": str(error)})
+-            finally:
+-                events.put({"type": "error", "message": "bridge exited"})
++            else:
++                events.put(reader_done)
+ 
+         reader = threading.Thread(target=read, daemon=True)
+         reader.start()
+@@ -156,7 +157,13 @@
+                     event = events.get(timeout=remaining)
+                 except queue.Empty as error:
+                     raise TimeoutError(f"bridge deadline: {kind}") from error
+-                if not isinstance(event, dict) or "type" not in event:
++                if event is reader_done:
++                    raise RuntimeError(f"bridge exited before {kind}")
++                if (
++                    not isinstance(event, dict)
++                    or not isinstance(event.get("type"), str)
++                    or not event["type"]
++                ):
+                     raise ValueError("invalid bridge event")
+                 if event["type"] == "error":
+                     raise RuntimeError(event)
+@@ -240,6 +247,28 @@
+             process.stdin.flush()
+             if process.wait(timeout=10) != 0:
+                 raise RuntimeError("bridge shutdown failed")
++            reader.join(timeout=5)
++            if reader.is_alive():
++                raise RuntimeError("benchmark reader did not stop")
++            finished = False
++            while True:
++                try:
++                    event = events.get_nowait()
++                except queue.Empty:
++                    break
++                if event is reader_done:
++                    finished = True
++                    continue
++                if (
++                    not isinstance(event, dict)
++                    or not isinstance(event.get("type"), str)
++                    or not event["type"]
++                ):
++                    raise ValueError("invalid bridge event after shutdown")
++                if event["type"] == "error":
++                    raise RuntimeError(event)
++            if not finished:
++                raise RuntimeError("bridge reader ended without normal EOF")
+             medians = {
+                 mode: {
+                     label: statistics.median(
+--- a/tests/test_flash_benchmark.py
++++ b/tests/test_flash_benchmark.py
+@@ -49,6 +49,24 @@
+         "df_counter_range",
+         "df_counter_type",
+         "df_missing_counter",
++        "late_status",
++        "late_error",
++        "late_invalid",
++        "late_null",
++        "late_missing_type",
++        "late_bad_type",
++        "late_empty_type",
++        "late_array",
++        "late_nonzero",
++        "eof",
++        "error",
++        "malformed",
++        "df_late_error",
++        "df_late_invalid",
++        "df_late_nonzero",
++        "compare_late_error",
++        "compare_late_invalid",
++        "compare_late_nonzero",
+     ],
+ )
+ def test_campaign(tmp_path, fault, monkeypatch):
+@@ -60,14 +78,27 @@
+         + """
+ import json, os, sys, time
+ fault = fault.removeprefix('df_')
++if fault.startswith('compare_late_'): fault = fault.removeprefix('compare_')
+ print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+ counter = 0
+ for line in sys.stdin:
+     r = json.loads(line)
+-    if r['type'] == 'shutdown': break
++    if r['type'] == 'shutdown':
++        if fault == 'late_error': print('{"type":"error","message":"late SSD read failure"}', flush=True)
++        if fault == 'late_invalid': print('invalid json', flush=True)
++        if fault == 'late_null': print('null', flush=True)
++        if fault == 'late_missing_type': print('{}', flush=True)
++        if fault == 'late_bad_type': print('{"type":null}', flush=True)
++        if fault == 'late_empty_type': print('{"type":""}', flush=True)
++        if fault == 'late_array': print('[]', flush=True)
++        if fault == 'late_status': print('{"type":"status","message":"closed"}', flush=True)
++        sys.exit(7 if fault == 'late_nonzero' else 0)
+     counter += 1
+     if fault == 'silent': time.sleep(30)
+     if fault == 'crash': sys.exit(3)
++    if fault == 'eof': sys.exit(0)
++    if fault == 'error': print('{"type":"error","message":"read failed"}', flush=True); continue
++    if fault == 'malformed': print('invalid json', flush=True); continue
+     if fault == 'invalid': print('null', flush=True); continue
+     if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': r.get('dflash2',False)}), flush=True)
+     tokens = r['max_tokens']
+@@ -129,7 +160,7 @@
+             )
+             assert result["reaped"] and result["reader_joined"]
+         return
+-    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt"):
++    if fault in ("ok", "auto_cache", "fixed_cache", "one_prompt", "late_status"):
+         if fault == "ok":
+             original_validate = bench.validate
+ 
+@@ -248,6 +279,7 @@
+         result = json.loads((output / "report.json").read_text())
+         assert result["status"] == "failed" and result["error"]
+         assert "median_decode_tps" not in result
++        assert result["reaped"] and result["reader_joined"]
+ 
+ 
+ @pytest.mark.parametrize(

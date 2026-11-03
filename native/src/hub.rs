@@ -19,9 +19,10 @@ use std::{
 };
 
 const API: &str = "https://huggingface.co/api";
+#[cfg(test)]
 const DFLASH_REPO: &str = "incoai/Qwen3.6-35B-A3B-Splash";
+#[cfg(test)]
 const DFLASH_COMMIT: &str = "0f4714b2db37b5f3c42a10de07281e74f88e4adc";
-const DFLASH_NAME: &str = "Qwen3.6-35B-A3B-DFlash2";
 const DFLASH_FILES: [&str; 7] = [
     "draft/layer-0.bin",
     "draft/layer-1.bin",
@@ -31,6 +32,99 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/layer-5.bin",
     "draft/model.bin",
 ];
+
+const DFLASH_FLASH_PINNED: [(&str, u64, &str); 2] = [
+    (
+        "config.json",
+        1236,
+        "2409575986f9ea24d455343eb469c0e6940def5edab1d1be503bb8eb4cc3b1b9",
+    ),
+    (
+        "model.safetensors",
+        1_206_140_008,
+        "d6723f2a359eaf33ec0c95f22ae8edda896774020c552296a85e1913b4d3186f",
+    ),
+];
+
+const DFLASH_MOE_PINNED: [(&str, u64, &str); 7] = [
+    (
+        "draft/layer-0.bin",
+        34324480,
+        "6e49b64d9448bf9965826d6c92badcd40c3321a7b86066c25b7c30852cc4c5b9",
+    ),
+    (
+        "draft/layer-1.bin",
+        34324480,
+        "755ef7fcf8107c3a2cd5bd24e96ad726aa06174f72d628413e32fa7b7d8ffdda",
+    ),
+    (
+        "draft/layer-2.bin",
+        34324480,
+        "126cedd11a4b13febc299df0101a096dd6f6761e86bc0ac5db1dc6f2f78c31c1",
+    ),
+    (
+        "draft/layer-3.bin",
+        34324480,
+        "d96490a76307408fc2d2e42d86481f3061b04a2289193d2e8face84531b68f9e",
+    ),
+    (
+        "draft/layer-4.bin",
+        34324480,
+        "92103acb13eb656fc46220f07bdc4f1da0233fed8b27ab5f2877544f1147bd93",
+    ),
+    (
+        "draft/layer-5.bin",
+        34324480,
+        "2de274812de6d8cdf8bdfb2b6edd43da1b7b4b82e5ffe7316e36d6d50404600d",
+    ),
+    (
+        "draft/model.bin",
+        273498112,
+        "532f9ca34fd57b0d042f79232bea70770c28e23d69eeb2293a46e9640959926f",
+    ),
+];
+
+const DFLASH_DENSE_PINNED: [(&str, u64, &str); 6] = [
+    (
+        "draft/layer-0.bin",
+        187449344,
+        "48250072cd0c121ec449b67a53bb98c73d16135d5d9a7d0366b49b7e4573a29b",
+    ),
+    (
+        "draft/layer-1.bin",
+        187449344,
+        "b8f1b37e71e25f4cb3ac32d34d4e81be2e0634210cdb64bbee945413e511a664",
+    ),
+    (
+        "draft/layer-2.bin",
+        187449344,
+        "f232403c4ef212c6e53abe03f0e48aaac355d3612384dd103e29274b5bbe25db",
+    ),
+    (
+        "draft/layer-3.bin",
+        187449344,
+        "12acda893bc646c02b162ddf09a3af45babc73cf45975974ecc007cf14b05127",
+    ),
+    (
+        "draft/layer-4.bin",
+        187449344,
+        "db6683f4f30da4639163428fc39e87440e96dc9a3e4dcc617a8ed44ed3701e1f",
+    ),
+    (
+        "draft/model.bin",
+        328794112,
+        "5cb77c477c32faab66918fe505c96ba5b9d311e91eb519281f54cb9c5bb3a4f2",
+    ),
+];
+
+fn pinned_dflash_files(
+    family: crate::dflash::Family,
+) -> &'static [(&'static str, u64, &'static str)] {
+    match family {
+        crate::dflash::Family::Qwen36Moe => &DFLASH_MOE_PINNED,
+        crate::dflash::Family::Qwen38Dense => &DFLASH_DENSE_PINNED,
+    }
+}
 
 const MTP_MOE_FILES: [(&str, u64, &str); 2] = [
     (
@@ -173,8 +267,89 @@ pub struct Variant {
     pub id: String,
     pub label: String,
     pub size_bytes: u64,
+    pub preview: Option<ModelPreview>,
     #[serde(skip_serializing)]
     pub files: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ModelPreview {
+    pub model_type: Option<String>,
+    pub architecture_supported: bool,
+    pub maximum_context: Option<u64>,
+    pub kv_bytes_per_token: Option<u64>,
+    pub recurrent_bytes: Option<u64>,
+}
+
+pub fn kv_bytes_per_token(layers: u64, heads: u64, dimension: u64) -> Option<u64> {
+    layers
+        .checked_mul(heads)?
+        .checked_mul(dimension)?
+        .checked_mul(4)
+}
+
+fn model_preview(config: &Value) -> ModelPreview {
+    let text = config.get("text_config").unwrap_or(config);
+    let model_type = config["model_type"].as_str().map(str::to_owned);
+    let architecture_supported = matches!(
+        model_type.as_deref(),
+        Some("qwen3_5" | "qwen3_5_moe" | "lfm2" | "lfm2_moe" | "gemma4" | "bailing_hybrid")
+    );
+    let qwen_cache = || -> Option<(u64, u64)> {
+        let kinds = text["layer_types"].as_array()?;
+        if kinds.len() as u64 != text["num_hidden_layers"].as_u64()?
+            || !kinds
+                .iter()
+                .all(|kind| matches!(kind.as_str(), Some("full_attention" | "linear_attention")))
+        {
+            return None;
+        }
+        let full = kinds
+            .iter()
+            .filter(|kind| **kind == "full_attention")
+            .count() as u64;
+        let linear = kinds.len() as u64 - full;
+        let kv = kv_bytes_per_token(
+            full,
+            text["num_key_value_heads"].as_u64()?,
+            text["head_dim"].as_u64()?,
+        )?;
+        if linear == 0 {
+            return Some((kv, 0));
+        }
+        let key_heads = text["linear_num_key_heads"].as_u64()?;
+        let value_heads = text["linear_num_value_heads"].as_u64()?;
+        let key_dim = text["linear_key_head_dim"].as_u64()?;
+        let value_dim = text["linear_value_head_dim"].as_u64()?;
+        let recurrence = value_heads
+            .checked_mul(key_dim)?
+            .checked_mul(value_dim)?
+            .checked_mul(4)?;
+        let conv_dim = key_heads
+            .checked_mul(key_dim)?
+            .checked_mul(2)?
+            .checked_add(value_heads.checked_mul(value_dim)?)?;
+        let conv = text["linear_conv_kernel_dim"]
+            .as_u64()?
+            .checked_sub(1)?
+            .checked_mul(conv_dim)?
+            .checked_mul(2)?;
+        Some((kv, recurrence.checked_add(conv)?.checked_mul(linear)?))
+    };
+    let cache = if matches!(model_type.as_deref(), Some("qwen3_5" | "qwen3_5_moe")) {
+        qwen_cache()
+    } else {
+        None
+    };
+    ModelPreview {
+        model_type,
+        architecture_supported,
+        maximum_context: text["max_position_embeddings"]
+            .as_u64()
+            .filter(|value| *value > 0),
+        kv_bytes_per_token: cache.map(|value| value.0),
+        recurrent_bytes: cache.map(|value| value.1),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -275,13 +450,23 @@ fn get(url: &str, limit: usize) -> Result<Vec<u8>> {
         .arg(url)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    if token().is_some() {
+    let access = url
+        .starts_with("https://huggingface.co/")
+        .then(token)
+        .flatten();
+    if let Some(token) = &access {
+        ensure!(
+            token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
+            "invalid Hugging Face token"
+        );
+    }
+    if access.is_some() {
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
     let mut child = command
         .spawn()
         .context("starting the system HTTPS client")?;
-    if let (Some(token), Some(mut input)) = (token(), child.stdin.take()) {
+    if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
         ensure!(
             token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
             "invalid Hugging Face token"
@@ -322,10 +507,16 @@ fn managed_drafts_path() -> Result<PathBuf> {
         .join("Drafts"))
 }
 
-fn dflash_files(info: &RepoInfo) -> Result<Vec<(&str, u64, &str)>> {
-    ensure!(info.sha == DFLASH_COMMIT, "DFlash draft revision changed");
+fn dflash_files(info: &RepoInfo, family: crate::dflash::Family) -> Result<Vec<(&str, u64, &str)>> {
+    ensure!(
+        info.sha == family.revision(),
+        "DFlash draft revision changed"
+    );
     let mut result = Vec::with_capacity(7);
-    for name in DFLASH_FILES {
+    for name in DFLASH_FILES
+        .into_iter()
+        .filter(|name| family.layers() == 6 || *name != "draft/layer-5.bin")
+    {
         let file = info
             .siblings
             .iter()
@@ -359,13 +550,166 @@ fn sha256_matches(path: &Path, expected: &str) -> Result<bool> {
         .is_some_and(|hash| hash.eq_ignore_ascii_case(expected.as_bytes())))
 }
 
-/// Download only the seven pinned DFlash2 files, never Splash's target weights.
-/// Partial files stay in a managed staging directory for a later retry.
-pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
-    let root = managed_drafts_path()?;
-    fs::create_dir_all(&root)?;
+/// Download the packed draft only, never Splash's target weights.
+pub fn download_dflash(
+    family: crate::dflash::Family,
+    progress: impl FnMut(u64, u64),
+) -> Result<PathBuf> {
+    download_managed_dflash(crate::dflash::ManagedDraft::Packed(family), progress)
+}
+
+/// Flash uses the raw BF16 ABI; it is not a packed 35B/27B draft.
+pub fn download_flash_dflash(progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+    download_managed_dflash(crate::dflash::ManagedDraft::FlashNext, progress)
+}
+
+fn download_managed_dflash(
+    draft: crate::dflash::ManagedDraft,
+    progress: impl FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let files = match draft {
+        crate::dflash::ManagedDraft::Packed(family) => pinned_dflash_files(family),
+        crate::dflash::ManagedDraft::FlashNext => &DFLASH_FLASH_PINNED,
+    };
+    let cancelled = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    install_dflash(
+        &managed_drafts_path()?,
+        draft,
+        files,
+        "https://huggingface.co",
+        &cancelled,
+        progress,
+        |path| draft.inspect(path).map(|_| ()),
+    )
+}
+
+fn published_dflash_matches(
+    metadata: &RepoInfo,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+) -> Result<()> {
+    ensure!(
+        metadata.sha == draft.revision() && metadata.id == draft.repository(),
+        "DFlash draft revision or repository changed"
+    );
+    if let crate::dflash::ManagedDraft::Packed(family) = draft {
+        ensure!(
+            dflash_files(metadata, family)? == files,
+            "DFlash pinned checksums changed"
+        );
+        return Ok(());
+    }
+    for (name, bytes, hash) in files {
+        let matches: Vec<_> = metadata
+            .siblings
+            .iter()
+            .filter(|file| file.rfilename == *name)
+            .collect();
+        ensure!(
+            matches.len() == 1,
+            "missing or duplicate Flash draft file {name}"
+        );
+        let published = matches[0];
+        ensure!(
+            published.size == *bytes,
+            "Flash draft size changed for {name}"
+        );
+        // config.json is a normal Git blob; both downloaded files still require SHA256.
+        if let Some(lfs) = &published.lfs {
+            ensure!(
+                lfs.sha256 == *hash,
+                "Flash draft checksum changed for {name}"
+            );
+        } else {
+            ensure!(
+                *name == "config.json",
+                "Flash draft weights have no LFS checksum"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn regular_draft_file(directory: &Path, name: &str) -> Result<PathBuf> {
+    ensure!(safe_file(name), "unsafe DFlash filename");
+    let path = directory.join(name);
+    let mut parent = path.parent();
+    while let Some(folder) = parent.filter(|folder| *folder != directory) {
+        ensure!(
+            !folder
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink()),
+            "invalid DFlash parent directory"
+        );
+        parent = folder.parent();
+    }
+    if let Ok(metadata) = path.symlink_metadata() {
+        ensure!(
+            metadata.file_type().is_file(),
+            "DFlash file must be regular: {name}"
+        );
+    }
+    Ok(path)
+}
+
+fn managed_dflash_entries(
+    directory: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+) -> Result<()> {
+    if draft == crate::dflash::ManagedDraft::FlashNext {
+        for entry in fs::read_dir(directory)? {
+            let entry = entry?;
+            ensure!(
+                entry.file_type()?.is_file()
+                    && files.iter().any(|(name, _, _)| entry.file_name() == *name),
+                "unexpected file in managed Flash draft"
+            );
+        }
+    } else {
+        ensure!(
+            !directory
+                .join("draft")
+                .symlink_metadata()
+                .is_ok_and(|meta| meta.file_type().is_symlink()),
+            "invalid DFlash draft directory"
+        );
+    }
+    Ok(())
+}
+
+fn inspect_managed_dflash(
+    directory: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+    inspect: &impl Fn(&Path) -> Result<()>,
+) -> Result<()> {
+    managed_dflash_entries(directory, draft, files)?;
+    inspect(directory)
+}
+
+fn install_dflash(
+    root: &Path,
+    draft: crate::dflash::ManagedDraft,
+    files: &[(&str, u64, &str)],
+    host: &str,
+    cancelled: &AtomicBool,
+    mut progress: impl FnMut(u64, u64),
+    inspect: impl Fn(&Path) -> Result<()>,
+) -> Result<PathBuf> {
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    ensure!(
+        !files.is_empty()
+            && files.iter().all(|(name, size, hash)| safe_file(name)
+                && *size > 0
+                && hash.len() == 64
+                && hash.bytes().all(|byte| byte.is_ascii_hexdigit())),
+        "invalid DFlash pinned manifest"
+    );
+    fs::create_dir_all(root)?;
     let root = root.canonicalize()?;
-    let destination = root.join(DFLASH_NAME);
+    let destination = root.join(draft.name());
     ensure!(
         !destination
             .symlink_metadata()
@@ -373,10 +717,41 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         "invalid DFlash destination"
     );
     if destination.exists() {
-        crate::dflash::inspect(&destination)?;
+        for (name, size, hash) in files {
+            let path = regular_draft_file(&destination, name)?;
+            ensure!(
+                path.metadata()?.len() == *size && sha256_matches(&path, hash)?,
+                "DFlash installed draft checksum or size mismatch for {name}"
+            );
+        }
+        ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+        inspect_managed_dflash(&destination, draft, files, &inspect)?;
         return Ok(destination);
     }
-    let stage = root.join(".downloads").join(DFLASH_COMMIT);
+    let downloads = root.join(".downloads");
+    ensure!(
+        !downloads
+            .symlink_metadata()
+            .is_ok_and(|meta| meta.file_type().is_symlink()),
+        "invalid DFlash downloads directory"
+    );
+    fs::create_dir_all(&downloads)?;
+    let lock_path = downloads.join("dflash.lock");
+    ensure!(
+        !lock_path
+            .symlink_metadata()
+            .is_ok_and(|meta| !meta.file_type().is_file()),
+        "invalid DFlash download lock"
+    );
+    let lock = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(lock_path)?;
+    lock.try_lock_exclusive()
+        .context("DFlash draft is already downloading")?;
+    let stage = downloads.join(draft.revision());
     ensure!(
         !stage
             .symlink_metadata()
@@ -384,64 +759,56 @@ pub fn download_dflash(mut progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
         "invalid DFlash staging directory"
     );
     fs::create_dir_all(&stage)?;
-    ensure!(
-        !stage
-            .join("draft")
-            .symlink_metadata()
-            .is_ok_and(|meta| meta.file_type().is_symlink()),
-        "invalid DFlash draft staging directory"
-    );
-    let lock = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(root.join(".downloads").join("dflash.lock"))?;
-    lock.try_lock_exclusive()
-        .context("DFlash draft is already downloading")?;
-    let metadata = info(DFLASH_REPO, DFLASH_COMMIT)?;
-    let files = dflash_files(&metadata)?;
-    let total: u64 = files.iter().map(|(_, size, _)| size).sum();
-    let cancelled = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    managed_dflash_entries(&stage, draft, files)?;
+    let metadata_file = tempfile::NamedTempFile::new_in(&downloads)?;
+    download_file_bounded(
+        &format!(
+            "{host}/api/models/{}/revision/{}?blobs=true",
+            encode(draft.repository()),
+            draft.revision()
+        ),
+        metadata_file.path(),
+        cancelled,
+        || {},
+        Some(32 << 20),
+    )?;
+    let metadata: RepoInfo = serde_json::from_reader(File::open(metadata_file.path())?)
+        .context("invalid DFlash repository metadata")?;
+    published_dflash_matches(&metadata, draft, files)?;
+    let total = files
+        .iter()
+        .try_fold(0u64, |sum, (_, size, _)| sum.checked_add(*size))
+        .context("DFlash size overflow")?;
     progress(directory_bytes(&stage).min(total), total);
-    for (name, expected_size, expected_hash) in files {
-        let target = stage.join(name);
-        ensure!(
-            !target
-                .symlink_metadata()
-                .is_ok_and(|meta| meta.file_type().is_symlink()),
-            "invalid DFlash staging file"
-        );
-        if target
-            .metadata()
-            .is_ok_and(|meta| meta.len() == expected_size)
-            && sha256_matches(&target, expected_hash)?
-        {
+    for (name, size, hash) in files {
+        ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+        let path = regular_draft_file(&stage, name)?;
+        if path.metadata().is_ok_and(|meta| meta.len() == *size) && sha256_matches(&path, hash)? {
             continue;
         }
-        // A complete but corrupt file cannot be resumed safely.
-        if target
-            .metadata()
-            .is_ok_and(|meta| meta.len() >= expected_size)
-        {
-            fs::remove_file(&target)?;
+        if path.metadata().is_ok_and(|meta| meta.len() >= *size) {
+            fs::remove_file(&path)?;
         }
-        download_file(
+        download_file_bounded(
             &format!(
-                "https://huggingface.co/{}/resolve/{}/{}?download=true",
-                encode(DFLASH_REPO),
-                DFLASH_COMMIT,
+                "{host}/{}/resolve/{}/{}?download=true",
+                encode(draft.repository()),
+                draft.revision(),
                 name
             ),
-            &target,
-            &cancelled,
+            &path,
+            cancelled,
             || progress(directory_bytes(&stage).min(total), total),
+            Some(*size),
         )?;
         ensure!(
-            target.metadata()?.len() == expected_size && sha256_matches(&target, expected_hash)?,
+            path.metadata()?.len() == *size && sha256_matches(&path, hash)?,
             "DFlash draft checksum or size mismatch for {name}"
         );
     }
-    crate::dflash::inspect(&stage)?;
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
+    inspect_managed_dflash(&stage, draft, files, &inspect)?;
     fs::rename(&stage, &destination)?;
     progress(total, total);
     Ok(destination)
@@ -455,10 +822,10 @@ fn directory_bytes(path: &Path) -> u64 {
         .flatten()
         .map(|entry| {
             let path = entry.path();
-            if path.is_dir() {
-                directory_bytes(&path)
-            } else {
-                entry.metadata().map_or(0, |metadata| metadata.len())
+            match entry.file_type() {
+                Ok(kind) if kind.is_dir() => directory_bytes(&path),
+                Ok(kind) if kind.is_file() => entry.metadata().map_or(0, |metadata| metadata.len()),
+                _ => 0,
             }
         })
         .sum()
@@ -514,8 +881,19 @@ fn download_file(
     url: &str,
     destination: &Path,
     cancelled: &AtomicBool,
-    mut report: impl FnMut(),
+    report: impl FnMut(),
 ) -> Result<()> {
+    download_file_bounded(url, destination, cancelled, report, None)
+}
+
+fn download_file_bounded(
+    url: &str,
+    destination: &Path,
+    cancelled: &AtomicBool,
+    mut report: impl FnMut(),
+    maximum_bytes: Option<u64>,
+) -> Result<()> {
+    ensure!(!cancelled.load(Ordering::Relaxed), "download cancelled");
     let parent = destination
         .parent()
         .context("download path has no parent")?;
@@ -527,6 +905,8 @@ fn download_file(
             "--retry",
             "3",
             "--retry-all-errors",
+            "--connect-timeout",
+            "15",
             "--continue-at",
             "-",
             "--output",
@@ -535,11 +915,24 @@ fn download_file(
         .arg(url)
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
-    if token().is_some() {
+    let access = url
+        .starts_with("https://huggingface.co/")
+        .then(token)
+        .flatten();
+    if let Some(token) = &access {
+        ensure!(
+            token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
+            "invalid Hugging Face token"
+        );
+    }
+    if access.is_some() {
         command.args(["--config", "-"]).stdin(Stdio::piped());
     }
+    if let Some(maximum_bytes) = maximum_bytes {
+        command.args(["--max-filesize", &maximum_bytes.to_string()]);
+    }
     let mut child = command.spawn().context("starting model download")?;
-    if let (Some(token), Some(mut input)) = (token(), child.stdin.take()) {
+    if let (Some(token), Some(mut input)) = (access, child.stdin.take()) {
         ensure!(
             token.starts_with("hf_") && token.bytes().all(|byte| byte.is_ascii_graphic()),
             "invalid Hugging Face token"
@@ -548,7 +941,7 @@ fn download_file(
     }
     loop {
         if cancelled.load(Ordering::Relaxed) {
-            child.kill()?;
+            let _ = child.kill();
             let _ = child.wait();
             bail!("download cancelled");
         }
@@ -753,6 +1146,10 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
         for name in files.keys().filter(|name| parent(name) == folder) {
             let file = base(name);
             if weights.contains(name)
+                || matches!(
+                    file,
+                    "ngram_embedding.safetensors" | "mtp_hyper_connection_mixer_patch.safetensors"
+                )
                 || (quant_label.is_none() && file == "model.safetensors.index.json")
             {
                 selected.insert(file.to_owned(), name.clone());
@@ -789,6 +1186,7 @@ pub fn variants(files: &BTreeMap<String, u64>) -> Vec<Variant> {
             }),
             size_bytes: selected.values().filter_map(|name| files.get(name)).sum(),
             files: selected,
+            preview: None,
         });
     }
     result
@@ -843,6 +1241,26 @@ pub fn details(repo: &str, revision: Option<&str>) -> Result<Details> {
             .map(|file| (file.rfilename.clone(), file.size))
             .collect();
         choices = variants(&files);
+    }
+    let mut previews = BTreeMap::new();
+    for variant in choices.iter_mut().take(8) {
+        if let Some(path) = variant.files.get("config.json") {
+            if !previews.contains_key(path) {
+                let preview = get_json::<Value>(
+                    &format!(
+                        "https://huggingface.co/{}/resolve/{}/{}",
+                        encode(repo),
+                        encode(&model.sha),
+                        encode(path)
+                    ),
+                    1024 * 1024,
+                )
+                .ok()
+                .map(|config| model_preview(&config));
+                previews.insert(path.clone(), preview);
+            }
+            variant.preview = previews.get(path).cloned().flatten();
+        }
     }
     let readme = if files
         .get("README.md")
@@ -1115,6 +1533,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preview_reports_architecture_and_keeps_hybrid_cache_unknown() {
+        let hybrid = model_preview(
+            &serde_json::json!({"model_type":"qwen3_5_moe","text_config":{"max_position_embeddings":32768,"num_hidden_layers":40,"num_key_value_heads":4,"head_dim":128}}),
+        );
+        assert!(hybrid.architecture_supported);
+        assert_eq!(hybrid.maximum_context, Some(32768));
+        assert_eq!(hybrid.kv_bytes_per_token, None);
+        let unknown = model_preview(&serde_json::json!({"model_type":"unknown"}));
+        assert!(!unknown.architecture_supported);
+        assert_eq!(unknown.kv_bytes_per_token, None);
+        let dimensions = serde_json::json!({"model_type":"qwen3_5","text_config":{"num_hidden_layers":2,"layer_types":["full_attention","linear_attention"],"num_key_value_heads":2,"head_dim":128,"linear_num_key_heads":2,"linear_num_value_heads":4,"linear_key_head_dim":8,"linear_value_head_dim":16,"linear_conv_kernel_dim":4}});
+        let preview = model_preview(&dimensions);
+        assert_eq!(preview.kv_bytes_per_token, Some(1024));
+        assert_eq!(preview.recurrent_bytes, Some(2624));
+        assert_eq!(kv_bytes_per_token(4, 2, 128), Some(4096));
+        assert_eq!(kv_bytes_per_token(u64::MAX, 2, 128), None);
+    }
+
+    #[test]
     fn dflash_download_selects_only_pinned_draft_files() {
         let mut siblings: Vec<RepoFile> = DFLASH_FILES
             .iter()
@@ -1141,7 +1578,7 @@ mod tests {
             likes: 0,
             siblings,
         };
-        let selected = dflash_files(&info).unwrap();
+        let selected = dflash_files(&info, crate::dflash::Family::Qwen36Moe).unwrap();
         assert_eq!(selected.len(), 7);
         assert_eq!(selected.iter().map(|(_, size, _)| size).sum::<u64>(), 84);
         assert!(
@@ -1151,9 +1588,263 @@ mod tests {
         );
         info.siblings.pop();
         info.siblings.pop();
-        assert!(dflash_files(&info).is_err());
+        assert!(dflash_files(&info, crate::dflash::Family::Qwen36Moe).is_err());
         info.sha = "wrong-revision".into();
-        assert!(dflash_files(&info).is_err());
+        assert!(dflash_files(&info, crate::dflash::Family::Qwen36Moe).is_err());
+    }
+
+    #[test]
+    fn both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata() {
+        for (family, bytes) in [
+            (crate::dflash::Family::Qwen36Moe, 479_444_992),
+            (crate::dflash::Family::Qwen38Dense, 1_266_040_832),
+        ] {
+            let mut info = RepoInfo {
+                id: family.repository().into(),
+                sha: family.revision().into(),
+                gated: Value::Null,
+                downloads: 0,
+                likes: 0,
+                siblings: pinned_dflash_files(family)
+                    .iter()
+                    .map(|(name, size, hash)| RepoFile {
+                        rfilename: (*name).into(),
+                        size: *size,
+                        lfs: Some(LfsFile {
+                            sha256: (*hash).into(),
+                        }),
+                    })
+                    .collect(),
+            };
+            assert_eq!(
+                dflash_files(&info, family).unwrap(),
+                pinned_dflash_files(family)
+            );
+            assert_eq!(info.siblings.len(), family.layers() + 1);
+            assert_eq!(info.siblings.iter().map(|f| f.size).sum::<u64>(), bytes);
+            info.siblings[0].lfs = None;
+            assert!(dflash_files(&info, family).is_err());
+            info.siblings[0].lfs = Some(LfsFile {
+                sha256: "g".repeat(64),
+            });
+            assert!(dflash_files(&info, family).is_err());
+            info.siblings.pop();
+            assert!(dflash_files(&info, family).is_err());
+        }
+    }
+
+    #[test]
+    fn flash_variants_include_present_sidecars_and_exact_total() {
+        for present in 0u8..4 {
+            let mut files = BTreeMap::from([
+                ("config.json".into(), 10),
+                ("tokenizer.json".into(), 20),
+                ("quantization_config.json".into(), 5),
+                ("model.safetensors".into(), 100),
+                ("model.safetensors.index.json".into(), 7),
+            ]);
+            if present & 1 != 0 {
+                files.insert("ngram_embedding.safetensors".into(), 26_240_152_672);
+            }
+            if present & 2 != 0 {
+                files.insert(
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                    13_128_048,
+                );
+            }
+            let choices = variants(&files);
+            assert_eq!(choices.len(), 1);
+            let choice = &choices[0];
+            let mut expected = BTreeMap::from([
+                ("config.json".into(), "config.json".into()),
+                ("tokenizer.json".into(), "tokenizer.json".into()),
+                (
+                    "quantization_config.json".into(),
+                    "quantization_config.json".into(),
+                ),
+                ("model.safetensors".into(), "model.safetensors".into()),
+                (
+                    "model.safetensors.index.json".into(),
+                    "model.safetensors.index.json".into(),
+                ),
+            ]);
+            let mut bytes = 142;
+            if present & 1 != 0 {
+                expected.insert(
+                    "ngram_embedding.safetensors".into(),
+                    "ngram_embedding.safetensors".into(),
+                );
+                bytes += 26_240_152_672;
+            }
+            if present & 2 != 0 {
+                expected.insert(
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                    "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                );
+                bytes += 13_128_048;
+            }
+            assert_eq!(choice.files, expected);
+            assert_eq!(choice.size_bytes, bytes);
+            files.remove("config.json");
+            assert!(variants(&files).is_empty());
+            files.insert("config.json".into(), 10);
+            files.remove("model.safetensors");
+            assert!(
+                variants(&files).is_empty(),
+                "sidecars cannot replace the main weights"
+            );
+        }
+    }
+
+    #[test]
+    fn flash_sidecars_stay_in_the_variant_folder_and_do_not_match_quantized_names() {
+        let files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("tokenizer.json".into(), 20),
+            ("quantization_config.json".into(), 5),
+            ("model.safetensors".into(), 100),
+            ("ngram_embedding.safetensors".into(), 1_000),
+            ("mtp_hyper_connection_mixer_patch.safetensors".into(), 2_000),
+            ("sub/config.json".into(), 11),
+            ("sub/quantization_config.json".into(), 6),
+            ("sub/model.safetensors".into(), 200),
+            ("sub/model.safetensors.index.json".into(), 13),
+            ("sub/quantization_config-4bpw.json".into(), 7),
+            ("sub/config-4bpw.json".into(), 8),
+            ("sub/model-4bpw.safetensors".into(), 400),
+            ("sub/ngram_embedding.safetensors".into(), 3_000),
+            (
+                "sub/mtp_hyper_connection_mixer_patch.safetensors".into(),
+                4_000,
+            ),
+            ("sub/ngram_embedding-4bpw.safetensors".into(), 9_000),
+            (
+                "sub/mtp_hyper_connection_mixer_patch-4bpw.safetensors".into(),
+                9_000,
+            ),
+            ("sub/other.safetensors".into(), 9_000),
+            ("sub/draft/ngram_embedding.safetensors".into(), 9_000),
+            (
+                "other/mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+            ("../quantization_config.json".into(), 9_000),
+            ("../config.json".into(), 9_000),
+            ("../model.safetensors".into(), 9_000),
+            ("sub/../ngram_embedding.safetensors".into(), 9_000),
+            (
+                "sub/./mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+            ("/ngram_embedding.safetensors".into(), 9_000),
+            (
+                "sub\\mtp_hyper_connection_mixer_patch.safetensors".into(),
+                9_000,
+            ),
+        ]);
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 3);
+        for (id, folder, size, model) in [
+            ("", "", 3_135, "model.safetensors"),
+            ("sub", "sub/", 7_250, "model.safetensors"),
+            (
+                "sub#quantization_config-4bpw.json",
+                "sub/",
+                7_435,
+                "model-4bpw.safetensors",
+            ),
+        ] {
+            let choice = choices.iter().find(|choice| choice.id == id).unwrap();
+            assert_eq!(choice.size_bytes, size);
+            for name in [
+                "ngram_embedding.safetensors",
+                "mtp_hyper_connection_mixer_patch.safetensors",
+            ] {
+                assert_eq!(choice.files[name], format!("{folder}{name}"));
+            }
+            let actual_weights: Vec<_> = choice
+                .files
+                .keys()
+                .filter(|name| name.ends_with(".safetensors"))
+                .map(String::as_str)
+                .collect();
+            let mut expected = vec![
+                model,
+                "ngram_embedding.safetensors",
+                "mtp_hyper_connection_mixer_patch.safetensors",
+            ];
+            expected.sort_unstable();
+            assert_eq!(actual_weights, expected);
+            assert!(choice.files.values().all(|name| safe_file(name)));
+        }
+    }
+
+    #[test]
+    fn selected_flash_variant_assembles_into_an_inspectable_checkpoint() {
+        fn shard(path: &Path, header: Value, payload: &[u8]) {
+            let header = serde_json::to_vec(&header).unwrap();
+            let mut bytes = (header.len() as u64).to_le_bytes().to_vec();
+            bytes.extend(header);
+            bytes.extend(payload);
+            fs::write(path, bytes).unwrap();
+        }
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source");
+        let assembled = root.path().join("assembled");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&assembled).unwrap();
+        fs::write(source.join("config.json"), r#"{"model_type":"qwen4_exp"}"#).unwrap();
+        fs::write(source.join("tokenizer.json"), "{}").unwrap();
+        fs::write(source.join("quantization_config.json"), serde_json::to_vec(&serde_json::json!({
+            "quant_method":"exl3", "bits":2.05,
+            "tensor_storage":{
+                "model.linear":{"quant_format":"exl3"},
+                "sidecars":{"stored_tensors":{"ple.sidecar":{"shape":[1]},"mtp.sidecar":{"shape":[1]}}}
+            }
+        })).unwrap()).unwrap();
+        shard(
+            &source.join("model.safetensors"),
+            serde_json::json!({
+                "model.linear.trellis":{"dtype":"U16","shape":[1,1,16],"data_offsets":[0,32]},
+                "model.linear.suh":{"dtype":"F16","shape":[16],"data_offsets":[32,64]},
+                "model.linear.svh":{"dtype":"F16","shape":[16],"data_offsets":[64,96]}
+            }),
+            &[0; 96],
+        );
+        for (name, tensor) in [
+            ("ngram_embedding.safetensors", "ple.sidecar"),
+            (
+                "mtp_hyper_connection_mixer_patch.safetensors",
+                "mtp.sidecar",
+            ),
+        ] {
+            shard(
+                &source.join(name),
+                serde_json::json!({tensor:{"dtype":"F16","shape":[1],"data_offsets":[0,2]}}),
+                &[0; 2],
+            );
+        }
+        let files = fs::read_dir(&source)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (
+                    entry.file_name().into_string().unwrap(),
+                    entry.metadata().unwrap().len(),
+                )
+            })
+            .collect();
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 1);
+        for (local, remote) in &choices[0].files {
+            fs::copy(source.join(remote), assembled.join(local)).unwrap();
+        }
+        let checkpoint = crate::checkpoint::inspect(&assembled).unwrap();
+        assert_eq!(checkpoint.model_type, "qwen4_exp");
+        assert_eq!(checkpoint.tensors.len(), 5);
+        for tensor in ["ple.sidecar", "mtp.sidecar"] {
+            assert_eq!(checkpoint.tensors[tensor].read_bytes().unwrap(), [0, 0]);
+        }
     }
 
     #[test]
@@ -1179,6 +1870,50 @@ mod tests {
 #[cfg(kani)]
 mod verification {
     use super::*;
+
+    #[kani::proof]
+    #[kani::unwind(130)]
+    fn flash_sidecar_collection_preserves_present_files_and_size() {
+        let ngram: bool = kani::any();
+        let mtp: bool = kani::any();
+        let mut files = BTreeMap::from([
+            ("config.json".into(), 10),
+            ("quantization_config.json".into(), 5),
+            ("model.safetensors".into(), 100),
+        ]);
+        if ngram {
+            files.insert("ngram_embedding.safetensors".into(), 26_240_152_672);
+        }
+        if mtp {
+            files.insert(
+                "mtp_hyper_connection_mixer_patch.safetensors".into(),
+                13_128_048,
+            );
+        }
+        let choices = variants(&files);
+        assert_eq!(choices.len(), 1);
+        let choice = &choices[0];
+        assert_eq!(
+            choice.files.contains_key("ngram_embedding.safetensors"),
+            ngram
+        );
+        assert_eq!(
+            choice
+                .files
+                .contains_key("mtp_hyper_connection_mixer_patch.safetensors"),
+            mtp
+        );
+        assert_eq!(
+            choice.files.len(),
+            3 + usize::from(ngram) + usize::from(mtp)
+        );
+        assert_eq!(
+            choice.size_bytes,
+            115 + u64::from(ngram) * 26_240_152_672 + u64::from(mtp) * 13_128_048
+        );
+        kani::cover!(ngram && mtp);
+        kani::cover!(!ngram && !mtp);
+    }
 
     #[kani::proof]
     #[kani::unwind(10)]
@@ -1219,3 +1954,25 @@ mod verification {
         kani::cover!(!safe_file_bytes(name));
     }
 }
+
+#[cfg(kani)]
+mod preview_proofs {
+    #[kani::proof]
+    fn preview_cache_arithmetic() {
+        let layers = u64::from(kani::any::<u8>());
+        let heads = u64::from(kani::any::<u8>());
+        let dimension = u64::from(kani::any::<u8>());
+        let result = super::kv_bytes_per_token(layers, heads, dimension).unwrap();
+        assert_eq!(
+            u128::from(result),
+            u128::from(layers) * u128::from(heads) * u128::from(dimension) * 4
+        );
+        kani::cover!(layers == 0);
+        kani::cover!(layers == 255 && heads == 255 && dimension == 255);
+        assert_eq!(super::kv_bytes_per_token(u64::MAX, 2, 1), None);
+    }
+}
+
+#[cfg(test)]
+#[path = "hub/dflash_download_tests.rs"]
+mod dflash_download_tests;

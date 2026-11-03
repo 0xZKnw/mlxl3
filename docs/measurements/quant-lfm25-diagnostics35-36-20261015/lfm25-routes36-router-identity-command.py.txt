@@ -1,0 +1,105 @@
+"""Prepared CPU-only router parameter check; execute only after diagnostic36 GPU stops."""
+import hashlib
+import json
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path.cwd()
+SOURCE = Path('/Users/justin/Documents/mix-stq1_0/models/source/LFM2.5-24B-A2B')
+V2 = Path('/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2-cuda')
+OUTPUT = ROOT / 'build/lfm25-routes36-router-identity.json'
+
+
+def main():
+    import torch
+    from safetensors import safe_open
+
+    if OUTPUT.exists():
+        raise FileExistsError('Preserve previous router identity check')
+    started = time.monotonic()
+    report = {'status': 'running', 'publication': False, 'scope': 'CPU tensor identity only; no model/GPU/inference',
+              'source': str(SOURCE), 'v2': str(V2), 'comparisons': [],
+              'full_checkpoint_shard_hashes_rechecked': False,
+              'command': [sys.executable, str(Path(__file__).resolve())],
+              'script_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              'torch': torch.__version__, 'source_gate_cast': 'BF16 to F16', 'bias_cast': 'none; FP32 to FP32'}
+
+    def save():
+        report['elapsed_seconds'] = time.monotonic() - started
+        pending = OUTPUT.with_suffix('.tmp')
+        pending.write_text(json.dumps(report, indent=2, allow_nan=False) + '\n')
+        pending.replace(OUTPUT)
+
+    def read(folder, index, key):
+        with safe_open(folder / index[key], framework='pt', device='cpu') as handle:
+            return handle.get_tensor(key)
+
+    def digest(tensor):
+        return hashlib.sha256(tensor.contiguous().view(torch.uint8).numpy().tobytes()).hexdigest()
+
+    save()
+    try:
+        indices = {}
+        for label, folder in [('source', SOURCE), ('v2', V2)]:
+            path = folder / 'model.safetensors.index.json'
+            indices[label] = json.loads(path.read_text())['weight_map']
+            report[label + '_index_sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+        config = json.loads((SOURCE / 'config.json').read_text())
+        if config['num_hidden_layers'] != 40 or config['num_dense_layers'] != 2 or config['num_experts'] != 64 or config['hidden_size'] != 2048:
+            raise ValueError('Unexpected original architecture')
+        expected = {f'model.layers.{layer}.feed_forward.{suffix}' for layer in range(2, 40)
+                    for suffix in ('gate.weight', 'expert_bias')}
+        for label, index in indices.items():
+            actual = {key for key in index if key.endswith('.feed_forward.gate.weight') or key.endswith('.feed_forward.expert_bias')}
+            if actual != expected:
+                raise ValueError('Unexpected routing tensors in ' + label)
+        for layer in range(2, 40):
+            for suffix in ('gate.weight', 'expert_bias'):
+                key = f'model.layers.{layer}.feed_forward.{suffix}'
+                source = read(SOURCE, indices['source'], key)
+                actual = read(V2, indices['v2'], key)
+                gate = suffix == 'gate.weight'
+                shape = (64, 2048) if gate else (64,)
+                source_dtype = torch.bfloat16 if gate else torch.float32
+                actual_dtype = torch.float16 if gate else torch.float32
+                if source.shape != shape or actual.shape != shape or source.dtype != source_dtype or actual.dtype != actual_dtype:
+                    raise ValueError('Unexpected routing shape/dtype: ' + key)
+                if not torch.isfinite(source).all().item() or not torch.isfinite(actual).all().item():
+                    raise ValueError('Nonfinite routing source/export: ' + key)
+                converted = source.to(torch.float16) if gate else source
+                if not torch.isfinite(converted).all().item():
+                    raise ValueError('Nonfinite F16 routing cast: ' + key)
+                values_equal = torch.equal(converted, actual)
+                bytes_equal = torch.equal(converted.contiguous().view(torch.uint8), actual.contiguous().view(torch.uint8))
+                record = {'key': key, 'layer': layer, 'kind': 'gate' if gate else 'bias',
+                          'source_shard': indices['source'][key], 'v2_shard': indices['v2'][key],
+                          'shape': list(shape), 'values': source.numel(), 'source_dtype': str(source.dtype),
+                          'comparison_dtype': str(converted.dtype), 'v2_dtype': str(actual.dtype),
+                          'source_sha256': digest(source), 'source_after_cast_sha256': digest(converted),
+                          'v2_sha256': digest(actual), 'all_source_cast_export_finite': True,
+                          'values_equal': values_equal, 'bytes_equal': bytes_equal}
+                report['comparisons'].append(record)
+            save()
+        gates = [r for r in report['comparisons'] if r['kind'] == 'gate']
+        biases = [r for r in report['comparisons'] if r['kind'] == 'bias']
+        if len(gates) != 38 or len(biases) != 38:
+            raise ValueError('Incomplete routing check')
+        report['summary'] = {'gates_checked': len(gates), 'biases_checked': len(biases),
+                             'gate_values_checked': sum(r['values'] for r in gates),
+                             'bias_values_checked': sum(r['values'] for r in biases),
+                             'gates_bytes_equal': sum(r['bytes_equal'] for r in gates),
+                             'biases_bytes_equal': sum(r['bytes_equal'] for r in biases)}
+        if any(not r['bytes_equal'] or not r['values_equal'] for r in report['comparisons']):
+            raise ValueError('Routing parameter difference found')
+        report.update(status='complete', routing_parameters_identical_after_source_f16_cast=True)
+    except BaseException as error:
+        report.update(status='failed', error=f'{type(error).__name__}: {error}')
+        raise
+    finally:
+        save()
+    print(json.dumps({'status': report['status'], 'elapsed_seconds': report['elapsed_seconds'], 'summary': report['summary']}), flush=True)
+
+
+if __name__ == '__main__':
+    main()

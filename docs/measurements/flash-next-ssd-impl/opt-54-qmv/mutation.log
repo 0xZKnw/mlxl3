@@ -1,0 +1,46 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_micro_requires_gain_in_every_affected_shape[slow_b1] ___________
+
+case = 'slow_b1'
+
+    @pytest.mark.parametrize("case", ["eligible", "slow_b1", "drift", "incomplete", "short", "nan"])
+    def test_micro_requires_gain_in_every_affected_shape(case):
+        data = FIXTURE()
+        data["forwards_per_sample"] = 256
+        for cell in data["records"]:
+            for sample in cell["samples"]:
+                sample["seconds"] = 0.98 if sample["candidate"] else 1.0
+        if case == "slow_b1":
+            for sample in data["records"][0]["samples"]:
+                sample["seconds"] = 1.0
+        elif case == "drift":
+            data["records"][0]["samples"][0]["seconds"] = 1.1
+        elif case == "incomplete":
+            data["status"] = "incomplete"
+        elif case == "short":
+            data["forwards_per_sample"] = 16
+        elif case == "nan":
+            data["records"][0]["samples"][0]["seconds"] = float("nan")
+        if case in ["incomplete", "short", "nan"]:
+            with pytest.raises(AssertionError):
+                QUALIFY(data)
+        else:
+            result = QUALIFY(data)
+>           assert (
+                result["status"]
+                == {
+                    "eligible": "eligible_micro_only",
+                    "slow_b1": "rejected_micro",
+                    "drift": "inconclusive_drift",
+                }[case]
+            )
+E           AssertionError: assert 'eligible_micro_only' == 'rejected_micro'
+E             
+E             - rejected_micro
+E             + eligible_micro_only
+
+tests/test_flash_qmv54.py:81: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_qmv54.py::test_micro_requires_gain_in_every_affected_shape[slow_b1]
+1 failed, 6 deselected in 0.02s

@@ -1,0 +1,54 @@
+{
+  "status": "complete",
+  "tokens": [
+    248044,
+    1,
+    42,
+    248044,
+    7
+  ],
+  "steps": [],
+  "reference": "mlx-vlm 0.7.3 + PonyExl3 8e7fa6b",
+  "branch_dtype": "float16",
+  "mode": "eval",
+  "activation": "upstream compiled float16 swiglu",
+  "native_chain": {
+    "status": "passed_native_chain",
+    "hidden_sha256": "3e5c6f6d89a92d0d0190b6248d7b1f5d9d9032aa9c11e0d7dc11f40572b85e05",
+    "logit_count": 744960,
+    "relative_rmse": 9.089743249735647e-05,
+    "logit_tolerance": 0.004,
+    "tokens": [
+      16,
+      15,
+      11007
+    ],
+    "confidence_count": 3,
+    "maximum_confidence_error": 3.635116951894446e-08,
+    "confidence_tolerance": 0.0001
+  },
+  "draft_head": {
+    "kind": "dspark",
+    "revision": "aafaf1bf59fdc4639183600d7747474990623171",
+    "hidden_sha256": "3e5c6f6d89a92d0d0190b6248d7b1f5d9d9032aa9c11e0d7dc11f40572b85e05",
+    "logits": {
+      "file": "draft-head-logits.f32",
+      "shape": [
+        3,
+        248320
+      ],
+      "count": 744960
+    },
+    "tokens": [
+      16,
+      15,
+      11007
+    ],
+    "confidence": [
+      0.3406761563513827,
+      0.27567101428330343,
+      0.22809151469894784
+    ],
+    "anchor": 7
+  }
+}

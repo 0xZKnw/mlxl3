@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "commit": {
+    "sha": "4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+    "node_id": "C_kwDOUgnnrNoAKDRkZDE5NWUxNTgxZDlhNWQ1OTdlOWUwZWVmZjM1NTczYzgxYTgzNDA",
+    "commit": {
+      "author": {
+        "name": "Zhijian Liu",
+        "email": "5782437+zhijian-liu@users.noreply.github.com",
+        "date": "2026-10-22T03:27:58Z"
+      },
+      "committer": {
+        "name": "Zhijian Liu",
+        "email": "5782437+zhijian-liu@users.noreply.github.com",
+        "date": "2026-10-22T05:52:51Z"
+      },
+      "message": "Read the draft's own mask embedding when its release ships one\n\nA draft's rows after its anchor read the target's token table row of the\nmask token. Qwen3.5-122B-A10B's row, which Ornith-1.5-122B inherits, is\nof order 1e-6, below what the fp16 block scales of GGUF Q8_0 and the\nK-quants hold, so a GGUF of the family reads zeros there, and the\ndraft's acceptance on code and reasoning halves (about 2.3 tokens per\ncycle against 4.9 on the MLX target, which keeps the row).\n\nA DFlash2 release may now ship the mask token's BF16 embedding beside\nits weights, mask_embedding.safetensors holding one tensor\nmask_embedding of the hidden size. Installation fetches it with the\nweights; the draft checkpoint keeps it in model.bin after the\nselector's codebooks; and after each draft input gather one dispatch\n(draft_mask_rows) sets every lane's mask rows to it. A draft without\nthe file loads and runs as before.\n\nWith the file beside incoai/Ornith-1.5-122B-DFlash2's weights,\nunsloth/Ornith-1.5-122B-GGUF:UD-Q4_K_XL drafts 4.7 tokens per cycle on\nthe same coding prompts with every row verified. Resident on an M5 Max,\none lane of the backend benchmark decodes 150 tok/s against 71 before\n(6.40 tokens per cycle against 3.05), and one coding stream over HTTP\n105 tok/s against 40.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+      "tree": {
+        "sha": "8c81f3aa7bfbb06b92d319f101263726d1ff20bc",
+        "url": "https://api.github.com/repos/incoai/splash/git/trees/8c81f3aa7bfbb06b92d319f101263726d1ff20bc"
+      },
+      "url": "https://api.github.com/repos/incoai/splash/git/commits/4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+      "comment_count": 0,
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "url": "https://api.github.com/repos/incoai/splash/commits/4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+    "html_url": "https://github.com/incoai/splash/commit/4dd195e1581d9a5d597e9e0eeff35573c81a8340",
+    "comments_url": "https://api.github.com/repos/incoai/splash/commits/4dd195e1581d9a5d597e9e0eeff35573c81a8340/comments",
+    "author": {
+      "login": "zhijian-liu",
+      "id": 5782437,
+      "node_id": "MDQ6VXNlcjU3ODI0Mzc=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5782437?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/zhijian-liu",
+      "html_url": "https://github.com/zhijian-liu",
+      "followers_url": "https://api.github.com/users/zhijian-liu/followers",
+      "following_url": "https://api.github.com/users/zhijian-liu/following{/other_user}",
+      "gists_url": "https://api.github.com/users/zhijian-liu/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/zhijian-liu/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/zhijian-liu/subscriptions",
+      "organizations_url": "https://api.github.com/users/zhijian-liu/orgs",
+      "repos_url": "https://api.github.com/users/zhijian-liu/repos",
+      "events_url": "https://api.github.com/users/zhijian-liu/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/zhijian-liu/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "zhijian-liu",
+      "id": 5782437,
+      "node_id": "MDQ6VXNlcjU3ODI0Mzc=",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5782437?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/zhijian-liu",
+      "html_url": "https://github.com/zhijian-liu",
+      "followers_url": "https://api.github.com/users/zhijian-liu/followers",
+      "following_url": "https://api.github.com/users/zhijian-liu/following{/other_user}",
+      "gists_url": "https://api.github.com/users/zhijian-liu/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/zhijian-liu/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/zhijian-liu/subscriptions",
+      "organizations_url": "https://api.github.com/users/zhijian-liu/orgs",
+      "repos_url": "https://api.github.com/users/zhijian-liu/repos",
+      "events_url": "https://api.github.com/users/zhijian-liu/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/zhijian-liu/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "2faa0124d9d6d887a00210743af5dd2b3256ab00",
+        "url": "https://api.github.com/repos/incoai/splash/commits/2faa0124d9d6d887a00210743af5dd2b3256ab00",
+        "html_url": "https://github.com/incoai/splash/commit/2faa0124d9d6d887a00210743af5dd2b3256ab00"
+      }
+    ]
+  },
+  "patches": [
+    {
+      "sha": "dd5a9571f9819b3d2ea14f8031359e4d6d16a630",
+      "filename": "runtime/model/DFlashDraft.cpp",
+      "status": "modified",
+      "additions": 9,
+      "deletions": 0,
+      "changes": 9,
+      "blob_url": "https://github.com/incoai/splash/blob/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmodel%2FDFlashDraft.cpp",
+      "raw_url": "https://github.com/incoai/splash/raw/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmodel%2FDFlashDraft.cpp",
+      "contents_url": "https://api.github.com/repos/incoai/splash/contents/runtime%2Fmodel%2FDFlashDraft.cpp?ref=3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+      "patch": "@@ -2,6 +2,7 @@\n #include \"Checked.hpp\"\n #include \"DraftCheckpoint.hpp\"\n #include \"metal/abi/DraftAttention.h\"\n+#include \"ops/Embedding.hpp\"\n \n #include <algorithm>\n #include <stdexcept>\n@@ -343,6 +344,12 @@ void DFlashDraft::addDecode(\n              weights_.selectorProjection, linear.decodePlan(weights_.selectorProjection, lanes));\n }\n \n+void DFlashDraft::addMaskRows(metal::CommandGraph &graph, metal::MetalBuffer rows, uint32_t lanes) const {\n+  if (!weights_.maskEmbedding) return;\n+  ops::Embedding::addDraftMaskRows(graph, weights_.maskEmbedding, std::move(rows), weights_.layout.hiddenSize,\n+                                   lanes);\n+}\n+\n void DFlashDraft::addContextCommit(\n     metal::CommandGraph &graph, DFlashContextBuffers buffers,\n     std::span<const uint32_t> startPositions) const {\n@@ -447,6 +454,8 @@ DFlashDraftWeights loadDFlashDraftWeights(metal::MetalBackend &backend,\n         file.section(codebookBytes, \"predecessor-codebook\");\n     result.successorCodebook =\n         file.section(codebookBytes, \"successor-codebook\");\n+    if (files.hasMaskEmbedding())\n+      result.maskEmbedding = file.section(uint64_t{layout.hiddenSize} * kBFloat16Bytes, \"mask-embedding\");\n     file.finish();\n     result.files.push_back(file.record());\n   }"
+    },
+    {
+      "sha": "1d82c43e7efb8712ad02accd8e69582ec6675eb6",
+      "filename": "runtime/model/DraftCheckpoint.cpp",
+      "status": "modified",
+      "additions": 5,
+      "deletions": 0,
+      "changes": 5,
+      "blob_url": "https://github.com/incoai/splash/blob/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmodel%2FDraftCheckpoint.cpp",
+      "raw_url": "https://github.com/incoai/splash/raw/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmodel%2FDraftCheckpoint.cpp",
+      "contents_url": "https://api.github.com/repos/incoai/splash/contents/runtime%2Fmodel%2FDraftCheckpoint.cpp?ref=3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+      "patch": "@@ -89,6 +89,7 @@ gguf::Image modelImage(const SafetensorsCheckpoint &checkpoint, const DFlashDraf\n   b.projection({{selector + \"hidden_projection\", layout.selectorRank}}, hidden);\n   b.stored(selector + \"predecessor_codebook\", {layout.vocabularySize, layout.selectorRank});\n   b.stored(selector + \"successor_codebook\", {layout.vocabularySize, layout.selectorRank});\n+  if (checkpoint.find(kDraftMaskEmbedding)) b.stored(std::string(kDraftMaskEmbedding), {hidden});\n   return b.finish();\n }\n \n@@ -131,4 +132,8 @@ WeightFile DraftCheckpointLoader::layer(uint32_t index) {\n \n WeightFile DraftCheckpointLoader::model() { return open(planned_->images.size() - 1); }\n \n+bool DraftCheckpointLoader::hasMaskEmbedding() const noexcept {\n+  return planned_->checkpoint.find(kDraftMaskEmbedding) != nullptr;\n+}\n+\n } // namespace splash::model"
+    },
+    {
+      "sha": "ba0f86d3732acd48bd169b561716277cb61b9ca4",
+      "filename": "runtime/ops/Embedding.cpp",
+      "status": "modified",
+      "additions": 11,
+      "deletions": 0,
+      "changes": 11,
+      "blob_url": "https://github.com/incoai/splash/blob/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fops%2FEmbedding.cpp",
+      "raw_url": "https://github.com/incoai/splash/raw/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fops%2FEmbedding.cpp",
+      "contents_url": "https://api.github.com/repos/incoai/splash/contents/runtime%2Fops%2FEmbedding.cpp?ref=3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+      "patch": "@@ -64,4 +64,15 @@ void Embedding::addVerifyInput(metal::CommandGraph &graph,\n             {1, 1, 1});\n }\n \n+void Embedding::addDraftMaskRows(metal::CommandGraph &graph, metal::MetalBuffer mask, metal::MetalBuffer rows,\n+                                 uint32_t width, uint32_t lanes) {\n+  if (!width || !lanes || lanes > SPLASH_MAXIMUM_BATCH_WIDTH)\n+    throw std::invalid_argument(\"invalid draft mask rows\");\n+  requireBytes(mask, uint64_t{width} * sizeof(uint16_t), \"draft mask embedding\");\n+  requireBytes(rows, uint64_t{lanes} * SPLASH_TARGET_VERIFY_ROWS * width * sizeof(uint16_t), \"draft input row\");\n+  const DraftMaskRowsParams params{width};\n+  graph.add(\"draft_mask_rows\", {std::move(mask), std::move(rows)}, params,\n+            {(width + 255) / 256, SPLASH_TARGET_VERIFY_ROWS - 1, lanes}, {256, 1, 1});\n+}\n+\n } // namespace splash::ops"
+    },
+    {
+      "sha": "9726c8d13fa742b8450758a9aa4fff45b64b4414",
+      "filename": "runtime/metal/kernels/shared/embedding.metal",
+      "status": "modified",
+      "additions": 15,
+      "deletions": 0,
+      "changes": 15,
+      "blob_url": "https://github.com/incoai/splash/blob/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmetal%2Fkernels%2Fshared%2Fembedding.metal",
+      "raw_url": "https://github.com/incoai/splash/raw/3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9/runtime%2Fmetal%2Fkernels%2Fshared%2Fembedding.metal",
+      "contents_url": "https://api.github.com/repos/incoai/splash/contents/runtime%2Fmetal%2Fkernels%2Fshared%2Fembedding.metal?ref=3135ab45b3da525a8a2dbb8a1aa72ce095dda8a9",
+      "patch": "@@ -78,3 +78,18 @@ kernel void verify_input_tokens(\n                                   row - 1];\n   verify_input[index] = min(token, params.vocabulary - 1u);\n }\n+\n+// Each lane's mask rows of its draft input, rows 1 to SPLASH_TARGET_VERIFY_ROWS - 1 (the\n+// rows after its anchor), set to the mask embedding the draft's checkpoint ships\n+// (ops/Embedding.cpp addDraftMaskRows): x a span of 256 columns, y the mask row, z the lane.\n+kernel void draft_mask_rows(\n+    device const bfloat *mask [[buffer(0)]],\n+    device bfloat *rows [[buffer(1)]],\n+    constant DraftMaskRowsParams &params [[buffer(2)]],\n+    uint3 group [[threadgroup_position_in_grid]],\n+    uint thread_index [[thread_index_in_threadgroup]]) {\n+  const uint column = group.x * 256 + thread_index;\n+  if (column >= params.width)\n+    return;\n+  rows[(ulong(group.z) * SPLASH_TARGET_VERIFY_ROWS + 1 + group.y) * params.width + column] = mask[column];\n+}"
+    }
+  ],
+  "applicability": "Upstream failure is tiny Ornith/Qwen3.5 mask embedding rounded to zero by GGUF block quantization. Current local Flash Next target is required BF16 embedding and draft_input reads BF16 directly; no direct evidence this failure affects current checkpoint. Separate local reviewer checked actual mask row; see parent report."
+}

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 477, in <module>
+    main(Path(sys.argv[1]), baseline)
+  File "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py", line 427, in main
+    data = json.loads(plan.read_text())
+                      ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'sampler'

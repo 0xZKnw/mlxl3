@@ -1,0 +1,11 @@
+......................................                                   [100%]
+38 passed in 0.77s
+Building for debugging...
+Build complete! (0,16 secs)
+tests/studios-check.swift:200:84: error: value of type 'AgentProjectStore' has no member 'file'
+198 |         (
+199 |           "artifacts",
+200 |           AnyView(ArtifactStudioView(workspace: artifact.workspace, file: artifact.file))
+    |                                                                                    `- error: value of type 'AgentProjectStore' has no member 'file'
+201 |         ),
+202 |         ("agent", AnyView(ArtifactStudioView(workspace: workspace, projectMode: true))),

@@ -1,0 +1,100 @@
+{
+  "status": "rejected_no_reproducible_gain",
+  "rows": [
+    {
+      "label": "R1-mb40",
+      "mb": 40,
+      "tps": 10.939049182411901,
+      "ttft": 8.142499376,
+      "footprint_bytes": 7140890600
+    },
+    {
+      "label": "R2-mb20",
+      "mb": 20,
+      "tps": 10.574316379359308,
+      "ttft": 8.39054,
+      "footprint_bytes": 7148099536
+    },
+    {
+      "label": "R3-mb40",
+      "mb": 40,
+      "tps": 10.46210288011363,
+      "ttft": 8.352833499,
+      "footprint_bytes": 7144527872
+    },
+    {
+      "label": "R4-mb80",
+      "mb": 80,
+      "tps": 10.13274346077371,
+      "ttft": 8.570332500000001,
+      "footprint_bytes": 7149869032
+    },
+    {
+      "label": "R5-mb40",
+      "mb": 40,
+      "tps": 10.62101766343513,
+      "ttft": 8.383023459,
+      "footprint_bytes": 7144626128
+    },
+    {
+      "label": "R6-mb80",
+      "mb": 80,
+      "tps": 10.602642660278255,
+      "ttft": 8.586214001,
+      "footprint_bytes": 7153473512
+    },
+    {
+      "label": "R7-mb40",
+      "mb": 40,
+      "tps": 10.517720723789788,
+      "ttft": 8.384230583999999,
+      "footprint_bytes": 7142676456
+    },
+    {
+      "label": "R8-mb20",
+      "mb": 20,
+      "tps": 10.514708722347033,
+      "ttft": 8.40247025,
+      "footprint_bytes": 7144560616
+    },
+    {
+      "label": "R9-mb40",
+      "mb": 40,
+      "tps": 10.5460321643337,
+      "ttft": 8.422575084,
+      "footprint_bytes": 7146674152
+    }
+  ],
+  "bracket_pairs": [
+    {
+      "candidate": "R2-mb20",
+      "bracket_reference_tps": 10.700576031262766,
+      "candidate_tps": 10.574316379359308,
+      "decode_delta_pct": -1.1799332254130879,
+      "ttft_delta_pct": 1.7322907465121107
+    },
+    {
+      "candidate": "R4-mb80",
+      "bracket_reference_tps": 10.54156027177438,
+      "candidate_tps": 10.13274346077371,
+      "decode_delta_pct": -3.8781432772840962,
+      "ttft_delta_pct": 2.4188067752723974
+    },
+    {
+      "candidate": "R6-mb80",
+      "bracket_reference_tps": 10.56936919361246,
+      "candidate_tps": 10.602642660278255,
+      "decode_delta_pct": 0.31481033594609187,
+      "ttft_delta_pct": 2.416459832724671
+    },
+    {
+      "candidate": "R8-mb20",
+      "bracket_reference_tps": 10.531876444061744,
+      "candidate_tps": 10.514708722347033,
+      "decode_delta_pct": -0.16300724572582137,
+      "ttft_delta_pct": -0.011097694807937764
+    }
+  ],
+  "speed_repetitions": 1,
+  "golden_and_quality": "validated separately; no universal proof"
+}

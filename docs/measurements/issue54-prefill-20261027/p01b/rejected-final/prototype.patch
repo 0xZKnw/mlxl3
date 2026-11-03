@@ -1,0 +1,790 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index ff40b74c..a007344b 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -32,6 +32,7 @@ jobs:
+             --harness grouped_dispatch_gate_matches_wide_arithmetic_for_all_usize_inputs
+             --harness grouped_chunk_counter_matches_eight_symbolic_occurrence_counts
+             --harness fixed_draft_width_is_exact_and_rejects_adaptive_or_invalid_literals
++            --harness prefill_chunk_parser_matches_independent_byte_oracle
+             --harness expert_output_stride_cannot_wrap_and_matches_wide_arithmetic
+             --harness draft_prediction_geometry_is_bounded_for_all_usize
+             --harness slot_reads_initialize_exact_disjoint_bank_regions
+@@ -261,6 +262,9 @@ jobs:
+         run: |
+           ruff format --check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
+           ruff check scripts/benchmark-flash-bridge.py tests/test_flash_benchmark.py
++          ruff format --check docs/measurements/slotstream-20261026/supervisor.py tests/test_flash_slotstream_supervisor.py
++          ruff check docs/measurements/slotstream-20261026/supervisor.py tests/test_flash_slotstream_supervisor.py
++          python -m pytest -q tests/test_flash_slotstream_supervisor.py
+           ruff format --check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+           ruff check benchmarks/benchmark_flash_memory.py tests/test_flash_memory.py
+           python -m pytest -q tests/test_flash_memory.py
+diff --git a/native/src/flash_draft.rs b/native/src/flash_draft.rs
+index b6da24b1..eeee806a 100644
+--- a/native/src/flash_draft.rs
++++ b/native/src/flash_draft.rs
+@@ -853,18 +853,6 @@ fn top16(logits: &Array) -> Result<(Array, Array, Array)> {
+     Ok((candidates, unary, valid))
+ }
+ 
+-fn mean_streams(streams: &Array) -> Result<Array> {
+-    ensure!(
+-        streams.shape() == [1, WIDTH] && streams.dtype() == Dtype::Float32,
+-        "invalid captured HC streams"
+-    );
+-    streams
+-        .reshape(&[1, HC, H])?
+-        .sum(1, false)?
+-        .scalar_mul(0.25)?
+-        .astype(Dtype::BFloat16)
+-}
+-
+ struct BlockParts {
+     logits: Array,
+     captured: Array,
+@@ -1000,7 +988,8 @@ impl FlashNext {
+                 let layer = &mut current[index];
+                 #[cfg(test)]
+                 let _layer = crate::flash_profile::span(&format!("layer_{index}"));
+-                let (prepared, states) = layer.prepare_rows(&streams, tokens, self.multi_token)?;
++                let (prepared, states) =
++                    layer.prepare_rows(&streams, tokens, self.multi_token, true)?;
+                 for (prefix, state) in prefixes.iter_mut().zip(states) {
+                     prefix.push(state);
+                 }
+diff --git a/native/src/flash_draft_runtime.rs b/native/src/flash_draft_runtime.rs
+index 8d36ff6d..7e6cff8d 100644
+--- a/native/src/flash_draft_runtime.rs
++++ b/native/src/flash_draft_runtime.rs
+@@ -294,10 +294,23 @@ impl FlashNext {
+                 "invalid DFlash prompt"
+             );
+             let mut last = None;
+-            for &token in tokens {
++            for part in tokens.chunks(self.prefill_chunk) {
+                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
+-                let (logits, captured) = self.forward_captured(token, Kind::Dflash2)?;
+-                session.draft.append(&captured, self.offset - 1)?;
++                let start = self.offset;
++                let (logits, captured) = if self.prefill_chunk == 1 {
++                    self.forward_captured(part[0], Kind::Dflash2)?
++                } else {
++                    let (logits, captured) =
++                        self.forward_prefill_block(part, &Kind::Dflash2.captures(), cancelled)?;
++                    (logits, captured.context("missing prefill captures")?)
++                };
++                for row in 0..part.len() {
++                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                    session.draft.append(
++                        &captured.slice(0, row as i32, row as i32 + 1)?,
++                        start + row as i32,
++                    )?;
++                }
+                 last = Some(logits);
+             }
+             last.context("empty DFlash prompt")
+@@ -327,6 +340,245 @@ impl FlashNext {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++
++    #[test]
++    #[ignore = "physical Apple GPU, target/draft; isolated exact prefill block qualification"]
++    fn prefill_blocks_preserve_full_states_captures_draft_and_continuation() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&c)?;
++        target.configure_dflash2(Some(Path::new(&std::env::var("MLXL3_FLASH_DRAFT")?)), 1)?;
++        let lengths = std::env::var("MLXL3_PREFILL_TEST_LENGTHS")
++            .unwrap_or_else(|_| "1,2,3,7,8,9,17".into())
++            .split(',')
++            .map(str::parse::<usize>)
++            .collect::<std::result::Result<Vec<_>, _>>()?;
++        ensure!(
++            !lengths.is_empty() && lengths.iter().all(|&n| (1..=512).contains(&n)),
++            "invalid test lengths"
++        );
++        let cancel = AtomicBool::new(false);
++        let saved = tempfile::tempdir()?;
++        let mut cases = 0;
++        for &length in &lengths {
++            target.reset();
++            target.prefill_chunk = 1;
++            let tokens = std::iter::once(EOS)
++                .chain((1..length).map(|i| i as u32))
++                .collect::<Vec<_>>();
++            let mut captures = Vec::new();
++            let mut final_logits = None;
++            for (index, &token) in tokens.iter().enumerate() {
++                let (logits, captured) = target.forward_captured(token, Kind::Dflash2)?;
++                target
++                    .dflash
++                    .as_mut()
++                    .unwrap()
++                    .draft
++                    .append(&captured, index as i32)?;
++                captures.push(captured);
++                final_logits = Some(logits);
++            }
++            let logits = final_logits.context("empty reference logits")?;
++            let values = logits.to_f32()?;
++            ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++            let expected_logits = logits.to_bytes()?;
++            let captures = Array::concatenate(&captures.iter().collect::<Vec<_>>(), 0)?;
++            ensure!(
++                captures.shape() == [length as i32, 12800] && captures.dtype() == Dtype::BFloat16
++            );
++            let values = captures.astype(Dtype::Float32)?.to_f32()?;
++            ensure!(values.len() == length * 12800 && values.iter().all(|v| v.is_finite()));
++            let expected_captures = captures.to_bytes()?;
++            ensure!(disk_state(&target, saved.path(), "prefill", true)? > 0);
++            for (layer, pair) in target
++                .dflash
++                .as_ref()
++                .unwrap()
++                .draft
++                .cache
++                .iter()
++                .enumerate()
++            {
++                let (k, v) = pair.as_ref().context("reference draft cache absent")?;
++                for value in [k, v] {
++                    ensure!(value.shape().len() == 4 && value.shape().iter().all(|&n| n > 0));
++                    let values = value.to_f32()?;
++                    ensure!(!values.is_empty() && values.iter().all(|v| v.is_finite()));
++                }
++                std::fs::write(
++                    saved.path().join(format!("meta{layer}")),
++                    serde_json::to_vec(&(
++                        k.shape(),
++                        format!("{:?}", k.dtype()),
++                        v.shape(),
++                        format!("{:?}", v.dtype()),
++                    ))?,
++                )?;
++                std::fs::write(saved.path().join(format!("k{layer}")), k.to_bytes()?)?;
++                std::fs::write(saved.path().join(format!("v{layer}")), v.to_bytes()?)?;
++            }
++            let mut id = logits.chat_greedy_ids()?[0];
++            let mut expected = Vec::new();
++            for remaining in (1..=3).rev() {
++                id = target.advance_dflash2(id, remaining)?;
++                expected.push(id);
++            }
++            disk_state(&target, saved.path(), "continued", true)?;
++            for chunk in [2, 4, 8, 32, 128] {
++                for dflash in [false, true] {
++                    target.reset();
++                    target.prefill_chunk = chunk;
++                    target.prefill_captures = dflash.then(Vec::new);
++                    let logits = if dflash {
++                        target.prefill_dflash2(&tokens, &cancel)?
++                    } else {
++                        target.prefill_tokens(&tokens, &cancel)?
++                    };
++                    ensure!(
++                        logits.to_bytes()? == expected_logits,
++                        "prefill logits differ length={length} chunk={chunk} draft={dflash}"
++                    );
++                    disk_state(&target, saved.path(), "prefill", false)?;
++                    if dflash {
++                        let captures = target
++                            .prefill_captures
++                            .take()
++                            .context("missing capture trace")?;
++                        ensure!(captures.len() == length.div_ceil(chunk));
++                        ensure!(captures.iter().enumerate().all(|(i, c)| c.shape()
++                            == [(length - i * chunk).min(chunk) as i32, 12800]
++                            && c.dtype() == Dtype::BFloat16));
++                        ensure!(
++                            Array::concatenate(&captures.iter().collect::<Vec<_>>(), 0)?
++                                .to_bytes()?
++                                == expected_captures,
++                            "prefill captures differ"
++                        );
++                        ensure!(target.dflash.as_ref().unwrap().draft.offset == length as i32);
++                        for (layer, pair) in target
++                            .dflash
++                            .as_ref()
++                            .unwrap()
++                            .draft
++                            .cache
++                            .iter()
++                            .enumerate()
++                        {
++                            let (k, v) = pair.as_ref().context("candidate draft cache absent")?;
++                            ensure!(
++                                serde_json::to_vec(&(
++                                    k.shape(),
++                                    format!("{:?}", k.dtype()),
++                                    v.shape(),
++                                    format!("{:?}", v.dtype())
++                                ))? == std::fs::read(saved.path().join(format!("meta{layer}")))?
++                            );
++                            ensure!(
++                                k.to_bytes()?
++                                    == std::fs::read(saved.path().join(format!("k{layer}")))?
++                            );
++                            ensure!(
++                                v.to_bytes()?
++                                    == std::fs::read(saved.path().join(format!("v{layer}")))?
++                            );
++                        }
++                    }
++                    let mut id = logits.chat_greedy_ids()?[0];
++                    for (remaining, &want) in (1..=3).rev().zip(&expected) {
++                        id = if dflash {
++                            target.advance_dflash2(id, remaining)?
++                        } else {
++                            target.forward(id)?.chat_greedy_ids()?[0]
++                        };
++                        ensure!(id == want, "continuation differs");
++                    }
++                    disk_state(&target, saved.path(), "continued", false)?;
++                    cases += 1;
++                    println!(
++                        "PREFILL_CASE {}",
++                        serde_json::json!({"length":length,"chunk":chunk,"dflash":dflash,"memory":array::memory_stats(false)?})
++                    );
++                }
++            }
++            println!("PREFILL_LENGTH length={length} cases={cases} parity=true");
++        }
++        target.reset();
++        target.prefill_chunk = 128;
++        for dflash in [false, true] {
++            target.reset();
++            disk_state(&target, saved.path(), "reset", true)?;
++            target.prefill_cancel_after = Some(2);
++            cancel.store(false, Ordering::Relaxed);
++            let result = if dflash {
++                target.prefill_dflash2(&[EOS; 129], &cancel)
++            } else {
++                target.prefill_tokens(&[EOS; 129], &cancel)
++            };
++            ensure!(
++                result.is_err() && cancel.load(Ordering::Relaxed),
++                "mid-block cancellation missed"
++            );
++            disk_state(&target, saved.path(), "reset", false)?;
++            ensure!(
++                target.dflash.as_ref().unwrap().draft.offset == 0
++                    && target
++                        .dflash
++                        .as_ref()
++                        .unwrap()
++                        .draft
++                        .cache
++                        .iter()
++                        .all(Option::is_none)
++            );
++            target.prefill_cancel_after = None;
++            cancel.store(false, Ordering::Relaxed);
++            let logits = if dflash {
++                target.prefill_dflash2(&[EOS, 7], &cancel)?
++            } else {
++                target.prefill_tokens(&[EOS, 7], &cancel)?
++            };
++            ensure!(logits.shape() == [1, 248320] && target.offset == 2);
++        }
++        target.reset();
++        target.prefill_chunk = 4;
++        for invalid in [vec![], vec![EOS, 1, 2, 3, 4, 248320]] {
++            ensure!(target.prefill_tokens(&invalid, &cancel).is_err() && target.offset == 0);
++            ensure!(target.prefill_dflash2(&invalid, &cancel).is_err());
++            ensure!(target.offset == 0 && target.dflash.as_ref().unwrap().draft.offset == 0);
++        }
++        ensure!(
++            target
++                .prefill_dflash2(&[EOS, 7], &AtomicBool::new(true))
++                .is_err()
++        );
++        ensure!(
++            target.offset == 0
++                && target
++                    .dflash
++                    .as_ref()
++                    .unwrap()
++                    .draft
++                    .cache
++                    .iter()
++                    .all(Option::is_none)
++        );
++        target.context = 4;
++        ensure!(target.prefill_dflash2(&[EOS; 4], &cancel).is_err());
++        ensure!(target.forward_tokens(&[EOS; 4])?.shape() == [1, 248320]);
++        ensure!(target.forward_tokens(&[7]).is_err());
++        ensure!(cases == lengths.len() * 10);
++        println!(
++            "PREFILL_BLOCK_PARITY lengths={lengths:?} cases={cases} capture_values_per_token=12800 logits=248320 states_draft_continuation=byte_exact errors=true"
++        );
++        Ok(())
++    }
++
++    #[cfg(kani)]
++    #[kani::proof]
++    fn actual_commit_total_prefill_checks_shapes_and_errors() {
++        prefill_blocks_preserve_full_states_captures_draft_and_continuation().unwrap();
++    }
++
+     #[test]
+     #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; real terminal fallback; run alone"]
+     fn runtime_profile_counts_terminal_target_reads() -> Result<()> {
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..d1fc3b76 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -1,6 +1,60 @@
+ //! CPU contracts for Flash Next's disk rows and exact expert cache.
+ use anyhow::Result;
+ 
++pub fn prefill_chunk(value: &str) -> Option<usize> {
++    match value {
++        "1" => Some(1),
++        "2" => Some(2),
++        "4" => Some(4),
++        "8" => Some(8),
++        "32" => Some(32),
++        "128" => Some(128),
++        _ => None,
++    }
++}
++
++#[test]
++fn prefill_chunk_accepts_only_qualified_geometries() {
++    for (s, n) in [
++        ("1", 1),
++        ("2", 2),
++        ("4", 4),
++        ("8", 8),
++        ("32", 32),
++        ("128", 128),
++    ] {
++        assert_eq!(prefill_chunk(s), Some(n));
++    }
++    for s in ["", "0", "3", "16", "04", " 4", "4\n", "auto", "é", "1280"] {
++        assert_eq!(prefill_chunk(s), None);
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(5)]
++fn prefill_chunk_parser_matches_independent_byte_oracle() {
++    let bytes: [u8; 3] = kani::any();
++    let length: usize = kani::any();
++    kani::assume(length <= 3);
++    if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
++        let expected = if length == 1 && matches!(bytes[0], b'1' | b'2' | b'4' | b'8') {
++            Some((bytes[0] - b'0') as usize)
++        } else if length == 2 && bytes[0] == b'3' && bytes[1] == b'2' {
++            Some(32)
++        } else if length == 3 && bytes == [b'1', b'2', b'8'] {
++            Some(128)
++        } else {
++            None
++        };
++        assert_eq!(prefill_chunk(value), expected);
++        kani::cover!(value == "4");
++        kani::cover!(value == "32");
++        kani::cover!(value == "128");
++        kani::cover!(prefill_chunk(value).is_none());
++    }
++}
++
+ #[cfg(kani)]
+ #[kani::proof]
+ #[kani::unwind(14)]
+diff --git a/native/src/gated_delta.rs b/native/src/gated_delta.rs
+index 6780b1dd..e6d24a3c 100644
+--- a/native/src/gated_delta.rs
++++ b/native/src/gated_delta.rs
+@@ -623,6 +623,18 @@ mod tests {
+                     continue;
+                 }
+                 let (out, final_state, tape) = actual?;
++                let (without_tape, state_without_tape) =
++                    step_with_gates(&q, &k, &v, &a, &b, &a_log, &bias, &initial)?;
++                assert_eq!(
++                    without_tape.to_bytes()?,
++                    out.to_bytes()?,
++                    "commit-total output T={time}"
++                );
++                assert_eq!(
++                    state_without_tape.to_bytes()?,
++                    final_state.to_bytes()?,
++                    "commit-total state T={time}"
++                );
+                 assert_eq!(tape.delta.shape(), [1, time, hv, dv]);
+                 assert_eq!(tape.decay.shape(), [1, time, hv]);
+                 let mut state = initial.try_clone()?;
+diff --git a/native/src/main.rs b/native/src/main.rs
+index 49f0b295..b95693f2 100644
+--- a/native/src/main.rs
++++ b/native/src/main.rs
+@@ -1434,6 +1434,9 @@ impl NativeChatModel {
+     }
+ 
+     fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
++        if let Self::Flash(model) = self {
++            return model.forward_tokens(tokens);
++        }
+         anyhow::ensure!(!tokens.is_empty(), "empty token batch");
+         if let Self::Lfm2(model) = self
+             && model.uses_moe_exact_prefill()
+@@ -1489,7 +1492,7 @@ impl NativeChatModel {
+             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
+             Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
+             Self::Qwen(_) => 256,
+-            Self::Flash(_) => 8,
++            Self::Flash(model) => model.prefill_chunk_size(),
+             Self::Ling(_) => 128,
+             Self::Lfm2(_) => 1,
+         }
+@@ -1913,6 +1916,8 @@ fn prefill_round(
+                 } else {
+                     session.prefill(target, weights, chunk)?
+                 }
++            } else if let NativeChatModel::Flash(target) = &mut *model {
++                target.prefill_tokens(chunk, cancelled)?
+             } else {
+                 model.forward_many(chunk)?
+             },
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..38b1e3ca 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -20,7 +20,7 @@ use std::{
+     os::unix::fs::FileExt,
+     path::PathBuf,
+     rc::Rc,
+-    sync::atomic::Ordering,
++    sync::atomic::{AtomicBool, Ordering},
+ };
+ 
+ const H: i32 = 2560;
+@@ -173,6 +173,18 @@ fn verification_projection(projection: &Projection, input: &Array) -> Result<Arr
+     Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)
+ }
+ 
++fn mean_streams(streams: &Array) -> Result<Array> {
++    ensure!(
++        streams.shape() == [1, WIDTH] && streams.dtype() == Dtype::Float32,
++        "invalid captured HC streams"
++    );
++    streams
++        .reshape(&[1, HC, H])?
++        .sum(1, false)?
++        .scalar_mul(0.25)?
++        .astype(Dtype::BFloat16)
++}
++
+ struct Gdn {
+     #[cfg(test)]
+     stages: Vec<(String, Array)>,
+@@ -301,7 +313,11 @@ impl Gdn {
+         Ok((conv, q, k, v))
+     }
+ 
+-    fn forward_rows(&mut self, inputs: &[Array]) -> Result<(Vec<Array>, Vec<AttentionState>)> {
++    fn forward_rows(
++        &mut self,
++        inputs: &[Array],
++        retain_prefixes: bool,
++    ) -> Result<(Vec<Array>, Vec<AttentionState>)> {
+         #[cfg(test)]
+         let _profile = crate::flash_profile::span("gdn_rows");
+         ensure!(
+@@ -328,7 +344,7 @@ impl Gdn {
+         for row in 0..rows {
+             let (_, q, k, v) = self.convolve(&qkv.slice(1, row, row + 1)?)?;
+             prepared.push([q, k, v]);
+-            if row + 1 < rows {
++            if retain_prefixes && row + 1 < rows {
+                 histories.push(clone_array(&self.history)?);
+             }
+         }
+@@ -362,26 +378,40 @@ impl Gdn {
+             Some(state) => state.try_clone()?,
+             None => Array::zeros_dtype(&[1, 48, 128, 128], Dtype::Float32)?,
+         };
+-        let (value, final_state, tape) = gated_delta::step_with_gates_tape(
+-            &q,
+-            &k,
+-            &v,
+-            &a,
+-            &b,
+-            &self.a_log,
+-            &self.dt_bias,
+-            &initial,
+-        )?;
++        let (value, final_state, tape) = if retain_prefixes {
++            let (value, state, tape) = gated_delta::step_with_gates_tape(
++                &q,
++                &k,
++                &v,
++                &a,
++                &b,
++                &self.a_log,
++                &self.dt_bias,
++                &initial,
++            )?;
++            (value, state, Some(Rc::new(tape)))
++        } else {
++            let (value, state) = gated_delta::step_with_gates(
++                &q,
++                &k,
++                &v,
++                &a,
++                &b,
++                &self.a_log,
++                &self.dt_bias,
++                &initial,
++            )?;
++            (value, state, None)
++        };
+         #[cfg(test)]
+         crate::flash_profile::stage("gdn_rows_scan_completion", &value)?;
+         self.state = Some(final_state);
+-        let tape = Rc::new(tape);
+         let snapshots = histories
+             .into_iter()
+             .enumerate()
+             .map(|(row, history)| AttentionState::GdnTape {
+                 history,
+-                tape: Rc::clone(&tape),
++                tape: Rc::clone(tape.as_ref().expect("prefix history requires a tape")),
+                 retained: row as i32 + 1,
+             })
+             .collect();
+@@ -1087,6 +1117,7 @@ impl Layer {
+         streams: &[Array],
+         tokens: &[u32],
+         multi: bool,
++        retain_prefixes: bool,
+     ) -> Result<(Vec<PreparedRow>, Vec<LayerState>)> {
+         #[cfg(test)]
+         let _profile = crate::flash_profile::span("prepare_rows");
+@@ -1099,7 +1130,7 @@ impl Layer {
+             let mut states = Vec::with_capacity(tokens.len() - 1);
+             for (row, (&token, stream)) in tokens.iter().zip(streams).enumerate() {
+                 prepared.push(self.prepare(stream, token)?);
+-                if row + 1 < tokens.len() {
++                if retain_prefixes && row + 1 < tokens.len() {
+                     states.push(self.snapshot()?);
+                 }
+             }
+@@ -1118,7 +1149,7 @@ impl Layer {
+             residuals.push(residual);
+             mixed.push(input);
+             gates.push(gate.context("missing attention injection")?);
+-            if row + 1 < tokens.len() {
++            if retain_prefixes && row + 1 < tokens.len() {
+                 ple_states.push(
+                     self.ple
+                         .as_ref()
+@@ -1130,7 +1161,7 @@ impl Layer {
+         let Attention::Gdn(gdn) = &mut self.attention else {
+             unreachable!()
+         };
+-        let (branches, snapshots) = gdn.forward_rows(&mixed)?;
++        let (branches, snapshots) = gdn.forward_rows(&mixed, retain_prefixes)?;
+         let mut prepared = Vec::with_capacity(tokens.len());
+         for ((residual, branch), gate) in residuals.iter().zip(&branches).zip(&gates) {
+             let residual = Hc::write(residual, branch, gate)?;
+@@ -1200,7 +1231,7 @@ impl Layer {
+     ) -> Result<([Array; 2], LayerState)> {
+         #[cfg(test)]
+         let _pair_profile = crate::flash_profile::span("forward_pair");
+-        let (prepared, mut states) = self.prepare_rows(streams, &tokens, multi)?;
++        let (prepared, mut states) = self.prepare_rows(streams, &tokens, multi, true)?;
+         let [a, b]: [PreparedRow; 2] = prepared
+             .try_into()
+             .map_err(|_| anyhow::anyhow!("incomplete Flash pair preparation"))?;
+@@ -1240,6 +1271,11 @@ pub struct FlashNext {
+     pub last_hidden: Option<Array>,
+     verification: Option<PairState>,
+     multi_token: bool,
++    prefill_chunk: usize,
++    #[cfg(test)]
++    prefill_captures: Option<Vec<Array>>,
++    #[cfg(test)]
++    prefill_cancel_after: Option<usize>,
+     lookahead_depth: usize,
+     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
+     #[cfg(feature = "chat")]
+@@ -1254,6 +1290,12 @@ impl FlashNext {
+     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
+         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+         let multi_token = flash_support::multi_token_verifier()?;
++        let prefill_chunk = match std::env::var("MLXL3_FLASH_PREFILL_CHUNK") {
++            Ok(v) => flash_support::prefill_chunk(&v)
++                .context("MLXL3_FLASH_PREFILL_CHUNK must be 1, 2, 4, 8, 32 or 128")?,
++            Err(std::env::VarError::NotPresent) => 1,
++            Err(e) => return Err(e.into()),
++        };
+         let lookahead_depth = match std::env::var("MLXL3_SSD_LOOKAHEAD_DEPTH") {
+             Ok(value) => value
+                 .parse::<usize>()
+@@ -1436,6 +1478,11 @@ impl FlashNext {
+             last_hidden: None,
+             verification: None,
+             multi_token,
++            prefill_chunk,
++            #[cfg(test)]
++            prefill_captures: None,
++            #[cfg(test)]
++            prefill_cancel_after: None,
+             lookahead_depth,
+             lookahead_pool,
+             #[cfg(feature = "chat")]
+@@ -1617,7 +1664,13 @@ impl FlashNext {
+         self.offset = committed;
+         Ok(())
+     }
++    pub fn prefill_chunk_size(&self) -> usize {
++        self.prefill_chunk.max(8)
++    }
+     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
++        self.prefill_tokens(tokens, &AtomicBool::new(false))
++    }
++    pub fn prefill_tokens(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
+         ensure!(
+             !tokens.is_empty()
+                 && tokens.len() <= usize::try_from(self.context - self.offset)?
+@@ -1625,12 +1678,123 @@ impl FlashNext {
+             "invalid Flash token batch"
+         );
+         let mut last = None;
++        if self.prefill_chunk > 1 {
++            for part in tokens.chunks(self.prefill_chunk) {
++                last = Some(self.forward_prefill_block(part, &[], cancelled)?.0);
++            }
++            return last.context("empty Flash token batch");
++        }
+         for &token in tokens {
++            if cancelled.load(Ordering::Relaxed) {
++                self.reset();
++                anyhow::bail!("generation cancelled");
++            }
+             last = Some(self.forward(token)?);
+         }
+         last.context("empty Flash token batch")
+     }
++
++    fn forward_prefill_block(
++        &mut self,
++        tokens: &[u32],
++        capture_layers: &[usize],
++        cancelled: &AtomicBool,
++    ) -> Result<(Array, Option<Array>)> {
++        ensure!(
++            self.verification.is_none()
++                && (1..=128).contains(&tokens.len())
++                && tokens.len() <= usize::try_from(self.context - self.offset)?
++                && tokens.iter().all(|&t| t < 248320),
++            "invalid Flash prefill block"
++        );
++        ensure!(
++            capture_layers.iter().all(|&i| i < self.layers.len())
++                && capture_layers.windows(2).all(|p| p[0] < p[1]),
++            "invalid capture layers"
++        );
++        let result = (|| {
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            let mut streams = tokens
++                .iter()
++                .map(|&t| self.streams(t))
++                .collect::<Result<Vec<_>>>()?;
++            let mut captures = Vec::with_capacity(capture_layers.len());
++            #[cfg(test)]
++            let mut tiles = 0;
++            for (index, layer) in self.layers.iter_mut().enumerate() {
++                ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                let mut next_streams = Vec::with_capacity(tokens.len());
++                for (ids, rows) in tokens.chunks(4).zip(streams.chunks(4)) {
++                    ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++                    let (prepared, states) = layer.prepare_rows(rows, ids, true, false)?;
++                    ensure!(
++                        states.is_empty(),
++                        "commit-total prefill retained rollback states"
++                    );
++                    let input =
++                        Array::concatenate(&prepared.iter().map(|p| &p.1).collect::<Vec<_>>(), 0)?;
++                    let values = layer.moe.forward_draft_rows(&input)?;
++                    next_streams.extend(
++                        prepared
++                            .iter()
++                            .enumerate()
++                            .map(|(row, p)| {
++                                Hc::write(&p.0, &values.slice(0, row as i32, row as i32 + 1)?, &p.2)
++                            })
++                            .collect::<Result<Vec<_>>>()?,
++                    );
++                    #[cfg(test)]
++                    {
++                        tiles += 1;
++                        if self.prefill_cancel_after == Some(tiles) {
++                            cancelled.store(true, Ordering::Relaxed);
++                        }
++                    }
++                }
++                ensure!(
++                    next_streams.len() == tokens.len(),
++                    "incomplete prefill layer"
++                );
++                streams = next_streams;
++                if capture_layers.contains(&index) {
++                    let rows = streams
++                        .iter()
++                        .map(mean_streams)
++                        .collect::<Result<Vec<_>>>()?;
++                    captures.push(Array::concatenate(&rows.iter().collect::<Vec<_>>(), 0)?);
++                }
++            }
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            let hidden = streams.pop().context("empty prefill streams")?;
++            let logits = self.logits(&hidden)?;
++            let captured = if captures.is_empty() {
++                None
++            } else {
++                Some(Array::concatenate(&captures.iter().collect::<Vec<_>>(), 1)?)
++            };
++            if let Some(captured) = &captured {
++                captured.eval()?;
++                #[cfg(test)]
++                if let Some(trace) = &mut self.prefill_captures {
++                    trace.push(captured.try_clone()?);
++                }
++            }
++            self.drain()?;
++            ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
++            self.last_hidden = Some(hidden);
++            self.offset += tokens.len() as i32;
++            Ok((logits, captured))
++        })();
++        if result.is_err() {
++            self.reset();
++        }
++        result
++    }
+     pub fn reset(&mut self) {
++        #[cfg(test)]
++        if let Some(trace) = &mut self.prefill_captures {
++            trace.clear();
++        }
+         for layer in &mut self.layers {
+             layer.reset();
+         }
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index a8f1fbb7..8332bbcd 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -469,7 +469,6 @@ impl SsdMoe {
+         self.forward_rows(x, next, depth, 2)
+     }
+ 
+-    #[cfg(any(feature = "chat", test))]
+     pub(crate) fn forward_draft_rows(&mut self, x: &Array) -> Result<Array> {
+         self.forward_rows(x, None, 0, 8)
+     }

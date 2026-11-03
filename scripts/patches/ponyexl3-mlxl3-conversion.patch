@@ -1,5 +1,5 @@
 diff --git a/ponyexl3/cli/convert.py b/ponyexl3/cli/convert.py
-index c216fd2..584c042 100644
+index c216fd2..d2be062 100644
 --- a/ponyexl3/cli/convert.py
 +++ b/ponyexl3/cli/convert.py
 @@ -73,6 +73,44 @@ def _default_candidate_bits(bits: float, head_bits: int) -> list[int]:
@@ -18,7 +18,7 @@ index c216fd2..584c042 100644
 +    k = int(round(target_bpw))
 +    if not math.isclose(target_bpw, float(k), rel_tol=0.0, abs_tol=1e-9):
 +        return None
-+    if head_bits != k or candidate_bits != [k] or shrinkages != [0.0]:
++    if (candidate_bits_by_module and head_bits != k) or candidate_bits != [k] or shrinkages != [0.0]:
 +        return None
 +    if any(bits != [k] for bits in candidate_bits_by_module.values()):
 +        return None
@@ -435,7 +435,7 @@ index 4118a42..c9b05ae 100644
  
  def _natural_key(key: str) -> tuple[Any, ...]:
 diff --git a/ponyexl3/convert/driver.py b/ponyexl3/convert/driver.py
-index 6305152..c817567 100644
+index 6305152..e530b3d 100644
 --- a/ponyexl3/convert/driver.py
 +++ b/ponyexl3/convert/driver.py
 @@ -346,7 +346,24 @@ def _candidate_sibling_group(
@@ -443,17 +443,17 @@ index 6305152..c817567 100644
      existing: dict[str, EXL3Layer],
  ) -> list[str]:
 -    signature = _sibling_group_signature(key)
-+    expert = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj)$", key)
++    expert = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj|w[123])$", key)
 +    if expert is not None:
-+        kind = "down" if expert.group(2) == "down_proj" else "gate_up"
++        kind = "down" if expert.group(2) in {"down_proj", "w2"} else "gate_up"
 +        signature = f"{expert.group(1)}._{kind}"
 +        limit = 4 if kind == "down" else 8
 +
 +        def matches(item: str) -> bool:
-+            candidate = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj)$", item)
++            candidate = re.match(r"^(.*\.experts)\.\d+\.(down_proj|gate_proj|up_proj|w[123])$", item)
 +            if candidate is None or candidate.group(1) != expert.group(1):
 +                return False
-+            candidate_kind = "down" if candidate.group(2) == "down_proj" else "gate_up"
++            candidate_kind = "down" if candidate.group(2) in {"down_proj", "w2"} else "gate_up"
 +            return candidate_kind == kind
 +    else:
 +        signature = _sibling_group_signature(key)
@@ -566,7 +566,7 @@ index 84dd204..d8ec745 100644
      if len(info.shape) != 2:
          raise ValueError(f"{source_key} must be 2D, got {info.shape}")
 diff --git a/ponyexl3/convert/hessian.py b/ponyexl3/convert/hessian.py
-index d79e192..deae1ad 100644
+index d79e192..dbbbffa 100644
 --- a/ponyexl3/convert/hessian.py
 +++ b/ponyexl3/convert/hessian.py
 @@ -4,14 +4,17 @@ from __future__ import annotations
@@ -805,7 +805,7 @@ index d79e192..deae1ad 100644
  def ldlq_quantize_group(
      source_dir: str | Path,
      oracle_dir: str | Path,
-@@ -1047,6 +1171,30 @@ def ldlq_quantize_group(
+@@ -1047,6 +1171,32 @@ def ldlq_quantize_group(
          planned_k = None if quant_bits_by_module is None else quant_bits_by_module.get(key)
          prep_inputs.append((key, acts, planned_k))
  
@@ -813,6 +813,8 @@ index d79e192..deae1ad 100644
 +        scale_mode == "computed"
 +        and not skip_g_scale
 +        and all(".experts." in key for key in keys)
++        # LFM keeps the scalar scale search; Ling's grid is not calibrated for it.
++        and not any(".feed_forward.experts." in key for key in keys)
 +    )
 +
 +    def prepare(item: tuple[str, np.ndarray | None, int | None]) -> _LDLQGroupPrepared:
@@ -836,7 +838,7 @@ index d79e192..deae1ad 100644
      prep_workers = _group_prep_worker_count(
          len(keys),
          search_backend=search_backend,
-@@ -1054,48 +1202,29 @@ def ldlq_quantize_group(
+@@ -1054,48 +1204,29 @@ def ldlq_quantize_group(
          skip_g_scale=skip_g_scale,
      )
      if prep_workers <= 1:
@@ -902,7 +904,7 @@ index d79e192..deae1ad 100644
      states: list[_LDLQGroupState] = []
      first_cb: CodebookMode | None = None
      first_rows: int | None = None
-@@ -1142,88 +1271,178 @@ def ldlq_quantize_group(
+@@ -1142,88 +1273,178 @@ def ldlq_quantize_group(
          raise LDLQGroupIncompatible("empty grouped LDLQ request")
      if first_cb is None or first_rows is None or first_k is None:
          raise LDLQGroupIncompatible("invalid grouped LDLQ request")
@@ -1150,7 +1152,7 @@ index d79e192..deae1ad 100644
      mx.eval(*[state.reconstructed for state in states], *[state.packed for state in states])
      out: list[DirectLayerResult] = []
      for state in states:
-@@ -1252,6 +1471,10 @@ def ldlq_quantize_group(
+@@ -1252,6 +1473,10 @@ def ldlq_quantize_group(
                  "batched_search_group_size": float(len(keys)),
                  "batched_search_group_out_features": float(total_out),
                  "batched_prep_workers": float(prep_workers),

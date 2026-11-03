@@ -1,0 +1,105 @@
+{
+  "experiment": "82F05",
+  "status": "prepared_not_applied_not_compiled_not_tested",
+  "base_commit": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "preregistration": "W/opti.md FLASHSSD-2026-10-24-82T",
+  "flag": {
+    "name": "MLXL3_SSD_BATCH_ROUTES",
+    "default": "0",
+    "accepted": [
+      "0",
+      "1"
+    ],
+    "load_once": true
+  },
+  "files": {
+    "native/src/ssd_moe.rs": {
+      "base_sha256": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+      "candidate_sha256": "b0fb6c0c4e6899ad95f531035bb208eac7dbea8beea9a311240a7b998ce6330b"
+    },
+    "native/src/flash_support.rs": {
+      "base_sha256": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+      "candidate_sha256": "430fbdea5ff62b03758b787ad988d5eb4dbb7a3404ee5ed554abda5492d5e2bf"
+    },
+    "native/src/ssd_moe/batch_route_tests.rs": {
+      "base_sha256": null,
+      "candidate_sha256": "f934549a068f1145e34a4baaa016d7b25e5181f367b17b9b96325a796aea3e45"
+    },
+    ".github/workflows/rust.yml": {
+      "base_sha256": "8c02337d7ca11b93ee7bea3baf7c50306451582eb933260719e1204714672296",
+      "candidate_sha256": "39491a91da2dc6de3b195dae9da5d669af57f6781a9b2a844de97c9d50daf72d"
+    }
+  },
+  "physical_coverage_prepared": {
+    "real_gate_cases": 1004,
+    "real_gate_fast_cases": 404,
+    "real_gate_matrices": 48,
+    "extra_resident_gate_layer": 0,
+    "edge_cases": 28,
+    "MoE_cases": 24,
+    "CPU_shape_cases": 148,
+    "existing_unique_pending_and_failure_oracle_required": true,
+    "load_once_real_routing_checks": 6,
+    "hot_before_readback_unique_overflow_checks": 4,
+    "other_MoE_cases_without_hot_ordering_assertion": 20
+  },
+  "formal_domain": "Actual production eligibility helper; 4symbolic i32 dimensions, rank0..4, arbitrary fp32 boolean, unwind5,5covers. No GEMV/softmax/topk/Metal proof.",
+  "format": {
+    "copies_only": true,
+    "rustfmt_exit_code": 0,
+    "rustfmt_check_exit_code": 0
+  },
+  "source_applicability": {
+    "zero_fuzz": true,
+    "candidate_matches_applied_patch": true,
+    "directory": "application-check-v2",
+    "patch_exit_code": 0
+  },
+  "executed": {
+    "build": 0,
+    "tests": 0,
+    "Kani": 0,
+    "GPU": 0,
+    "benchmarks": 0
+  },
+  "artifacts": {
+    "source.patch": {
+      "sha256": "3c1873d2e74efcc0731ca6663a710a7a6796aba6c3bfe802283f394aef4aff00",
+      "bytes": 29564
+    },
+    "ci.patch": {
+      "sha256": "c99b2db5060099c0210c2f24b4c7a48df9f60b44f6596cfccfce8a5cc99dc42b",
+      "bytes": 598
+    },
+    "combined.patch": {
+      "sha256": "ac97d120b909f99fa111c0eb0dad1feb9d12d29768e9686aca836622c6e26554",
+      "bytes": 30162
+    },
+    "commands.json": {
+      "sha256": "7fe6627309b5e465be25e3272e0c113900818ae9ae2c92ec8c6e8d2b806f5437",
+      "bytes": 5980
+    },
+    "mutations/admit-B1.patch": {
+      "sha256": "adce2dd0ea44ac030e094df8f4d05de3f47317ba31146874c3d970282db51dec",
+      "bytes": 370
+    },
+    "mutations/drop-normalization.patch": {
+      "sha256": "8b1a4b29d017128994824ae08334b366178f2fd2b32aac7e6b2578c001aab3ac",
+      "bytes": 452
+    },
+    "mutations/replace-scalar-GEMVs.patch": {
+      "sha256": "2dac26ff4b9006d7e27ad0afbd386ab6b56e273ba060f94709be313d96e9f595",
+      "bytes": 573
+    },
+    "README.md": {
+      "sha256": "1f5b12fdeaa5ff448a2423d129baf08dc0da510f03987b89c366b84d34021593",
+      "bytes": 9748
+    }
+  },
+  "revision": "post-review-v2",
+  "review_changes": [
+    "Loader invokes production route_rows after opposite and invalid post-load environment values:6 prepared checks, still unexecuted.",
+    "Hot ordering marker restricted to4 overflowing unique windows; no ordering assertion claimed for the remaining20 MoE cases.",
+    "Initial unexecuted source/combined patches and manifest retained in superseded-v1."
+  ]
+}

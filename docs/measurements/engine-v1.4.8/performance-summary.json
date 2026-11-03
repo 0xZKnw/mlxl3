@@ -1,0 +1,118 @@
+{
+  "status": "complete",
+  "parity": true,
+  "speed_gate_passed": false,
+  "source_commit": "26987a2c1aa9cc10a1908cdb6ffbec0eca55ccef",
+  "passes": {
+    "ABBA": {
+      "child": {
+        "status": "process_complete",
+        "parity": false,
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "benchmarks/compare_native.py",
+          "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+          "--baseline",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+          "--candidate",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/runtime/mlxl3",
+          "--output",
+          "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.8/performance/abba",
+          "--prompt-file",
+          "docs/measurements/qwen27-20261016/prompt-code.txt",
+          "--tokens",
+          "256",
+          "--warmup-tokens",
+          "64",
+          "--mtp-depth",
+          "1",
+          "--mtp-head",
+          "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+          "--repeats",
+          "1",
+          "--order",
+          "ABBA",
+          "--load-timeout",
+          "120",
+          "--request-timeout",
+          "180",
+          "--campaign-timeout",
+          "900",
+          "--baseline-env",
+          "MLXL3_EXL3_LANE_ORDER=0"
+        ],
+        "timeout_seconds": 930,
+        "pid": 33029,
+        "seconds": 239.96184966701549,
+        "exit_code": 0,
+        "reaped": true
+      },
+      "analysis": {
+        "parity": true,
+        "order": "ABBA",
+        "prompts": {
+          "short": {
+            "tps": {
+              "A": [
+                8.782454666635635,
+                9.556919865331611
+              ],
+              "B": [
+                11.16784217856978,
+                11.242409658359506
+              ]
+            },
+            "medians": {
+              "A": 9.169687265983622,
+              "B": 11.205125918464642
+            },
+            "gain_percent": 22.197470790871954,
+            "drift_percent": {
+              "A": 8.818322759332343,
+              "B": 0.6676981873258825
+            },
+            "min_b_over_max_a": 1.1685608267033714,
+            "every_b_at_least_three_percent": true,
+            "passed": false
+          },
+          "document": {
+            "tps": {
+              "A": [
+                8.421266897531396,
+                8.823122359914965
+              ],
+              "B": [
+                11.051378350931634,
+                11.39232159277724
+              ]
+            },
+            "medians": {
+              "A": 8.62219462872318,
+              "B": 11.221849971854436
+            },
+            "gain_percent": 30.150738356926034,
+            "drift_percent": {
+              "A": 4.77191219888029,
+              "B": 3.085074377322927
+            },
+            "min_b_over_max_a": 1.2525473296324254,
+            "every_b_at_least_three_percent": true,
+            "passed": false
+          }
+        },
+        "passed": false
+      }
+    }
+  },
+  "candidate_environment": "MLXL3_EXL3_LANE_ORDER absent",
+  "common_environment": {
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_ADAPTIVE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "allocator": "absent/default",
+  "mlp": "absent/default M2/M4",
+  "battery_authorized": true,
+  "binary_sha256": "e5bb400bdeb1b43d29a675f284c051cf3061194310ac81bd55830aec212f6d6a",
+  "combined": {}
+}

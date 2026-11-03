@@ -238,6 +238,24 @@ impl ChatTokenizer {
     }
 
     pub fn render_values(&self, messages: &Value, tools: Option<&[Value]>) -> Result<String> {
+        self.render_values_options(messages, tools, None)
+    }
+
+    pub fn render_values_with_thinking(
+        &self,
+        messages: &Value,
+        tools: Option<&[Value]>,
+        thinking: bool,
+    ) -> Result<String> {
+        self.render_values_options(messages, tools, Some(thinking))
+    }
+
+    fn render_values_options(
+        &self,
+        messages: &Value,
+        tools: Option<&[Value]>,
+        thinking: Option<bool>,
+    ) -> Result<String> {
         let messages = messages.as_array().context("messages must be an array")?;
         ensure!(!messages.is_empty(), "chat requires at least one message");
         for message in messages {
@@ -256,17 +274,23 @@ impl ChatTokenizer {
                 "chat message requires string content"
             );
         }
+        let values = context! {
+            messages => messages,
+            bos_token => &self.bos_token,
+            eos_token => &self.eos_token,
+            add_generation_prompt => true,
+            preserve_thinking => true,
+            tools => tools,
+            documents => Option::<bool>::None,
+        };
+        let values = if let Some(thinking) = thinking {
+            context! { enable_thinking => thinking, ..values }
+        } else {
+            values
+        };
         self.environment
             .get_template("chat")?
-            .render(context! {
-                messages => messages,
-                bos_token => &self.bos_token,
-                eos_token => &self.eos_token,
-                add_generation_prompt => true,
-                preserve_thinking => true,
-                tools => tools,
-                documents => Option::<bool>::None,
-            })
+            .render(values)
             .context("rendering chat template")
     }
 
@@ -320,6 +344,42 @@ mod tests {
         )
         .unwrap();
         root
+    }
+
+    #[test]
+    fn explicit_thinking_preserves_undefined_default_and_other_context() {
+        let root = fixture(
+            "{{ enable_thinking is undefined }}|{{ enable_thinking is true }}|{{ enable_thinking is false }}|{{ messages[0].content }}|{{ tools[0].name }}|{{ add_generation_prompt }}",
+        );
+        let tokenizer = ChatTokenizer::load(root.path()).unwrap();
+        let messages = json!([{"role":"user","content":"hello"}]);
+        let tools = [json!({"name":"tool"})];
+        assert_eq!(
+            tokenizer.render_values(&messages, Some(&tools)).unwrap(),
+            "True|False|False|hello|tool|True"
+        );
+        assert_eq!(
+            tokenizer
+                .render_values_with_thinking(&messages, Some(&tools), true)
+                .unwrap(),
+            "False|True|False|hello|tool|True"
+        );
+        assert_eq!(
+            tokenizer
+                .render_values_with_thinking(&messages, Some(&tools), false)
+                .unwrap(),
+            "False|False|True|hello|tool|True"
+        );
+        assert!(
+            tokenizer
+                .render_values_with_thinking(&json!([]), None, false)
+                .is_err()
+        );
+        assert!(
+            tokenizer
+                .render_values_with_thinking(&json!([{"role":"invalid","content":"x"}]), None, true)
+                .is_err()
+        );
     }
 
     #[test]
@@ -491,5 +551,24 @@ print(json.dumps({'prompt': prompt, 'ids': ids, 'decoded': t.decode(ids, skip_sp
             assert!(tokenizer.decode(&ids[..=position])?.starts_with(&emitted));
         }
         Ok(())
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(100)]
+fn actual_flash_thinking_template_preserves_selected_mode() {
+    let root = std::env::var("MLXL3_FLASH_MODEL").unwrap();
+    let tokenizer = ChatTokenizer::load(Path::new(&root)).unwrap();
+    let thinking: bool = kani::any();
+    let messages = serde_json::json!([{"role":"user","content":"hello"}]);
+    if let Ok(text) = tokenizer.render_values_with_thinking(&messages, None, thinking) {
+        assert!(text.ends_with(if thinking {
+            "<think>\n"
+        } else {
+            "<think>\n\n</think>\n\n"
+        }));
+        kani::cover!(thinking);
+        kani::cover!(!thinking);
     }
 }

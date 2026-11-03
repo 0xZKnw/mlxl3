@@ -1,0 +1,165 @@
+{
+  "status": "failed",
+  "qualification": null,
+  "limits": {
+    "process_lifetime_peak_bytes": 12000000000,
+    "process_compressed_logical_bytes": 536870912,
+    "process_compressed_peak_logical_bytes": 536870912,
+    "compressed_lifetime_delta_bytes": 1073741824,
+    "ledger_swapins_delta_logical_bytes": 0
+  },
+  "samples": [
+    {
+      "label": "ready",
+      "memory": {
+        "process_id": 83886,
+        "process_start_abstime": 725607558143,
+        "process_footprint_bytes": 3752743616,
+        "process_compressed_logical_bytes": 934543360,
+        "process_lifetime_peak_bytes": 3752743616,
+        "process_compressed_peak_logical_bytes": 934543360,
+        "process_compressed_lifetime_logical_bytes": 934559744,
+        "process_decompressions": 3,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 0,
+        "process_compressed_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 0,
+        "process_compressed_peak_logical_bytes": 0,
+        "process_compressed_lifetime_logical_bytes": 0,
+        "process_decompressions": 0,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    },
+    {
+      "label": "warmup[0]",
+      "memory": {
+        "process_id": 83886,
+        "process_start_abstime": 725607558143,
+        "process_footprint_bytes": 7745460464,
+        "process_compressed_logical_bytes": 3758915584,
+        "process_lifetime_peak_bytes": 7837882608,
+        "process_compressed_peak_logical_bytes": 3762274304,
+        "process_compressed_lifetime_logical_bytes": 3776200704,
+        "process_decompressions": 228329,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 3992716848,
+        "process_compressed_logical_bytes": 2824372224,
+        "process_lifetime_peak_bytes": 4085138992,
+        "process_compressed_peak_logical_bytes": 2827730944,
+        "process_compressed_lifetime_logical_bytes": 2841640960,
+        "process_decompressions": 228326,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    },
+    {
+      "label": "runs[0]",
+      "memory": {
+        "process_id": 83886,
+        "process_start_abstime": 725607558143,
+        "process_footprint_bytes": 7747574000,
+        "process_compressed_logical_bytes": 3940548608,
+        "process_lifetime_peak_bytes": 7837882608,
+        "process_compressed_peak_logical_bytes": 3942547456,
+        "process_compressed_lifetime_logical_bytes": 3964583936,
+        "process_decompressions": 258950,
+        "process_ledger_swapins_logical_bytes": 0
+      },
+      "deltas_since_ready": {
+        "process_footprint_bytes": 3994830384,
+        "process_compressed_logical_bytes": 3006005248,
+        "process_lifetime_peak_bytes": 4085138992,
+        "process_compressed_peak_logical_bytes": 3008004096,
+        "process_compressed_lifetime_logical_bytes": 3030024192,
+        "process_decompressions": 258947,
+        "process_ledger_swapins_logical_bytes": 0
+      }
+    }
+  ],
+  "maxima": {
+    "process_footprint_bytes": 7747574000,
+    "process_compressed_logical_bytes": 3940548608,
+    "process_lifetime_peak_bytes": 7837882608,
+    "process_compressed_peak_logical_bytes": 3942547456,
+    "process_compressed_lifetime_logical_bytes": 3964583936,
+    "process_decompressions": 258950,
+    "process_ledger_swapins_logical_bytes": 0
+  },
+  "final_deltas_since_ready": {
+    "process_footprint_bytes": 3994830384,
+    "process_compressed_logical_bytes": 3006005248,
+    "process_lifetime_peak_bytes": 4085138992,
+    "process_compressed_peak_logical_bytes": 3008004096,
+    "process_compressed_lifetime_logical_bytes": 3030024192,
+    "process_decompressions": 258947,
+    "process_ledger_swapins_logical_bytes": 0
+  },
+  "startup_ledger_swapins_logical_bytes": 0,
+  "startup_already_affected": false,
+  "budget_violations": [
+    {
+      "sample": "ready",
+      "metric": "process_compressed_logical_bytes",
+      "observed": 934543360,
+      "limit": 536870912,
+      "message": "process_compressed_logical_bytes exceeds budget at ready"
+    },
+    {
+      "sample": "ready",
+      "metric": "process_compressed_peak_logical_bytes",
+      "observed": 934543360,
+      "limit": 536870912,
+      "message": "process_compressed_peak_logical_bytes exceeds budget at ready"
+    },
+    {
+      "sample": "warmup[0]",
+      "metric": "process_compressed_logical_bytes",
+      "observed": 3758915584,
+      "limit": 536870912,
+      "message": "process_compressed_logical_bytes exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "warmup[0]",
+      "metric": "process_compressed_peak_logical_bytes",
+      "observed": 3762274304,
+      "limit": 536870912,
+      "message": "process_compressed_peak_logical_bytes exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "warmup[0]",
+      "metric": "compressed_lifetime_delta_bytes",
+      "observed": 2841640960,
+      "limit": 1073741824,
+      "message": "compressed lifetime delta exceeds budget at warmup[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "process_compressed_logical_bytes",
+      "observed": 3940548608,
+      "limit": 536870912,
+      "message": "process_compressed_logical_bytes exceeds budget at runs[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "process_compressed_peak_logical_bytes",
+      "observed": 3942547456,
+      "limit": 536870912,
+      "message": "process_compressed_peak_logical_bytes exceeds budget at runs[0]"
+    },
+    {
+      "sample": "runs[0]",
+      "metric": "compressed_lifetime_delta_bytes",
+      "observed": 3030024192,
+      "limit": 1073741824,
+      "message": "compressed lifetime delta exceeds budget at runs[0]"
+    }
+  ],
+  "scope": "ready through complete; cleanup, process swap-outs and physical SSD I/O unmeasured",
+  "source_errors": [],
+  "error": "AnalysisError: process_compressed_logical_bytes exceeds budget at ready; process_compressed_peak_logical_bytes exceeds budget at ready; process_compressed_logical_bytes exceeds budget at warmup[0]; process_compressed_peak_logical_bytes exceeds budget at warmup[0]; compressed lifetime delta exceeds budget at warmup[0]; process_compressed_logical_bytes exceeds budget at runs[0]; process_compressed_peak_logical_bytes exceeds budget at runs[0]; compressed lifetime delta exceeds budget at runs[0]",
+  "source": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v3/packed/screen/packed-MAIN-0-H/report.json",
+  "source_sha256": "a387eeed9cc354583b20d030d71062d60acbde69c26bff304bdf7b2901812f24"
+}

@@ -1,0 +1,232 @@
+{
+  "status": "sampled_functions_inside_exact_measured_window",
+  "inference_tid": 5217254,
+  "complete_tokens": 20,
+  "exact_role_durations": {
+    "resident_slot_indices_async_eval": {
+      "calls": 960,
+      "wall_ms_per_token": 18.32298805,
+      "cpu_active_gpu_idle_ms_per_token": 11.897307199999998
+    },
+    "resident_hot_output_async_eval": {
+      "calls": 960,
+      "wall_ms_per_token": 3.7100832,
+      "cpu_active_gpu_idle_ms_per_token": 0.24476104999999998
+    }
+  },
+  "sample_period_nominal_ns": 1000000,
+  "eligible_samples": 249,
+  "all_main_samples_in_decode": 757,
+  "interrupt_mapping_counts": {
+    "running_context_before_interrupt": 757
+  },
+  "samples_by_role": {
+    "resident_hot_output_async_eval": 6,
+    "resident_slot_indices_async_eval": 243
+  },
+  "top_leaf_samples": [
+    [
+      "__kdebug_trace64",
+      48
+    ],
+    [
+      "_xzm_xzone_malloc_tiny",
+      16
+    ],
+    [
+      "_xzm_free_main",
+      13
+    ],
+    [
+      "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+      12
+    ],
+    [
+      "AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3EncodedInstr<AGXIotoInstruction_SPECLM_0>::AGX3EncodedInstr(AGX::ESLInstructionEncoderGen3<AGX::HAL300::Encoders>::AGX3Instr<AGXIotoInstruction_SPECLM_0> const&)",
+      12
+    ],
+    [
+      "<deduplicated_symbol>",
+      10
+    ],
+    [
+      "kevent_id",
+      8
+    ],
+    [
+      "mach_msg2_trap",
+      8
+    ],
+    [
+      "_platform_memset",
+      7
+    ],
+    [
+      "_platform_memmove",
+      6
+    ],
+    [
+      "malloc_type_malloc",
+      5
+    ],
+    [
+      "objc_msgSend",
+      4
+    ],
+    [
+      "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+      4
+    ],
+    [
+      "_kernelrpc_mach_port_mod_refs_trap",
+      4
+    ],
+    [
+      "mlx::core::array::ArrayDesc::~ArrayDesc()",
+      4
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::reserveEnqueueDatabufferSpace(eAGXDataBufferPools, bool)",
+      2
+    ],
+    [
+      "DYLD-STUB$$objc_msgSend",
+      2
+    ],
+    [
+      "0x269000add",
+      2
+    ],
+    [
+      "std::__1::__next_prime(unsigned long)",
+      2
+    ],
+    [
+      "AGX::ComputeContext<AGX::HAL300::Encoders, AGX::HAL300::Classes, AGX::HAL300::ObjClasses, AGX::HAL300::CommandEncoding, AGX::HAL300::EncoderComputeServiceClasses>::performEnqueueKernel(eAGXDataBufferPools, unsigned long long, unsigned int, unsigned long long*)",
+      2
+    ],
+    [
+      "std::__1::pair<std::__1::__hash_iterator<std::__1::__hash_node<void const*, void*>*>, bool> std::__1::__hash_table<void const*, std::__1::hash<void const*>, std::__1::equal_to<void const*>, std::__1::allocator<void const*>>::__emplace_unique_key_args<void const*, void const* const&>(void const* const&, void const* const&)",
+      2
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+      2
+    ],
+    [
+      "void agxaReserveCDMTokenSpace<AGX::HAL300::Encoders, AGX::HAL300::DataBufferAllocator>(eAGXDataBufferPools, AGX::HAL300::DataBufferAllocator&, unsigned long, bool, bool, unsigned int, AGX::FlagsConfiguration<eAGXDataBufferReserveFlags> const&)",
+      2
+    ],
+    [
+      "mlx::core::Compiled::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+      2
+    ],
+    [
+      "_free",
+      2
+    ]
+  ],
+  "nearest_MLX_frame_samples": [
+    [
+      "mlx::core::metal::CommandEncoder::maybeInsertBarrier()",
+      39
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::get_command_encoder()",
+      37
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::dispatch_threads(MTL::Size, MTL::Size)",
+      29
+    ],
+    [
+      "mlx::core::gpu::eval(mlx::core::array&)",
+      23
+    ],
+    [
+      "mlx::core::eval_impl(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>, bool)",
+      21
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::commit(std::__1::function<void ()>)",
+      18
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::set_input_array(mlx::core::array const&, int, long long)",
+      10
+    ],
+    [
+      "mlx::core::fast::CustomKernel::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+      7
+    ],
+    [
+      "mlx::core::BufferCache<MTL::Buffer>::reuse_from_cache(unsigned long)",
+      6
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::set_output_array(mlx::core::array&, int, long long)",
+      5
+    ],
+    [
+      "mlx::core::array::ArrayDesc::~ArrayDesc()",
+      5
+    ],
+    [
+      "mlx::core::metal::EventImpl::EventImpl(mlx::core::metal::Device&)",
+      4
+    ],
+    [
+      "mlx::core::metal::new_scoped_memory_pool()",
+      3
+    ],
+    [
+      "mlx::core::array::outputs() const",
+      3
+    ],
+    [
+      "mlx::core::copy_gpu_inplace(mlx::core::array const&, mlx::core::array&, mlx::core::SmallVector<int, 10ul, std::__1::allocator<int>> const&, mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&, mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&, long long, long long, mlx::core::CopyType, mlx::core::Stream const&, std::__1::optional<mlx::core::array>, std::__1::optional<mlx::core::array>)",
+      3
+    ],
+    [
+      "std::__1::__function::__func<mlx::core::gpu::eval(mlx::core::array&)::$_1, void (MTL::CommandBuffer*)>::~__func()",
+      3
+    ],
+    [
+      "mlx::core::metal::MetalAllocator::malloc(unsigned long)",
+      2
+    ],
+    [
+      "mlx::core::collapse_contiguous_dims(mlx::core::SmallVector<int, 10ul, std::__1::allocator<int>> const&, std::__1::vector<mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>>, std::__1::allocator<mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>>>> const&, long long)",
+      2
+    ],
+    [
+      "mlx::core::array::~array()",
+      2
+    ],
+    [
+      "std::__1::__function::__func<mlx::core::metal::CommandEncoder::end_encoding()::$_0, void (MTL::CommandBuffer*)>::__func[abi:nqe210106](mlx::core::metal::CommandEncoder::end_encoding()::$_0 const&)",
+      2
+    ],
+    [
+      "mlx::core::unary_op_gpu_inplace(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, mlx::core::array&, char const*, mlx::core::Stream const&)",
+      2
+    ],
+    [
+      "mlx::core::Compiled::eval_gpu(std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>> const&, std::__1::vector<mlx::core::array, std::__1::allocator<mlx::core::array>>&)",
+      2
+    ],
+    [
+      "mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>>* std::__1::vector<mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>>, std::__1::allocator<mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>>>>::__emplace_back_slow_path<mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&>(mlx::core::SmallVector<long long, 10ul, std::__1::allocator<long long>> const&)",
+      2
+    ],
+    [
+      "mlx::core::metal::CommandEncoder::dispatch_threadgroups(MTL::Size, MTL::Size)",
+      1
+    ],
+    [
+      "mlx::core::output_grid_for_col_reduce(mlx::core::array const&, mlx::core::(anonymous namespace)::ColReduceArgs const&)",
+      1
+    ]
+  ],
+  "limits": "Exact12.142ms exposure from CPU/GPU intervals; function counts are statistical points, not exact exclusive function durations. NearestMLX frame totals exclusive by chosen frame; deeper inclusive frames must not be added."
+}

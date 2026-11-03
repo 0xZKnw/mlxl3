@@ -1,0 +1,139 @@
+{
+  "status": "positive_both_orders_MAIN_baseline_drift_needs_recheck",
+  "parity": true,
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "control": {
+        "tps": 10.774795957869234,
+        "warm_tps": 11.835791302836547,
+        "metrics": {
+          "verified_width": 2,
+          "verified_rows": 138,
+          "acceptance_percent": 84.05797101449275,
+          "verification_ms_per_emitted": 86.74408240157477,
+          "verification_ms_per_row": 79.8296990217391,
+          "expert_bytes_per_decode_token": 188430158.26771653,
+          "verified_rows_per_decode_token": 1.0866141732283465
+        },
+        "accepted": 58,
+        "proposed": 69,
+        "blocks": 69,
+        "memory": {
+          "mlx_active_bytes": 7144344704,
+          "mlx_cache_bytes": 66320530,
+          "mlx_peak_bytes": 7288615508,
+          "process_compressed_lifetime_logical_bytes": 1228029952,
+          "process_compressed_logical_bytes": 1208025088,
+          "process_compressed_peak_logical_bytes": 1209401344,
+          "process_decompressions": 76770,
+          "process_footprint_bytes": 7733319992,
+          "process_id": 93128,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7824496952,
+          "process_start_abstime": 2464294835161
+        }
+      },
+      "candidate": {
+        "tps": 11.752067103007654,
+        "warm_tps": 12.000042756057852,
+        "metrics": {
+          "verified_width": 2,
+          "verified_rows": 138,
+          "acceptance_percent": 84.05797101449275,
+          "verification_ms_per_emitted": 79.22624047244094,
+          "verification_ms_per_row": 72.91110536231884,
+          "expert_bytes_per_decode_token": 188430158.26771653,
+          "verified_rows_per_decode_token": 1.0866141732283465
+        },
+        "accepted": 58,
+        "proposed": 69,
+        "blocks": 69,
+        "memory": {
+          "mlx_active_bytes": 7144350848,
+          "mlx_cache_bytes": 66235776,
+          "mlx_peak_bytes": 7288568916,
+          "process_compressed_lifetime_logical_bytes": 1163771904,
+          "process_compressed_logical_bytes": 1121648640,
+          "process_compressed_peak_logical_bytes": 1124679680,
+          "process_decompressions": 93713,
+          "process_footprint_bytes": 7757601128,
+          "process_id": 92438,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7848958312,
+          "process_start_abstime": 2463284680756
+        }
+      },
+      "gain_percent": 9.069973565714552,
+      "control_drift_vs_screen_percent": -8.430417414428836,
+      "two_order_geomean_gain_percent": 5.813177380932966
+    },
+    {
+      "prompt": "HOLD",
+      "control": {
+        "tps": 11.254704973472961,
+        "warm_tps": 10.96001670153968,
+        "metrics": {
+          "verified_width": 2,
+          "verified_rows": 140,
+          "acceptance_percent": 80.0,
+          "verification_ms_per_emitted": 82.8699480793651,
+          "verification_ms_per_row": 74.5829532714286,
+          "expert_bytes_per_decode_token": 200585991.68503937,
+          "verified_rows_per_decode_token": 1.1023622047244095
+        },
+        "accepted": 56,
+        "proposed": 70,
+        "blocks": 70,
+        "memory": {
+          "mlx_active_bytes": 7144219776,
+          "mlx_cache_bytes": 67606982,
+          "mlx_peak_bytes": 7289250308,
+          "process_compressed_lifetime_logical_bytes": 1612021760,
+          "process_compressed_logical_bytes": 1570783232,
+          "process_compressed_peak_logical_bytes": 1581334528,
+          "process_decompressions": 106173,
+          "process_footprint_bytes": 7717067040,
+          "process_id": 94653,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7826446648,
+          "process_start_abstime": 2466344978329
+        }
+      },
+      "candidate": {
+        "tps": 11.466842908587072,
+        "warm_tps": 11.110812846540846,
+        "metrics": {
+          "verified_width": 2,
+          "verified_rows": 140,
+          "acceptance_percent": 80.0,
+          "verification_ms_per_emitted": 81.36234257936506,
+          "verification_ms_per_row": 73.22610832142855,
+          "expert_bytes_per_decode_token": 200585991.68503937,
+          "verified_rows_per_decode_token": 1.1023622047244095
+        },
+        "accepted": 56,
+        "proposed": 70,
+        "blocks": 70,
+        "memory": {
+          "mlx_active_bytes": 7144217728,
+          "mlx_cache_bytes": 67520220,
+          "mlx_peak_bytes": 7288865100,
+          "process_compressed_lifetime_logical_bytes": 2145845248,
+          "process_compressed_logical_bytes": 2130771968,
+          "process_compressed_peak_logical_bytes": 2136981504,
+          "process_decompressions": 140911,
+          "process_footprint_bytes": 7741659376,
+          "process_id": 94320,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7832230128,
+          "process_start_abstime": 2465317349203
+        }
+      },
+      "gain_percent": 1.8848822391534403,
+      "control_drift_vs_screen_percent": -0.9622938914302326,
+      "two_order_geomean_gain_percent": 1.7886502959526984
+    }
+  ],
+  "swapouts": 0
+}

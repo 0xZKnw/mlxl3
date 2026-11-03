@@ -1,0 +1,53 @@
+{
+  "status": "recorded",
+  "epoch": 1793135645.533726,
+  "target_pid": 96645,
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "System Trace",
+    "--instrument",
+    "Disk I/O Latency",
+    "--attach",
+    "96645",
+    "--time-limit",
+    "6s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/io-system/capture.trace"
+  ],
+  "native_exit": 0,
+  "trace_exit": 0,
+  "iterations": [
+    {
+      "start_ns": 1793135648615238000,
+      "end_ns": 1793135648718785000,
+      "bytes_read": 134217728,
+      "bytes_written": 134217728,
+      "parity": "byte_exact",
+      "iteration": 0
+    },
+    {
+      "start_ns": 1793135649228927000,
+      "end_ns": 1793135649347451000,
+      "bytes_read": 134217728,
+      "bytes_written": 134217728,
+      "parity": "byte_exact",
+      "iteration": 1
+    },
+    {
+      "start_ns": 1793135649857598000,
+      "end_ns": 1793135649960518000,
+      "bytes_read": 134217728,
+      "bytes_written": 134217728,
+      "parity": "byte_exact",
+      "iteration": 2
+    }
+  ],
+  "elapsed_s": 7.998567292001098,
+  "native_reaped": true,
+  "trace_reaped": true,
+  "scratch_removed": true,
+  "physical_block_rows": 0,
+  "physical_io_sensor_qualified": false
+}

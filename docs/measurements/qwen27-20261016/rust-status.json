@@ -1,0 +1,54 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--check"
+    ],
+    "returncode": 0,
+    "seconds": 0.3338670419761911
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "returncode": 0,
+    "seconds": 12.736169415991753
+  },
+  {
+    "name": "rust-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "returncode": 0,
+    "seconds": 69.96068820799701
+  },
+  {
+    "name": "build-engine",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "returncode": 0,
+    "seconds": 39.212267874972895
+  }
+]

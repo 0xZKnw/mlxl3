@@ -1,0 +1,798 @@
+{
+  "observed_utc": "2026-10-26T08:51:29.161545+00:00",
+  "run_id": 40241842056,
+  "head_sha": "174f4935029e7bafaf66e7b5cdb8a2c8a81e00a2",
+  "status": "completed",
+  "conclusion": "failure",
+  "run_attempt": 1,
+  "jobs": [
+    {
+      "id": 121315116334,
+      "name": "kani",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-10-25T22:47:46Z",
+      "completed_at": "2026-10-25T22:54:43Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-25T22:47:47Z",
+          "completed_at": "2026-10-25T22:47:48Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-25T22:47:48Z",
+          "completed_at": "2026-10-25T22:48:00Z"
+        },
+        {
+          "name": "Verify validated API token usage with Kani",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-25T22:48:00Z",
+          "completed_at": "2026-10-25T22:49:01Z"
+        },
+        {
+          "name": "Verify Rust safety contracts with Kani",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "number": 4,
+          "started_at": "2026-10-25T22:49:01Z",
+          "completed_at": "2026-10-25T22:54:42Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8,
+          "started_at": "2026-10-25T22:54:42Z",
+          "completed_at": "2026-10-25T22:54:42Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-25T22:54:42Z",
+          "completed_at": "2026-10-25T22:54:42Z"
+        }
+      ]
+    },
+    {
+      "id": 121315116547,
+      "name": "native (ubuntu-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-25T22:47:46Z",
+      "completed_at": "2026-10-25T22:53:53Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-25T22:47:47Z",
+          "completed_at": "2026-10-25T22:47:48Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-25T22:47:48Z",
+          "completed_at": "2026-10-25T22:48:00Z"
+        },
+        {
+          "name": "Install Rust tooling",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-25T22:48:00Z",
+          "completed_at": "2026-10-25T22:48:08Z"
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-25T22:48:08Z",
+          "completed_at": "2026-10-25T22:48:09Z"
+        },
+        {
+          "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-25T22:48:09Z",
+          "completed_at": "2026-10-25T22:48:34Z"
+        },
+        {
+          "name": "Run cargo test --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-25T22:48:34Z",
+          "completed_at": "2026-10-25T22:49:52Z"
+        },
+        {
+          "name": "Run cargo build --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-25T22:49:52Z",
+          "completed_at": "2026-10-25T22:49:55Z"
+        },
+        {
+          "name": "Check Metal cache key ordering and allocation regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-25T22:49:55Z",
+          "completed_at": "2026-10-25T22:50:02Z"
+        },
+        {
+          "name": "Check SSD ranges, actual I/O bytes and failure draining",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 9,
+          "started_at": "2026-10-25T22:50:02Z",
+          "completed_at": "2026-10-25T22:50:02Z"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-25T22:50:02Z",
+          "completed_at": "2026-10-25T22:50:02Z"
+        },
+        {
+          "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-25T22:50:02Z",
+          "completed_at": "2026-10-25T22:50:08Z"
+        },
+        {
+          "name": "Lint native verification scripts and regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-25T22:50:08Z",
+          "completed_at": "2026-10-25T22:52:17Z"
+        },
+        {
+          "name": "Check bridge and QMM validation tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-25T22:52:17Z",
+          "completed_at": "2026-10-25T22:53:45Z"
+        },
+        {
+          "name": "Check process memory report analyzer (CPU only)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-25T22:53:45Z",
+          "completed_at": "2026-10-25T22:53:46Z"
+        },
+        {
+          "name": "Check factorial small-M profile and promotion gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-25T22:53:46Z",
+          "completed_at": "2026-10-25T22:53:46Z"
+        },
+        {
+          "name": "Check LFM2.5 quality evaluator and subprocess failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-25T22:53:46Z",
+          "completed_at": "2026-10-25T22:53:48Z"
+        },
+        {
+          "name": "Check idle-memory benchmark failure and parity gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-25T22:53:48Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Check process-memory encoding against the Apple SDK without a GPU",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 18,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 19,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 20,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Check EXL3 lane layout CPU state and Tune key",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 41,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:50Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 42,
+          "started_at": "2026-10-25T22:53:50Z",
+          "completed_at": "2026-10-25T22:53:51Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 43,
+          "started_at": "2026-10-25T22:53:51Z",
+          "completed_at": "2026-10-25T22:53:51Z"
+        }
+      ]
+    },
+    {
+      "id": 121315116567,
+      "name": "native (macos-26)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-25T22:47:46Z",
+      "completed_at": "2026-10-25T23:02:08Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-25T22:47:46Z",
+          "completed_at": "2026-10-25T22:47:46Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-25T22:47:46Z",
+          "completed_at": "2026-10-25T22:48:02Z"
+        },
+        {
+          "name": "Install Rust tooling",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-25T22:48:02Z",
+          "completed_at": "2026-10-25T22:48:03Z"
+        },
+        {
+          "name": "Run cargo fmt --check",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-25T22:48:03Z",
+          "completed_at": "2026-10-25T22:48:03Z"
+        },
+        {
+          "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-25T22:48:03Z",
+          "completed_at": "2026-10-25T22:48:34Z"
+        },
+        {
+          "name": "Run cargo test --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-25T22:48:34Z",
+          "completed_at": "2026-10-25T22:50:04Z"
+        },
+        {
+          "name": "Run cargo build --locked --features chat",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-25T22:50:04Z",
+          "completed_at": "2026-10-25T22:50:08Z"
+        },
+        {
+          "name": "Check Metal cache key ordering and allocation regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-25T22:50:08Z",
+          "completed_at": "2026-10-25T22:50:13Z"
+        },
+        {
+          "name": "Check SSD ranges, actual I/O bytes and failure draining",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-25T22:50:13Z",
+          "completed_at": "2026-10-25T22:50:19Z"
+        },
+        {
+          "name": "Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-25T22:50:19Z",
+          "completed_at": "2026-10-25T22:50:20Z"
+        },
+        {
+          "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11,
+          "started_at": "2026-10-25T22:50:20Z",
+          "completed_at": "2026-10-25T22:50:26Z"
+        },
+        {
+          "name": "Lint native verification scripts and regressions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-25T22:50:26Z",
+          "completed_at": "2026-10-25T22:52:58Z"
+        },
+        {
+          "name": "Check bridge and QMM validation tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-25T22:52:58Z",
+          "completed_at": "2026-10-25T22:54:30Z"
+        },
+        {
+          "name": "Check process memory report analyzer (CPU only)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-25T22:54:30Z",
+          "completed_at": "2026-10-25T22:54:32Z"
+        },
+        {
+          "name": "Check factorial small-M profile and promotion gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-25T22:54:32Z",
+          "completed_at": "2026-10-25T22:54:32Z"
+        },
+        {
+          "name": "Check LFM2.5 quality evaluator and subprocess failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-25T22:54:32Z",
+          "completed_at": "2026-10-25T22:54:34Z"
+        },
+        {
+          "name": "Check idle-memory benchmark failure and parity gates",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-25T22:54:34Z",
+          "completed_at": "2026-10-25T22:54:37Z"
+        },
+        {
+          "name": "Check process-memory encoding against the Apple SDK without a GPU",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-10-25T22:54:37Z",
+          "completed_at": "2026-10-25T22:54:38Z"
+        },
+        {
+          "name": "Compile and lint the shipped MLX bridge",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-25T22:54:38Z",
+          "completed_at": "2026-10-25T22:57:07Z"
+        },
+        {
+          "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20,
+          "started_at": "2026-10-25T22:57:07Z",
+          "completed_at": "2026-10-25T22:59:11Z"
+        },
+        {
+          "name": "Check EXL3 lane layout CPU state and Tune key",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21,
+          "started_at": "2026-10-25T22:59:11Z",
+          "completed_at": "2026-10-25T23:02:04Z"
+        },
+        {
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 41,
+          "started_at": "2026-10-25T23:02:04Z",
+          "completed_at": "2026-10-25T23:02:04Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 42,
+          "started_at": "2026-10-25T23:02:04Z",
+          "completed_at": "2026-10-25T23:02:05Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 43,
+          "started_at": "2026-10-25T23:02:05Z",
+          "completed_at": "2026-10-25T23:02:07Z"
+        }
+      ]
+    },
+    {
+      "id": 121315116607,
+      "name": "kani-flash-contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-10-25T22:47:46Z",
+      "completed_at": "2026-10-25T23:08:38Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-25T22:47:47Z",
+          "completed_at": "2026-10-25T22:47:49Z"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-25T22:47:49Z",
+          "completed_at": "2026-10-25T22:48:00Z"
+        },
+        {
+          "name": "Verify Flash offsets, partition and greedy commits independently",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-25T22:48:00Z",
+          "completed_at": "2026-10-25T23:08:35Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-25T23:08:35Z",
+          "completed_at": "2026-10-25T23:08:35Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-25T23:08:35Z",
+          "completed_at": "2026-10-25T23:08:35Z"
+        }
+      ]
+    }
+  ],
+  "annotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/0xZKnw/mlxl3/blob/174f4935029e7bafaf66e7b5cdb8a2c8a81e00a2/.github",
+      "start_line": 2,
+      "start_column": null,
+      "end_line": 2,
+      "end_column": null,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/0xZKnw/mlxl3/blob/174f4935029e7bafaf66e7b5cdb8a2c8a81e00a2/.github",
+      "start_line": 847,
+      "start_column": null,
+      "end_line": 847,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The operation was canceled.",
+      "raw_details": ""
+    }
+  ],
+  "diagnostic": "runner_shutdown_signal_then_operation_cancelled",
+  "shutdown_log_lines": [
+    "kani\tUNKNOWN STEP\t2026-10-25T22:54:41.3887355Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.",
+    "kani\tUNKNOWN STEP\t2026-10-25T22:54:42.0838940Z ##[error]The operation was canceled."
+  ],
+  "safety_harnesses_started": 45,
+  "safety_harnesses_successful": 44,
+  "safety_harnesses_failed_properties_observed": 0,
+  "safety_harnesses": [
+    {
+      "harness": "codec::verification::exl3_permutation_and_inverse_are_bijections",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:49:35.3640711Z Checking harness codec::verification::exl3_permutation_and_inverse_are_bijections..."
+    },
+    {
+      "harness": "codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:17.7772016Z Checking harness codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile..."
+    },
+    {
+      "harness": "codec::verification::symbolic_pack_indices_stay_inside_one_tile",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:18.1939300Z Checking harness codec::verification::symbolic_pack_indices_stay_inside_one_tile..."
+    },
+    {
+      "harness": "codec::verification::bitrate_validation_accepts_exactly_one_through_eight",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:18.5452102Z Checking harness codec::verification::bitrate_validation_accepts_exactly_one_through_eight..."
+    },
+    {
+      "harness": "codec::verification::reference_header_is_static_and_exactly_gated",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:18.7229331Z Checking harness codec::verification::reference_header_is_static_and_exactly_gated..."
+    },
+    {
+      "harness": "contracts::exl3_lane_order_preserves_shape_and_large_m_fallback",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:18.9179124Z Checking harness contracts::exl3_lane_order_preserves_shape_and_large_m_fallback..."
+    },
+    {
+      "harness": "contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:19.2420212Z Checking harness contracts::exl3_lane_permutation_is_bijective_and_preserves_tile_bounds..."
+    },
+    {
+      "harness": "contracts::exl3_lane_layout_key_distinguishes_options",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:19.3981282Z Checking harness contracts::exl3_lane_layout_key_distinguishes_options..."
+    },
+    {
+      "harness": "contracts::exl3_lane_order_default_and_bounded_explicit_values",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:20.1134449Z Checking harness contracts::exl3_lane_order_default_and_bounded_explicit_values..."
+    },
+    {
+      "harness": "contracts::generation_stop_reason_matches_observed_terminal_event",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:58.7842368Z Checking harness contracts::generation_stop_reason_matches_observed_terminal_event..."
+    },
+    {
+      "harness": "contracts::lfm_context_memory_small_dimensions_match_wide_oracle",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:51:58.9960633Z Checking harness contracts::lfm_context_memory_small_dimensions_match_wide_oracle..."
+    },
+    {
+      "harness": "contracts::lfm_context_conv_matches_f16_history_and_rejects_overflow",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:08.9841451Z Checking harness contracts::lfm_context_conv_matches_f16_history_and_rejects_overflow..."
+    },
+    {
+      "harness": "contracts::lfm_context_attention_matches_f16_shapes_and_rejects_overflow",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:09.4639180Z Checking harness contracts::lfm_context_attention_matches_f16_shapes_and_rejects_overflow..."
+    },
+    {
+      "harness": "contracts::memory_saver_releases_every_unused_buffer",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:09.7685021Z Checking harness contracts::memory_saver_releases_every_unused_buffer..."
+    },
+    {
+      "harness": "contracts::idle_cache_release_preserves_small_working_sets",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:09.9044688Z Checking harness contracts::idle_cache_release_preserves_small_working_sets..."
+    },
+    {
+      "harness": "contracts::verification::qmv_shape_matches_wide_arithmetic",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:10.0890187Z Checking harness contracts::verification::qmv_shape_matches_wide_arithmetic..."
+    },
+    {
+      "harness": "contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:12.0178051Z Checking harness contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles..."
+    },
+    {
+      "harness": "contracts::verification::accepted_data_ranges_are_exact_and_in_bounds",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:14.5831983Z Checking harness contracts::verification::accepted_data_ranges_are_exact_and_in_bounds..."
+    },
+    {
+      "harness": "contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:15.1917872Z Checking harness contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions..."
+    },
+    {
+      "harness": "contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:21.7967066Z Checking harness contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions..."
+    },
+    {
+      "harness": "contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:30.3297624Z Checking harness contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary..."
+    },
+    {
+      "harness": "contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:32.8072403Z Checking harness contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits..."
+    },
+    {
+      "harness": "contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:32.9862561Z Checking harness contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows..."
+    },
+    {
+      "harness": "contracts::verification::gdn_tape_prefix_covers_all_valid_commits",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:33.1852694Z Checking harness contracts::verification::gdn_tape_prefix_covers_all_valid_commits..."
+    },
+    {
+      "harness": "contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:33.3705623Z Checking harness contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch..."
+    },
+    {
+      "harness": "contracts::tensor_source_interval_is_ordered_and_cannot_wrap",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:33.5099873Z Checking harness contracts::tensor_source_interval_is_ordered_and_cannot_wrap..."
+    },
+    {
+      "harness": "contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:33.9281186Z Checking harness contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row..."
+    },
+    {
+      "harness": "contracts::grouped_mb3_preserves_rows_and_all_fallbacks",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:34.5974004Z Checking harness contracts::grouped_mb3_preserves_rows_and_all_fallbacks..."
+    },
+    {
+      "harness": "contracts::flash_reference_batch_has_exact_bounded_coverage",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:35.0820365Z Checking harness contracts::flash_reference_batch_has_exact_bounded_coverage..."
+    },
+    {
+      "harness": "contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:35.3615879Z Checking harness contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes..."
+    },
+    {
+      "harness": "contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:35.5416907Z Checking harness contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries..."
+    },
+    {
+      "harness": "contracts::mtp_add_norm_launch_bounds",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:35.7315899Z Checking harness contracts::mtp_add_norm_launch_bounds..."
+    },
+    {
+      "harness": "contracts::pipeline_layer_has_no_final_or_outside_submission",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:36.0350708Z Checking harness contracts::pipeline_layer_has_no_final_or_outside_submission..."
+    },
+    {
+      "harness": "contracts::mtp_pipeline_default_is_limited_to_measured_target",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:36.2550310Z Checking harness contracts::mtp_pipeline_default_is_limited_to_measured_target..."
+    },
+    {
+      "harness": "contracts::dense_mlp_batch_stays_within_supported_domain",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:36.4098994Z Checking harness contracts::dense_mlp_batch_stays_within_supported_domain..."
+    },
+    {
+      "harness": "contracts::smallm_kernel_key_is_injective",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:36.6581680Z Checking harness contracts::smallm_kernel_key_is_injective..."
+    },
+    {
+      "harness": "contracts::lfm_prefill_end_preserves_context_and_all_block_positions",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:36.8465664Z Checking harness contracts::lfm_prefill_end_preserves_context_and_all_block_positions..."
+    },
+    {
+      "harness": "contracts::lfm_moe_exact_prefill_accepts_only_the_qualified_geometry",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:37.2067155Z Checking harness contracts::lfm_moe_exact_prefill_accepts_only_the_qualified_geometry..."
+    },
+    {
+      "harness": "contracts::lfm_moe_prefill_selection_respects_qualification_and_override",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:37.8572047Z Checking harness contracts::lfm_moe_prefill_selection_respects_qualification_and_override..."
+    },
+    {
+      "harness": "contracts::biased_router_domain_bounds_dispatch",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:38.2137220Z Checking harness contracts::biased_router_domain_bounds_dispatch..."
+    },
+    {
+      "harness": "dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:39.2438539Z Checking harness dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples..."
+    },
+    {
+      "harness": "dflash::verification::alignment_is_monotonic_and_aligned_when_representable",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:39.9078396Z Checking harness dflash::verification::alignment_is_monotonic_and_aligned_when_representable..."
+    },
+    {
+      "harness": "dflash::verification::draft_capture_keeps_full_window_at_both_boundaries",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:40.0688996Z Checking harness dflash::verification::draft_capture_keeps_full_window_at_both_boundaries..."
+    },
+    {
+      "harness": "dflash::dflash_layouts_have_bounded_published_geometry",
+      "success": true,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:40.3379512Z Checking harness dflash::dflash_layouts_have_bounded_published_geometry..."
+    },
+    {
+      "harness": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+      "success": false,
+      "started_log_line": "kani\tUNKNOWN STEP\t2026-10-25T22:52:41.8453279Z Checking harness flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels..."
+    }
+  ],
+  "last_harness_without_result": "flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels",
+  "last_successful_harness": "dflash::dflash_layouts_have_bounded_published_geometry",
+  "counterexample_established": false,
+  "OOM_established": false,
+  "proof_timeout_established": false,
+  "whole_suite_proven": false,
+  "log_acquisition": {
+    "direct_endpoint": "gh refused to print terminal escape sequences; NOT HTTP404",
+    "alternative_command": "gh run view 40241842056 --repo 0xZKnw/mlxl3 --job 121315116334 --log",
+    "exit_code": 0,
+    "path": "kani-gh.log",
+    "bytes": 211350,
+    "sha256": "8d9df392c8e3977c468f8836700f8304a4896bf1a71b78f3e1099e97f93dae7d"
+  },
+  "rerun_build_GPU_workflow_change": false
+}

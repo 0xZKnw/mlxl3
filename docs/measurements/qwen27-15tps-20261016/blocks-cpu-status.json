@@ -1,0 +1,134 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 3.432960749953054
+    },
+    {
+      "name": "kani-guard",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "output_blocks_keep_every_tile_and_token_inside_vocabulary"
+      ],
+      "status": "passed",
+      "timeout_seconds": 120,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 9.212711000000127
+    },
+    {
+      "name": "kani-map",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--no-default-features",
+        "--harness",
+        "compact_draft_ids_stay_sorted_and_inside_target_vocabulary"
+      ],
+      "status": "passed",
+      "timeout_seconds": 120,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 4.022423999966122
+    },
+    {
+      "name": "kani-array",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--features",
+        "mlx,chat",
+        "--harness",
+        "output_blocks_real_array_api"
+      ],
+      "status": "failed",
+      "timeout_seconds": 60,
+      "exit_code": 1,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 2.887416083016433
+    },
+    {
+      "name": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "status": "passed",
+      "timeout_seconds": 30,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 0.27014108293224126
+    },
+    {
+      "name": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "timeout_seconds": 240,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 44.1356832080055
+    },
+    {
+      "name": "build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "status": "passed",
+      "timeout_seconds": 180,
+      "exit_code": 0,
+      "timed_out": false,
+      "reaped": true,
+      "seconds": 0.08699987491127104
+    }
+  ],
+  "sources": {
+    "native/src/contracts.rs": "b27d8b1633b5cf1ebb662ebf53c1f4ad7bf946f4eaef183df7223f0d259c357b",
+    "native/src/linear.rs": "e43960db47f4127de22bb86b6b11e7577a47999a03f2e57b0a93570c7afa39d1",
+    "native/src/lfm2.rs": "cbe2f0bc22cee446d595525249262aa89d28a9b4868e04d8858feb3dff25449d",
+    "native/src/mtp.rs": "c119119636de359668b5094012789de31d8696525adae0f66539bcda0b623367",
+    "native/src/qwen35.rs": "328da58d12e89488679d309aa7a00c3d95224281f1c1faa9f197be1d2ad1948f"
+  },
+  "engine_sha256": "18b5cde33abb86a4cfac36885c489a2303817fa3590849bb0041f3921ae0c633",
+  "test_sha256": "9cc2d75436b4bf0efe2292eb95a45b36ecc7cc6cb4d22b7a03788a7e0976a995"
+}

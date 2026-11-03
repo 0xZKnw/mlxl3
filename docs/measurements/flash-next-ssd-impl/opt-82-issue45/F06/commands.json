@@ -1,0 +1,115 @@
+{
+  "status": "prepared_not_executed",
+  "apply_only_after_parent_integration_and_exact_source_freeze": true,
+  "cpu_test": [
+    "cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "flash_support::flash_top10_early_exit_never_changes_other_router_domains",
+    "--",
+    "--exact"
+  ],
+  "kani_cpu": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "flash_top10_early_exit_is_confined_to_requested_flash_geometry"
+    ],
+    "scope": "Actual production eligibility gate only, full i32/usize/bool symbolic, no assume; four covers. Not a top-K/MSL proof.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "kani_mlx": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_top10_early_exit_preserves_a_symbolic_input"
+    ],
+    "scope": "Actual MLX path with one arbitrary f32 bit pattern among511 ones; IDs and scores. Unwind513, three covers; unsupported intrinsics/FFI/timeout remain unverified. No Metal abstraction/stub.",
+    "timeout_seconds": 180,
+    "process_tree_rss_limit_bytes": 4294967296
+  },
+  "kani_bounded_runner": null,
+  "native_tests": [
+    "router::flash_top10_tests::flash_top10_early_exit_matches_independent_ranks_and_legacy_scores",
+    "router::flash_top10_tests::flash_top10_early_exit_rejects_invalid_metadata_and_preserves_other_domains",
+    "ssd_moe::top10_early_exit_tests::top10_early_exit_preserves_real_routes_and_normalization",
+    "ssd_moe::top10_early_exit_tests::top10_early_exit_flag_reaches_production_loader",
+    "ssd_moe::tests::two_route_rows_match_oracle_with_cold_hot_small_caches_and_failed_reads",
+    "ssd_moe::hybrid_tests::unique_windows_preserve_outputs_pending_slots_and_greedy_fallback",
+    "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+    "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states"
+  ],
+  "native_arguments": [
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "loader_test_processes_required": [
+    "MLXL3_SSD_TOP10_EARLY_EXIT absent",
+    "MLXL3_SSD_TOP10_EARLY_EXIT=0",
+    "MLXL3_SSD_TOP10_EARLY_EXIT=1"
+  ],
+  "bridge": {
+    "script": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_dflash2.py",
+    "args": [
+      "<frozen-engine>",
+      "<target>",
+      "<draft>",
+      "--timeout",
+      "840",
+      "--skip-tune",
+      "--output",
+      "<new-checks.json>"
+    ],
+    "environment": {
+      "MLXL3_SSD_TOP10_EARLY_EXIT": "1",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "1"
+    },
+    "unset": [
+      "MLXL3_FLASH_DRAFT_WIDTH"
+    ],
+    "expected_complete_checks": 43
+  },
+  "required_text": {
+    "component": [
+      "FLASH_TOP10_EARLY_EXIT cases=256 independent_ranks=true scores=byte_exact ties=true nan=true signed_zero=true strides=true"
+    ],
+    "metadata": [
+      "FLASH_TOP10_EARLY_EXIT_ERRORS fallbacks=6 invalid_metadata=true recovery=true"
+    ],
+    "real_routes": [
+      "SSD_TOP10_EARLY_EXIT cases=384 layers=48 inputs=2 f16_f32=true strides=true ids_scores=byte_exact"
+    ],
+    "loader_false": [
+      "SSD_TOP10_EARLY_EXIT_LOADER configured=false environment_mutated=false"
+    ],
+    "loader_true": [
+      "SSD_TOP10_EARLY_EXIT_LOADER configured=true environment_mutated=false"
+    ]
+  },
+  "engine_sha256": null,
+  "native_tests_sha256": null,
+  "integration_source_sha256": null,
+  "invalid_flags_via_cli_processes": [
+    "",
+    "2",
+    "true",
+    "false",
+    "01",
+    "-1",
+    " 1",
+    "1 "
+  ],
+  "nonunicode_via_posix_cli_environment": "\\udcff must be an escaped JSON surrogate decoded by Python/POSIX as byte0xff; no current-process environment mutation",
+  "loadonce_validation": "Static review: the sole environment read is in SsdMoe::load; routing reads only its stored boolean. No dynamic post-load mutation is claimed."
+}

@@ -1,0 +1,64 @@
+{
+  "label": "B",
+  "index": 2,
+  "mtp_depth": 0,
+  "dflash_mode": 1,
+  "status": "failed",
+  "conditions": {
+    "recorded_at_unix": 1791580214.103848,
+    "power": {
+      "returncode": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t38%; discharging; 4:10 remaining present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "returncode": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "returncode": 0,
+      "stdout": "vm.swapusage: total = 8192.00M  used = 7352.81M  free = 839.19M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "prompts": {
+    "short": {
+      "runs": []
+    }
+  },
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "dflash_configure_supported": true,
+    "dflash_family": "qwen36_moe",
+    "dflash_supported": true,
+    "dflash_tune_supported": true,
+    "dflash_tuning_key": "f90cb83f932cfa8c:1.4.3:db52b7304a05-dirty:release:0.32.2:Apple M5:4096:pipeline=off:lookup=0:dflash-v4:copy=0",
+    "load_seconds": 9.227190167,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw",
+    "model_context_limit": 262144,
+    "modules": 30971,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "f90cb83f932cfa8c:1.4.3:db52b7304a05-dirty:release:0.32.2:Apple M5:4096:pipeline=off:lookup=0",
+    "resident_gb": 13.064371907,
+    "runtime_commit": "db52b7304a05-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.3",
+    "type": "ready"
+  },
+  "ready_seconds": 9.661066250002477,
+  "error": {
+    "type": "TimeoutError",
+    "message": "native process timed out waiting for JSON"
+  }
+}

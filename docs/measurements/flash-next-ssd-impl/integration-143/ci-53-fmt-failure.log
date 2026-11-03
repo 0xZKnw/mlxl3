@@ -1,0 +1,161 @@
+﻿2026-10-12T08:57:05.7371130Z Current runner version: '2.337.0'
+2026-10-12T08:57:05.7408580Z ##[group]Runner Image Provisioner
+2026-10-12T08:57:05.7409440Z Hosted Compute Agent
+2026-10-12T08:57:05.7410020Z Version: 20260828.587
+2026-10-12T08:57:05.7410710Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-10-12T08:57:05.7412030Z Build Date: 2026-08-28T16:44:25Z
+2026-10-12T08:57:05.7414650Z Worker ID: {dd4ab79a-43bb-437f-9c78-8a4d4c177dfe}
+2026-10-12T08:57:05.7417100Z Azure Region: westus
+2026-10-12T08:57:05.7417960Z ##[endgroup]
+2026-10-12T08:57:05.7420030Z ##[group]Operating System
+2026-10-12T08:57:05.7421900Z macOS
+2026-10-12T08:57:05.7423340Z 26.6.2
+2026-10-12T08:57:05.7424540Z 25G83
+2026-10-12T08:57:05.7426100Z ##[endgroup]
+2026-10-12T08:57:05.7428000Z ##[group]Runner Image
+2026-10-12T08:57:05.7428650Z Image: macos-26-arm64
+2026-10-12T08:57:05.7431580Z Version: 20260907.0351.1
+2026-10-12T08:57:05.7435200Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+2026-10-12T08:57:05.7439190Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+2026-10-12T08:57:05.7440860Z ##[endgroup]
+2026-10-12T08:57:05.7441930Z ##[group]GITHUB_TOKEN Permissions
+2026-10-12T08:57:05.7444860Z Contents: read
+2026-10-12T08:57:05.7445620Z Metadata: read
+2026-10-12T08:57:05.7446880Z ##[endgroup]
+2026-10-12T08:57:05.7454270Z Secret source: Actions
+2026-10-12T08:57:05.7456070Z Cache mode: write
+2026-10-12T08:57:05.7456810Z Prepare workflow directory
+2026-10-12T08:57:05.8080720Z Prepare all required actions
+2026-10-12T08:57:05.8135800Z Getting action download info
+2026-10-12T08:57:06.2036630Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-12T08:57:06.5088420Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-12T08:57:06.8458400Z Complete job name: native (macos-26)
+2026-10-12T08:57:06.9281980Z ##[group]Run actions/checkout@v4
+2026-10-12T08:57:06.9282600Z with:
+2026-10-12T08:57:06.9282920Z   repository: 0xZKnw/mlxl3
+2026-10-12T08:57:06.9285910Z   token: ***
+2026-10-12T08:57:06.9286230Z   ssh-strict: true
+2026-10-12T08:57:06.9286570Z   ssh-user: git
+2026-10-12T08:57:06.9286910Z   persist-credentials: true
+2026-10-12T08:57:06.9287280Z   clean: true
+2026-10-12T08:57:06.9287620Z   sparse-checkout-cone-mode: true
+2026-10-12T08:57:06.9288020Z   fetch-depth: 1
+2026-10-12T08:57:06.9288350Z   fetch-tags: false
+2026-10-12T08:57:06.9288690Z   show-progress: true
+2026-10-12T08:57:06.9289030Z   lfs: false
+2026-10-12T08:57:06.9289350Z   submodules: false
+2026-10-12T08:57:06.9289690Z   set-safe-directory: true
+2026-10-12T08:57:06.9290080Z   allow-unsafe-pr-checkout: false
+2026-10-12T08:57:06.9290600Z ##[endgroup]
+2026-10-12T08:57:07.5360130Z Syncing repository: 0xZKnw/mlxl3
+2026-10-12T08:57:07.5361970Z ##[group]Getting Git version info
+2026-10-12T08:57:07.5362720Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+2026-10-12T08:57:07.5363660Z [command]/opt/homebrew/bin/git version
+2026-10-12T08:57:07.6022210Z git version 2.55.0
+2026-10-12T08:57:07.6049630Z ##[endgroup]
+2026-10-12T08:57:07.6061020Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/2432772f-cbc5-47b5-a95f-720df56bb671/.gitconfig'
+2026-10-12T08:57:07.6073090Z Temporarily overriding HOME='/Users/runner/work/_temp/2432772f-cbc5-47b5-a95f-720df56bb671' before making global git config changes
+2026-10-12T08:57:07.6076690Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:57:07.6079610Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-12T08:57:07.6270950Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+2026-10-12T08:57:07.6278780Z ##[group]Initializing the repository
+2026-10-12T08:57:07.6282240Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+2026-10-12T08:57:07.6640940Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-12T08:57:07.6643320Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-12T08:57:07.6644410Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-12T08:57:07.6645070Z hint: call:
+2026-10-12T08:57:07.6645440Z hint:
+2026-10-12T08:57:07.6645890Z hint: 	git config --global init.defaultBranch <name>
+2026-10-12T08:57:07.6646530Z hint:
+2026-10-12T08:57:07.6647060Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-12T08:57:07.6647930Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-12T08:57:07.6648690Z hint:
+2026-10-12T08:57:07.6649150Z hint: 	git branch -m <name>
+2026-10-12T08:57:07.6649590Z hint:
+2026-10-12T08:57:07.6650120Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-12T08:57:07.6650910Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+2026-10-12T08:57:07.6659480Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+2026-10-12T08:57:07.6764210Z ##[endgroup]
+2026-10-12T08:57:07.6765140Z ##[group]Disabling automatic garbage collection
+2026-10-12T08:57:07.6767590Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-12T08:57:07.6858530Z ##[endgroup]
+2026-10-12T08:57:07.6860630Z ##[group]Setting up auth
+2026-10-12T08:57:07.6871210Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:57:07.7040400Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-12T08:57:07.8622490Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:57:07.8717750Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-12T08:57:08.0259050Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:57:08.0862650Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-12T08:57:08.2295030Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-12T08:57:08.2393160Z ##[endgroup]
+2026-10-12T08:57:08.2396250Z ##[group]Fetching the repository
+2026-10-12T08:57:08.2400030Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5be7583080feb9d359a4671e2a7e80c2fab19c17:refs/remotes/pull/34/merge
+2026-10-12T08:57:09.8654160Z From https://github.com/0xZKnw/mlxl3
+2026-10-12T08:57:09.8658390Z  * [new ref]         5be7583080feb9d359a4671e2a7e80c2fab19c17 -> pull/34/merge
+2026-10-12T08:57:09.8664880Z ##[endgroup]
+2026-10-12T08:57:09.8667580Z ##[group]Determining the checkout info
+2026-10-12T08:57:09.8670340Z ##[endgroup]
+2026-10-12T08:57:09.8677530Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-12T08:57:09.8819790Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-12T08:57:09.8916620Z ##[group]Checking out the ref
+2026-10-12T08:57:09.8922200Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/34/merge
+2026-10-12T08:57:10.5582270Z HEAD is now at 5be7583 Merge 53dfc42fbe54ff634fe5bb02398682d18d21e859 into b4dfd3915e262b2d33581102ae3320042acee5c9
+2026-10-12T08:57:10.5644240Z ##[endgroup]
+2026-10-12T08:57:10.5773570Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-12T08:57:10.5880560Z 5be7583080feb9d359a4671e2a7e80c2fab19c17
+2026-10-12T08:57:10.6243610Z ##[group]Run rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+2026-10-12T08:57:10.6244370Z [36;1mrustup toolchain install stable --profile minimal --component rustfmt --component clippy[0m
+2026-10-12T08:57:10.6245290Z [36;1mrustup default stable[0m
+2026-10-12T08:57:10.6298410Z shell: /bin/bash -e {0}
+2026-10-12T08:57:10.6298790Z ##[endgroup]
+2026-10-12T08:57:11.1516390Z info: syncing channel updates for stable-aarch64-apple-darwin
+2026-10-12T08:57:11.3038350Z info: latest update on 2026-10-01 for version 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T08:57:11.3165870Z info: removing previous version of component clippy
+2026-10-12T08:57:11.3237570Z info: removing previous version of component rustfmt
+2026-10-12T08:57:11.3285400Z info: removing previous version of component cargo
+2026-10-12T08:57:11.3388340Z info: removing previous version of component rust-std
+2026-10-12T08:57:11.3577450Z info: removing previous version of component rustc
+2026-10-12T08:57:11.3752960Z info: downloading 5 components
+2026-10-12T08:57:20.0902870Z 
+2026-10-12T08:57:20.2357810Z   stable-aarch64-apple-darwin updated - rustc 1.99.0 (b940084d7 2026-09-28) (from rustc 1.98.1 (48a229cea 2026-09-01))
+2026-10-12T08:57:20.2373940Z info: self-update is disabled for this build of rustup
+2026-10-12T08:57:20.2375910Z info: any updates to rustup will need to be fetched with your system package manager
+2026-10-12T08:57:20.2376780Z 
+2026-10-12T08:57:20.3408960Z info: using existing install for stable-aarch64-apple-darwin
+2026-10-12T08:57:20.3442660Z info: default toolchain set to stable-aarch64-apple-darwin
+2026-10-12T08:57:20.3443390Z 
+2026-10-12T08:57:20.3961900Z   stable-aarch64-apple-darwin unchanged - rustc 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T08:57:20.3962740Z 
+2026-10-12T08:57:20.4178320Z ##[group]Run cargo fmt --check
+2026-10-12T08:57:20.4179180Z [36;1mcargo fmt --check[0m
+2026-10-12T08:57:20.4286600Z shell: /bin/bash -e {0}
+2026-10-12T08:57:20.4287930Z ##[endgroup]
+2026-10-12T08:57:21.0985900Z Diff in /Users/runner/work/mlxl3/mlxl3/native/src/lib.rs:8:
+2026-10-12T08:57:21.0986620Z  mod contracts;
+2026-10-12T08:57:21.0991610Z  pub use contracts::{reusable_prefix_len, smallm_kernel_key};
+2026-10-12T08:57:21.0992030Z  pub mod dflash;
+2026-10-12T08:57:21.0992330Z -pub mod flash_support;
+2026-10-12T08:57:21.0992650Z  #[cfg(feature = "mlx")]
+2026-10-12T08:57:21.0992890Z  pub(crate) mod embedding;
+2026-10-12T08:57:21.0993250Z +pub mod flash_support;
+2026-10-12T08:57:21.0993520Z  #[cfg(feature = "mlx")]
+2026-10-12T08:57:21.0993810Z  pub mod gated_delta;
+2026-10-12T08:57:21.0994180Z  #[cfg(feature = "mlx")]
+2026-10-12T08:57:21.4480390Z ##[error]Process completed with exit code 1.
+2026-10-12T08:57:21.4797310Z Post job cleanup.
+2026-10-12T08:57:21.7148710Z [command]/opt/homebrew/bin/git version
+2026-10-12T08:57:21.7493930Z git version 2.55.0
+2026-10-12T08:57:21.7521530Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/31dd94c6-e22a-494e-b641-3d78e0ddcc5d/.gitconfig'
+2026-10-12T08:57:21.7533820Z Temporarily overriding HOME='/Users/runner/work/_temp/31dd94c6-e22a-494e-b641-3d78e0ddcc5d' before making global git config changes
+2026-10-12T08:57:21.7535310Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T08:57:21.7542980Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-12T08:57:21.7769260Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T08:57:21.7903200Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-12T08:57:22.0208810Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T08:57:22.0313630Z http.https://github.com/.extraheader
+2026-10-12T08:57:22.0323920Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-12T08:57:22.0445750Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-12T08:57:22.1950700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T08:57:22.2105230Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-12T08:57:22.4188180Z Cleaning up orphan processes
+2026-10-12T08:57:22.6174890Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

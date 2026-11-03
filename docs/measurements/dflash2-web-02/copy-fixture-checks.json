@@ -1,0 +1,45 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-fixture-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.40738512499956414
+    },
+    {
+      "name": "copy-fixture-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.8378267500083894
+    },
+    {
+      "name": "copy-fixture-full",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 38.94419391697738
+    }
+  ]
+}

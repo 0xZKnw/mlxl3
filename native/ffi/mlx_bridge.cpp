@@ -1,9 +1,14 @@
 // Thin, exception-contained C ABI over the same MLX backend as the reference.
+#define NS_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <map>
@@ -17,6 +22,13 @@
 #include <unistd.h>
 #include <libproc.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
+#include <sys/uio.h>
+#include "kernel_cache_key.h"
+#include "metal_os_capabilities.h"
+#include "disk_reader.h"
+#include "disk_read_batch.h"
+#include "process_memory.h"
 #include "mlx/array.h"
 #include "mlx/backend/metal/metal.h"
 #include "mlx/compile.h"
@@ -26,13 +38,19 @@
 #include "mlx/transforms.h"
 #include "mlx/memory.h"
 #include "mlx/version.h"
-#include "lossless_embedding.h"
+#include "prepared_metal.h"
 
 namespace mx = mlx::core;
 static_assert(MLX_VERSION_MAJOR == 0 && MLX_VERSION_MINOR == 32 && MLX_VERSION_PATCH == 2,
               "MLXL3 native requires MLX headers 0.32.2");
 namespace {
 thread_local std::array<char, 2048> last_error{};
+thread_local bool disk_profile_enabled = false;
+thread_local bool disk_profile_dynamic = false;
+thread_local std::vector<mlxl3::DiskTiming> disk_profile;
+thread_local size_t held_disk_batch_job = std::numeric_limits<size_t>::max();
+thread_local bool readback_profile_enabled = false;
+thread_local std::array<uint64_t, 8> readback_profile{};
 template<class F> int protect(F&& f) noexcept {
   last_error[0] = 0;
   try { f(); return 0; }
@@ -114,19 +132,56 @@ std::vector<std::string> strings(const char* const* p, size_t n) {
   for (size_t i = 0; i < n; ++i) result.emplace_back(p[i]);
   return result;
 }
+struct PreparedDiskRead {
+  std::vector<mx::array> owners;
+  std::vector<mlxl3::DiskRead> reads;
+};
+struct PreparedDiskBatch {
+  // Destruction is reversed: batch joins before the MLX owners are released.
+  std::vector<mx::array> owners;
+  std::unique_ptr<mlxl3::DiskReadBatch> batch;
+};
 }
 
 extern "C" {
 const char* mlxl3_mlx_error() noexcept { return last_error.data(); }
+int mlxl3_metal_os_capabilities(uint32_t* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null Metal capability output");
+    // Query the running OS without initializing MLX, submitting GPU work or
+    // introducing a compiler-rt availability symbol into Rust's native link.
+    std::array<char, mlxl3::metal_os_version_capacity> version{};
+    size_t bytes = version.size();
+    if (sysctlbyname("kern.osproductversion", version.data(), &bytes, nullptr, 0) != 0)
+      throw std::runtime_error(std::string("reading macOS product version failed: ") +
+                               std::strerror(errno));
+    const auto flags = mlxl3::metal_os_capabilities(version.data(), bytes);
+    if (!flags) throw std::runtime_error("invalid macOS product version from sysctl");
+    *out = *flags;
+  });
+}
 int mlxl3_synchronize() noexcept {
   return protect([] { mx::synchronize(); });
 }
 int mlxl3_clear_cache() noexcept {
   return protect([] { mx::clear_cache(); });
 }
-int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
+int mlxl3_set_cache_limit(uint64_t bytes) noexcept {
+  return protect([&] { mx::set_cache_limit(bytes); });
+}
+int mlxl3_start_capture(const char* path) noexcept {
   return protect([&] {
-    if (!out) throw std::invalid_argument("null memory statistics output");
+    if (!path || !*path) throw std::invalid_argument("empty Metal capture path");
+    mx::metal::start_capture(path);
+  });
+}
+int mlxl3_stop_capture() noexcept {
+  return protect([] { mx::metal::stop_capture(); });
+}
+int mlxl3_memory_stats(uint64_t* out, size_t count, bool reset_peak) noexcept {
+  return protect([&] {
+    if (!out || count < mlxl3::memory_stats_values)
+      throw std::invalid_argument("memory statistics output requires 12 values");
     if (reset_peak) mx::reset_peak_memory();
     out[0] = mx::get_active_memory();
     out[1] = mx::get_cache_memory();
@@ -134,8 +189,12 @@ int mlxl3_memory_stats(uint64_t* out, bool reset_peak) noexcept {
     rusage_info_v4 usage{};
     const auto ok = proc_pid_rusage(getpid(), RUSAGE_INFO_V4,
                                    reinterpret_cast<rusage_info_t*>(&usage)) == 0;
-    out[3] = ok ? usage.ri_phys_footprint : 0;
-    out[4] = ok ? usage.ri_lifetime_max_phys_footprint : 0;
+    task_vm_info_data_t vm{};
+    mach_msg_type_number_t vm_count = TASK_VM_INFO_COUNT;
+    const auto vm_ok = task_info(mach_task_self(), TASK_VM_INFO,
+        reinterpret_cast<task_info_t>(&vm), &vm_count) == KERN_SUCCESS;
+    const auto process = mlxl3::process_memory_values(usage, ok, vm, vm_count, vm_ok);
+    std::copy(process.begin(), process.end(), out + 3);
   });
 }
 int mlxl3_mlx_init(const char* metallib) noexcept {
@@ -171,53 +230,49 @@ int mlxl3_array_retained_bytes(void* p, uint64_t* out) noexcept {
     *out = a.size() ? a.buffer_size() : 0;
   });
 }
-// Original BF16 bits, variable exponent width per block. No quantization.
-// A null pair means that keeping the dense table is smaller or more practical.
-int mlxl3_pack_bf16_embedding(void* p, void** out) noexcept {
+// Lossless F16 bit packing. No arithmetic/quantization on the stored values.
+int mlxl3_pack_embedding(void* p, void** out) noexcept {
   return protect([&] {
     if (!out) throw std::invalid_argument("null packed embedding output");
-    out[0] = nullptr; out[1] = nullptr;
     auto& a = arr(p);
-    if (a.dtype() != mx::bfloat16 || a.ndim() != 2 || a.shape(0) <= 0 ||
-        a.shape(1) <= 0 || a.shape(1) % 128)
-      throw std::invalid_argument("packed embedding requires BF16 [vocab, width divisible by128]");
+    if (a.dtype() != mx::float16 || a.ndim() != 2 || a.shape(0) <= 0 ||
+        a.shape(1) <= 0 || a.shape(1) % 128 != 0)
+      throw std::invalid_argument("packed embedding requires F16 [vocab, width divisible by128]");
     mx::eval(a);
-    if (!a.flags().row_contiguous)
-      throw std::invalid_argument("embedding must be contiguous");
+    if (!a.flags().row_contiguous) throw std::invalid_argument("embedding must be contiguous");
     const size_t count = a.size(), blocks = count / 128;
-    if (blocks > size_t(INT32_MAX) / 2) return;
-    auto metadata = allocated_array({int32_t(blocks * 2)}, mx::uint32);
-    auto* meta = metadata->data<uint32_t>();
+    if (count > size_t(INT32_MAX) * 32 / 13 || blocks > size_t(UINT32_MAX) / 12)
+      throw std::invalid_argument("packed embedding too large");
+    auto offsets = allocated_array({int32_t(blocks)}, mx::uint32);
+    auto* positions = offsets->data<uint32_t>();
     const auto* input = a.data<uint16_t>();
-    size_t total = 0;
-    for (size_t b = 0; b < blocks; ++b) {
-      uint8_t low = 255, high = 0;
-      for (size_t i = 0; i < 128; ++i) {
-        uint8_t exponent = uint8_t((input[b * 128 + i] >> 7) & 255);
-        low = std::min(low, exponent); high = std::max(high, exponent);
-      }
-      uint8_t width = mlxl3_exponent_width(low, high);
-      meta[2 * b] = uint32_t(total);
-      meta[2 * b + 1] = uint32_t(low) | (uint32_t(width) << 8);
-      total += 128 + 16 * size_t(width);
-      // MLX array dimensions and device offsets are explicitly bounded.
-      if (total > size_t(INT32_MAX)) return;
+    size_t tail_words = 0;
+    for (size_t block = 0; block < blocks; ++block) {
+      bool has_low = false;
+      for (size_t i = 0; i < 128; ++i) has_low |= (input[block * 128 + i] & 7) != 0;
+      positions[block] = has_low ? uint32_t(tail_words) : UINT32_MAX;
+      if (has_low) tail_words += 12;
     }
-    if (total + metadata->nbytes() >= a.nbytes()) return;
-    auto payload = allocated_array({int32_t(total)}, mx::uint8);
-    auto* bytes = payload->data<uint8_t>();
-    std::memset(bytes, 0, total);
-    for (size_t b = 0; b < blocks; ++b) {
-      uint8_t* block = bytes + meta[2 * b];
-      uint8_t low = uint8_t(meta[2 * b + 1]), width = uint8_t(meta[2 * b + 1] >> 8);
-      for (uint32_t i = 0; i < 128; ++i) {
-        uint16_t value = input[b * 128 + i];
-        block[i] = uint8_t((value & 127) | ((value >> 8) & 128));
-        uint8_t delta = uint8_t(((value >> 7) & 255) - low);
-        mlxl3_pack_exponent(block + 128, i, width, delta);
+    const size_t main_words = (count * 13 + 31) / 32;
+    auto main = allocated_array({int32_t(main_words)}, mx::uint32);
+    auto tail = allocated_array({int32_t(std::max(size_t(1), tail_words))}, mx::uint32);
+    auto* hi = main->data<uint32_t>();
+    auto* lo = tail->data<uint32_t>();
+    std::memset(hi, 0, main->nbytes()); std::memset(lo, 0, tail->nbytes());
+    for (size_t i = 0; i < count; ++i) {
+      const size_t bit = i * 13, word = bit / 32, shift = bit % 32;
+      const uint32_t value = input[i] >> 3;
+      hi[word] |= value << shift;
+      if (shift > 19) hi[word + 1] |= value >> (32 - shift);
+      const auto base = positions[i / 128];
+      if (base != UINT32_MAX) {
+        const size_t low_bit = (i % 128) * 3, low_word = base + low_bit / 32, low_shift = low_bit % 32;
+        const uint32_t low = input[i] & 7;
+        lo[low_word] |= low << low_shift;
+        if (low_shift > 29) lo[low_word + 1] |= low >> (32 - low_shift);
       }
     }
-    out[0] = payload.release(); out[1] = metadata.release();
+    out[0] = main.release(); out[1] = offsets.release(); out[2] = tail.release();
   });
 }
 int mlxl3_array_metadata(void* p, size_t* rank, const int32_t** dims, int* type) noexcept {
@@ -243,6 +298,197 @@ int mlxl3_array_from_file(int fd, uint64_t offset, const int32_t* dims,
     pread_exact(fd, offset, *output);
     *out = output.release();
   });
+}
+void mlxl3_disk_profile_enable(bool enabled) noexcept {
+  disk_profile_enabled = enabled;
+  disk_profile_dynamic = false;
+  disk_profile.clear();
+}
+size_t mlxl3_disk_profile_copy(uint64_t* output, size_t capacity) noexcept {
+  const auto count = disk_profile.size() * 6;
+  if (!output || capacity < count) return count;
+  size_t i = 0;
+  for (const auto& t : disk_profile)
+    for (auto v : {t.job, t.worker, t.start_ns, t.end_ns, t.bytes, t.failed}) output[i++] = v;
+  return count;
+}
+bool mlxl3_disk_profile_dynamic() noexcept { return disk_profile_dynamic; }
+int mlxl3_arrays_preadv(const int* fds, const uint64_t* offsets, size_t records,
+                        void* const* buffers, size_t buffer_count,
+                        const size_t* indices, const size_t* starts,
+                        const size_t* lengths, size_t segments, size_t workers) noexcept {
+  return protect([&] {
+    disk_profile.clear();
+    disk_profile_dynamic = false;
+    if (!fds || !offsets || !buffers || !indices || !starts || !lengths ||
+        !records || records > 512 || !segments || segments > 64 || !workers || workers > 4)
+      throw std::invalid_argument("invalid disk reader metadata");
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (size_t i = 0; i < buffer_count; ++i) {
+      auto& a = arr(buffers[i]);
+      a.eval();
+      if (!a.flags().row_contiguous) throw std::invalid_argument("noncontiguous disk buffer");
+      pointers.push_back(a.data<uint8_t>());
+      capacities.push_back(a.nbytes());
+    }
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        auto i = r * segments + s;
+        auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
+      }
+      reads.push_back(std::move(read));
+    }
+    // Fixed for this thread/process; use separate processes for the two A/B arms.
+    // Persistent speculative readers retain their existing scheduling policy.
+    thread_local const auto requested = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
+    const auto schedule = mlxl3::effective_disk_schedule(requested, records, workers);
+    disk_profile_dynamic = schedule == mlxl3::DiskSchedule::Dynamic;
+    mlxl3::read_disk_records(reads, workers, disk_profile_enabled ? &disk_profile : nullptr, schedule);
+  });
+}
+void mlxl3_disk_batch_hold_job_for_test(size_t job) noexcept { held_disk_batch_job = job; }
+int mlxl3_disk_batch_begin(const int* fds, const uint64_t* offsets, size_t records,
+                          void* const* buffers, size_t buffer_count, const size_t* indices,
+                          const size_t* starts, const size_t* lengths, size_t segments,
+                          size_t workers, void** out) noexcept {
+  const auto held_job = held_disk_batch_job;
+  held_disk_batch_job = std::numeric_limits<size_t>::max();
+  return protect([&] {
+    if (!fds || !offsets || !buffers || !buffer_count || !indices || !starts || !lengths ||
+        !out || !records || records > 512 || !segments || segments > 64 ||
+        !workers || workers > 4)
+      throw std::invalid_argument("invalid async disk reader metadata");
+    *out = nullptr;
+    auto prepared = std::make_unique<PreparedDiskBatch>();
+    prepared->owners = arrays(buffers, buffer_count);
+    std::vector<uint8_t*> pointers;
+    std::vector<size_t> capacities;
+    for (auto& owner : prepared->owners) {
+      owner.eval();
+      if (!owner.flags().row_contiguous)
+        throw std::invalid_argument("noncontiguous async disk buffer");
+      pointers.push_back(owner.data<uint8_t>());
+      capacities.push_back(owner.nbytes());
+    }
+    std::vector<mlxl3::DiskRead> reads;
+    reads.reserve(records);
+    for (size_t r = 0; r < records; ++r) {
+      mlxl3::DiskRead read{fds[r], offsets[r], {}};
+      read.destinations.reserve(segments);
+      for (size_t s = 0; s < segments; ++s) {
+        const auto i = r * segments + s;
+        const auto bank = indices[i];
+        if (bank >= buffer_count || starts[i] > capacities[bank] ||
+            lengths[i] > capacities[bank] - starts[i])
+          throw std::invalid_argument("invalid async disk destination range");
+        read.destinations.push_back({pointers[bank] + starts[i], lengths[i]});
+      }
+      reads.push_back(std::move(read));
+    }
+    disk_profile.clear();
+    disk_profile_dynamic = false;
+    thread_local const auto requested = mlxl3::disk_schedule(std::getenv("MLXL3_SSD_DYNAMIC_READERS"));
+    prepared->batch = std::make_unique<mlxl3::DiskReadBatch>(
+        std::move(reads), workers, disk_profile_enabled, held_job, requested);
+    disk_profile_dynamic = prepared->batch->schedule() == mlxl3::DiskSchedule::Dynamic;
+    *out = prepared.release();
+  });
+}
+int mlxl3_disk_batch_wait_ready(void* opaque, size_t minimum, uint8_t* mask,
+                               size_t count) noexcept {
+  return protect([&] {
+    if (!opaque || !mask) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    if (count != batch.size()) throw std::invalid_argument("invalid async ready mask");
+    const auto ready = batch.wait_ready(minimum);
+    std::copy(ready.begin(), ready.end(), mask);
+  });
+}
+int mlxl3_disk_batch_ready(void* opaque, uint8_t* mask, size_t count) noexcept {
+  return protect([&] {
+    if (!opaque || !mask) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    if (count != batch.size()) throw std::invalid_argument("invalid async ready mask");
+    const auto ready = batch.ready();
+    std::copy(ready.begin(), ready.end(), mask);
+  });
+}
+int mlxl3_disk_batch_finish(void* opaque) noexcept {
+  return protect([&] {
+    if (!opaque) throw std::invalid_argument("null async disk batch");
+    auto& batch = *static_cast<PreparedDiskBatch*>(opaque)->batch;
+    batch.join();
+    disk_profile = batch.timings();
+    disk_profile_dynamic = batch.schedule() == mlxl3::DiskSchedule::Dynamic;
+    batch.finish();
+  });
+}
+void mlxl3_disk_batch_free(void* opaque) noexcept {
+  delete static_cast<PreparedDiskBatch*>(opaque);
+}
+int mlxl3_disk_read_prepare(int fd, uint64_t offset, void* const* buffers, size_t buffer_count,
+                            const size_t* indices, const size_t* starts, const size_t* lengths,
+                            size_t segments, void** out) noexcept {
+  return protect([&] {
+    if (!buffers || !buffer_count || !indices || !starts || !lengths || !out ||
+        !segments || segments > 64)
+      throw std::invalid_argument("invalid persistent disk read");
+    auto prepared = std::make_unique<PreparedDiskRead>();
+    prepared->owners = arrays(buffers, buffer_count);
+    mlxl3::DiskRead read{fd, offset, {}};
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid persistent disk bank");
+      auto& a = prepared->owners[indices[i]];
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid persistent disk range");
+      read.destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    prepared->reads.push_back(std::move(read));
+    mlxl3::validate_disk_reads(prepared->reads);
+    *out = prepared.release();
+  });
+}
+// The main thread retains/frees the owners; this worker entry only touches OS buffers.
+int mlxl3_disk_read_run(void* opaque, uint64_t* bytes) noexcept {
+  if (!opaque || !bytes) return -1;
+  auto& read = static_cast<PreparedDiskRead*>(opaque)->reads.front();
+  const auto status = protect([&] { mlxl3::read_disk_record(read); });
+  *bytes = read.bytes_read;
+  return status;
+}
+void mlxl3_disk_read_free(void* opaque) noexcept {
+  delete static_cast<PreparedDiskRead*>(opaque);
+}
+int mlxl3_arrays_copy_record(const uint8_t* bytes, size_t count, void* const* buffers,
+                            size_t buffer_count, const size_t* indices, const size_t* starts,
+                            const size_t* lengths, size_t segments) noexcept {
+  return protect([&] {
+    if (!bytes || !count || !buffers || !indices || !starts || !lengths || !segments || segments > 64)
+      throw std::invalid_argument("invalid staging metadata");
+    std::vector<iovec> destinations;
+    for (size_t i = 0; i < segments; ++i) {
+      if (indices[i] >= buffer_count) throw std::invalid_argument("invalid staging bank");
+      auto& a = arr(buffers[indices[i]]);
+      a.eval();
+      if (!a.flags().row_contiguous || starts[i] > a.nbytes() || lengths[i] > a.nbytes() - starts[i])
+        throw std::invalid_argument("invalid staging range");
+      destinations.push_back({a.data<uint8_t>() + starts[i], lengths[i]});
+    }
+    mlxl3::copy_disk_record(bytes, count, destinations);
+  });
+}
+int mlxl3_array_async_eval(void* p) noexcept {
+  return protect([&] { mx::async_eval({arr(p)}); });
 }
 int mlxl3_arrays_from_files(const int* fds, const uint64_t* offsets,
                             const int32_t* dims, const size_t* ranks,
@@ -288,7 +534,19 @@ int mlxl3_array_zeros(const int32_t* dims, size_t rank, int type, void** out) no
   return protect([&] { auto s = shape(dims, rank); byte_count(s, dtype(type));
     *out = new mx::array(mx::zeros(s, dtype(type))); });
 }
+int mlxl3_array_uninitialized(const int32_t* dims, size_t rank, int type, void** out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null uninitialized array output");
+    *out = allocated_array(shape(dims, rank), dtype(type)).release();
+  });
+}
 int mlxl3_array_eval(void* p) noexcept { return protect([&] { arr(p).eval(); }); }
+int mlxl3_array_is_available(void* p, int* out) noexcept {
+  return protect([&] {
+    if (!out) throw std::invalid_argument("null availability output");
+    *out = arr(p).is_available() ? 1 : 0;
+  });
+}
 int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
   return protect([&] {
     if (!count) return;
@@ -298,9 +556,49 @@ int mlxl3_arrays_async_eval(void* const* inputs, size_t count) noexcept {
 }
 int mlxl3_array_copy_bytes(void* p, uint8_t* out, size_t count) noexcept {
   return protect([&] {
-    auto a = mx::contiguous(arr(p));
-    if (a.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
-    a.eval(); if (count) std::memcpy(out, a.data<uint8_t>(), count);
+    using Clock = std::chrono::steady_clock;
+    const bool profiling = readback_profile_enabled;
+    if (profiling) readback_profile.fill(0);
+    const auto now = [&] { return profiling ? Clock::now() : Clock::time_point{}; };
+    const auto ns = [](Clock::time_point start, Clock::time_point end) {
+      return uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+    };
+    const auto start = now();
+    auto& source = arr(p);
+    if (source.nbytes() != count) throw std::invalid_argument("output byte count mismatch");
+    if (count && !out) throw std::invalid_argument("null byte output");
+    const bool ready = profiling && source.is_available();
+    const auto read = [&](mx::array& value, bool direct, uint64_t build_ns) {
+      const auto wait_start = now();
+      value.eval();
+      const auto* data = count ? value.data<uint8_t>() : nullptr;
+      const auto copy_start = now();
+      if (count) std::memcpy(out, data, count);
+      const auto end = now();
+      if (profiling)
+        readback_profile = {1, ns(wait_start, copy_start), ns(copy_start, end), build_ns,
+                            uint64_t(count), uint64_t(ready), uint64_t(direct), ns(start, end)};
+    };
+    // A new Contiguous primitive would wait behind unrelated work submitted later.
+    if (source.status() != mx::array::Status::unscheduled && source.flags().row_contiguous) {
+      read(source, true, 0);
+      return;
+    }
+    const auto build_start = now();
+    auto a = mx::contiguous(source);
+    const auto build_end = now();
+    read(a, false, profiling ? ns(build_start, build_end) : 0);
+  });
+}
+void mlxl3_readback_profile_enable(bool enabled) noexcept {
+  readback_profile_enabled = enabled;
+  readback_profile.fill(0);
+}
+int mlxl3_readback_profile_copy(uint64_t* output, size_t count) noexcept {
+  return protect([&] {
+    if (!output || count != readback_profile.size())
+      throw std::invalid_argument("invalid readback profile destination");
+    std::copy(readback_profile.begin(), readback_profile.end(), output);
   });
 }
 // Opcodes stay private to array.rs; every operation returns a fresh owned handle.
@@ -343,6 +641,30 @@ int mlxl3_array_unary(void* p, int operation, const int32_t* args, size_t nargs,
         case 19: return mx::argmax(a, -1, false);
         case 20: return mx::broadcast_to(a, shape(args, nargs));
         case 21: return mx::argsort(a, -1);
+        case 22: return mx::rsqrt(a);
+        case 23: {
+          thread_local auto activate = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::divide(x[0], mx::array(4.0f, x[0].dtype()));
+            return std::vector<mx::array>{mx::multiply(y, mx::sigmoid(y))};
+          }, false);
+          return activate({a})[0];
+        }
+        case 24: {
+          thread_local auto gate = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(mx::array(2.0f, x[0].dtype()), mx::sigmoid(mx::divide(x[0], mx::array(4.0f, x[0].dtype()))))};
+          }, false);
+          return gate({a})[0];
+        }
+        case 25: {
+          auto magnitude = mx::sqrt(mx::maximum(mx::abs(a), mx::array(1e-6f)));
+          return mx::sigmoid(mx::multiply(mx::sign(a), magnitude));
+        }
+        case 26: {
+          thread_local auto silu = mx::compile([](const std::vector<mx::array>& x) {
+            return std::vector<mx::array>{mx::multiply(x[0], mx::sigmoid(x[0]))};
+          }, true);
+          return silu({a})[0];
+        }
       }
       throw std::invalid_argument("invalid unary operation");
     };
@@ -390,6 +712,25 @@ int mlxl3_array_binary(void* lhs, void* rhs, int operation, int arg,
           }, true);
           return geglu({a, b})[0];
         }
+        case 11: {
+          thread_local auto normalize = mx::compile([](const std::vector<mx::array>& x) {
+            auto y = mx::astype(x[0], mx::float32);
+            y = mx::multiply(y, mx::rsqrt(mx::add(mx::mean(mx::square(y), -1, true), x[2])));
+            y = mx::multiply(y, mx::add(mx::array(1.0f), mx::astype(x[1], mx::float32)));
+            return std::vector<mx::array>{mx::astype(y, x[0].dtype())};
+          }, false);
+          return normalize({a, b, mx::array(scalar, mx::float32)})[0];
+        }
+        case 12: {
+          thread_local auto mix = mx::compile([](const std::vector<mx::array>& x) {
+            auto dims = x[0].shape();
+            dims.back() /= 4;
+            dims.insert(dims.end() - 1, 4);
+            return std::vector<mx::array>{mx::mean(mx::multiply(mx::reshape(mx::sigmoid(x[0]), dims), mx::reshape(x[1], dims)), -2, false)};
+          }, false);
+          return mix({a, b})[0];
+        }
+        case 13: return mx::power(a, b);
       }
       throw std::invalid_argument("invalid binary operation");
     };
@@ -410,6 +751,37 @@ int mlxl3_array_affine4(void* x, void* w, void* scales, void* biases,
     *out = new mx::array(std::move(result));
   });
 }
+int mlxl3_array_quantize4(void* input, void** weight, void** scales, void** biases) noexcept {
+  return protect([&] {
+    if (!weight || !scales || !biases) throw std::invalid_argument("null quantization output");
+    const auto& x = arr(input);
+    if (x.ndim() != 2 || x.dtype() != mx::bfloat16 || x.shape(0) <= 0 ||
+        x.shape(1) <= 0 || x.shape(1) % 64)
+      throw std::invalid_argument("Q4 requires BF16 [output,input] with whole groups of 64");
+    if (!mx::all(mx::isfinite(x)).item<bool>()) throw std::invalid_argument("non-finite Q4 weight");
+    auto result = mx::quantize(x, 64, 4, "affine");
+    if (!mx::all(mx::isfinite(result[1])).item<bool>() || !mx::all(mx::isfinite(result[2])).item<bool>())
+      throw std::invalid_argument("non-finite Q4 affine parameters");
+    auto w = std::make_unique<mx::array>(std::move(result[0]));
+    auto s = std::make_unique<mx::array>(std::move(result[1]));
+    auto b = std::make_unique<mx::array>(std::move(result[2]));
+    *weight = w.release(); *scales = s.release(); *biases = b.release();
+  });
+}
+int mlxl3_array_slice_update(void* input, void* update, const int* start,
+                            const int* stop, size_t rank, void** out) noexcept {
+  return protect([&] {
+    if (!out || !start || !stop || !rank || rank != arr(input).ndim() ||
+        rank != arr(update).ndim() || arr(input).dtype() != arr(update).dtype())
+      throw std::invalid_argument("invalid slice update metadata");
+    for (size_t axis = 0; axis < rank; ++axis)
+      if (start[axis] < 0 || stop[axis] < start[axis] || stop[axis] > arr(input).shape(axis) ||
+          stop[axis] - start[axis] != arr(update).shape(axis))
+        throw std::invalid_argument("slice update outside destination");
+    *out = new mx::array(mx::slice_update(arr(input), arr(update),
+                                        mx::Shape(start, start + rank), mx::Shape(stop, stop + rank)));
+  });
+}
 int mlxl3_array_sdpa(void* q, void* k, void* v, float scale, int causal, void** out) noexcept {
   return protect([&] { *out = new mx::array(mx::fast::scaled_dot_product_attention(
     arr(q), arr(k), arr(v), scale, causal ? "causal" : "")); });
@@ -428,26 +800,49 @@ int mlxl3_metal_kernel(const char* name, const char* const* input_names,
                       const char* const* output_names, const char* header, const char* source,
                       void* const* inputs, size_t ninputs, const int32_t* output_dims,
                       const size_t* output_ranks, const int32_t* output_types, size_t noutputs,
-                      const int32_t* grid, const int32_t* threadgroup, void** outputs) noexcept {
+                      const int32_t* grid, const int32_t* threadgroup, void** outputs,
+                      int32_t initialize_outputs, float initial_value) noexcept {
   return protect([&] {
-    using Key = std::tuple<std::string, std::vector<std::string>, std::vector<std::string>, std::string, std::string>;
-    thread_local std::map<Key, mx::fast::CustomKernelFunction> cache;
-    Key key{name, strings(input_names, ninputs), strings(output_names, noutputs), header, source};
+    if ((initialize_outputs != 0 && initialize_outputs != 1) ||
+        (initialize_outputs && !std::isfinite(initial_value)))
+      throw std::invalid_argument("invalid Metal output initializer");
+    if (!name || !header || !source || (ninputs && !input_names) || (noutputs && !output_names))
+      throw std::invalid_argument("null Metal kernel metadata");
+    for (size_t i = 0; i < ninputs; ++i)
+      if (!input_names[i]) throw std::invalid_argument("null Metal input name");
+    for (size_t i = 0; i < noutputs; ++i)
+      if (!output_names[i]) throw std::invalid_argument("null Metal output name");
+    struct Factory {
+      mx::fast::CustomKernelFunction function;
+      std::shared_ptr<mlxl3::PreparedMetalPlan> prepared;
+    };
+    thread_local const bool prepared_enabled =
+        mlxl3::prepared_metal_option(std::getenv("MLXL3_PREPARED_METAL"));
+    thread_local std::map<mlxl3::OwnedKernelKey, Factory,
+                          mlxl3::KernelKeyOrder> cache;
+    mlxl3::KernelKeyView key{name, {input_names, ninputs}, {output_names, noutputs}, header, source};
     auto found = cache.find(key);
     if (found == cache.end()) {
       // ponytail: bounded key-ordered eviction; use LRU only if dynamic factories churn.
       if (cache.size() >= 128) cache.erase(cache.begin());
-      found = cache.emplace(key, mx::fast::metal_kernel(name, std::get<1>(key), std::get<2>(key),
-        source, header, true, false, mx::CompileOptions{})).first;
+      mlxl3::OwnedKernelKey owned{name, strings(input_names, ninputs),
+                                  strings(output_names, noutputs), header, source};
+      auto function = mx::fast::metal_kernel(name, owned.inputs, owned.outputs,
+                                             source, header, true, false, mx::CompileOptions{});
+      found = cache.emplace(std::move(owned), Factory{std::move(function), nullptr}).first;
     }
     std::vector<mx::Shape> shapes; std::vector<mx::Dtype> types; size_t offset = 0;
     for (size_t i = 0; i < noutputs; ++i) {
       shapes.push_back(shape(output_dims + offset, output_ranks[i])); offset += output_ranks[i];
       types.push_back(dtype(output_types[i])); byte_count(shapes.back(), types.back());
     }
-    auto result = found->second(arrays(inputs, ninputs), shapes, types,
-      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {}, std::nullopt, false, {});
+    auto result = found->second.function(arrays(inputs, ninputs), shapes, types,
+      {grid[0], grid[1], grid[2]}, {threadgroup[0], threadgroup[1], threadgroup[2]}, {},
+      initialize_outputs ? std::optional<float>(initial_value) : std::nullopt, false, {});
     if (result.size() != noutputs) throw std::runtime_error("custom kernel output count mismatch");
+    if (!initialize_outputs && prepared_enabled && std::string_view(name).starts_with("mlxl3_rs_expert_") &&
+        std::strstr(name, "_slots1") && !std::strstr(name, "_resident"))
+      mlxl3::prepare_metal(result, found->second.prepared, types, grid, threadgroup);
     std::vector<std::unique_ptr<mx::array>> owned; owned.reserve(noutputs);
     for (auto& value : result) owned.push_back(std::make_unique<mx::array>(std::move(value)));
     for (size_t i = 0; i < noutputs; ++i) outputs[i] = owned[i].release();

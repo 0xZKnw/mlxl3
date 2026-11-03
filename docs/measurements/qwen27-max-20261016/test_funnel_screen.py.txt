@@ -1,0 +1,49 @@
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+spec = importlib.util.spec_from_file_location(
+    "funnel_screen", Path(__file__).with_name("funnel_screen.py")
+)
+screen = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(screen)
+
+
+def test_independent_integer_oracles_and_guard_mutations():
+    screen.self_test()
+
+
+@pytest.mark.parametrize(
+    "error", [ValueError("divergent"), TimeoutError("silent"), KeyboardInterrupt()]
+)
+def test_cli_preserves_failure_and_partial_evidence(tmp_path, monkeypatch, error):
+    output = tmp_path / "failed.json"
+
+    def fail(args, report, save):
+        report["checks"].append({"fixture": "observed"})
+        save()
+        raise error
+
+    monkeypatch.setattr(screen, "run", fail)
+    monkeypatch.setattr(
+        sys, "argv", ["funnel", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(type(error)):
+        screen.main()
+    report = json.loads(output.read_text())
+    assert report["status"] == "failed" and report["parity"] is False
+    assert report["checks"] == [{"fixture": "observed"}] and report["error"]
+
+
+def test_existing_evidence_cannot_be_overwritten(tmp_path, monkeypatch):
+    output = tmp_path / "existing.json"
+    output.write_bytes(b"preserve")
+    monkeypatch.setattr(
+        sys, "argv", ["funnel", "--checkpoint", str(tmp_path), "--output", str(output)]
+    )
+    with pytest.raises(SystemExit, match="2"):
+        screen.main()
+    assert output.read_bytes() == b"preserve"

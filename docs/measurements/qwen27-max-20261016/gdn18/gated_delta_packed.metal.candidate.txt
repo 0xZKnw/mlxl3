@@ -1,0 +1,208 @@
+// Verbatim body from mlx_lm.models.gated_delta._make_gated_delta_packed_kernel.
+// mlx-lm is MIT licensed; see THIRD_PARTY_NOTICES.md.
+
+        constexpr int lanes_per_row = 4;
+        constexpr int rows_per_simdgroup = 32 / lanes_per_row;
+        constexpr int values_per_lane = Dk / lanes_per_row;
+        constexpr int partials_per_lane = values_per_lane / 4;
+
+        auto n = thread_position_in_grid.z;
+        auto b_idx = n / Hv;
+        auto hv_idx = n % Hv;
+        auto hk_idx = hv_idx / (Hv / Hk);
+
+        auto lane = thread_index_in_simdgroup;
+        auto row_in_simdgroup = lane / lanes_per_row;
+        auto lane_in_row = lane & (lanes_per_row - 1);
+        auto row_group = thread_position_in_grid.y;
+        auto dv_idx = row_group * rows_per_simdgroup + row_in_simdgroup;
+
+        // q, k: [B, T, Hk, Dk]
+#if MLXL3_GDN_FUSED_PREP
+        threadgroup half prepared_q[Dk];
+        threadgroup half prepared_k[Dk];
+        threadgroup half prepared_v[Dv];
+        auto q_ = prepared_q + lane_in_row * values_per_lane;
+        auto k_ = prepared_k + lane_in_row * values_per_lane;
+        auto v_ = prepared_v;
+#else
+        auto q_ = q + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
+        auto k_ = k + (b_idx * T * Hk + hk_idx) * Dk + lane_in_row * values_per_lane;
+        auto v_ = v + (b_idx * T * Hv + hv_idx) * Dv;
+#endif
+        // v, y: [B, T, Hv, Dv]
+        y += (b_idx * T * Hv + hv_idx) * Dv;
+
+        // state_in, state_out: [B, Hv, Dv, Dk]
+        auto i_state = state_in + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
+        auto o_state = state_out + (n * Dv + dv_idx) * Dk + lane_in_row * values_per_lane;
+
+        float state[values_per_lane];
+        for (int i = 0; i < values_per_lane; ++i) {
+          state[i] = static_cast<float>(i_state[i]);
+        }
+
+        // Gates: either precomputed [B, T, Hv], or their projection inputs.
+#if MLXL3_GDN_FUSED_GATES
+        auto a_ = a + b_idx * T * Hv;
+        auto b_ = b + b_idx * T * Hv;
+#else
+        auto g_ = g + b_idx * T * Hv;
+        auto beta_ = beta + b_idx * T * Hv;
+#endif
+
+        for (int t = 0; t < T; ++t) {
+#if MLXL3_GDN_FUSED_PREP
+          // The first SIMD group preserves prepare_qkv's canonical reduction.
+          if (simdgroup_index_in_threadgroup == 0u) {
+            half qv[4], kv[4];
+            float qs = 0.0f, ks = 0.0f;
+            for (uint i = 0u; i < 4u; ++i) {
+              uint d = lane * 4u + i;
+              uint c = hk_idx * uint(Dk) + d;
+              qv[i] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, c);
+              kv[i] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, uint(KEYS) + c);
+              qs += float(qv[i]) * float(qv[i]);
+              ks += float(kv[i]) * float(kv[i]);
+            }
+            qs = simd_sum(qs);
+            ks = simd_sum(ks);
+            float qi = metal::precise::rsqrt(qs / float(Dk) + 1.0e-6f);
+            float ki = metal::precise::rsqrt(ks / float(Dk) + 1.0e-6f);
+            for (uint i = 0u; i < 4u; ++i) {
+              uint d = lane * 4u + i;
+              prepared_q[d] = half(float(qv[i]) * qi) * q_scale;
+              prepared_k[d] = half(float(kv[i]) * ki) * k_scale;
+              if (hv_idx % (Hv / Hk) == 0u) {
+                keys_out[(t * Hk + hk_idx) * Dk + d] = prepared_k[d];
+              }
+            }
+          }
+          uint tid = thread_index_in_threadgroup;
+          if (tid < uint(Dv)) {
+            uint channel = uint(2 * KEYS) + hv_idx * uint(Dv) + tid;
+            prepared_v[tid] = mlxl3_gdn_conv_silu(qkv, conv_state, conv_weight, t, channel);
+            if (t == T - 1) {
+              for (uint p = 0u; p < uint(CONV_HISTORY); ++p) {
+                conv_out[p * uint(CONV_DIMS) + channel] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, channel);
+              }
+            }
+          }
+          if (t == T - 1 && simdgroup_index_in_threadgroup == 0u && hv_idx % (Hv / Hk) == 0u) {
+            for (uint i = 0u; i < 4u; ++i) {
+              uint c = hk_idx * uint(Dk) + lane * 4u + i;
+              for (uint p = 0u; p < uint(CONV_HISTORY); ++p) {
+                conv_out[p * uint(CONV_DIMS) + c] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, c);
+                conv_out[p * uint(CONV_DIMS) + uint(KEYS) + c] = mlxl3_gdn_input(qkv, conv_state, uint(T) + p, uint(KEYS) + c);
+              }
+            }
+          }
+          threadgroup_barrier(mem_flags::mem_threadgroup);
+#endif
+#if MLXL3_GDN_FUSED_GATES
+          half bh = b_[hv_idx];
+          half sigmoid_tail = half(1.0h) /
+              (half(1.0h) + metal::exp(metal::abs(bh)));
+          half beta_t = bh < half(0.0h)
+              ? sigmoid_tail
+              : half(1.0h) - sigmoid_tail;
+          half summed = half(float(a_[hv_idx]) + float(dt_bias[hv_idx]));
+          half maximum = metal::max(summed, half(0.0h));
+          half minimum = metal::min(summed, half(0.0h));
+          float exp_delta = float(metal::exp(minimum - maximum));
+          float plus_one = 1.0f + exp_delta;
+          float log_one_plus = plus_one == 1.0f
+              ? exp_delta
+              : exp_delta * (metal::log(plus_one) / (plus_one - 1.0f));
+          half softplus = half(float(maximum) + log_one_plus);
+          float gt = precise::exp(
+              -precise::exp(a_log[hv_idx]) * float(softplus)
+          );
+#else
+          float gt = static_cast<float>(g_[hv_idx]);
+          half beta_t = beta_[hv_idx];
+#endif
+
+          // Partials mirror the generic kernel: each 4-element chain is one
+          // original lane's sequential accumulation.
+          float part[partials_per_lane];
+          for (int pb = 0; pb < partials_per_lane; ++pb) {
+            float acc = 0.0f;
+            for (int i = 0; i < 4; ++i) {
+              int e = pb * 4 + i;
+              state[e] = state[e] * gt;
+              acc += state[e] * static_cast<float>(k_[e]);
+            }
+            part[pb] = acc;
+          }
+          // Butterfly levels xor 1,2,4 stay inside this lane (commutative
+          // pairwise tree); levels xor 8,16 become the row-group shuffles.
+          float kv_mem =
+              ((part[0] + part[1]) + (part[2] + part[3])) +
+              ((part[4] + part[5]) + (part[6] + part[7]));
+          kv_mem += simd_shuffle_xor(kv_mem, 1);
+          kv_mem += simd_shuffle_xor(kv_mem, 2);
+
+          auto delta =
+              (static_cast<float>(v_[dv_idx]) - kv_mem) *
+              static_cast<float>(beta_t);
+
+#if MLXL3_GDN_SAVE_TAPE
+          if (lane_in_row == 0) {
+            delta_tape[(b_idx * T * Hv + t * Hv + hv_idx) * Dv + dv_idx] = delta;
+            if (dv_idx == 0) {
+              decay_tape[b_idx * T * Hv + t * Hv + hv_idx] = gt;
+            }
+          }
+#endif
+
+          for (int pb = 0; pb < partials_per_lane; ++pb) {
+            float acc = 0.0f;
+            for (int i = 0; i < 4; ++i) {
+              int e = pb * 4 + i;
+              state[e] = state[e] + static_cast<float>(k_[e]) * delta;
+              acc += state[e] * static_cast<float>(q_[e]);
+            }
+            part[pb] = acc;
+          }
+          float out =
+              ((part[0] + part[1]) + (part[2] + part[3])) +
+              ((part[4] + part[5]) + (part[6] + part[7]));
+          out += simd_shuffle_xor(out, 1);
+          out += simd_shuffle_xor(out, 2);
+          if (lane_in_row == 0) {
+            y[dv_idx] = static_cast<InT>(out);
+          }
+
+#if MLXL3_GDN_SAVE_HISTORY
+          // A full commit uses state_out. Preserve the legacy T=1 output.
+          if (t + 1 < T || T == 1) {
+            auto h_state = state_history +
+                ((ulong(t) * B * Hv + n) * Dv + dv_idx) * Dk +
+                lane_in_row * values_per_lane;
+            for (int i = 0; i < values_per_lane; ++i) {
+              h_state[i] = static_cast<StT>(state[i]);
+            }
+          }
+#endif
+
+#if MLXL3_GDN_FUSED_PREP
+          threadgroup_barrier(mem_flags::mem_threadgroup);
+#else
+          q_ += Hk * Dk;
+          k_ += Hk * Dk;
+          v_ += Hv * Dv;
+#endif
+          y += Hv * Dv;
+#if MLXL3_GDN_FUSED_GATES
+          a_ += Hv;
+          b_ += Hv;
+#else
+          g_ += Hv;
+          beta_ += Hv;
+#endif
+        }
+
+        for (int i = 0; i < values_per_lane; ++i) {
+          o_state[i] = static_cast<StT>(state[i]);
+        }

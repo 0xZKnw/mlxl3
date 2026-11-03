@@ -1,0 +1,30 @@
+{
+  "status": "not_retained_for_release",
+  "quality": "passed",
+  "component_paired_speedups": [
+    1.1601055126921485,
+    1.2619100459137278,
+    1.1222199461547466,
+    1.2490031401741295,
+    1.2740495009462571
+  ],
+  "off_status": "non_conclusive_validity_stop",
+  "mtp_status": "rejected",
+  "mtp_completed_arms": 2,
+  "mtp_planned_arms": 16,
+  "mtp_pairs": [
+    {
+      "prompt": "MAIN",
+      "pair": 0,
+      "H_tps": 9.395349578726734,
+      "C_tps": 9.002359297599865,
+      "ratio": 0.9581718298149661,
+      "extra_peak_bytes": -282968016
+    }
+  ],
+  "release_gain_confirmed": false,
+  "limits": "single unfavorable MTP pair triggers preregistered conservative rejection; not evidence of a causal regression; OFF drift >10%; no 25% generation boost",
+  "prototype_evidence": "gates/native-changes.patch; gates/identity.json and immutable binary paths",
+  "production_retained": false,
+  "next": "restore scalar routing baseline before independent joint-head trial"
+}

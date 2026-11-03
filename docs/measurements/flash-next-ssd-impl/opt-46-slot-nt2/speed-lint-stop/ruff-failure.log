@@ -1,0 +1,12 @@
+S102 Use of `exec` detected
+   --> tests/test_flash_slot_benchmark.py:382:5
+    |
+380 |     )
+381 |     driver = SOURCE.with_name("bridge-driver.txt")
+382 |     exec(compile(driver.read_text(), str(driver), "exec"), {})
+    |     ^^^^
+383 |     assert calls == [
+384 |         (
+    |
+
+Found 1 error.

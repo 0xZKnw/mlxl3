@@ -1,0 +1,1599 @@
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_warmup_origin_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+warning: ignoring typecast
+  * type: pointer
+      * #source_location: 
+        * file: tests/quantize_warmup_origin_proof.cpp
+        * line: 45
+        * function: recurrence
+      * width: 64
+      0: unsignedbv
+          * width: 16
+          * #typedef: ushort
+          * #c_type: unsigned_short_int
+  0: array
+      * type: array
+          * size: constant
+              * type: unsignedbv
+                  * width: 32
+                  * #constant: 1
+                  * #c_type: unsigned_int
+              * value: 4
+          0: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+      0: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[0]][[0]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 0
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[0]]
+      1: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[0]][[1]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 1
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[1]]
+      2: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[0]][[2]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 2
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[2]]
+      3: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[0]][[3]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 3
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[3]]
+warning: ignoring typecast
+  * type: pointer
+      * #source_location: 
+        * file: tests/quantize_warmup_origin_proof.cpp
+        * line: 45
+        * function: recurrence
+      * width: 64
+      0: unsignedbv
+          * width: 16
+          * #typedef: ushort
+          * #c_type: unsigned_short_int
+  0: array
+      * type: array
+          * size: constant
+              * type: unsignedbv
+                  * width: 32
+                  * #constant: 1
+                  * #c_type: unsigned_int
+              * value: 4
+          0: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+      0: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[1]][[0]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 0
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[0]]
+      1: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[1]][[1]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 1
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[1]]
+      2: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[1]][[2]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 2
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[2]]
+      3: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#2[[1]][[3]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 3
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 2
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[3]]
+warning: ignoring typecast
+  * type: pointer
+      * #source_location: 
+        * file: tests/quantize_warmup_origin_proof.cpp
+        * line: 45
+        * function: recurrence
+      * width: 64
+      0: unsignedbv
+          * width: 16
+          * #typedef: ushort
+          * #c_type: unsigned_short_int
+  0: array
+      * type: array
+          * size: constant
+              * type: unsignedbv
+                  * width: 32
+                  * #constant: 1
+                  * #c_type: unsigned_int
+              * value: 4
+          0: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+      0: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#3[[0]][[0]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 0
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 3
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[0]]
+      1: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#3[[0]][[1]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 1
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 3
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[1]]
+      2: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#3[[0]][[2]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 2
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 3
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[2]]
+      3: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 44
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#3[[0]][[3]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              * #source_location: 
+                * file: tests/quantize_warmup_origin_proof.cpp
+                * line: 44
+                * function: recurrence
+              * #lvalue: 1
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  * #source_location: 
+                    * file: tests/quantize_warmup_origin_proof.cpp
+                    * line: 44
+                    * function: recurrence
+                  * #lvalue: 1
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 0
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 3
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 3
+          * L1_object_identifier: recurrence()::1::origins!0@1[[0]][[3]]
+warning: ignoring typecast
+  * type: pointer
+      * #source_location: 
+        * file: tests/quantize_warmup_origin_proof.cpp
+        * line: 45
+        * function: recurrence
+      * width: 64
+      0: unsignedbv
+          * width: 16
+          * #typedef: ushort
+          * #c_type: unsigned_short_int
+  0: array
+      * type: array
+          * size: constant
+              * type: unsignedbv
+                  * width: 32
+                  * #constant: 1
+                  * #c_type: unsigned_int
+              * value: 4
+          0: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+      0: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 45
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#1[[1]][[0]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 0
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 1
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[0]]
+      1: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 45
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#1[[1]][[1]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 1
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 1
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[1]]
+      2: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 45
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#1[[1]][[2]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 2
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 1
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[2]]
+      3: symbol
+          * type: unsignedbv
+              * width: 16
+              * #typedef: ushort
+              * #c_type: unsigned_short_int
+          * #source_location: 
+            * file: tests/quantize_warmup_origin_proof.cpp
+            * line: 45
+            * function: recurrence
+          * identifier: recurrence()::1::origins!0@1#1[[1]][[3]]
+          * expression: index
+              * type: unsignedbv
+                  * width: 16
+                  * #typedef: ushort
+                  * #c_type: unsigned_short_int
+              0: index
+                  * type: array
+                      * size: constant
+                          * type: unsignedbv
+                              * width: 32
+                              * #constant: 1
+                              * #c_type: unsigned_int
+                          * value: 4
+                      0: unsignedbv
+                          * width: 16
+                          * #typedef: ushort
+                          * #c_type: unsigned_short_int
+                  0: symbol
+                      * type: array
+                          * size: constant
+                              * type: signedbv
+                                  * width: 32
+                                  * #c_type: signed_int
+                              * #source_location: 
+                                * file: tests/quantize_warmup_origin_proof.cpp
+                                * line: 38
+                                * function: recurrence
+                                * working_directory: /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0
+                              * value: 2
+                              * #base: 10
+                          0: array
+                              * size: symbol
+                                  * type: unsignedbv
+                                      * width: 32
+                                      * #constant: 1
+                                      * #c_type: unsigned_int
+                                  * #source_location: 
+                                    * file: tests/quantize_warmup_origin_proof.cpp
+                                    * line: 38
+                                    * function: recurrence
+                                  * identifier: recurrence()::1::states!0@1
+                                  * expression: symbol
+                                      * type: unsignedbv
+                                          * width: 32
+                                          * #constant: 1
+                                          * #c_type: unsigned_int
+                                      * identifier: recurrence()::1::states
+                                  * #SSA_symbol: 1
+                                  * L0: 0
+                                  * L1: 1
+                                  * L1_object_identifier: recurrence()::1::states!0@1
+                              0: unsignedbv
+                                  * width: 16
+                                  * #typedef: ushort
+                                  * #c_type: unsigned_short_int
+                      * #source_location: 
+                        * file: tests/quantize_warmup_origin_proof.cpp
+                        * line: 45
+                        * function: recurrence
+                      * identifier: recurrence()::1::origins
+                      * #lvalue: 1
+                  1: constant
+                      * type: signedbv
+                          * width: 64
+                          * #c_type: signed_long_int
+                      * value: 1
+              1: constant
+                  * type: signedbv
+                      * width: 64
+                      * #c_type: signed_long_int
+                  * value: 3
+          * #SSA_symbol: 1
+          * L0: 0
+          * L1: 1
+          * L2: 1
+          * L1_object_identifier: recurrence()::1::origins!0@1[[1]][[3]]
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker inconsistent: instance is UNSATISFIABLE
+
+** Results:
+src/mlxl3_quantizer/warmup_origin.metal function mlxl3_warmup_origin
+[mlxl3_warmup_origin.pointer_dereference.1] line 3 dereference failure: pointer NULL in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.2] line 3 dereference failure: pointer invalid in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.3] line 3 dereference failure: deallocated dynamic object in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.4] line 3 dereference failure: dead object in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.5] line 3 dereference failure: pointer outside object bounds in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.6] line 3 dereference failure: invalid integer address in previous[(signed long int)parent]: FAILURE
+
+tests/quantize_warmup_origin_proof.cpp function proof
+[proof.array_bounds.1] line 25 array 'previous' upper bound in previous[(signed long int)parent]: SUCCESS
+[proof.assertion.1] line 27 actual < 4096u: SUCCESS
+[proof.assertion.2] line 28 actual == (ri ? ancestor : parent): SUCCESS
+
+tests/quantize_warmup_origin_proof.cpp function recurrence
+[recurrence.overflow.3] line 39 arithmetic overflow on unsigned + in r + 1u: SUCCESS
+[recurrence.overflow.2] line 40 arithmetic overflow on unsigned + in e + 1u: SUCCESS
+[recurrence.array_bounds.1] line 43 array 'parents' upper bound in parents[(signed long int)r]: SUCCESS
+[recurrence.array_bounds.2] line 43 array 'parents'[] upper bound in parents[(signed long int)r][(signed long int)e]: SUCCESS
+[recurrence.array_bounds.4] line 44 array 'origins' upper bound in origins[(signed long int)(r % (unsigned int)2)]: SUCCESS
+[recurrence.array_bounds.5] line 44 array 'origins'[] upper bound in origins[(signed long int)(r % (unsigned int)2)][(signed long int)e]: SUCCESS
+[recurrence.array_bounds.3] line 45 array 'origins' upper bound in origins[(signed long int)((r - (unsigned int)1) % (unsigned int)2)]: SUCCESS
+[recurrence.overflow.1] line 45 arithmetic overflow on unsigned - in r - (unsigned int)1: SUCCESS
+[recurrence.array_bounds.6] line 51 array 'parents' lower bound in parents[(signed long int)r]: SUCCESS
+[recurrence.array_bounds.7] line 51 array 'parents' upper bound in parents[(signed long int)r]: SUCCESS
+[recurrence.array_bounds.8] line 51 array 'parents'[] upper bound in parents[(signed long int)r][(signed long int)selected]: SUCCESS
+[recurrence.overflow.4] line 51 arithmetic overflow on signed - in (signed int)rows - 1: SUCCESS
+[recurrence.overflow.5] line 51 arithmetic overflow on signed - in r - 1: SUCCESS
+[recurrence.array_bounds.9] line 52 array 'origins' upper bound in origins[(signed long int)((rows - (unsigned int)1) % (unsigned int)2)]: SUCCESS
+[recurrence.array_bounds.10] line 52 array 'origins'[] upper bound in origins[(signed long int)((rows - (unsigned int)1) % (unsigned int)2)][(signed long int)edge]: SUCCESS
+[recurrence.assertion.1] line 52 origins[(rows - 1) % 2][edge] == selected: FAILURE
+[recurrence.overflow.6] line 52 arithmetic overflow on unsigned - in rows - (unsigned int)1: SUCCESS
+
+** 7 of 26 failed (3 iterations)
+VERIFICATION FAILED

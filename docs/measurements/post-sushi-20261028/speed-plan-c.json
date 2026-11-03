@@ -1,0 +1,298 @@
+[
+  {
+    "name": "C-AR-MAIN-1-A",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-MAIN-1-A-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-MAIN-2-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-MAIN-2-C-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-MAIN-3-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-MAIN-3-C-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-MAIN-4-A",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-MAIN-4-A-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-HOLD-1-A",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-HOLD-1-A-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-HOLD-2-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-HOLD-2-C-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-HOLD-3-C",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-HOLD-3-C-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  },
+  {
+    "name": "C-AR-HOLD-4-A",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-c",
+      "import json,runpy,sys\nfrom pathlib import Path\nc=json.loads(Path(sys.argv[1]).read_text());out=Path(c['output']);assert not(out/'report.json').exists()\nn=runpy.run_path('scripts/benchmark-flash-bridge.py');old=n['validate'];gold=json.loads(Path(c['golden']).read_text())\ndef checked(event,mode,mtp,budget,*args):\n old(event,mode,mtp,budget,*args)\n assert event['token_hash']==gold['token_hash'] and event['cache_context']==gold['cache_context'],'external golden mismatch'\n m=event['stats']['memory'];assert 0<m['process_footprint_bytes']<12_000_000_000 and 0<m['process_lifetime_peak_bytes']<12_000_000_000,'physical footprint'\nn['run'].__globals__['validate']=checked\nn['run'](Path(c['engine']),Path(c['model']),out,mtp=False,tokens=128,repeats=3,cache_gib=3,timeout=180,prompt=c['prompt'])\n",
+      "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/C-AR-HOLD-4-A-config.json"
+    ],
+    "env": {
+      "MLXL3_ALLOCATOR_CACHE_MIB": "64",
+      "MLXL3_SSD_GPU_HOT": "1",
+      "MLXL3_SSD_GPU_HOT_WIDE": "1",
+      "MLXL3_FLASH_MULTI_TOKEN": "1",
+      "MLXL3_SSD_UNIQUE_COHORT": "1",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_DRAFT": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_DRAFT_ADAPTIVE": "0",
+      "MLXL3_FLASH_DRAFT_WIDTH": "1",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_FLASH_DRAFT_Q4": "1",
+      "MLXL3_FLASH_DRAFT_RING": "1",
+      "MLX_MAX_OPS_PER_BUFFER": "40",
+      "MLX_MAX_MB_PER_BUFFER": "40"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 600,
+    "require_quiet": true,
+    "required_text": [
+      "\"token_hash\""
+    ],
+    "minimum_available_bytes": 8500000000
+  }
+]

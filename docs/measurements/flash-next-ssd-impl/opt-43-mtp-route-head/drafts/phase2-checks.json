@@ -1,0 +1,70 @@
+[
+  {
+    "name": "phase2-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 73395,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.2850983329990413
+  },
+  {
+    "name": "phase2-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 73399,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 2.918356499998481
+  },
+  {
+    "name": "phase2-full-release",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 73475,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 43.98723008300294
+  },
+  {
+    "name": "phase2-engine",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 73621,
+    "exit_code": 0,
+    "reaped": true,
+    "seconds": 0.18091412501235027
+  }
+]

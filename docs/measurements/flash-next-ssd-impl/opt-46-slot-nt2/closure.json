@@ -1,0 +1,152 @@
+{
+  "status": "closed_no_established_gain",
+  "reason": "OFF MAIN +0.523% below 1%, OFF HOLD -0.637%; final MTP HOLD C 16.06% intra-arm drift invalidates that timing. No confirmation and no repeat for noise. NT2 runtime dispatch removed; independent slot oracle retained.",
+  "confirmed_gain": false,
+  "source_identity_unchanged_before_retirement": true,
+  "source_identity": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-identity.json",
+  "physical_io": "not measured",
+  "rows": [
+    {
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "arm": "H",
+      "tps": 10.392302651688318,
+      "measurements_tps": [
+        10.430415510487787,
+        10.354189792888848
+      ],
+      "measured_drift_percent": 0.7361823486304209,
+      "process_peak_bytes": 7137433528,
+      "token_hash": "f6b5f974c6db2e7a",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-baseline-MAIN-H-bridge/report.json"
+    },
+    {
+      "mode": "baseline",
+      "prompt": "MAIN",
+      "arm": "C",
+      "tps": 10.44665316195682,
+      "measurements_tps": [
+        10.447849252245863,
+        10.445457071667777
+      ],
+      "measured_drift_percent": 0.02290163620102259,
+      "process_peak_bytes": 7117051784,
+      "token_hash": "f6b5f974c6db2e7a",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-baseline-MAIN-C-bridge/report.json",
+      "descriptive_pair_delta_percent": 0.5229881393001179
+    },
+    {
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "arm": "H",
+      "tps": 10.242550596447924,
+      "measurements_tps": [
+        10.234746399907806,
+        10.25035479298804
+      ],
+      "measured_drift_percent": 0.1525039553532448,
+      "process_peak_bytes": 7146608544,
+      "token_hash": "9d02c1a97e015196",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-baseline-HOLD-H-bridge/report.json"
+    },
+    {
+      "mode": "baseline",
+      "prompt": "HOLD",
+      "arm": "C",
+      "tps": 10.177279829118007,
+      "measurements_tps": [
+        10.227993999717201,
+        10.126565658518812
+      ],
+      "measured_drift_percent": 1.0016065131920104,
+      "process_peak_bytes": 7123392392,
+      "token_hash": "9d02c1a97e015196",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-baseline-HOLD-C-bridge/report.json",
+      "descriptive_pair_delta_percent": -0.6372511096264688
+    },
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "arm": "H",
+      "tps": 8.742128074016339,
+      "measurements_tps": [
+        8.589829188319285,
+        8.894426959713394
+      ],
+      "measured_drift_percent": 3.546028270367829,
+      "process_peak_bytes": 8198837528,
+      "token_hash": "f6b5f974c6db2e7a",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-mtp-MAIN-H-bridge/report.json"
+    },
+    {
+      "mode": "mtp",
+      "prompt": "MAIN",
+      "arm": "C",
+      "tps": 9.01824360501211,
+      "measurements_tps": [
+        9.019301892375324,
+        9.017185317648893
+      ],
+      "measured_drift_percent": 0.023472676360425382,
+      "process_peak_bytes": 7912871216,
+      "token_hash": "f6b5f974c6db2e7a",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-mtp-MAIN-C-bridge/report.json",
+      "descriptive_pair_delta_percent": 3.1584475617149943
+    },
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "arm": "H",
+      "tps": 8.334759783117905,
+      "measurements_tps": [
+        8.294197695947403,
+        8.375321870288406
+      ],
+      "measured_drift_percent": 0.9780834423640528,
+      "process_peak_bytes": 7922211320,
+      "token_hash": "9d02c1a97e015196",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": true,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-mtp-HOLD-H-bridge/report.json"
+    },
+    {
+      "mode": "mtp",
+      "prompt": "HOLD",
+      "arm": "C",
+      "tps": 7.870021851389033,
+      "measurements_tps": [
+        8.455003599652207,
+        7.28504010312586
+      ],
+      "measured_drift_percent": 16.059808593563396,
+      "process_peak_bytes": 7907645944,
+      "token_hash": "9d02c1a97e015196",
+      "swapouts_bytes": 0,
+      "reaped": true,
+      "timing_qualified": false,
+      "report": "docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-final/speed-0-mtp-HOLD-C-bridge/report.json",
+      "descriptive_pair_delta_percent": -5.575900731658756
+    }
+  ],
+  "proof_limits": "CPU guard 18 obligations/6 covers passes only for retired candidate. Actual MLX Kani ICE; GPU/FFI not source-proved.",
+  "initial_interruption": "speed-lint-stop/interruption.json preserved separately"
+}

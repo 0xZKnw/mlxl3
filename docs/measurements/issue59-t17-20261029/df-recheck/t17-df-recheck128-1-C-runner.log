@@ -1,0 +1,34 @@
+{'name': 't17-df-recheck128-1-C', 'status': 'failed_or_interrupted', 'reaped': True, 'seconds': 2.096325332997367, 'swapouts_bytes': None}
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 47, in monitor
+    return child.wait(timeout=min(2, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 1264, in wait
+    return self._wait(timeout=timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py", line 2045, in _wait
+    raise TimeoutExpired(self.args, timeout)
+subprocess.TimeoutExpired: Command '['/Users/justin/Documents/mix-stq1_0/.venv/bin/python', '/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/scripts/benchmark-flash-bridge.py', '/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/issue59-t17-20261029/engine/prototype-engine', '/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531', '/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue59-t17-20261029/df-recheck/t17-df-recheck128-1-C', '--cache-gib', '3', '--tokens', '128', '--repeats', '1', '--dflash-draft', '/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744', '--dflash-mode', '1']' timed out after 2 seconds
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 87, in <module>
+    run(*(Path(value) for value in sys.argv[1:]))
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 83, in run
+    supervisor["main"](plan)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py", line 181, in main
+    record["exit_code"] = previous["monitor"](child, record, monitored_vm)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 69, in monitor
+    result = original["monitor"](child, record, checked)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt", line 49, in monitor
+    current = parse_vm(subprocess.check_output(["vm_stat"], text=True, timeout=5))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 63, in checked
+    check_vm(vm, baseline)
+  File "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-sushi-20261028/gpu-runner.py", line 22, in check_vm
+    assert value - baseline[key] <= (0 if key == "Swapouts" else 256 << 20), key
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Swapouts

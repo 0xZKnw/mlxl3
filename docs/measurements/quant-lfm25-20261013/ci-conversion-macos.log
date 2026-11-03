@@ -1,0 +1,382 @@
+conversion	Set up job	﻿2026-10-13T19:01:45.3822710Z Current runner version: '2.337.0'
+conversion	Set up job	2026-10-13T19:01:45.3974500Z ##[group]Runner Image Provisioner
+conversion	Set up job	2026-10-13T19:01:45.3977720Z Hosted Compute Agent
+conversion	Set up job	2026-10-13T19:01:45.3978560Z Version: 20260828.587
+conversion	Set up job	2026-10-13T19:01:45.3980320Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+conversion	Set up job	2026-10-13T19:01:45.3981580Z Build Date: 2026-08-28T16:44:25Z
+conversion	Set up job	2026-10-13T19:01:45.3983890Z Worker ID: {aad0696b-533c-42d4-bfdf-3f7bdd515621}
+conversion	Set up job	2026-10-13T19:01:45.3993730Z Azure Region: westus
+conversion	Set up job	2026-10-13T19:01:45.3995120Z ##[endgroup]
+conversion	Set up job	2026-10-13T19:01:45.3996440Z ##[group]Operating System
+conversion	Set up job	2026-10-13T19:01:45.3996840Z macOS
+conversion	Set up job	2026-10-13T19:01:45.3997180Z 26.6.2
+conversion	Set up job	2026-10-13T19:01:45.3997510Z 25G83
+conversion	Set up job	2026-10-13T19:01:45.3997850Z ##[endgroup]
+conversion	Set up job	2026-10-13T19:01:45.3999250Z ##[group]Runner Image
+conversion	Set up job	2026-10-13T19:01:45.4001600Z Image: macos-26-arm64
+conversion	Set up job	2026-10-13T19:01:45.4004450Z Version: 20260907.0351.1
+conversion	Set up job	2026-10-13T19:01:45.4010350Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+conversion	Set up job	2026-10-13T19:01:45.4011700Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+conversion	Set up job	2026-10-13T19:01:45.4012380Z ##[endgroup]
+conversion	Set up job	2026-10-13T19:01:45.4013190Z ##[group]GITHUB_TOKEN Permissions
+conversion	Set up job	2026-10-13T19:01:45.4016290Z Contents: read
+conversion	Set up job	2026-10-13T19:01:45.4018270Z Metadata: read
+conversion	Set up job	2026-10-13T19:01:45.4018690Z ##[endgroup]
+conversion	Set up job	2026-10-13T19:01:45.4028680Z Secret source: Actions
+conversion	Set up job	2026-10-13T19:01:45.4033590Z Cache mode: write
+conversion	Set up job	2026-10-13T19:01:45.4034540Z Prepare workflow directory
+conversion	Set up job	2026-10-13T19:01:45.5227670Z Prepare all required actions
+conversion	Set up job	2026-10-13T19:01:45.5325870Z Getting action download info
+conversion	Set up job	2026-10-13T19:01:45.9957340Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+conversion	Set up job	2026-10-13T19:01:46.8584180Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+conversion	Set up job	2026-10-13T19:01:47.6326840Z Complete job name: conversion
+conversion	Run actions/checkout@v4	﻿2026-10-13T19:01:47.8617440Z ##[group]Run actions/checkout@v4
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8621830Z with:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8624220Z   repository: 0xZKnw/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8635220Z   token: ***
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8635760Z   ssh-strict: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8636140Z   ssh-user: git
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8636500Z   persist-credentials: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8637170Z   clean: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8637680Z   sparse-checkout-cone-mode: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8638210Z   fetch-depth: 1
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8642230Z   fetch-tags: false
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8644020Z   show-progress: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8648510Z   lfs: false
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8649810Z   submodules: false
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8655760Z   set-safe-directory: true
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8677450Z   allow-unsafe-pr-checkout: false
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8684750Z env:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8686000Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8687300Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Run actions/checkout@v4	2026-10-13T19:01:47.8688620Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.3494990Z Syncing repository: 0xZKnw/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.3503690Z ##[group]Getting Git version info
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.3505460Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.3507610Z [command]/opt/homebrew/bin/git version
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4346350Z git version 2.55.0
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4413600Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4456220Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/63c85581-f5c4-4e02-aa20-f8db9fe0f59c/.gitconfig'
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4502470Z Temporarily overriding HOME='/Users/runner/work/_temp/63c85581-f5c4-4e02-aa20-f8db9fe0f59c' before making global git config changes
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4506330Z Adding repository directory to the temporary git global config as a safe directory
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4514530Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4833870Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4844040Z ##[group]Initializing the repository
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.4848570Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5561910Z hint: Using 'master' as the name for the initial branch. This default branch name
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5565530Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5572750Z hint: to use in all of your new repositories, which will suppress this warning,
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5576750Z hint: call:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5580420Z hint:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5582070Z hint: 	git config --global init.defaultBranch <name>
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5583410Z hint:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5584830Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5586680Z hint: 'development'. The just-created branch can be renamed via this command:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5588240Z hint:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5589050Z hint: 	git branch -m <name>
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5593640Z hint:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5597120Z hint: Disable this message with "git config set advice.defaultBranchName false"
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5599340Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5603290Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5807420Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5811270Z ##[group]Disabling automatic garbage collection
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5819640Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5971350Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5972960Z ##[group]Setting up auth
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.5978310Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+conversion	Run actions/checkout@v4	2026-10-13T19:01:49.6151100Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+conversion	Run actions/checkout@v4	2026-10-13T19:01:50.3771750Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+conversion	Run actions/checkout@v4	2026-10-13T19:01:50.4353410Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+conversion	Run actions/checkout@v4	2026-10-13T19:01:50.9323700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+conversion	Run actions/checkout@v4	2026-10-13T19:01:50.9641120Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+conversion	Run actions/checkout@v4	2026-10-13T19:01:51.4040930Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+conversion	Run actions/checkout@v4	2026-10-13T19:01:51.4498620Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:51.4687710Z ##[group]Fetching the repository
+conversion	Run actions/checkout@v4	2026-10-13T19:01:51.4931880Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +73cef4eefba58531b3be62431651ea79fe479e9b:refs/remotes/pull/35/merge
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5225530Z From https://github.com/0xZKnw/mlxl3
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5239040Z  * [new ref]         73cef4eefba58531b3be62431651ea79fe479e9b -> pull/35/merge
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5310120Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5311720Z ##[group]Determining the checkout info
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5313370Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5314540Z [command]/opt/homebrew/bin/git sparse-checkout disable
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5545880Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5614750Z ##[group]Checking out the ref
+conversion	Run actions/checkout@v4	2026-10-13T19:01:53.5617000Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/35/merge
+conversion	Run actions/checkout@v4	2026-10-13T19:01:54.4821960Z HEAD is now at 73cef4e Merge 42801101048057190101127ec6b84a63c1bf37c4 into b4dfd3915e262b2d33581102ae3320042acee5c9
+conversion	Run actions/checkout@v4	2026-10-13T19:01:54.4882290Z ##[endgroup]
+conversion	Run actions/checkout@v4	2026-10-13T19:01:54.5572200Z [command]/opt/homebrew/bin/git log -1 --format=%H
+conversion	Run actions/checkout@v4	2026-10-13T19:01:54.5909480Z 73cef4eefba58531b3be62431651ea79fe479e9b
+conversion	Run actions/setup-python@v5	﻿2026-10-13T19:01:54.6806450Z ##[group]Run actions/setup-python@v5
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6814950Z with:
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6816120Z   python-version: 3.12
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6816380Z   cache: pip
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6816550Z   check-latest: false
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6818860Z   token: ***
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6819050Z   update-environment: true
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6819260Z   allow-prereleases: false
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6819480Z   freethreaded: false
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6819870Z env:
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6820040Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6820300Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:54.6820550Z ##[endgroup]
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.0904780Z ##[group]Installed versions
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.1574070Z (node:1273) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.1575590Z Successfully set up CPython (3.12.10)
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.1577330Z (Use `node --trace-deprecation ...` to show where the warning was created)
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.1579060Z ##[endgroup]
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:55.8470640Z [command]/Users/runner/hostedtoolcache/Python/3.12.10/arm64/bin/pip cache dir
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:57.2401530Z /Users/runner/Library/Caches/pip
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:57.5475510Z Cache hit for: setup-python-macOS-arm64-python-3.12.10-pip-1be263c1807929aa75fa818eb2140cfca095a25aa8b2bad817b885ef370e309b
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:57.5565200Z (node:1273) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:58.7848580Z Received 16777216 of 113932663 (14.7%), 16.0 MBs/sec
+conversion	Run actions/setup-python@v5	2026-10-13T19:01:59.7976690Z Received 109738359 of 113932663 (96.3%), 52.1 MBs/sec
+conversion	Run actions/setup-python@v5	2026-10-13T19:02:00.0431320Z Received 113932663 of 113932663 (100.0%), 48.0 MBs/sec
+conversion	Run actions/setup-python@v5	2026-10-13T19:02:00.0535260Z Cache Size: ~109 MB (113932663 B)
+conversion	Run actions/setup-python@v5	2026-10-13T19:02:00.0743490Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/a8c80093-b19f-4eeb-b09e-1f264dbec0f1/cache.tzst -P -C /Users/runner/work/mlxl3/mlxl3 --delay-directory-restore --use-compress-program unzstd
+conversion	Run actions/setup-python@v5	2026-10-13T19:02:01.3423220Z Cache restored successfully
+conversion	Run actions/setup-python@v5	2026-10-13T19:02:01.3812120Z Cache restored from key: setup-python-macOS-arm64-python-3.12.10-pip-88d78f3da498151339263e013e0c029be1a56e17c9c9d4db56c543deae01c66b
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	﻿2026-10-13T19:02:01.4652580Z ##[group]Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4653280Z ^[[36;1mpython -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5^[[0m
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4785510Z shell: /bin/bash -e {0}
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4785920Z env:
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4786250Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4787530Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4788090Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4788660Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4789270Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4789790Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4790680Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:01.4791920Z ##[endgroup]
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:03.9817670Z Obtaining file:///Users/runner/work/mlxl3/mlxl3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:03.9875490Z   Installing build dependencies: started
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:06.5706290Z   Installing build dependencies: finished with status 'done'
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:06.5909690Z   Checking if build backend supports build_editable: started
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:07.2824650Z   Checking if build backend supports build_editable: finished with status 'done'
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:07.2848250Z   Getting requirements to build editable: started
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:08.3702310Z   Getting requirements to build editable: finished with status 'done'
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:08.3959110Z   Preparing editable metadata (pyproject.toml): started
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:09.0010690Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:09.1750590Z Collecting pytest==9.1.1
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:09.1812450Z   Using cached pytest-9.1.1-py3-none-any.whl.metadata (7.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.0335830Z Collecting ruff==0.16.5
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.1809340Z   Downloading ruff-0.16.5-py3-none-macosx_11_0_arm64.whl.metadata (26 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.3038280Z Collecting mlx>=0.32.2 (from mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.3085000Z   Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl.metadata (5.9 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.3186030Z Collecting mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99 (from mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.3188200Z   Using cached mlx_lm-0.32.0-py3-none-any.whl
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.7734950Z Collecting numpy>=2.0 (from mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:10.7772990Z   Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.0232750Z Collecting safetensors>=0.5 (from mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.0276570Z   Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl.metadata (4.2 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.0481170Z Requirement already satisfied: certifi>=2025.1.31 in /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages (from mlxl3==1.0.3) (2026.7.22)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.0973320Z Collecting jsonschema<5,>=4.23 (from mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.1011330Z   Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.2239850Z Collecting transformers>=5.7.0 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.2327920Z   Using cached transformers-5.16.1-py3-none-any.whl.metadata (32 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.3952940Z Collecting sentencepiece (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.4006410Z   Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl.metadata (33 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.7293800Z Collecting protobuf (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.7352410Z   Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl.metadata (595 bytes)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.8175400Z Collecting pyyaml (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.8211730Z   Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.4 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.8618260Z Collecting jinja2 (from mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.8674540Z   Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.9246040Z Collecting iniconfig>=1.0.1 (from pytest==9.1.1)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.9414360Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.9666510Z Collecting packaging>=22 (from pytest==9.1.1)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.9691690Z   Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:11.9995040Z Collecting pluggy<2,>=1.5 (from pytest==9.1.1)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.0029530Z   Using cached pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.0481380Z Collecting pygments>=2.7.2 (from pytest==9.1.1)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.0521130Z   Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.0874540Z Collecting attrs>=22.2.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.0909410Z   Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.1243180Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.1282160Z   Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.1703870Z Collecting referencing>=0.28.4 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.1731070Z   Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.6082490Z Collecting rpds-py>=0.25.0 (from jsonschema<5,>=4.23->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.6163180Z   Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl.metadata (4.1 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.6758320Z Collecting mlx-metal==0.32.2 (from mlx>=0.32.2->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.6787920Z   Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl.metadata (5.1 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.7265050Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema<5,>=4.23->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.7309730Z   Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.8171500Z Collecting huggingface-hub<2.0,>=1.5.0 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:12.8202470Z   Using cached huggingface_hub-1.29.0-py3-none-any.whl.metadata (16 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:13.6953070Z Collecting regex>=2025.10.22 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:13.6997550Z   Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl.metadata (40 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.0169770Z Collecting tokenizers<0.24.0,>=0.23.1 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.0239970Z   Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl.metadata (9.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.0812550Z Collecting typer (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.0997830Z   Downloading typer-0.27.3-py3-none-any.whl.metadata (16 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.1697820Z Collecting tqdm>=4.60 (from transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.1742760Z   Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.2270030Z Collecting click<9.0.0,>=8.4.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.2342520Z   Using cached click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.2961160Z Collecting filelock>=3.10.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.3230150Z   Downloading filelock-4.1.1-py3-none-any.whl.metadata (2.0 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.3860620Z Collecting fsspec>=2023.5.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.3906700Z   Using cached fsspec-2026.9.0-py3-none-any.whl.metadata (10 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.5239410Z Collecting hf-xet<2.0.0,>=1.5.2 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.5296980Z   Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl.metadata (4.9 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.5722050Z Collecting httpx<1,>=0.23.0 (from huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.5771020Z   Using cached httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.6528420Z Collecting anyio (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.6574630Z   Using cached anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.7075110Z Collecting httpcore==1.* (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.7136580Z   Using cached httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.8489980Z Collecting idna (from httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.8529020Z   Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.8831560Z Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->huggingface-hub<2.0,>=1.5.0->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:14.8931660Z   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.0505420Z Collecting MarkupSafe>=2.0 (from jinja2->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.0555720Z   Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl.metadata (2.7 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.1017810Z Collecting shellingham>=1.3.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.1079210Z   Using cached shellingham-1.5.4-py2.py3-none-any.whl.metadata (3.5 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.1835150Z Collecting rich>=13.8.0 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.1865930Z   Using cached rich-15.0.0-py3-none-any.whl.metadata (18 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.2170350Z Collecting annotated-doc>=0.0.2 (from typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.2212030Z   Using cached annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.2607060Z Collecting markdown-it-py>=2.2.0 (from rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.2640600Z   Using cached markdown_it_py-4.2.0-py3-none-any.whl.metadata (7.4 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.2984020Z Collecting mdurl~=0.1 (from markdown-it-py>=2.2.0->rich>=13.8.0->typer->transformers>=5.7.0->mlx-lm @ git+https://github.com/ml-explore/mlx-lm.git@44b42cc137763309b0662284ce12d7a95b8c5d99->mlxl3==1.0.3)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.3022520Z   Using cached mdurl-0.1.2-py3-none-any.whl.metadata (1.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.3161560Z Using cached pytest-9.1.1-py3-none-any.whl (386 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.3429530Z Downloading ruff-0.16.5-py3-none-macosx_11_0_arm64.whl (9.8 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5226710Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 63.9 MB/s  0:00:00
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5355690Z Using cached jsonschema-4.26.0-py3-none-any.whl (90 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5494700Z Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5548160Z Using cached attrs-26.1.0-py3-none-any.whl (67 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5732670Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5881440Z Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.5950080Z Using cached mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl (619 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.6040210Z Using cached mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl (64.4 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.7878140Z Using cached numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8192590Z Using cached packaging-26.3-py3-none-any.whl (129 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8281030Z Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8429810Z Using cached referencing-0.37.0-py3-none-any.whl (26 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8487250Z Using cached rpds_py-2026.6.3-cp312-cp312-macosx_11_0_arm64.whl (338 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8678190Z Using cached safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl (484 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.8763770Z Using cached transformers-5.16.1-py3-none-any.whl (12.1 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.9789100Z Using cached huggingface_hub-1.29.0-py3-none-any.whl (795 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:15.9975960Z Using cached click-8.5.0-py3-none-any.whl (125 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.0081390Z Using cached hf_xet-1.6.0-cp38-abi3-macosx_11_0_arm64.whl (3.9 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.0306640Z Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.0448880Z Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.0564880Z Using cached tokenizers-0.23.1-cp310-abi3-macosx_11_0_arm64.whl (3.1 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1051710Z Downloading filelock-4.1.1-py3-none-any.whl (132 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1306000Z Using cached fsspec-2026.9.0-py3-none-any.whl (221 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1388660Z Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1448190Z Using cached pyyaml-6.0.3-cp312-cp312-macosx_11_0_arm64.whl (173 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1510000Z Using cached regex-2026.9.29-cp312-cp312-macosx_11_0_arm64.whl (293 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1586210Z Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1657670Z Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1713570Z Using cached anyio-4.15.1-py3-none-any.whl (132 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1771150Z Using cached idna-3.20-py3-none-any.whl (69 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1842450Z Using cached jinja2-3.1.6-py3-none-any.whl (134 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1900240Z Using cached markupsafe-3.0.4-cp312-cp312-macosx_11_0_arm64.whl (12 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.1957350Z Using cached protobuf-7.36.2-cp310-abi3-macosx_10_9_universal2.whl (456 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2057440Z Using cached sentencepiece-0.2.2-cp312-cp312-macosx_11_0_arm64.whl (1.3 MB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2307530Z Downloading typer-0.27.3-py3-none-any.whl (123 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2516400Z Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2595300Z Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2674730Z Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2719020Z Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.2769780Z Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.7937440Z Building wheels for collected packages: mlxl3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:16.7965810Z   Building editable for mlxl3 (pyproject.toml): started
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:17.6219400Z   Building editable for mlxl3 (pyproject.toml): finished with status 'done'
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:17.6258480Z   Created wheel for mlxl3: filename=mlxl3-1.0.3-0.editable-py3-none-any.whl size=13347 sha256=ce1333ab2cf20d31d6bf1814e29d033a7ed54cec00d615e498b464dc2da36ca3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:17.6261780Z   Stored in directory: /private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/pip-ephem-wheel-cache-f7aoww2v/wheels/ed/b2/9a/5e76ae5229e8552789ab565f0c61e19ae174be3061de6f92d3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:17.6336460Z Successfully built mlxl3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:17.8286450Z Installing collected packages: typing-extensions, tqdm, shellingham, sentencepiece, safetensors, ruff, rpds-py, regex, pyyaml, pygments, protobuf, pluggy, packaging, numpy, mlx-metal, mdurl, MarkupSafe, iniconfig, idna, hf-xet, h11, fsspec, filelock, click, attrs, annotated-doc, referencing, pytest, mlx, markdown-it-py, jinja2, httpcore, anyio, rich, jsonschema-specifications, httpx, typer, jsonschema, huggingface-hub, tokenizers, transformers, mlx-lm, mlxl3
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:56.7015280Z 
+conversion	Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5	2026-10-13T19:02:56.7121070Z Successfully installed MarkupSafe-3.0.4 annotated-doc-0.0.5 anyio-4.15.1 attrs-26.1.0 click-8.5.0 filelock-4.1.1 fsspec-2026.9.0 h11-0.16.0 hf-xet-1.6.0 httpcore-1.0.9 httpx-0.28.1 huggingface-hub-1.29.0 idna-3.20 iniconfig-2.3.1 jinja2-3.1.6 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 markdown-it-py-4.2.0 mdurl-0.1.2 mlx-0.32.2 mlx-lm-0.32.0 mlx-metal-0.32.2 mlxl3-1.0.3 numpy-2.5.2 packaging-26.3 pluggy-1.6.0 protobuf-7.36.2 pygments-2.21.0 pytest-9.1.1 pyyaml-6.0.3 referencing-0.37.0 regex-2026.9.29 rich-15.0.0 rpds-py-2026.6.3 ruff-0.16.5 safetensors-0.8.0 sentencepiece-0.2.2 shellingham-1.5.4 tokenizers-0.23.1 tqdm-4.70.1 transformers-5.16.1 typer-0.27.3 typing-extensions-4.16.0
+conversion	Apply the pinned optional converter patch	﻿2026-10-13T19:02:57.4706180Z ##[group]Run git clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.4708840Z ^[[36;1mgit clone https://github.com/beamivalice/PonyExl3.git references/PonyExl3^[[0m
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.4710880Z ^[[36;1mgit -C references/PonyExl3 checkout 8e7fa6b1556f59fc669e25087903b279b9b0346f^[[0m
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.4712250Z ^[[36;1mgit -C references/PonyExl3 apply ../../scripts/patches/ponyexl3-mlxl3-conversion.patch^[[0m
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5767180Z shell: /bin/bash -e {0}
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5769740Z env:
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5771590Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5772350Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5774620Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5775510Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5778120Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5781180Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5784310Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.5786980Z ##[endgroup]
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:57.9124500Z Cloning into 'references/PonyExl3'...
+conversion	Apply the pinned optional converter patch	2026-10-13T19:02:59.0403160Z HEAD is now at 8e7fa6b allow head overwrites
+conversion	Check host contracts and benchmark failure gates	﻿2026-10-13T19:02:59.1263900Z ##[group]Run ruff format --check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1269180Z ^[[36;1mruff format --check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py^[[0m
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1274180Z ^[[36;1mruff check src/mlxl3_quantizer/packing.py scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/quantize_conversion_contracts.py^[[0m
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1279080Z ^[[36;1mpython -m compileall -q src/mlxl3_quantizer scripts/quantize_lfm25_moe.py benchmarks/bench_quantize_packing.py^[[0m
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1282260Z ^[[36;1mpython -m pytest -q tests/test_lfm25_moe_conversion.py tests/test_quantize_packing.py tests/test_quantize_packing_benchmark.py tests/test_lfm_conversion_adapter.py^[[0m
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1418560Z shell: /bin/bash -e {0}
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1418780Z env:
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1418960Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1419240Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1419620Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1423620Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1426180Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1427150Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1427670Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.1428050Z ##[endgroup]
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.5553840Z 7 files already formatted
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:02:59.6663710Z All checks passed!
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8617500Z ...............ssssssssssssssssssssssssssssssss..............ss..        [100%]
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8622470Z =========================== short test summary info ============================
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8634000Z SKIPPED [2] tests/test_lfm25_moe_conversion.py:160: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8641510Z SKIPPED [1] tests/test_lfm25_moe_conversion.py:214: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8643540Z SKIPPED [5] tests/test_lfm25_moe_conversion.py:243: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8647920Z SKIPPED [1] tests/test_lfm25_moe_conversion.py:259: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8649490Z SKIPPED [8] tests/test_quantize_packing.py:12: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8676060Z SKIPPED [6] tests/test_quantize_packing.py:32: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8679160Z SKIPPED [4] tests/test_quantize_packing.py:46: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8682810Z SKIPPED [4] tests/test_quantize_packing.py:54: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8684640Z SKIPPED [1] tests/test_quantize_packing.py:62: requires a physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8688300Z SKIPPED [2] tests/test_quantize_packing_benchmark.py:69: physical Apple GPU
+conversion	Check host contracts and benchmark failure gates	2026-10-13T19:03:04.8696560Z 31 passed, 34 skipped in 2.95s
+conversion	Check the shared packing source with host sanitizers	﻿2026-10-13T19:03:05.0222360Z ##[group]Run mkdir -p build/proofs
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0225330Z ^[[36;1mmkdir -p build/proofs^[[0m
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0227450Z ^[[36;1mc++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/quantize_packing_proof.cpp -o build/proofs/quantize-packing^[[0m
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0228290Z ^[[36;1mbuild/proofs/quantize-packing^[[0m
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0342130Z shell: /bin/bash -e {0}
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0342670Z env:
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0343080Z   MLXL3_SKIP_METAL_CHECK: 1
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0343640Z   PYTHONPATH: src:references/PonyExl3:scripts
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0344470Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0345870Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0347060Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0348500Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0349890Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:05.0379660Z ##[endgroup]
+conversion	Check the shared packing source with host sanitizers	2026-10-13T19:03:12.7665140Z Packing: K=1..8, 2 tiles, every input bit/word; host sanitizer checks passed
+conversion	Post Run actions/setup-python@v5	﻿2026-10-13T19:03:12.8704660Z Post job cleanup.
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:13.8491830Z (node:1822) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:13.8593200Z (Use `node --trace-deprecation ...` to show where the warning was created)
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:13.9239070Z [command]/opt/homebrew/bin/gtar --posix -cf cache.tzst --exclude cache.tzst -P -C /Users/runner/work/mlxl3/mlxl3 --files-from manifest.txt --delay-directory-restore --use-compress-program zstdmt
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:16.3711390Z (node:1822) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:17.3589190Z Sent 43253760 of 124031412 (34.9%), 41.1 MBs/sec
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:18.3602010Z Sent 84803584 of 124031412 (68.4%), 40.3 MBs/sec
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:19.3609880Z Sent 110362624 of 124031412 (89.0%), 35.0 MBs/sec
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:20.1337070Z Sent 124031412 of 124031412 (100.0%), 31.3 MBs/sec
+conversion	Post Run actions/setup-python@v5	2026-10-13T19:03:20.3835990Z Cache saved with the key: setup-python-macOS-arm64-python-3.12.10-pip-1be263c1807929aa75fa818eb2140cfca095a25aa8b2bad817b885ef370e309b
+conversion	Post Run actions/checkout@v4	﻿2026-10-13T19:03:20.4438970Z Post job cleanup.
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9268900Z [command]/opt/homebrew/bin/git version
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9601990Z git version 2.55.0
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9693370Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/defe4f57-7f36-4c1d-b150-04a5d015b826/.gitconfig'
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9743080Z Temporarily overriding HOME='/Users/runner/work/_temp/defe4f57-7f36-4c1d-b150-04a5d015b826' before making global git config changes
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9751970Z Adding repository directory to the temporary git global config as a safe directory
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:20.9762170Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.0068690Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.0290230Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.4132620Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.4237350Z http.https://github.com/.extraheader
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.4284490Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.4375900Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.8035680Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+conversion	Post Run actions/checkout@v4	2026-10-13T19:03:21.8260850Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+conversion	Complete job	﻿2026-10-13T19:03:22.2212230Z Cleaning up orphan processes
+conversion	Complete job	2026-10-13T19:03:23.5939040Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

@@ -1,0 +1,271 @@
+diff --git a/native/src/codec.rs b/native/src/codec.rs
+index 89a9e4ef..840a9442 100644
+--- a/native/src/codec.rs
++++ b/native/src/codec.rs
+@@ -70,6 +70,111 @@ pub fn decode_codeword(word: u16, mode: Codebook) -> f16 {
+     )
+ }
+ 
++/// A PLE row is a circular stream of 160 four-bit symbols and one FP16 scale.
++pub fn decode_ngram_row(words: &[u16], bias: &[f16], output: &mut Vec<u16>) -> Result<()> {
++    ensure!(
++        words.len() == 41 && bias.len() == 160,
++        "invalid PLE row shape"
++    );
++    let scale = f16::from_bits(words[0]).to_f32();
++    ensure!(scale.is_finite(), "nonfinite PLE row scale");
++    for (i, bias) in bias.iter().enumerate() {
++        let mut state = 0u16;
++        for j in 0..4 {
++            let symbol = (i + 160 - j) % 160;
++            state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
++        }
++        let value =
++            f16::from_f32(decode_codeword(state, Codebook::Mul1).to_f32() * scale + bias.to_f32());
++        ensure!(value.is_finite(), "nonfinite PLE embedding");
++        output.push(value.to_bits());
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod ngram_tests {
++    use super::*;
++
++    fn decode(words: &[u16], bias: &[f16]) -> Result<Vec<u16>> {
++        let mut result = Vec::new();
++        decode_ngram_row(words, bias, &mut result)?;
++        Ok(result)
++    }
++
++    #[test]
++    fn circular_rows_match_independent_symbol_windows_and_reject_invalid_values() {
++        let mut seed = 17u32;
++        for scale in [0., 0.25, -0.5, 1., 2.] {
++            for _ in 0..32 {
++                let mut words = [0u16; 41];
++                words[0] = f16::from_f32(scale).to_bits();
++                for word in &mut words[1..] {
++                    seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
++                    *word = (seed >> 16) as u16;
++                }
++                let bias: Vec<_> = (0..160)
++                    .map(|i| f16::from_f32((i as f32 - 80.) / 512.))
++                    .collect();
++                let symbols: Vec<_> = words[1..]
++                    .iter()
++                    .flat_map(|w| (0..4).map(move |i| (w >> (4 * i)) & 15))
++                    .collect();
++                let mut history = symbols[157..].to_vec();
++                history.extend(&symbols);
++                let expected: Vec<_> = history
++                    .windows(4)
++                    .zip(&bias)
++                    .map(|(w, b)| {
++                        let state = w[0] * 4096 + w[1] * 256 + w[2] * 16 + w[3];
++                        f16::from_f32(
++                            decode_codeword(state, Codebook::Mul1).to_f32() * scale + b.to_f32(),
++                        )
++                        .to_bits()
++                    })
++                    .collect();
++                assert_eq!(decode(&words, &bias).unwrap(), expected);
++            }
++        }
++        let mut words = [0u16; 41];
++        let mut bias = [f16::ZERO; 160];
++        assert!(decode(&words[..40], &bias).is_err());
++        assert!(decode(&words, &bias[..159]).is_err());
++        for scale in [f16::NAN, f16::INFINITY, f16::NEG_INFINITY] {
++            words[0] = scale.to_bits();
++            assert!(decode(&words, &bias).is_err());
++        }
++        words[0] = f16::ONE.to_bits();
++        bias[159] = f16::NAN;
++        assert!(decode(&words, &bias).is_err());
++        bias.fill(f16::MAX);
++        let symbol = (0..16u16)
++            .find(|s| decode_codeword(s * 0x1111, Codebook::Mul1).to_f32() > 0.01)
++            .unwrap();
++        words.fill(symbol * 0x1111);
++        words[0] = f16::MAX.to_bits();
++        assert!(decode(&words, &bias).is_err());
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++#[kani::unwind(162)]
++fn ple_row_decoder_rejects_nonfinite_or_returns_exact_finite_shape() {
++    let mut words = [0u16; 41];
++    words[0] = kani::any();
++    words[1] = kani::any();
++    let mut values = Vec::new();
++    let result = decode_ngram_row(&words, &[f16::ZERO; 160], &mut values);
++    if result.is_ok() {
++        assert_eq!(values.len(), 160);
++        assert!(values.into_iter().all(|v| f16::from_bits(v).is_finite()));
++        kani::cover!(words[0] == f16::ONE.to_bits());
++    } else {
++        kani::cover!(words[0] == f16::INFINITY.to_bits());
++    }
++}
++
+ pub fn pack(encoded: &[u16], k: usize) -> Result<Vec<u16>> {
+     check_k(k)?;
+     ensure!(
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..612a9896 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -3,8 +3,7 @@
+ use crate::{
+     array::{self, Array, Dtype},
+     checkpoint::{Checkpoint, TensorInfo},
+-    codec::{self, Codebook},
+-    flash_support, gated_delta,
++    codec, flash_support, gated_delta,
+     lfm2::{Projection, half_weight},
+     linear::checkpoint_array,
+     ssd_moe::SsdMoe,
+@@ -720,6 +719,7 @@ struct Ngrams {
+     queue: VecDeque<u64>,
+     previous: [u32; 2],
+     read_bytes: u64,
++    decoded: bool,
+ }
+ impl Ngrams {
+     fn load(c: &Checkpoint, p: &str) -> Result<Self> {
+@@ -795,6 +795,12 @@ impl Ngrams {
+             queue: VecDeque::new(),
+             previous: [EOS; 2],
+             read_bytes: 0,
++            decoded: match std::env::var("MLXL3_FLASH_PLE_DECODED") {
++                Ok(v) => flash_support::parse_gpu_hot_wide(&v)
++                    .context("MLXL3_FLASH_PLE_DECODED must be 0 or 1")?,
++                Err(std::env::VarError::NotPresent) => false,
++                Err(e) => return Err(e.into()),
++            },
+         })
+     }
+     fn forward(&mut self, token: u32) -> Result<Array> {
+@@ -816,12 +822,23 @@ impl Ngrams {
+                     .context("PLE offset overflow")?;
+                 let mut raw = [0u8; 82];
+                 file.read_exact_at(&mut raw, offset)?;
+-                let words = raw
++                let words: Vec<u16> = raw
+                     .as_chunks::<2>()
+                     .0
+                     .iter()
+                     .map(|b| u16::from_le_bytes(*b))
+                     .collect();
++                let words = if self.decoded {
++                    let mut decoded = Vec::with_capacity(160);
++                    codec::decode_ngram_row(
++                        &words,
++                        &self.bias[head * 160..(head + 1) * 160],
++                        &mut decoded,
++                    )?;
++                    decoded
++                } else {
++                    words
++                };
+                 if self.cache.len() == 16384
+                     && let Some(old) = self.queue.pop_front()
+                 {
+@@ -832,20 +849,14 @@ impl Ngrams {
+                 self.read_bytes += 82;
+             }
+             let words = &self.cache[&row];
+-            let scale = f16::from_bits(words[0]).to_f32();
+-            ensure!(scale.is_finite(), "nonfinite PLE row scale");
+-            for i in 0..160 {
+-                let mut state = 0u16;
+-                for j in 0..4 {
+-                    let symbol = (i + 160 - j) % 160;
+-                    state |= ((words[1 + symbol / 4] >> (4 * (symbol % 4))) & 15) << (j * 4);
+-                }
+-                let value = f16::from_f32(
+-                    codec::decode_codeword(state, Codebook::Mul1).to_f32() * scale
+-                        + self.bias[head * 160 + i].to_f32(),
+-                );
+-                ensure!(value.is_finite(), "nonfinite PLE embedding");
+-                output.push(value.to_bits());
++            if self.decoded {
++                output.extend_from_slice(words);
++            } else {
++                codec::decode_ngram_row(
++                    words,
++                    &self.bias[head * 160..(head + 1) * 160],
++                    &mut output,
++                )?;
+             }
+         }
+         self.previous = [token, self.previous[0]];
+@@ -1968,6 +1979,65 @@ mod tests {
+         Ok(result)
+     }
+     #[test]
++    #[ignore = "physical Apple GPU and Flash checkpoint; run alone"]
++    fn decoded_ple_cache_preserves_full_logits_states_and_warm_rows() -> Result<()> {
++        let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&c)?;
++        let saved = tempfile::tempdir()?;
++        for (pass, decoded) in [false, true, true].into_iter().enumerate() {
++            target.reset();
++            let ple = target
++                .layers
++                .iter_mut()
++                .find_map(|l| l.ple.as_mut())
++                .context("missing PLE")?;
++            if ple.rows.decoded != decoded {
++                ple.rows.cache.clear();
++                ple.rows.queue.clear();
++            }
++            ple.rows.decoded = decoded;
++            let before = ple.rows.read_bytes;
++            for (step, token) in [EOS, 1, 42, EOS, 7, 7].into_iter().enumerate() {
++                let logits = target.forward(token)?;
++                let values = logits.astype(Dtype::Float32)?.to_f32()?;
++                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                let mut state = state_bytes(&target)?;
++                state.push(logits.to_bytes()?);
++                for (part, bytes) in state.into_iter().enumerate() {
++                    let file = saved.path().join(format!("{step}-{part}"));
++                    if pass == 0 {
++                        std::fs::write(file, bytes)?;
++                    } else {
++                        ensure!(
++                            std::fs::read(file)? == bytes,
++                            "PLE cache changed step {step} state {part}"
++                        );
++                    }
++                }
++            }
++            let ple = target
++                .layers
++                .iter_mut()
++                .find_map(|l| l.ple.as_mut())
++                .unwrap();
++            ensure!(
++                !ple.rows.cache.is_empty()
++                    && ple
++                        .rows
++                        .cache
++                        .values()
++                        .all(|v| v.len() == if decoded { 160 } else { 41 })
++            );
++            if pass == 2 {
++                ensure!(
++                    ple.rows.read_bytes == before,
++                    "warm decoded rows reread from SSD"
++                );
++            }
++        }
++        Ok(())
++    }
++    #[test]
+     #[ignore = "physical Apple GPU and Flash checkpoint; LES full logits, states and commits"]
+     fn flash_lookahead_preserves_full_logits_states_and_pair_commits() -> Result<()> {
+         let c = crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;

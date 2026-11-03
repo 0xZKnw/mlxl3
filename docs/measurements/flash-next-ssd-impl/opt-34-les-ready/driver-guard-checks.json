@@ -1,0 +1,71 @@
+{
+  "reused_from": "../opt-33-les-admission/driver-guard-checks.json",
+  "reason": "actual choose/power/confirmation functions AST identical; embedded driver differs only candidate paths, H20 reference guard retained",
+  "source_sha256": "29faca5ac1b7cc923476f1615af1bbf9286d4987449591573ba1fdb24c61236f",
+  "evidence": {
+    "status": "passed",
+    "cases": [
+      {
+        "case": "H-creates",
+        "expected_accepted": true,
+        "observed_accepted": true
+      },
+      {
+        "case": "C-missing",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "MTP-missing",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "C-matches",
+        "expected_accepted": true,
+        "observed_accepted": true
+      },
+      {
+        "case": "bad-hash",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "bad-text",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "bad-prefix",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "empty",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "incomplete",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "zero-speed",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "NaN-speed",
+        "expected_accepted": false,
+        "observed_accepted": false
+      },
+      {
+        "case": "wrong-count",
+        "expected_accepted": false,
+        "observed_accepted": false
+      }
+    ],
+    "limits": "actual checker definitions; generation excluded and reference files disposable"
+  }
+}

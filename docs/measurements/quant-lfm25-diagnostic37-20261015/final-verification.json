@@ -1,0 +1,100 @@
+{
+  "status": "complete_capture_recovery_validated",
+  "full_tests": {
+    "passed": 970,
+    "skipped": 1,
+    "seconds": 101.82,
+    "skipped_reason": "local Ling model not installed",
+    "command": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=scripts:benchmarks:src:references/PonyExl3:build/torch-check/lib/python3.12/site-packages /Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q"
+  },
+  "symbolic": {
+    "confirmed_postconditions": 4,
+    "timeout_per_condition": 20,
+    "targets": [
+      "diagnose_lfm25_tuning.cold_stage",
+      "diagnose_lfm25_tuning_modal.cache_name"
+    ],
+    "scope": "stage/cache choice only; no numerical, GPU, I/O, concurrency or quality proof"
+  },
+  "checks": [
+    "Ruff format and lint10files",
+    "compileall4diagnostics",
+    "git diff --check"
+  ],
+  "numerical": {
+    "status": "complete_capture_recovery",
+    "causal_interpretation": true,
+    "historical23_causal_interpretation": false,
+    "total_comparisons": 40,
+    "registered_repeatability_passed": true,
+    "new_logit_arrays_verified": 20,
+    "new_route_files_verified": 12,
+    "reference_arrays_verified": 10
+  },
+  "retained_source_sha256": {
+    "scripts/diagnose_lfm25_tuning.py": "e94d9f87ff67f04edf4ca97fbfd41010962add81aed24605f1ea17773c9e1ec2",
+    "scripts/diagnose_lfm25_tuning_modal.py": "25a9292291d23589de840a0fea727812d0e1d0edeb058530361e4eef46b361fb",
+    "scripts/diagnose_lfm25_routes.py": "8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1",
+    "scripts/diagnose_lfm25_routes_modal.py": "6bf5b9d41504a8bd8bb0d176768eac6bc2dd64c4ed406d6a8c737257e9cb333e",
+    "tests/test_lfm25_tuning.py": "a75060e38e2080b9c9171232c6d35b2e016ac866428e4cb99b5f3926343b6fc7",
+    "tests/test_lfm25_tuning_modal.py": "4102eb9c6ee1abae26c9dca2f3e0d20609852e4c2b246b65811123b05e4ffb5e",
+    "tests/test_lfm25_routes.py": "1b4d5e8f6bcf2dee1ed7919a0e283c6ba83ebbabbe6cc49e18a34ee256464d81",
+    ".github/workflows/quantization.yml": "79f822a8ac7b99ce2ae7431fde5db0efee5bd146de13e626057d949c0bf92f66"
+  },
+  "removed_prototype": "periodic faulthandler trace; originalcapturedwrapper f21d4... remains in stage provenance and Gitd792; retained helper restored e94d9...; no model/kernel math changed",
+  "archive": "final-validation-and-recovery-logs.tar.gz",
+  "archive_sha256": "cfadd1a89db2166bb99db4c180c53a44f4c5c6e2ab2925d6ee126e853e7887da",
+  "logs": {
+    "lfm25-tuning37-recovery-modal.log": {
+      "bytes": 31060,
+      "sha256": "3b651ad0d439d04bdd2d61c0cc6a790c3d7a1380a51068430302be5a382fe1ea"
+    },
+    "lfm25-tuning37-comparison.log": {
+      "bytes": 5696,
+      "sha256": "0fc3aa16bd545c0489874e61ed473cddaca7733d4733b34af10ad7e997b02e25"
+    },
+    "lfm25-diagnostic37-final-crosshair-cache.log": {
+      "bytes": 268,
+      "sha256": "87facb0748be69a82efcdde7dfb270b6976c2ffe479ab4dfe89e2824d644a304"
+    },
+    "lfm25-diagnostic37-final-crosshair-stage.log": {
+      "bytes": 256,
+      "sha256": "ff3b5dadcd318261f018513d1c8d6c46a7ecb5fee54dce5de26b0e6fd2f8f5d8"
+    },
+    "lfm25-diagnostic37-final-format.log": {
+      "bytes": 27,
+      "sha256": "5b9f70ad96522f492ef846065642c069b5627379aff2ab3f74acd2e3b9ecfe34"
+    },
+    "lfm25-diagnostic37-final-full-tests.log": {
+      "bytes": 3741,
+      "sha256": "01b93a1a4c2761d5751092a429afe353722c71907ef27195ed561359bfb2cb33"
+    },
+    "lfm25-diagnostic37-final-lint.log": {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    }
+  },
+  "ci": "6ace5dfb conversionworkflowSUCCESS; finalcommitpending; native/regressionwereinprogressatlastsnapshot",
+  "limitations": [
+    "one Ling integration skipped",
+    "native Metal inspection static; no installedapp GPU revalidation",
+    "instrumentedexit139causeundetermined",
+    "recovery driver/flags/configSHA not collected; actualworkerforcesTF32False",
+    "no improved quantization/PPL claim or HF publication"
+  ],
+  "analysis_guard_tests": {
+    "passed": 21,
+    "seconds": 0.361,
+    "scope": "real analysis37FunctionDef AST unchanged; malformed cache/geometry/SHA/shape/NaN rejects; duplicates preserved; disposable sparse fixture cleaned",
+    "source": "lfm25-tuning37-analysis-guards.py.txt",
+    "report": "lfm25-tuning37-analysis-guards.json",
+    "logs": "analysis-guards-logs.tar.gz",
+    "archive_sha256": "a9ccd5147ae48453691621b83427152a674ac1cd7cc2c14cf9009d0867d3b0c2",
+    "ci": "local one-off analysis validation; reusable diagnostic production entrypoints and guards are separately covered by CI tests"
+  },
+  "geometry_symbolic": {
+    "status": "confirmed_bounded_domain",
+    "scope": "one shared dictionary key;2arbitraryintnum_sms;noassumes;no I/O/NumPy/CUDA/model proof",
+    "timeout_per_condition": 20
+  }
+}

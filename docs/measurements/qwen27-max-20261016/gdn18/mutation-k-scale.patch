@@ -1,0 +1,11 @@
+--- a/native/shaders/gated_delta_packed.metal
++++ b/native/shaders/gated_delta_packed.metal
+@@ -72,7 +72,7 @@
+             for (uint i = 0u; i < 4u; ++i) {
+               uint d = lane * 4u + i;
+               prepared_q[d] = half(float(qv[i]) * qi) * q_scale;
+-              prepared_k[d] = half(float(kv[i]) * ki) * k_scale;
++              prepared_k[d] = half(float(kv[i]) * ki) * q_scale;
+               if (hv_idx % (Hv / Hk) == 0u) {
+                 keys_out[(t * Hk + hk_idx) * Dk + d] = prepared_k[d];
+               }

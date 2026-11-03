@@ -1,0 +1,12 @@
+PLR1704 Redefining argument with the local name `prompt`
+   --> scripts/benchmark-flash-bridge.py:162:28
+    |
+160 |                     for enabled in modes
+161 |                 ]
+162 |                 for label, prompt, enabled in schedule:
+    |                            ^^^^^^
+163 |                     request_id = f"{repeat}-{label}-{enabled}"
+164 |                     request = {
+    |
+
+Found 1 error.

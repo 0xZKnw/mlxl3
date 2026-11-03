@@ -1,0 +1,62 @@
+{
+  "status": "separate_recheck_complete_not_gain_confirmation",
+  "initial_w1_recheck_status": "interrupted +1048576B Swapouts, zero responses",
+  "phase": "DF128 C then A",
+  "higher_minimum_available_bytes": 12000000000,
+  "native_processes": 2,
+  "warmups": 4,
+  "measurements": 4,
+  "rows": {
+    "MAIN": {
+      "arms": {
+        "A": {
+          "decode_tps": 11.680283106150101,
+          "prefill_tps": 10.184693961548227,
+          "mean_ttft_seconds": 8.542721541999999
+        },
+        "C": {
+          "decode_tps": 11.718396099896326,
+          "prefill_tps": 10.066506826868368,
+          "mean_ttft_seconds": 8.643067293
+        }
+      },
+      "decode_delta_percent": 0.32630196888083773,
+      "prefill_delta_percent": -1.160438743923664
+    },
+    "HOLD": {
+      "arms": {
+        "A": {
+          "decode_tps": 11.15429798929128,
+          "prefill_tps": 10.162639410963504,
+          "mean_ttft_seconds": 8.069228833
+        },
+        "C": {
+          "decode_tps": 10.950704487597621,
+          "prefill_tps": 10.143281113011103,
+          "mean_ttft_seconds": 8.084711417
+        }
+      },
+      "decode_delta_percent": -1.8252471100298706,
+      "prefill_delta_percent": -0.19048494362121637
+    },
+    "ALL": {
+      "arms": {
+        "A": {
+          "decode_tps": 11.411232623075595,
+          "prefill_tps": 10.173980994578603,
+          "mean_ttft_seconds": 8.3059751875
+        },
+        "C": {
+          "decode_tps": 11.321551312836393,
+          "prefill_tps": 10.103612572035797,
+          "mean_ttft_seconds": 8.363889355
+        }
+      },
+      "decode_delta_percent": -0.7859037949839887,
+      "prefill_delta_percent": -0.6916508157456147
+    }
+  },
+  "swapouts_since_w2": 0,
+  "swapins_since_w2": 0,
+  "conclusion": "Prior DF/HOLD prefill penalty not reproduced in this separate higher-headroom reversed-order recheck; neither flag causality nor general gain established."
+}

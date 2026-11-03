@@ -125,7 +125,9 @@ fn main() {
         ])
         .arg(&object)
         .arg("-I")
-        .arg(root.join("include")));
+        .arg(root.join("include"))
+        .arg("-I")
+        .arg(root.join("include/metal_cpp")));
     run(Command::new("/usr/bin/ar")
         .arg("crs")
         .arg(&archive)
@@ -138,6 +140,8 @@ fn main() {
     println!("cargo:rustc-link-lib=static=mlxl3_mlx_bridge");
     println!("cargo:rustc-link-lib=dylib=mlx");
     println!("cargo:rustc-link-lib=dylib=c++");
+    println!("cargo:rustc-link-lib=framework=Metal");
+    println!("cargo:rustc-link-lib=framework=Foundation");
     println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
     println!(
         "cargo:rustc-link-arg=-Wl,-rpath,{}",

@@ -1,0 +1,95 @@
+[
+  {
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit": 0,
+    "seconds": 0.29018316600000005
+  },
+  {
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "seconds": 3.1831481669999997
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 48.406941083
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features"
+    ],
+    "exit": 0,
+    "seconds": 8.640241249999995
+  },
+  {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit": 0,
+    "seconds": 0.13236079100000353
+  },
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/test_flash_cache_profile.py",
+      "tests/test_flash_slot_benchmark.py",
+      "tests/test_flash_quality_run.py",
+      "tests/test_flash_pair_kernel.py"
+    ],
+    "exit": 0,
+    "seconds": 5.085445125
+  },
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "check",
+      "tests/test_flash_pair_kernel.py"
+    ],
+    "exit": 0,
+    "seconds": 0.02040649999999289
+  },
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+      "format",
+      "--check",
+      "tests/test_flash_pair_kernel.py"
+    ],
+    "exit": 0,
+    "seconds": 0.010093542000007005
+  }
+]

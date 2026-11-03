@@ -1,0 +1,111 @@
+{
+  "experiment": "ISSUE59-T18A-01",
+  "status": "quality_validated_performance_mixed_kept_local_opt_in",
+  "closed_at": "2026-10-31T14:23:04.264969+00:00",
+  "default": "Static",
+  "activation": "MLXL3_SSD_DYNAMIC_READERS=1",
+  "cache_gib": 3,
+  "readers": 4,
+  "same_cli_sha256": "1fea100a7aaf30a9123865f1983ce9f31983c2efed6c0b9d6fdc45c10d5de436",
+  "w1_AR_report": "docs/measurements/issue59-t18a-20261031/pilot128-AR-inspection.json",
+  "w2_MTP": {
+    "A": {
+      "responses": 4,
+      "decode_tokens": 508,
+      "decode_seconds": 47.97660525,
+      "decode_tps": 10.588494066074006,
+      "prompt_tokens": 338,
+      "prefill_seconds": 34.675876167,
+      "prefill_tps": 9.747410515950122,
+      "ttft_mean_seconds": 8.66955270825,
+      "decode_tps_range": [
+        10.243145937904014,
+        11.274879350190528
+      ]
+    },
+    "C": {
+      "responses": 4,
+      "decode_tokens": 508,
+      "decode_seconds": 46.605769584,
+      "decode_tps": 10.899938023433025,
+      "prompt_tokens": 338,
+      "prefill_seconds": 33.523460583,
+      "prefill_tps": 10.082491309724817,
+      "ttft_mean_seconds": 8.3814351455,
+      "decode_tps_range": [
+        10.398644879451352,
+        11.511748624788515
+      ]
+    },
+    "decode_percent_C_vs_A": 2.941343267659735,
+    "prefill_percent_C_vs_A": 3.437639086056632,
+    "ttft_percent_C_vs_A": -3.3233267325986304
+  },
+  "w2_DF": {
+    "A": {
+      "responses": 4,
+      "decode_tokens": 508,
+      "decode_seconds": 43.71336946,
+      "decode_tps": 11.621158612923818,
+      "prompt_tokens": 338,
+      "prefill_seconds": 32.869976125,
+      "prefill_tps": 10.282940234414301,
+      "ttft_mean_seconds": 8.2179528745,
+      "decode_tps_range": [
+        11.393541137659447,
+        11.881188396320576
+      ]
+    },
+    "C": {
+      "responses": 4,
+      "decode_tokens": 508,
+      "decode_seconds": 44.449192874,
+      "decode_tps": 11.428778953085294,
+      "prompt_tokens": 338,
+      "prefill_seconds": 32.447504583,
+      "prefill_tps": 10.41682571106211,
+      "ttft_mean_seconds": 8.112301417,
+      "decode_tps_range": [
+        10.649172471325912,
+        11.967254998988023
+      ]
+    },
+    "decode_percent_C_vs_A": -1.6554258163603452,
+    "prefill_percent_C_vs_A": 1.30201550914133,
+    "ttft_percent_C_vs_A": -1.2856177093425902
+  },
+  "performance_limit": "descriptive ACCA with 2 independent processes per arm; MTP control MAIN drift -8.05%, DF candidate HOLD drift -6.43%; no cross-campaign/mode aggregation",
+  "w1_swap_interruption_preserved_bytes": 1572864,
+  "w2_swapout_bytes": 0,
+  "cpu_suite": {
+    "passed": 256,
+    "failed": 0,
+    "ignored": 8
+  },
+  "mlx_chat_suite": {
+    "passed": 293,
+    "failed": 0,
+    "ignored": 187
+  },
+  "w2_native_quality_passed": 3,
+  "w2_pilot_processes_passed": 8,
+  "w2_generations_with_external_golden": 32,
+  "source_verification_gaps": [
+    "Kani MLX ICE intrinsics243 before obligations",
+    "CBMC C++ standard library parsing failed before obligations",
+    "CrossHair unavailable"
+  ],
+  "installed_app_unchanged": true,
+  "no_publication": true,
+  "startup_settings": {
+    "apps": [
+      "Ollama",
+      "Steam",
+      "Epic Games Launcher"
+    ],
+    "registered_login_and_launch_agents_disabled": true,
+    "remaining_processes_observed": false,
+    "next_boot_not_tested": true,
+    "backup": "/Users/justin/Library/Application Support/Codex/startup-backups/20261031-145011/changes.json"
+  }
+}

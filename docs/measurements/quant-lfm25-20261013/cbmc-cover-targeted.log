@@ -1,0 +1,33 @@
+--cover is incompatible with --unwinding-assertions, so unwinding-assertions will be defaulted to false
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+**** WARNING: Use --unwinding-assertions to obtain sound verification results
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_packing_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Rewriting existing assertions as assumptions
+Ignoring block 18 location 95 proof() (missing source location)
+Ignoring block 1 location 0 #cpp_dynamic_initialization#quantize_packing_proof (missing source location)
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+
+** coverage results:
+[proof().coverage.2] file tests/quantize_packing_proof.cpp line 41 function proof() false: SATISFIED
+[proof().coverage.3] file tests/quantize_packing_proof.cpp line 42 function proof() false: SATISFIED
+[proof().coverage.4] file tests/quantize_packing_proof.cpp line 43 function proof() false: SATISFIED
+[proof().coverage.5] file tests/quantize_packing_proof.cpp line 44 function proof() false: SATISFIED
+[proof().coverage.6] file tests/quantize_packing_proof.cpp line 45 function proof() false: SATISFIED
+[proof().coverage.7] file tests/quantize_packing_proof.cpp line 46 function proof() false: SATISFIED
+
+** 6 of 6 covered (100.0%)

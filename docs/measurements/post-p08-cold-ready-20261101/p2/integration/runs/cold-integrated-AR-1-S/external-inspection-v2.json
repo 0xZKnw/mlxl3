@@ -1,0 +1,142 @@
+{
+  "status": "passed_external_oracle_mode_and_memory_not_gain",
+  "name": "cold-integrated-AR-1-S",
+  "phase": "pilot128",
+  "mode": "AR",
+  "arm": "S",
+  "report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/runs/cold-integrated-AR-1-S/report.json",
+  "rows": [
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.343723458,
+      "decode_tps": 11.195618481904638,
+      "prefill_tps": 7.923347561952472,
+      "prefill_seconds": 10.980207459,
+      "ttft_seconds": 10.981977708,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7117838264,
+      "lifetime_peak_bytes": 7117838264
+    },
+    {
+      "group": "warmup",
+      "repeat": 0,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 11.250800499999999,
+      "decode_tps": 11.28808567888125,
+      "prefill_tps": 11.011035457800165,
+      "prefill_seconds": 7.447074375,
+      "ttft_seconds": 7.447524042,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7114708944,
+      "lifetime_peak_bytes": 7117838264
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "MAIN",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 87,
+      "decode_seconds": 11.177450749999998,
+      "decode_tps": 11.362161448128056,
+      "prefill_tps": 11.075749693785756,
+      "prefill_seconds": 7.85499875,
+      "ttft_seconds": 7.855332458,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7135025104,
+      "lifetime_peak_bytes": 7135025104
+    },
+    {
+      "group": "runs",
+      "repeat": 1,
+      "prompt": "HOLD",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "prompt_tokens": 82,
+      "decode_seconds": 20.450003667,
+      "decode_tps": 6.210267835058574,
+      "prefill_tps": 11.023283325267517,
+      "prefill_seconds": 7.4388,
+      "ttft_seconds": 7.439240125,
+      "counters": {
+        "mtp": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        },
+        "dflash": {
+          "proposed": null,
+          "accepted": null,
+          "blocks": null
+        }
+      },
+      "footprint_bytes": 7141529552,
+      "lifetime_peak_bytes": 7141529552
+    }
+  ],
+  "external_golden": true,
+  "numerical_parity": "not_evaluated_by_bridge_inspector",
+  "maximum_new_swapout_bytes": 67108864,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/anchor-gpu1.json",
+  "swap_anchor_sha256": "9fdf6028af0a9f59b2af1e06198bc3f18ce01aed0d3932b21a6992c333272294",
+  "swap_anchor_vm_bytes": {
+    "Swapouts": 75267129344,
+    "Swapins": 31404785664
+  },
+  "report_sha256": "0b31ad49fcdd6c78826d40fbc655c2fdcaeab0bfbfeaa978affbeda32aa254fb",
+  "cumulative_swapouts_before_bytes": 42254336,
+  "cumulative_swapouts_after_bytes": 42254336,
+  "maximum_cumulative_swapouts_bytes": 42254336,
+  "cumulative_swapins_before_bytes": 886620160,
+  "cumulative_swapins_after_bytes": 887160832,
+  "maximum_cumulative_swapins_bytes": 887160832,
+  "supervisor": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/integration/plans/cold-integrated-AR-1-S-plan-result.json",
+  "swapouts_bytes": 0,
+  "reaped": true,
+  "reader_joined": true
+}

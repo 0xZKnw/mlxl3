@@ -1,0 +1,36 @@
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Type-checking quantize_warmup_origin_proof
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Starting Bounded Model Checking
+Passing problem to propositional reduction
+converting SSA
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker: instance is SATISFIABLE
+Running propositional reduction
+SAT checker inconsistent: instance is UNSATISFIABLE
+
+** Results:
+src/mlxl3_quantizer/warmup_origin.metal function mlxl3_warmup_origin
+[mlxl3_warmup_origin.pointer_dereference.1] line 3 dereference failure: pointer NULL in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.2] line 3 dereference failure: pointer invalid in previous[(signed long int)parent]: UNKNOWN
+[mlxl3_warmup_origin.pointer_dereference.3] line 3 dereference failure: deallocated dynamic object in previous[(signed long int)parent]: UNKNOWN
+[mlxl3_warmup_origin.pointer_dereference.4] line 3 dereference failure: dead object in previous[(signed long int)parent]: UNKNOWN
+[mlxl3_warmup_origin.pointer_dereference.5] line 3 dereference failure: pointer outside object bounds in previous[(signed long int)parent]: FAILURE
+[mlxl3_warmup_origin.pointer_dereference.6] line 3 dereference failure: invalid integer address in previous[(signed long int)parent]: FAILURE
+
+tests/quantize_warmup_origin_proof.cpp function proof
+[proof.array_bounds.1] line 26 array 'previous' upper bound in previous[(signed long int)parent]: SUCCESS
+[proof.assertion.1] line 30 actual < 4096u: FAILURE
+[proof.assertion.2] line 31 actual == (ri ? ancestor : parent): FAILURE
+
+** 5 of 9 failed (5 iterations)
+VERIFICATION FAILED

@@ -1,0 +1,101 @@
+[
+  {
+    "name": "kani-policy",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "automatic_cache_cannot_spend_reserved_memory",
+      "--harness",
+      "automatic_cache_is_monotone"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 1.9958128929138184
+  },
+  {
+    "name": "kani-os",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "available_memory_real_os_path"
+    ],
+    "exit_code": 1,
+    "timeout": false,
+    "seconds": 0.9521558284759521
+  },
+  {
+    "name": "kani-io",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "uncached_io_real_path"
+    ],
+    "exit_code": 1,
+    "timeout": false,
+    "seconds": 0.8367331027984619
+  },
+  {
+    "name": "kani-package",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features"
+    ],
+    "exit_code": 1,
+    "timeout": false,
+    "seconds": 1.073713779449463
+  },
+  {
+    "name": "kani-relevant",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "automatic_cache_",
+      "--harness",
+      "pair_commit_preserves_exact_valid_prefix_without_overflow",
+      "--harness",
+      "tensor_source_interval_is_ordered_and_cannot_wrap",
+      "--harness",
+      "reference_partition",
+      "--harness",
+      "mtp_depth_one_commits_only_target_tokens_inside_budgets",
+      "--harness",
+      "mtp_all_depths_commit_target_prefix_within_budgets",
+      "--harness",
+      "greedy_acceptance_is_the_maximal_matching_prefix"
+    ],
+    "exit_code": 0,
+    "timeout": false,
+    "seconds": 7.391341209411621
+  },
+  {
+    "name": "kani-runtime",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "physical_profile_preserves_real_path"
+    ],
+    "exit_code": 1,
+    "timeout": false,
+    "seconds": 3.7726850509643555
+  }
+]

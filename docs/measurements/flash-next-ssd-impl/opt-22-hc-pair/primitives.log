@@ -1,0 +1,11 @@
+
+running 3 tests
+test lfm2::flash_hc_tests::mixed_gemv_matches_every_flash_hc_weight ... mixed HC GEMV: 298 real matrices, 1056392 bit-exact finite values
+ok
+test lfm2::flash_hc_tests::mixed_gemv_matches_mlx_cpu_and_fallbacks ... mixed HC GEMV: 21128 FP32 values plus half/batch/bias/shape fallbacks and CPU oracle
+ok
+test lfm2::flash_hc_tests::mixed_gemv_pair_preserves_every_hc_matrix_and_strides ... HC paired GEMV: 298 real matrices, 4225568 finite bit-exact values
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 166 filtered out; finished in 2.86s
+

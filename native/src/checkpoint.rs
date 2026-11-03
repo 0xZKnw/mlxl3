@@ -94,20 +94,18 @@ pub fn read_header(path: &Path) -> Result<BTreeMap<String, TensorInfo>> {
 
 impl TensorInfo {
     pub fn source(&self) -> Result<(&File, u64)> {
-        let [start, end] = self.data_offsets;
+        let [absolute_start, absolute_end] =
+            contracts::absolute_data_range(self.payload_offset, self.data_offsets)
+                .context("invalid tensor interval or file offset overflow")?;
         let file = self
             .handle
             .as_deref()
             .context("tensor has no inspected shard handle")?;
-        let absolute_end = self
-            .payload_offset
-            .checked_add(end)
-            .context("tensor file offset overflow")?;
         ensure!(
             file.metadata()?.len() >= absolute_end,
             "checkpoint was truncated after inspection"
         );
-        Ok((file, self.payload_offset + start))
+        Ok((file, absolute_start))
     }
 
     pub fn read_bytes(&self) -> Result<Vec<u8>> {
@@ -177,7 +175,12 @@ pub fn inspect(path: &Path) -> Result<Checkpoint> {
         let name = name.to_string_lossy();
         tokenizer |=
             name.starts_with("tokenizer") || name.ends_with(".model") || name == "vocab.json";
-        if name.starts_with("model") && name.ends_with(".safetensors") {
+        let flash_sidecar = config["model_type"] == "qwen4_exp"
+            && matches!(
+                name.as_ref(),
+                "ngram_embedding.safetensors" | "mtp_hyper_connection_mixer_patch.safetensors"
+            );
+        if (name.starts_with("model") || flash_sidecar) && name.ends_with(".safetensors") {
             for (name, info) in read_header(&entry.path())? {
                 ensure!(
                     tensors.insert(name.clone(), info).is_none(),

@@ -1,0 +1,47 @@
+{
+  "status": "review_complete",
+  "runtime_commit": "e64d1d439a798887bf955ada27c99d789684df32",
+  "head_at_review": "8cca95b2e70d312c14d8bf977408088a2aecc0a3",
+  "runtime_changed": false,
+  "new_measurements": false,
+  "proof_claim": null,
+  "report": "docs/flash-les-followup-review-2026-10-19.md",
+  "initial_read_before_registration": true,
+  "files": {
+    "native/src/ssd_moe.rs": "66e3e1e375fbdc1df555cee87dff6016a46d95deb70478e0fb7562d07485166a",
+    "native/src/ssd_prefetch.rs": "ab199e3321c684b0907666b436b3ecc0c2eedc4900926e4b882dfcd9230fd75f",
+    "native/src/flash_support.rs": "a12a77e2d79b1aa9cb91c558e22ba590bc7849447f487301cb2ad19a3d21b595",
+    "native/src/lfm2.rs": "a1586737903bd18e04024f7b5bb4d25939de3c480dc6a6ad0be61880c0799f89",
+    "native/src/qwen4.rs": "fa72804d75ac3d73f497eacd4a9ae9dad195cbd4f500ac832f97dacffd9f54e0",
+    "native/src/array.rs": "3454ca6cb25049d17257c12d7a078d406e032288eff82dba2ded6ee5977501ee",
+    "native/src/checkpoint.rs": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1",
+    "native/src/linear.rs": "17f0ea8d5bfc7b3d165477bd288e1d4df2350de78f3a2ffc47401caa200aeb13",
+    "native/ffi/mlx_bridge.cpp": "6c8ccde48ea363b49d1fcb0fb62049bb76dce90c2c1b7ea4433eb994890f2697",
+    "native/ffi/disk_reader.h": "75155e20a8f4b6b625f807593cf9b1bfb7b5094e4612b7eb593310e542712f1a",
+    "native/ffi/kernel_cache_key.h": "05f1deaea931c29b9340a72a747f966fe732c999bb64a9fb4ee8e9fb5d27965f"
+  },
+  "external_audit": {
+    "path": "/Users/justin/Downloads/MLXL3_PR34_LES_AUDIT_RECHERCHE_2026-10-19.md",
+    "sha256": "2f80949934175ac9c41e5712a9987291ddcc17342bab6120ecf115d69bdb050b"
+  },
+  "mlx_eval": {
+    "source_commit": "1f8e74e3f12f31365464a6867c6579f0e9b29d85",
+    "local_source": "/Users/justin/Documents/mix-stq1_0/build/research-les-39/transforms.cpp",
+    "sha256": "2609416aa6a2bd26396ac747892bd98bfd43e986f891928e321b0e7195c0c2a5"
+  },
+  "finding_numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "unmeasured": [
+    "real_router_cast_time",
+    "two_head_eval_cost",
+    "admission_zero_gpu_submissions",
+    "late_duplicate_bytes_current_runtime",
+    "HC_prediction_conditional_miss_recall"
+  ]
+}

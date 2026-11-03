@@ -1,0 +1,123 @@
+import json
+import os
+from pathlib import Path
+import queue
+import signal
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+import jsonschema
+
+
+def main():
+    binary, model, destination = map(Path, sys.argv[1:])
+    destination.mkdir(parents=True, exist_ok=True)
+    report = {"status": "running", "model": str(model), "checks": []}
+    report_path = destination / "structured-live-result.json"
+    with tempfile.TemporaryDirectory(prefix="mlxl3-structured-") as root:
+        environment = dict(os.environ, MLXL3_HOME=root)
+        with (destination / "structured-live-stderr.log").open("w") as errors:
+            process = subprocess.Popen(
+                [str(binary), "--registry", str(Path(root) / "models.json"),
+                 "bridge", str(model), "--context-length", "2048"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
+                text=True, bufsize=1, env=environment, start_new_session=True,
+            )
+            events = queue.Queue()
+
+            def read():
+                try:
+                    for line in process.stdout:
+                        events.put(json.loads(line))
+                except Exception as error:
+                    events.put({"type": "reader_error", "message": str(error)})
+                finally:
+                    events.put({"type": "eof"})
+
+            reader = threading.Thread(target=read, daemon=True)
+            reader.start()
+
+            def wait_for(kinds, request_id=None, timeout=150):
+                deadline = time.monotonic() + timeout
+                received = []
+                while time.monotonic() < deadline:
+                    try:
+                        event = events.get(timeout=max(0.01, deadline - time.monotonic()))
+                    except queue.Empty:
+                        break
+                    received.append(event)
+                    if event["type"] in {"reader_error", "eof"}:
+                        raise AssertionError(event)
+                    if event["type"] in kinds and (request_id is None or event.get("request_id") == request_id):
+                        return event, received
+                raise TimeoutError(f"Bridge timed out waiting for {kinds}: {received[-3:]}")
+
+            def send(request_id, schema, content, max_tokens=256):
+                process.stdin.write(json.dumps({
+                    "type": "generate", "request_id": request_id,
+                    "conversation_id": request_id, "reuse_prompt_cache": False,
+                    "messages": [{"role": "user", "content": content}],
+                    "response_schema": json.dumps(schema), "max_tokens": max_tokens,
+                    "temperature": 0, "top_k": 1, "mcp_enabled": False,
+                }) + "\n")
+                process.stdin.flush()
+
+            try:
+                ready, _ = wait_for({"ready", "error"}, timeout=120)
+                assert ready["type"] == "ready" and ready.get("workspace_features") is True, ready
+                report["checks"].append("MLX bridge advertises workspace feature support")
+
+                send("unsupported", {"pattern": "x"}, "Return x")
+                rejected, invalid_events = wait_for({"error", "complete"}, "unsupported", timeout=10)
+                assert rejected["type"] == "error" and not any(e["type"] == "delta" for e in invalid_events), invalid_events
+                report["checks"].append("Unsupported schema rejected before content")
+
+                schema = {"type": "object", "properties": {"ok": {"const": True}}, "required": ["ok"], "additionalProperties": False}
+                send("valid", schema, 'Reply with exactly {"ok":true} and nothing else. Do not explain or reason.')
+                completed, valid_events = wait_for({"complete", "error", "cancelled"}, "valid")
+                assert completed["type"] == "complete", completed
+                answer = "".join(e.get("text", "") for e in valid_events if e["type"] == "delta" and e.get("phase") == "answer")
+                value = json.loads(answer)
+                jsonschema.validate(value, schema)
+                assert value == {"ok": True}, value
+                report["answer"] = value
+                report["checks"].append("Real EXL3 generation conforms to independent jsonschema oracle")
+
+                send("cancel", False, "Write a long explanation of astronomy.", max_tokens=1024)
+                wait_for({"generation_status"}, "cancel", timeout=10)
+                os.kill(process.pid, signal.SIGUSR1)
+                cancelled, cancellation_events = wait_for({"cancelled", "complete", "error"}, "cancel", timeout=40)
+                assert cancelled["type"] == "cancelled", cancelled
+                assert not any(e["type"] == "delta" and e.get("phase") == "answer" for e in cancellation_events), cancellation_events
+                report["checks"].append("Cancelled structured generation publishes no invalid content")
+
+                process.stdin.write('{"type":"ping","request_id":"after-cancel"}\n')
+                process.stdin.flush()
+                wait_for({"pong"}, "after-cancel", timeout=10)
+                report["checks"].append("Bridge remains responsive after cancellation")
+                report["status"] = "passed"
+            except BaseException as error:
+                report["status"] = "failed"
+                report["failure"] = repr(error)
+                raise
+            finally:
+                try:
+                    if process.poll() is None:
+                        process.stdin.write('{"type":"shutdown"}\n')
+                        process.stdin.flush()
+                        process.wait(timeout=10)
+                except (BrokenPipeError, OSError, subprocess.TimeoutExpired):
+                    if process.poll() is None:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait(timeout=10)
+                reader.join(timeout=5)
+                report["process_exit_code"] = process.returncode
+                report_path.write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    main()

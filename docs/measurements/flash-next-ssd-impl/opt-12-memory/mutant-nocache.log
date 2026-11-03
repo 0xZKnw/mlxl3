@@ -1,0 +1,39 @@
+
+running 1 test
+test checkpoint::tests::uncached_reads_keep_the_inspected_inode_and_report_invalid_handles ... FAILED
+
+failures:
+
+---- checkpoint::tests::uncached_reads_keep_the_inspected_inode_and_report_invalid_handles stdout ----
+
+thread 'checkpoint::tests::uncached_reads_keep_the_inspected_inode_and_report_invalid_handles' (9251630) panicked at native/src/checkpoint.rs:330:9:
+assertion failed: stream_without_file_cache(&File::from(OwnedFd::from(socket))).is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    checkpoint::tests::uncached_reads_keep_the_inspected_inode_and_report_invalid_handles
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.00s
+
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: unused import: `std::os::fd::AsRawFd`
+  --> native/src/checkpoint.rs:17:9
+   |
+17 |     use std::os::fd::AsRawFd;
+   |         ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `file`
+  --> native/src/checkpoint.rs:16:30
+   |
+16 | fn stream_without_file_cache(file: &File) -> Result<()> {
+   |                              ^^^^ help: if this is intentional, prefix it with an underscore: `_file`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `mlxl3-native` (lib test) generated 2 warnings (run `cargo fix --lib -p mlxl3-native --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+error: test failed, to rerun pass `--lib`

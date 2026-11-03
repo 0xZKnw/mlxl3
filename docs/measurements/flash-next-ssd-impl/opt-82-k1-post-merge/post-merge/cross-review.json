@@ -1,0 +1,52 @@
+{
+  "status": "static_rebase_review_no_blocking_finding",
+  "time_utc": "2026-10-25T21:58:56.931280+00:00",
+  "patch_sha256": "9782c74c49613acc520a38975376eefac5a52217941cfc254909702521dd358b",
+  "base": "9c8474ca1292e29bae3c7d4d6383bd1820549349",
+  "paths": [
+    ".github/workflows/rust.yml",
+    "native/src/flash_support.rs",
+    "native/src/linear.rs",
+    "native/src/qwen4/profile.rs",
+    "native/src/ssd_moe.rs",
+    "native/src/linear/hot_transform.rs",
+    "native/src/linear/hot_transform_tests.rs",
+    "native/src/ssd_moe/hot_activation.rs",
+    "native/src/ssd_moe/hot_activation_bench.rs",
+    "native/src/ssd_moe/hot_profile_tests.rs"
+  ],
+  "manifest_files_match": true,
+  "main_lane_lines_byte_identical": true,
+  "main_lane_line_count": 50,
+  "blockers": [],
+  "production_changes": [
+    "Masked expert input/output H128 sites only; existing unmasked Hadamard retained",
+    "calculate_slots calls hot_activation::apply; nonmasked/nonHalf retains slices+swiglu",
+    "ExpertSlots two read-only accessors; no slot state mutation",
+    "CPU guards for exact Half Flash geometry"
+  ],
+  "test_only_changes": [
+    "Hot snapshot profile includes original map, early_hot and bounded1..80 route records",
+    "qwen4/profile.rs K1record selection lives under cfg(test) parent module",
+    "QA/microbench modules and three CPU Kani workflow harnesses"
+  ],
+  "safety_static": {
+    "early_hot_before_readback": "ssd_moe.rs529-550 submits output async before selected.to_u32 at582 or783; patch changes none of these scheduling lines",
+    "UNIQUE": "forward_unique_rows580 prepares Hot before full-window readback; split629 completes Hot before any later evictions; unchanged",
+    "slots": "resident_slot_map excludes pending fills; reserve(victim(unique)) excludes routed/pending; self.last retains full Hot output graph until eval; unchanged by patch",
+    "snapshot": "new transforms consume resident UInt32 indices, do not consult mutated CPU map; residents has groups=None",
+    "shared_EXL3": "grouped/new indices remain unmasked so keep old H128 and swiglu; only resident masked Hot uses new kernels",
+    "barriers": "H128 threadgroup8 has fixed row and same slot[row/repeat] for every lane; Cold returns uniformly before values reads/barriers; Hot has three uniform barriers",
+    "types": "H128 Float16/UInt32, routes1..80,repeat1|2,blocks5|20,capacity1..512 guarded; exact radix16/Half/radix8/Half then F32 scale bits; activation keeps three Half node results",
+    "contiguity": "existing FFI fast::metal_kernel source/header call passes ensure_row_contiguous=true; no new FFI/raw pointers"
+  },
+  "excluded": [
+    "No LFM file or hunk",
+    "No F01 half-output flag/path",
+    "No F05 batch-routes flag/path",
+    "No F06 fused-router flag/path",
+    "No weighted-prefetch variants"
+  ],
+  "performance_limit": "Native MLX H128 may donate/reuse a buffer, whereas custom metal kernel produces an output. Even exact work skipping can lose globally through buffers/dispatches. This is a measurement question, not a proven regression. Compare gated micro and end-to-end with identical conditions.",
+  "assurance": "Read-only static review only; no compilation/test/Kani/GPU performed by this review. Earlier W numerical results do not validate new post-merge binary."
+}

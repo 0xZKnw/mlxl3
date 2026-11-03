@@ -1,0 +1,549 @@
+{
+  "trial": "82F01 independent read-only review",
+  "reviewed_at_utc": "2026-10-24T17:46:10.953885+00:00",
+  "status": "quality components and43requests reviewed; full-target flag0/1 differential pending; speed not run or qualified",
+  "no_build_test_prover_gpu_or_W_edit_by_reviewer": true,
+  "identity": {
+    "native_sources_count": 83,
+    "all83_rehashed_match_at_review": true,
+    "cli_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506",
+    "native_test_v2_sha256": "8165235ac1e5e670cd2c381385d1a3ccc1aaebbd1e9742b38827d362a4431b4c",
+    "native_test_v1_sha256": "9412fc5b748af04572906fb1842734c1058959a3c0b93d5d2841aa7269cc2065",
+    "v1_v2_only_source_change": "native/src/ssd_moe/half_output_tests.rs",
+    "cli_unchanged_v1_v2": true,
+    "benchmark_sha256": "8935daf3bd69cea3eb1a48aaab5ba5c06d9869cd3e30f614d525c429e980fd76",
+    "published_base": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+    "later82Bcontroller_commit": "62cae0b3a51db760185d65eee61f1da79c9b19c7",
+    "native_versions": "release1.4.3 / MLX0.32.2 / AppleM5; ready commit metadata9dc85ef-dirty is native build provenance, later docs/controller commit does not rebuild it"
+  },
+  "phases": {
+    "quality": {
+      "status": "failed_or_interrupted",
+      "sampler_status": "failed_or_interrupted",
+      "sampler_joined": true,
+      "commands": [
+        {
+          "name": "pre20",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "native-suite",
+          "status": "completed_expected_outcome",
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "reject-half-flag-0",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 2,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "reject-half-flag-1",
+          "status": "completed_expected_outcome",
+          "exit_code": 2,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "reject-half-flag-2",
+          "status": "completed_expected_outcome",
+          "exit_code": 2,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "reject-half-flag-3",
+          "status": "completed_expected_outcome",
+          "exit_code": 2,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "reject-half-flag-4",
+          "status": "completed_expected_outcome",
+          "exit_code": 2,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "half-boundaries",
+          "status": "completed_expected_outcome",
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "half-synthetic",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "half-real",
+          "status": "failed_or_interrupted",
+          "exit_code": 101,
+          "error": "AssertionError()",
+          "reaped": true
+        }
+      ]
+    },
+    "quality-v2": {
+      "status": "completed_expected_outcomes_not_speed",
+      "sampler_status": "completed_observations_not_attribution",
+      "sampler_joined": true,
+      "commands": [
+        {
+          "name": "pre20",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "half-real",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "slot-oracle",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "dflash-prefixes",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "mtp-session",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "post30",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        }
+      ]
+    },
+    "bridge": {
+      "status": "completed_expected_outcomes_not_speed",
+      "sampler_status": "completed_observations_not_attribution",
+      "sampler_joined": true,
+      "commands": [
+        {
+          "name": "pre20",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        },
+        {
+          "name": "bridge",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 268173312,
+          "exit_code": 0,
+          "swapouts_bytes": 268173312,
+          "reaped": true
+        },
+        {
+          "name": "post30",
+          "status": "completed_expected_outcome",
+          "maximum_live_swapout_bytes": 0,
+          "exit_code": 0,
+          "swapouts_bytes": 0,
+          "reaped": true
+        }
+      ],
+      "requests": 43,
+      "request_statuses": {
+        "complete": 43
+      },
+      "events": {
+        "loading": 1,
+        "ready": 1,
+        "dflash_status": 2,
+        "generation_mode": 35,
+        "generation_status": 35,
+        "context_usage": 35,
+        "delta": 534,
+        "complete": 33,
+        "error": 6,
+        "cancelled": 2
+      },
+      "checks": 43,
+      "parity": true,
+      "active_request": null,
+      "complete_memory": {
+        "samples": 33,
+        "maximum_process_lifetime_peak_bytes": 7912757704,
+        "maximum_own_ledger_swapins_logical_bytes": 0,
+        "maximum_compressed_logical_bytes": 4062511104,
+        "compression_77B_status": "failed caps retained; not requalified by zero own ledger. Bridge global swapout is268173312B, not zero."
+      },
+      "global_memory_conclusion": {
+        "swapouts_bytes": 268173312,
+        "maximum_live_swapout_bytes": 268173312,
+        "swapouts_mib": 255.75,
+        "guard_bytes": 268435456,
+        "below_guard": true,
+        "zero_global_swapout": false,
+        "attribution": "not established; own ledger swapins0 does not prove absence of private swapout",
+        "separate_phases": "quality-v2 zero delta unchanged; bridge pre20/post30 zero do not erase bridge delta"
+      },
+      "all_recursive_memory_observations": {
+        "count": 70,
+        "scope": "Includes ready/events/round_stats/stats and repeated ready; observations are not70independentrequests",
+        "maximum_process_lifetime_peak_bytes": 7912757704,
+        "maximum_own_ledger_swapins_logical_bytes": 0,
+        "claim_limit": "ledger measures own swapins, not all private swapouts and not source of global swapout"
+      }
+    }
+  },
+  "static_source_checks": [
+    {
+      "path": "native/src/flash_support.rs",
+      "line": 2498,
+      "contract": "half iff enabled && slot_major && !raw && splits==1; helper called after actual split calculation"
+    },
+    {
+      "path": "native/src/linear.rs",
+      "line": 1341,
+      "contract": "dtype decision after splits; arithmetic shader body unchanged"
+    },
+    {
+      "path": "native/src/linear.rs",
+      "line": 1435,
+      "contract": "factory name _f16 avoids collision"
+    },
+    {
+      "path": "native/src/linear.rs",
+      "line": 1475,
+      "contract": "output dtype F16 only in eligible case; F32 partial reduction otherwise"
+    },
+    {
+      "path": "native/src/linear.rs",
+      "line": 1517,
+      "contract": "test-only observe captures actual QMV partials before cast/H128"
+    },
+    {
+      "path": "native/src/ssd_moe.rs",
+      "line": 132,
+      "contract": "strict load-time flag default0, GU/down both wired"
+    },
+    {
+      "path": "native/src/linear_half_output_tests.rs",
+      "line": 45,
+      "contract": "boundary store test compares actual half Metal store to MLX cast,253962values"
+    },
+    {
+      "path": "native/src/linear_half_output_tests.rs",
+      "line": 103,
+      "contract": "240 nonempty actual QMV cases; checks actual partial dtype200fast40multisplitfallback and output shape/finiteness/bytes"
+    },
+    {
+      "path": "native/src/ssd_moe/half_output_tests.rs",
+      "line": 19,
+      "contract": "real checkpoint layers0/15/31/47; repeated single-row fixture at widths1/2/4/8,2dtypes,2cache rounds"
+    },
+    {
+      "path": "native/src/ssd_moe/half_output_tests.rs",
+      "line": 34,
+      "contract": "capture actual GU/down partials in both flag0/1, compare cast bytewise;64nonemptycases"
+    },
+    {
+      "path": "native/src/flash_draft.rs",
+      "line": 1871,
+      "contract": "36prefixes/widths1..8 logits/captures/states serial comparison plus64000CPUoracle capture values"
+    },
+    {
+      "path": "native/src/qwen4.rs",
+      "line": 3011,
+      "contract": "MTP budgets1/2/3/17 include acceptance/rejection and exact target/head states"
+    },
+    {
+      "path": "scripts/benchmark-flash-bridge.py",
+      "line": 247,
+      "contract": "82B waits/reaps child+reader and drains final errors before validated"
+    },
+    {
+      "path": "scripts/native_json_process.py",
+      "line": 112,
+      "contract": "bridge43 close does not validate child final exit or pending stdout; no such late error observed"
+    },
+    {
+      "path": "docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt",
+      "line": 47,
+      "contract": "optional before_launch absent in loaded previous script; child0 hash only. Engine/native SHA metadata externally rehashed in this audit."
+    }
+  ],
+  "proof": {
+    "kind": "source model checking of actual CPU boolean guard",
+    "kani_obligations": 3,
+    "kani_failed": 0,
+    "cover_properties": 4,
+    "covers_satisfied": 4,
+    "domain": "3symbolic booleans and full i32 splits, no assumptions or loops",
+    "mutation": "removing raw guard detected by actual CPU unit test; restored unit+Kani success; initial ambiguous mutation selector wrote no source and retained as setup failure",
+    "not_proved": [
+      "Metal float rounding",
+      "MLX optimizer",
+      "GPU memory/concurrency",
+      "numerical full model",
+      "performance or RAM/swap"
+    ]
+  },
+  "quality_scope": {
+    "boundary_store": {
+      "values": 253962,
+      "includes": [
+        "signed zero",
+        "half finite adjacent boundaries and midpoints plus F32 neighbors",
+        "max finite65504",
+        "overflow midpoint65520 plus neighbors",
+        "±F32MAX",
+        "±Inf",
+        "two canonical signed NaNs"
+      ],
+      "contract": "byte equality actual Metal half store vs MLX astype on selected values, not exhaustive allF32bitpatterns"
+    },
+    "synthetic_actual_qmv": {
+      "cases": 240,
+      "eligible_half": 200,
+      "actual_multisplit_fallback": 40,
+      "source_data": "deterministic synthetic packed bank/scales, not checkpoint weights",
+      "covers": "GU/down/6144multisplit, F16/F32,strides,1/2/4/10/20routes, groups and all/mixed/no residency masks; partial dtype+bytes beforeH128 and finalfinite outputs"
+    },
+    "real_moe_differential": {
+      "cases": 64,
+      "layers": [
+        0,
+        15,
+        31,
+        47
+      ],
+      "widths": [
+        1,
+        2,
+        4,
+        8
+      ],
+      "dtypes": [
+        "F16",
+        "F32"
+      ],
+      "rounds": 2,
+      "input_limitation": "each wide block duplicates a captured single-token input, heterogeneous route patterns instead covered by synthetic and full prefix trajectories",
+      "contract": "loaderflag1 exercised, baseline field0 vs candidate1; actual GU/downF32→F16partials and completeMoE outputs byte equal"
+    },
+    "slot_reference": {
+      "cases": 176,
+      "masked_cases": 528,
+      "group_enabled": 112,
+      "half_flag_passed_to_expert_slots": false,
+      "scope": "existing independent resident reference regression, not additional F01oncases"
+    },
+    "full_prefix": {
+      "cases": 36,
+      "widths": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "external_capture_count": 64000,
+      "external_capture_byte_equal": true,
+      "scope": "serial vs batched/commit under commonhalf1, full248320logits/row and states exact; not full48layer differentialhalf0/1"
+    },
+    "mtp": {
+      "budgets": [
+        1,
+        2,
+        3,
+        17
+      ],
+      "accepted_total": 5,
+      "proposed_total": 15,
+      "scope": "serial vs session commonhalf1 target/headstates and tokens exact, not half0/1differential"
+    }
+  },
+  "plans": {
+    "screen": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F01/plans/screen/run.json",
+      "sha256": "0c2020fe20a9eaeae04907e477b8962bbef6e8a37f72c43ff7ca2ee8c7f730d5",
+      "status": "prepared_not_run_at_review",
+      "tokens": 128,
+      "decode_tokens": 127,
+      "warmup": 1,
+      "measured": 1,
+      "arms": [
+        {
+          "name": "MAIN-0-H",
+          "flag": "0",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "MAIN-1-C",
+          "flag": "1",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "HOLD-0-H",
+          "flag": "0",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "HOLD-1-C",
+          "flag": "1",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        }
+      ],
+      "only_arm_environment_difference": [
+        "MLXL3_SSD_QMV_HALF_OUTPUT"
+      ],
+      "gold60": "external comparison required after reports; not built into benchmark run or generic runner"
+    },
+    "confirm": {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F01/plans/confirm/run.json",
+      "sha256": "d41dd842bb0049da745a4beffa32c0366b04da6ddd85a926a845f27bba09275f",
+      "status": "prepared_not_run_at_review",
+      "tokens": 128,
+      "decode_tokens": 127,
+      "warmup": 1,
+      "measured": 1,
+      "arms": [
+        {
+          "name": "MAIN-0-C",
+          "flag": "1",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "MAIN-1-H",
+          "flag": "0",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "HOLD-0-C",
+          "flag": "1",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        },
+        {
+          "name": "HOLD-1-H",
+          "flag": "0",
+          "adaptive": "0",
+          "draft_width": "1",
+          "lookahead": "0",
+          "prefetch_pipeline": "0",
+          "engine_sha256": "19c9e1f22024232305ffa72bec3a4c35687382fd8693135c83887725cf297506"
+        }
+      ],
+      "only_arm_environment_difference": [
+        "MLXL3_SSD_QMV_HALF_OUTPUT"
+      ],
+      "gold60": "external comparison required after reports; not built into benchmark run or generic runner"
+    }
+  },
+  "gold60_reference": {
+    "path": "docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/reference.json",
+    "sha256": "a2b691aec70195403f0faef61ca3726869864e9b3d2ecf24196a684750b192c0",
+    "MAIN_hash": "f6b5f974c6db2e7a",
+    "HOLD_hash": "9d02c1a97e015196",
+    "status": "prepared external oracle; no speed reports to compare yet"
+  },
+  "historical_distinction": "F01 only changes final QMV store dtype after F32 reduction;57compactQMV dispatch and K1maskedH128 are separate mechanisms, not implemented or measured by thistrial.",
+  "limitations": [
+    "quality-v1 overall failed and remains failed; prior successful steps reused only because v2 changed the real test entry, not production or those tests.",
+    "No late bridge error observed;43complete requests and parity do not imply exhaustive shutdown verification.",
+    "Root announced a prospective full-target differentialhalf0/1 before TPS to close the statedall48layer numeric scope gap; not yet reviewed.",
+    "Generic supervisor preserves exits/required text/exact1test but does not itself enforce arbitrary engine/native metadata SHA; this independent audit rehashed83sources+bins.",
+    "No speed gain yet. Do not promote based on component/parity results.",
+    "RSS high-water and process physical footprint are distinct. Prefix sampled physical lifetimepeak7381555392B; bridge33completeevents max7912757704B, ledger swapins0; bridge global swapouts268173312B; compression77Bcaps remain failed.",
+    "Correction2026-10-25: bridge global swapout268173312B (~255.75MiB), below256MiBguard but not zero. No cause attribution established; original erroneous narrative archived."
+  ],
+  "log_sha256": {
+    "evidence/restored-kani-final.log": "9e2383ba3a2266e5ea34b64cdb67671d7810726c0a05996b51576b027280e035",
+    "evidence/mutation-raw-gate-v2.log": "2a6bbeebd56a48e6aaaa6595d97bedbec952a1155caf3b86bb6ec0d90a2bfbde",
+    "evidence/mutation-setup-v1.log": "9102aadeba6432cd74b3e6fb209bd51aacacfd17ca5ec574c1980dd3fef74b46",
+    "plans/quality/native-suite.log": "1ec5c4380c1f9af09e6a4a144f73fc856ec3ef47494dc886c3e47415367c506e",
+    "plans/quality/half-boundaries.log": "8d83bfda67e6b3fcd903b5588960fa6603e07d2bcf91ced64843fa87523cf95e",
+    "plans/quality/half-synthetic.log": "4f790c06092f19d904f9f3fe1d1c2764ffeb1e633f6e7180210e448ffbc40cab",
+    "plans/quality/half-real.log": "3e02deedb8a4dcb7a30e17e04ca6b6332f5b946d1c13fb847df013dc67c752fc",
+    "plans/quality-v2/half-real.log": "ba277d2799f828492db1d3a9e0b5c7d8110605e907f6ce03ecb765ffa8f31850",
+    "plans/quality-v2/slot-oracle.log": "fa3047738f8c5ff9218375a327e079801e6d139432adffcdb59c0ece84166095",
+    "plans/quality-v2/dflash-prefixes.log": "90073279a2bc517ae93f201d16277a23bfa755ed5429a6a2d30b043ad4df95c2",
+    "plans/quality-v2/mtp-session.log": "82f0f9479ac5cd83698825a5af79f8e2b12e9253ba225896dc0bd682f9e3ce9c",
+    "plans/bridge/run-result.json": "496fc2f83d0964c86404fa6a5245c6290bcf017f69fedcab477b034c65d1e7f7",
+    "plans/bridge/supervisor.log": "5a4d7f7ea32d38db706d392634c44f004166f671529602b438ac744ef56d8d7e"
+  },
+  "revision": {
+    "date": "2026-10-25",
+    "status": "corrected_global_swapout_narrative_preserving_original",
+    "original_archive": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-82/F01/audit-archive-2026-10-25-before-swap-correction",
+    "mistake": "Previous Markdown and agent final said zero bridge swapout; JSON per-command records already contained268173312B. Pre/post0 must not replace bridge delta.",
+    "source": "plans/bridge/run-result.json commands[name=bridge] and plans/bridge/supervisor.log",
+    "bridge_swapouts_bytes": 268173312,
+    "bridge_swapouts_mib": 255.75,
+    "pre20_swapouts_bytes": 0,
+    "post30_swapouts_bytes": 0,
+    "new_test_or_measurement": false
+  }
+}

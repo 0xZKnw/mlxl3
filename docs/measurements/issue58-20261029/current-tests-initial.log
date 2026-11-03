@@ -1,0 +1,11 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error[E0689]: can't call method `saturating_sub` on ambiguous numeric type `{integer}`
+   --> native/src/flash_cache_profile/shared/current.rs:151:53
+    |
+150 |             for generation in 0..5 {
+    |                 ---------- you must specify a type for this binding, like `i32`
+151 |                 let phase = &case.phases[generation.saturating_sub(2)];
+    |                                                     ^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0689`.
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

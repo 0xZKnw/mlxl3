@@ -1,0 +1,62 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "a5f4e0cb4e08063cfa5fd2d49bb10193233677e9922a09a494bb97156caacdb9",
+  "matrix_sha256": "c7ff82c1081163e4f56d607457b07b9f261e57d0218457ea96e65bad59a433ba",
+  "commands": [
+    {
+      "name": "current-pool-kani",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--tests",
+        "--no-default-features",
+        "--harness",
+        "physical_reconstruction_cannot_accept_corrupt_first_slot_or_hit"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "1"
+      },
+      "expected_exit": 0,
+      "timeout_seconds": 90,
+      "require_quiet": false,
+      "required_text": [
+        "VERIFICATION:- SUCCESSFUL"
+      ],
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   118017.\nPages active:                                 541229.\nPages inactive:                               530191.\nPages speculative:                             10247.\nPages throttled:                                   0.\nPages wired down:                             149496.\nPages purgeable:                               26749.\n\"Translation faults\":                     1925900210.\nPages copy-on-write:                        81594958.\nPages zero filled:                        2112443770.\nPages reactivated:                         153805753.\nPages purged:                               19384934.\nFile-backed pages:                            555562.\nAnonymous pages:                              526105.\nPages stored in compressor:                   311103.\nPages occupied by compressor:                 169518.\nDecompressions:                            361864628.\nCompressions:                              436885781.\nPageins:                                  2268589018.\nPageouts:                                     372966.\nSwapins:                                     3271355.\nSwapouts:                                    8597703.\nPages tagged:                                 118937.\nPages tagged resident:                        103634.\nPages tagged compressed:                       15303.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5784.\nPages tag-storage free:                          233.\nPages tag-storage non-tag pageable:            42956.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    2205760.\nTagged compressions:                         9252091.\nTagged decompressions:                       8948593.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 1048.50M  free = 999.50M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 1933590528,
+          "File-backed pages": 9102327808,
+          "Pages occupied by compressor": 2777382912,
+          "Swapins": 53597880320,
+          "Swapouts": 140864765952
+        }
+      },
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "pid": 39900,
+      "exit_code": 1,
+      "after": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   103081.\nPages active:                                 548764.\nPages inactive:                               534009.\nPages speculative:                             13852.\nPages throttled:                                   0.\nPages wired down:                             149475.\nPages purgeable:                               26749.\n\"Translation faults\":                     1925968773.\nPages copy-on-write:                        81598773.\nPages zero filled:                        2112472465.\nPages reactivated:                         153805753.\nPages purged:                               19384934.\nFile-backed pages:                            569753.\nAnonymous pages:                              526872.\nPages stored in compressor:                   311098.\nPages occupied by compressor:                 169517.\nDecompressions:                            361864633.\nCompressions:                              436885781.\nPageins:                                  2268601968.\nPageouts:                                     372966.\nSwapins:                                     3271355.\nSwapouts:                                    8597703.\nPages tagged:                                 118839.\nPages tagged resident:                        103536.\nPages tagged compressed:                       15303.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5784.\nPages tag-storage free:                          234.\nPages tag-storage non-tag pageable:            42955.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    2205760.\nTagged compressions:                         9252091.\nTagged decompressions:                       8948593.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 1048.50M  free = 999.50M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 1688879104,
+          "File-backed pages": 9334833152,
+          "Pages occupied by compressor": 2777366528,
+          "Swapins": 53597880320,
+          "Swapouts": 140864765952
+        }
+      },
+      "error": "AssertionError()",
+      "reaped": true,
+      "seconds": 1.7656009170168545
+    }
+  ],
+  "error": "AssertionError()"
+}

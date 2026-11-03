@@ -1,0 +1,184 @@
+from pathlib import Path
+import json
+import os
+import signal
+import subprocess
+import time
+
+w = Path.cwd()
+p = w / "docs/measurements/flash-next-ssd-impl/opt-38-les-gpu"
+env = {
+    **os.environ,
+    "PATH": "/Users/justin/.cargo/bin:" + os.environ["PATH"],
+    "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/localqwen3.8flash/.venv/lib/python3.12/site-packages/mlx",
+}
+commands = [
+    ("fmt", ["cargo", "fmt", "--all", "--check"], 30, False),
+    (
+        "cpu-clippy",
+        [
+            "cargo",
+            "clippy",
+            "--locked",
+            "--no-default-features",
+            "--all-targets",
+            "--features",
+            "chat",
+            "--",
+            "-D",
+            "warnings",
+        ],
+        180,
+        False,
+    ),
+    (
+        "cpu-full",
+        ["cargo", "test", "--locked", "--no-default-features", "--features", "chat"],
+        180,
+        False,
+    ),
+    (
+        "mlx-clippy",
+        [
+            "cargo",
+            "clippy",
+            "--locked",
+            "--all-targets",
+            "--features",
+            "mlx,chat",
+            "--",
+            "-D",
+            "warnings",
+        ],
+        180,
+        False,
+    ),
+    (
+        "release-full",
+        ["cargo", "test", "--locked", "--release", "--features", "mlx,chat"],
+        300,
+        False,
+    ),
+    (
+        "release-build",
+        ["cargo", "build", "--locked", "--release", "--features", "mlx,chat"],
+        300,
+        False,
+    ),
+    (
+        "kani-publish",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "pending_publish_rejects_stale_failed_and_duplicate_records",
+        ],
+        120,
+        True,
+    ),
+    (
+        "kani-claim",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "speculative_claim_excludes_pending_and_preserves_pair_space",
+        ],
+        120,
+        True,
+    ),
+    (
+        "kani-reserve",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "two_routes_preserve_hits_and_never_alias_distinct_experts",
+        ],
+        120,
+        True,
+    ),
+    (
+        "kani-owned",
+        [
+            "cargo",
+            "kani",
+            "--lib",
+            "--tests",
+            "--features",
+            "mlx,chat",
+            "--harness",
+            "actual_owned_read_pool_and_drop_path",
+        ],
+        120,
+        True,
+    ),
+    (
+        "cbmc-prepare",
+        [
+            "cbmc",
+            "native/tests/disk_reader_proof.cpp",
+            "-I",
+            "native/ffi",
+            "--function",
+            "persistent_prepare_proof",
+            "--bounds-check",
+            "--pointer-check",
+            "--unwind",
+            "17",
+            "--unwinding-assertions",
+        ],
+        120,
+        True,
+    ),
+    (
+        "crosshair-checks",
+        [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "-m",
+            "crosshair",
+            "check",
+            str(p / "checks-supervisor.txt"),
+            "--analysis_kind=asserts",
+        ],
+        120,
+        True,
+    ),
+]
+records = []
+for name, command, limit, proof in commands:
+    r = {"name": name, "command": command, "timeout_seconds": limit, "status": "running"}
+    records.append(r)
+    child = None
+    started = time.monotonic()
+    try:
+        with (p / "checks" / (name + ".log")).open("w") as log:
+            child = subprocess.Popen(
+                command, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+            )
+            r["pid"] = child.pid
+            r["exit_code"] = child.wait(timeout=limit)
+        r["status"] = "passed" if r["exit_code"] == 0 else ("unverified" if proof else "failed")
+    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt) as e:
+        r["status"] = "unverified" if proof else "failed"
+        r["error"] = repr(e)
+    finally:
+        if child is not None:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=10)
+            r["joined"] = True
+        r["elapsed_seconds"] = time.monotonic() - started
+        (p / "checks.json").write_text(json.dumps(records, indent=2) + "\n")
+    print(name, r["status"], flush=True)
+    if r["status"] == "failed":
+        raise SystemExit(1)

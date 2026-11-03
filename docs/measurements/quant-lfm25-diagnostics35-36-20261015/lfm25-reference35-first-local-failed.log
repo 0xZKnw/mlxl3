@@ -1,0 +1,69 @@
+✓ Initialized. View run at 
+https://modal.com/apps/xzknw/main/ap-AH3Xgd68XrU9cssRNvhjoM
+Building image im-F0m42wEU005qrlmmlUfFkL
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 872.00ms
+
+Built image im-F0m42wEU005qrlmmlUfFkL in 1.60s
+
+
+Building image im-z9opm5aZZ4ISYoZlEjOAlR
+
+=> Step 0: FROM base
+
+=> Step 1: COPY . /
+Saving image...
+Image saved, took 639.58ms
+
+Built image im-z9opm5aZZ4ISYoZlEjOAlR in 1.59s
+
+
+✓ Created objects.
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/diagnose_
+│   lfm25_reference_modal.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/quantize_
+│   lfm25_v3_modal.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/quantize_
+│   lfm25_modal.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/exl3_moe_
+│   calibration.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/pilot_lfm
+│   25_calibration.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/generate_
+│   lfm25_trace.py
+├── 🔨 Created function fetch_trace_sources.
+├── 🔨 Created function trace_runtime_smoke.
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/diagnose_
+│   lfm25_reference.py
+├── 🔨 Created mount 
+│   /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/diagnose_
+│   lfm25_reference_modal.py
+└── 🔨 Created function diagnose.
+Stopping app - uncaught exception raised locally: ModuleNotFoundError("No module named 'numpy'").
+╭───────────────────── Traceback (most recent call last) ──────────────────────╮
+│ /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/diagnose_ │
+│ lfm25_reference_modal.py:92 in main                                          │
+│                                                                              │
+│   91 │   plan = json.loads(Path(plan_path).read_text())                      │
+│ ❱ 92 │   validate_windows(plan)                                              │
+│   93 │   result = diagnose.remote(plan)                                      │
+│                                                                              │
+│ /Users/justin/.codex/worktrees/exl3-quant-lfm25/mix-stq1_0/scripts/diagnose_ │
+│ lfm25_reference.py:51 in validate_windows                                    │
+│                                                                              │
+│    50 def validate_windows(plan: dict) -> dict[str, list[int]]:              │
+│ ❱  51 │   import numpy as np                                                 │
+│    52                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ModuleNotFoundError: No module named 'numpy'

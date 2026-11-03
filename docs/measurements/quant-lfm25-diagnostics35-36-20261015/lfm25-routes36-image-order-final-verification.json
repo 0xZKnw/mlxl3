@@ -1,0 +1,66 @@
+{
+  "status": "cpu_verified_gpu_not_run",
+  "files": {
+    "scripts/diagnose_lfm25_routes.py": "8d4bd7c390e25aacc1d95385184f17b1d947f9b5bf9ea0aea15c6dbb651986d1",
+    "scripts/diagnose_lfm25_routes_modal.py": "8968167f246aea06d729f427f59173d52e87bcb423d3ccf82d331da7e2f35323",
+    "tests/test_lfm25_routes.py": "3b8354dc06e9c2923b4b5330eb54ee9dfa2a29fe0c4acb4a8c51861fdc9f9ab8"
+  },
+  "focused_tests": {
+    "passed": 75,
+    "skipped": 0,
+    "log": "build/lfm25-routes36-image-order-focused.log"
+  },
+  "mutation": {
+    "mutation": "omit forced IDs while keeping original buffer",
+    "detected": true,
+    "pytest_exit": 1,
+    "failed_cases": 2,
+    "passed_cases": 2,
+    "source_restored_byteexact": true
+  },
+  "symbolic_search": {
+    "target": "diagnose_lfm25_routes.checked_position",
+    "confirmed_postconditions": 2,
+    "tool": "CrossHair",
+    "timeout_seconds_per_condition": 20,
+    "log": "build/lfm25-routes36-crosshair.log",
+    "scope": "index return equals supplied integer and lies inside total; no GPU/tensor/I/O proof"
+  },
+  "checks": {
+    "ruff_format": "3 files already formatted",
+    "ruff_lint": "All checks passed!",
+    "compileall_exit": 0,
+    "cli_help_exit": 0,
+    "actual_frozen_plan": {
+      "frozen_windows": 2,
+      "tokens_per_window": 1024,
+      "v2_shards": 4,
+      "matches": true
+    }
+  },
+  "initial_failures": "Ruff SIM102, import sorting, and TRY004 corrected; early lint logs were overwritten, diagnostics remain in tool outputs.",
+  "unverified": [
+    "No GPU, Modal job, or new numerical model measurement launched.",
+    "Actual routing_sel_norm wheel binding and fused own-route bitexactness await H100.",
+    "CPU orchestration uses explicit fake models/caches; exact historical KL/NLL checks remain external after download.",
+    "No source-level proof of CUDA/tensors/concurrency/filesystem transport.",
+    "Full suite and CI integration left to root agent."
+  ],
+  "volume": "mlxl3-lfm25-v3-20261015",
+  "volume_revision": "Prior V2 Volume confirmed deleted; root imports byteexact V2 raw files at /data/v2/output on existing V3 Volume. Worker untouched.",
+  "previous_verification": "build/lfm25-routes36-before-volume-fix-verification.json",
+  "image_order_fix": {
+    "before": "True Modal SDK local loader raises InvalidError before RPC; CLI help alone passes both orders and cannot detect this deferred validation.",
+    "before_log": "build/lfm25-routes36-image-order-before.log",
+    "after": "copy=True helper layer precedes lazy Python source mount; numerical worker byteexact unchanged",
+    "sdk_test": "test_real_modal_sdk_resolves_copy_before_lazy_mount_without_rpc",
+    "cli_test": "test_real_modal_cli_help_imports_without_authentication (sys.executable -m modal, credentials removed, timeout20s)",
+    "exact_cli": "/Users/justin/.local/bin/modal run scripts/diagnose_lfm25_routes_modal.py --help; no credentials; timeout20s; exit0",
+    "exact_cli_log": "build/lfm25-routes36-image-order-exact-cli.log",
+    "format_log": "build/lfm25-routes36-image-order-format.log",
+    "lint_log": "build/lfm25-routes36-image-order-lint.log",
+    "compile_log": "build/lfm25-routes36-image-order-compile.log",
+    "full_suite": "Prior874+1skip from root reused; only image construction and tests changed.",
+    "gpu_started": false
+  }
+}

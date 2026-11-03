@@ -1,0 +1,99 @@
+{
+  "status": "validated_tests_symbolic_unconfirmed",
+  "created_utc": "2026-10-15T23:58:36.553980+00:00",
+  "scope": "Engine package CLI default version only; no runtime, numerical code or GPU change",
+  "changed_function": "scripts/package_engine.py:main",
+  "behavior": "Read package.version from root Cargo.toml with stdlib tomllib only when --version is absent (None). Explicit override, including empty string, never falls back; existing manifest/valid_version checks reject unsafe versions before publishing.",
+  "python": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "tests": {
+    "command": "/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q tests/test_package_engine.py",
+    "passed": 45,
+    "skipped": 0,
+    "seconds": 0.9,
+    "red_before_fix": {
+      "test": "test_cli_default_uses_engine_cargo_version_and_verifiable_archive",
+      "exit_code": 1,
+      "failure": "Expected engine Cargo1.4.5, got DesktopInfo1.4.4 archive name"
+    },
+    "coverage": [
+      "Copied production script, Cargo1.4.5, DesktopInfo1.4.4, notice files and disposable runtime",
+      "Archive filename, manifest version, exact members and independently recomputed file SHA256/bytes",
+      "Explicit override with missing, malformed and invalid Cargo, plus missing DesktopInfo",
+      "Missing/malformed/non-UTF8 Cargo, absent package/version, invalid version types and unsafe/noncanonical versions: nonzero, no output archive or runtime manifest",
+      "Empty/invalid explicit version: existing nonzero error, no fallback or publication",
+      "Required/unknown CLI arguments and incomplete runtime failure",
+      "All20 previous packaging cases retained"
+    ],
+    "first_after_fix": "41 pass/4 fail because tests initially expected argparse exit2 rather than existing ValueError exit1; corrected assertions without adding a production error handler."
+  },
+  "checks": {
+    "ruff_check": "passed, exit0",
+    "ruff_format_check": "passed, exit0",
+    "py_compile": "passed, exit0",
+    "git_diff_check": "passed",
+    "first_lint": "PLW1510 missing explicit check=False in subprocess test helper; fixed and final Ruff clean",
+    "ci": "Existing .github/workflows/rust.yml includes package_engine tests, Ruff and py_compile; no workflow change required. New commit CI not yet run."
+  },
+  "symbolic": {
+    "command": "PYTHONPATH=scripts /Users/justin/Documents/mix-stq1_0/build/formal-python/bin/crosshair check package_engine.valid_version --report_all --per_condition_timeout=20",
+    "scope": "Existing real pure filename/version validator used by the new CLI path; not TOML/file I/O or archive proof",
+    "per_condition_timeout_seconds": 20,
+    "supervisor_timeout_seconds": 55,
+    "exit_code": 0,
+    "confirmed": 0,
+    "not_confirmed": 2,
+    "counterexample_observed": false,
+    "claim": "No formal proof established; symbolic search returned Not confirmed for both postconditions. No retry."
+  },
+  "limits": [
+    "No release/installation/build/GPU/commit/push performed by this task.",
+    "CLI and archive I/O verified by regression tests, not formally proved.",
+    "No promise of complete correctness from tests or inconclusive symbolic search."
+  ],
+  "files": {
+    "scripts/package_engine.py": {
+      "bytes": 4243,
+      "sha256": "db5b32ac7e3876b88ef2f19f93b48f0a25443e90d963ab427fc0cea2c6946fb5"
+    },
+    "tests/test_package_engine.py": {
+      "bytes": 9237,
+      "sha256": "6a5eba6acd8e560e31bd4563c3c018c780a191c04ec850bda88dcc1c99b46005"
+    },
+    "build/lfm-mtp-ui-state/package-engine-before.py.txt": {
+      "bytes": 4203,
+      "sha256": "d6a8dcde1a9581f917beee439a2fff3fc38d4f3b910e6804acdbb4bf97c137a9"
+    },
+    "build/lfm-mtp-ui-state/package-engine-cli-red.log": {
+      "bytes": 1484,
+      "sha256": "895304705913a9f21b57c4c127341d7e5cb5e79c26bf6bb7ced61c06b61cc758"
+    },
+    "build/lfm-mtp-ui-state/package-engine-tests-first-after-fix.log": {
+      "bytes": 10187,
+      "sha256": "a44289cc833215fce7e4f8b63c16c292eb586a1587532965a57176d0c9b19b7f"
+    },
+    "build/lfm-mtp-ui-state/package-engine-tests-green.log": {
+      "bytes": 99,
+      "sha256": "092eb97e045cc5cc8f9d4f034cebbb6f228ffdf1cbad479a7d3a7ffa951578d5"
+    },
+    "build/lfm-mtp-ui-state/package-engine-ruff.log": {
+      "bytes": 399,
+      "sha256": "2ca5c40b5f8a0aa2e7b694440edc8c9e233ee5ff8124e80c332b47b2cca824fd"
+    },
+    "build/lfm-mtp-ui-state/package-engine-ruff-final.log": {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "build/lfm-mtp-ui-state/package-engine-format-final.log": {
+      "bytes": 23,
+      "sha256": "43affe539ba0ae8b202b306a3294d04f3b7fc062316c1c825399076d966c8f2d"
+    },
+    "build/lfm-mtp-ui-state/package-engine-format-check-final.log": {
+      "bytes": 26,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+    },
+    "build/lfm-mtp-ui-state/package-engine-crosshair.log": {
+      "bytes": 476,
+      "sha256": "acef5b022b2d60b60f4f408aa7ed835bef22d6f7379b0a79101f80858d2d9688"
+    }
+  }
+}

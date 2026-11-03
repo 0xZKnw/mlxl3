@@ -1,0 +1,9 @@
+CPU-only first check, 2026-10-31 (diagnostic summary, not a full stdout transcript).
+Command: .venv/bin/python -m pytest -q docs/measurements/post-p08-dense-epilogue-20261031/bounded_guard_selftest.py
+Result: 42 passed, 4 failed, 0.10 s. Ruff format/check and py_compile had passed.
+All four failures were the disposable integration scenarios before child creation:
+FileNotFoundError loading docs/measurements/.../bench-supervisor.txt from the temporary cwd.
+Cause: the fixture relocated ROOT but left the expected MONITOR path at the real checkout,
+so the exact path router did not select the supplied guarded monitor.
+Correction: relocate the fixture's expected MONITOR path with its ROOT. No production
+guard relaxation or source change is needed. No engine, GPU, or model was launched.

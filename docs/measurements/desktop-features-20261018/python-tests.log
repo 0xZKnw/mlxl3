@@ -1,0 +1,65 @@
+Fatal Python error: Aborted
+
+Current thread 0x00000001f03a4f80 (most recent call first):
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 1301 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx_lm/convert.py", line 7 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx_lm/__init__.py", line 9 in <module>
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap_external>", line 999 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 488 in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1310 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "/private/tmp/mlxl3-features-20261018/tests/test_ling_integration.py", line 7 in <module>
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/assertion/rewrite.py", line 188 in exec_module
+  File "<frozen importlib._bootstrap>", line 935 in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1331 in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 1360 in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1387 in _gcd_import
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90 in import_module
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/pathlib.py", line 596 in import_path
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 508 in importtestmodule
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 561 in _getobj
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 290 in obj
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 577 in _register_setup_module_fixture
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/python.py", line 564 in collect
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 406 in collect
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 361 in from_call
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 408 in pytest_make_collect_report
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/runner.py", line 589 in collect_one_node
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 895 in _collect_one_node
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 1032 in genitems
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 1035 in genitems
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 869 in perform_collect
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 394 in pytest_collection
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 383 in _main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 330 in wrap_session
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/main.py", line 377 in pytest_cmdline_main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 229 in _main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/_pytest/config/__init__.py", line 253 in _console_main
+  File "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/pytest/__main__.py", line 9 in <module>
+  File "<frozen runpy>", line 88 in _run_code
+  File "<frozen runpy>", line 198 in _run_module_as_main

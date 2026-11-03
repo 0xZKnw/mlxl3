@@ -1,0 +1,1468 @@
+.................................................FFFFFFFFFFFF            [100%]
+=================================== FAILURES ===================================
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[0-Swapins] __
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108dafce0>
+counter = 'Swapins', delta = 0
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+>           api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:443: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha0/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[0-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108da7770>
+counter = 'Swapouts', delta = 0
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+>           api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:443: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha1/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[268435456-Swapins] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108da59d0>
+counter = 'Swapins', delta = 268435456
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+>           api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:443: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha2/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[268435456-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108da72c0>
+counter = 'Swapouts', delta = 268435456
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+>           api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:443: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha3/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapins] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108d939e0>
+counter = 'Swapins', delta = 268435457
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha4/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108da7da0>
+counter = 'Swapouts', delta = 268435457
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha5/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[-1-Swapins] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108d48ec0>
+counter = 'Swapins', delta = -1
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha6/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[-1-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108dafc20>
+counter = 'Swapouts', delta = -1
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha7/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[missing-Swapins] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108d9b0e0>
+counter = 'Swapins', delta = 'missing'
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha8/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[missing-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108d9a330>
+counter = 'Swapouts', delta = 'missing'
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha9/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[bool-Swapins] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108d99820>
+counter = 'Swapins', delta = 'bool'
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha10/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+_ test_real_sampler_rejects_exhausted_budget_before_starting_child[bool-Swapouts] _
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108deaea0>
+counter = 'Swapouts', delta = 'bool'
+
+    @pytest.mark.parametrize("counter", ["Swapins", "Swapouts"])
+    @pytest.mark.parametrize("delta", [0, 256 << 20, (256 << 20) + 1, -1, "missing", "bool"])
+    def test_real_sampler_rejects_exhausted_budget_before_starting_child(
+        tmp_path, monkeypatch, counter, delta
+    ):
+        import shutil
+        import sys
+        import threading
+        from types import SimpleNamespace
+    
+        api = runpy.run_path(str(ROOT / "scripts/profile_flash.py"))
+        base = Path("docs/measurements/flash-next-ssd-impl")
+        monkeypatch.setattr(sys, "path", sys.path.copy())
+        paths = {
+            "sample": base / "opt-49-variance-diagnostic/sample-system.txt",
+            "supervisor": base / "opt-45-audit-prerequisites/run-supervisor.txt",
+            "monitor": base / "opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+            "parser": Path("benchmarks/benchmark_flash_memory.py"),
+            "process": Path("scripts/native_json_process.py"),
+        }
+        for path in paths.values():
+            target = tmp_path / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(ROOT / path, target)
+        baseline = {"Swapins": 100, "Swapouts": 100}
+        current = baseline.copy()
+        if delta == "missing":
+            del current[counter]
+        elif delta == "bool":
+            current[counter] = True
+        else:
+            current[counter] += delta
+    
+        class FastEvent(threading.Event):
+            def wait(self, timeout=None):
+                return super().wait(min(timeout, 0.001) if timeout is not None else timeout)
+    
+        original = runpy.run_path
+    
+        def load(path):
+            namespace = original(path)
+            selected = Path(path).resolve()
+            if selected == (tmp_path / paths["sample"]).resolve():
+                glob = namespace["main"].__globals__
+                glob["snapshot"] = lambda: {"errors": [], "test_fixture": True}
+                glob["threading"] = SimpleNamespace(Event=FastEvent, Thread=threading.Thread)
+            if selected == (tmp_path / paths["monitor"]).resolve():
+                namespace["snapshot"] = lambda _: {
+                    "vm_bytes": current.copy(),
+                    "pmset -g batt": "Now drawing from 'AC Power'",
+                }
+            return namespace
+    
+        glob = api["run_sampler"].__globals__
+        monkeypatch.setitem(glob, "ROOT", tmp_path)
+        monkeypatch.setitem(glob, "runpy", SimpleNamespace(run_path=load))
+        monkeypatch.chdir(tmp_path)
+        marker = tmp_path / "child-started"
+        plan = tmp_path / "run.json"
+        plan.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "preflight",
+                        "command": [
+                            sys.executable,
+                            "-c",
+                            "from pathlib import Path; Path('child-started').touch()",
+                        ],
+                        "env": {},
+                        "expected_exit": 0,
+                    }
+                ]
+            )
+        )
+        allowed = type(delta) is int and 0 <= delta <= 256 << 20
+        if allowed:
+            api["run_sampler"](plan, baseline)
+        else:
+            with pytest.raises((AssertionError, KeyError)):
+>               api["run_sampler"](plan, baseline)
+
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:446: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:399: in run_sampler
+    return load(sampler_path)["main"](plan)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11/docs/measurements/flash-next-ssd-impl/opt-49-variance-diagnostic/sample-system.txt:92: in main
+    runpy.run_path(
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11/docs/measurements/flash-next-ssd-impl/opt-45-audit-prerequisites/run-supervisor.txt:23: in main
+    parse_vm = runpy.run_path("benchmarks/benchmark_flash_memory.py")["parse_vm"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/scripts/profile_flash.py:388: in load
+    namespace = runpy.run_path(str(path))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/tests/test_flash_profile.py:406: in load
+    namespace = original(path)
+                ^^^^^^^^^^^^^^
+<frozen runpy>:287: in run_path
+    ???
+<frozen runpy>:98: in _run_module_code
+    ???
+<frozen runpy>:88: in _run_code
+    ???
+/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11/benchmarks/benchmark_flash_memory.py:19: in <module>
+    flash = runpy.run_path(
+<frozen runpy>:286: in run_path
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+fname = '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11/scripts/benchmark-flash-bridge.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-94/test_real_sampler_rejects_exha11/scripts/benchmark-flash-bridge.py'
+
+<frozen runpy>:254: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[0-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[0-Swapouts]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[268435456-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[268435456-Swapouts]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[268435457-Swapouts]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[-1-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[-1-Swapouts]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[missing-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[missing-Swapouts]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[bool-Swapins]
+FAILED tests/test_flash_profile.py::test_real_sampler_rejects_exhausted_budget_before_starting_child[bool-Swapouts]
+12 failed, 49 passed in 0.43s

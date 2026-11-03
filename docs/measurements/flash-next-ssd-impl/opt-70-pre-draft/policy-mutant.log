@@ -1,0 +1,36 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.20s
+     Running unittests native/src/lib.rs (/Users/justin/Documents/mix-stq1_0/target/debug/deps/mlxl3_native-4c653c01abc6a5ba)
+
+running 4 tests
+
+thread 'flash_draft_budget::pre_draft_tests::pre_draft_warms_each_legal_shape_then_prices_emitted_tokens' (216904) panicked at native/src/flash_draft_budget.rs:468:9:
+assertion `left == right` failed
+  left: 2
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'flash_draft_budget::pre_draft_tests::pre_draft_integer_prices_and_long_trace_stay_bounded' (216902) panicked at native/src/flash_draft_budget.rs:528:9:
+assertion `left == right` failed
+  left: 1
+ right: 3
+
+thread 'flash_draft_budget::pre_draft_tests::pre_draft_explores_all_three_shapes_and_clips_to_remaining_budget' (216901) panicked at native/src/flash_draft_budget.rs:484:9:
+assertion `left == right` failed
+  left: 1
+ right: 3
+test flash_draft_budget::pre_draft_tests::pre_draft_rejects_invalid_or_exhausted_counters_without_mutation ... ok
+test flash_draft_budget::pre_draft_tests::pre_draft_warms_each_legal_shape_then_prices_emitted_tokens ... FAILED
+test flash_draft_budget::pre_draft_tests::pre_draft_integer_prices_and_long_trace_stay_bounded ... FAILED
+test flash_draft_budget::pre_draft_tests::pre_draft_explores_all_three_shapes_and_clips_to_remaining_budget ... FAILED
+
+failures:
+
+failures:
+    flash_draft_budget::pre_draft_tests::pre_draft_explores_all_three_shapes_and_clips_to_remaining_budget
+    flash_draft_budget::pre_draft_tests::pre_draft_integer_prices_and_long_trace_stay_bounded
+    flash_draft_budget::pre_draft_tests::pre_draft_warms_each_legal_shape_then_prices_emitted_tokens
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 107 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`

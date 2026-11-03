@@ -1,0 +1,13 @@
+
+running 1 test
+test ssd_moe::tests::demanded_reads_start_before_the_optional_prediction_finishes ... SSD_SCHEDULE_TRACE {"clock_domain":"cpu_monotonic_seconds","demand_records":10,"events":[["routes_cpu",0.004742708],["prediction_submitted",0.079592125],["demand_begin",0.079608416],["demand_end",0.080175166],["prediction_cpu",0.080783875]],"prediction_ready_at_first_demand":true,"test_only_slow_prediction":true}
+Error: demand waited for optional prediction
+FAILED
+
+failures:
+
+failures:
+    ssd_moe::tests::demanded_reads_start_before_the_optional_prediction_finishes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 189 filtered out; finished in 1.18s
+

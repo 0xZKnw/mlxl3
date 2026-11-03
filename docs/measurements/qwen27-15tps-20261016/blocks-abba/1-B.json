@@ -1,0 +1,291 @@
+{
+  "label": "B",
+  "index": 1,
+  "mtp_depth": 1,
+  "mtp_head": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/head",
+  "dflash_mode": 0,
+  "status": "complete",
+  "conditions": {
+    "recorded_at_unix": 1792166573.3388832,
+    "power": {
+      "returncode": 0,
+      "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t100%; discharging; (no estimate) present: true\n",
+      "stderr": ""
+    },
+    "thermal": {
+      "returncode": 0,
+      "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+      "stderr": ""
+    },
+    "swap": {
+      "returncode": 0,
+      "stdout": "vm.swapusage: total = 5120.00M  used = 3940.81M  free = 1179.19M  (encrypted)\n",
+      "stderr": ""
+    }
+  },
+  "prompts": {
+    "short": {
+      "runs": [
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 199,
+            "decode_seconds": 12.982571416,
+            "decode_tokens": 129,
+            "decode_tps": 9.936398257822608,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 14.04765,
+            "end_to_end_ttft_seconds": 1.065052916,
+            "evaluated_prompt_tokens": 69,
+            "generated_tokens": 130,
+            "memory": {
+              "mlx_active_bytes": 9580248956,
+              "mlx_cache_bytes": 705111429,
+              "mlx_peak_bytes": 9895789451,
+              "process_footprint_bytes": 10496284216,
+              "process_lifetime_peak_bytes": 11983969000
+            },
+            "model_size_gb": 9.696705133,
+            "mtp_accepted_tokens": 54,
+            "mtp_blocks": 77,
+            "mtp_depth_blocks": [
+              0,
+              77,
+              0,
+              0
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 77,
+            "prefill_seconds": 1.064435917,
+            "prefill_tps": 64.82306628140584,
+            "prepare_seconds": 0.000198541,
+            "prompt_tokens": 69,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 1.065048083
+          },
+          "token_hash": "c88e786888e89699",
+          "text_sha256": "b5b3e5826d6351dec0dbda3cc1851372a802691abc2dc328fd0ba1fd1b766739",
+          "history_sha256": "d4b8fc678f92cb7943a3264b8ef12c21b41503f0d1fb21efb310fca9de228e9f"
+        }
+      ],
+      "warmup": {
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 133,
+          "decode_seconds": 6.014852417,
+          "decode_tokens": 63,
+          "decode_tps": 10.474072451377321,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.057814125,
+          "elapsed_seconds": 7.379332542,
+          "end_to_end_ttft_seconds": 1.3645154169999998,
+          "evaluated_prompt_tokens": 69,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 9575671676,
+            "mlx_cache_bytes": 599454633,
+            "mlx_peak_bytes": 9895793303,
+            "process_footprint_bytes": 10385724984,
+            "process_lifetime_peak_bytes": 11983969000
+          },
+          "model_size_gb": 9.696705133,
+          "mtp_accepted_tokens": 28,
+          "mtp_blocks": 34,
+          "mtp_depth_blocks": [
+            0,
+            35,
+            0,
+            0
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 34,
+          "prefill_seconds": 1.300487333,
+          "prefill_tps": 53.0570335051468,
+          "prepare_seconds": 0.005003292,
+          "prompt_tokens": 69,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 1.3644692090000001
+        },
+        "token_hash": "588cc684ce4a8d19",
+        "text_sha256": "9df5701c5c5951989abd75fe607e629bf7a79696d849c57d6ef41394834e5c27",
+        "history_sha256": "702f2b9fa435f2e0186974112d6bfc4f3259a3c2e90800a2f0cfa74ac6df75f6"
+      },
+      "medians": {
+        "decode_tps": 9.936398257822608,
+        "decode_seconds": 12.982571416,
+        "prefill_tps": 64.82306628140584,
+        "prefill_seconds": 1.064435917,
+        "ttft_seconds": 1.065048083,
+        "elapsed_seconds": 14.04765
+      }
+    },
+    "document": {
+      "runs": [
+        {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 370,
+            "decode_seconds": 25.524519292,
+            "decode_tokens": 255,
+            "decode_tps": 9.990393828099366,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 26.917035541,
+            "end_to_end_ttft_seconds": 1.3925081659999998,
+            "evaluated_prompt_tokens": 114,
+            "generated_tokens": 256,
+            "memory": {
+              "mlx_active_bytes": 9592586108,
+              "mlx_cache_bytes": 1341262868,
+              "mlx_peak_bytes": 10043671108,
+              "process_footprint_bytes": 11145303608,
+              "process_lifetime_peak_bytes": 11983969000
+            },
+            "model_size_gb": 9.696705133,
+            "mtp_accepted_tokens": 109,
+            "mtp_blocks": 146,
+            "mtp_depth_blocks": [
+              0,
+              146,
+              0,
+              0
+            ],
+            "mtp_lookup_blocks": 0,
+            "mtp_proposed_tokens": 146,
+            "prefill_seconds": 1.391944542,
+            "prefill_tps": 81.89981465511576,
+            "prepare_seconds": 0.000178041,
+            "prompt_tokens": 114,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 1.392502999
+          },
+          "token_hash": "362fcad98930c47b",
+          "text_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de",
+          "history_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de"
+        }
+      ],
+      "warmup": {
+        "stats": {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 178,
+          "decode_seconds": 5.762141166,
+          "decode_tokens": 63,
+          "decode_tps": 10.933435711665103,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 7.080151625,
+          "end_to_end_ttft_seconds": 1.3180155829999998,
+          "evaluated_prompt_tokens": 114,
+          "generated_tokens": 64,
+          "memory": {
+            "mlx_active_bytes": 9579134844,
+            "mlx_cache_bytes": 790598676,
+            "mlx_peak_bytes": 10043671108,
+            "process_footprint_bytes": 10580497976,
+            "process_lifetime_peak_bytes": 11983969000
+          },
+          "model_size_gb": 9.696705133,
+          "mtp_accepted_tokens": 29,
+          "mtp_blocks": 34,
+          "mtp_depth_blocks": [
+            0,
+            34,
+            0,
+            0
+          ],
+          "mtp_lookup_blocks": 0,
+          "mtp_proposed_tokens": 34,
+          "prefill_seconds": 1.3168520830000001,
+          "prefill_tps": 86.57008746213145,
+          "prepare_seconds": 0.000695458,
+          "prompt_tokens": 114,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 1.31800075
+        },
+        "token_hash": "2f14acf914f29789",
+        "text_sha256": "9db647021fa9cb222d675b370a9cab362655111ab92d61af5ae9fb0da941eec9",
+        "history_sha256": "9db647021fa9cb222d675b370a9cab362655111ab92d61af5ae9fb0da941eec9"
+      },
+      "medians": {
+        "decode_tps": 9.990393828099366,
+        "decode_seconds": 25.524519292,
+        "prefill_tps": 81.89981465511576,
+        "prefill_seconds": 1.391944542,
+        "ttft_seconds": 1.392502999,
+        "elapsed_seconds": 26.917035541
+      }
+    }
+  },
+  "ready": {
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": {
+      "draft_bytes_per_token": 4096,
+      "fixed_bytes": 153954304,
+      "layers": [
+        {
+          "bytes_per_token": 65536,
+          "max_tokens": null,
+          "step": 1
+        }
+      ]
+    },
+    "dflash_configure_supported": true,
+    "dflash_family": "qwen38_dense",
+    "dflash_supported": true,
+    "dflash_tune_supported": true,
+    "dflash_tuning_key": "0ecfe80cf1bcb3e2:1.4.5:7ce611c1c0db-dirty:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v2=1:dflash-v4:copy=0",
+    "load_seconds": 2.725172458,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+    "model_context_limit": 262144,
+    "modules": 401,
+    "mtp_auto_download_supported": true,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 3,
+    "mtp_supported": true,
+    "mtp_tune_supported": true,
+    "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.5:7ce611c1c0db-dirty:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v2=1",
+    "resident_gb": 9.696705133,
+    "runtime_commit": "7ce611c1c0db-dirty",
+    "runtime_executable": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/qwen27-blocks-20261016/candidate/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "1.4.5",
+    "type": "ready"
+  },
+  "ready_seconds": 2.7682695830008015,
+  "exit_code": 0
+}

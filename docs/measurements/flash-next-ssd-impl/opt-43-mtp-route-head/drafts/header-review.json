@@ -1,0 +1,113 @@
+{
+  "status": "completed_metadata_only",
+  "created_at": "2026-10-19T21:23:33.896623+00:00",
+  "models": [
+    {
+      "model": "dflash2",
+      "status": "header_metadata_verified_no_tensor_data",
+      "files": [
+        {
+          "file": "model.safetensors",
+          "source_url": "https://huggingface.co/incoai/Qwen3.8-Flash-Next-DFlash2/resolve/a22a1744e85c17364dcc54a6a420af7135d4c7f6/model.safetensors",
+          "file_size_bytes": 1206140008,
+          "header_bytes": 8800,
+          "header_sha256": "5ef4772f77b6a3ea349c6515aceffdb999868946aafb04578416494c64ef0513",
+          "tensor_count": 81,
+          "tensor_elements": 603065600,
+          "range_bytes_consumed": 8808
+        }
+      ],
+      "parameters": {
+        "BF16": 603065600
+      },
+      "parameter_count": 603065600,
+      "selected_tensors": {
+        "candidate_selector.hidden_projection.weight": {
+          "shape": [
+            256,
+            2560
+          ],
+          "dtype": "BF16"
+        },
+        "candidate_selector.predecessor_codebook": {
+          "shape": [
+            248320,
+            256
+          ],
+          "dtype": "BF16"
+        },
+        "candidate_selector.successor_codebook": {
+          "shape": [
+            248320,
+            256
+          ],
+          "dtype": "BF16"
+        },
+        "fc.weight": {
+          "shape": [
+            2560,
+            12800
+          ],
+          "dtype": "BF16"
+        }
+      }
+    },
+    {
+      "model": "dspark",
+      "status": "header_metadata_verified_no_tensor_data",
+      "files": [
+        {
+          "file": "model.safetensors",
+          "source_url": "https://huggingface.co/shadowpa0327/Qwen3.8-Flash-Next-DSpark/resolve/aafaf1bf59fdc4639183600d7747474990623171/model.safetensors",
+          "file_size_bytes": 1329146274,
+          "header_bytes": 6552,
+          "header_sha256": "a986400ac38f1ecb94ac571eff906ff2827a4e0dcd00faf0448d94cdae90fd11",
+          "tensor_count": 62,
+          "tensor_elements": 664569857,
+          "range_bytes_consumed": 6560
+        }
+      ],
+      "parameters": {
+        "BF16": 664569857
+      },
+      "parameter_count": 664569857,
+      "selected_tensors": {
+        "confidence_head.proj.bias": {
+          "shape": [
+            1
+          ],
+          "dtype": "BF16"
+        },
+        "confidence_head.proj.weight": {
+          "shape": [
+            1,
+            2816
+          ],
+          "dtype": "BF16"
+        },
+        "fc.weight": {
+          "shape": [
+            2560,
+            12800
+          ],
+          "dtype": "BF16"
+        },
+        "markov_head.markov_w1.weight": {
+          "shape": [
+            248320,
+            256
+          ],
+          "dtype": "BF16"
+        },
+        "markov_head.markov_w2.weight": {
+          "shape": [
+            248320,
+            256
+          ],
+          "dtype": "BF16"
+        }
+      }
+    }
+  ],
+  "tensor_data_bytes_consumed": 0
+}

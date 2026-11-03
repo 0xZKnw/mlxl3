@@ -1,0 +1,79 @@
+{
+  "status": "unverified",
+  "bounds": "C++ strings≤3, names≤2, fullu8, unwind33; no unsupported checks suppressed; real C++17 preprocessing. Rust actual FFI null-test path attempted without stub.",
+  "checks": [
+    {
+      "name": "proof-syntax",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        "native/ffi",
+        "-fsyntax-only",
+        "native/tests/kernel_cache_key_proof.cpp"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.20482099999999998,
+      "log": "docs/measurements/dflash2-web-03/key-view-proof-syntax.log"
+    },
+    {
+      "name": "proof-preprocess",
+      "command": [
+        "c++",
+        "-std=c++17",
+        "-I",
+        "native/ffi",
+        "-E",
+        "native/tests/kernel_cache_key_proof.cpp",
+        "-o",
+        "build/dflash2-web-03/key-view/kernel_cache_key_proof.ii"
+      ],
+      "exit": 0,
+      "timeout": false,
+      "seconds": 0.08569887500000001,
+      "log": "docs/measurements/dflash2-web-03/key-view-proof-preprocess.log"
+    },
+    {
+      "name": "cbmc",
+      "command": [
+        "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+        "build/dflash2-web-03/key-view/kernel_cache_key_proof.ii",
+        "--cpp11",
+        "--function",
+        "proof",
+        "--unwind",
+        "33",
+        "--unwinding-assertions",
+        "--undefined-function-assertion"
+      ],
+      "exit": 64,
+      "timeout": false,
+      "seconds": 0.005766249999999973,
+      "log": "docs/measurements/dflash2-web-03/key-view-cbmc.log"
+    },
+    {
+      "name": "kani-ffi",
+      "command": [
+        "cargo",
+        "kani",
+        "--lib",
+        "--features",
+        "mlx",
+        "--tests",
+        "--exact",
+        "--harness",
+        "array::tests::metal_cache_rejects_null_key_metadata_before_gpu_dispatch"
+      ],
+      "exit": 1,
+      "timeout": false,
+      "seconds": 2.9281852500000003,
+      "log": "docs/measurements/dflash2-web-03/key-view-kani-ffi.log"
+    }
+  ],
+  "preregistered_or_initial_status": "inspection_required",
+  "final_result": "key-view-formal-summary.json"
+}

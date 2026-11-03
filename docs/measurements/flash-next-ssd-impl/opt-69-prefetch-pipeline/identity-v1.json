@@ -1,0 +1,640 @@
+{
+  "base": "ba97af8d93dce22829efd587dd37907de35d89f1",
+  "state": " M .github/workflows/rust.yml\n M native/src/flash_draft.rs\n M native/src/flash_draft_runtime.rs\n M native/src/main.rs\n M native/src/qwen4.rs\n M native/src/ssd_moe.rs\n M native/src/ssd_prefetch.rs\n M opti.md\n?? docs/measurements/flash-next-ssd-impl/opt-65-plan-diagnostics/\n?? docs/measurements/flash-next-ssd-impl/opt-69-prefetch-pipeline/\n?? native/src/ssd_moe/prefetch_tests.rs\n?? tests/test_flash_grouped_diagnostics.py\n",
+  "files": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/.github/workflows/rust.yml",
+      "sha256": "d06aab47d9eec6b422bd07ae62b33207da1506753846dd615b2e3893229bad00"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/Cargo.lock",
+      "sha256": "d6152886353571b01a83c86863dce1a53631f4c5a329fc55343b0ee9b37f128b"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/Cargo.toml",
+      "sha256": "8be1962d98cf99417a930f294de09c631bd960ddb5341aff814076444e01e486"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_bridge.py",
+      "sha256": "d83097cb6bdf23385943db72fdbd2db16ae25831c2c9af2cecdd9f9324caef38"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_decode_tiles.py",
+      "sha256": "075b2957a8e67e09b1615e9bde070631fe95a7f5d3a771ea2a6bda2361f0597f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_flash_memory.py",
+      "sha256": "95cba3a5ec5b5d33d7a16f6fa590d42dfbb5313e3d2183869dc469820b0dd35c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_gdn_norm_gate.py",
+      "sha256": "ae6f7984e5f032d99a8dbf13a1db4f26c8104eb8f11ce01242c974ae2bbe4c84"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_idle_memory.py",
+      "sha256": "46250f3c74709d3de48a5c3b1c414917204f2475e77b436a5e42ce24b8014141"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_smallm.py",
+      "sha256": "f556d52ed5bb515eddb45b55a13d09fd66d77533a1116e175a45313428c52122"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_smallm_bridge.py",
+      "sha256": "d1d003f4aad367d17d25f8463a2e6b53698008e1f5db784ec088529a7a77da3e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_smallm_gdn.py",
+      "sha256": "9bc4ec5f4f9ea2fb24fa93d7083c41257f1ea1bcf7a884d5982258132784eec3"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_smallm_inventory.py",
+      "sha256": "75db4c4d1926dc643099d55aad83779fb615710d6e84f67870b1f89996b342d8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/benchmark_smallm_tensor.py",
+      "sha256": "e402f994b52c83a86585135a6e7185c0a660e90403d9f07dcb2258b30f348d4f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/compare_native.py",
+      "sha256": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/eval_ling_source.py",
+      "sha256": "c7f52a71f3ed15bf73fa93ec9ed425a6156581444b5df5d92a40ee5c1dc596b9"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-bitonic-ab.jsonl",
+      "sha256": "0e18550b0896cd502b21ec93ba1c4c871872c9139d8a9c639be4f6cf491274c1"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-cow-ab.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-detokenizer-ab.jsonl",
+      "sha256": "1d92705f744c9335f98ac181cf860e01653c6cf835106c9e5180b23bbf68ff02"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-gemma-reduce-ab.jsonl",
+      "sha256": "eae46a6d1723199ae67d7eda70d083a0c21ba539b6ede754e2325648716ed102"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-output-fusion-ab.jsonl",
+      "sha256": "f900aa39e9d50ce1f0aa0d4b75c2d8c4042f3d989cec694b916df81083f36066"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-qwen-reference-20260904.jsonl",
+      "sha256": "73b7bed06b9ffc2e4a86e80bc5c6dfb0e3e7559d495855492591a568681e7874"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-qwen-scatter-20260904.jsonl",
+      "sha256": "a73a4ab899e8bb51eb41e5a46a56a0fb78f906e3a96ee6054e575b98ac118836"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-shortconv-ab.jsonl",
+      "sha256": "7c93340b0a02757788ee8e492cdb2dd7e47e5ee2dc20d31cc6438548969e9429"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-buckets.jsonl",
+      "sha256": "d19f6fb1500d35583379929fe5d06705f9b3a4734dd247b320432dcf26f2819e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-cow.jsonl",
+      "sha256": "48d41e594d2ad3ee54239fd529598bbfc30fde0577ee9d4377e9ed382052671e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-detokenizer.jsonl",
+      "sha256": "4469566cecca33bbfa2cf5c8a7b8d98a0ba28e98c0472eaf6153e1b23c542fdf"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-fastsync.jsonl",
+      "sha256": "d26950380bfa8825f2cdcc2d3b1d44b123bb1dadf8a8aa957835c31416866c4f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-gather.jsonl",
+      "sha256": "24bf0fd137e21edc71bd5173f64d2f1e6d6b8b640cad11cbe42ef8c5e898a960"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-gemma-reduce.jsonl",
+      "sha256": "03304cdd3dee5c7993ce8cc330a5b3b6681c5ff3dc89973b7e41fb476b5a0b68"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-shortconv.jsonl",
+      "sha256": "c2f673b1db94de3036712459633c818968d8e8d33c93bdbc2f571483071f3440"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/audit-v2-strided.jsonl",
+      "sha256": "e9639e57c0430d7d43646d91fa9d6e3bd606bb9d18d93b589b0d63f6d95af265"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/prefill-segmented-20260911.json",
+      "sha256": "3c5098f3f4ce98a918af2e2281ef8bc20ca2d19eb4a1753e8cb8246b283e97d7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/tool_prefill_rd_01.jsonl",
+      "sha256": "891c033496168687243a6b377d1fd4e78f5d3e37f87bbc0342e84e7b1ca623b6"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/tool_prefill_rd_02_12.jsonl",
+      "sha256": "85cc1652ead80c262f986a444dd1baf091ab83eeeb2499db988aa8a486b2a386"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/tool_prefill_rd_13_16.jsonl",
+      "sha256": "98984e87190e138e31f69d2fc9555cbe47ea1703028773532c6d7fb607fbf25e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/benchmarks/results/tool_prefill_rd_17_20.jsonl",
+      "sha256": "077c528197e45c01402bee71036e7ab72b3ddd342ea67d1ab33ee7c2581043f8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/build.rs",
+      "sha256": "0d008bfd3597d03d0cb193c3f18c6a6f063bf4922690fdcb5975282316c84ab6"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/README.md",
+      "sha256": "1a7a13a4143f041055f40546b00e614ea1dcdc0c7de54222bd224333bb4fc847"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/check_qmm_tiles.py",
+      "sha256": "fe88a292706d06b42f56d51e836410b680de4bffeece6c097f9f2536d366da9f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/check_qwen_model.py",
+      "sha256": "00058d795612d69a6d5e96cb41bd5ad3647050dd520de12e246feba9d98ce07a"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/check_qwen_sequence.py",
+      "sha256": "bf7b71543cbc10e002b53204a1bb9d2c7ec4ddeb18a6a9143b08ad969633c645"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/diagnose_qwen_linear_layer.py",
+      "sha256": "12c19994b5bb9f9e62abf96b6721358f543e0b671e7dfbf08e13491862cfde04"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/diagnose_qwen_trace.py",
+      "sha256": "908de0fb04089e7aea0054e06c1876e505e9626afebdd3519cc109bb9a82a242"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/ffi/disk_reader.h",
+      "sha256": "c191ee3c887010df2b007f5a0d68c9ae01d7d080cd77cb897518626e2ef355f8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/ffi/kernel_cache_key.h",
+      "sha256": "05f1deaea931c29b9340a72a747f966fe732c999bb64a9fb4ee8e9fb5d27965f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/ffi/mlx_bridge.cpp",
+      "sha256": "8544bf0a5f3d629010d8b5095224440c3e283c96c6da1b899057901bab209ce7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/_expert_qmm_tensor_kernel.metal",
+      "sha256": "73b2133c69cb90e309f3a4abbad52c21d2840206a742ff31932448eb4672761e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/_qmm_tensor_kernel.metal",
+      "sha256": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/_qmv_inner_kernel.metal",
+      "sha256": "32363169d5f378502afc09501963a1db13b6d779be9fc6cc0a4b3776e40b62bf"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/_qmv_mapped_tile_kernel.metal",
+      "sha256": "867eb5ee8ccbe8703710f89dfb924d0297f9da59bb72f1379f73f8037984c691"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/_qmv_tile_kernel.metal",
+      "sha256": "fe5260810eb286082dafd5a52464f83994fca7e68ebc57125965e0e46e9ae8e2"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/dflash_conv.metal",
+      "sha256": "d200efaab5c07399a36df60c3d8a6901f5eff84219983fe81edc16baa541f0d0"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/dflash_q4.metal",
+      "sha256": "50a14c3d4f038123740042f8efea0e52497f5b421730f577abeea6e4dc8e4d7f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/dflash_q4_mpp.h",
+      "sha256": "7983faeeca8f66daf3f3a0e8edbe7e93a40dc4df9c2fb05f88fbe739a757da52"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/dflash_select.h",
+      "sha256": "7ae0ee396675928f323efae72c5b7b7cc188280b61f68be8408f87872276f71a"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/dflash_select.metal",
+      "sha256": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/exl3.metal",
+      "sha256": "0ca420f8ec7c997421c9a01300e6cf2a72d99ceb44d658125a398f2cda6d0f31"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/flash_draft_ring.h",
+      "sha256": "80d3fd4bd36d999f6e505f226dba292342292628a9fd3c9e9b432476768379ff"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/flash_draft_top16.metal",
+      "sha256": "ace89bc26dde21d0b733950c4150c6490b530988d38a52b1649db013a8c2936a"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/flash_hc_gemv.metal",
+      "sha256": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/flash_rope.metal",
+      "sha256": "3da88069cd73a5fbd290da5c4c2922d3d832662c3bdd19e2575691ce4fe39957"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/gated_delta_packed.metal",
+      "sha256": "199e0dfe67e7b4821e124c8dd67d451b3d8523e9c46bb1076a34d9e426804894"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/gated_delta_prepare.metal",
+      "sha256": "44aa2c25f8f17b133b56879c815f505c4298383b64b50788a400f8abe19a2f23"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/gated_delta_replay.metal",
+      "sha256": "d9a617b14a15e7f7d9a36812b9cd5e88501d458e029b2794e527c09585a93bc7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/mtp_add_rms.metal",
+      "sha256": "38dbfd1ea661cfd97ba929d09f4a5bf6d5ad9450fb11b55b9c947df8fce48fb7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/shaders/packed_embedding.metal",
+      "sha256": "d4d1f077d43303ee1142407eb75324bc0d098e2e69a85ae166ab074423e7c726"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/affine.rs",
+      "sha256": "da45734149699d1fa5ec17823e830b79e2e6231a4432878d4f1c45180ffcbfb5"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/array.rs",
+      "sha256": "47a60e2ef0b285e54ed6a8afff3057f137235fdd493eb5b83f49a9d9baa4b6bf"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/checkpoint.rs",
+      "sha256": "c884a976729c3d698c0189f5e9de85c0a3f2b527cc4cfd5e12edf9c7093780a1"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/codec.rs",
+      "sha256": "f985538e3e35a11c693fa413ed4dbf71d1cd0996386e65bb8d2a5fd4086242b1"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/contracts.rs",
+      "sha256": "fd69a8b287136c34914d014d194cb7110e198a669ef3ae7b6dd4aee850a515c8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/dflash.rs",
+      "sha256": "4783977e18b3b06fa166d92a73776491dea344b25d236da40616b1489f631cf2"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/embedding.rs",
+      "sha256": "754f1d782947a92dd2562afedd9acf5b3bece63ce1dee5f2d36a2f2a5e97f3c5"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_cache_profile.rs",
+      "sha256": "586dc741929937b667623ef2e02855a1e0fc7fb161e891fd8504cd59068a20e7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_cache_profile/profile53.rs",
+      "sha256": "2e3f1de96cb9fa64e61fc9fd6c7c173c379633213995ee9e89c59045337113be"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_draft.rs",
+      "sha256": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_draft_budget.rs",
+      "sha256": "9260734e3de07363cab8957cb85a5ab20ce8720725a35f0f3b21212b925d6b25"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_draft_runtime.rs",
+      "sha256": "c278cdacf3bebef9d9476e5dc162f6cf8a52cb3a118c358b049cb0de6c6bd1b3"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_draft_splash_tests.rs",
+      "sha256": "86baafdd37d5ec306c835745c0fa47a339ef2aa0c32785bab2bd2f25f07ad336"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_profile.rs",
+      "sha256": "d89bb10d4df841c0f11b8d5ed4ce75caaae9f11e4986a7ec9855d4b406fab127"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/flash_support.rs",
+      "sha256": "487763ac2109694d909e0dbc26ae0849136fc61ea02e8e846c9214e840bc76c8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/gated_delta.rs",
+      "sha256": "a99e9198f9cf454caafa8e7e5b974797ad4929109f0a462c93d409e31f5e9347"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/gemma4.rs",
+      "sha256": "c549e2d5c10553c60f1b32dfc9f0d23e6b3a4ed8a5b9189d3b9cc101e863aa28"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/gpu.rs",
+      "sha256": "43fcfdb0aff418934b7c4844a967d72fd28fb3e598f9f00d96261e93dbb56782"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/hub.rs",
+      "sha256": "21704aef61ca8d6e515d819cdda9f1ef8f21d331b5067b1987a313df607f8d57"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/lfm2.rs",
+      "sha256": "a1586737903bd18e04024f7b5bb4d25939de3c480dc6a6ad0be61880c0799f89"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/lib.rs",
+      "sha256": "5c59d99ce92f8b21a665c5a66ab758c2d64141fb01d811df19970a01c4760e46"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/linear.rs",
+      "sha256": "35c6f59372b8555ef208729cef26492e5aadd3a93cab6331732a372681068e4b"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ling.rs",
+      "sha256": "02c1632a61faffe4689ce2b61d662c00412945ff308196e739b9ebe9862b68df"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/main.rs",
+      "sha256": "5906a665347b2dd1fe3b3a247023dfce313c41b9445f4c548392169350bfd4d7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/mcp.rs",
+      "sha256": "ddb123eb216ee8e6da114735de348f965eaef30a53df4505b51be8be74640935"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/memory_policy.rs",
+      "sha256": "1adf3d0c50c2235ba500df00dfe452e6872abfdd5e112ad0f883402072aa8ddc"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/moe.rs",
+      "sha256": "28c3190470047295870238667ccb2510ee852244f7faa8a2538825ad302b0b63"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/mtp.rs",
+      "sha256": "37743f26c74c5ada0c62e56b2a804d2e61ff2b84c6fba71c07039422e035e596"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/mtp_tune.rs",
+      "sha256": "b108999e2f78f5451b8d08f85e6713add3dc7b2e05991f0a678e0e279271551e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/openai.rs",
+      "sha256": "6c6eb80f113062182e4603883feeb9a81c6f80956dcf0fb55630ca5f5ec3a3c3"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/qwen35.rs",
+      "sha256": "e71a30d193019d1d6f3ac8d6a9457862004713bbf54445ede15bb451ef4f4bd7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/qwen4.rs",
+      "sha256": "0cf4f51ecd1f3f86d46ad0bf7230338e0d3a06965bd5779677b9bae76995002c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/qwen4/profile.rs",
+      "sha256": "6293f9f754541eae8eb8b42a251e0e5dcc9e41fda0413be34eb7998fd04fd134"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/registry.rs",
+      "sha256": "4733f2d5b636ceb4d7f0a6f0cf6621aa2734ef3d101fec0ef28afa507d3ba2df"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/router.rs",
+      "sha256": "e86fdba8233ef91bcc04a1a063c4822277c64b5d483b9911721c5bbb45b25199"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/speculative.rs",
+      "sha256": "3250fcbf2ec81c46e87f8423daf56febbb3353078de1fcefb62144be4eb09e38"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe.rs",
+      "sha256": "6864bbc3c92921fc79b684e26f1da4e96cd2ef72888f6f3120f598ac066cde9d"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/hybrid_tests.rs",
+      "sha256": "83a8e063b2371657189021f22db70fb3d3abfea0f5890b3a5cf856ff87784fe7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_prefetch.rs",
+      "sha256": "0f85b7b284f8c8c2d065d3b964917c46f3750c4ee5b1410d861917360d080eba"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/streaming.rs",
+      "sha256": "a7d4b1c80172ac2d5d4def4f9375b8c376961bebfabb6e2a7cf6840d694732a3"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/tokenizer.rs",
+      "sha256": "6c69d134c1c4b6ae6158216a51abda606e8a1573962b238ee7467bc5071d8d8e"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/tool_call.rs",
+      "sha256": "4219778e4324174f4cd8abf778c4bd91501b35e243202b5b155563d10dc3d25d"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/contracts.rs",
+      "sha256": "6a5ad9be42d37635a34d2e74bff40591d1d04a4b45c16882378bf8dbaf586512"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/disk_reader.cpp",
+      "sha256": "5a395637d4ef3eb4f5ed07d9f645bf118942a71e83650e5fb1ef4f2ef72d39f0"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/disk_reader_proof.cpp",
+      "sha256": "c8b3b0a00f64889e9328b78100ac9b28e3fe3e4e6217e4683e0afae2ad294523"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/kernel_cache_key.cpp",
+      "sha256": "ec74144ffca9c9d59255343dbe8a29bdb050490aba85a3543d1df37404f87f82"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/kernel_cache_key_proof.cpp",
+      "sha256": "5bf44541b29a6ba600e77d043dfc7cf8efbc5f8aab3164021270cc693376a80c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/tests/runtime_gpu.rs",
+      "sha256": "4dedc8479d86c428974527643f4c5d7ee38fc1a1c34a2c72db114308bb485926"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+      "sha256": "3f7c8680773c357328e08a793e091c8e6f84c3270b0d8fe24442dd6dfa7fcb98"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-mtp-tune.py",
+      "sha256": "db8bb210556523b32630e88fd08dfb72ee341190b65f8883bdff2a981dc3a2f6"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/build-macos-app.sh",
+      "sha256": "fd9d6593b921c0daf4a35349bf6f1de90823fa6309b8d8ad92e9b0669d0cfad8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/build-macos-dmg.sh",
+      "sha256": "995e17678a9110bdc9e1bdba80563a13696e023e334150e7e1d2b86ac6fe226c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/build_manifest.py",
+      "sha256": "11ad432536849bf5068ae148d0af36d02e1447b4287f7dde12580d7f1e2fe0a7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/calibrate_flash_draft.py",
+      "sha256": "aa39a4f226905ec09f91770f04d84be321b90432667390dbfc68706203d1647b"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-desktop.sh",
+      "sha256": "473e401bddf9d1c9d73b3adcf3283f434096804c2d8f398ae40a5937f533cdba"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-e2e.sh",
+      "sha256": "d4d75d36928b8f0ceaa6c1f4a1ef7381680b26a362381c5cdbe3819c3989f1fe"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-flash-reference.py",
+      "sha256": "dc010580d823f95da0191e3175ac8f8ba93a68a7a557c66adf89fb9e439bd64c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-mtp-bridge.py",
+      "sha256": "7460179b3a3d74bfa7e34b8cb19d1bae7b8af1a58422a08f00e36ea0ddf6c86b"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-mtp-depths.py",
+      "sha256": "61b8d91bf5bbbf0d169d258e73c840e1678992a4b4dfd425234939e1395be6d6"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-mtp-model-switch.py",
+      "sha256": "4e6f616d9d3799bc854b919b67c564a4066e4c8b913a91336c8b7bdcfbe45afe"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check-mtp-reference.py",
+      "sha256": "cef27551b6fc418eb0ec853c56dfc75860a2298db15d37d4001d0153fd5c4891"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_dflash2.py",
+      "sha256": "f685a1933c03e7e47350d1a087cb1c51142c44718d26e78728f64d1a25732359"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_flash_drafts.py",
+      "sha256": "4e662f84a9ce5a96548ac1e959169f01e5866d0b21b2500e41f2c66f514a2866"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/experimental-draft-head.py",
+      "sha256": "954475671873d6b2e8dbbec25594c343f3d4905fb3e35aa18f8cdd2401225ec7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/native_json_process.py",
+      "sha256": "705927675d07d5c612310180b5aa815fcfd6a43023cabd23c2a1e9778dca7f9c"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/package_engine.py",
+      "sha256": "d6a8dcde1a9581f917beee439a2fff3fc38d4f3b910e6804acdbb4bf97c137a9"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-bounded-conversion-cache.patch",
+      "sha256": "eb289afd2c4a6573762afc8535c96f0c305ecc7b32427574177154ba591d41b2"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-gss-reconstruction-only.patch",
+      "sha256": "47f2d84efe28b3d6a88efc9aab33bdcaf20847d878c9139016174046fc10d8a0"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-hessian-diagnostic-reuse.patch",
+      "sha256": "9f08489efd96474aecf42007b97e40948620042a9fe30cbd0ee31ec1c3383c30"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-ldl-inplace.patch",
+      "sha256": "8723a85e88b09130266b0a1474dcb313007aa033ee897b3e7ad7828eb7c3820f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-measure-output-only.patch",
+      "sha256": "7ae201c097f3deeaaf767d199a54ed0b143512cf3e7fb0a3636c8e2851a5a4eb"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/patches/ponyexl3-mlxl3-conversion.patch",
+      "sha256": "bfa1251fcfc8a95e230cca62e2f80ac80dc3d7083aebc363bec3856fd45a8089"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/profile_flash.py",
+      "sha256": "7961758b1eade4bc0fbbe60b7ac2f1246ba6a2d12243746b4227665809fa9559"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/quantize_lfm26.py",
+      "sha256": "673198ae57f29d0c5ab3be6107bd885b7765659efc1acc11636999cdd5e746f2"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/quantize_lfm26_all.sh",
+      "sha256": "37808062fbca8ec006e8354d16e1bb6d35bfa5b707064315dda2ff7b94f5965d"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/quantize_ling.py",
+      "sha256": "a26d52919cadd165ab27570a01c973fb8bfbd48dfc55e349245c04d355ef0eb8"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/replay_flash_cache53.py",
+      "sha256": "3f55c365ba3b7cab8b660e897ae0bc771ad8a189f8cc8ea7191f7fb2be4ef2f9"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/smoke-dflash-bridge.py",
+      "sha256": "4fa16e5214b38c8e59938bb75bd73c55bdbc838123a11098b7b56fe40925b386"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/smoke-release.py",
+      "sha256": "8b52f770405d3adaf8450b95debf71d6696c4a3bf7972a508ec096d5f92ae999"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/summarize_flash_profile.py",
+      "sha256": "e2d41008d5c8cdf749400a884c8541338bceb938daac0bc881029bfda1f457f7"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/grouped_micro.rs",
+      "sha256": "6b0cc09a2d7e7beae8407c0770cd5240045cda28fc599fc4b9d01dcf8748f2e2"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt",
+      "sha256": "b5d71993cda1eca3f8b0706a1c419ae1c827d05e1d7b03e3e5d48d3f34bf4ca3"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-65-grouped-exl3/qualify.py",
+      "sha256": "481cc38b5c73e8043922b046caf04e50e82b360dca0546e2e993b27840ebf08b"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/tests/test_flash_grouped65.py",
+      "sha256": "30e9f80fd2255d712bca9dd84876223565da8c66c207f662ae6bd695e29bddf9"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/tests/test_flash_monitor_timeout.py",
+      "sha256": "d72690c83954145a0ff7a58db8a33aa4ffcffa3b7cebdcf8a736e404e9fb3d28"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/check_flash_fixed_width.py",
+      "sha256": "976bfcec74fc60afae293d64185a0149d282600f8c39c5256f3cb816872b47bf"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/tests/test_flash_fixed_width.py",
+      "sha256": "437181fa8639a7df16f06814df1055c320c0797a61d8dd66fef01b3c900a8c56"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/tests/test_flash_benchmark.py",
+      "sha256": "c67999860631d4b8f56109d57027d1c9d2ac8ee2aed855922f9dfdeffa582a14"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/shared_tests.rs",
+      "sha256": "bbf60f38de5c689f13be6c522032034c959720035cf8759acf435893868ea314"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/native/src/ssd_moe/prefetch_tests.rs",
+      "sha256": "526ca1f4231e68ef3f0287cc54a3e16158dbc1723fbf1f5b18d0179db1fb88aa"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-69/v1/mlxl3-rs",
+      "sha256": "bf66f9e8be16563b0fe5b8c4eac77d5f98f215f04130ae7a800084877fa47af3"
+    },
+    {
+      "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-69/v1/mlxl3_native",
+      "sha256": "9044b20b766224646cb8b6eba5bbcd8302fc5ccc58f041f51cf4752617fa3648"
+    }
+  ]
+}

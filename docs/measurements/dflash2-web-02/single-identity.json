@@ -1,0 +1,35 @@
+{
+  "status": "compiled_quality_not_yet_run",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "state": "local modifications uncommitted",
+  "files": {
+    "native/src/dflash.rs": "0b5c8312c2a48a6a6088b883765a842a16ee405bbd4368c28bd810c43859688f",
+    "native/src/qwen35.rs": "f5d655f5d1b2c0f6dc4ebbb4b9018f949d7e34a14e7004089674a0a33a9b5fb9",
+    "native/src/main.rs": "96e7fa56e0738f8800d986df9d0f8f633630315774264cecb7d5e86bf05bcb1e",
+    "native/shaders/dflash_select.metal": "7089debb69a462bdf7bdf3ddc379302770e1d63e17ca279e92d2a7bcd4c3a9c0",
+    "benchmarks/compare_native.py": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb",
+    "binary": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/mlxl3-rs",
+      "sha256": "5aed77c5c1734dde874f8080586983d8ba21fc745c07a98e452c246e939eecac"
+    },
+    "test_binary": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "sha256": "0b4f5fcb73dc30c1ef7ac8d48cc79bb974f534275c85e2f01f03a3ee12448efa"
+    }
+  },
+  "flags": {
+    "MLXL3_DFLASH_SINGLE_TRANSFER": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "mlx": "0.32.2",
+  "family": "qwen36_moe",
+  "precision": "EXL3 2.49bpw target / packed Q4 DFlash2",
+  "app_install_changed": false,
+  "proof_only_revision": {
+    "source": "native/src/dflash.rs",
+    "previous_sha256": "0d801cd878d9527bef47e94733d2e6c8156ff1e7b1d3b5724bcb01d3bdddd9d9",
+    "current_sha256": "0b5c8312c2a48a6a6088b883765a842a16ee405bbd4368c28bd810c43859688f",
+    "change": "cfg(kani) unwind16 to65; no production code changed"
+  }
+}

@@ -1,0 +1,1052 @@
+﻿2026-10-12T09:02:23.5124240Z Current runner version: '2.337.0'
+2026-10-12T09:02:23.5142810Z ##[group]Runner Image Provisioner
+2026-10-12T09:02:23.5143540Z Hosted Compute Agent
+2026-10-12T09:02:23.5144110Z Version: 20260828.587
+2026-10-12T09:02:23.5144890Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-10-12T09:02:23.5145470Z Build Date: 2026-08-28T16:44:25Z
+2026-10-12T09:02:23.5145970Z Worker ID: {9ebb1013-49db-4251-9606-1161996d0587}
+2026-10-12T09:02:23.5146530Z Azure Region: westus
+2026-10-12T09:02:23.5147040Z ##[endgroup]
+2026-10-12T09:02:23.5148100Z ##[group]Operating System
+2026-10-12T09:02:23.5148560Z macOS
+2026-10-12T09:02:23.5149130Z 26.6.2
+2026-10-12T09:02:23.5149630Z 25G83
+2026-10-12T09:02:23.5150040Z ##[endgroup]
+2026-10-12T09:02:23.5150570Z ##[group]Runner Image
+2026-10-12T09:02:23.5151070Z Image: macos-26-arm64
+2026-10-12T09:02:23.5151490Z Version: 20260907.0351.1
+2026-10-12T09:02:23.5152440Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/macos-26-arm64-Readme.md
+2026-10-12T09:02:23.5153810Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260907.0351
+2026-10-12T09:02:23.5154490Z ##[endgroup]
+2026-10-12T09:02:23.5155480Z ##[group]GITHUB_TOKEN Permissions
+2026-10-12T09:02:23.5156960Z Contents: read
+2026-10-12T09:02:23.5157460Z Metadata: read
+2026-10-12T09:02:23.5157910Z ##[endgroup]
+2026-10-12T09:02:23.5159500Z Secret source: Actions
+2026-10-12T09:02:23.5160180Z Cache mode: write
+2026-10-12T09:02:23.5160720Z Prepare workflow directory
+2026-10-12T09:02:23.5423550Z Prepare all required actions
+2026-10-12T09:02:23.5460770Z Getting action download info
+2026-10-12T09:02:23.8436300Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-12T09:02:24.1483790Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-12T09:02:24.3637340Z Complete job name: native (macos-26)
+2026-10-12T09:02:24.4154310Z ##[group]Run actions/checkout@v4
+2026-10-12T09:02:24.4154970Z with:
+2026-10-12T09:02:24.4155290Z   repository: 0xZKnw/mlxl3
+2026-10-12T09:02:24.4157820Z   token: ***
+2026-10-12T09:02:24.4158130Z   ssh-strict: true
+2026-10-12T09:02:24.4158440Z   ssh-user: git
+2026-10-12T09:02:24.4158760Z   persist-credentials: true
+2026-10-12T09:02:24.4159110Z   clean: true
+2026-10-12T09:02:24.4159430Z   sparse-checkout-cone-mode: true
+2026-10-12T09:02:24.4159810Z   fetch-depth: 1
+2026-10-12T09:02:24.4160120Z   fetch-tags: false
+2026-10-12T09:02:24.4160460Z   show-progress: true
+2026-10-12T09:02:24.4160780Z   lfs: false
+2026-10-12T09:02:24.4161080Z   submodules: false
+2026-10-12T09:02:24.4161400Z   set-safe-directory: true
+2026-10-12T09:02:24.4161770Z   allow-unsafe-pr-checkout: false
+2026-10-12T09:02:24.4162260Z ##[endgroup]
+2026-10-12T09:02:24.8199890Z Syncing repository: 0xZKnw/mlxl3
+2026-10-12T09:02:24.8201560Z ##[group]Getting Git version info
+2026-10-12T09:02:24.8202230Z Working directory is '/Users/runner/work/mlxl3/mlxl3'
+2026-10-12T09:02:24.8203080Z [command]/opt/homebrew/bin/git version
+2026-10-12T09:02:24.8791180Z git version 2.55.0
+2026-10-12T09:02:24.8802450Z ##[endgroup]
+2026-10-12T09:02:24.8812770Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/ca278931-1bc0-4d12-81f0-1ddb889f4d13/.gitconfig'
+2026-10-12T09:02:24.8822550Z Temporarily overriding HOME='/Users/runner/work/_temp/ca278931-1bc0-4d12-81f0-1ddb889f4d13' before making global git config changes
+2026-10-12T09:02:24.8825380Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T09:02:24.8827750Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-12T09:02:24.8983150Z Deleting the contents of '/Users/runner/work/mlxl3/mlxl3'
+2026-10-12T09:02:24.8987650Z ##[group]Initializing the repository
+2026-10-12T09:02:24.8989660Z [command]/opt/homebrew/bin/git init /Users/runner/work/mlxl3/mlxl3
+2026-10-12T09:02:24.9346500Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-12T09:02:24.9361900Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-12T09:02:24.9367460Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-12T09:02:24.9368270Z hint: call:
+2026-10-12T09:02:24.9368780Z hint:
+2026-10-12T09:02:24.9369500Z hint: 	git config --global init.defaultBranch <name>
+2026-10-12T09:02:24.9371620Z hint:
+2026-10-12T09:02:24.9375570Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-12T09:02:24.9376500Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-12T09:02:24.9377980Z hint:
+2026-10-12T09:02:24.9378440Z hint: 	git branch -m <name>
+2026-10-12T09:02:24.9378890Z hint:
+2026-10-12T09:02:24.9379460Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-12T09:02:24.9380840Z Initialized empty Git repository in /Users/runner/work/mlxl3/mlxl3/.git/
+2026-10-12T09:02:24.9382320Z [command]/opt/homebrew/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+2026-10-12T09:02:24.9461050Z ##[endgroup]
+2026-10-12T09:02:24.9463000Z ##[group]Disabling automatic garbage collection
+2026-10-12T09:02:24.9464490Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-12T09:02:24.9549420Z ##[endgroup]
+2026-10-12T09:02:24.9553770Z ##[group]Setting up auth
+2026-10-12T09:02:24.9563990Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T09:02:24.9652630Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-12T09:02:25.0883000Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T09:02:25.0987110Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-12T09:02:25.2037870Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T09:02:25.2122810Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-12T09:02:25.3774070Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-12T09:02:25.3901560Z ##[endgroup]
+2026-10-12T09:02:25.3904650Z ##[group]Fetching the repository
+2026-10-12T09:02:25.3918730Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e3a72dd4cfac12700bf4aaaf2b6bfbf7245380a5:refs/remotes/pull/34/merge
+2026-10-12T09:02:27.3315020Z From https://github.com/0xZKnw/mlxl3
+2026-10-12T09:02:27.3317040Z  * [new ref]         e3a72dd4cfac12700bf4aaaf2b6bfbf7245380a5 -> pull/34/merge
+2026-10-12T09:02:27.3324230Z ##[endgroup]
+2026-10-12T09:02:27.3325210Z ##[group]Determining the checkout info
+2026-10-12T09:02:27.3326880Z ##[endgroup]
+2026-10-12T09:02:27.3338310Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-12T09:02:27.3473620Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-12T09:02:27.3570020Z ##[group]Checking out the ref
+2026-10-12T09:02:27.3576470Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/34/merge
+2026-10-12T09:02:28.1022330Z HEAD is now at e3a72dd Merge 2162c5f64a16558e1443758b4dbf22ba09566a78 into b4dfd3915e262b2d33581102ae3320042acee5c9
+2026-10-12T09:02:28.1027850Z ##[endgroup]
+2026-10-12T09:02:28.1132050Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-12T09:02:28.1246600Z e3a72dd4cfac12700bf4aaaf2b6bfbf7245380a5
+2026-10-12T09:02:28.1639430Z ##[group]Run rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+2026-10-12T09:02:28.1640210Z [36;1mrustup toolchain install stable --profile minimal --component rustfmt --component clippy[0m
+2026-10-12T09:02:28.1641040Z [36;1mrustup default stable[0m
+2026-10-12T09:02:28.1699590Z shell: /bin/bash -e {0}
+2026-10-12T09:02:28.1700370Z ##[endgroup]
+2026-10-12T09:02:28.7878780Z info: syncing channel updates for stable-aarch64-apple-darwin
+2026-10-12T09:02:29.0182860Z info: latest update on 2026-10-01 for version 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T09:02:29.0297680Z info: removing previous version of component clippy
+2026-10-12T09:02:29.0342230Z info: removing previous version of component rustfmt
+2026-10-12T09:02:29.0371710Z info: removing previous version of component cargo
+2026-10-12T09:02:29.0483140Z info: removing previous version of component rust-std
+2026-10-12T09:02:29.0619120Z info: removing previous version of component rustc
+2026-10-12T09:02:29.0713000Z info: downloading 5 components
+2026-10-12T09:02:36.5104470Z 
+2026-10-12T09:02:36.6737420Z   stable-aarch64-apple-darwin updated - rustc 1.99.0 (b940084d7 2026-09-28) (from rustc 1.98.1 (48a229cea 2026-09-01))
+2026-10-12T09:02:36.6744380Z info: self-update is disabled for this build of rustup
+2026-10-12T09:02:36.6744950Z info: any updates to rustup will need to be fetched with your system package manager
+2026-10-12T09:02:36.6745440Z 
+2026-10-12T09:02:36.7288580Z info: using existing install for stable-aarch64-apple-darwin
+2026-10-12T09:02:36.7315500Z info: default toolchain set to stable-aarch64-apple-darwin
+2026-10-12T09:02:36.7316940Z 
+2026-10-12T09:02:36.7691720Z   stable-aarch64-apple-darwin unchanged - rustc 1.99.0 (b940084d7 2026-09-28)
+2026-10-12T09:02:36.7693480Z 
+2026-10-12T09:02:36.7891120Z ##[group]Run cargo fmt --check
+2026-10-12T09:02:36.7891500Z [36;1mcargo fmt --check[0m
+2026-10-12T09:02:36.7948780Z shell: /bin/bash -e {0}
+2026-10-12T09:02:36.7949100Z ##[endgroup]
+2026-10-12T09:02:37.6427640Z ##[group]Run cargo clippy --locked --all-targets --features chat -- -D warnings
+2026-10-12T09:02:37.6428170Z [36;1mcargo clippy --locked --all-targets --features chat -- -D warnings[0m
+2026-10-12T09:02:37.6467470Z shell: /bin/bash -e {0}
+2026-10-12T09:02:37.6467800Z ##[endgroup]
+2026-10-12T09:02:37.9195000Z     Updating crates.io index
+2026-10-12T09:02:38.8188810Z  Downloading crates ...
+2026-10-12T09:02:38.9067550Z   Downloaded bitflags v2.13.2
+2026-10-12T09:02:38.9310710Z   Downloaded anstyle-parse v1.0.0
+2026-10-12T09:02:38.9428330Z   Downloaded fs2 v0.4.3
+2026-10-12T09:02:38.9496000Z   Downloaded foreign-types-shared v0.3.1
+2026-10-12T09:02:38.9534110Z   Downloaded futures-core v0.3.34
+2026-10-12T09:02:38.9584100Z   Downloaded fnv v1.0.7
+2026-10-12T09:02:38.9662310Z   Downloaded futures-task v0.3.34
+2026-10-12T09:02:38.9750350Z   Downloaded rand_core v0.9.5
+2026-10-12T09:02:38.9789110Z   Downloaded darling_macro v0.20.11
+2026-10-12T09:02:38.9828130Z   Downloaded errno v0.3.14
+2026-10-12T09:02:38.9841780Z   Downloaded http-body v0.4.6
+2026-10-12T09:02:38.9882580Z   Downloaded httpdate v1.0.3
+2026-10-12T09:02:38.9930130Z   Downloaded macro_rules_attribute-proc_macro v0.2.3
+2026-10-12T09:02:38.9948080Z   Downloaded shlex v2.0.1
+2026-10-12T09:02:39.0015030Z   Downloaded block v0.1.6
+2026-10-12T09:02:39.0026700Z   Downloaded itoa v1.0.18
+2026-10-12T09:02:39.0067170Z   Downloaded monostate-impl v0.1.18
+2026-10-12T09:02:39.0101120Z   Downloaded cfg-if v1.0.4
+2026-10-12T09:02:39.0162700Z   Downloaded colorchoice v1.0.5
+2026-10-12T09:02:39.0209180Z   Downloaded derive_builder_macro v0.20.2
+2026-10-12T09:02:39.0251600Z   Downloaded futures-sink v0.3.32
+2026-10-12T09:02:39.0269560Z   Downloaded num-conv v0.2.2
+2026-10-12T09:02:39.0290640Z   Downloaded socket2 v0.6.3
+2026-10-12T09:02:39.0359270Z   Downloaded strsim v0.11.1
+2026-10-12T09:02:39.0482780Z   Downloaded clap_lex v1.1.0
+2026-10-12T09:02:39.0513850Z   Downloaded core-graphics-types v0.2.0
+2026-10-12T09:02:39.0534270Z   Downloaded equivalent v1.0.2
+2026-10-12T09:02:39.0555490Z   Downloaded heck v0.5.0
+2026-10-12T09:02:39.0599420Z   Downloaded ident_case v1.0.1
+2026-10-12T09:02:39.0622950Z   Downloaded malloc_buf v0.0.6
+2026-10-12T09:02:39.0640990Z   Downloaded monostate v0.1.18
+2026-10-12T09:02:39.0706980Z   Downloaded powerfmt v0.2.0
+2026-10-12T09:02:39.0740310Z   Downloaded anstyle-query v1.1.5
+2026-10-12T09:02:39.0770200Z   Downloaded foreign-types v0.5.0
+2026-10-12T09:02:39.0832960Z   Downloaded foreign-types-macros v0.2.4
+2026-10-12T09:02:39.0921430Z   Downloaded rayon-cond v0.4.0
+2026-10-12T09:02:39.0991780Z   Downloaded tower-service v0.3.3
+2026-10-12T09:02:39.1004050Z   Downloaded try-lock v0.2.5
+2026-10-12T09:02:39.1043680Z   Downloaded utf8parse v0.2.2
+2026-10-12T09:02:39.1082710Z   Downloaded want v0.3.1
+2026-10-12T09:02:39.1108500Z   Downloaded castaway v0.2.4
+2026-10-12T09:02:39.1142080Z   Downloaded is_terminal_polyfill v1.70.2
+2026-10-12T09:02:39.1174040Z   Downloaded macro_rules_attribute v0.2.3
+2026-10-12T09:02:39.1214280Z   Downloaded time-core v0.1.9
+2026-10-12T09:02:39.1258610Z   Downloaded dary_heap v0.3.9
+2026-10-12T09:02:39.1278890Z   Downloaded deranged v0.5.8
+2026-10-12T09:02:39.1306580Z   Downloaded derive_builder_core v0.20.2
+2026-10-12T09:02:39.1346270Z   Downloaded either v1.18.0
+2026-10-12T09:02:39.1373050Z   Downloaded fastrand v2.5.0
+2026-10-12T09:02:39.1403470Z   Downloaded memo-map v0.3.4
+2026-10-12T09:02:39.1429310Z   Downloaded objc v0.2.7
+2026-10-12T09:02:39.1475090Z   Downloaded onig v6.5.3
+2026-10-12T09:02:39.1548180Z   Downloaded paste v1.0.15
+2026-10-12T09:02:39.1673530Z   Downloaded pastey v0.2.3
+2026-10-12T09:02:39.1721590Z   Downloaded pkg-config v0.3.34
+2026-10-12T09:02:39.1780560Z   Downloaded ppv-lite86 v0.2.21
+2026-10-12T09:02:39.1827410Z   Downloaded quote v1.0.47
+2026-10-12T09:02:39.1939020Z   Downloaded rand_chacha v0.9.0
+2026-10-12T09:02:39.1959920Z   Downloaded signal-hook-registry v1.4.8
+2026-10-12T09:02:39.1983180Z   Downloaded unit-prefix v0.5.2
+2026-10-12T09:02:39.2003800Z   Downloaded version_check v0.9.5
+2026-10-12T09:02:39.2036840Z   Downloaded ahash v0.8.12
+2026-10-12T09:02:39.2096560Z   Downloaded anstream v1.0.0
+2026-10-12T09:02:39.2207380Z   Downloaded anstyle v1.0.14
+2026-10-12T09:02:39.2238020Z   Downloaded core-foundation v0.10.1
+2026-10-12T09:02:39.2334050Z   Downloaded core-foundation-sys v0.8.7
+2026-10-12T09:02:39.2424610Z   Downloaded crossbeam-deque v0.8.8
+2026-10-12T09:02:39.2467730Z   Downloaded crossbeam-epoch v0.9.21
+2026-10-12T09:02:39.2520490Z   Downloaded crossbeam-utils v0.8.23
+2026-10-12T09:02:39.2594090Z   Downloaded find-msvc-tools v0.1.12
+2026-10-12T09:02:39.2634330Z   Downloaded httparse v1.10.1
+2026-10-12T09:02:39.2687880Z   Downloaded minijinja-contrib v2.24.0
+2026-10-12T09:02:39.2721980Z   Downloaded once_cell v1.21.4
+2026-10-12T09:02:39.2779410Z   Downloaded pin-project-lite v0.2.17
+2026-10-12T09:02:39.2989900Z   Downloaded anyhow v1.0.104
+2026-10-12T09:02:39.3117660Z   Downloaded clap_derive v4.6.4
+2026-10-12T09:02:39.3175950Z   Downloaded console v0.16.6
+2026-10-12T09:02:39.3217410Z   Downloaded darling v0.20.11
+2026-10-12T09:02:39.3359360Z   Downloaded derive_builder v0.20.2
+2026-10-12T09:02:39.3529390Z   Downloaded futures-channel v0.3.32
+2026-10-12T09:02:39.3603160Z   Downloaded getrandom v0.3.4
+2026-10-12T09:02:39.3734850Z   Downloaded getrandom v0.4.3
+2026-10-12T09:02:39.3878310Z   Downloaded half v2.7.1
+2026-10-12T09:02:39.3974150Z   Downloaded proc-macro2 v1.0.107
+2026-10-12T09:02:39.4090270Z   Downloaded base64 v0.13.1
+2026-10-12T09:02:39.4171910Z   Downloaded bytes v1.11.1
+2026-10-12T09:02:39.4271270Z   Downloaded darling_core v0.20.11
+2026-10-12T09:02:39.4386530Z   Downloaded indicatif v0.18.6
+2026-10-12T09:02:39.4469530Z   Downloaded log v0.4.34
+2026-10-12T09:02:39.4518850Z   Downloaded clap v4.6.6
+2026-10-12T09:02:39.4737930Z   Downloaded minimal-lexical v0.2.1
+2026-10-12T09:02:39.4865240Z   Downloaded compact_str v0.9.1
+2026-10-12T09:02:39.4985010Z   Downloaded daachorse v3.0.3
+2026-10-12T09:02:39.5092470Z   Downloaded cc v1.4.5
+2026-10-12T09:02:39.5173160Z   Downloaded indexmap v2.13.0
+2026-10-12T09:02:39.5344850Z   Downloaded mio v1.2.0
+2026-10-12T09:02:39.5516370Z   Downloaded rand v0.9.5
+2026-10-12T09:02:39.5597040Z   Downloaded rustversion v1.0.23
+2026-10-12T09:02:39.5706990Z   Downloaded slab v0.4.12
+2026-10-12T09:02:39.5729660Z   Downloaded smallvec v1.16.1
+2026-10-12T09:02:39.5768860Z   Downloaded thiserror-impl v2.0.20
+2026-10-12T09:02:39.5809650Z   Downloaded tokio-macros v2.6.1
+2026-10-12T09:02:39.5870130Z   Downloaded http v0.2.12
+2026-10-12T09:02:39.5908410Z   Downloaded memchr v2.8.3
+2026-10-12T09:02:39.6031120Z   Downloaded nom v7.1.3
+2026-10-12T09:02:39.6164990Z   Downloaded thiserror v2.0.20
+2026-10-12T09:02:39.6354510Z   Downloaded zmij v1.0.23
+2026-10-12T09:02:39.6396860Z   Downloaded hashbrown v0.16.1
+2026-10-12T09:02:39.6522930Z   Downloaded itertools v0.14.0
+2026-10-12T09:02:39.6700720Z   Downloaded static_assertions v1.1.0
+2026-10-12T09:02:39.6728960Z   Downloaded aho-corasick v1.1.5
+2026-10-12T09:02:39.6842810Z   Downloaded clap_builder v4.6.6
+2026-10-12T09:02:39.7045900Z   Downloaded esaxx-rs v0.1.10
+2026-10-12T09:02:39.7137760Z   Downloaded futures-util v0.3.34
+2026-10-12T09:02:39.7768780Z   Downloaded h2 v0.3.27
+2026-10-12T09:02:39.8029820Z   Downloaded portable-atomic v1.15.0
+2026-10-12T09:02:39.8226650Z   Downloaded tempfile v3.27.0
+2026-10-12T09:02:39.8340770Z   Downloaded time-macros v0.2.32
+2026-10-12T09:02:39.8425940Z   Downloaded hyper v0.14.32
+2026-10-12T09:02:39.8681390Z   Downloaded minijinja v2.24.0
+2026-10-12T09:02:39.8824880Z   Downloaded socket2 v0.5.10
+2026-10-12T09:02:39.8903700Z   Downloaded tracing-core v0.1.36
+2026-10-12T09:02:39.8958170Z   Downloaded unicode-ident v1.0.24
+2026-10-12T09:02:39.9056220Z   Downloaded ryu v1.0.23
+2026-10-12T09:02:39.9120300Z   Downloaded serde_core v1.0.229
+2026-10-12T09:02:39.9217710Z   Downloaded serde_derive v1.0.229
+2026-10-12T09:02:39.9294470Z   Downloaded signal-hook v0.3.18
+2026-10-12T09:02:39.9364660Z   Downloaded rayon-core v1.13.0
+2026-10-12T09:02:39.9487730Z   Downloaded unicode-normalization-alignments v0.1.12
+2026-10-12T09:02:39.9551090Z   Downloaded unicode_categories v0.1.1
+2026-10-12T09:02:39.9585240Z   Downloaded serde v1.0.229
+2026-10-12T09:02:39.9716990Z   Downloaded onig_sys v69.9.3
+2026-10-12T09:02:40.0146110Z   Downloaded unicode-segmentation v1.13.3
+2026-10-12T09:02:40.0223230Z   Downloaded zerocopy-derive v0.8.57
+2026-10-12T09:02:40.0467680Z   Downloaded tokio-util v0.7.18
+2026-10-12T09:02:40.0650390Z   Downloaded serde_json v1.0.151
+2026-10-12T09:02:40.0895120Z   Downloaded rayon v1.12.0
+2026-10-12T09:02:40.1218680Z   Downloaded regex v1.13.1
+2026-10-12T09:02:40.1429820Z   Downloaded tokenizers v0.23.2
+2026-10-12T09:02:40.1757750Z   Downloaded time v0.3.55
+2026-10-12T09:02:40.2275920Z   Downloaded zerocopy v0.8.57
+2026-10-12T09:02:40.3286380Z   Downloaded libc v0.2.189
+2026-10-12T09:02:40.4435780Z   Downloaded unicode-width v0.2.2
+2026-10-12T09:02:40.4608780Z   Downloaded syn v3.0.5
+2026-10-12T09:02:40.4952670Z   Downloaded syn v2.0.119
+2026-10-12T09:02:40.5472240Z   Downloaded regex-syntax v0.8.11
+2026-10-12T09:02:40.5734650Z   Downloaded rustix v1.1.4
+2026-10-12T09:02:40.6944410Z   Downloaded tracing v0.1.44
+2026-10-12T09:02:40.7639900Z   Downloaded spm_precompiled v0.1.4
+2026-10-12T09:02:40.7838150Z   Downloaded regex-automata v0.4.18
+2026-10-12T09:02:40.8251320Z   Downloaded tokio v1.50.0
+2026-10-12T09:02:41.0178720Z   Downloaded metal v0.33.0
+2026-10-12T09:02:41.2092210Z    Compiling proc-macro2 v1.0.107
+2026-10-12T09:02:41.2098710Z    Compiling quote v1.0.47
+2026-10-12T09:02:41.2099510Z    Compiling unicode-ident v1.0.24
+2026-10-12T09:02:41.7273090Z    Compiling libc v0.2.189
+2026-10-12T09:02:46.9193130Z    Compiling serde_core v1.0.229
+2026-10-12T09:02:47.5598650Z     Checking cfg-if v1.0.4
+2026-10-12T09:02:47.6046190Z    Compiling shlex v2.0.1
+2026-10-12T09:02:47.9096290Z    Compiling find-msvc-tools v0.1.12
+2026-10-12T09:02:47.9858210Z    Compiling syn v2.0.119
+2026-10-12T09:02:48.1009530Z    Compiling syn v3.0.5
+2026-10-12T09:02:49.1309300Z    Compiling serde v1.0.229
+2026-10-12T09:02:49.4443730Z    Compiling cc v1.4.5
+2026-10-12T09:02:50.7539800Z     Checking errno v0.3.14
+2026-10-12T09:02:50.8147080Z    Compiling crossbeam-utils v0.8.23
+2026-10-12T09:02:51.0717980Z     Checking once_cell v1.21.4
+2026-10-12T09:02:51.1674840Z    Compiling zerocopy v0.8.57
+2026-10-12T09:02:51.3870850Z    Compiling serde_derive v1.0.229
+2026-10-12T09:02:51.4620800Z    Compiling getrandom v0.3.4
+2026-10-12T09:02:51.6676630Z    Compiling strsim v0.11.1
+2026-10-12T09:02:51.9470930Z     Checking memchr v2.8.3
+2026-10-12T09:02:52.0994630Z    Compiling zerocopy-derive v0.8.57
+2026-10-12T09:02:52.2435250Z    Compiling ident_case v1.0.1
+2026-10-12T09:02:52.3084960Z    Compiling fnv v1.0.7
+2026-10-12T09:02:52.3532110Z     Checking itoa v1.0.18
+2026-10-12T09:02:52.4514480Z     Checking pin-project-lite v0.2.17
+2026-10-12T09:02:52.4981480Z    Compiling crossbeam-epoch v0.9.21
+2026-10-12T09:02:52.6679380Z    Compiling darling_core v0.20.11
+2026-10-12T09:02:54.3975540Z    Compiling crossbeam-deque v0.8.8
+2026-10-12T09:02:54.5995530Z     Checking bitflags v2.13.2
+2026-10-12T09:02:54.6096900Z     Checking bytes v1.11.1
+2026-10-12T09:02:54.7108100Z    Compiling darling_macro v0.20.11
+2026-10-12T09:02:55.0176800Z     Checking signal-hook-registry v1.4.8
+2026-10-12T09:02:55.0806500Z    Compiling pkg-config v0.3.34
+2026-10-12T09:02:55.1171810Z     Checking futures-core v0.3.34
+2026-10-12T09:02:55.1836720Z    Compiling rustversion v1.0.23
+2026-10-12T09:02:55.3907840Z    Compiling rayon-core v1.13.0
+2026-10-12T09:02:55.4330210Z    Compiling onig_sys v69.9.3
+2026-10-12T09:02:55.6354960Z    Compiling darling v0.20.11
+2026-10-12T09:02:55.6854900Z    Compiling tokio-macros v2.6.1
+2026-10-12T09:02:55.7234810Z     Checking mio v1.2.0
+2026-10-12T09:02:55.9918730Z     Checking socket2 v0.6.3
+2026-10-12T09:02:56.2637660Z     Checking utf8parse v0.2.2
+2026-10-12T09:02:56.2749020Z    Compiling portable-atomic v1.15.0
+2026-10-12T09:02:56.3659740Z    Compiling version_check v0.9.5
+2026-10-12T09:02:56.6268840Z     Checking either v1.18.0
+2026-10-12T09:02:56.6307620Z    Compiling zmij v1.0.23
+2026-10-12T09:02:56.6308230Z    Compiling paste v1.0.15
+2026-10-12T09:02:56.8032220Z     Checking ppv-lite86 v0.2.21
+2026-10-12T09:02:56.8664040Z    Compiling ahash v0.8.12
+2026-10-12T09:02:56.8963740Z     Checking http v0.2.12
+2026-10-12T09:02:56.9850240Z     Checking anstyle-parse v1.0.0
+2026-10-12T09:02:57.0148200Z     Checking tokio v1.50.0
+2026-10-12T09:02:57.3381720Z    Compiling derive_builder_core v0.20.2
+2026-10-12T09:02:58.5580250Z     Checking rand_core v0.9.5
+2026-10-12T09:02:58.6574250Z     Checking aho-corasick v1.1.5
+2026-10-12T09:02:59.2508320Z     Checking tracing-core v0.1.36
+2026-10-12T09:02:59.4669910Z    Compiling esaxx-rs v0.1.10
+2026-10-12T09:02:59.6205200Z     Checking is_terminal_polyfill v1.70.2
+2026-10-12T09:02:59.7087530Z     Checking anstyle-query v1.1.5
+2026-10-12T09:02:59.7725470Z     Checking hashbrown v0.16.1
+2026-10-12T09:03:00.2737940Z     Checking futures-sink v0.3.32
+2026-10-12T09:03:00.3486020Z     Checking futures-task v0.3.34
+2026-10-12T09:03:00.3973800Z    Compiling httparse v1.10.1
+2026-10-12T09:03:00.4369500Z    Compiling thiserror v2.0.20
+2026-10-12T09:03:00.6595130Z    Compiling serde_json v1.0.151
+2026-10-12T09:03:00.7130680Z     Checking colorchoice v1.0.5
+2026-10-12T09:03:00.7630620Z     Checking anstyle v1.0.14
+2026-10-12T09:03:00.8512680Z     Checking equivalent v1.0.2
+2026-10-12T09:03:00.9025500Z     Checking core-foundation-sys v0.8.7
+2026-10-12T09:03:00.9114230Z    Compiling rustix v1.1.4
+2026-10-12T09:03:01.1044830Z    Compiling getrandom v0.4.3
+2026-10-12T09:03:01.1994850Z     Checking unicode-width v0.2.2
+2026-10-12T09:03:01.3455500Z     Checking minimal-lexical v0.2.1
+2026-10-12T09:03:01.4143500Z     Checking regex-syntax v0.8.11
+2026-10-12T09:03:01.5039130Z     Checking nom v7.1.3
+2026-10-12T09:03:02.5813490Z     Checking console v0.16.6
+2026-10-12T09:03:02.6820720Z     Checking regex-automata v0.4.18
+2026-10-12T09:03:02.9419440Z     Checking core-foundation v0.10.1
+2026-10-12T09:03:03.1370490Z     Checking anstream v1.0.0
+2026-10-12T09:03:03.2689210Z     Checking indexmap v2.13.0
+2026-10-12T09:03:03.8857020Z     Checking futures-util v0.3.34
+2026-10-12T09:03:04.1320810Z     Checking tokio-util v0.7.18
+2026-10-12T09:03:05.1363630Z     Checking tracing v0.1.44
+2026-10-12T09:03:05.1540970Z     Checking rand_chacha v0.9.0
+2026-10-12T09:03:05.2455500Z     Checking castaway v0.2.4
+2026-10-12T09:03:05.2583470Z    Compiling derive_builder_macro v0.20.2
+2026-10-12T09:03:05.3027770Z     Checking rayon v1.12.0
+2026-10-12T09:03:06.4123450Z     Checking itertools v0.14.0
+2026-10-12T09:03:06.8515940Z    Compiling monostate-impl v0.1.18
+2026-10-12T09:03:07.0663760Z    Compiling foreign-types-macros v0.2.4
+2026-10-12T09:03:07.4168240Z    Compiling thiserror-impl v2.0.20
+2026-10-12T09:03:07.5203410Z     Checking malloc_buf v0.0.6
+2026-10-12T09:03:07.5618540Z     Checking clap_lex v1.1.0
+2026-10-12T09:03:07.6539510Z     Checking log v0.4.34
+2026-10-12T09:03:07.7165250Z     Checking foreign-types-shared v0.3.1
+2026-10-12T09:03:07.7505310Z     Checking slab v0.4.12
+2026-10-12T09:03:07.8469980Z    Compiling anyhow v1.0.104
+2026-10-12T09:03:08.0957430Z    Compiling pastey v0.2.3
+2026-10-12T09:03:08.1116570Z    Compiling macro_rules_attribute-proc_macro v0.2.3
+2026-10-12T09:03:08.2813290Z     Checking try-lock v0.2.5
+2026-10-12T09:03:08.3356630Z    Compiling signal-hook v0.3.18
+2026-10-12T09:03:08.3916270Z     Checking base64 v0.13.1
+2026-10-12T09:03:08.4668340Z     Checking ryu v1.0.23
+2026-10-12T09:03:08.5185960Z     Checking unit-prefix v0.5.2
+2026-10-12T09:03:08.5290950Z     Checking smallvec v1.16.1
+2026-10-12T09:03:08.5398750Z     Checking unicode-segmentation v1.13.3
+2026-10-12T09:03:08.5650570Z     Checking memo-map v0.3.4
+2026-10-12T09:03:08.6184380Z    Compiling heck v0.5.0
+2026-10-12T09:03:08.6278170Z     Checking static_assertions v1.1.0
+2026-10-12T09:03:08.6593470Z     Checking compact_str v0.9.1
+2026-10-12T09:03:08.7207910Z    Compiling clap_derive v4.6.4
+2026-10-12T09:03:08.7381290Z     Checking spm_precompiled v0.1.4
+2026-10-12T09:03:08.8074630Z     Checking minijinja v2.24.0
+2026-10-12T09:03:08.8913530Z     Checking unicode-normalization-alignments v0.1.12
+2026-10-12T09:03:09.2858540Z     Checking indicatif v0.18.6
+2026-10-12T09:03:09.6586440Z     Checking clap_builder v4.6.6
+2026-10-12T09:03:10.1160890Z     Checking macro_rules_attribute v0.2.3
+2026-10-12T09:03:10.1700180Z     Checking want v0.3.1
+2026-10-12T09:03:10.4915060Z     Checking h2 v0.3.27
+2026-10-12T09:03:10.6137620Z     Checking foreign-types v0.5.0
+2026-10-12T09:03:10.6608720Z     Checking objc v0.2.7
+2026-10-12T09:03:10.8313480Z     Checking rayon-cond v0.4.0
+2026-10-12T09:03:10.9377320Z     Checking monostate v0.1.18
+2026-10-12T09:03:11.3498420Z     Checking derive_builder v0.20.2
+2026-10-12T09:03:11.3905320Z     Checking rand v0.9.5
+2026-10-12T09:03:11.6939470Z     Checking onig v6.5.3
+2026-10-12T09:03:11.7847310Z     Checking regex v1.13.1
+2026-10-12T09:03:12.0834860Z     Checking core-graphics-types v0.2.0
+2026-10-12T09:03:12.1912160Z     Checking http-body v0.4.6
+2026-10-12T09:03:12.3051300Z     Checking futures-channel v0.3.32
+2026-10-12T09:03:12.3951120Z     Checking dary_heap v0.3.9
+2026-10-12T09:03:12.4172420Z     Checking socket2 v0.5.10
+2026-10-12T09:03:12.4897750Z     Checking time-core v0.1.9
+2026-10-12T09:03:12.5962960Z     Checking block v0.1.6
+2026-10-12T09:03:12.6066860Z     Checking num-conv v0.2.2
+2026-10-12T09:03:12.6597120Z    Compiling mlxl3-native v1.4.3 (/Users/runner/work/mlxl3/mlxl3)
+2026-10-12T09:03:12.6776600Z     Checking powerfmt v0.2.0
+2026-10-12T09:03:12.7578270Z     Checking deranged v0.5.8
+2026-10-12T09:03:12.8245760Z     Checking tower-service v0.3.3
+2026-10-12T09:03:12.8683600Z     Checking httpdate v1.0.3
+2026-10-12T09:03:12.9657570Z     Checking unicode_categories v0.1.1
+2026-10-12T09:03:12.9688210Z     Checking fastrand v2.5.0
+2026-10-12T09:03:13.0596970Z     Checking daachorse v3.0.3
+2026-10-12T09:03:13.0922000Z     Checking tempfile v3.27.0
+2026-10-12T09:03:13.2449720Z     Checking hyper v0.14.32
+2026-10-12T09:03:13.3261370Z     Checking tokenizers v0.23.2
+2026-10-12T09:03:13.5165460Z     Checking time v0.3.55
+2026-10-12T09:03:14.9890730Z     Checking metal v0.33.0
+2026-10-12T09:03:15.1680060Z     Checking clap v4.6.6
+2026-10-12T09:03:15.2297820Z     Checking minijinja-contrib v2.24.0
+2026-10-12T09:03:15.6015760Z     Checking half v2.7.1
+2026-10-12T09:03:15.8197530Z     Checking fs2 v0.4.3
+2026-10-12T09:03:19.6819020Z     Finished `dev` profile [unoptimized + debuginfo] target(s) in 41.86s
+2026-10-12T09:03:19.6947540Z warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+2026-10-12T09:03:19.6957490Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-12T09:03:19.8470300Z ##[group]Run cargo test --locked --features chat
+2026-10-12T09:03:19.8471460Z [36;1mcargo test --locked --features chat[0m
+2026-10-12T09:03:19.8568100Z shell: /bin/bash -e {0}
+2026-10-12T09:03:19.8569920Z ##[endgroup]
+2026-10-12T09:03:20.3191490Z    Compiling libc v0.2.189
+2026-10-12T09:03:20.3194210Z    Compiling fnv v1.0.7
+2026-10-12T09:03:20.3195430Z    Compiling serde_core v1.0.229
+2026-10-12T09:03:20.3704700Z    Compiling cfg-if v1.0.4
+2026-10-12T09:03:20.4037450Z    Compiling strsim v0.11.1
+2026-10-12T09:03:20.6726270Z    Compiling once_cell v1.21.4
+2026-10-12T09:03:20.7134200Z    Compiling errno v0.3.14
+2026-10-12T09:03:20.7755520Z    Compiling memchr v2.8.3
+2026-10-12T09:03:20.7795420Z    Compiling itoa v1.0.18
+2026-10-12T09:03:20.8711270Z    Compiling pin-project-lite v0.2.17
+2026-10-12T09:03:20.9174560Z    Compiling darling_core v0.20.11
+2026-10-12T09:03:21.0853360Z    Compiling zerocopy v0.8.57
+2026-10-12T09:03:22.0181370Z    Compiling serde v1.0.229
+2026-10-12T09:03:22.4782660Z    Compiling crossbeam-utils v0.8.23
+2026-10-12T09:03:22.7762180Z    Compiling bytes v1.11.1
+2026-10-12T09:03:22.8818990Z    Compiling bitflags v2.13.2
+2026-10-12T09:03:23.0316340Z    Compiling darling_macro v0.20.11
+2026-10-12T09:03:23.3351000Z    Compiling crossbeam-epoch v0.9.21
+2026-10-12T09:03:23.3491960Z    Compiling getrandom v0.3.4
+2026-10-12T09:03:23.4759420Z    Compiling signal-hook-registry v1.4.8
+2026-10-12T09:03:23.5803180Z    Compiling futures-core v0.3.34
+2026-10-12T09:03:23.6506760Z    Compiling crossbeam-deque v0.8.8
+2026-10-12T09:03:23.6570940Z    Compiling darling v0.20.11
+2026-10-12T09:03:23.7024190Z    Compiling mio v1.2.0
+2026-10-12T09:03:23.7569220Z    Compiling socket2 v0.6.3
+2026-10-12T09:03:24.0668090Z    Compiling utf8parse v0.2.2
+2026-10-12T09:03:24.0814110Z    Compiling either v1.18.0
+2026-10-12T09:03:24.1192050Z    Compiling anstyle-parse v1.0.0
+2026-10-12T09:03:24.1415780Z    Compiling tokio v1.50.0
+2026-10-12T09:03:24.2108900Z    Compiling ppv-lite86 v0.2.21
+2026-10-12T09:03:24.2212360Z    Compiling rayon-core v1.13.0
+2026-10-12T09:03:24.3593640Z    Compiling derive_builder_core v0.20.2
+2026-10-12T09:03:24.7220530Z    Compiling rand_core v0.9.5
+2026-10-12T09:03:24.8305800Z    Compiling http v0.2.12
+2026-10-12T09:03:24.8874420Z    Compiling aho-corasick v1.1.5
+2026-10-12T09:03:25.5928420Z    Compiling tracing-core v0.1.36
+2026-10-12T09:03:26.1396390Z    Compiling is_terminal_polyfill v1.70.2
+2026-10-12T09:03:26.1828390Z    Compiling anstyle-query v1.1.5
+2026-10-12T09:03:26.2258520Z    Compiling hashbrown v0.16.1
+2026-10-12T09:03:26.3771300Z    Compiling futures-sink v0.3.32
+2026-10-12T09:03:26.4244380Z    Compiling futures-task v0.3.34
+2026-10-12T09:03:26.4841310Z    Compiling unicode-width v0.2.2
+2026-10-12T09:03:26.6553100Z    Compiling minimal-lexical v0.2.1
+2026-10-12T09:03:26.6676450Z    Compiling regex-syntax v0.8.11
+2026-10-12T09:03:26.8831690Z    Compiling core-foundation-sys v0.8.7
+2026-10-12T09:03:27.0300340Z    Compiling colorchoice v1.0.5
+2026-10-12T09:03:27.0919320Z    Compiling anstyle v1.0.14
+2026-10-12T09:03:27.2872400Z    Compiling equivalent v1.0.2
+2026-10-12T09:03:27.3917400Z    Compiling indexmap v2.13.0
+2026-10-12T09:03:28.1737300Z    Compiling anstream v1.0.0
+2026-10-12T09:03:28.4152030Z    Compiling regex-automata v0.4.18
+2026-10-12T09:03:29.0806330Z    Compiling tokio-util v0.7.18
+2026-10-12T09:03:29.3535370Z    Compiling core-foundation v0.10.1
+2026-10-12T09:03:29.4998170Z    Compiling nom v7.1.3
+2026-10-12T09:03:29.5895350Z    Compiling console v0.16.6
+2026-10-12T09:03:30.1145160Z    Compiling futures-util v0.3.34
+2026-10-12T09:03:30.7233400Z    Compiling tracing v0.1.44
+2026-10-12T09:03:30.8668250Z    Compiling derive_builder_macro v0.20.2
+2026-10-12T09:03:31.0551700Z    Compiling rand_chacha v0.9.0
+2026-10-12T09:03:31.0924350Z    Compiling onig_sys v69.9.3
+2026-10-12T09:03:31.1592740Z    Compiling castaway v0.2.4
+2026-10-12T09:03:31.2029630Z    Compiling rayon v1.12.0
+2026-10-12T09:03:31.3851240Z    Compiling itertools v0.14.0
+2026-10-12T09:03:31.5895830Z    Compiling zmij v1.0.23
+2026-10-12T09:03:31.7904040Z    Compiling portable-atomic v1.15.0
+2026-10-12T09:03:32.0313100Z    Compiling malloc_buf v0.0.6
+2026-10-12T09:03:32.0693900Z    Compiling slab v0.4.12
+2026-10-12T09:03:32.1658800Z    Compiling base64 v0.13.1
+2026-10-12T09:03:32.3390490Z    Compiling log v0.4.34
+2026-10-12T09:03:32.3431200Z    Compiling ryu v1.0.23
+2026-10-12T09:03:32.4591060Z    Compiling foreign-types-shared v0.3.1
+2026-10-12T09:03:32.4779210Z    Compiling try-lock v0.2.5
+2026-10-12T09:03:32.4999790Z    Compiling clap_lex v1.1.0
+2026-10-12T09:03:32.5236500Z    Compiling unit-prefix v0.5.2
+2026-10-12T09:03:32.5763250Z    Compiling smallvec v1.16.1
+2026-10-12T09:03:32.6205310Z    Compiling unicode-segmentation v1.13.3
+2026-10-12T09:03:32.6558800Z    Compiling static_assertions v1.1.0
+2026-10-12T09:03:32.6994740Z    Compiling memo-map v0.3.4
+2026-10-12T09:03:32.7324800Z    Compiling macro_rules_attribute v0.2.3
+2026-10-12T09:03:32.7675000Z    Compiling unicode-normalization-alignments v0.1.12
+2026-10-12T09:03:32.7790470Z    Compiling minijinja v2.24.0
+2026-10-12T09:03:32.9718360Z    Compiling spm_precompiled v0.1.4
+2026-10-12T09:03:33.0946300Z    Compiling compact_str v0.9.1
+2026-10-12T09:03:33.1760620Z    Compiling clap_builder v4.6.6
+2026-10-12T09:03:33.7585800Z    Compiling indicatif v0.18.6
+2026-10-12T09:03:34.7903910Z    Compiling rayon-cond v0.4.0
+2026-10-12T09:03:34.9091190Z    Compiling want v0.3.1
+2026-10-12T09:03:34.9883220Z    Compiling foreign-types v0.5.0
+2026-10-12T09:03:35.0304920Z    Compiling h2 v0.3.27
+2026-10-12T09:03:36.7558720Z    Compiling thiserror v2.0.20
+2026-10-12T09:03:36.8238260Z    Compiling monostate v0.1.18
+2026-10-12T09:03:36.9683400Z    Compiling objc v0.2.7
+2026-10-12T09:03:37.1596030Z    Compiling serde_json v1.0.151
+2026-10-12T09:03:37.7174530Z    Compiling ahash v0.8.12
+2026-10-12T09:03:37.8474690Z    Compiling onig v6.5.3
+2026-10-12T09:03:37.9545270Z    Compiling rand v0.9.5
+2026-10-12T09:03:38.3919860Z    Compiling derive_builder v0.20.2
+2026-10-12T09:03:38.4122120Z    Compiling esaxx-rs v0.1.10
+2026-10-12T09:03:38.4844180Z    Compiling httparse v1.10.1
+2026-10-12T09:03:38.5818350Z    Compiling regex v1.13.1
+2026-10-12T09:03:38.7309580Z    Compiling core-graphics-types v0.2.0
+2026-10-12T09:03:38.7871250Z    Compiling rustix v1.1.4
+2026-10-12T09:03:38.9673420Z    Compiling getrandom v0.4.3
+2026-10-12T09:03:39.0564340Z    Compiling http-body v0.4.6
+2026-10-12T09:03:39.2604810Z    Compiling futures-channel v0.3.32
+2026-10-12T09:03:39.3880120Z    Compiling dary_heap v0.3.9
+2026-10-12T09:03:39.5193000Z    Compiling socket2 v0.5.10
+2026-10-12T09:03:39.8501850Z    Compiling block v0.1.6
+2026-10-12T09:03:39.9255620Z    Compiling powerfmt v0.2.0
+2026-10-12T09:03:39.9916910Z    Compiling unicode_categories v0.1.1
+2026-10-12T09:03:40.0437650Z    Compiling mlxl3-native v1.4.3 (/Users/runner/work/mlxl3/mlxl3)
+2026-10-12T09:03:40.0812820Z    Compiling daachorse v3.0.3
+2026-10-12T09:03:40.1445500Z    Compiling deranged v0.5.8
+2026-10-12T09:03:40.3235280Z    Compiling tower-service v0.3.3
+2026-10-12T09:03:40.3713130Z    Compiling httpdate v1.0.3
+2026-10-12T09:03:40.5206250Z    Compiling fastrand v2.5.0
+2026-10-12T09:03:40.5560740Z    Compiling time-core v0.1.9
+2026-10-12T09:03:40.6673520Z    Compiling num-conv v0.2.2
+2026-10-12T09:03:40.6846110Z    Compiling tempfile v3.27.0
+2026-10-12T09:03:40.7508380Z    Compiling hyper v0.14.32
+2026-10-12T09:03:40.8577400Z    Compiling time v0.3.55
+2026-10-12T09:03:41.0102010Z    Compiling tokenizers v0.23.2
+2026-10-12T09:03:42.0333110Z    Compiling metal v0.33.0
+2026-10-12T09:03:43.3865150Z    Compiling minijinja-contrib v2.24.0
+2026-10-12T09:03:43.9236840Z    Compiling clap v4.6.6
+2026-10-12T09:03:43.9625320Z    Compiling signal-hook v0.3.18
+2026-10-12T09:03:44.1435970Z    Compiling anyhow v1.0.104
+2026-10-12T09:03:44.3880250Z    Compiling half v2.7.1
+2026-10-12T09:03:44.6639630Z    Compiling fs2 v0.4.3
+2026-10-12T09:03:51.6761330Z     Finished `test` profile [unoptimized + debuginfo] target(s) in 31.67s
+2026-10-12T09:03:51.6817390Z warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+2026-10-12T09:03:51.6818800Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-12T09:03:51.7000310Z      Running unittests native/src/lib.rs (target/debug/deps/mlxl3_native-30ba901bec6ed2e3)
+2026-10-12T09:03:51.7097800Z 
+2026-10-12T09:03:51.7100390Z running 69 tests
+2026-10-12T09:03:51.7223210Z test codec::tests::permutation_is_bijective ... ok
+2026-10-12T09:03:51.7315320Z test contracts::dense_decode_nt4_keeps_other_shapes_on_existing_tiles ... ok
+2026-10-12T09:03:51.7417740Z test contracts::dense_mlp_batch_requires_supported_weights_and_rows ... ok
+2026-10-12T09:03:51.7523140Z test contracts::dense_qmm_large_tile_preserves_ragged_and_small_fallbacks ... ok
+2026-10-12T09:03:51.7624670Z test contracts::gdn_history_capacity_covers_partial_commits ... ok
+2026-10-12T09:03:51.7726650Z test contracts::gdn_tape_requires_a_valid_commit ... ok
+2026-10-12T09:03:51.7828570Z test contracts::grouped_mb3_requires_opt_in_and_measured_shape ... ok
+2026-10-12T09:03:51.7912350Z test contracts::idle_cache_policy_boundaries ... ok
+2026-10-12T09:03:51.7936570Z test contracts::mtp_cache_append_checks_empty_negative_and_overflowing_positions ... ok
+2026-10-12T09:03:51.7943430Z test contracts::mtp_pipeline_default_requires_measured_geometry ... ok
+2026-10-12T09:03:51.7945020Z test contracts::older_gpus_never_select_tensor_ops ... ok
+2026-10-12T09:03:51.7946130Z test contracts::pipeline_layer_stays_inside_model ... ok
+2026-10-12T09:03:51.7947370Z test contracts::qmv_pair_layout_covers_rows_and_bounds_padding ... ok
+2026-10-12T09:03:51.7948620Z test contracts::smallm_kernel_key_distinguishes_all_options ... ok
+2026-10-12T09:03:51.7949990Z test dflash::tests::dense_layout_and_convolution_boundaries ... ok
+2026-10-12T09:03:51.7951320Z test dflash::tests::draft_capture_window_keeps_the_checkpoint_and_prompt_suffix ... ok
+2026-10-12T09:03:51.7952820Z test codec::tests::pack_tail_biting_all_bitrates ... ok
+2026-10-12T09:03:51.7954400Z test dflash::tests::inspects_the_real_qwen_draft_package ... ignored, requires the downloaded 457 MiB DFlash package
+2026-10-12T09:03:51.7956150Z test dflash::tests::plans_match_the_published_splash_layout ... ok
+2026-10-12T09:03:51.7957510Z test dflash::tests::rejects_a_bad_header_before_exposing_offsets ... ok
+2026-10-12T09:03:51.7958920Z test flash_support::tests::complete_cohorts_protect_hits_and_have_unique_slots ... ok
+2026-10-12T09:03:51.7960480Z test flash_support::tests::disk_offsets_reject_boundaries_and_overflow ... ok
+2026-10-12T09:03:51.7962060Z test dflash::tests::inspects_published_dense_geometry_without_target_weights ... ok
+2026-10-12T09:03:51.7963510Z test flash_support::tests::hashes_use_signed_remainder_and_eos_segments ... ok
+2026-10-12T09:03:51.7965080Z test flash_support::tests::pair_commits_reject_stale_invalid_and_overflowing_positions ... ok
+2026-10-12T09:03:51.7966750Z test flash_support::tests::reference_partition_covers_real_shapes_and_extremes ... ok
+2026-10-12T09:03:51.7968640Z test gpu::tests::metal_codec_matches_cpu ... ignored, requires physical Apple GPU; run cargo test -- --ignored
+2026-10-12T09:03:51.7970310Z test hub::tests::both_dflash_downloads_match_pinned_geometry_and_reject_bad_metadata ... ok
+2026-10-12T09:03:51.7973190Z test hub::tests::dflash_download_selects_only_pinned_draft_files ... ok
+2026-10-12T09:03:51.7976490Z test hub::tests::discovers_root_and_named_quantizations ... ok
+2026-10-12T09:03:51.7978460Z test mcp::tests::parses_json_and_sse_responses ... ok
+2026-10-12T09:03:51.7994420Z test memory_policy::tests::adaptive_excludes_two_cold_samples_and_rejects_invalid_samples ... ok
+2026-10-12T09:03:51.7995290Z test memory_policy::tests::adaptive_uses_costs_hysteresis_and_reprobes ... ok
+2026-10-12T09:03:51.7995840Z test codec::tests::codebooks_are_finite_exhaustively ... ok
+2026-10-12T09:03:51.7997200Z test memory_policy::tests::budget_includes_draft_logits_history_and_backing_without_overflow ... ok
+2026-10-12T09:03:51.7997940Z test memory_policy::tests::capture_selects_only_the_named_request_once ... ok
+2026-10-12T09:03:51.7998700Z test memory_policy::tests::compact_view_requires_material_waste_without_overflow ... ok
+2026-10-12T09:03:51.7999420Z test memory_policy::tests::mib_limits_reject_invalid_and_overflowing_values ... ok
+2026-10-12T09:03:51.8000080Z test mtp::draft_projection_tests::compact_rows_are_nonempty_ordered_unique_and_in_target_vocab ... ok
+2026-10-12T09:03:51.8000900Z test mtp::draft_projection_tests::optional_projection_must_match_target_and_affine_contract ... ok
+2026-10-12T09:03:51.8001650Z test memory_policy::tests::allocator_tuning_keys_distinguish_default_and_all_valid_limits ... ok
+2026-10-12T09:03:51.8002390Z test mtp::tests::canonical_dense_and_moe_checkpoints_are_inspected_without_gpu ... ok
+2026-10-12T09:03:51.8003180Z test mtp::tests::managed_head_uses_target_geometry_and_rejects_unknown_variants ... ok
+2026-10-12T09:03:51.8003870Z test speculative::tests::adapts_only_after_sustained_low_acceptance ... ok
+2026-10-12T09:03:51.8004600Z test speculative::tests::dflash_copy_bounds_prompt_and_committed_history ... ok
+2026-10-12T09:03:51.8005180Z test speculative::tests::dflash_copy_remembers_only_commits_and_stops_after_total_refusal ... ok
+2026-10-12T09:03:51.8005820Z test mtp::tests::incompatible_or_incomplete_heads_fail_before_gpu_loading ... ok
+2026-10-12T09:03:51.8006550Z test speculative::tests::dflash_modes_bound_every_small_budget_and_reject_unknown_modes ... ok
+2026-10-12T09:03:51.8007310Z test speculative::tests::greedy_accepts_prefix_and_finishes_with_target ... ok
+2026-10-12T09:03:51.8007920Z test speculative::tests::lookup_uses_latest_known_continuation_and_respects_limits ... ok
+2026-10-12T09:03:51.8008620Z test speculative::tests::mtp_depths_budgets_and_invalid_depths ... ok
+2026-10-12T09:03:51.8009300Z test speculative::tests::speculative_work_stays_inside_both_budgets ... ok
+2026-10-12T09:03:51.8010000Z test speculative::tests::tuning_excludes_collapsed_acceptance_divergence_and_invalid_rates ... ok
+2026-10-12T09:03:51.8010710Z test speculative::tests::tuning_requires_valid_baseline_and_selects_eligible_gain ... ok
+2026-10-12T09:03:51.8011340Z test streaming::tests::crlf_is_independent_of_chunk_boundaries ... ok
+2026-10-12T09:03:51.8011960Z test streaming::tests::markers_split_at_every_character ... ok
+2026-10-12T09:03:51.8012530Z test streaming::tests::prefilled_and_incomplete_markers ... ok
+2026-10-12T09:03:51.8013010Z test streaming::tests::unfinished_cr_is_preserved ... ok
+2026-10-12T09:03:51.8013590Z test tokenizer::tests::external_template_and_generation_eos_take_precedence ... ok
+2026-10-12T09:03:51.8014480Z test tokenizer::tests::generation_blocks_preserve_whitespace_and_python_methods ... ok
+2026-10-12T09:03:51.8034140Z test tokenizer::tests::literals_comments_and_raw_blocks_are_not_rewritten ... ok
+2026-10-12T09:03:51.8035330Z test tokenizer::tests::local_transformers_prompt_and_ids_match ... ignored, requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download
+2026-10-12T09:03:51.8036290Z test tokenizer::tests::malformed_special_tokens_are_rejected ... ok
+2026-10-12T09:03:51.8036800Z test tokenizer::tests::renders_tools_and_tool_results ... ok
+2026-10-12T09:03:51.8037330Z test tool_call::tests::parses_ling_calls_and_rejects_malformed_arguments ... ok
+2026-10-12T09:03:51.8037910Z test tool_call::tests::parses_supported_calls_without_executing_prose ... ok
+2026-10-12T09:03:51.8039170Z test tool_call::tests::tool_call_filter_is_independent_of_chunk_boundary ... ok
+2026-10-12T09:03:51.8346750Z test speculative::tests::dflash_copy_transitions_match_bounded_stream_over_long_sequences ... ok
+2026-10-12T09:03:52.0169060Z test flash_support::tests::seeded_cache_cohorts_survive_evictions_aging_and_read_failures ... ok
+2026-10-12T09:03:52.0169760Z 
+2026-10-12T09:03:52.0170250Z test result: ok. 66 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 0.31s
+2026-10-12T09:03:52.0170830Z 
+2026-10-12T09:03:52.0178970Z      Running unittests native/src/main.rs (target/debug/deps/mlxl3_rs-43898f7c5018ab07)
+2026-10-12T09:03:52.0225050Z 
+2026-10-12T09:03:52.0226030Z running 0 tests
+2026-10-12T09:03:52.0227170Z 
+2026-10-12T09:03:52.0227710Z      Running native/tests/contracts.rs (target/debug/deps/contracts-e539b45c21597774)
+2026-10-12T09:03:52.0228570Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-10-12T09:03:52.0229080Z 
+2026-10-12T09:03:52.0299900Z 
+2026-10-12T09:03:52.0302420Z running 16 tests
+2026-10-12T09:03:52.0381190Z test checkpoint_round_trip_and_lazy_payload_read ... ok
+2026-10-12T09:03:52.0382080Z test checkpoint_supports_legacy_scales_and_validates_shard_map ... ok
+2026-10-12T09:03:52.0407020Z test checkpoint_validates_trellis_and_scale_layouts ... ok
+2026-10-12T09:03:52.0432810Z test checkpoint_rejects_missing_or_inconsistent_files ... ok
+2026-10-12T09:03:52.0585100Z test cli_codec_recovers_after_invalid_request ... ok
+2026-10-12T09:03:52.0720690Z test cli_default_registry_respects_explicit_app_home ... ok
+2026-10-12T09:03:52.0754700Z test cli_empty_app_home_uses_user_config_directory ... ok
+2026-10-12T09:03:52.0948300Z test cli_relative_registry_mutations_succeed ... ok
+2026-10-12T09:03:52.0982140Z test flash_sidecars_are_loaded_only_for_flash_and_duplicate_names_fail ... ok
+2026-10-12T09:03:52.0985550Z test inspected_tensor_source_rejects_hostile_offsets_and_truncation ... ok
+2026-10-12T09:03:52.1031260Z test registry_rejects_invalid_names_and_preserves_corrupt_registry ... ok
+2026-10-12T09:03:52.1161360Z test cli_register_list_inspect_remove_uses_isolated_registry ... ok
+2026-10-12T09:03:52.1178240Z test safetensors_accepts_scalars_and_zero_sized_tensors ... ok
+2026-10-12T09:03:52.1226210Z test safetensors_rejects_invalid_headers_and_ranges ... ok
+2026-10-12T09:03:52.1256830Z test registry_replacement_and_remove_protect_model_files ... ok
+2026-10-12T09:03:52.2323180Z test concurrent_registry_writers_do_not_lose_entries ... ok
+2026-10-12T09:03:52.2323980Z 
+2026-10-12T09:03:52.2324550Z test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+2026-10-12T09:03:52.2325380Z 
+2026-10-12T09:03:52.2326580Z      Running native/tests/runtime_gpu.rs (target/debug/deps/runtime_gpu-d5312754c7ab7ec5)
+2026-10-12T09:03:52.2364170Z 
+2026-10-12T09:03:52.2364760Z running 0 tests
+2026-10-12T09:03:52.2365130Z 
+2026-10-12T09:03:52.2365760Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-10-12T09:03:52.2366640Z 
+2026-10-12T09:03:52.2366840Z    Doc-tests mlxl3_native
+2026-10-12T09:03:52.5398200Z 
+2026-10-12T09:03:52.5399080Z running 0 tests
+2026-10-12T09:03:52.5399660Z 
+2026-10-12T09:03:52.5400440Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+2026-10-12T09:03:52.5400900Z 
+2026-10-12T09:03:52.5507830Z ##[group]Run cargo build --locked --features chat
+2026-10-12T09:03:52.5508190Z [36;1mcargo build --locked --features chat[0m
+2026-10-12T09:03:52.5548130Z shell: /bin/bash -e {0}
+2026-10-12T09:03:52.5548370Z ##[endgroup]
+2026-10-12T09:03:53.0310130Z    Compiling mlxl3-native v1.4.3 (/Users/runner/work/mlxl3/mlxl3)
+2026-10-12T09:03:56.4078270Z     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.70s
+2026-10-12T09:03:56.4211890Z warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+2026-10-12T09:03:56.4213070Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-12T09:03:56.4690610Z ##[group]Run mkdir -p build/ci
+2026-10-12T09:03:56.4690930Z [36;1mmkdir -p build/ci[0m
+2026-10-12T09:03:56.4691530Z [36;1mc++ -std=c++17 -O2 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I native/ffi native/tests/kernel_cache_key.cpp -o build/ci/kernel-cache-key[0m
+2026-10-12T09:03:56.4692160Z [36;1mbuild/ci/kernel-cache-key[0m
+2026-10-12T09:03:56.4692570Z [36;1mc++ -std=c++17 -Wall -Wextra -Werror -I native/ffi -fsyntax-only native/tests/kernel_cache_key_proof.cpp[0m
+2026-10-12T09:03:56.4729810Z shell: /bin/bash -e {0}
+2026-10-12T09:03:56.4730030Z ##[endgroup]
+2026-10-12T09:04:00.9574510Z KEY_VIEW_QUALITY {"ordering_pairs":65536,"ordering_combinations":4,"cache_keys":256,"capacity":128,"old_allocations_128_hits":768,"candidate_allocations_128_hits":0,"checksum":49024}
+2026-10-12T09:04:01.4645590Z ##[group]Run actions/setup-python@v5
+2026-10-12T09:04:01.4645920Z with:
+2026-10-12T09:04:01.4646180Z   python-version: 3.12
+2026-10-12T09:04:01.4646470Z   check-latest: false
+2026-10-12T09:04:01.4648360Z   token: ***
+2026-10-12T09:04:01.4648630Z   update-environment: true
+2026-10-12T09:04:01.4648870Z   allow-prereleases: false
+2026-10-12T09:04:01.4649160Z   freethreaded: false
+2026-10-12T09:04:01.4649370Z ##[endgroup]
+2026-10-12T09:04:01.8581390Z ##[group]Installed versions
+2026-10-12T09:04:01.8700270Z (node:4338) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T09:04:01.8701000Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T09:04:01.8701470Z Successfully set up CPython (3.12.10)
+2026-10-12T09:04:01.8702160Z ##[endgroup]
+2026-10-12T09:04:01.8821750Z ##[group]Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5
+2026-10-12T09:04:01.8822440Z [36;1mpython -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5[0m
+2026-10-12T09:04:01.8876600Z shell: /bin/bash -e {0}
+2026-10-12T09:04:01.8876870Z env:
+2026-10-12T09:04:01.8877330Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:01.8877900Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-12T09:04:01.8878670Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:01.8879150Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:01.8879630Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:01.8880040Z ##[endgroup]
+2026-10-12T09:04:03.1348690Z Collecting pytest==8.4.2
+2026-10-12T09:04:03.2170980Z   Downloading pytest-8.4.2-py3-none-any.whl.metadata (7.7 kB)
+2026-10-12T09:04:03.3847340Z Collecting numpy==2.5.2
+2026-10-12T09:04:03.4018210Z   Downloading numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl.metadata (6.6 kB)
+2026-10-12T09:04:03.4885170Z Collecting safetensors==0.8.0
+2026-10-12T09:04:03.5041280Z   Downloading safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl.metadata (4.2 kB)
+2026-10-12T09:04:03.7186280Z Collecting ruff==0.16.5
+2026-10-12T09:04:03.7344870Z   Downloading ruff-0.16.5-py3-none-macosx_11_0_arm64.whl.metadata (26 kB)
+2026-10-12T09:04:03.7673520Z Collecting iniconfig>=1 (from pytest==8.4.2)
+2026-10-12T09:04:03.7822210Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+2026-10-12T09:04:03.8075260Z Collecting packaging>=20 (from pytest==8.4.2)
+2026-10-12T09:04:03.8231250Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+2026-10-12T09:04:03.8488160Z Collecting pluggy<2,>=1.5 (from pytest==8.4.2)
+2026-10-12T09:04:03.8645100Z   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2026-10-12T09:04:03.8941570Z Collecting pygments>=2.7.2 (from pytest==8.4.2)
+2026-10-12T09:04:03.9101890Z   Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+2026-10-12T09:04:03.9320800Z Downloading pytest-8.4.2-py3-none-any.whl (365 kB)
+2026-10-12T09:04:03.9836590Z Downloading numpy-2.5.2-cp312-cp312-macosx_14_0_arm64.whl (5.4 MB)
+2026-10-12T09:04:04.0501030Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.4/5.4 MB 82.5 MB/s  0:00:00
+2026-10-12T09:04:04.0663600Z Downloading safetensors-0.8.0-cp310-abi3-macosx_11_0_arm64.whl (484 kB)
+2026-10-12T09:04:04.0922700Z Downloading ruff-0.16.5-py3-none-macosx_11_0_arm64.whl (9.8 MB)
+2026-10-12T09:04:04.1755310Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.8/9.8 MB 117.7 MB/s  0:00:00
+2026-10-12T09:04:04.1926710Z Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+2026-10-12T09:04:04.2158670Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+2026-10-12T09:04:04.2373610Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+2026-10-12T09:04:04.2623990Z Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+2026-10-12T09:04:04.2748720Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 109.3 MB/s  0:00:00
+2026-10-12T09:04:04.3606400Z Installing collected packages: safetensors, ruff, pygments, pluggy, packaging, numpy, iniconfig, pytest
+2026-10-12T09:04:09.4625630Z 
+2026-10-12T09:04:09.4728940Z Successfully installed iniconfig-2.3.1 numpy-2.5.2 packaging-26.3 pluggy-1.6.0 pygments-2.21.0 pytest-8.4.2 ruff-0.16.5 safetensors-0.8.0
+2026-10-12T09:04:09.6415330Z ##[group]Run ruff check --select F,E9 tests/fake-desktop-engine.py
+2026-10-12T09:04:09.6416620Z [36;1mruff check --select F,E9 tests/fake-desktop-engine.py[0m
+2026-10-12T09:04:09.6417560Z [36;1mpython -m py_compile tests/fake-desktop-engine.py[0m
+2026-10-12T09:04:09.6422610Z [36;1mruff format --check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py[0m
+2026-10-12T09:04:09.6431500Z [36;1mruff check benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py tests/test_compare_native.py tests/test_qmm_tiles.py tests/test_native_json_process.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py[0m
+2026-10-12T09:04:09.6438510Z [36;1mpython -m py_compile benchmarks/compare_native.py benchmarks/benchmark_smallm.py benchmarks/benchmark_smallm_bridge.py benchmarks/benchmark_smallm_gdn.py benchmarks/benchmark_smallm_inventory.py benchmarks/benchmark_smallm_tensor.py benchmarks/benchmark_decode_tiles.py benchmarks/benchmark_gdn_norm_gate.py native/check_qmm_tiles.py scripts/native_json_process.py[0m
+2026-10-12T09:04:09.6443520Z [36;1mruff format --check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py[0m
+2026-10-12T09:04:09.6446400Z [36;1mruff check scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py tests/test_mtp_model_switch.py tests/test_package_engine.py[0m
+2026-10-12T09:04:09.6448830Z [36;1mpython -m py_compile scripts/check-mtp-model-switch.py scripts/check-mtp-reference.py scripts/package_engine.py[0m
+2026-10-12T09:04:09.6450680Z [36;1mruff format --check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py[0m
+2026-10-12T09:04:09.6452320Z [36;1mruff check scripts/experimental-draft-head.py tests/test_experimental_draft_head.py[0m
+2026-10-12T09:04:09.6453580Z [36;1mpython -m py_compile scripts/experimental-draft-head.py[0m
+2026-10-12T09:04:09.6454720Z [36;1mruff format --check scripts/check_dflash2.py tests/test_dflash2_check.py[0m
+2026-10-12T09:04:09.6573220Z [36;1mruff check scripts/check_dflash2.py tests/test_dflash2_check.py[0m
+2026-10-12T09:04:09.6574200Z [36;1mpython -m py_compile scripts/check_dflash2.py[0m
+2026-10-12T09:04:09.6643590Z shell: /bin/bash -e {0}
+2026-10-12T09:04:09.6643830Z env:
+2026-10-12T09:04:09.6644130Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:09.6644560Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-12T09:04:09.6644980Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:09.6645350Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:09.6645810Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:09.6646110Z ##[endgroup]
+2026-10-12T09:04:09.7839470Z All checks passed!
+2026-10-12T09:04:10.2270770Z 15 files already formatted
+2026-10-12T09:04:10.2447560Z All checks passed!
+2026-10-12T09:04:10.3448790Z 5 files already formatted
+2026-10-12T09:04:10.3665630Z All checks passed!
+2026-10-12T09:04:10.4726730Z 2 files already formatted
+2026-10-12T09:04:10.4890330Z All checks passed!
+2026-10-12T09:04:10.5534850Z 2 files already formatted
+2026-10-12T09:04:10.5778310Z All checks passed!
+2026-10-12T09:04:10.6650910Z ##[group]Run python -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py
+2026-10-12T09:04:10.6654890Z [36;1mpython -m pytest -q tests/test_bridge_benchmark.py tests/test_package_engine.py tests/test_qmm_tiles.py tests/test_compare_native.py tests/test_native_json_process.py tests/test_mtp_model_switch.py tests/test_smallm_benchmark.py tests/test_decode_microbenchmarks.py tests/test_experimental_draft_head.py tests/test_dflash2_check.py tests/test_flash_reference.py tests/test_flash_benchmark.py tests/test_mtp_bridge.py[0m
+2026-10-12T09:04:10.6709990Z shell: /bin/bash -e {0}
+2026-10-12T09:04:10.6710210Z env:
+2026-10-12T09:04:10.6710530Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:10.6711060Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-12T09:04:10.6711730Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:10.6712170Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:10.6712540Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:04:10.6712890Z ##[endgroup]
+2026-10-12T09:04:39.7746570Z ........................................................................ [ 18%]
+2026-10-12T09:05:04.4478860Z ........................................................................ [ 37%]
+2026-10-12T09:05:10.6375590Z ........................................................................ [ 55%]
+2026-10-12T09:05:15.0367410Z ........................................................................ [ 74%]
+2026-10-12T09:05:19.5492750Z ..........................s............................................. [ 93%]
+2026-10-12T09:05:20.9033630Z ...........................                                              [100%]
+2026-10-12T09:05:20.9138410Z =========================== short test summary info ============================
+2026-10-12T09:05:20.9238430Z SKIPPED [1] tests/test_experimental_draft_head.py:236: could not import 'mlx.core': No module named 'mlx'
+2026-10-12T09:05:20.9298740Z 386 passed, 1 skipped in 69.70s (0:01:09)
+2026-10-12T09:05:20.9818100Z ##[group]Run ruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py
+2026-10-12T09:05:20.9819660Z [36;1mruff format --check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py[0m
+2026-10-12T09:05:20.9830170Z [36;1mruff check benchmarks/benchmark_idle_memory.py tests/test_idle_memory_benchmark.py docs/measurements/memory-saver/check-transitions.py[0m
+2026-10-12T09:05:20.9831920Z [36;1mpython -m pytest -q tests/test_idle_memory_benchmark.py[0m
+2026-10-12T09:05:20.9833320Z [36;1mruff format --check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py[0m
+2026-10-12T09:05:20.9835030Z [36;1mruff check docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py[0m
+2026-10-12T09:05:20.9836740Z [36;1mpython -m py_compile docs/measurements/adaptive-memory-20261009/bridge-boundaries-capture.py[0m
+2026-10-12T09:05:20.9838300Z [36;1mruff format --check docs/measurements/tune-feedback-20261010/diagnose-tune.py[0m
+2026-10-12T09:05:20.9839550Z [36;1mruff check docs/measurements/tune-feedback-20261010/diagnose-tune.py[0m
+2026-10-12T09:05:20.9840950Z [36;1mpython docs/measurements/tune-feedback-20261010/diagnose-tune.py --self-test[0m
+2026-10-12T09:05:21.0607400Z shell: /bin/bash -e {0}
+2026-10-12T09:05:21.0607790Z env:
+2026-10-12T09:05:21.0608250Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:21.0608740Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-12T09:05:21.0609290Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:21.0609730Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:21.0610260Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:21.0610640Z ##[endgroup]
+2026-10-12T09:05:21.2466590Z 3 files already formatted
+2026-10-12T09:05:21.2676090Z All checks passed!
+2026-10-12T09:05:22.5343110Z ..........................................                               [100%]
+2026-10-12T09:05:22.5343690Z 42 passed in 0.94s
+2026-10-12T09:05:22.5781210Z 1 file already formatted
+2026-10-12T09:05:22.6035770Z All checks passed!
+2026-10-12T09:05:22.6628170Z 1 file already formatted
+2026-10-12T09:05:22.6915260Z All checks passed!
+2026-10-12T09:05:22.7682130Z .
+2026-10-12T09:05:22.7698650Z ----------------------------------------------------------------------
+2026-10-12T09:05:22.7699660Z Ran 1 test in 0.000s
+2026-10-12T09:05:22.7700020Z 
+2026-10-12T09:05:22.7700240Z OK
+2026-10-12T09:05:22.8166370Z ##[group]Run python -m pip install mlx==0.32.2
+2026-10-12T09:05:22.8166740Z [36;1mpython -m pip install mlx==0.32.2[0m
+2026-10-12T09:05:22.8167550Z [36;1mmlxl3_mlx_root="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"[0m
+2026-10-12T09:05:22.8168220Z [36;1mexport MLXL3_MLX_ROOT="$mlxl3_mlx_root"[0m
+2026-10-12T09:05:22.8168710Z [36;1mcargo clippy --locked --all-targets --features mlx,chat -- -D warnings[0m
+2026-10-12T09:05:22.8169240Z [36;1mcargo build --locked --release --features mlx,chat[0m
+2026-10-12T09:05:22.8206890Z shell: /bin/bash -e {0}
+2026-10-12T09:05:22.8207230Z env:
+2026-10-12T09:05:22.8207540Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:22.8208100Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-10-12T09:05:22.8208670Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:22.8209240Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:22.8209710Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-10-12T09:05:22.8210050Z ##[endgroup]
+2026-10-12T09:05:24.0642340Z Collecting mlx==0.32.2
+2026-10-12T09:05:24.1372650Z   Downloading mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl.metadata (5.9 kB)
+2026-10-12T09:05:24.1696540Z Collecting mlx-metal==0.32.2 (from mlx==0.32.2)
+2026-10-12T09:05:24.1816500Z   Downloading mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl.metadata (5.1 kB)
+2026-10-12T09:05:24.2004620Z Downloading mlx-0.32.2-cp312-cp312-macosx_26_0_arm64.whl (619 kB)
+2026-10-12T09:05:24.2427070Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 619.5/619.5 kB 24.7 MB/s  0:00:00
+2026-10-12T09:05:24.2559150Z Downloading mlx_metal-0.32.2-py3-none-macosx_26_0_arm64.whl (64.4 MB)
+2026-10-12T09:05:24.7035130Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.4/64.4 MB 144.5 MB/s  0:00:00
+2026-10-12T09:05:24.7880870Z Installing collected packages: mlx-metal, mlx
+2026-10-12T09:05:25.3988940Z 
+2026-10-12T09:05:25.3999660Z Successfully installed mlx-0.32.2 mlx-metal-0.32.2
+2026-10-12T09:05:26.2852000Z    Compiling mlxl3-native v1.4.3 (/Users/runner/work/mlxl3/mlxl3)
+2026-10-12T09:05:34.4520090Z     Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.81s
+2026-10-12T09:05:34.4607530Z warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+2026-10-12T09:05:34.4609350Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-12T09:05:34.9085760Z    Compiling proc-macro2 v1.0.107
+2026-10-12T09:05:34.9086880Z    Compiling quote v1.0.47
+2026-10-12T09:05:34.9087370Z    Compiling unicode-ident v1.0.24
+2026-10-12T09:05:35.0239550Z    Compiling libc v0.2.189
+2026-10-12T09:05:35.2399960Z    Compiling serde_core v1.0.229
+2026-10-12T09:05:36.0551880Z    Compiling cfg-if v1.0.4
+2026-10-12T09:05:36.0854010Z    Compiling serde v1.0.229
+2026-10-12T09:05:36.2193500Z    Compiling syn v2.0.119
+2026-10-12T09:05:36.2944330Z    Compiling syn v3.0.5
+2026-10-12T09:05:38.3079200Z    Compiling shlex v2.0.1
+2026-10-12T09:05:38.5009330Z    Compiling find-msvc-tools v0.1.12
+2026-10-12T09:05:38.6846170Z    Compiling cc v1.4.5
+2026-10-12T09:05:39.9452610Z    Compiling serde_derive v1.0.229
+2026-10-12T09:05:40.0311310Z    Compiling errno v0.3.14
+2026-10-12T09:05:40.1166570Z    Compiling once_cell v1.21.4
+2026-10-12T09:05:40.2551390Z    Compiling crossbeam-utils v0.8.23
+2026-10-12T09:05:40.5215920Z    Compiling zerocopy v0.8.57
+2026-10-12T09:05:40.6868860Z    Compiling zerocopy-derive v0.8.57
+2026-10-12T09:05:40.9146260Z    Compiling memchr v2.8.3
+2026-10-12T09:05:41.4606380Z    Compiling getrandom v0.3.4
+2026-10-12T09:05:41.7668850Z    Compiling itoa v1.0.18
+2026-10-12T09:05:41.9782010Z    Compiling pin-project-lite v0.2.17
+2026-10-12T09:05:41.9882900Z    Compiling strsim v0.11.1
+2026-10-12T09:05:42.0235450Z    Compiling ident_case v1.0.1
+2026-10-12T09:05:42.0687100Z    Compiling fnv v1.0.7
+2026-10-12T09:05:42.1078770Z    Compiling crossbeam-epoch v0.9.21
+2026-10-12T09:05:42.1595670Z    Compiling darling_core v0.20.11
+2026-10-12T09:05:43.4315790Z    Compiling bitflags v2.13.2
+2026-10-12T09:05:43.7114570Z    Compiling bytes v1.11.1
+2026-10-12T09:05:44.3417570Z    Compiling crossbeam-deque v0.8.8
+2026-10-12T09:05:44.4987580Z    Compiling darling_macro v0.20.11
+2026-10-12T09:05:44.9788810Z    Compiling signal-hook-registry v1.4.8
+2026-10-12T09:05:45.0094950Z    Compiling futures-core v0.3.34
+2026-10-12T09:05:45.1259720Z    Compiling rayon-core v1.13.0
+2026-10-12T09:05:45.2218180Z    Compiling pkg-config v0.3.34
+2026-10-12T09:05:45.3337080Z    Compiling rustversion v1.0.23
+2026-10-12T09:05:45.6460040Z    Compiling onig_sys v69.9.3
+2026-10-12T09:05:45.6862090Z    Compiling darling v0.20.11
+2026-10-12T09:05:45.8884620Z    Compiling tokio-macros v2.6.1
+2026-10-12T09:05:45.8900690Z    Compiling mio v1.2.0
+2026-10-12T09:05:46.4200390Z    Compiling socket2 v0.6.3
+2026-10-12T09:05:46.4511980Z    Compiling version_check v0.9.5
+2026-10-12T09:05:46.5084950Z    Compiling utf8parse v0.2.2
+2026-10-12T09:05:46.5611440Z    Compiling either v1.18.0
+2026-10-12T09:05:46.6818060Z    Compiling portable-atomic v1.15.0
+2026-10-12T09:05:46.7945450Z    Compiling zmij v1.0.23
+2026-10-12T09:05:46.9573040Z    Compiling paste v1.0.15
+2026-10-12T09:05:47.0483000Z    Compiling http v0.2.12
+2026-10-12T09:05:47.1481960Z    Compiling tokio v1.50.0
+2026-10-12T09:05:47.2185790Z    Compiling ahash v0.8.12
+2026-10-12T09:05:47.4355620Z    Compiling anstyle-parse v1.0.0
+2026-10-12T09:05:47.6389790Z    Compiling ppv-lite86 v0.2.21
+2026-10-12T09:05:49.3609800Z    Compiling derive_builder_core v0.20.2
+2026-10-12T09:05:50.6326530Z    Compiling rand_core v0.9.5
+2026-10-12T09:05:50.7985240Z    Compiling aho-corasick v1.1.5
+2026-10-12T09:05:53.0038720Z    Compiling tracing-core v0.1.36
+2026-10-12T09:05:53.5563120Z    Compiling esaxx-rs v0.1.10
+2026-10-12T09:05:53.7296470Z    Compiling is_terminal_polyfill v1.70.2
+2026-10-12T09:05:53.7734830Z    Compiling anstyle-query v1.1.5
+2026-10-12T09:05:53.8114860Z    Compiling httparse v1.10.1
+2026-10-12T09:05:53.9762120Z    Compiling hashbrown v0.16.1
+2026-10-12T09:05:54.0296120Z    Compiling futures-sink v0.3.32
+2026-10-12T09:05:54.0786590Z    Compiling unicode-width v0.2.2
+2026-10-12T09:05:54.2492720Z    Compiling futures-task v0.3.34
+2026-10-12T09:05:54.3087510Z    Compiling serde_json v1.0.151
+2026-10-12T09:05:54.4795110Z    Compiling minimal-lexical v0.2.1
+2026-10-12T09:05:54.4871900Z    Compiling regex-syntax v0.8.11
+2026-10-12T09:05:54.7053820Z    Compiling core-foundation-sys v0.8.7
+2026-10-12T09:05:54.7540950Z    Compiling rustix v1.1.4
+2026-10-12T09:05:54.8820270Z    Compiling colorchoice v1.0.5
+2026-10-12T09:05:54.9481580Z    Compiling getrandom v0.4.3
+2026-10-12T09:05:55.0942910Z    Compiling anstyle v1.0.14
+2026-10-12T09:05:55.2186640Z    Compiling equivalent v1.0.2
+2026-10-12T09:05:55.2753610Z    Compiling thiserror v2.0.20
+2026-10-12T09:05:55.3087950Z    Compiling indexmap v2.13.0
+2026-10-12T09:05:55.6672920Z    Compiling anstream v1.0.0
+2026-10-12T09:05:56.1831630Z    Compiling core-foundation v0.10.1
+2026-10-12T09:05:56.2472130Z    Compiling nom v7.1.3
+2026-10-12T09:05:56.6678600Z    Compiling regex-automata v0.4.18
+2026-10-12T09:05:58.0563690Z    Compiling futures-util v0.3.34
+2026-10-12T09:05:59.4352110Z    Compiling console v0.16.6
+2026-10-12T09:05:59.5729230Z    Compiling tokio-util v0.7.18
+2026-10-12T09:06:00.5633310Z    Compiling tracing v0.1.44
+2026-10-12T09:06:00.8948510Z    Compiling rand_chacha v0.9.0
+2026-10-12T09:06:01.7863940Z    Compiling castaway v0.2.4
+2026-10-12T09:06:01.8762200Z    Compiling derive_builder_macro v0.20.2
+2026-10-12T09:06:01.9096560Z    Compiling rayon v1.12.0
+2026-10-12T09:06:03.3292470Z    Compiling itertools v0.14.0
+2026-10-12T09:06:03.9022530Z    Compiling monostate-impl v0.1.18
+2026-10-12T09:06:04.1705380Z    Compiling thiserror-impl v2.0.20
+2026-10-12T09:06:04.1796210Z    Compiling foreign-types-macros v0.2.4
+2026-10-12T09:06:04.5704030Z    Compiling malloc_buf v0.0.6
+2026-10-12T09:06:04.6143530Z    Compiling heck v0.5.0
+2026-10-12T09:06:04.7424300Z    Compiling try-lock v0.2.5
+2026-10-12T09:06:04.7977130Z    Compiling clap_lex v1.1.0
+2026-10-12T09:06:04.9144730Z    Compiling signal-hook v0.3.18
+2026-10-12T09:06:04.9895170Z    Compiling unit-prefix v0.5.2
+2026-10-12T09:06:05.1070630Z    Compiling anyhow v1.0.104
+2026-10-12T09:06:05.1173980Z    Compiling smallvec v1.16.1
+2026-10-12T09:06:05.1674450Z    Compiling unicode-segmentation v1.13.3
+2026-10-12T09:06:05.3194040Z    Compiling static_assertions v1.1.0
+2026-10-12T09:06:05.3497550Z    Compiling memo-map v0.3.4
+2026-10-12T09:06:05.4350570Z    Compiling pastey v0.2.3
+2026-10-12T09:06:05.5798690Z    Compiling macro_rules_attribute-proc_macro v0.2.3
+2026-10-12T09:06:05.8014580Z    Compiling slab v0.4.12
+2026-10-12T09:06:05.8635440Z    Compiling base64 v0.13.1
+2026-10-12T09:06:05.8842000Z    Compiling log v0.4.34
+2026-10-12T09:06:05.9291910Z    Compiling ryu v1.0.23
+2026-10-12T09:06:06.0074260Z    Compiling foreign-types-shared v0.3.1
+2026-10-12T09:06:06.0471850Z    Compiling foreign-types v0.5.0
+2026-10-12T09:06:06.0743530Z    Compiling spm_precompiled v0.1.4
+2026-10-12T09:06:06.0928800Z    Compiling compact_str v0.9.1
+2026-10-12T09:06:06.1057080Z    Compiling h2 v0.3.27
+2026-10-12T09:06:06.5039260Z    Compiling macro_rules_attribute v0.2.3
+2026-10-12T09:06:06.5555470Z    Compiling clap_builder v4.6.6
+2026-10-12T09:06:07.0786230Z    Compiling minijinja v2.24.0
+2026-10-12T09:06:10.8069040Z    Compiling unicode-normalization-alignments v0.1.12
+2026-10-12T09:06:11.4234870Z    Compiling indicatif v0.18.6
+2026-10-12T09:06:12.8879370Z    Compiling rayon-cond v0.4.0
+2026-10-12T09:06:13.0374950Z    Compiling want v0.3.1
+2026-10-12T09:06:13.1308830Z    Compiling clap_derive v4.6.4
+2026-10-12T09:06:13.1521130Z    Compiling objc v0.2.7
+2026-10-12T09:06:13.4401720Z    Compiling monostate v0.1.18
+2026-10-12T09:06:14.6962310Z    Compiling derive_builder v0.20.2
+2026-10-12T09:06:15.0240960Z    Compiling rand v0.9.5
+2026-10-12T09:06:15.6623910Z    Compiling regex v1.13.1
+2026-10-12T09:06:15.7014690Z    Compiling onig v6.5.3
+2026-10-12T09:06:16.3700440Z    Compiling core-graphics-types v0.2.0
+2026-10-12T09:06:16.5274490Z    Compiling http-body v0.4.6
+2026-10-12T09:06:16.7228920Z    Compiling futures-channel v0.3.32
+2026-10-12T09:06:16.8955650Z    Compiling dary_heap v0.3.9
+2026-10-12T09:06:17.0161310Z    Compiling socket2 v0.5.10
+2026-10-12T09:06:17.4949900Z    Compiling powerfmt v0.2.0
+2026-10-12T09:06:17.6664560Z    Compiling unicode_categories v0.1.1
+2026-10-12T09:06:17.8309920Z    Compiling mlxl3-native v1.4.3 (/Users/runner/work/mlxl3/mlxl3)
+2026-10-12T09:06:17.8412190Z    Compiling daachorse v3.0.3
+2026-10-12T09:06:18.1447590Z    Compiling deranged v0.5.8
+2026-10-12T09:06:19.1699830Z    Compiling tower-service v0.3.3
+2026-10-12T09:06:19.2590570Z    Compiling httpdate v1.0.3
+2026-10-12T09:06:19.5796970Z    Compiling fastrand v2.5.0
+2026-10-12T09:06:19.9055660Z    Compiling time-core v0.1.9
+2026-10-12T09:06:20.0128910Z    Compiling num-conv v0.2.2
+2026-10-12T09:06:20.1031970Z    Compiling block v0.1.6
+2026-10-12T09:06:20.1343980Z    Compiling time v0.3.55
+2026-10-12T09:06:20.1848540Z    Compiling metal v0.33.0
+2026-10-12T09:06:22.1234440Z    Compiling tempfile v3.27.0
+2026-10-12T09:06:22.6264080Z    Compiling hyper v0.14.32
+2026-10-12T09:06:24.8936410Z    Compiling tokenizers v0.23.2
+2026-10-12T09:06:27.6739580Z    Compiling clap v4.6.6
+2026-10-12T09:06:28.3273230Z    Compiling minijinja-contrib v2.24.0
+2026-10-12T09:06:28.3714680Z    Compiling half v2.7.1
+2026-10-12T09:06:28.6210060Z    Compiling fs2 v0.4.3
+2026-10-12T09:07:54.2595650Z     Finished `release` profile [optimized] target(s) in 2m 19s
+2026-10-12T09:07:54.2697600Z warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+2026-10-12T09:07:54.2709270Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-12T09:07:54.3246860Z Post job cleanup.
+2026-10-12T09:07:54.7373750Z (node:11394) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-12T09:07:54.7375310Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-12T09:07:54.7590480Z Post job cleanup.
+2026-10-12T09:07:54.9153100Z [command]/opt/homebrew/bin/git version
+2026-10-12T09:07:54.9390520Z git version 2.55.0
+2026-10-12T09:07:54.9496820Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/0a5857d3-a894-4726-aa2d-282d30896d14/.gitconfig'
+2026-10-12T09:07:54.9497860Z Temporarily overriding HOME='/Users/runner/work/_temp/0a5857d3-a894-4726-aa2d-282d30896d14' before making global git config changes
+2026-10-12T09:07:54.9498760Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T09:07:54.9499350Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/mlxl3/mlxl3
+2026-10-12T09:07:54.9779160Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T09:07:54.9898160Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-12T09:07:55.1119100Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T09:07:55.1182900Z http.https://github.com/.extraheader
+2026-10-12T09:07:55.1195230Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-12T09:07:55.1279640Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-12T09:07:55.2895930Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T09:07:55.3198740Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-12T09:07:55.4719440Z Cleaning up orphan processes
+2026-10-12T09:08:03.1050080Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

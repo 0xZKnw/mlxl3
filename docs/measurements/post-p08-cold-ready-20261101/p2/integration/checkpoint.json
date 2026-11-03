@@ -1,0 +1,18 @@
+{
+  "status": "failed",
+  "quality": [
+    "previous-default-plan",
+    "cold-integrated-quality-refinements-plan",
+    "cold-integrated-quality-component-plan",
+    "cold-integrated-quality-failure-plan",
+    "cold-integrated-quality-oracle-plan",
+    "cold-integrated-quality-pair-plan",
+    "cold-integrated-quality-mtp-plan",
+    "cold-integrated-quality-dflash-plan"
+  ],
+  "speed": [
+    "cold-integrated-AR-1-S",
+    "cold-integrated-AR-2-U"
+  ],
+  "error": "Traceback (most recent call last):\n  File \"<stdin>\", line 13, in <module>\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/p2/ablation/gpu-runner.py\", line 62, in run\n    UPSTREAM[\"run\"](plan, anchor_path, identity_path)\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-cold-ready-20261101/gpu-runner.py\", line 77, in run\n    F02[\"run\"](plan, anchor_path, identity_path)\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py\", line 149, in run\n    supervisor[\"main\"](plan)\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/slotstream-20261026/supervisor.py\", line 181, in main\n    record[\"exit_code\"] = previous[\"monitor\"](child, record, monitored_vm)\n                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/bounded-gpu-runner.py\", line 105, in monitor\n    result = original[\"monitor\"](child, record, checked)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-43-mtp-route-head/speed-heads/bench-supervisor.txt\", line 47, in monitor\n    return child.wait(timeout=min(2, remaining))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 1264, in wait\n    return self._wait(timeout=timeout)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/subprocess.py\", line 2047, in _wait\n    time.sleep(delay)\nKeyboardInterrupt\n"
+}

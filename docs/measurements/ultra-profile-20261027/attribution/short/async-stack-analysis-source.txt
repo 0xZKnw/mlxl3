@@ -1,0 +1,40 @@
+import bisect,collections,contextlib,io,json,runpy,sys
+from pathlib import Path
+p=Path('docs/measurements/ultra-profile-20261027/attribution/short/AR-MAIN');sys.argv=['analysis',str(p)]
+with contextlib.redirect_stdout(io.StringIO()):ns=runpy.run_path('docs/measurements/ultra-profile-20261027/attribution/analyze.py')
+ev=ns['ev'];groups=ns['groups']['host_async_submit'];N=ns['n'];by=collections.defaultdict(list)
+for i,e,a,b in groups:by[e['parent']].append((i,e,a,b))
+assert len(by)==N*48 and all(len(xs)==2 for xs in by.values())
+role_spans={};exact={}
+for parent,xs in by.items():
+ assert ev[parent]['name']=='gpu_resident_hot_prepare'
+ for role,(i,e,a,b) in zip(['resident_slot_indices_async_eval','resident_hot_output_async_eval'],sorted(xs,key=lambda t:t[2])):
+  role_spans.setdefault(role,[]).append((a,b))
+for role,xs in role_spans.items():
+ exact[role]={'calls':len(xs),'wall_ms_per_token':sum(b-a for a,b in xs)/N/1e6,'cpu_active_gpu_idle_ms_per_token':sum(ns['cpus']['Running'].overlap(a,b)-ns['cpugpu']['Running'].overlap(a,b) for a,b in xs)/N/1e6}
+roles={k:ns['Measure'](v) for k,v in role_spans.items()};eligible=ns['Measure'](sum(role_spans.values(),[]))
+rows,v=ns['table'](p/'time-profile.xml');leaf=collections.Counter();near=collections.Counter();rolecounts=collections.Counter();stacks=[];all_main=0;mapping_counts=collections.Counter()
+def contains(m,t):return m.overlap(t,t+1)==1
+for r in rows:
+ if ns['identity'](r['process'],v,'pid')!=ns['pid'] or ns['identity'](r['thread'],v,'tid')!=ns['threads'][0]:continue
+ t=ns['number'](r['time'])
+ if not(ns['lo']<=t<ns['hi']):continue
+ all_main+=1
+ original_t=t
+ if not contains(ns['cpus']['Running'],t):
+  irq=ns['cpus']['Interrupted'];j=bisect.bisect_right(irq.s,t)-1
+  if j<0 or not(irq.x[j][0]<=t<irq.x[j][1]):mapping_counts['not_running_or_interrupt']+=1;continue
+  a,b=irq.x[j];t=a-1
+  if not contains(ns['cpus']['Running'],t):mapping_counts['interrupt_without_running_predecessor']+=1;continue
+  mapping_counts['running_context_before_interrupt']+=1
+ else:mapping_counts['direct_running']+=1
+ if not contains(eligible,t) or contains(ns['gall'],t):continue
+ frames=[v(f) for f in r['stack'] if f.tag=='frame'];names=[f.get('name','<unknown>') for f in frames];assert names
+ weight=ns['number'](r['weight']);assert weight>0
+ which=[role for role,m in roles.items() if contains(m,t)];assert len(which)==1;role=which[0];rolecounts[role]+=1;leaf[names[0]]+=1
+ mlx=next((x for x in names if x.startswith('mlx::') or x.startswith('std::__1::__function::__func<mlx::')),'<no MLX frame>');near[mlx]+=1
+ stacks.append({'time_ns':t,'sample_time_ns':original_t,'role':role,'weight_ns':weight,'frames':names})
+assert stacks and sum(rolecounts.values())==len(stacks)
+out={'status':'sampled_functions_inside_exact_measured_window','inference_tid':ns['threads'][0],'complete_tokens':N,'exact_role_durations':exact,'sample_period_nominal_ns':1000000,'eligible_samples':len(stacks),'all_main_samples_in_decode':all_main,'interrupt_mapping_counts':dict(mapping_counts),'samples_by_role':dict(rolecounts),'top_leaf_samples':leaf.most_common(25),'nearest_MLX_frame_samples':near.most_common(25),'limits':'Exact12.142ms exposure from CPU/GPU intervals; function counts are statistical points, not exact exclusive function durations. NearestMLX frame totals exclusive by chosen frame; deeper inclusive frames must not be added.'}
+(p/'async-callstacks.json').write_text(json.dumps(out,indent=2)+'\n');(p/'async-eligible-stacks.json').write_text(json.dumps(stacks,indent=2)+'\n');print(json.dumps(out,indent=2))
+

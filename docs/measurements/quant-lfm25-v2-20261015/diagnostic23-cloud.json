@@ -1,0 +1,41 @@
+{
+  "status": "complete",
+  "windows": {
+    "window1": {
+      "shape": [
+        1024,
+        128000
+      ],
+      "dtype": "float16",
+      "sha256": "d4c667ec6a41a5afb336235c6fd4d1912dc36ac599fd13daee41daa13a9301a2",
+      "bytes": 262144128,
+      "token_sha256": "bdafc8c2a7c8ef0322c186013d1b99f7bff96c45fc91f47e9125e9c98fd62061"
+    },
+    "window5": {
+      "shape": [
+        1024,
+        128000
+      ],
+      "dtype": "float16",
+      "sha256": "71d258db615c0c8e136b820724a15b39bfe8f59fea31a699f753ec8f20e43fb6",
+      "bytes": 262144128,
+      "token_sha256": "23b146a0a8b43a1b0495f9fc9bd6882e7ed628be7cd7c7aa4751082dade7f7a4"
+    }
+  },
+  "publication": false,
+  "converter_sources": {
+    "architecture/lfm2_moe.py": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+    "conversion/convert_model.py": "c35bdf05bbc13db12b7016427c730092870909c798b75c55eb63a41c760693fb",
+    "modules/quant/exl3_lib/quantize.py": "a951e6707361c592cb1d1d17790e098e1a304b410b7c9225dcaaa1f26117562e",
+    "modules/block_sparse_mlp_routing.py": "b878646d14cc4b7cb340de2c6e5e8d14c23c9307fc609b457b53e4b6956b5fa4",
+    "modules/block_sparse_mlp.py": "ec05c84fc6213221797256568a0f05d43b07737ef1c36a320f1926b254e3ecd7"
+  },
+  "shards": {
+    "model-00001-of-00004.safetensors": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e",
+    "model-00002-of-00004.safetensors": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77",
+    "model-00003-of-00004.safetensors": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef",
+    "model-00004-of-00004.safetensors": "887707fe6f3c4df422727396f590140ade34b8594b970f1e740e299f8ae0b16e"
+  },
+  "elapsed_seconds": 44.940023265,
+  "gpu": "NVIDIA H100 80GB HBM3"
+}

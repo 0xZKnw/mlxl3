@@ -1,0 +1,176 @@
+{
+  "status": "complete",
+  "probe": false,
+  "source": "LiquidAI/LFM2.5-24B-A2B",
+  "revision": "1769516ac588c4c558089c94f27d96b0dc67b183",
+  "converter_commit": "16a49792a3c93d8432d72e6c4bce800841566577",
+  "publication": false,
+  "folder": "/data/v2",
+  "converter_sources": {
+    "architecture/lfm2_moe.py": "7a2672ec64de9e00d13d535c636a874e8f9fc632f42b7ecc16cb6c130fac9a29",
+    "conversion/convert_model.py": "c35bdf05bbc13db12b7016427c730092870909c798b75c55eb63a41c760693fb",
+    "modules/quant/exl3_lib/quantize.py": "a951e6707361c592cb1d1d17790e098e1a304b410b7c9225dcaaa1f26117562e",
+    "modules/block_sparse_mlp_routing.py": "b878646d14cc4b7cb340de2c6e5e8d14c23c9307fc609b457b53e4b6956b5fa4",
+    "modules/block_sparse_mlp.py": "ec05c84fc6213221797256568a0f05d43b07737ef1c36a320f1926b254e3ecd7"
+  },
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "versions": {
+    "Jinja2": "3.1.6",
+    "MarkupSafe": "3.0.3",
+    "PyYAML": "6.0.3",
+    "Pygments": "2.21.0",
+    "aiohappyeyeballs": "2.6.1",
+    "aiohttp": "3.12.7",
+    "aiosignal": "1.3.2",
+    "annotated-types": "0.8.0",
+    "anyio": "4.14.2",
+    "attrs": "25.3.0",
+    "cbor2": "5.7.0",
+    "certifi": "2026.7.22",
+    "click": "8.5.0",
+    "cuda-bindings": "12.9.4",
+    "cuda-pathfinder": "1.6.0",
+    "exllamav3": "1.5.4+cu128.torch2.10.0",
+    "filelock": "3.32.3",
+    "frozenlist": "1.6.0",
+    "fsspec": "2026.7.0",
+    "grpclib": "0.4.8",
+    "h11": "0.16.0",
+    "h2": "4.2.0",
+    "hf-xet": "1.7.0",
+    "hpack": "4.1.0",
+    "httpcore": "1.0.9",
+    "httpx": "0.28.1",
+    "huggingface_hub": "1.29.0",
+    "hyperframe": "6.1.0",
+    "idna": "3.20",
+    "llguidance": "1.7.5",
+    "marisa-trie": "1.3.1",
+    "markdown-it-py": "4.2.0",
+    "mdurl": "0.1.2",
+    "mpmath": "1.3.0",
+    "multidict": "6.4.4",
+    "networkx": "3.6.1",
+    "ninja": "1.13.0",
+    "numpy": "2.5.2",
+    "nvidia-cublas-cu12": "12.8.4.1",
+    "nvidia-cuda-cupti-cu12": "12.8.90",
+    "nvidia-cuda-nvrtc-cu12": "12.8.93",
+    "nvidia-cuda-runtime-cu12": "12.8.90",
+    "nvidia-cudnn-cu12": "9.10.2.21",
+    "nvidia-cufft-cu12": "11.3.3.83",
+    "nvidia-cufile-cu12": "1.13.1.3",
+    "nvidia-curand-cu12": "10.3.9.90",
+    "nvidia-cusolver-cu12": "11.7.3.90",
+    "nvidia-cusparse-cu12": "12.5.8.93",
+    "nvidia-cusparselt-cu12": "0.7.1",
+    "nvidia-nccl-cu12": "2.27.5",
+    "nvidia-nvjitlink-cu12": "12.8.93",
+    "nvidia-nvshmem-cu12": "3.4.5",
+    "nvidia-nvtx-cu12": "12.8.90",
+    "packaging": "26.3",
+    "pillow": "12.0.0",
+    "pip": "25.1.1",
+    "propcache": "0.3.1",
+    "protobuf": "6.31.1",
+    "pydantic": "2.12.5",
+    "pydantic_core": "2.41.5",
+    "rich": "15.0.0",
+    "safetensors": "0.8.0",
+    "setuptools": "78.1.0",
+    "sympy": "1.14.0",
+    "tokenizers": "0.23.1",
+    "torch": "2.10.0+cu128",
+    "tqdm": "4.70.1",
+    "triton": "3.6.0",
+    "typing-inspection": "0.4.4",
+    "typing_extensions": "4.15.0",
+    "uv": "0.7.19",
+    "wheel": "0.45.1",
+    "yarl": "1.20.0"
+  },
+  "command": [
+    "/usr/local/bin/python",
+    "-u",
+    "-m",
+    "exllamav3.conversion.convert_model",
+    "-i",
+    "/__modal/volumes/vo-9iwQtJ51iPeDXF793aPCLV/hf/hub/models--LiquidAI--LFM2.5-24B-A2B/snapshots/1769516ac588c4c558089c94f27d96b0dc67b183",
+    "-w",
+    "/data/v2/work",
+    "-o",
+    "/data/v2/output",
+    "-b",
+    "4",
+    "-hb",
+    "16",
+    "-cb",
+    "mcg",
+    "--out_scales",
+    "auto",
+    "--hq",
+    "-cr",
+    "250",
+    "-cc",
+    "2048",
+    "-ss",
+    "4096",
+    "-cpi",
+    "120"
+  ],
+  "files": {
+    "LICENSE": {
+      "bytes": 10574,
+      "sha256": "4d28ca14dedc0b3d0fcc2b3339f0e79931faa33874f3d24f522183a8fc70068c"
+    },
+    "README.md": {
+      "bytes": 25097,
+      "sha256": "22aa4c9f6882cc4c56cee5eb3326941e376351ced297ac1463997bfbefbe13e2"
+    },
+    "chat_template.jinja": {
+      "bytes": 5443,
+      "sha256": "ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef"
+    },
+    "config.json": {
+      "bytes": 1962,
+      "sha256": "d6cb556687ddd8382a90cbb957b4fbbdf95ed607bbc4800dc85fd5e5510edade"
+    },
+    "generation_config.json": {
+      "bytes": 329,
+      "sha256": "d1ecad152cd278e57220364423f5a5b19350f1e6e230ff82281a5c23a3173f16"
+    },
+    "model-00001-of-00004.safetensors": {
+      "bytes": 4105824032,
+      "sha256": "cce3f431c4a79319bfa10952baaa6db6179971631f5e2a8d60da04bb981c7f8e"
+    },
+    "model-00002-of-00004.safetensors": {
+      "bytes": 4098373902,
+      "sha256": "3e87ad7f40ee617dce5d699bb70faaa1d78ea3cac11fd616185ca2a0ab773c77"
+    },
+    "model-00003-of-00004.safetensors": {
+      "bytes": 4093646372,
+      "sha256": "b06ea4d40f096d9bedcdc2de00e2c60685feb6da1ca89164824d937bc53576ef"
+    },
+    "model-00004-of-00004.safetensors": {
+      "bytes": 840641072,
+      "sha256": "887707fe6f3c4df422727396f590140ade34b8594b970f1e740e299f8ae0b16e"
+    },
+    "model.safetensors.index.json": {
+      "bytes": 2814609,
+      "sha256": "db3fe7687f691ace6666606d80df0acf5cc5f93365480fee4b95aa8d7db520fa"
+    },
+    "quantization_config.json": {
+      "bytes": 9186213,
+      "sha256": "71908578d6be39abe2e2839ae2adfa087f9ea74aaaa51a6812ff5950d48ae61f"
+    },
+    "tokenizer.json": {
+      "bytes": 17905598,
+      "sha256": "695be7802a0e4b8a81048f0ff5ebb7fc811a0ba5a6be63dbb24deb5a81096f41"
+    },
+    "tokenizer_config.json": {
+      "bytes": 363,
+      "sha256": "11f1de897317b489dd09199284528382eeb17f566398b16e2039bb2266d26b09"
+    }
+  },
+  "elapsed_seconds": 3209.2319704359998
+}

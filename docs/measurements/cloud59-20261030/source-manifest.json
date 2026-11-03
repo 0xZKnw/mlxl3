@@ -1,0 +1,45 @@
+{
+  "base_commit": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
+  "base_worktree_initially_clean": true,
+  "host": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "rust": "1.99.1",
+  "python": "3.12.14",
+  "formal_skill_revision": "5f00bb443c9d0d14f705a3098381850166a83e5c",
+  "default_options": {
+    "MLXL3_FLASH_GDN_EPILOGUE": "0",
+    "MLXL3_FLASH_SWIGLU_DOWN": "0",
+    "MLXL3_SSD_DYNAMIC_READERS": "0"
+  },
+  "sources_sha256": {
+    ".github/workflows/rust.yml": "f5a0ce3aebb99f79e7159302e030e40edf4a92d0cb7e1fad93ec3a4830de43fd",
+    "native/ffi/mlx_bridge.cpp": "9d9ede864385d614f030fe1e30f28b094c424afccfb03e8602c1dc9f6e154407",
+    "native/ffi/disk_reader.h": "232587bc59483be17f9a3e5d53e9c841b1799c87d99e82409368caa48b241ee7",
+    "native/ffi/disk_work_queue.h": "955bad0cd042fb1f3ffea7d2899bde0514368fb2d90305d19b79e309baaedb4e",
+    "native/src/array.rs": "448b86f220d4ce1f2522e6bc49cf0939988ad07714ad7a0c7ba13171ef73a910",
+    "native/src/flash_support.rs": "ea8c4675c86eb9b926ba0fe71b1ec6dba37e96d43525eac24694f6ac5e30e6e3",
+    "native/src/linear.rs": "1e71fd1f833e1742418f4e34b7ea4e462cf3be837c72aaec9a838c5f1357c126",
+    "native/src/qwen4.rs": "0e08e93ba83275d7f66c762c5b192f5463271576fbb9efbef7f8c3f3b8009a62",
+    "native/src/ssd_moe.rs": "eb07095321c1da3d0b3a5ae12b1c73aea1bc2b29c46354724b2758db535887c7",
+    "native/src/flash_boundary_tests.rs": "19f88dcf7d0a0e397e2b30bda5deaa68ee282b9f0c9880dcdef27884465da489",
+    "native/tests/disk_reader.cpp": "a40ef528fce4bf2d6243e7ac293dac49b7637d8c2ab430a266adc4505a0caf1f",
+    "native/tests/disk_work_queue.cpp": "f91a61c2056a2cfe88005dc6425e9a39a2b41b8555e1586c7144beb1f9c689b8",
+    "native/tests/disk_work_queue_proof.cpp": "ed7455714138e216ca5066e4b7ecd2980def72d83a395c1821036f10d01eed05",
+    "scripts/profile_flash.py": "63ccfdb9b7a2665c130ecc2ca454963328419a1d20755c976d00fe83960f6d53",
+    "tests/test_flash_profile.py": "d78bd6dc20eb8894186af11c8c4cd7707dfe91b97d8d32f8d654436c28572af2"
+  },
+  "not_validated": [
+    "native C++ FFI build",
+    "Metal compilation",
+    "real numerical equality",
+    "GCD/preadv/lease integration",
+    "M5 throughput",
+    "remote CI"
+  ],
+  "code_commits": [
+    "4d34e61c2246a54906c7875cf1461a9addee3a8c",
+    "bb8bab0207449c6070e462f68a7ed58e725a5675",
+    "40f45f8016ef68881bad9b6344fc6022b28fc038"
+  ],
+  "remote_head_rechecked": "f3f2c1d5e564cacf1b2bf2675bf972c8fc4f3ea6",
+  "final_review_correction": "T04 preserves GU F32/F16 arithmetic and down output dtype; fifth physical test covers actual EXL3 helper without a checkpoint; GPU not executed"
+}

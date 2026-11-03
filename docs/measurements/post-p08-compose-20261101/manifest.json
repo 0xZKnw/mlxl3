@@ -1,0 +1,708 @@
+{
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "dflash_draft": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+  "independent_target_reference": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+  "independent_draft_reference": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+  "external_golden_files_for_root_validation": {
+    "MAIN": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-MAIN.json",
+    "HOLD": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/sushi-20261027/gold-AR-HOLD.json"
+  },
+  "mode_arguments": {
+    "AR": [],
+    "MTP": [
+      "--mtp"
+    ],
+    "DF": [
+      "--dflash-draft",
+      "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "--dflash-mode",
+      "1"
+    ]
+  },
+  "script_protocol": {
+    "repeats": 1,
+    "explicit_prompt_override": false,
+    "default_prompts_in_order": [
+      "MAIN",
+      "HOLD"
+    ],
+    "generations_per_process_in_order": [
+      "warmup MAIN",
+      "warmup HOLD",
+      "measured MAIN",
+      "measured HOLD"
+    ],
+    "fixed_cache_gib": 3,
+    "mtp_depth": 1,
+    "dflash_mode": 1,
+    "dflash_width": 1,
+    "reuse_prompt_cache": false,
+    "uses_compare_option": false,
+    "timeout_seconds_per_bridge_wait": 180
+  },
+  "maximum_new_swapout_bytes": 33554432,
+  "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "swap_anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8",
+  "policy_amendment": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/swap32-amendment/protocol.json",
+  "experiment": "POSTP08-COMPOSE-01",
+  "status": "prepared_no_model_launched",
+  "arms": {
+    "A": {
+      "MLXL3_FLASH_PREPARED_CONV": "0",
+      "MLXL3_FLASH_DENSE_EPILOGUE": "0"
+    },
+    "G": {
+      "MLXL3_FLASH_PREPARED_CONV": "1",
+      "MLXL3_FLASH_DENSE_EPILOGUE": "0"
+    },
+    "F": {
+      "MLXL3_FLASH_PREPARED_CONV": "0",
+      "MLXL3_FLASH_DENSE_EPILOGUE": "1"
+    },
+    "C": {
+      "MLXL3_FLASH_PREPARED_CONV": "1",
+      "MLXL3_FLASH_DENSE_EPILOGUE": "1"
+    }
+  },
+  "plans": [
+    {
+      "name": "compose-bridge17-AR-1-A",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-AR-2-G",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-2-G/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-AR-3-F",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-3-F/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-AR-4-C",
+      "phase": "bridge17",
+      "mode": "AR",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-AR-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-AR-4-C/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-MTP-1-A",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-MTP-2-G",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-2-G/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-MTP-3-F",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-3-F/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-MTP-4-C",
+      "phase": "bridge17",
+      "mode": "MTP",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-MTP-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-MTP-4-C/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-DF-1-A",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-DF-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-1-A/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-DF-2-G",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-DF-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-2-G/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-DF-3-F",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-DF-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-3-F/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-bridge17-DF-4-C",
+      "phase": "bridge17",
+      "mode": "DF",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-bridge17-DF-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-bridge17-DF-4-C/report.json",
+      "tokens_per_generation": 17,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-1-A",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-2-G",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-2-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-3-F",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-3-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-4-C",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-4-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-5-C",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 5,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-5-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-5-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-5-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-6-F",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 6,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-6-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-6-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-6-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-7-G",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 7,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-7-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-7-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-7-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-AR-8-A",
+      "phase": "pilot128",
+      "mode": "AR",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 8,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-AR-8-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-8-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-AR-8-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-1-A",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-2-G",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-2-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-3-F",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-3-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-4-C",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-4-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-5-C",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 5,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-5-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-5-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-5-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-6-F",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 6,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-6-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-6-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-6-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-7-G",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 7,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-7-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-7-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-7-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-MTP-8-A",
+      "phase": "pilot128",
+      "mode": "MTP",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 8,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-MTP-8-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-8-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-MTP-8-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-1-A",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 1,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-1-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-1-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-1-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-2-G",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 2,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-2-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-2-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-2-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-3-F",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 3,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-3-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-3-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-3-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-4-C",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 4,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-4-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-4-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-4-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-5-C",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "C",
+      "f02_flag": "1",
+      "gdn_flag": "1",
+      "position_within_mode": 5,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-5-C-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-5-C",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-5-C/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-6-F",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "F",
+      "f02_flag": "1",
+      "gdn_flag": "0",
+      "position_within_mode": 6,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-6-F-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-6-F",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-6-F/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-7-G",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "G",
+      "f02_flag": "0",
+      "gdn_flag": "1",
+      "position_within_mode": 7,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-7-G-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-7-G",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-7-G/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    },
+    {
+      "name": "compose-pilot128-DF-8-A",
+      "phase": "pilot128",
+      "mode": "DF",
+      "arm": "A",
+      "f02_flag": "0",
+      "gdn_flag": "0",
+      "position_within_mode": 8,
+      "plan": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/plans/compose-pilot128-DF-8-A-plan.json",
+      "output": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-8-A",
+      "expected_report": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/runs/compose-pilot128-DF-8-A/report.json",
+      "tokens_per_generation": 128,
+      "prompts_in_order": [
+        "MAIN",
+        "HOLD"
+      ]
+    }
+  ],
+  "quality_plans": [
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-oracle-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-pair-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-mtp-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-G-dflash-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-oracle-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-pair-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-mtp-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-dflash-plan.json",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-compose-20261101/quality/compose-quality-C-components48-plan.json"
+  ],
+  "planned_cli": {
+    "path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/build/post-p08-compose-20261101/engine/prototype-engine"
+  },
+  "orders": {
+    "bridge17": "AGFC",
+    "pilot128": "AGFCCFGA"
+  },
+  "planned_modes": [
+    "AR",
+    "MTP",
+    "DF"
+  ],
+  "same_cli_all_arms": true,
+  "no_reanchor": true,
+  "quality_reuse": "F02 component/model and GDN R2 component preserved with source compatibility; new G/C integration selectors and all arm bridges",
+  "decision": "POLICY-02 practical benefit by mode; never add individual percentages"
+}

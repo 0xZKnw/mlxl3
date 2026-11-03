@@ -1,0 +1,31 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_finite_parity_inputs_cannot_return_nan_or_infinite_error[1e+200--1e+200] _
+
+actual = 1e+200, reference = -1e+200
+
+    @pytest.mark.parametrize("actual,reference", [(1e200, -1e200), (1e200, 1.0)])
+    def test_finite_parity_inputs_cannot_return_nan_or_infinite_error(actual, reference):
+        torch = pytest.importorskip("torch")
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_lfm25_trace.py:68: Failed
+__ test_finite_parity_inputs_cannot_return_nan_or_infinite_error[1e+200-1.0] ___
+
+actual = 1e+200, reference = 1.0
+
+    @pytest.mark.parametrize("actual,reference", [(1e200, -1e200), (1e200, 1.0)])
+    def test_finite_parity_inputs_cannot_return_nan_or_infinite_error(actual, reference):
+        torch = pytest.importorskip("torch")
+>       with pytest.raises(ValueError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/test_lfm25_trace.py:68: Failed
+=========================== short test summary info ============================
+FAILED tests/test_lfm25_trace.py::test_finite_parity_inputs_cannot_return_nan_or_infinite_error[1e+200--1e+200]
+FAILED tests/test_lfm25_trace.py::test_finite_parity_inputs_cannot_return_nan_or_infinite_error[1e+200-1.0]
+2 failed in 0.39s
+Both original-source overflow counterexamples were rejected; production source untouched.

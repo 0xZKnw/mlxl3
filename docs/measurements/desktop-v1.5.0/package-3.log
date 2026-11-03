@@ -1,0 +1,58 @@
+   Compiling mlxl3-native v1.5.0 (/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0)
+    Finished `release` profile [optimized] target(s) in 42.04s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/mlxl3: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/libmlx.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/build/rust-runtime/libjaccl.dylib: replacing existing signature
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Engine-v1.5.0-arm64.tar.gz
+Building for production...
+[2 / 6] SwiftMath
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[4 / 7] SwiftMath
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[9 / 12] MLXL3Studio-product
+[10 / 61]
+[16 / 61]
+[18 / 61]
+[24 / 61]
+[25 / 61]
+[28 / 61]
+[30 / 61]
+[41 / 61]
+[42 / 61]
+[43 / 61]
+[46 / 61]
+[47 / 61]
+[51 / 61]
+[53 / 61]
+[54 / 61]
+[55 / 61]
+[57 / 61]
+[58 / 61] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[60 / 61] MLXL3Studio-product
+[61 / 61] MLXL3Studio-product
+Build complete! (41,68 secs)
+/Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3 Desktop.app: replacing existing signature
+Application créée : /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3 Desktop.app
+created: /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmghdiutil: WARNING: 'hdiutil create -volname -format ...' is deprecated. Please use 'diskutil image create from/blank --volumeName --format ...' instead.
+
+DMG autonome créé : /Users/justin/.codex/worktrees/desktop-project-features/mix-stq1_0/dist/MLXL3-Desktop-v1.5.0-b30-Apple-Silicon.dmg

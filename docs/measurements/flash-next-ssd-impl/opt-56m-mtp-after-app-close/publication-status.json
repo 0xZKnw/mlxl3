@@ -1,0 +1,57 @@
+{
+  "status": "validated_mtp_gain_and_postflight_memory",
+  "confirmed_gain": true,
+  "pairs": [
+    {
+      "prompt": "MAIN",
+      "H_tps": 10.073379746542619,
+      "C_tps": 10.550983541243125,
+      "gain_percent": 4.741246798170495
+    },
+    {
+      "prompt": "MAIN",
+      "H_tps": 9.884414388419435,
+      "C_tps": 10.220989906817616,
+      "gain_percent": 3.4051133954128066
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.53527616712531,
+      "C_tps": 9.706657022759996,
+      "gain_percent": 1.7973349972343122
+    },
+    {
+      "prompt": "HOLD",
+      "H_tps": 9.506598314831608,
+      "C_tps": 9.748057987282392,
+      "gain_percent": 2.539916639520512
+    }
+  ],
+  "drifts": {
+    "MAIN": {
+      "control_percent": 1.9117506682497565,
+      "gain_spread_points": 1.3361334027576888
+    },
+    "HOLD": {
+      "control_percent": 0.30166260679134194,
+      "gain_spread_points": 0.7425816422861997
+    }
+  },
+  "peak_all_arms_bytes": 8177751296,
+  "peak_candidate_bytes": 8128828744,
+  "postflight_seconds": 30,
+  "cumulative_swap_bytes": {
+    "Swapins": 80855040,
+    "Swapouts": 0
+  },
+  "records": 8,
+  "responses_including_warmups": 16,
+  "outputs_per_response": 128,
+  "timed_decode_per_response": 127,
+  "candidate_modes": "v2/hot1 vs v1/hot0, same3GiB cache and inference controls",
+  "native_unchanged_from": "309d7b63706a5e4d4d739f7347efba5d9fba11a9",
+  "quality_reused": "../opt-56-hybrid-hot/quality-summary.json",
+  "original56_interruption_retained": "../opt-56-hybrid-hot/memory-interruption.json",
+  "app_installed": false,
+  "identities_verified": 132
+}

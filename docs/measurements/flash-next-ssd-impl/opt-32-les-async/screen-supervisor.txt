@@ -1,0 +1,426 @@
+from pathlib import Path
+import os, subprocess, json, time, signal, hashlib, statistics, math, runpy, sys
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+base = w / "docs/measurements/flash-next-ssd-impl/opt-32-les-async"
+mode = sys.argv[1] if len(sys.argv) > 1 else "baseline"
+assert mode in ["baseline", "mtp"]
+out = base / ("screen" if mode == "baseline" else "mtp-screen")
+
+
+class ScreenRejected(Exception):
+    pass
+
+
+out.mkdir(exist_ok=True)
+parse_vm = runpy.run_path(str(w / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+
+
+def choose(arms: list) -> int | None:
+    if len(arms) != 8 or any(a.get("status") != "validated" for a in arms):
+        return None
+    gains = {d: [] for d in [2, 4]}
+    for prompt in ["MAIN", "HOLD"]:
+        cells = [a for a in arms if a["prompt"] == prompt]
+        if sorted(a["depth"] for a in cells) != [0, 0, 2, 4]:
+            return None
+        if any(
+            type(a["tps"]) not in [int, float] or not math.isfinite(a["tps"]) or a["tps"] <= 0
+            for a in cells
+        ):
+            return None
+        controls = [a for a in cells if a["depth"] == 0]
+        if max(a["tps"] for a in controls) / min(a["tps"] for a in controls) > 1.05:
+            return None
+        baseline = statistics.mean(a["tps"] for a in controls)
+        peak = max(a["peak_bytes"] for a in controls)
+        for depth in gains:
+            c = next(a for a in cells if a["depth"] == depth)
+            if c["peak_bytes"] > peak + (256 << 20):
+                gains[depth].append(0)
+            else:
+                gains[depth].append(c["tps"] / baseline)
+    eligible = [d for d, v in gains.items() if len(v) == 2 and all(x >= 1.01 for x in v)]
+    return max(eligible, key=lambda d: (math.prod(gains[d]), -d)) if eligible else None
+
+
+def choose_mtp(arms: list) -> int | None:
+    if len(arms) != 4 or any(a.get("status") != "validated" for a in arms):
+        return None
+    depth = None
+    for prompt in ["MAIN", "HOLD"]:
+        cells = [a for a in arms if a["prompt"] == prompt]
+        if len(cells) != 2:
+            return None
+        controls = [a for a in cells if a["depth"] == 0]
+        candidates = [a for a in cells if a["depth"] > 0]
+        if len(controls) != 1 or len(candidates) != 1:
+            return None
+        h, c = controls[0], candidates[0]
+        if any(
+            type(a["tps"]) not in [int, float] or not math.isfinite(a["tps"]) or a["tps"] <= 0
+            for a in cells
+        ):
+            return None
+        if c["tps"] / h["tps"] < 1.01 or c["peak_bytes"] > h["peak_bytes"] + (256 << 20):
+            return None
+        if depth is not None and depth != c["depth"]:
+            return None
+        depth = c["depth"]
+    return depth
+
+
+def power_ok(text: str, expected: str):
+    if not text.splitlines() or text.splitlines()[0] != expected:
+        raise ValueError("power changed during screen")
+    if expected == "Now drawing from 'Battery Power'":
+        import re
+
+        match = re.search(r"\t(\d+)%;", text)
+        if match is None or not 0 <= int(match[1]) <= 100:
+            raise ValueError("invalid battery percentage")
+        if int(match[1]) <= 5:
+            raise KeyboardInterrupt("battery reserve <=5%")
+
+
+def snapshot():
+    data = {
+        " ".join(c): subprocess.check_output(c, text=True, timeout=5)
+        for c in [
+            ["vm_stat"],
+            ["sysctl", "vm.swapusage"],
+            ["pmset", "-g", "batt"],
+            ["pmset", "-g", "therm"],
+        ]
+    }
+    data["vm_bytes"] = parse_vm(data["vm_stat"])
+    return data
+
+
+# Pure guard self-checks run before any GPU process.
+fixture = [
+    {
+        "status": "validated",
+        "prompt": p,
+        "depth": d,
+        "tps": 10 if d == 0 else {2: 10.2, 4: 10.4, 8: 10.3}[d],
+        "peak_bytes": 1000,
+    }
+    for p in ["MAIN", "HOLD"]
+    for d in [0, 2, 4, 0]
+]
+assert choose(fixture) == 4
+assert choose([]) is None
+for key, value in [
+    ("status", "failed"),
+    ("tps", float("nan")),
+    ("tps", 0),
+    ("tps", float("inf")),
+    ("tps", True),
+]:
+    altered = [a.copy() for a in fixture]
+    altered[0][key] = value
+    assert choose(altered) is None
+altered = [a.copy() for a in fixture]
+for a in altered:
+    if a["depth"] > 0:
+        a["tps"] = 10.09
+assert choose(altered) is None
+altered = [a.copy() for a in fixture]
+altered[0]["tps"] = 9
+assert choose(altered) is None
+altered = [a.copy() for a in fixture]
+for a in altered:
+    if a["depth"] == 4:
+        a["peak_bytes"] += (256 << 20) + 1
+assert choose(altered) == 2
+import random
+
+rng = random.Random(32)
+for _ in range(200):
+    scale = rng.uniform(0.01, 100)
+    altered = [{**a, "tps": a["tps"] * scale} for a in fixture]
+    assert choose(altered) == 4
+for text in ["", "Now drawing from 'Unknown'"]:
+    try:
+        power_ok(text, "Now drawing from 'Battery Power'")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("bad power accepted")
+for percent, expected_type in [
+    (0, "KeyboardInterrupt"),
+    (5, "KeyboardInterrupt"),
+    (6, "ok"),
+    (101, "ValueError"),
+]:
+    try:
+        power_ok(
+            "Now drawing from 'Battery Power'\n -Battery\t" + str(percent) + "%; discharging",
+            "Now drawing from 'Battery Power'",
+        )
+        actual = "ok"
+    except BaseException as exc:
+        actual = type(exc).__name__
+    assert actual == expected_type
+(base / "screen-guard-checks.json").write_text(
+    json.dumps(
+        {
+            "boundary_and_failure_cases": 16,
+            "deterministic_scaling_cases": 200,
+            "seed": 32,
+            "status": "passed",
+        }
+    )
+    + "\n"
+)
+
+mtp_fixture = [
+    {
+        "status": "validated",
+        "prompt": p,
+        "depth": d,
+        "tps": 10 if d == 0 else 10.2,
+        "peak_bytes": 1000,
+    }
+    for p in ["MAIN", "HOLD"]
+    for d in [0, 4]
+]
+assert choose_mtp(mtp_fixture) == 4 and choose_mtp([]) is None
+for key, value in [
+    ("status", "failed"),
+    ("tps", float("nan")),
+    ("tps", 0),
+    ("tps", True),
+    ("depth", 0),
+    ("tps", 10.09),
+    ("peak_bytes", (256 << 20) + 1001),
+]:
+    fixture_m = [a.copy() for a in mtp_fixture]
+    fixture_m[1][key] = value
+    assert choose_mtp(fixture_m) is None
+fixture_m = [a.copy() for a in mtp_fixture]
+fixture_m[3]["depth"] = 2
+assert choose_mtp(fixture_m) is None
+(base / "mtp-screen-guards.json").write_text(json.dumps({"status": "passed", "cases": 11}) + "\n")
+assert json.loads((base.parent / "opt-30-les/download.json").read_text())["status"] == "verified", (
+    "model download/hash verification pending"
+)
+quality = json.loads((base / "quality.json").read_text())
+assert len(quality) == 16 and all(r["status"] == "passed" and r["reaped"] for r in quality)
+identity = json.loads((base / "identity.json").read_text())
+candidate = root / "build/flash-opt-32/les-async/mlxl3-rs"
+baseline = root / "build/flash-opt-20/mixed-hc/mlxl3-rs"
+engines = {0: baseline, 2: candidate, 4: candidate}
+model = root / "models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+py = root / ".venv/bin/python"
+for f, h in identity["files"].items():
+    assert hashlib.sha256((w / f).read_bytes()).hexdigest() == h
+for f, h in identity["binaries"].items():
+    assert hashlib.sha256(Path(f).read_bytes()).hexdigest() == h
+assert (
+    hashlib.sha256(baseline.read_bytes()).hexdigest()
+    == "7a9a21205812dee34680df4b85600116b8ecb65c58d7897826206af54a8406a1"
+)
+assert not (out / "execution.json").exists()
+expected = snapshot()["pmset -g batt"].splitlines()[0]
+assert expected == "Now drawing from 'AC Power'"
+depths = (
+    [0, 2, 4, 0]
+    if mode == "baseline"
+    else [0, json.loads((base / "screen/result.json").read_text()).get("selected_depth") or 4]
+)
+plan = {
+    "mode": mode,
+    "power": expected,
+    "depths": depths,
+    "prompts": ["MAIN", "HOLD"],
+    "tokens": 64,
+    "warmup": 1,
+    "repeats": 1,
+    "cache_gib": 5,
+    "allocator_mib": 512,
+    "readers": 4,
+    "overlap": 1,
+    "context": 4096,
+    "minimum_gain_each_prompt": 0.01,
+    "control_max_min_ratio": 1.05,
+    "maximum_extra_peak_and_swapout_bytes": 256 << 20,
+    "identity": identity,
+    "started_at": time.time(),
+}
+(out / "matrix.json").write_text(json.dumps(plan, indent=2) + "\n")
+done = []
+result = {"status": "running", "parity_complete": False, "selected_depth": None}
+driver = """from pathlib import Path
+import sys,runpy,json
+engine,model,dest,prompt,reference,mode=sys.argv[1:]
+f=runpy.run_path('scripts/benchmark-flash-bridge.py');old=f['validate'];ref=json.loads(Path(reference).read_text())['runs'][0]
+def check(event,*args):
+ old(event,*args)
+ if event['token_hash']!=ref['token_hash'] or event['cache_context']!=ref['text']:raise ValueError('historical full64 token/text divergence')
+f['run'].__globals__['validate']=check
+f['run'](Path(engine),Path(model),Path(dest),mtp=mode=='mtp',tokens=64,repeats=1,timeout=120,cache_gib=5,prompt=prompt)
+"""
+try:
+    for prompt in ["MAIN", "HOLD"]:
+        for index, depth in enumerate(depths):
+            name = f"{prompt}-{index}-depth{depth}"
+            r = {
+                "name": name,
+                "prompt": prompt,
+                "depth": depth,
+                "status": "running",
+                "before": snapshot(),
+            }
+            done.append(r)
+            child = None
+            start = time.monotonic()
+            dest = out / name
+            env = {
+                **os.environ,
+                "MLXL3_SSD_CACHE_GIB": "5",
+                "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+                "MLXL3_SSD_READERS": "4",
+                "MLXL3_SSD_OVERLAP": "1",
+                "MLXL3_SSD_LOOKAHEAD_DEPTH": str(depth),
+            }
+            cmd = [
+                str(py),
+                "-c",
+                driver,
+                str(engines[depth]),
+                str(model),
+                str(dest),
+                prompt,
+                str(
+                    w
+                    / f"docs/measurements/flash-next-ssd-impl/opt-18-hc/speed/1-{prompt}-baseline-H/report.json"
+                ),
+                mode,
+            ]
+            r["command"] = cmd
+            r["env"] = {k: v for k, v in env.items() if k.startswith("MLXL3_")}
+            (out / "execution.json").write_text(json.dumps(done, indent=2) + "\n")
+            try:
+                power_ok(r["before"]["pmset -g batt"], expected)
+                with (out / (name + ".log")).open("w") as log:
+                    child = subprocess.Popen(
+                        cmd, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+                    )
+                    r["exit_code"] = child.wait(timeout=360)
+                r["after"] = snapshot()
+                power_ok(r["after"]["pmset -g batt"], expected)
+                assert r["exit_code"] == 0, "screen process failed"
+                report = json.loads((dest / "report.json").read_text())
+                assert (
+                    report["status"] == "validated"
+                    and len(report["warmup"]) == 1
+                    and len(report["runs"]) == 1
+                )
+                assert (
+                    report["binary_sha256"]
+                    == hashlib.sha256(engines[depth].read_bytes()).hexdigest()
+                )
+                for g in report["warmup"] + report["runs"]:
+                    assert (
+                        g["stats"]["generated_tokens"] == 64 and g["stats"]["decode_tokens"] == 63
+                    )
+                if mode == "mtp":
+                    counter_ref = out / (prompt + "-counters.json")
+                    for g in report["warmup"] + report["runs"]:
+                        counters = {k: v for k, v in g["stats"].items() if k.startswith("mtp_")}
+                        assert counters
+                        if counter_ref.exists():
+                            assert json.loads(counter_ref.read_text()) == counters, (
+                                "MTP counters diverged"
+                            )
+                        else:
+                            assert depth == 0
+                            counter_ref.write_text(json.dumps(counters))
+                r["tps"] = report["runs"][0]["stats"]["decode_tps"]
+                assert type(r["tps"]) in [int, float] and math.isfinite(r["tps"]) and r["tps"] > 0
+                r["peak_bytes"] = max(
+                    g["stats"]["memory"]["process_lifetime_peak_bytes"]
+                    for g in report["warmup"] + report["runs"]
+                )
+                assert type(r["peak_bytes"]) is int and r["peak_bytes"] > 0
+                r["swapout_bytes"] = (
+                    r["after"]["vm_bytes"]["Swapouts"] - r["before"]["vm_bytes"]["Swapouts"]
+                )
+                assert 0 <= r["swapout_bytes"] <= 256 << 20, "swap limit exceeded"
+                r["status"] = "validated"
+            except BaseException as exc:
+                r.update(
+                    status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                    error=repr(exc),
+                )
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGTERM)
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.wait()
+                r["seconds"] = time.monotonic() - start
+                r["reaped"] = child is None or child.poll() is not None
+                (out / "execution.json").write_text(json.dumps(done, indent=2) + "\n")
+                print(
+                    {
+                        k: r[k]
+                        for k in ["name", "status", "tps", "peak_bytes", "swapout_bytes"]
+                        if k in r
+                    },
+                    flush=True,
+                )
+                with (w / "opti.md").open("a") as f:
+                    f.write(
+                        "\n- 32 crible "
+                        + name
+                        + " : **"
+                        + r["status"]
+                        + "**, "
+                        + str(r.get("tps", "non mesuré"))
+                        + "tok/s, swapouts+"
+                        + str(r.get("swapout_bytes", "non mesuré"))
+                        + "octets ; screen/execution.json.\n"
+                    )
+            if mode == "mtp" and depth > 0:
+                h = done[-2]
+                if r["tps"] / h["tps"] < 1.01 or r["peak_bytes"] > h["peak_bytes"] + (256 << 20):
+                    raise ScreenRejected("first MTP pair below required gain or above memory limit")
+    result.update(
+        status="screen_complete",
+        parity_complete=True,
+        selected_depth=choose(done) if mode == "baseline" else choose_mtp(done),
+    )
+except ScreenRejected as exc:
+    result.update(status="rejected", reason=str(exc), parity_complete=False)
+except BaseException as exc:
+    result.update(
+        status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+        error=repr(exc),
+        parity_complete=False,
+    )
+finally:
+    result.update(
+        completed_arms=sum(r["status"] == "validated" for r in done),
+        planned_arms=2 * len(depths),
+        not_started_arms=2 * len(depths) - len(done),
+        finished_at=time.time(),
+    )
+    (out / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    print(result, flush=True)
+    with (w / "opti.md").open("a") as f:
+        f.write(
+            "\n- **32 crible terminé : "
+            + result["status"]
+            + "**, profondeurretenue="
+            + str(result["selected_depth"])
+            + " ; "
+            + out.name
+            + "/result.json. Aucun gain définitif avant confirmation.\n"
+        )

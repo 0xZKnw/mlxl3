@@ -1,0 +1,1424 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:381:17
+    |
+381 |         None => assert!(!(2..=8).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:534:17
+    |
+534 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: function `missing_jobs` is never used
+ --> native/src/flash_cache_profile/profile53.rs:3:4
+  |
+3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+  |    ^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PRIOR` is never used
+ --> native/src/flash_draft_budget.rs:5:7
+  |
+5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+  |       ^^^^^
+
+warning: struct `Label` is never constructed
+  --> native/src/flash_draft_budget.rs:52:8
+   |
+52 | struct Label {
+   |        ^^^^^
+
+warning: struct `VerifyBudget` is never constructed
+  --> native/src/flash_draft_budget.rs:58:19
+   |
+58 | pub(crate) struct VerifyBudget {
+   |                   ^^^^^^^^^^^^
+
+warning: function `logit` is never used
+  --> native/src/flash_draft_budget.rs:74:4
+   |
+74 | fn logit(p: f64) -> f64 {
+   |    ^^^^^
+
+warning: function `sigmoid` is never used
+  --> native/src/flash_draft_budget.rs:78:4
+   |
+78 | fn sigmoid(z: f64) -> f64 {
+   |    ^^^^^^^
+
+warning: function `seed` is never used
+  --> native/src/flash_draft_budget.rs:82:4
+   |
+82 | fn seed(rows: f64) -> f64 {
+   |    ^^^^
+
+warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+   --> native/src/flash_draft_budget.rs:131:8
+    |
+130 | impl VerifyBudget {
+    | ----------------- methods in this implementation
+131 |     fn line(&self) -> Option<(f64, f64)> {
+    |        ^^^^
+...
+144 |     fn costs(&self) -> [f64; 8] {
+    |        ^^^^^
+...
+150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+    |                   ^^^^^^
+...
+168 |     pub(crate) fn observe(
+    |                   ^^^^^^^
+...
+219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+    |        ^^^^^^^^^
+...
+236 |     fn fit(&mut self) {
+    |        ^^^
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+warning: Found the following unsupported constructs:
+             - caller_location (1)
+             - foreign function (1)
+         
+         Verification will fail if one or more of these constructs is reachable.
+         See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.54s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+Checking harness flash_support::slot_reads_initialize_exact_disjoint_bank_regions...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/ff8884d3b191f11b/out/mlxl3_native-ff8884d3b191f11b__RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 1 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 2 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 3 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 4 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 5 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 6 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 7 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 8 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 9 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 10 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 11 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.0 iteration 12 file native/src/flash_support.rs line 13 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 1 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 2 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 3 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 4 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 5 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 6 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 1 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 2 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 3 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 4 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 5 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 6 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 7 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 8 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 9 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 10 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 11 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.1 iteration 12 file native/src/flash_support.rs line 20 column 9 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Unwinding loop _RNvNtCs3yamx1GSPoC_12mlxl3_native13flash_support49slot_reads_initialize_exact_disjoint_bank_regions.2 iteration 7 file native/src/flash_support.rs line 18 column 5 function flash_support::slot_reads_initialize_exact_disjoint_bank_regions thread 0
+Runtime Symex: 1.63658s
+size of program expression: 62182 steps
+slicing removed 45059 assignments
+Generated 6582 VCC(s), 662 remaining after simplification
+Runtime Postprocess Equation: 0.0116029s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.0809239s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 0.00289996s
+Solving with CaDiCaL 3.0.0
+239578 variables, 299528 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.00453338s
+Runtime decision procedure: 0.0879266s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+239579 variables, 299529 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.0650236s
+Runtime decision procedure: 0.0656902s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+239580 variables, 299530 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.0209378s
+Runtime decision procedure: 0.0211493s
+
+RESULTS:
+Check 1: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: bank < 7 && count > 0"
+	 - Location: native/src/flash_support.rs:14:9 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 2: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:15:9 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 3: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: total as u64 == EXPERT_BYTES"
+	 - Location: native/src/flash_support.rs:17:5 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 4: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:19:23 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 5: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: native/src/lib.rs:0:0 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 6: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.5
+	 - Status: SUCCESS
+	 - Description: "assertion failed: start == end"
+	 - Location: native/src/flash_support.rs:22:17 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 7: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:23:17 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 8: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:26:25 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 9: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:26:25 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 10: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.9
+	 - Status: SUCCESS
+	 - Description: "assertion failed: end == (slot + 1) * width"
+	 - Location: native/src/flash_support.rs:26:9 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 11: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.10
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:27:24 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 12: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.assertion.11
+	 - Status: SUCCESS
+	 - Description: "assertion failed: end <= 512 * width"
+	 - Location: native/src/flash_support.rs:27:9 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 13: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: slot == 0"
+	 - Location: native/src/flash_support.rs:29:5 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 14: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: slot == 511"
+	 - Location: native/src/flash_support.rs:30:5 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 15: <std::option::Option<(usize, usize)> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2883:15 in function <std::option::Option<(usize, usize)> as std::ops::FromResidual<std::option::Option<std::convert::Infallible>>>::from_residual
+
+Check 16: std::panic::Location::<'_>::caller.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "caller_location is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/374"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panic/location.rs:181:9 in function std::panic::Location::<'_>::caller
+
+Check 17: std::ops::index_range::IndexRange::len.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:18 in function std::ops::index_range::IndexRange::len
+
+Check 18: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:80:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 19: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.assertion.1
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 20: <usize as std::slice::SliceIndex<[std::mem::MaybeUninit<usize>]>>::get_unchecked.assume.1
+	 - Status: SUCCESS
+	 - Description: "Rust intrinsic assumption failed"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/index.rs:218:13 in function <usize as std::slice::SliceIndex<[std::mem::MaybeUninit<usize>]>>::get_unchecked
+
+Check 21: core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked::<usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:647:18 in function core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked::<usize>
+
+Check 22: core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked::<usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:647:18 in function core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked::<usize>
+
+Check 23: std::fmt::Arguments::<'_>::from_str.assertion.1
+	 - Status: UNREACHABLE
+	 - Description: "attempt to shift left with overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/fmt/mod.rs:820:38 in function std::fmt::Arguments::<'_>::from_str
+
+Check 24: std::ptr::drop_in_place::<std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>; 7]>>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843:24 in function std::ptr::drop_in_place::<std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>; 7]>>
+
+Check 25: std::ptr::drop_in_place::<std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>; 7]>>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843:24 in function std::ptr::drop_in_place::<std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>; 7]>>
+
+Check 26: core::num::<impl usize>::unchecked_add.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_add` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1013:17 in function core::num::<impl usize>::unchecked_add
+
+Check 27: std::ptr::drop_in_place::<[usize]>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843:24 in function std::ptr::drop_in_place::<[usize]>
+
+Check 28: std::ptr::drop_in_place::<[usize]>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:843:24 in function std::ptr::drop_in_place::<[usize]>
+
+Check 29: kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>
+
+Check 30: kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>
+
+Check 31: kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<std::mem::MaybeUninit<usize>, *mut std::mem::MaybeUninit<usize>, usize>
+
+Check 32: kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset in bytes overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>
+
+Check 33: kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "Offset result address must equal original pointer address plus offset"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>
+
+Check 34: kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>.safety_check.3
+	 - Status: SUCCESS
+	 - Description: "Offset result and original pointer must point to the same allocation"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::rustc_intrinsics::offset::<(usize, usize, usize), *mut (usize, usize, usize), usize>
+
+Check 35: core::panicking::panic_nounwind_fmt::runtime.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "call to foreign "Rust" function `_RNvCskSgPeDzUGbv_7___rustc17rust_begin_unwind` is not currently supported by Kani. Please post your example at https://github.com/model-checking/kani/issues/new/choose"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:110:17 in function core::panicking::panic_nounwind_fmt::runtime
+
+Check 36: kani::mem::cbmc::same_allocation.unsupported_construct.1
+	 - Status: SUCCESS
+	 - Description: "Kani does not support reasoning about pointer to unallocated memory"
+	 - Location: library/kani/src/lib.rs:57:1 in function kani::mem::cbmc::same_allocation
+
+Check 37: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 38: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:18 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 39: core::num::<impl usize>::unchecked_sub.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to compute `unchecked_sub` which would overflow"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/num/uint_macros.rs:1192:17 in function core::num::<impl usize>::unchecked_sub
+
+Check 40: core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked_mut::<std::ops::index_range::IndexRange>.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "misaligned pointer to reference cast: address must be a multiple of its type's alignment"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:693:18 in function core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked_mut::<std::ops::index_range::IndexRange>
+
+Check 41: core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked_mut::<std::ops::index_range::IndexRange>.safety_check.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/mod.rs:693:18 in function core::slice::<impl [std::mem::MaybeUninit<usize>]>::get_unchecked_mut::<std::ops::index_range::IndexRange>
+
+Check 42: <std::option::Option<usize> as std::ops::Try>::branch.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:2869:15 in function <std::option::Option<usize> as std::ops::Try>::branch
+
+Check 43: flash_support::expert_slot_destinations.assertion.1
+	 - Status: SUCCESS
+	 - Description: ""expert slot exceeds bank limit""
+	 - Location: native/src/flash_support.rs:35:5 in function flash_support::expert_slot_destinations
+
+Check 44: flash_support::expert_slot_destinations.assertion.2
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:37:13 in function flash_support::expert_slot_destinations
+
+Check 45: flash_support::expert_slot_destinations.assertion.3
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:37:13 in function flash_support::expert_slot_destinations
+
+Check 46: flash_support::expert_slot_destinations.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:37:29 in function flash_support::expert_slot_destinations
+
+Check 47: flash_support::expert_slot_destinations.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:38:13 in function flash_support::expert_slot_destinations
+
+Check 48: flash_support::expert_slot_destinations.assertion.6
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:38:13 in function flash_support::expert_slot_destinations
+
+Check 49: flash_support::expert_slot_destinations.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:38:30 in function flash_support::expert_slot_destinations
+
+Check 50: flash_support::expert_slot_destinations.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:39:13 in function flash_support::expert_slot_destinations
+
+Check 51: flash_support::expert_slot_destinations.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:40:13 in function flash_support::expert_slot_destinations
+
+Check 52: flash_support::expert_slot_destinations.assertion.10
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:41:13 in function flash_support::expert_slot_destinations
+
+Check 53: flash_support::expert_slot_destinations.assertion.11
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:41:13 in function flash_support::expert_slot_destinations
+
+Check 54: flash_support::expert_slot_destinations.assertion.12
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:41:13 in function flash_support::expert_slot_destinations
+
+Check 55: flash_support::expert_slot_destinations.assertion.13
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:41:34 in function flash_support::expert_slot_destinations
+
+Check 56: flash_support::expert_slot_destinations.assertion.14
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:42:13 in function flash_support::expert_slot_destinations
+
+Check 57: flash_support::expert_slot_destinations.assertion.15
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:42:13 in function flash_support::expert_slot_destinations
+
+Check 58: flash_support::expert_slot_destinations.assertion.16
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:42:13 in function flash_support::expert_slot_destinations
+
+Check 59: flash_support::expert_slot_destinations.assertion.17
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:42:33 in function flash_support::expert_slot_destinations
+
+Check 60: flash_support::expert_slot_destinations.assertion.18
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:43:13 in function flash_support::expert_slot_destinations
+
+Check 61: flash_support::expert_slot_destinations.assertion.19
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:43:13 in function flash_support::expert_slot_destinations
+
+Check 62: flash_support::expert_slot_destinations.assertion.20
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:44:13 in function flash_support::expert_slot_destinations
+
+Check 63: flash_support::expert_slot_destinations.assertion.21
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:44:13 in function flash_support::expert_slot_destinations
+
+Check 64: flash_support::expert_slot_destinations.assertion.22
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:14 in function flash_support::expert_slot_destinations
+
+Check 65: flash_support::expert_slot_destinations.assertion.23
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:45:13 in function flash_support::expert_slot_destinations
+
+Check 66: flash_support::expert_slot_destinations.assertion.24
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:13 in function flash_support::expert_slot_destinations
+
+Check 67: flash_support::expert_slot_destinations.assertion.25
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:13 in function flash_support::expert_slot_destinations
+
+Check 68: flash_support::expert_slot_destinations.assertion.26
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:45:40 in function flash_support::expert_slot_destinations
+
+Check 69: flash_support::expert_slot_destinations.assertion.27
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:46:14 in function flash_support::expert_slot_destinations
+
+Check 70: flash_support::expert_slot_destinations.assertion.28
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:46:13 in function flash_support::expert_slot_destinations
+
+Check 71: flash_support::expert_slot_destinations.assertion.29
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:46:13 in function flash_support::expert_slot_destinations
+
+Check 72: flash_support::expert_slot_destinations.assertion.30
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:46:13 in function flash_support::expert_slot_destinations
+
+Check 73: flash_support::expert_slot_destinations.assertion.31
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:46:39 in function flash_support::expert_slot_destinations
+
+Check 74: flash_support::expert_slot_destinations.assertion.32
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:47:13 in function flash_support::expert_slot_destinations
+
+Check 75: flash_support::expert_slot_destinations.assertion.33
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:47:13 in function flash_support::expert_slot_destinations
+
+Check 76: flash_support::expert_slot_destinations.assertion.34
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:48:14 in function flash_support::expert_slot_destinations
+
+Check 77: flash_support::expert_slot_destinations.assertion.35
+	 - Status: SUCCESS
+	 - Description: "attempt to add with overflow"
+	 - Location: native/src/flash_support.rs:48:13 in function flash_support::expert_slot_destinations
+
+Check 78: flash_support::expert_slot_destinations.assertion.36
+	 - Status: SUCCESS
+	 - Description: "attempt to multiply with overflow"
+	 - Location: native/src/flash_support.rs:48:13 in function flash_support::expert_slot_destinations
+
+Check 79: std::option::Option::<usize>::map::<usize, {closure@std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>]>::next::{closure#0}}>.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/option.rs:1162:15 in function std::option::Option::<usize>::map::<usize, {closure@std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<usize>]>::next::{closure#0}}>
+
+Check 80: <usize as kani::rustc_intrinsics::ToISize>::to_isize.unreachable.1
+	 - Status: SUCCESS
+	 - Description: "unreachable code"
+	 - Location: library/kani_core/src/models.rs:203:17 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 81: <usize as kani::rustc_intrinsics::ToISize>::to_isize.safety_check.1
+	 - Status: SUCCESS
+	 - Description: "Offset value overflows isize"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 82: <usize as kani::rustc_intrinsics::ToISize>::to_isize.assertion.1
+	 - Status: SUCCESS
+	 - Description: "internal error: entered unreachable code"
+	 - Location: library/kani/src/lib.rs:57:1 in function <usize as kani::rustc_intrinsics::ToISize>::to_isize
+
+Check 83: std::ptr::read::<usize>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 84: std::ptr::read::<usize>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 85: std::ptr::read::<usize>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 86: std::ptr::read::<usize>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 87: std::ptr::read::<usize>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 88: std::ptr::read::<usize>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/mod.rs:1756:9 in function std::ptr::read::<usize>
+
+Check 89: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 90: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 91: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 92: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 93: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 94: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:61:21 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 95: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 96: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 97: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 98: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 99: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 100: std::ops::index_range::IndexRange::next_unchecked.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:63:9 in function std::ops::index_range::IndexRange::next_unchecked
+
+Check 101: std::ops::index_range::IndexRange::end.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 102: std::ops::index_range::IndexRange::end.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 103: std::ops::index_range::IndexRange::end.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 104: std::ops::index_range::IndexRange::end.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 105: std::ops::index_range::IndexRange::end.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 106: std::ops::index_range::IndexRange::end.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:45:9 in function std::ops::index_range::IndexRange::end
+
+Check 107: std::ops::index_range::IndexRange::len.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 108: std::ops::index_range::IndexRange::len.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 109: std::ops::index_range::IndexRange::len.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 110: std::ops::index_range::IndexRange::len.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 111: std::ops::index_range::IndexRange::len.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 112: std::ops::index_range::IndexRange::len.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:51 in function std::ops::index_range::IndexRange::len
+
+Check 113: std::ops::index_range::IndexRange::len.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 114: std::ops::index_range::IndexRange::len.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 115: std::ops::index_range::IndexRange::len.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 116: std::ops::index_range::IndexRange::len.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 117: std::ops::index_range::IndexRange::len.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 118: std::ops::index_range::IndexRange::len.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:52:61 in function std::ops::index_range::IndexRange::len
+
+Check 119: std::ops::index_range::IndexRange::start.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 120: std::ops::index_range::IndexRange::start.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 121: std::ops::index_range::IndexRange::start.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 122: std::ops::index_range::IndexRange::start.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 123: std::ops::index_range::IndexRange::start.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 124: std::ops::index_range::IndexRange::start.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:40:9 in function std::ops::index_range::IndexRange::start
+
+Check 125: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 126: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 127: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 128: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 129: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 130: std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:454:20 in function std::ptr::NonNull::<(usize, usize, usize)>::as_ref::<'_>
+
+Check 131: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:13:30 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 132: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 133: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 134: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 135: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 136: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 137: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:13:11 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 138: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 139: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 140: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 141: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 142: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 143: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:13:20 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 144: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:20:45 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 145: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 146: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 147: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 148: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 149: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 150: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:20:15 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 151: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 152: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 153: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 154: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 155: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 156: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:20:28 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 157: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.27
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 158: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.28
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 159: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.29
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 160: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.30
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 161: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.31
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 162: flash_support::slot_reads_initialize_exact_disjoint_bank_regions.pointer_dereference.32
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: native/src/flash_support.rs:20:35 in function flash_support::slot_reads_initialize_exact_disjoint_bank_regions
+
+Check 163: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 164: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 165: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 166: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 167: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 168: <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/traits/exact_size.rs:156:9 in function <&mut std::ops::index_range::IndexRange as std::iter::ExactSizeIterator>::len
+
+Check 169: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 170: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 171: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 172: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 173: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 174: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:161:27 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 175: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 176: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 177: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 178: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 179: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 180: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:162:34 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 181: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.13
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:169:36 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 182: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.14
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 183: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.15
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 184: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.16
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 185: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.17
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 186: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.18
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 187: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.19
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:175:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 188: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.20
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:181:36 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 189: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.21
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 190: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.22
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 191: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.23
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 192: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.24
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 193: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.25
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 194: <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next.pointer_dereference.26
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/slice/iter/macros.rs:185:25 in function <std::slice::Iter<'_, (usize, usize, usize)> as std::iter::Iterator>::next
+
+Check 195: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 196: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 197: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 198: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 199: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 200: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:15:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 201: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 202: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 203: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 204: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 205: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 206: <std::ops::index_range::IndexRange as std::clone::Clone>::clone.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/index_range.rs:16:5 in function <std::ops::index_range::IndexRange as std::clone::Clone>::clone
+
+Check 207: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 208: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 209: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 210: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 211: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 212: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:81:17 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 213: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 214: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 215: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 216: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 217: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 218: <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/iter/adapters/enumerate.rs:82:9 in function <std::iter::Enumerate<std::array::IntoIter<usize, 7>> as std::iter::Iterator>::next
+
+Check 219: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.1
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 220: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.2
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 221: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.3
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 222: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.4
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 223: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.5
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 224: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.6
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:9 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 225: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.7
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer NULL"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 226: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.8
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer invalid"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 227: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.9
+	 - Status: SUCCESS
+	 - Description: "dereference failure: deallocated dynamic object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 228: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.10
+	 - Status: SUCCESS
+	 - Description: "dereference failure: dead object"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 229: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.11
+	 - Status: SUCCESS
+	 - Description: "dereference failure: pointer outside object bounds"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+Check 230: <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq.pointer_dereference.12
+	 - Status: SUCCESS
+	 - Description: "dereference failure: invalid integer address"
+	 - Location: ../../../../../runner/.rustup/toolchains/nightly-2026-08-21-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ptr/non_null.rs:1663:26 in function <std::ptr::NonNull<(usize, usize, usize)> as std::cmp::PartialEq>::eq
+
+
+SUMMARY:
+ ** 0 of 228 failed (1 unreachable)
+
+ ** 2 of 2 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 4.068822s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

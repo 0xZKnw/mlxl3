@@ -1,0 +1,15 @@
+{
+  "reason": "general suite interrupted after seven minutes; unrelated lookup/DFlash proofs unfinished; affected three harnesses passed",
+  "pids": [
+    52661,
+    52842,
+    48831,
+    48829
+  ],
+  "commands": {
+    "52661": "cbmc --no-malloc-may-fail --no-undefined-shift-check --no-signed-overflow-check --nan-check --no-self-loops-to-assumptions --no-pointer-primitive-check --object-bits 16 --unwind 33 --sat-solver cadical --slice-formula /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/kani/kani/aarch64-apple-darwin/debug/build/mlxl3-native/bd3268c7563ba560/out/mlxl3_native-bd3268c7563ba560__RNvNtNtCsCV8ZZMda5S_12mlxl3_native11speculative12verification45lookup_proposes_only_latest_in_bounds_history.out --verbosity 9 --json-ui",
+    "52842": "cbmc --no-malloc-may-fail --no-undefined-shift-check --no-signed-overflow-check --nan-check --no-self-loops-to-assumptions --no-pointer-primitive-check --object-bits 16 --unwind 33 --external-sat-solver kissat --slice-formula /Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/target/kani/kani/aarch64-apple-darwin/debug/build/mlxl3-native/bd3268c7563ba560/out/mlxl3_native-bd3268c7563ba560__RNvNtNtCsCV8ZZMda5S_12mlxl3_native11speculative12verification17dflash_copy_len_1.out --verbosity 9 --json-ui",
+    "48831": "cargo-kani kani --lib --no-default-features --jobs 2 --output-format terse",
+    "48829": "/Users/justin/.cargo/bin/cargo-kani kani --lib --no-default-features --jobs 2 --output-format terse"
+  }
+}

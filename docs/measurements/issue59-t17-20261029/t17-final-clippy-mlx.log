@@ -1,0 +1,54 @@
+   Compiling mlxl3-native v2.0.0 (/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0)
+error: using `chunks_exact` with a constant chunk size
+  --> native/src/gdn_epilogue/tests.rs:77:18
+   |
+77 |                 .chunks_exact(2)
+   |                  ^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<2>().0.iter()`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+   = note: `-D clippy::chunks-exact-to-as-chunks` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::chunks_exact_to_as_chunks)]`
+
+error: using `chunks_exact` with a constant chunk size
+  --> native/src/gdn_epilogue/tests.rs:78:31
+   |
+78 |                 .zip(expected.chunks_exact(2))
+   |                               ^^^^^^^^^^^^^^^
+   |
+help: consider using `as_chunks::<2>()` instead
+  --> native/src/gdn_epilogue/tests.rs:78:31
+   |
+78 |                 .zip(expected.chunks_exact(2))
+   |                               ^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/gdn_epilogue/tests.rs:118:41
+    |
+118 |         for (actual, expected) in bytes.chunks_exact(2).zip(expected.chunks_exact(2)) {
+    |                                         ^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<2>().0.iter()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/gdn_epilogue/tests.rs:118:70
+    |
+118 |         for (actual, expected) in bytes.chunks_exact(2).zip(expected.chunks_exact(2)) {
+    |                                                                      ^^^^^^^^^^^^^^^
+    |
+help: consider using `as_chunks::<2>()` instead
+   --> native/src/gdn_epilogue/tests.rs:118:70
+    |
+118 |         for (actual, expected) in bytes.chunks_exact(2).zip(expected.chunks_exact(2)) {
+    |                                                                      ^^^^^^^^^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+
+error: using `chunks_exact` with a constant chunk size
+   --> native/src/gdn_epilogue/tests.rs:137:10
+    |
+137 |         .chunks_exact(WIDTH)
+    |          ^^^^^^^^^^^^^^^^^^^ help: consider using `as_chunks` instead: `as_chunks::<WIDTH>().0.iter()`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#chunks_exact_to_as_chunks
+
+error: could not compile `mlxl3-native` (lib test) due to 5 previous errors

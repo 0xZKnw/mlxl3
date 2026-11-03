@@ -1,0 +1,73 @@
+{
+  "status": "prepared_not_executed",
+  "kind": "confirmation",
+  "protocol": "72W-R",
+  "source_plan": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/speed-v4/weighted/validation/run.json",
+  "source_plan_sha256": "711f1c348d09ad6ba4f999b6fe22c04ae8dd407273d09bada6e1fd86507c06b7",
+  "plan_sha256": "19dc7c361fb52d6514da980edd3e0057f4e66578967866dd54a0cb075fb412b4",
+  "preregistration": {
+    "document": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/opti.md",
+    "header": "### FLASHSSD-2026-10-23-72W-R — nouveau vrai A/B weighted contre B2sansprélecture, avant lancement",
+    "start_line": 14907,
+    "sha256": "31a74bbb739098b98860a0b0ded5af702400d4d30014162a09f1f8c42b9f66a0"
+  },
+  "cli": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-77-process-memory/v1/mlxl3-rs",
+  "cli_sha256": "69b919ae31b906b8fedd20ec95403c390543ad5b5f99ab93826e38be801d323c",
+  "observer": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-77-process-memory/fresh-controls-v1/observe-stock.py",
+  "observer_sha256": "ad28af767cec59cbf1a763cf0aeb12b4d0970219bc44da06cda0f1c68e4fb5ac",
+  "benchmark_driver": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+  "benchmark_driver_sha256": "3f7c8680773c357328e08a793e091c8e6f84c3270b0d8fe24442dd6dfa7fcb98",
+  "source_identity": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-72-prefetch-variants/plans-v3-source-identity.json",
+  "source_identity_sha256": "5a1ab2bf70eb1155250fa748cf7b06396f721ed6e0812e8d844d3dd1860427f9",
+  "only_current_identity_difference": [
+    {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/.github/workflows/rust.yml",
+      "previous_sha256": "f4f1ff34e01a897c253ed73ea0726f5faace16cb8b9b220a0535e62c8e918d22",
+      "current_sha256": "7a9e1c665d6d80d9e30735920fdba4e1dd1e2631ba527139dcb11cc8e0cbbbd8"
+    }
+  ],
+  "goldens60": {
+    "MAIN": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/MAIN-0-OFF/report.json",
+      "sha256": "70d89eec4e73a77a0a5e5034a5056d2e4c358120c1d26638b1acd63c3aab8094",
+      "token_hash": "f6b5f974c6db2e7a",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "text_nonempty": true,
+      "all_warmup_and_measurement_outputs_must_match": true
+    },
+    "HOLD": {
+      "path": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-60-splash-dflash/speed-v7-final/HOLD-0-OFF/report.json",
+      "sha256": "6e929c552c29985ba8c9b389de6b0bdd990beb6db54ef6c88172c6dc0f1af244",
+      "token_hash": "9d02c1a97e015196",
+      "generated_tokens": 128,
+      "decode_tokens": 127,
+      "text_nonempty": true,
+      "all_warmup_and_measurement_outputs_must_match": true
+    }
+  },
+  "H_flags": {
+    "MLXL3_SSD_PREFETCH_PIPELINE": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_PREFETCH_VARIANT": "legacy"
+  },
+  "C_flags": {
+    "MLXL3_SSD_PREFETCH_PIPELINE": "1",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "2",
+    "MLXL3_SSD_PREFETCH_VARIANT": "weighted"
+  },
+  "only_H_C_environment_differences": [
+    "MLXL3_SSD_PREFETCH_PIPELINE",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH",
+    "MLXL3_SSD_PREFETCH_VARIANT"
+  ],
+  "old_plan_changes_only": [
+    "command output destination",
+    "H environment PREFETCH_PIPELINE1to0 and LOOKAHEAD_DEPTH2to0"
+  ],
+  "two_lots_unconditional": true,
+  "require_bridge43_before_speed": "Own weighted bridge43 in bridge-weighted-v4 must finish exact; parent inspects before launch. This preparation does not infer its result.",
+  "memory77B": "failed compression caps remain failed; no retrospective requalification",
+  "variation_policy": "User explicitly accepts variability; keep all raw values, ranges, means and per-prompt losses. Do not erase prior strict verdicts or claim universal gain.",
+  "no_auto_launch": true
+}

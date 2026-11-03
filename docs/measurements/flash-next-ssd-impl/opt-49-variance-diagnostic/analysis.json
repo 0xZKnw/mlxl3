@@ -1,0 +1,173 @@
+{
+  "status": "completed_diagnostic_cause_of_original_not_identified",
+  "original_release_report": "docs/measurements/flash-next-ssd-impl/opt-49-resident-gates/runtime/speed-0-baseline-MAIN-H-bridge/report.json",
+  "original_tps": [
+    9.391118367211055,
+    7.618372468196055
+  ],
+  "identity_files_unchanged": 66,
+  "phases": [
+    {
+      "phase": 0,
+      "decoded_tokens": 127,
+      "phase_wall_seconds": 15.351102375,
+      "sum_forward_greedy_seconds": 15.349080036,
+      "decode_hits": 42645,
+      "decode_misses": 18315,
+      "logical_expert_bytes": 22857339780,
+      "route_boundary_inclusive_seconds": 9.232835453,
+      "fill_inclusive_seconds": 3.6985998879999995,
+      "import_inclusive_seconds": 0.015023592000000002,
+      "process_peak_bytes": 7281252424,
+      "gpu_decode_samples": 7,
+      "gpu_decode_utilization_percent": {
+        "Tiler Utilization %": {
+          "min": 21,
+          "median": 22,
+          "max": 27
+        },
+        "Renderer Utilization %": {
+          "min": 33,
+          "median": 34,
+          "max": 41
+        },
+        "Device Utilization %": {
+          "min": 75,
+          "median": 77,
+          "max": 79
+        }
+      }
+    },
+    {
+      "phase": 1,
+      "decoded_tokens": 127,
+      "phase_wall_seconds": 15.663213708,
+      "sum_forward_greedy_seconds": 15.660976536,
+      "decode_hits": 42559,
+      "decode_misses": 18401,
+      "logical_expert_bytes": 22964668812,
+      "route_boundary_inclusive_seconds": 9.469182198999988,
+      "fill_inclusive_seconds": 3.793890315999999,
+      "import_inclusive_seconds": 0.01592817399999999,
+      "process_peak_bytes": 7406852288,
+      "gpu_decode_samples": 8,
+      "gpu_decode_utilization_percent": {
+        "Tiler Utilization %": {
+          "min": 19,
+          "median": 23.0,
+          "max": 29
+        },
+        "Renderer Utilization %": {
+          "min": 31,
+          "median": 36.5,
+          "max": 44
+        },
+        "Device Utilization %": {
+          "min": 74,
+          "median": 78.5,
+          "max": 80
+        }
+      }
+    },
+    {
+      "phase": 2,
+      "decoded_tokens": 127,
+      "phase_wall_seconds": 16.583100458,
+      "sum_forward_greedy_seconds": 16.58102991,
+      "decode_hits": 42748,
+      "decode_misses": 18212,
+      "logical_expert_bytes": 22728794544,
+      "route_boundary_inclusive_seconds": 10.539856646999986,
+      "fill_inclusive_seconds": 3.7248565190000065,
+      "import_inclusive_seconds": 0.014787405000000003,
+      "process_peak_bytes": 7430756544,
+      "gpu_decode_samples": 8,
+      "gpu_decode_utilization_percent": {
+        "Tiler Utilization %": {
+          "min": 27,
+          "median": 28.5,
+          "max": 29
+        },
+        "Renderer Utilization %": {
+          "min": 40,
+          "median": 41.0,
+          "max": 43
+        },
+        "Device Utilization %": {
+          "min": 78,
+          "median": 80.0,
+          "max": 84
+        }
+      }
+    }
+  ],
+  "phase_1_to_2": {
+    "wall_seconds": 0.9198867499999999,
+    "wall_percent": 5.872911952482429,
+    "route_boundary_seconds": 1.0706744479999983,
+    "fill_seconds": -0.06903379699999235,
+    "misses": -189,
+    "misses_percent": -1.0271180914080746
+  },
+  "idle_gpu_windows": {
+    "before": {
+      "samples": 5,
+      "device_percent": [
+        52,
+        64
+      ],
+      "renderer_percent": [
+        52,
+        64
+      ]
+    },
+    "after": {
+      "samples": 4,
+      "device_percent": [
+        50,
+        59
+      ],
+      "renderer_percent": [
+        50,
+        59
+      ]
+    }
+  },
+  "system_samples": 52,
+  "new_swapout_bytes": 0,
+  "subprocess_reaped": true,
+  "claims": {
+    "cache_history_changes_miss_counts_for_identical_routes": true,
+    "larger_miss_count_does_not_explain_phase_1_to_2_slowdown": true,
+    "route_boundary_increase_observed": true,
+    "background_graphics_contention_is_inference": true,
+    "original_9_39_to_7_62_cause_known": false,
+    "release_throughput_gain_established": false
+  },
+  "limitations": [
+    "native test diagnostic includes cache/counter observation outside step timer; not a release throughput benchmark",
+    "route/fill/import clocks overlap and include pending GPU work; not exclusive kernel or I/O times",
+    "AGX and disk counters are system-wide; no per-process GPU, GPU clocks, or per-model physical SSD counter",
+    "original release repetitions lacked contemporaneous route/cache/I/O/GPU samples; retrospective exact attribution impossible"
+  ],
+  "original_decode_seconds": [
+    13.523415959,
+    16.670227208
+  ],
+  "original_throughput_drop_percent": -18.87683478896949,
+  "original_seconds_increase_percent": 23.26935190443329,
+  "checks": {
+    "rust_release": {
+      "passed": 130,
+      "ignored": 127
+    },
+    "focused_python": {
+      "passed": 113,
+      "sampler_cases": 8
+    },
+    "format_strict_clippy_mlx_chat_build": "passed",
+    "actual_mlx_kani": "ICE intrinsics.rs:243; unverified",
+    "python_crosshair": "not installed; unverified",
+    "hardware_diagnostic": "three nonempty identical 128-token responses, 248320 finite logits, >100 nonempty state buffers, identical routes and exact CPU cache replay"
+  }
+}

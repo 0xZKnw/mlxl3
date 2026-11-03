@@ -1,0 +1,1471 @@
+2026-10-22T17:35:06.2618161Z Current runner version: '2.338.0'
+2026-10-22T17:35:06.2644288Z ##[group]Runner Image Provisioner
+2026-10-22T17:35:06.2645264Z Hosted Compute Agent
+2026-10-22T17:35:06.2645946Z Version: 20261015.610
+2026-10-22T17:35:06.2646659Z Commit: 267fdb4e8bbec4ab5ea31367f3a00d5c480c7656
+2026-10-22T17:35:06.2647411Z Build Date: 2026-10-14T17:06:54Z
+2026-10-22T17:35:06.2648225Z Worker ID: {fb2193b4-c005-4adb-852d-115a9e612666}
+2026-10-22T17:35:06.2648956Z Region: eastus
+2026-10-22T17:35:06.2649505Z Cloud: Azure
+2026-10-22T17:35:06.2650145Z ##[endgroup]
+2026-10-22T17:35:06.2651625Z ##[group]Operating System
+2026-10-22T17:35:06.2652371Z Ubuntu
+2026-10-22T17:35:06.2652940Z 22.04.5
+2026-10-22T17:35:06.2654167Z LTS
+2026-10-22T17:35:06.2655194Z ##[endgroup]
+2026-10-22T17:35:06.2656110Z ##[group]Runner Image
+2026-10-22T17:35:06.2657130Z Image: ubuntu-22.04
+2026-10-22T17:35:06.2658036Z Version: 20261018.327.1
+2026-10-22T17:35:06.2659465Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20261018.327/images/ubuntu/Ubuntu2204-Readme.md
+2026-10-22T17:35:06.2661124Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261018.327
+2026-10-22T17:35:06.2662160Z ##[endgroup]
+2026-10-22T17:35:06.2663711Z ##[group]GITHUB_TOKEN Permissions
+2026-10-22T17:35:06.2666479Z Contents: read
+2026-10-22T17:35:06.2667145Z Metadata: read
+2026-10-22T17:35:06.2668175Z ##[endgroup]
+2026-10-22T17:35:06.2671773Z Secret source: Actions
+2026-10-22T17:35:06.2672842Z Cache mode: write
+2026-10-22T17:35:06.2674278Z Prepare workflow directory
+2026-10-22T17:35:06.3011780Z Prepare all required actions
+2026-10-22T17:35:06.3059980Z Getting action download info
+2026-10-22T17:35:06.5562591Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-22T17:35:06.7008618Z Download action repository 'model-checking/kani-github-action@v1' (SHA:69d357bade1eb7b32bc3fc3d5c3d173c5bfa5237)
+2026-10-22T17:35:06.9365571Z Getting action download info
+2026-10-22T17:35:07.0065574Z Download action repository 'dtolnay/rust-toolchain@stable' (SHA:b725eda525362e7cf34af9a7243cac1e3f01a7ec)
+2026-10-22T17:35:07.1376954Z Complete job name: kani
+2026-10-22T17:35:07.2170752Z ##[group]Run actions/checkout@v4
+2026-10-22T17:35:07.2171635Z with:
+2026-10-22T17:35:07.2172081Z   repository: 0xZKnw/mlxl3
+2026-10-22T17:35:07.2176186Z   token: ***
+2026-10-22T17:35:07.2176626Z   ssh-strict: true
+2026-10-22T17:35:07.2177059Z   ssh-user: git
+2026-10-22T17:35:07.2177497Z   persist-credentials: true
+2026-10-22T17:35:07.2177974Z   clean: true
+2026-10-22T17:35:07.2178411Z   sparse-checkout-cone-mode: true
+2026-10-22T17:35:07.2178931Z   fetch-depth: 1
+2026-10-22T17:35:07.2179358Z   fetch-tags: false
+2026-10-22T17:35:07.2179801Z   show-progress: true
+2026-10-22T17:35:07.2180241Z   lfs: false
+2026-10-22T17:35:07.2180655Z   submodules: false
+2026-10-22T17:35:07.2181130Z   set-safe-directory: true
+2026-10-22T17:35:07.2181654Z   allow-unsafe-pr-checkout: false
+2026-10-22T17:35:07.2182436Z ##[endgroup]
+2026-10-22T17:35:07.3304136Z Syncing repository: 0xZKnw/mlxl3
+2026-10-22T17:35:07.3306652Z ##[group]Getting Git version info
+2026-10-22T17:35:07.3307781Z Working directory is '/home/runner/work/mlxl3/mlxl3'
+2026-10-22T17:35:07.3309332Z [command]/usr/bin/git version
+2026-10-22T17:35:07.3391231Z git version 2.55.0
+2026-10-22T17:35:07.3435244Z ##[endgroup]
+2026-10-22T17:35:07.3447566Z Temporarily overriding HOME='/home/runner/work/_temp/b6696556-18ba-469a-8ff6-4e8f61f0f090' before making global git config changes
+2026-10-22T17:35:07.3451404Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-22T17:35:07.3455208Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/mlxl3/mlxl3
+2026-10-22T17:35:07.3497423Z Deleting the contents of '/home/runner/work/mlxl3/mlxl3'
+2026-10-22T17:35:07.3501869Z ##[group]Initializing the repository
+2026-10-22T17:35:07.3505982Z [command]/usr/bin/git init /home/runner/work/mlxl3/mlxl3
+2026-10-22T17:35:07.3631073Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-22T17:35:07.3632913Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-22T17:35:07.3645286Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-22T17:35:07.3647352Z hint: call:
+2026-10-22T17:35:07.3648676Z hint:
+2026-10-22T17:35:07.3650169Z hint: 	git config --global init.defaultBranch <name>
+2026-10-22T17:35:07.3651588Z hint:
+2026-10-22T17:35:07.3652750Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-22T17:35:07.3654327Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-22T17:35:07.3655184Z hint:
+2026-10-22T17:35:07.3655713Z hint: 	git branch -m <name>
+2026-10-22T17:35:07.3656282Z hint:
+2026-10-22T17:35:07.3656998Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-22T17:35:07.3658067Z Initialized empty Git repository in /home/runner/work/mlxl3/mlxl3/.git/
+2026-10-22T17:35:07.3660051Z [command]/usr/bin/git remote add origin https://github.com/0xZKnw/mlxl3
+2026-10-22T17:35:07.3692790Z ##[endgroup]
+2026-10-22T17:35:07.3694778Z ##[group]Disabling automatic garbage collection
+2026-10-22T17:35:07.3697577Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-22T17:35:07.3735933Z ##[endgroup]
+2026-10-22T17:35:07.3737110Z ##[group]Setting up auth
+2026-10-22T17:35:07.3743775Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-22T17:35:07.3780950Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-22T17:35:07.4194721Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-22T17:35:07.4225388Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-22T17:35:07.4519415Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-22T17:35:07.4562228Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-22T17:35:07.4825966Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-22T17:35:07.4890075Z ##[endgroup]
+2026-10-22T17:35:07.4891297Z ##[group]Fetching the repository
+2026-10-22T17:35:07.4900912Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +09113b6f2accdd008e8c39d457b45c9a4d95002a:refs/remotes/origin/codex/flash-next-ssd-205
+2026-10-22T17:35:18.8573709Z From https://github.com/0xZKnw/mlxl3
+2026-10-22T17:35:18.8575204Z  * [new ref]         09113b6f2accdd008e8c39d457b45c9a4d95002a -> origin/codex/flash-next-ssd-205
+2026-10-22T17:35:18.8578939Z ##[endgroup]
+2026-10-22T17:35:18.8579890Z ##[group]Determining the checkout info
+2026-10-22T17:35:18.8584177Z ##[endgroup]
+2026-10-22T17:35:18.8590614Z [command]/usr/bin/git sparse-checkout disable
+2026-10-22T17:35:18.8644588Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-22T17:35:18.8681627Z ##[group]Checking out the ref
+2026-10-22T17:35:18.8689607Z [command]/usr/bin/git checkout --progress --force -B codex/flash-next-ssd-205 refs/remotes/origin/codex/flash-next-ssd-205
+2026-10-22T17:35:19.8880779Z Updating files:  62% (5951/9585)
+2026-10-22T17:35:19.8966986Z Updating files:  63% (6039/9585)
+2026-10-22T17:35:20.0402627Z Updating files:  64% (6135/9585)
+2026-10-22T17:35:20.1082947Z Updating files:  65% (6231/9585)
+2026-10-22T17:35:20.1153899Z Updating files:  66% (6327/9585)
+2026-10-22T17:35:20.1530986Z Updating files:  67% (6422/9585)
+2026-10-22T17:35:20.1604473Z Updating files:  68% (6518/9585)
+2026-10-22T17:35:20.1664735Z Updating files:  69% (6614/9585)
+2026-10-22T17:35:20.2642012Z Updating files:  70% (6710/9585)
+2026-10-22T17:35:20.3216338Z Updating files:  71% (6806/9585)
+2026-10-22T17:35:20.3312161Z Updating files:  72% (6902/9585)
+2026-10-22T17:35:20.3387481Z Updating files:  73% (6998/9585)
+2026-10-22T17:35:20.3440539Z Updating files:  74% (7093/9585)
+2026-10-22T17:35:20.3522225Z Updating files:  75% (7189/9585)
+2026-10-22T17:35:20.3588733Z Updating files:  76% (7285/9585)
+2026-10-22T17:35:20.3650917Z Updating files:  77% (7381/9585)
+2026-10-22T17:35:20.4009562Z Updating files:  78% (7477/9585)
+2026-10-22T17:35:20.4087905Z Updating files:  79% (7573/9585)
+2026-10-22T17:35:20.4147811Z Updating files:  80% (7668/9585)
+2026-10-22T17:35:20.4211709Z Updating files:  81% (7764/9585)
+2026-10-22T17:35:20.4306038Z Updating files:  82% (7860/9585)
+2026-10-22T17:35:20.4387256Z Updating files:  83% (7956/9585)
+2026-10-22T17:35:20.4450380Z Updating files:  84% (8052/9585)
+2026-10-22T17:35:20.4546708Z Updating files:  85% (8148/9585)
+2026-10-22T17:35:20.4610337Z Updating files:  86% (8244/9585)
+2026-10-22T17:35:20.4669997Z Updating files:  87% (8339/9585)
+2026-10-22T17:35:20.5032206Z Updating files:  88% (8435/9585)
+2026-10-22T17:35:20.5177840Z Updating files:  89% (8531/9585)
+2026-10-22T17:35:20.5414917Z Updating files:  90% (8627/9585)
+2026-10-22T17:35:20.5711459Z Updating files:  91% (8723/9585)
+2026-10-22T17:35:20.5891225Z Updating files:  92% (8819/9585)
+2026-10-22T17:35:20.5947948Z Updating files:  93% (8915/9585)
+2026-10-22T17:35:20.5994156Z Updating files:  94% (9010/9585)
+2026-10-22T17:35:20.6063958Z Updating files:  95% (9106/9585)
+2026-10-22T17:35:20.6115711Z Updating files:  96% (9202/9585)
+2026-10-22T17:35:20.6176496Z Updating files:  97% (9298/9585)
+2026-10-22T17:35:20.6277631Z Updating files:  98% (9394/9585)
+2026-10-22T17:35:20.6460885Z Updating files:  99% (9490/9585)
+2026-10-22T17:35:20.6461848Z Updating files: 100% (9585/9585)
+2026-10-22T17:35:20.6462609Z Updating files: 100% (9585/9585), done.
+2026-10-22T17:35:20.6582860Z Switched to a new branch 'codex/flash-next-ssd-205'
+2026-10-22T17:35:20.6587109Z branch 'codex/flash-next-ssd-205' set up to track 'origin/codex/flash-next-ssd-205'.
+2026-10-22T17:35:20.6732099Z ##[endgroup]
+2026-10-22T17:35:20.6784050Z [command]/usr/bin/git log -1 --format=%H
+2026-10-22T17:35:20.6816761Z 09113b6f2accdd008e8c39d457b45c9a4d95002a
+2026-10-22T17:35:20.7092330Z ##[group]Run model-checking/kani-github-action@v1
+2026-10-22T17:35:20.7092698Z with:
+2026-10-22T17:35:20.7092897Z   kani-version: 0.68.0
+2026-10-22T17:35:20.7093352Z   command: cargo kani
+2026-10-22T17:35:20.7093695Z   args: --lib --no-default-features --jobs 1 --output-format terse
+2026-10-22T17:35:20.7094075Z   working-directory: .
+2026-10-22T17:35:20.7094298Z ##[endgroup]
+2026-10-22T17:35:20.7239931Z ##[start-action display=Install Rust;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain]
+2026-10-22T17:35:20.7431175Z ##[group]Run dtolnay/rust-toolchain@stable
+2026-10-22T17:35:20.7431491Z with:
+2026-10-22T17:35:20.7431689Z   toolchain: stable
+2026-10-22T17:35:20.7431895Z ##[endgroup]
+2026-10-22T17:35:20.7451027Z ##[start-action display=Parse toolchain version;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.parse]
+2026-10-22T17:35:20.7507540Z ##[group]Run if [[ -z $toolchain ]]; then
+2026-10-22T17:35:20.7507995Z if [[ -z $toolchain ]]; then
+2026-10-22T17:35:20.7508617Z   # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070
+2026-10-22T17:35:20.7509250Z   echo "'toolchain' is a required input" >&2
+2026-10-22T17:35:20.7509552Z   exit 1
+2026-10-22T17:35:20.7509890Z elif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then
+2026-10-22T17:35:20.7510325Z   if [[ Linux == macOS ]]; then
+2026-10-22T17:35:20.7510899Z     echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT
+2026-10-22T17:35:20.7511454Z   else
+2026-10-22T17:35:20.7511896Z     echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT
+2026-10-22T17:35:20.7512617Z   fi
+2026-10-22T17:35:20.7512929Z elif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then
+2026-10-22T17:35:20.7513706Z   echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT
+2026-10-22T17:35:20.7514187Z elif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then
+2026-10-22T17:35:20.7514747Z   echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT
+2026-10-22T17:35:20.7515266Z else
+2026-10-22T17:35:20.7515467Z   delimiter=EOF
+2026-10-22T17:35:20.7515785Z   while [[ $toolchain == *$delimiter* ]]; do delimiter+=_; done
+2026-10-22T17:35:20.7516305Z   printf 'toolchain<<%s\n%s\n%s\n' "$delimiter" "$toolchain" "$delimiter" >> $GITHUB_OUTPUT
+2026-10-22T17:35:20.7516736Z fi
+2026-10-22T17:35:20.7558945Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:20.7559316Z env:
+2026-10-22T17:35:20.7559515Z   toolchain: stable
+2026-10-22T17:35:20.7559736Z ##[endgroup]
+2026-10-22T17:35:20.7680492Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=22]
+2026-10-22T17:35:20.7686069Z ##[start-action display=Set $CARGO_HOME;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run]
+2026-10-22T17:35:20.7722829Z ##[group]Run echo CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV
+2026-10-22T17:35:20.7723659Z echo CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV
+2026-10-22T17:35:20.7758998Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:20.7759375Z ##[endgroup]
+2026-10-22T17:35:20.7828120Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=14]
+2026-10-22T17:35:20.7830871Z ##[start-action display=Install rustup if needed;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_2]
+2026-10-22T17:35:20.7860037Z ##[group]Run if ! command -v rustup &>/dev/null; then
+2026-10-22T17:35:20.7860618Z if ! command -v rustup &>/dev/null; then
+2026-10-22T17:35:20.7861427Z   curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y
+2026-10-22T17:35:20.7862230Z   echo "$CARGO_HOME/bin" >> $GITHUB_PATH
+2026-10-22T17:35:20.7862521Z fi
+2026-10-22T17:35:20.7896583Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:20.7896943Z env:
+2026-10-22T17:35:20.7897165Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:20.7897431Z ##[endgroup]
+2026-10-22T17:35:20.7961177Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=12]
+2026-10-22T17:35:20.7964263Z ##[start-action display=Install rustup if needed on windows;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_3]
+2026-10-22T17:35:20.7971477Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-22T17:35:20.7987510Z ##[start-action display=rustup toolchain install stable;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_4]
+2026-10-22T17:35:20.8008258Z ##[group]Run set -f  # split targets and components on commas and whitespace, without glob expansion
+2026-10-22T17:35:20.8008947Z set -f  # split targets and components on commas and whitespace, without glob expansion
+2026-10-22T17:35:20.8009393Z flags=()
+2026-10-22T17:35:20.8009678Z for t in ${targets//,/ }; do flags+=(--target "$t"); done
+2026-10-22T17:35:20.8010100Z for c in ${components//,/ }; do flags+=(--component "$c"); done
+2026-10-22T17:35:20.8010825Z if [[ $toolchain == nightly && -n $components ]]; then flags+=(--allow-downgrade); fi
+2026-10-22T17:35:20.8011286Z log=$(mktemp)
+2026-10-22T17:35:20.8011522Z trap 'rm -f "$log"' EXIT
+2026-10-22T17:35:20.8011796Z for attempt in 1 2 3 4 5; do
+2026-10-22T17:35:20.8012408Z   if rustup toolchain install "$toolchain" "${flags[@]}" --profile minimal --no-self-update --force-non-host 2>&1 | tee "$log"; then
+2026-10-22T17:35:20.8013276Z     break
+2026-10-22T17:35:20.8013547Z   else
+2026-10-22T17:35:20.8013757Z     status=$?
+2026-10-22T17:35:20.8013970Z   fi
+2026-10-22T17:35:20.8014268Z   if [[ $attempt == 5 ]] || ! grep -Fq 'checksum failed for ' "$log" \
+2026-10-22T17:35:20.8014860Z       || ! grep -Fq 'this is likely due to an ongoing update of the official release server' "$log"; then
+2026-10-22T17:35:20.8015338Z     exit "$status"
+2026-10-22T17:35:20.8015562Z   fi
+2026-10-22T17:35:20.8015933Z   echo "Retrying rustup toolchain install in 30 seconds (retry $attempt of 4)" >&2
+2026-10-22T17:35:20.8016370Z   sleep 30
+2026-10-22T17:35:20.8016592Z done
+2026-10-22T17:35:20.8051047Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:20.8051423Z env:
+2026-10-22T17:35:20.8051640Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:20.8051917Z   toolchain: stable
+2026-10-22T17:35:20.8052122Z   targets: 
+2026-10-22T17:35:20.8052308Z   components: 
+2026-10-22T17:35:20.8052515Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-10-22T17:35:20.8052756Z ##[endgroup]
+2026-10-22T17:35:21.0585288Z info: syncing channel updates for stable-x86_64-unknown-linux-gnu
+2026-10-22T17:35:21.1392142Z 
+2026-10-22T17:35:21.1487840Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+2026-10-22T17:35:21.1488619Z 
+2026-10-22T17:35:21.1539346Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=355]
+2026-10-22T17:35:21.1546056Z ##[start-action display=rustup default stable;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_5]
+2026-10-22T17:35:21.1566844Z ##[group]Run rustup default "$toolchain" --force-non-host
+2026-10-22T17:35:21.1567276Z rustup default "$toolchain" --force-non-host
+2026-10-22T17:35:21.1602754Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.1603419Z env:
+2026-10-22T17:35:21.1603667Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.1603932Z   toolchain: stable
+2026-10-22T17:35:21.1604142Z ##[endgroup]
+2026-10-22T17:35:21.1709328Z info: using existing install for stable-x86_64-unknown-linux-gnu
+2026-10-22T17:35:21.1717058Z info: default toolchain set to stable-x86_64-unknown-linux-gnu
+2026-10-22T17:35:21.1717467Z 
+2026-10-22T17:35:21.1809263Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+2026-10-22T17:35:21.1809935Z 
+2026-10-22T17:35:21.1828807Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=28]
+2026-10-22T17:35:21.1833380Z ##[start-action display=Create cachekey;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.rustc-version]
+2026-10-22T17:35:21.1854379Z ##[group]Run DATE=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')
+2026-10-22T17:35:21.1855285Z DATE=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')
+2026-10-22T17:35:21.1855993Z HASH=$(rustc +"$toolchain" --version --verbose | sed -ne 's/^commit-hash: //p')
+2026-10-22T17:35:21.1856521Z echo "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT
+2026-10-22T17:35:21.1891683Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.1892040Z env:
+2026-10-22T17:35:21.1892246Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.1892695Z   toolchain: stable
+2026-10-22T17:35:21.1892901Z ##[endgroup]
+2026-10-22T17:35:21.2505090Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=67]
+2026-10-22T17:35:21.2509212Z ##[start-action display=Disable incremental compilation;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_6]
+2026-10-22T17:35:21.2530410Z ##[group]Run if [ -z "${CARGO_INCREMENTAL+set}" ]; then
+2026-10-22T17:35:21.2530810Z if [ -z "${CARGO_INCREMENTAL+set}" ]; then
+2026-10-22T17:35:21.2531146Z   echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV
+2026-10-22T17:35:21.2531442Z fi
+2026-10-22T17:35:21.2566699Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.2567069Z env:
+2026-10-22T17:35:21.2567278Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.2567546Z ##[endgroup]
+2026-10-22T17:35:21.2651657Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=14]
+2026-10-22T17:35:21.2654583Z ##[start-action display=Enable colors in Cargo output;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_7]
+2026-10-22T17:35:21.2674568Z ##[group]Run if [ -z "${CARGO_TERM_COLOR+set}" ]; then
+2026-10-22T17:35:21.2674952Z if [ -z "${CARGO_TERM_COLOR+set}" ]; then
+2026-10-22T17:35:21.2675292Z   echo CARGO_TERM_COLOR=always >> $GITHUB_ENV
+2026-10-22T17:35:21.2675587Z fi
+2026-10-22T17:35:21.2708294Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.2708645Z env:
+2026-10-22T17:35:21.2708847Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.2709107Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:21.2709319Z ##[endgroup]
+2026-10-22T17:35:21.2769241Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=11]
+2026-10-22T17:35:21.2773349Z ##[start-action display=Enable Cargo sparse registry;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_8]
+2026-10-22T17:35:21.2792761Z ##[group]Run # implemented in 1.66, stabilized in 1.68, made default in 1.70
+2026-10-22T17:35:21.2793831Z # implemented in 1.66, stabilized in 1.68, made default in 1.70
+2026-10-22T17:35:21.2794590Z if [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then
+2026-10-22T17:35:21.2795401Z   if rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.6[89]\.'; then
+2026-10-22T17:35:21.2796028Z     touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true
+2026-10-22T17:35:21.2796604Z     echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV
+2026-10-22T17:35:21.2797163Z   elif rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.6[67]\.'; then
+2026-10-22T17:35:21.2797799Z     touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true
+2026-10-22T17:35:21.2798335Z     echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV
+2026-10-22T17:35:21.2798688Z   fi
+2026-10-22T17:35:21.2798884Z fi
+2026-10-22T17:35:21.2830002Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.2830353Z env:
+2026-10-22T17:35:21.2830555Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.2830816Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:21.2831041Z   CARGO_TERM_COLOR: always
+2026-10-22T17:35:21.2831262Z   toolchain: stable
+2026-10-22T17:35:21.2831466Z ##[endgroup]
+2026-10-22T17:35:21.3190436Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=41]
+2026-10-22T17:35:21.3195947Z ##[start-action display=Work around spurious network errors in curl 8.0;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_9]
+2026-10-22T17:35:21.3216426Z ##[group]Run # https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation
+2026-10-22T17:35:21.3217210Z # https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation
+2026-10-22T17:35:21.3217884Z if rustc +"$toolchain" --version --verbose | grep -q '^release: 1\.7[01]\.'; then
+2026-10-22T17:35:21.3218375Z   echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV
+2026-10-22T17:35:21.3218695Z fi
+2026-10-22T17:35:21.3253748Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.3254099Z env:
+2026-10-22T17:35:21.3254306Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.3254573Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:21.3254797Z   CARGO_TERM_COLOR: always
+2026-10-22T17:35:21.3255024Z   toolchain: stable
+2026-10-22T17:35:21.3255226Z ##[endgroup]
+2026-10-22T17:35:21.3468250Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=27]
+2026-10-22T17:35:21.3474852Z ##[start-action display=rustc +stable --version --verbose;id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_10]
+2026-10-22T17:35:21.3494192Z ##[group]Run rustc +"$toolchain" --version --verbose
+2026-10-22T17:35:21.3494566Z rustc +"$toolchain" --version --verbose
+2026-10-22T17:35:21.3528398Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.3528752Z env:
+2026-10-22T17:35:21.3528957Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.3529222Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:21.3529454Z   CARGO_TERM_COLOR: always
+2026-10-22T17:35:21.3529676Z   toolchain: stable
+2026-10-22T17:35:21.3529876Z ##[endgroup]
+2026-10-22T17:35:21.3708233Z rustc 1.99.1 (58cf8f9c3 2026-10-13)
+2026-10-22T17:35:21.3708846Z binary: rustc
+2026-10-22T17:35:21.3709348Z commit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-10-22T17:35:21.3709981Z commit-date: 2026-10-13
+2026-10-22T17:35:21.3710475Z host: x86_64-unknown-linux-gnu
+2026-10-22T17:35:21.3710961Z release: 1.99.1
+2026-10-22T17:35:21.3711375Z LLVM version: 23.1.1
+2026-10-22T17:35:21.3734125Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=25]
+2026-10-22T17:35:21.3768487Z ##[end-action id=__model-checking_kani-github-action.__dtolnay_rust-toolchain;outcome=success;conclusion=success;duration_ms=652]
+2026-10-22T17:35:21.3770790Z ##[start-action display=Install Kani;id=__model-checking_kani-github-action.__run]
+2026-10-22T17:35:21.3790941Z ##[group]Run /home/runner/work/_actions/model-checking/kani-github-action/v1/src/install-kani.sh 0.68.0
+2026-10-22T17:35:21.3791980Z /home/runner/work/_actions/model-checking/kani-github-action/v1/src/install-kani.sh 0.68.0
+2026-10-22T17:35:21.3826135Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:21.3826492Z env:
+2026-10-22T17:35:21.3826699Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:21.3826986Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:21.3827211Z   CARGO_TERM_COLOR: always
+2026-10-22T17:35:21.3827436Z ##[endgroup]
+2026-10-22T17:35:21.8796329Z     Updating crates.io index
+2026-10-22T17:35:22.0241728Z  Downloading crates ...
+2026-10-22T17:35:22.1695867Z   Downloaded kani-verifier v0.68.0
+2026-10-22T17:35:22.2612311Z   Installing kani-verifier v0.68.0
+2026-10-22T17:35:22.2689182Z     Updating crates.io index
+2026-10-22T17:35:22.5809374Z     Updating crates.io index
+2026-10-22T17:35:22.6072252Z  Downloading crates ...
+2026-10-22T17:35:22.6201203Z   Downloaded anyhow v1.0.104
+2026-10-22T17:35:22.6292298Z   Downloaded cfg-if v1.0.4
+2026-10-22T17:35:22.6306464Z   Downloaded home v0.5.12
+2026-10-22T17:35:22.6316980Z   Downloaded cfg_aliases v0.2.2
+2026-10-22T17:35:22.6327518Z   Downloaded log v0.4.34
+2026-10-22T17:35:22.6356273Z   Downloaded bitflags v2.13.2
+2026-10-22T17:35:22.6406392Z   Downloaded os_info v3.15.0
+2026-10-22T17:35:22.6441457Z   Downloaded nix v0.31.3
+2026-10-22T17:35:22.6569028Z   Downloaded libc v0.2.189
+2026-10-22T17:35:22.7590406Z    Compiling libc v0.2.189
+2026-10-22T17:35:22.7591501Z    Compiling cfg_aliases v0.2.2
+2026-10-22T17:35:22.7592311Z    Compiling cfg-if v1.0.4
+2026-10-22T17:35:22.7594792Z    Compiling bitflags v2.13.2
+2026-10-22T17:35:24.1834340Z    Compiling anyhow v1.0.104
+2026-10-22T17:35:24.1834878Z    Compiling nix v0.31.3
+2026-10-22T17:35:25.6047087Z    Compiling kani-verifier v0.68.0
+2026-10-22T17:35:26.9454899Z    Compiling log v0.4.34
+2026-10-22T17:35:26.9545215Z    Compiling home v0.5.12
+2026-10-22T17:35:28.5159233Z    Compiling os_info v3.15.0
+2026-10-22T17:35:29.4883342Z     Finished `release` profile [optimized] target(s) in 7.85s
+2026-10-22T17:35:29.4904165Z   Installing /home/runner/.cargo/bin/cargo-kani
+2026-10-22T17:35:29.4904945Z   Installing /home/runner/.cargo/bin/kani
+2026-10-22T17:35:29.4907883Z    Installed package `kani-verifier v0.68.0` (executables `cargo-kani`, `kani`)
+2026-10-22T17:35:29.5050270Z Installed Kani 0.68.0 successfully
+2026-10-22T17:35:29.5517990Z [0/5] Running Kani first-time setup...
+2026-10-22T17:35:29.5518684Z [1/5] Ensuring the existence of: /home/runner/.kani/kani-0.68.0
+2026-10-22T17:35:29.5519550Z [2/5] Downloading Kani release bundle: kani-0.68.0-x86_64-unknown-linux-gnu.tar.gz
+2026-10-22T17:35:33.3997363Z [3/5] Installing rust toolchain version: nightly-2026-08-21-x86_64-unknown-linux-gnu
+2026-10-22T17:35:33.4057252Z info: syncing channel updates for nightly-2026-08-21-x86_64-unknown-linux-gnu
+2026-10-22T17:35:33.5029837Z info: latest update on 2026-08-21 for version 1.100.0-nightly (8925ea358 2026-08-20)
+2026-10-22T17:35:33.5030985Z info: downloading 3 components
+2026-10-22T17:35:41.6352085Z 
+2026-10-22T17:35:41.6470877Z   nightly-2026-08-21-x86_64-unknown-linux-gnu installed - rustc 1.100.0-nightly (8925ea358 2026-08-20)
+2026-10-22T17:35:41.6471743Z 
+2026-10-22T17:35:41.6645021Z [5/5] Successfully completed Kani first-time setup.
+2026-10-22T17:35:41.6730533Z ##[end-action id=__model-checking_kani-github-action.__run;outcome=success;conclusion=success;duration_ms=20295]
+2026-10-22T17:35:41.6735429Z ##[start-action display=Run Kani;id=__model-checking_kani-github-action.__run_2]
+2026-10-22T17:35:41.6775832Z ##[group]Run cd .;
+2026-10-22T17:35:41.6776113Z cd .;
+2026-10-22T17:35:41.6776526Z cargo kani --lib --no-default-features --jobs 1 --output-format terse
+2026-10-22T17:35:41.6821556Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-22T17:35:41.6821977Z env:
+2026-10-22T17:35:41.6822176Z   CARGO_HOME: /home/runner/.cargo
+2026-10-22T17:35:41.6822441Z   CARGO_INCREMENTAL: 0
+2026-10-22T17:35:41.6822681Z   CARGO_TERM_COLOR: always
+2026-10-22T17:35:41.6822908Z ##[endgroup]
+2026-10-22T17:35:41.8666808Z Kani Rust Verifier 0.68.0 (cargo plugin)
+2026-10-22T17:35:41.8691520Z CBMC 6.11.0
+2026-10-22T17:35:43.1525822Z    Compiling proc-macro2 v1.0.107
+2026-10-22T17:35:43.1526789Z    Compiling quote v1.0.47
+2026-10-22T17:35:43.1527901Z    Compiling unicode-ident v1.0.24
+2026-10-22T17:35:43.1528659Z    Compiling libc v0.2.189
+2026-10-22T17:35:43.2247035Z    Compiling pin-project-lite v0.2.17
+2026-10-22T17:35:43.2642423Z warning: use of an unstable feature
+2026-10-22T17:35:43.2674668Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.2695644Z   |
+2026-10-22T17:35:43.2745903Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.2790599Z    Compiling bytes v1.11.1
+2026-10-22T17:35:43.2824613Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.2825388Z   |
+2026-10-22T17:35:43.2826186Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.2855948Z 
+2026-10-22T17:35:43.3882624Z    Compiling itoa v1.0.18
+2026-10-22T17:35:43.4793429Z warning: use of an unstable feature
+2026-10-22T17:35:43.4815065Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.4815835Z   |
+2026-10-22T17:35:43.4816324Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.4816920Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.4817484Z   |
+2026-10-22T17:35:43.4818182Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.4818881Z 
+2026-10-22T17:35:43.5069552Z    Compiling futures-core v0.3.34
+2026-10-22T17:35:43.5614299Z warning: use of an unstable feature
+2026-10-22T17:35:43.5614860Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.5643787Z   |
+2026-10-22T17:35:43.5673785Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.5703583Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.5704005Z   |
+2026-10-22T17:35:43.5704546Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.5705159Z 
+2026-10-22T17:35:43.5824352Z    Compiling once_cell v1.21.4
+2026-10-22T17:35:43.6998295Z warning: use of an unstable feature
+2026-10-22T17:35:43.7023621Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.7033719Z   |
+2026-10-22T17:35:43.7063656Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.7083566Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.7113553Z   |
+2026-10-22T17:35:43.7133740Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.7163323Z 
+2026-10-22T17:35:43.7314110Z    Compiling fnv v1.0.7
+2026-10-22T17:35:43.7703939Z warning: use of an unstable feature
+2026-10-22T17:35:43.7733905Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.7734355Z   |
+2026-10-22T17:35:43.7734684Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.7735091Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.7735440Z   |
+2026-10-22T17:35:43.7735753Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.7736100Z 
+2026-10-22T17:35:43.7736195Z warning: use of an unstable feature
+2026-10-22T17:35:43.7736475Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.7736702Z   |
+2026-10-22T17:35:43.7737139Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.7737378Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.7737585Z   |
+2026-10-22T17:35:43.7737872Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.7738173Z 
+2026-10-22T17:35:43.7825667Z    Compiling serde_core v1.0.229
+2026-10-22T17:35:43.8654480Z    Compiling utf8parse v0.2.2
+2026-10-22T17:35:43.9164471Z warning: use of an unstable feature
+2026-10-22T17:35:43.9165518Z  --> <crate attribute>:1:12
+2026-10-22T17:35:43.9166159Z   |
+2026-10-22T17:35:43.9166687Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:43.9167326Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:43.9167921Z   |
+2026-10-22T17:35:43.9168642Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:43.9169437Z 
+2026-10-22T17:35:44.1224409Z    Compiling anstyle-parse v1.0.0
+2026-10-22T17:35:44.2184310Z warning: use of an unstable feature
+2026-10-22T17:35:44.2243840Z  --> <crate attribute>:1:12
+2026-10-22T17:35:44.2303670Z   |
+2026-10-22T17:35:44.2363667Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:44.2385759Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:44.2423633Z   |
+2026-10-22T17:35:44.2444297Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:44.2484260Z    Compiling syn v2.0.119
+2026-10-22T17:35:44.2484634Z 
+2026-10-22T17:35:44.3051112Z    Compiling syn v3.0.5
+2026-10-22T17:35:44.3197497Z    Compiling http v0.2.12
+2026-10-22T17:35:44.5814025Z warning: use of an unstable feature
+2026-10-22T17:35:44.5843627Z  --> <crate attribute>:1:12
+2026-10-22T17:35:44.5873502Z   |
+2026-10-22T17:35:44.5903505Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:44.5933502Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:44.5943537Z   |
+2026-10-22T17:35:44.5944043Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:44.5944524Z 
+2026-10-22T17:35:44.7944641Z    Compiling errno v0.3.14
+2026-10-22T17:35:44.8574199Z warning: use of an unstable feature
+2026-10-22T17:35:44.8604338Z  --> <crate attribute>:1:12
+2026-10-22T17:35:44.8633575Z   |
+2026-10-22T17:35:44.8633942Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:44.8634389Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:44.8634798Z   |
+2026-10-22T17:35:44.8635332Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:44.8635877Z 
+2026-10-22T17:35:44.8784451Z    Compiling signal-hook-registry v1.4.8
+2026-10-22T17:35:44.9804380Z warning: use of an unstable feature
+2026-10-22T17:35:44.9833788Z  --> <crate attribute>:1:12
+2026-10-22T17:35:44.9863639Z   |
+2026-10-22T17:35:44.9893622Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:44.9923607Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:44.9953528Z   |
+2026-10-22T17:35:44.9983873Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.0013463Z 
+2026-10-22T17:35:45.0043647Z warning: use of an unstable feature
+2026-10-22T17:35:45.0073579Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.0103525Z   |
+2026-10-22T17:35:45.0133608Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.0163593Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.0193635Z   |
+2026-10-22T17:35:45.0223937Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.0253408Z 
+2026-10-22T17:35:45.0340052Z    Compiling socket2 v0.6.3
+2026-10-22T17:35:45.1635826Z    Compiling mio v1.2.0
+2026-10-22T17:35:45.3124029Z warning: use of an unstable feature
+2026-10-22T17:35:45.3183723Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.3193592Z   |
+2026-10-22T17:35:45.3193951Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.3194441Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.3194829Z   |
+2026-10-22T17:35:45.3195374Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.3195921Z 
+2026-10-22T17:35:45.3898088Z    Compiling tracing-core v0.1.36
+2026-10-22T17:35:45.4484254Z warning: use of an unstable feature
+2026-10-22T17:35:45.4513612Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.4543550Z   |
+2026-10-22T17:35:45.4573648Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.4603584Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.4633543Z   |
+2026-10-22T17:35:45.4663820Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.4693387Z 
+2026-10-22T17:35:45.5255274Z    Compiling zerocopy v0.8.57
+2026-10-22T17:35:45.7034077Z warning: use of an unstable feature
+2026-10-22T17:35:45.7063671Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.7093564Z   |
+2026-10-22T17:35:45.7103715Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.7123543Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.7153542Z   |
+2026-10-22T17:35:45.7163945Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.7213392Z 
+2026-10-22T17:35:45.7994411Z    Compiling cfg-if v1.0.4
+2026-10-22T17:35:45.8264249Z warning: use of an unstable feature
+2026-10-22T17:35:45.8293836Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.8323976Z    Compiling is_terminal_polyfill v1.70.2
+2026-10-22T17:35:45.8324540Z   |
+2026-10-22T17:35:45.8353681Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.8383589Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.8404073Z   |
+2026-10-22T17:35:45.8414793Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.8437526Z 
+2026-10-22T17:35:45.8664318Z warning: use of an unstable feature
+2026-10-22T17:35:45.8693824Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.8694676Z   |
+2026-10-22T17:35:45.8723976Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.8751336Z    Compiling httparse v1.10.1
+2026-10-22T17:35:45.8753813Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.8783822Z   |
+2026-10-22T17:35:45.8784869Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.8842053Z 
+2026-10-22T17:35:45.8894563Z    Compiling colorchoice v1.0.5
+2026-10-22T17:35:45.9423716Z warning: use of an unstable feature
+2026-10-22T17:35:45.9424892Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.9434079Z   |
+2026-10-22T17:35:45.9454019Z    Compiling anstyle-query v1.1.5
+2026-10-22T17:35:45.9454538Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.9483565Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.9483983Z   |
+2026-10-22T17:35:45.9484509Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.9485067Z 
+2026-10-22T17:35:45.9814097Z warning: use of an unstable feature
+2026-10-22T17:35:45.9814662Z  --> <crate attribute>:1:12
+2026-10-22T17:35:45.9815104Z   |
+2026-10-22T17:35:45.9815440Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:45.9815852Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:45.9816255Z   |
+2026-10-22T17:35:45.9816793Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:45.9817340Z 
+2026-10-22T17:35:45.9964318Z    Compiling futures-sink v0.3.32
+2026-10-22T17:35:46.0434202Z warning: use of an unstable feature
+2026-10-22T17:35:46.0455000Z  --> <crate attribute>:1:12
+2026-10-22T17:35:46.0483551Z   |
+2026-10-22T17:35:46.0493767Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:46.0513904Z    Compiling hashbrown v0.16.1
+2026-10-22T17:35:46.0514434Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:46.0543555Z   |
+2026-10-22T17:35:46.0573910Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:46.0583543Z 
+2026-10-22T17:35:46.1551084Z    Compiling zmij v1.0.23
+2026-10-22T17:35:46.3681094Z    Compiling rustix v1.1.4
+2026-10-22T17:35:46.6024149Z warning: use of an unstable feature
+2026-10-22T17:35:46.6043688Z  --> <crate attribute>:1:12
+2026-10-22T17:35:46.6073564Z   |
+2026-10-22T17:35:46.6073929Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:46.6113993Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:46.6133544Z   |
+2026-10-22T17:35:46.6163830Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:46.6203393Z 
+2026-10-22T17:35:46.6841347Z    Compiling equivalent v1.0.2
+2026-10-22T17:35:46.6993295Z    Compiling getrandom v0.4.3
+2026-10-22T17:35:46.7154214Z warning: use of an unstable feature
+2026-10-22T17:35:46.7173777Z  --> <crate attribute>:1:12
+2026-10-22T17:35:46.7203862Z   |
+2026-10-22T17:35:46.7204777Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:46.7208308Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:46.7208921Z   |
+2026-10-22T17:35:46.7209669Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:46.7210401Z 
+2026-10-22T17:35:46.7257100Z    Compiling futures-task v0.3.34
+2026-10-22T17:35:46.7787090Z warning: use of an unstable feature
+2026-10-22T17:35:46.7811794Z  --> <crate attribute>:1:12
+2026-10-22T17:35:46.7853759Z   |
+2026-10-22T17:35:46.7883843Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:46.7943777Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:46.7973599Z   |
+2026-10-22T17:35:46.8025007Z    Compiling anstyle v1.0.14
+2026-10-22T17:35:46.8025812Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:46.8073617Z 
+2026-10-22T17:35:46.8894547Z    Compiling futures-util v0.3.34
+2026-10-22T17:35:46.9324161Z warning: use of an unstable feature
+2026-10-22T17:35:46.9353774Z  --> <crate attribute>:1:12
+2026-10-22T17:35:46.9383637Z   |
+2026-10-22T17:35:46.9413634Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:46.9443618Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:46.9473537Z   |
+2026-10-22T17:35:46.9503832Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:46.9533373Z 
+2026-10-22T17:35:46.9674350Z    Compiling anstream v1.0.0
+2026-10-22T17:35:47.1184233Z warning: use of an unstable feature
+2026-10-22T17:35:47.1213729Z  --> <crate attribute>:1:12
+2026-10-22T17:35:47.1214168Z   |
+2026-10-22T17:35:47.1214485Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:47.1214890Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:47.1215257Z   |
+2026-10-22T17:35:47.1215768Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:47.1216301Z 
+2026-10-22T17:35:47.1683962Z    Compiling indexmap v2.13.0
+2026-10-22T17:35:47.8413999Z warning: use of an unstable feature
+2026-10-22T17:35:47.8443694Z  --> <crate attribute>:1:12
+2026-10-22T17:35:47.8473569Z   |
+2026-10-22T17:35:47.8503565Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:47.8533601Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:47.8563549Z   |
+2026-10-22T17:35:47.8593809Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:47.8623389Z 
+2026-10-22T17:35:48.0835615Z    Compiling tracing v0.1.44
+2026-10-22T17:35:48.1884160Z warning: use of an unstable feature
+2026-10-22T17:35:48.1894157Z  --> <crate attribute>:1:12
+2026-10-22T17:35:48.1903815Z   |
+2026-10-22T17:35:48.1904448Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:48.1905125Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:48.1905687Z   |
+2026-10-22T17:35:48.1906355Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:48.1907047Z 
+2026-10-22T17:35:48.2264075Z warning: use of an unstable feature
+2026-10-22T17:35:48.2293746Z  --> <crate attribute>:1:12
+2026-10-22T17:35:48.2323717Z   |
+2026-10-22T17:35:48.2353624Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:48.2383585Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:48.2411789Z   |
+2026-10-22T17:35:48.2412427Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:48.2443422Z 
+2026-10-22T17:35:48.3482380Z    Compiling heck v0.5.0
+2026-10-22T17:35:48.5607145Z    Compiling strsim v0.11.1
+2026-10-22T17:35:48.6664081Z warning: use of an unstable feature
+2026-10-22T17:35:48.6694301Z  --> <crate attribute>:1:12
+2026-10-22T17:35:48.6723572Z   |
+2026-10-22T17:35:48.6753600Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:48.6783553Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:48.6813524Z   |
+2026-10-22T17:35:48.6843719Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:48.6873349Z 
+2026-10-22T17:35:48.7414299Z    Compiling clap_lex v1.1.0
+2026-10-22T17:35:48.8294187Z warning: use of an unstable feature
+2026-10-22T17:35:48.8323701Z  --> <crate attribute>:1:12
+2026-10-22T17:35:48.8343806Z   |
+2026-10-22T17:35:48.8344377Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:48.8344942Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:48.8345408Z   |
+2026-10-22T17:35:48.8346098Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:48.8346713Z 
+2026-10-22T17:35:48.8634505Z    Compiling serde v1.0.229
+2026-10-22T17:35:49.1214639Z    Compiling serde_json v1.0.151
+2026-10-22T17:35:49.2394287Z    Compiling linux-raw-sys v0.12.1
+2026-10-22T17:35:49.4887677Z    Compiling tokio-macros v2.6.1
+2026-10-22T17:35:49.5055958Z    Compiling zerocopy-derive v0.8.57
+2026-10-22T17:35:49.5714294Z warning: use of an unstable feature
+2026-10-22T17:35:49.5743672Z  --> <crate attribute>:1:12
+2026-10-22T17:35:49.5773600Z   |
+2026-10-22T17:35:49.5803708Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:49.5833663Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:49.5863423Z   |
+2026-10-22T17:35:49.5893693Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:49.5923286Z 
+2026-10-22T17:35:49.6555503Z    Compiling bitflags v2.13.2
+2026-10-22T17:35:49.7712369Z warning: use of an unstable feature
+2026-10-22T17:35:49.7753811Z  --> <crate attribute>:1:12
+2026-10-22T17:35:49.7773567Z   |
+2026-10-22T17:35:49.7803738Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:49.7833541Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:49.7863553Z   |
+2026-10-22T17:35:49.7893876Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:49.7923450Z 
+2026-10-22T17:35:49.8111375Z    Compiling anyhow v1.0.104
+2026-10-22T17:35:50.0750493Z    Compiling signal-hook v0.3.18
+2026-10-22T17:35:50.1868824Z    Compiling slab v0.4.12
+2026-10-22T17:35:50.2983864Z warning: use of an unstable feature
+2026-10-22T17:35:50.3043874Z  --> <crate attribute>:1:12
+2026-10-22T17:35:50.3063543Z   |
+2026-10-22T17:35:50.3103450Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:50.3133686Z    Compiling try-lock v0.2.5
+2026-10-22T17:35:50.3134162Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:50.3163569Z   |
+2026-10-22T17:35:50.3164396Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:50.3193424Z 
+2026-10-22T17:35:50.3524514Z    Compiling tokio v1.50.0
+2026-10-22T17:35:50.3574070Z warning: use of an unstable feature
+2026-10-22T17:35:50.3574841Z  --> <crate attribute>:1:12
+2026-10-22T17:35:50.3603722Z   |
+2026-10-22T17:35:50.3604109Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:50.3633767Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:50.3654145Z    Compiling want v0.3.1
+2026-10-22T17:35:50.3663625Z   |
+2026-10-22T17:35:50.3694053Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:50.3723762Z 
+2026-10-22T17:35:50.4264127Z warning: use of an unstable feature
+2026-10-22T17:35:50.4323868Z  --> <crate attribute>:1:12
+2026-10-22T17:35:50.4353625Z   |
+2026-10-22T17:35:50.4383647Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:50.4413604Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:50.4443719Z   |
+2026-10-22T17:35:50.4453943Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:50.4483527Z 
+2026-10-22T17:35:50.7664072Z warning: use of an unstable feature
+2026-10-22T17:35:50.7693711Z  --> <crate attribute>:1:12
+2026-10-22T17:35:50.7704198Z   |
+2026-10-22T17:35:50.7753486Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:50.7763637Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:50.7813429Z   |
+2026-10-22T17:35:50.7843702Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:50.7853450Z 
+2026-10-22T17:35:51.0989529Z    Compiling serde_derive v1.0.229
+2026-10-22T17:35:52.3654122Z warning: use of an unstable feature
+2026-10-22T17:35:52.3713792Z  --> <crate attribute>:1:12
+2026-10-22T17:35:52.3743502Z   |
+2026-10-22T17:35:52.3773538Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:52.3803482Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:52.3833463Z   |
+2026-10-22T17:35:52.3863727Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:52.3893312Z 
+2026-10-22T17:35:52.6644344Z    Compiling clap_derive v4.6.4
+2026-10-22T17:35:54.3394035Z warning: use of an unstable feature
+2026-10-22T17:35:54.3423721Z  --> <crate attribute>:1:12
+2026-10-22T17:35:54.3424098Z   |
+2026-10-22T17:35:54.3424390Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:54.3424733Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:54.3425041Z   |
+2026-10-22T17:35:54.3425487Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:54.3425999Z 
+2026-10-22T17:35:55.0256923Z    Compiling clap_builder v4.6.6
+2026-10-22T17:35:55.2584535Z    Compiling tokio-util v0.7.18
+2026-10-22T17:35:55.6184175Z warning: use of an unstable feature
+2026-10-22T17:35:55.6243857Z  --> <crate attribute>:1:12
+2026-10-22T17:35:55.6244285Z   |
+2026-10-22T17:35:55.6244564Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:55.6244953Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:55.6245673Z   |
+2026-10-22T17:35:55.6246140Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:55.6246632Z 
+2026-10-22T17:35:55.7374337Z warning: use of an unstable feature
+2026-10-22T17:35:55.7404038Z  --> <crate attribute>:1:12
+2026-10-22T17:35:55.7404564Z   |
+2026-10-22T17:35:55.7428618Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:55.7453692Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:55.7483671Z   |
+2026-10-22T17:35:55.7513811Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:55.7543392Z 
+2026-10-22T17:35:55.8424288Z    Compiling h2 v0.3.27
+2026-10-22T17:35:55.9254290Z warning: use of an unstable feature
+2026-10-22T17:35:55.9273722Z  --> <crate attribute>:1:12
+2026-10-22T17:35:55.9303578Z   |
+2026-10-22T17:35:55.9313689Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:55.9333549Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:55.9363530Z   |
+2026-10-22T17:35:55.9373909Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:55.9393531Z 
+2026-10-22T17:35:56.0564245Z warning: use of an unstable feature
+2026-10-22T17:35:56.0564833Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.0593916Z   |
+2026-10-22T17:35:56.0623762Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.0644535Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.0653648Z   |
+2026-10-22T17:35:56.0683863Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.0713663Z 
+2026-10-22T17:35:56.0898202Z    Compiling http-body v0.4.6
+2026-10-22T17:35:56.2520870Z warning: use of an unstable feature
+2026-10-22T17:35:56.2523594Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.2553545Z   |
+2026-10-22T17:35:56.2583576Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.2603778Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.2633621Z   |
+2026-10-22T17:35:56.2643674Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.2663454Z 
+2026-10-22T17:35:56.2838907Z    Compiling socket2 v0.5.10
+2026-10-22T17:35:56.4984372Z warning: use of an unstable feature
+2026-10-22T17:35:56.5003680Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.5013701Z   |
+2026-10-22T17:35:56.5034009Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.5063786Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.5079569Z   |
+2026-10-22T17:35:56.5123821Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.5124637Z 
+2026-10-22T17:35:56.5334192Z warning: use of an unstable feature
+2026-10-22T17:35:56.5334841Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.5393712Z   |
+2026-10-22T17:35:56.5453727Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.5454220Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.5454612Z   |
+2026-10-22T17:35:56.5455158Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.5455703Z 
+2026-10-22T17:35:56.6001514Z    Compiling futures-channel v0.3.32
+2026-10-22T17:35:56.6824085Z warning: use of an unstable feature
+2026-10-22T17:35:56.6853839Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.6883609Z   |
+2026-10-22T17:35:56.6883954Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.6884403Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.6884785Z   |
+2026-10-22T17:35:56.6885298Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.6885860Z 
+2026-10-22T17:35:56.7454058Z warning: use of an unstable feature
+2026-10-22T17:35:56.7483724Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.7513582Z   |
+2026-10-22T17:35:56.7513929Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.7514368Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.7514761Z   |
+2026-10-22T17:35:56.7515279Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.7515836Z 
+2026-10-22T17:35:56.7784365Z    Compiling tower-service v0.3.3
+2026-10-22T17:35:56.8177203Z warning: use of an unstable feature
+2026-10-22T17:35:56.8194967Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.8233998Z    Compiling fastrand v2.5.0
+2026-10-22T17:35:56.8234510Z   |
+2026-10-22T17:35:56.8235147Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.8263764Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.8293680Z   |
+2026-10-22T17:35:56.8294456Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.8323558Z 
+2026-10-22T17:35:56.9452223Z warning: use of an unstable feature
+2026-10-22T17:35:56.9453558Z  --> <crate attribute>:1:12
+2026-10-22T17:35:56.9483705Z   |
+2026-10-22T17:35:56.9513741Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:56.9543578Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:56.9544010Z   |
+2026-10-22T17:35:56.9544538Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:56.9545095Z 
+2026-10-22T17:35:56.9774570Z    Compiling powerfmt v0.2.0
+2026-10-22T17:35:57.0474609Z    Compiling time-core v0.1.9
+2026-10-22T17:35:57.0721437Z warning: use of an unstable feature
+2026-10-22T17:35:57.0733705Z  --> <crate attribute>:1:12
+2026-10-22T17:35:57.0753541Z   |
+2026-10-22T17:35:57.0793820Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:57.0813634Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:57.0823702Z   |
+2026-10-22T17:35:57.0853921Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:57.0873430Z 
+2026-10-22T17:35:57.1064754Z    Compiling mlxl3-native v1.4.3 (/home/runner/work/mlxl3/mlxl3)
+2026-10-22T17:35:57.2084211Z warning: use of an unstable feature
+2026-10-22T17:35:57.2113670Z  --> <crate attribute>:1:12
+2026-10-22T17:35:57.2143552Z   |
+2026-10-22T17:35:57.2173609Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:57.2203560Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:57.2213738Z   |
+2026-10-22T17:35:57.2253953Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:57.2277338Z 
+2026-10-22T17:35:57.2354218Z    Compiling num-conv v0.2.2
+2026-10-22T17:35:57.3454047Z warning: use of an unstable feature
+2026-10-22T17:35:57.3463667Z  --> <crate attribute>:1:12
+2026-10-22T17:35:57.3464099Z   |
+2026-10-22T17:35:57.3464744Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:57.3465165Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:57.3465533Z   |
+2026-10-22T17:35:57.3466045Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:57.3466586Z 
+2026-10-22T17:35:57.3644529Z    Compiling deranged v0.5.8
+2026-10-22T17:35:57.4139339Z    Compiling httpdate v1.0.3
+2026-10-22T17:35:57.4183834Z    Compiling memchr v2.8.3
+2026-10-22T17:35:57.4984261Z warning: use of an unstable feature
+2026-10-22T17:35:57.5013788Z  --> <crate attribute>:1:12
+2026-10-22T17:35:57.5014239Z   |
+2026-10-22T17:35:57.5014572Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:57.5015014Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:57.5015433Z   |
+2026-10-22T17:35:57.5015958Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:57.5016524Z 
+2026-10-22T17:35:57.8624039Z warning: use of an unstable feature
+2026-10-22T17:35:57.8633973Z  --> <crate attribute>:1:12
+2026-10-22T17:35:57.8683688Z   |
+2026-10-22T17:35:57.8713655Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:57.8743877Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:57.8744340Z   |
+2026-10-22T17:35:57.8773839Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:57.8803422Z 
+2026-10-22T17:35:58.2824560Z warning: use of an unstable feature
+2026-10-22T17:35:58.2853818Z  --> <crate attribute>:1:12
+2026-10-22T17:35:58.2883562Z   |
+2026-10-22T17:35:58.2883952Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:58.2913334Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:58.2943542Z   |
+2026-10-22T17:35:58.2944122Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:58.2945188Z 
+2026-10-22T17:35:58.4354564Z warning: use of an unstable feature
+2026-10-22T17:35:58.4383624Z  --> <crate attribute>:1:12
+2026-10-22T17:35:58.4384339Z   |
+2026-10-22T17:35:58.4413678Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:58.4433539Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:58.4443675Z   |
+2026-10-22T17:35:58.4473880Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:58.4503463Z 
+2026-10-22T17:35:58.5784029Z    Compiling time v0.3.55
+2026-10-22T17:35:58.7054624Z    Compiling hyper v0.14.32
+2026-10-22T17:35:58.7264091Z warning: use of an unstable feature
+2026-10-22T17:35:58.7290596Z  --> <crate attribute>:1:12
+2026-10-22T17:35:58.7291247Z   |
+2026-10-22T17:35:58.7294712Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:58.7295633Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:58.7296155Z   |
+2026-10-22T17:35:58.7296799Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:58.7297522Z 
+2026-10-22T17:35:58.7394694Z    Compiling clap v4.6.6
+2026-10-22T17:35:58.7694440Z warning: use of an unstable feature
+2026-10-22T17:35:58.7703863Z  --> <crate attribute>:1:12
+2026-10-22T17:35:58.7733686Z   |
+2026-10-22T17:35:58.7764077Z    Compiling tempfile v3.27.0
+2026-10-22T17:35:58.7764617Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:58.7771721Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:58.7813695Z   |
+2026-10-22T17:35:58.7844095Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:58.7864115Z 
+2026-10-22T17:35:58.9084689Z    Compiling half v2.7.1
+2026-10-22T17:35:58.9394048Z warning: use of an unstable feature
+2026-10-22T17:35:58.9423865Z  --> <crate attribute>:1:12
+2026-10-22T17:35:58.9443666Z   |
+2026-10-22T17:35:58.9473664Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:58.9503646Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:58.9513648Z   |
+2026-10-22T17:35:58.9533953Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:58.9563517Z 
+2026-10-22T17:35:59.1754392Z warning: use of an unstable feature
+2026-10-22T17:35:59.1783863Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.1813738Z   |
+2026-10-22T17:35:59.1843957Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.1844290Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.1844524Z   |
+2026-10-22T17:35:59.1844854Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.1845186Z 
+2026-10-22T17:35:59.4124515Z warning: use of an unstable feature
+2026-10-22T17:35:59.4154164Z    --> /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/anyhow-1.0.104/src/lib.rs:210:50
+2026-10-22T17:35:59.4183551Z     |
+2026-10-22T17:35:59.4213833Z 210 | #![cfg_attr(error_generic_member_access, feature(error_generic_member_access))]
+2026-10-22T17:35:59.4243783Z     |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-22T17:35:59.4263698Z     |
+2026-10-22T17:35:59.4288186Z     = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.4323356Z 
+2026-10-22T17:35:59.4343884Z warning: use of an unstable feature
+2026-10-22T17:35:59.4383622Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.4403664Z   |
+2026-10-22T17:35:59.4433682Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.4443558Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.4463538Z 
+2026-10-22T17:35:59.5314098Z warning: use of an unstable feature
+2026-10-22T17:35:59.5323737Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.5353681Z   |
+2026-10-22T17:35:59.5354247Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.5383707Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.5413624Z   |
+2026-10-22T17:35:59.5434022Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.5443539Z 
+2026-10-22T17:35:59.6114484Z    Compiling fs2 v0.4.3
+2026-10-22T17:35:59.6224155Z warning: use of an unstable feature
+2026-10-22T17:35:59.6263860Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.6283970Z   |
+2026-10-22T17:35:59.6313874Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.6353834Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.6373598Z   |
+2026-10-22T17:35:59.6374226Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.6374787Z 
+2026-10-22T17:35:59.6698651Z warning: use of an unstable feature
+2026-10-22T17:35:59.6725076Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.6755534Z   |
+2026-10-22T17:35:59.6793887Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.6794369Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.6794738Z   |
+2026-10-22T17:35:59.6795245Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.6795803Z 
+2026-10-22T17:35:59.9727755Z warning: use of an unstable feature
+2026-10-22T17:35:59.9728339Z  --> <crate attribute>:1:12
+2026-10-22T17:35:59.9728762Z   |
+2026-10-22T17:35:59.9729102Z 1 | #![feature(register_tool)]
+2026-10-22T17:35:59.9729801Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:35:59.9730317Z   |
+2026-10-22T17:35:59.9731020Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:35:59.9731595Z 
+2026-10-22T17:36:00.7542270Z warning: use of an unstable feature
+2026-10-22T17:36:00.7542767Z  --> <crate attribute>:1:12
+2026-10-22T17:36:00.7543534Z   |
+2026-10-22T17:36:00.7543837Z 1 | #![feature(register_tool)]
+2026-10-22T17:36:00.7544211Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:36:00.7544568Z   |
+2026-10-22T17:36:00.7545053Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:36:00.7545553Z 
+2026-10-22T17:36:01.3822005Z warning: trailing semicolon in macro used in expression position
+2026-10-22T17:36:01.3822620Z    --> native/src/contracts.rs:381:17
+2026-10-22T17:36:01.3823428Z     |
+2026-10-22T17:36:01.3823776Z 381 |         None => assert!(!(2..=8).contains(&rows)),
+2026-10-22T17:36:01.3824227Z     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-22T17:36:01.3824628Z     |
+2026-10-22T17:36:01.3825322Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+2026-10-22T17:36:01.3826742Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+2026-10-22T17:36:01.3827759Z     = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+2026-10-22T17:36:01.3828889Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+2026-10-22T17:36:01.3829506Z 
+2026-10-22T17:36:01.3829757Z warning: trailing semicolon in macro used in expression position
+2026-10-22T17:36:01.3830284Z    --> native/src/contracts.rs:534:17
+2026-10-22T17:36:01.3830665Z     |
+2026-10-22T17:36:01.3830923Z 534 |         None => assert!(!(2..24).contains(&rows)),
+2026-10-22T17:36:01.3831296Z     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-22T17:36:01.3831616Z     |
+2026-10-22T17:36:01.3832199Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+2026-10-22T17:36:01.3833409Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+2026-10-22T17:36:01.3834270Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+2026-10-22T17:36:01.3834796Z 
+2026-10-22T17:36:01.3850689Z warning: trailing semicolon in macro used in expression position
+2026-10-22T17:36:01.3851131Z    --> native/src/memory_policy.rs:341:21
+2026-10-22T17:36:01.3851419Z     |
+2026-10-22T17:36:01.3851634Z 341 |             None => assert!(current > 3),
+2026-10-22T17:36:01.3851943Z     |                     ^^^^^^^^^^^^^^^^^^^^
+2026-10-22T17:36:01.3852206Z     |
+2026-10-22T17:36:01.3852727Z     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+2026-10-22T17:36:01.3854098Z     = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+2026-10-22T17:36:01.3854964Z     = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+2026-10-22T17:36:01.3855433Z 
+2026-10-22T17:36:02.2248393Z warning: function `missing_jobs` is never used
+2026-10-22T17:36:02.2249270Z  --> native/src/flash_cache_profile/profile53.rs:3:4
+2026-10-22T17:36:02.2250040Z   |
+2026-10-22T17:36:02.2250667Z 3 | fn missing_jobs(mapped: &[(usize, bool)]) -> Option<usize> {
+2026-10-22T17:36:02.2251505Z   |    ^^^^^^^^^^^^
+2026-10-22T17:36:02.2252034Z   |
+2026-10-22T17:36:02.2252607Z   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+2026-10-22T17:36:02.2253537Z 
+2026-10-22T17:36:02.2253768Z warning: constant `PRIOR` is never used
+2026-10-22T17:36:02.2254387Z  --> native/src/flash_draft_budget.rs:5:7
+2026-10-22T17:36:02.2254980Z   |
+2026-10-22T17:36:02.2255579Z 5 | const PRIOR: [f64; 8] = [0.7, 0., -0.35, -0.8, -0.75, -0.75, -0.85, -0.45];
+2026-10-22T17:36:02.2256381Z   |       ^^^^^
+2026-10-22T17:36:02.2256592Z 
+2026-10-22T17:36:02.2256811Z warning: struct `Label` is never constructed
+2026-10-22T17:36:02.2257361Z   --> native/src/flash_draft_budget.rs:52:8
+2026-10-22T17:36:02.2257765Z    |
+2026-10-22T17:36:02.2257982Z 52 | struct Label {
+2026-10-22T17:36:02.2258213Z    |        ^^^^^
+2026-10-22T17:36:02.2258344Z 
+2026-10-22T17:36:02.2258603Z warning: struct `VerifyBudget` is never constructed
+2026-10-22T17:36:02.2259234Z   --> native/src/flash_draft_budget.rs:58:19
+2026-10-22T17:36:02.2259730Z    |
+2026-10-22T17:36:02.2260044Z 58 | pub(crate) struct VerifyBudget {
+2026-10-22T17:36:02.2260353Z    |                   ^^^^^^^^^^^^
+2026-10-22T17:36:02.2260545Z 
+2026-10-22T17:36:02.2260660Z warning: function `logit` is never used
+2026-10-22T17:36:02.2261001Z   --> native/src/flash_draft_budget.rs:74:4
+2026-10-22T17:36:02.2261325Z    |
+2026-10-22T17:36:02.2261550Z 74 | fn logit(p: f64) -> f64 {
+2026-10-22T17:36:02.2261818Z    |    ^^^^^
+2026-10-22T17:36:02.2261942Z 
+2026-10-22T17:36:02.2262068Z warning: function `sigmoid` is never used
+2026-10-22T17:36:02.2262665Z   --> native/src/flash_draft_budget.rs:78:4
+2026-10-22T17:36:02.2262978Z    |
+2026-10-22T17:36:02.2263469Z 78 | fn sigmoid(z: f64) -> f64 {
+2026-10-22T17:36:02.2263745Z    |    ^^^^^^^
+2026-10-22T17:36:02.2263878Z 
+2026-10-22T17:36:02.2263990Z warning: function `seed` is never used
+2026-10-22T17:36:02.2264319Z   --> native/src/flash_draft_budget.rs:82:4
+2026-10-22T17:36:02.2264636Z    |
+2026-10-22T17:36:02.2264849Z 82 | fn seed(rows: f64) -> f64 {
+2026-10-22T17:36:02.2265120Z    |    ^^^^
+2026-10-22T17:36:02.2265241Z 
+2026-10-22T17:36:02.2265529Z warning: methods `line`, `costs`, `choose`, `observe`, `objective`, and `fit` are never used
+2026-10-22T17:36:02.2266065Z    --> native/src/flash_draft_budget.rs:131:8
+2026-10-22T17:36:02.2266390Z     |
+2026-10-22T17:36:02.2266620Z 130 | impl VerifyBudget {
+2026-10-22T17:36:02.2266931Z     | ----------------- methods in this implementation
+2026-10-22T17:36:02.2267276Z 131 |     fn line(&self) -> Option<(f64, f64)> {
+2026-10-22T17:36:02.2267545Z     |        ^^^^
+2026-10-22T17:36:02.2267740Z ...
+2026-10-22T17:36:02.2267922Z 144 |     fn costs(&self) -> [f64; 8] {
+2026-10-22T17:36:02.2268171Z     |        ^^^^^
+2026-10-22T17:36:02.2268353Z ...
+2026-10-22T17:36:02.2268625Z 150 |     pub(crate) fn choose(&self, confidence: &[f32]) -> Option<usize> {
+2026-10-22T17:36:02.2268991Z     |                   ^^^^^^
+2026-10-22T17:36:02.2269205Z ...
+2026-10-22T17:36:02.2269381Z 168 |     pub(crate) fn observe(
+2026-10-22T17:36:02.2269612Z     |                   ^^^^^^^
+2026-10-22T17:36:02.2269823Z ...
+2026-10-22T17:36:02.2270045Z 219 |     fn objective(&self, theta: &[f64; 8]) -> f64 {
+2026-10-22T17:36:02.2270354Z     |        ^^^^^^^^^
+2026-10-22T17:36:02.2270544Z ...
+2026-10-22T17:36:02.2270718Z 236 |     fn fit(&mut self) {
+2026-10-22T17:36:02.2271114Z     |        ^^^
+2026-10-22T17:36:02.2271225Z 
+2026-10-22T17:36:02.2271333Z warning: use of an unstable feature
+2026-10-22T17:36:02.2271601Z  --> <crate attribute>:1:12
+2026-10-22T17:36:02.2271826Z   |
+2026-10-22T17:36:02.2272010Z 1 | #![feature(register_tool)]
+2026-10-22T17:36:02.2272246Z   |            ^^^^^^^^^^^^^
+2026-10-22T17:36:02.2272454Z   |
+2026-10-22T17:36:02.2272749Z   = note: requested on the command line with `--force-warn unstable-features`
+2026-10-22T17:36:02.2273429Z 
+2026-10-22T17:36:10.6301330Z warning: Found the following unsupported constructs:
+2026-10-22T17:36:10.6301979Z              - caller_location (1)
+2026-10-22T17:36:10.6302400Z              - foreign function (1)
+2026-10-22T17:36:10.6302775Z          
+2026-10-22T17:36:10.6303633Z          Verification will fail if one or more of these constructs is reachable.
+2026-10-22T17:36:10.6304648Z          See https://model-checking.github.io/kani/rust-feature-support.html for more details.
+2026-10-22T17:36:10.6305220Z 
+2026-10-22T17:36:10.7026643Z     Finished `dev` profile [unoptimized + debuginfo] target(s) in 27.73s
+2026-10-22T17:36:10.7029943Z warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/home/runner/work/mlxl3/mlxl3)
+2026-10-22T17:36:10.7031490Z note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+2026-10-22T17:36:27.7347221Z Checking harness codec::verification::exl3_permutation_and_inverse_are_bijections...
+2026-10-22T17:38:09.3317405Z 
+2026-10-22T17:38:09.3318023Z VERIFICATION RESULT:
+2026-10-22T17:38:09.3318606Z  ** 0 of 192 failed (1 unreachable)
+2026-10-22T17:38:09.3319014Z 
+2026-10-22T17:38:09.3319353Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:09.3320284Z Verification Time: 101.59714s
+2026-10-22T17:38:09.3320611Z 
+2026-10-22T17:38:09.4505298Z Checking harness codec::verification::symbolic_unpack_indices_stay_inside_one_packed_tile...
+2026-10-22T17:38:09.7685846Z 
+2026-10-22T17:38:09.7686464Z VERIFICATION RESULT:
+2026-10-22T17:38:09.7686906Z  ** 0 of 81 failed
+2026-10-22T17:38:09.7687137Z 
+2026-10-22T17:38:09.7687316Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:09.7688215Z 
+2026-10-22T17:38:09.7688226Z 
+2026-10-22T17:38:09.7688419Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:09.7688891Z Verification Time: 0.31769055s
+2026-10-22T17:38:09.7689186Z 
+2026-10-22T17:38:09.8720076Z Checking harness codec::verification::symbolic_pack_indices_stay_inside_one_tile...
+2026-10-22T17:38:10.1187398Z 
+2026-10-22T17:38:10.1187975Z VERIFICATION RESULT:
+2026-10-22T17:38:10.1188346Z  ** 0 of 76 failed
+2026-10-22T17:38:10.1188538Z 
+2026-10-22T17:38:10.1188729Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:10.1188983Z 
+2026-10-22T17:38:10.1188988Z 
+2026-10-22T17:38:10.1189172Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:10.1189573Z Verification Time: 0.24641925s
+2026-10-22T17:38:10.1189811Z 
+2026-10-22T17:38:10.2121305Z Checking harness codec::verification::bitrate_validation_accepts_exactly_one_through_eight...
+2026-10-22T17:38:10.3009502Z 
+2026-10-22T17:38:10.3010060Z VERIFICATION RESULT:
+2026-10-22T17:38:10.3010621Z  ** 0 of 56 failed
+2026-10-22T17:38:10.3010908Z 
+2026-10-22T17:38:10.3011180Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:10.3011613Z 
+2026-10-22T17:38:10.3011621Z 
+2026-10-22T17:38:10.3011813Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:10.3012308Z Verification Time: 0.088532366s
+2026-10-22T17:38:10.3012662Z 
+2026-10-22T17:38:10.3895663Z Checking harness contracts::memory_saver_releases_every_unused_buffer...
+2026-10-22T17:38:10.4419381Z 
+2026-10-22T17:38:10.4419891Z VERIFICATION RESULT:
+2026-10-22T17:38:10.4420293Z  ** 0 of 3 failed
+2026-10-22T17:38:10.4420536Z 
+2026-10-22T17:38:10.4420757Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:10.4421168Z 
+2026-10-22T17:38:10.4421175Z 
+2026-10-22T17:38:10.4421373Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:10.4421855Z Verification Time: 0.052104s
+2026-10-22T17:38:10.4424807Z 
+2026-10-22T17:38:10.5276564Z Checking harness contracts::idle_cache_release_preserves_small_working_sets...
+2026-10-22T17:38:10.5732811Z 
+2026-10-22T17:38:10.5733470Z VERIFICATION RESULT:
+2026-10-22T17:38:10.5734027Z  ** 0 of 4 failed
+2026-10-22T17:38:10.5734338Z 
+2026-10-22T17:38:10.5734576Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:10.5734986Z 
+2026-10-22T17:38:10.5734990Z 
+2026-10-22T17:38:10.5735214Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:10.5735658Z Verification Time: 0.04531929s
+2026-10-22T17:38:10.5736008Z 
+2026-10-22T17:38:10.7112771Z Checking harness contracts::verification::qmv_shape_matches_wide_arithmetic...
+2026-10-22T17:38:12.5060026Z 
+2026-10-22T17:38:12.5061441Z VERIFICATION RESULT:
+2026-10-22T17:38:12.5061931Z  ** 0 of 180 failed
+2026-10-22T17:38:12.5062204Z 
+2026-10-22T17:38:12.5062419Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:12.5062780Z 
+2026-10-22T17:38:12.5062786Z 
+2026-10-22T17:38:12.5063234Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:12.5063809Z Verification Time: 1.7943759s
+2026-10-22T17:38:12.5064139Z 
+2026-10-22T17:38:12.6432099Z Checking harness contracts::verification::exl3_pack_and_decode_shapes_are_inverse_for_u32_sized_tiles...
+2026-10-22T17:38:15.1549800Z 
+2026-10-22T17:38:15.1550434Z VERIFICATION RESULT:
+2026-10-22T17:38:15.1550854Z  ** 0 of 192 failed
+2026-10-22T17:38:15.1551071Z 
+2026-10-22T17:38:15.1551242Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:15.1551474Z 
+2026-10-22T17:38:15.1551479Z 
+2026-10-22T17:38:15.1551585Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:15.1551863Z Verification Time: 2.511402s
+2026-10-22T17:38:15.1552029Z 
+2026-10-22T17:38:15.2399106Z Checking harness contracts::verification::accepted_data_ranges_are_exact_and_in_bounds...
+2026-10-22T17:38:15.3807861Z 
+2026-10-22T17:38:15.3808404Z VERIFICATION RESULT:
+2026-10-22T17:38:15.3808836Z  ** 0 of 5 failed
+2026-10-22T17:38:15.3809072Z 
+2026-10-22T17:38:15.3809245Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:15.3809512Z 
+2026-10-22T17:38:15.3809544Z 
+2026-10-22T17:38:15.3809721Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:15.3810130Z Verification Time: 0.14065655s
+2026-10-22T17:38:15.3810378Z 
+2026-10-22T17:38:15.8299206Z Checking harness contracts::verification::array_bytes_rejects_negative_and_overflowing_dimensions...
+2026-10-22T17:38:22.1682674Z 
+2026-10-22T17:38:22.1683509Z VERIFICATION RESULT:
+2026-10-22T17:38:22.1683823Z  ** 0 of 352 failed (1 unreachable)
+2026-10-22T17:38:22.1684015Z 
+2026-10-22T17:38:22.1684121Z  ** 1 of 1 cover properties satisfied
+2026-10-22T17:38:22.1684319Z 
+2026-10-22T17:38:22.1684322Z 
+2026-10-22T17:38:22.1684415Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:22.1696488Z Verification Time: 6.337996s
+2026-10-22T17:38:22.1696712Z 
+2026-10-22T17:38:22.5847402Z Checking harness contracts::verification::tensor_bytes_matches_wide_arithmetic_for_four_dimensions...
+2026-10-22T17:38:30.6181543Z 
+2026-10-22T17:38:30.6182059Z VERIFICATION RESULT:
+2026-10-22T17:38:30.6182376Z  ** 0 of 330 failed (5 unreachable)
+2026-10-22T17:38:30.6182602Z 
+2026-10-22T17:38:30.6182814Z  ** 1 of 1 cover properties satisfied
+2026-10-22T17:38:30.6183419Z 
+2026-10-22T17:38:30.6183425Z 
+2026-10-22T17:38:30.6183601Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:30.6184012Z Verification Time: 8.033235s
+2026-10-22T17:38:30.6184294Z 
+2026-10-22T17:38:31.2416773Z Checking harness contracts::verification::cached_prefix_requires_exact_ids_and_chunk_boundary...
+2026-10-22T17:38:33.6407395Z 
+2026-10-22T17:38:33.6407856Z VERIFICATION RESULT:
+2026-10-22T17:38:33.6408157Z  ** 0 of 97 failed (1 unreachable)
+2026-10-22T17:38:33.6408503Z 
+2026-10-22T17:38:33.6408681Z  ** 3 of 3 cover properties satisfied
+2026-10-22T17:38:33.6409005Z 
+2026-10-22T17:38:33.6409012Z 
+2026-10-22T17:38:33.6409171Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:33.6409567Z Verification Time: 2.3986697s
+2026-10-22T17:38:33.6409837Z 
+2026-10-22T17:38:33.7352802Z Checking harness contracts::verification::gdn_history_capacity_is_exact_and_covers_partial_commits...
+2026-10-22T17:38:33.8302321Z 
+2026-10-22T17:38:33.8303494Z VERIFICATION RESULT:
+2026-10-22T17:38:33.8304026Z  ** 0 of 11 failed
+2026-10-22T17:38:33.8304296Z 
+2026-10-22T17:38:33.8304512Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:33.8304876Z 
+2026-10-22T17:38:33.8304883Z 
+2026-10-22T17:38:33.8305098Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:33.8305618Z Verification Time: 0.09462914s
+2026-10-22T17:38:33.8305895Z 
+2026-10-22T17:38:33.9246605Z Checking harness contracts::verification::mtp_cache_append_cannot_wrap_or_accept_empty_rows...
+2026-10-22T17:38:34.0195759Z 
+2026-10-22T17:38:34.0196289Z VERIFICATION RESULT:
+2026-10-22T17:38:34.0196837Z  ** 0 of 12 failed
+2026-10-22T17:38:34.0197114Z 
+2026-10-22T17:38:34.0197272Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:34.0197550Z 
+2026-10-22T17:38:34.0197554Z 
+2026-10-22T17:38:34.0197687Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:34.0198029Z Verification Time: 0.094660886s
+2026-10-22T17:38:34.0198268Z 
+2026-10-22T17:38:34.1253758Z Checking harness contracts::verification::gdn_tape_prefix_covers_all_valid_commits...
+2026-10-22T17:38:34.2255898Z 
+2026-10-22T17:38:34.2256432Z VERIFICATION RESULT:
+2026-10-22T17:38:34.2256872Z  ** 0 of 66 failed
+2026-10-22T17:38:34.2257111Z 
+2026-10-22T17:38:34.2257226Z  ** 5 of 5 cover properties satisfied
+2026-10-22T17:38:34.2257522Z 
+2026-10-22T17:38:34.2257529Z 
+2026-10-22T17:38:34.2257707Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:34.2258098Z Verification Time: 0.099881805s
+2026-10-22T17:38:34.2258369Z 
+2026-10-22T17:38:34.3116889Z Checking harness contracts::verification::tensor_dispatch_requires_hardware_and_valid_batch...
+2026-10-22T17:38:34.3490504Z 
+2026-10-22T17:38:34.3491142Z VERIFICATION RESULT:
+2026-10-22T17:38:34.3491427Z  ** 0 of 2 failed
+2026-10-22T17:38:34.3491557Z 
+2026-10-22T17:38:34.3491675Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:34.3491873Z 
+2026-10-22T17:38:34.3491877Z 
+2026-10-22T17:38:34.3491971Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:34.3492208Z Verification Time: 0.037079733s
+2026-10-22T17:38:34.3492417Z 
+2026-10-22T17:38:34.4571456Z Checking harness contracts::tensor_source_interval_is_ordered_and_cannot_wrap...
+2026-10-22T17:38:34.7535218Z 
+2026-10-22T17:38:34.7535996Z VERIFICATION RESULT:
+2026-10-22T17:38:34.7536328Z  ** 0 of 19 failed
+2026-10-22T17:38:34.7536870Z 
+2026-10-22T17:38:34.7537012Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:34.7537217Z 
+2026-10-22T17:38:34.7537220Z 
+2026-10-22T17:38:34.7537330Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:34.7537586Z Verification Time: 0.296033s
+2026-10-22T17:38:34.7537759Z 
+2026-10-22T17:38:34.8890023Z Checking harness contracts::qmv_pairs_cover_every_valid_row_with_at_most_one_padding_row...
+2026-10-22T17:38:35.4109450Z 
+2026-10-22T17:38:35.4109909Z VERIFICATION RESULT:
+2026-10-22T17:38:35.4110344Z  ** 0 of 85 failed
+2026-10-22T17:38:35.4110573Z 
+2026-10-22T17:38:35.4110751Z  ** 3 of 3 cover properties satisfied
+2026-10-22T17:38:35.4111074Z 
+2026-10-22T17:38:35.4111082Z 
+2026-10-22T17:38:35.4111233Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:35.4111672Z Verification Time: 0.5216141s
+2026-10-22T17:38:35.4111936Z 
+2026-10-22T17:38:35.5658603Z Checking harness contracts::grouped_mb3_preserves_rows_and_all_fallbacks...
+2026-10-22T17:38:36.0121781Z 
+2026-10-22T17:38:36.0122414Z VERIFICATION RESULT:
+2026-10-22T17:38:36.0123227Z  ** 0 of 164 failed
+2026-10-22T17:38:36.0123479Z 
+2026-10-22T17:38:36.0123668Z  ** 6 of 6 cover properties satisfied
+2026-10-22T17:38:36.0123936Z 
+2026-10-22T17:38:36.0123940Z 
+2026-10-22T17:38:36.0124124Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:36.0124538Z Verification Time: 0.44590136s
+2026-10-22T17:38:36.0124813Z 
+2026-10-22T17:38:36.1276885Z Checking harness contracts::flash_reference_batch_has_exact_bounded_coverage...
+2026-10-22T17:38:36.2976975Z 
+2026-10-22T17:38:36.2977478Z VERIFICATION RESULT:
+2026-10-22T17:38:36.2977916Z  ** 0 of 69 failed
+2026-10-22T17:38:36.2978152Z 
+2026-10-22T17:38:36.2978336Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:36.2978661Z 
+2026-10-22T17:38:36.2978665Z 
+2026-10-22T17:38:36.2979306Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:36.2979691Z Verification Time: 0.16972385s
+2026-10-22T17:38:36.2979970Z 
+2026-10-22T17:38:36.4026804Z Checking harness contracts::dense_qmm_large_tile_never_pads_or_changes_ineligible_shapes...
+2026-10-22T17:38:36.4930203Z 
+2026-10-22T17:38:36.4930912Z VERIFICATION RESULT:
+2026-10-22T17:38:36.4931357Z  ** 0 of 61 failed
+2026-10-22T17:38:36.4931576Z 
+2026-10-22T17:38:36.4931761Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:36.4932072Z 
+2026-10-22T17:38:36.4932077Z 
+2026-10-22T17:38:36.4932233Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:36.4932620Z Verification Time: 0.0900289s
+2026-10-22T17:38:36.4932874Z 
+2026-10-22T17:38:36.5919931Z Checking harness contracts::dense_decode_tile_never_crosses_unmeasured_shapes_or_output_boundaries...
+2026-10-22T17:38:36.6705538Z 
+2026-10-22T17:38:36.6705968Z VERIFICATION RESULT:
+2026-10-22T17:38:36.6706463Z  ** 0 of 7 failed
+2026-10-22T17:38:36.6706649Z 
+2026-10-22T17:38:36.6706899Z  ** 3 of 3 cover properties satisfied
+2026-10-22T17:38:36.6707189Z 
+2026-10-22T17:38:36.6707194Z 
+2026-10-22T17:38:36.6707333Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:36.6707787Z Verification Time: 0.078283384s
+2026-10-22T17:38:36.6708153Z 
+2026-10-22T17:38:36.7980213Z Checking harness contracts::mtp_add_norm_launch_bounds...
+2026-10-22T17:38:37.0337999Z 
+2026-10-22T17:38:37.0338522Z VERIFICATION RESULT:
+2026-10-22T17:38:37.0338965Z  ** 0 of 109 failed
+2026-10-22T17:38:37.0339181Z 
+2026-10-22T17:38:37.0339352Z  ** 3 of 3 cover properties satisfied
+2026-10-22T17:38:37.0339612Z 
+2026-10-22T17:38:37.0339617Z 
+2026-10-22T17:38:37.0339709Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:37.0339962Z Verification Time: 0.23539773s
+2026-10-22T17:38:37.0340137Z 
+2026-10-22T17:38:37.1346549Z Checking harness contracts::pipeline_layer_has_no_final_or_outside_submission...
+2026-10-22T17:38:37.2703708Z 
+2026-10-22T17:38:37.2704476Z VERIFICATION RESULT:
+2026-10-22T17:38:37.2704975Z  ** 0 of 13 failed
+2026-10-22T17:38:37.2705237Z 
+2026-10-22T17:38:37.2705476Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:37.2705829Z 
+2026-10-22T17:38:37.2705834Z 
+2026-10-22T17:38:37.2706021Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:37.2706477Z Verification Time: 0.13535424s
+2026-10-22T17:38:37.2706781Z 
+2026-10-22T17:38:37.3648801Z Checking harness contracts::mtp_pipeline_default_is_limited_to_measured_target...
+2026-10-22T17:38:37.4229594Z 
+2026-10-22T17:38:37.4230023Z VERIFICATION RESULT:
+2026-10-22T17:38:37.4230454Z  ** 0 of 1 failed
+2026-10-22T17:38:37.4230671Z 
+2026-10-22T17:38:37.4230858Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:37.4231181Z 
+2026-10-22T17:38:37.4231198Z 
+2026-10-22T17:38:37.4231344Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:37.4231735Z Verification Time: 0.05787249s
+2026-10-22T17:38:37.4232015Z 
+2026-10-22T17:38:37.5339623Z Checking harness contracts::dense_mlp_batch_stays_within_supported_domain...
+2026-10-22T17:38:37.7045277Z 
+2026-10-22T17:38:37.7045823Z VERIFICATION RESULT:
+2026-10-22T17:38:37.7046265Z  ** 0 of 61 failed
+2026-10-22T17:38:37.7046510Z 
+2026-10-22T17:38:37.7046693Z  ** 5 of 5 cover properties satisfied
+2026-10-22T17:38:37.7047016Z 
+2026-10-22T17:38:37.7047021Z 
+2026-10-22T17:38:37.7047172Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:37.7047569Z Verification Time: 0.1702702s
+2026-10-22T17:38:37.7047851Z 
+2026-10-22T17:38:37.7976594Z Checking harness contracts::smallm_kernel_key_is_injective...
+2026-10-22T17:38:37.8722763Z 
+2026-10-22T17:38:37.8723521Z VERIFICATION RESULT:
+2026-10-22T17:38:37.8724019Z  ** 0 of 3 failed
+2026-10-22T17:38:37.8724276Z 
+2026-10-22T17:38:37.8724477Z  ** 4 of 4 cover properties satisfied
+2026-10-22T17:38:37.8724772Z 
+2026-10-22T17:38:37.8724775Z 
+2026-10-22T17:38:37.8724940Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:37.8725343Z Verification Time: 0.07428571s
+2026-10-22T17:38:37.8725582Z 
+2026-10-22T17:38:37.9827374Z Checking harness dflash::verification::q4_geometry_accepts_exactly_the_storage_multiples...
+2026-10-22T17:38:38.5731523Z 
+2026-10-22T17:38:38.5732365Z VERIFICATION RESULT:
+2026-10-22T17:38:38.5733582Z  ** 0 of 49 failed
+2026-10-22T17:38:38.5733841Z 
+2026-10-22T17:38:38.5734053Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:38.5734397Z 
+2026-10-22T17:38:38.5734403Z 
+2026-10-22T17:38:38.5734593Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:38.5735067Z Verification Time: 0.590097s
+2026-10-22T17:38:38.5735368Z 
+2026-10-22T17:38:38.6646915Z Checking harness dflash::verification::alignment_is_monotonic_and_aligned_when_representable...
+2026-10-22T17:38:38.7216871Z 
+2026-10-22T17:38:38.7217528Z VERIFICATION RESULT:
+2026-10-22T17:38:38.7218159Z  ** 0 of 11 failed
+2026-10-22T17:38:38.7218492Z 
+2026-10-22T17:38:38.7218742Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:38.7219390Z Verification Time: 0.05690758s
+2026-10-22T17:38:38.7219785Z 
+2026-10-22T17:38:38.8249065Z Checking harness dflash::verification::draft_capture_keeps_full_window_at_both_boundaries...
+2026-10-22T17:38:38.9857897Z 
+2026-10-22T17:38:38.9858463Z VERIFICATION RESULT:
+2026-10-22T17:38:38.9858823Z  ** 0 of 34 failed
+2026-10-22T17:38:38.9858993Z 
+2026-10-22T17:38:38.9859111Z  ** 3 of 3 cover properties satisfied
+2026-10-22T17:38:38.9859305Z 
+2026-10-22T17:38:38.9859309Z 
+2026-10-22T17:38:38.9859417Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:38.9859670Z Verification Time: 0.16050361s
+2026-10-22T17:38:38.9859852Z 
+2026-10-22T17:38:39.0950831Z Checking harness dflash::dflash_layouts_have_bounded_published_geometry...
+2026-10-22T17:38:39.2379327Z 
+2026-10-22T17:38:39.2380212Z VERIFICATION RESULT:
+2026-10-22T17:38:39.2380712Z  ** 0 of 30 failed
+2026-10-22T17:38:39.2381057Z 
+2026-10-22T17:38:39.2381243Z  ** 2 of 2 cover properties satisfied
+2026-10-22T17:38:39.2381563Z 
+2026-10-22T17:38:39.2381568Z 
+2026-10-22T17:38:39.2381732Z VERIFICATION:- SUCCESSFUL
+2026-10-22T17:38:39.2382153Z Verification Time: 0.1425937s
+2026-10-22T17:38:39.2382436Z 
+2026-10-22T17:38:40.7375301Z Checking harness flash_cache_profile::verification::cache_allocation_is_optimal_and_exact_on_two_layers_two_levels...
+2026-10-22T17:41:12.4288869Z ##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or a manually started runner is canceled.
+2026-10-22T17:41:13.0113944Z ##[error]The operation was canceled.
+2026-10-22T17:41:13.0164299Z ##[end-action id=__model-checking_kani-github-action.__run_2;outcome=cancelled;conclusion=cancelled;duration_ms=331342]
+2026-10-22T17:41:13.0537908Z Cleaning up orphan processes
+2026-10-22T17:41:13.1262687Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

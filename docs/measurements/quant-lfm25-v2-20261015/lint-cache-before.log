@@ -1,0 +1,12 @@
+TRY004 Prefer `TypeError` exception for invalid type
+   --> scripts/quantize_lfm25_moe.py:162:25
+    |
+160 |                     if not isinstance(values, np.ndarray):
+161 |                         values.close()
+162 |                         raise ValueError(f"Expected an array in LFM calibration: {key}")
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+163 |                     minimum = expert_min_rows if ".experts." in key else rows
+164 |                     width = index.tensor_info(key + ".weight").shape[1]
+    |
+
+Found 1 error.

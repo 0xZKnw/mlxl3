@@ -1,0 +1,48 @@
+{
+  "status": "passed_six_real_model_qualities_not_speed",
+  "tests": [
+    {
+      "name": "qwen4::tests::flash_gdn_epilogue_matches_stock_serial_outputs_states_and_prefix_tapes",
+      "seconds": 1.805371374997776,
+      "reaped": true
+    },
+    {
+      "name": "qwen4::tests::flash_matches_independent_reference_states_and_logits",
+      "seconds": 3.574929832975613,
+      "reaped": true
+    },
+    {
+      "name": "qwen4::tests::flash_components_match_reference_on_identical_inputs",
+      "seconds": 3.402936291997321,
+      "reaped": true
+    },
+    {
+      "name": "qwen4::tests::flash_pair_verification_preserves_serial_logits_and_all_states",
+      "seconds": 9.769335290999152,
+      "reaped": true
+    },
+    {
+      "name": "qwen4::tests::flash_mtp_session_preserves_greedy_sequence_target_and_head_states",
+      "seconds": 10.018585540994536,
+      "reaped": true
+    },
+    {
+      "name": "qwen4::draft::flash_draft_captures_and_all_prefix_commits_match_serial",
+      "seconds": 27.174135875015054,
+      "reaped": true
+    }
+  ],
+  "failed": 0,
+  "ignored": 0,
+  "dflash_prefix_cases": 36,
+  "gdn_cohorts": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "independent_logits_per_position": 248320,
+  "independent_positions": 5,
+  "dflash_lifetime_peak_bytes": 7409178864,
+  "swapouts_bytes": 0
+}

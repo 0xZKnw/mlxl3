@@ -1,0 +1,35 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "exit_code": 0,
+    "status": "passed",
+    "reaped": true,
+    "seconds": 0.26997124997433275
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "exit_code": 101,
+    "status": "failed",
+    "reaped": true,
+    "seconds": 3.1882356249843724
+  }
+]

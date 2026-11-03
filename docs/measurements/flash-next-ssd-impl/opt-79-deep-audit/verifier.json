@@ -1,0 +1,218 @@
+{
+  "id": "79R-A",
+  "status": "static_review_complete_no_executable_change",
+  "date": "2026-10-23",
+  "worktree": "/Users/justin/.codex/worktrees/flash-splash60/mix-stq1_0",
+  "head": "88cbfd2232ab23a0a7ca1d8dc312792347ca9d31",
+  "runtime_reference": "89174fccc37af8fa6cc37f353ee95d14b584dee7",
+  "preregistration": "opti.md:14960-14965",
+  "model": {
+    "target": "Qwen3.8-Flash-Next EXL3 2.05bpw checkpoint suffix65c89531",
+    "draft": "Qwen3.8-Flash-Next-DFlash2 suffixa22a1744, Q4 runtime",
+    "metadata_status": "Identités reprises du préenregistrement79R ; aucun rehash intégral des poids ni chargement modèle effectué."
+  },
+  "production_chain": [
+    "main.rs:3235-3252 validation greedy/configure_dflash2",
+    "flash_draft_runtime.rs:14-55 Options::read : WIDTH1/ADAPTIVE0 => fixe B2",
+    "main.rs:1827-1831 prefill_round => prefill_dflash2",
+    "flash_draft_runtime.rs:285-310 reset et préfill capturé",
+    "main.rs:2508-2537 => advance_dflash2 avec reste effectif",
+    "flash_draft_runtime.rs:312-323 => Session::advance",
+    "flash_draft_runtime.rs:131-159 draft_input/forward/select/verify_draft",
+    "flash_draft.rs:711-852 head BF16/sélection ; flash_draft_top16.metal:1-12 validity",
+    "flash_draft_runtime.rs:163-188 acceptance/commit/append ; confidence observée seulement en adaptatif"
+  ],
+  "findings": [
+    {
+      "id": "79R-A01",
+      "priority": 1,
+      "title": "La voie fixe B2 calcule une confiance qui ne pilote aucune décision",
+      "classification": "redondance démontrée ; gain non mesuré",
+      "new_vs_history": "61/64 ont décrit le sélecteur et ses readbacks ; la dépendance conditionnelle ADAPTIVE=0 n’y était pas isolée. Les essais63/68/70/72/73 ne testaient pas ce mécanisme.",
+      "locations": [
+        {
+          "file": "native/src/flash_draft_runtime.rs",
+          "start": 24,
+          "end": 35
+        },
+        {
+          "file": "native/src/flash_draft_runtime.rs",
+          "start": 131,
+          "end": 146
+        },
+        {
+          "file": "native/src/flash_draft_runtime.rs",
+          "start": 180,
+          "end": 197
+        },
+        {
+          "file": "native/src/flash_draft.rs",
+          "start": 775,
+          "end": 794
+        },
+        {
+          "file": "native/src/flash_draft.rs",
+          "start": 822,
+          "end": 850
+        }
+      ],
+      "reachable_when": "Flash DFlash2, MLXL3_FLASH_DRAFT_ADAPTIVE=0, WIDTH=1 pour B2 ; également toute largeur fixe1..7. PRECAP ne peut pas être actif dans cette configuration.",
+      "mechanism": "scores.argmax choisit les rangs et IDs. scores.softmax_precise et les gathers de probabilités ne nourrissent que confidence. En fixe, runtime conserve seulement le contrôle de longueur ; ni choose ni observe ne lisent les valeurs. Le sélecteur impose pourtant un second to_f32 après le to_u32 des tokens/validité.",
+      "smallest_change": "D’abord demander une sortie sans valeurs de confiance au seul appel fixe : conserver exactement la probabilité sélectionnée et sa validation sur GPU, emballer son indicateur UInt32 avec tokens/top16.valid dans le readback existant ; supprimer seulement le to_f32/copie hôte. Les gathers encore nécessaires à cette validation restent présents. Une seconde expérience, distincte, pourrait supprimer softmax et ses gathers si elle préserve exactement le contrat de validité.",
+      "safety": "Ne pas supprimer simplement le contrôle invalid confidence : top16.valid ne valide que les candidats avant les projections Markov. Ne pas remplacer le contrat par tous les scores finis : des -Inf ou des lignes de prédécesseurs non consultées peuvent être compatibles avec une probabilité sélectionnée valide. Pas de changement de précision BF16/F32, ordre du classement ou tie-break.",
+      "discriminating_tests": [
+        "Comparer ancien/nouveau sélecteur fixe pour counts1/2/3/7, Q4=0/1, logits et hiddens non nuls, égalités, strides et ancres limites : mêmes propositions exactes ; voie adaptative conserve confidences et choix exacts.",
+        "Réutiliser oracle scalaire splash_confidence_matches_independent_markov_scores et oracle couplé tête/backbone, puis36 commits/logits248320/captures64000/136 états, bridge43 et annulation/reprise sur la voie fixe réellement appelée.",
+        "Mutation : logits top16 tous finis, mais NaN/+Inf dans un codebook/projection consulté => ancienne et nouvelle voie doivent refuser/reset ; tester séparément -Inf admissible et corruption d’une ligne non consultée.",
+        "Instrumentation test-only du vrai sélecteur : mutation réactivant le to_f32 en fixe doit échouer au contrôle du nombre de readbacks, sans se contenter de sorties identiques."
+      ],
+      "speed_evidence": "Aucun coût exclusif ni TPS mesuré ; une seule frontière hôte réellement bloquante n’est pas déduite de deux appels. À tester isolément avant toute combinaison."
+    },
+    {
+      "id": "79R-A02",
+      "priority": 1,
+      "title": "Le premier pas Markov traite16 prédécesseurs identiques alors qu’un seul est accessible",
+      "classification": "calcul et gather redondants démontrés ; gain et parité du futur kernel non mesurés",
+      "new_vs_history": "Le sélecteur générique existe depuis43/60 et les comparaisons61/64 sont connues. Cette spécialisation count1/ligne0 ne répète ni grouped EXL3 rejeté ni fusion router-GEMV.",
+      "locations": [
+        {
+          "file": "native/src/flash_draft.rs",
+          "start": 748,
+          "end": 794
+        },
+        {
+          "file": "native/src/flash_draft.rs",
+          "start": 963,
+          "end": 1005
+        },
+        {
+          "file": "native/src/flash_draft_splash_tests.rs",
+          "start": 163,
+          "end": 243
+        }
+      ],
+      "reachable_when": "Tout bloc DFlash commence par l’ancre ; en B2 count=1, ce cas est l’ensemble du sélecteur Markov.",
+      "mechanism": "predecessors commence par anchor broadcast[1,16]. Le gather donne16 vecteurs BF16 identiques de256 éléments. pred*projection puis matmul produit16 lignes identiques de16 scores, mais rank commence à0 et ne lit que maps[0,0] et probabilities[0,0,:]. Pour count1, le produit16x256x16 comporte65536 termes contre4096 pour1x256x16 ; la multiplication élémentaire a4096 sorties contre256. Ce rapport16 porte uniquement sur ce sous-calcul, pas sur la tête vocabulaire ni le draft complet.",
+      "smallest_change": "Spécialiser seulement rows==1 : gather d’un seul predecessor anchor, produit BF16 avec projected[1,256],16 scores successeurs, argmax/tie-break identiques ; conserver les voies rows>1 et adaptatives comme témoins. Une optimisation ultérieure de la première ligne des grandes fenêtres est distincte.",
+      "safety": "La transition Markov reste indispensable : ce n’est pas un argmax brut des logits. Réduire la forme matmul peut changer le kernel et l’ordre de réduction FP32 avant l’arrondi BF16 ; l’égalité des lignes mathématiques ne suffit pas à prouver une implémentation bit exacte. Conserver les casts BF16 puis F32 et la validation des probabilités de A01.",
+      "discriminating_tests": [
+        "Oracle scalaire existant avec Q4=0/1, rows1, codebooks non nuls et logits non uniformes ; étendre les cas de tie-break/ancres0 et248319.",
+        "Comparer les16 scores réellement utilisés, proposition et confiance à la première ligne du chemin générique, puis aux mêmes hiddens couplés de production ; vérifier formes, compte et finitude.",
+        "Mutation d’ancre ou suppression de la composante Markov dans une fixture construite pour inverser le gagnant doit être détectée.",
+        "Oracle cible séquentiel, snapshots et bridge43 ; micro séparé de DFlash B2 MAIN/HOLD, sans mélanger A01."
+      ],
+      "speed_evidence": "Non mesuré ; les256 scores sont petits devant la projection sur248320 tokens et les48 couches cibles."
+    },
+    {
+      "id": "79R-A03",
+      "priority": 3,
+      "title": "La même ligne BF16 du masque est relue et réallouée à chaque proposition",
+      "classification": "I/O logique et allocation répétées démontrées ; impact probablement limité, non mesuré",
+      "new_vs_history": "72R a vérifié l’identité/dtype du masque et exclu le bug GGUF Splash4dd195e. Ce constat concerne la répétition de notre pread BF16, pas la quantification du masque.",
+      "locations": [
+        {
+          "file": "native/src/flash_draft.rs",
+          "start": 1112,
+          "end": 1124
+        },
+        {
+          "file": "native/src/array.rs",
+          "start": 596,
+          "end": 608
+        },
+        {
+          "file": "native/ffi/mlx_bridge.cpp",
+          "start": 261,
+          "end": 267
+        },
+        {
+          "file": "native/src/qwen4.rs",
+          "start": 1445,
+          "end": 1458
+        }
+      ],
+      "reachable_when": "Chaque Session::advance non terminal avec count>=1 ; même ligne kind.mask()248077 pour chaque ligne après l’ancre.",
+      "mechanism": "draft_input boucle count+1 fois et appelle Array::from_file pour chaque ligne. La FFI alloue puis exécute pread_exact ; ce n’est pas une vue mmap ou un cache de lignes. Le masque identique coûte count lectures logiques de5120 octets et count allocations ; les blocs suivants recommencent. Le cache OS peut supprimer l’accès physique au SSD mais pas ces appels et allocations.",
+      "smallest_change": "Conserver une unique ligne BF16 du masque pendant la vie du modèle/session compatible et la diffuser vers les count positions. Continuer à lire l’ancre variable, conserver le dtype BF16 et l’identité exacte du fichier/offset ; invalider avec le remplacement de checkpoint/session selon le contrat existant.",
+      "safety": "Il n’y a ici aucun astype FP16 du vocabulaire entier : Array::from_file lit uniquement [1,2560] BF16, puis concat et norme BF16. Ne pas réintroduire le bug d’arrondi du tiny-mask GGUF. La sémantique d’un checkpoint modifié en place doit être explicitée avant le cache. Ne pas appeler FlashNext::embedding à la place : cette API renvoie une copie Float16, tandis que draft_input consomme la ligne BF16 brute ; le cache doit conserver cette dernière.",
+      "discriminating_tests": [
+        "Comparer byte à byte draft_input ancien/nouveau pour counts1/2/3/7, ancres différentes, checkpoints de test séparés et reset/reconfiguration.",
+        "Mutation de la ligne/offset du masque doit être détectée par oracle BF16 indépendant ; vérifier explicitement la ligne ancre non réutilisée par erreur.",
+        "Comptage sur l’entrée réelle FFI : première utilisation une lecture masque, réutilisations zéro, nouveau modèle une lecture ; ne pas appeler ces compteurs des lectures NVMe physiques.",
+        "Oracle draft/cibles/états et acceptations fixes/adaptatives inchangés, mémoire ajoutée utile5120 octets hors overhead non mesuré."
+      ],
+      "speed_evidence": "Aucun syscall/timing physique mesuré. Faible priorité : B2 ne répète qu’une lecture masque par bloc et son payload vaut5Kio."
+    }
+  ],
+  "already_known_not_counted": [
+    {
+      "id": "61-KV",
+      "description": "append_ring/append impose deux eval par couche sur5 couches ; handles et donation ne prouvent ni copies intégrales ni dix attentes matérielles. Déjà61:110, non réessayé."
+    },
+    {
+      "id": "61-prefill",
+      "description": "prefill_dflash2 fait tête/logits à chaque token alors que seul le dernier est retourné ; déjà61:116. Piste TTFT connue, pas nouveau gain decode. Évaluer streams/drain demeure nécessaire si la tête était élidée."
+    },
+    {
+      "id": "63-commit",
+      "description": "Le replay GDN partiel est paresseux et peut être payé dans la vérification suivante ; déjà63:17. Ne pas attribuer tout ce temps à la seule phase enregistrée commit_cache_seconds."
+    },
+    {
+      "id": "63-terminal",
+      "description": "count==0 effectue forward ordinary et ajoute ses octets, mais pas draft_seconds/verification_seconds/verified_rows/blocks. Budget bridge2 rend ce chemin explicite. Compteur terminal/octet et métriques séparées connus63v5:30/85 ; limite d’interprétation, pas nouveau bug."
+    },
+    {
+      "id": "63-backbone",
+      "description": "HC/PLE/QSA encore largement ligne par ligne et commit fusionné suivant absents : déjà63/64. Pas une découverte79R-A."
+    },
+    {
+      "id": "70-precap",
+      "description": "Le plafond avant draft existe et a été mesuré contre ancien adaptatif ; ne pas le présenter comme nouveau ni comme gain vs B2."
+    },
+    {
+      "id": "76-switch",
+      "description": "Options différentes rechargent les47 matrices Q4 ; correctif76 préparé connu, n’affecte pas la session B2 stable."
+    },
+    {
+      "id": "72-mask",
+      "description": "Tiny-mask Splash GGUF déjà exclu pour le BF16 brut local ; le cache de ligne A03 est distinct."
+    },
+    {
+      "id": "72-73-withdrawn",
+      "description": "Prélectures variantes72 et EarlyShared73 retirées après vraie comparaison sans prélecture ; aucune réactivation."
+    }
+  ],
+  "not_findings": [
+    "Le clone des handles trace/snapshots ne démontre pas une copie de payload.",
+    "La causalité GDN/QSA et l’ancre DFlash interdisent de supprimer arbitrairement leurs lignes.",
+    "chat_greedy_ids normalise avant argmax pour préserver le contrat d’arrondi ; raw argmax n’est pas un remplacement exact établi.",
+    "Le target bonus est requis par greedy_accept ; les logits vérifiés ne sont pas tous inutiles parce qu’un préfixe est ensuite rejeté."
+  ],
+  "commands_executed": [
+    "Lectures rg/nl/sed de AGENTS.md, opti.md79R et historiques63/64/68/69/70/72/73/76/78, fichiers et appelants cités.",
+    "git rev-parse HEAD ; git status --short",
+    "shasum -a256 des8 sources listées dans source_hashes.",
+    "Génération de ce Markdown/JSON uniquement dans ROOT/build/flash-opt-79-deep-audit."
+  ],
+  "source_hashes": {
+    "native/src/flash_draft.rs": "9da4ba25da1247b154d8f03aff3e0f701b146c7a4c43f77cc6506683b13d9803",
+    "native/src/flash_draft_runtime.rs": "f62a2b98eb9d9dc61c28b18efc545a9ddc853bfa82a78e8811eed834167cc920",
+    "native/src/qwen4.rs": "13bdb273d77b07041fb64016b2a29c244dad64853567e4648d8a1ab6c5ddd6a0",
+    "native/src/gated_delta.rs": "a99e9198f9cf454caafa8e7e5b974797ad4929109f0a462c93d409e31f5e9347",
+    "native/src/array.rs": "6773c073392cea5b05a439614cdb97c6a8de1b4eb02af1609d8a6858115cacbd",
+    "native/ffi/mlx_bridge.cpp": "d2a01595f45b352173e76e70c56c6b271536f3dd2096971526f422d16dec4c3a",
+    "native/shaders/flash_draft_top16.metal": "ace89bc26dde21d0b733950c4150c6490b530988d38a52b1649db013a8c2936a",
+    "native/src/main.rs": "4cf39e7804554cd93307ae93b0f60fdc6fb3c5beba0a24e9d80b6713c018ab1d"
+  },
+  "verification": {
+    "static": "Lecture des flux de données, formes, conditions et contrats ; hashes des sources et appelants.",
+    "tests_run": 0,
+    "benchmarks_run": 0,
+    "gpu_runs": 0,
+    "builds": 0,
+    "formal_proofs": "Aucune nouvelle preuve. Kani/CBMC/MLX/Metal non vérifiés par cette revue. Les tests cités sont des contrôles futurs proposés, pas exécutés.",
+    "ci": "Pas de nouveau commit exécutable ni nouveau runCI ; parent traite la provenanceCI globale.",
+    "worktree_edits": "Aucune ; opti, sources et prototypes retirés non modifiés par cet agent.",
+    "tps_claim": "Aucun. Le coût critique économisable doit être mesuré séparément avant toute annonce."
+  }
+}

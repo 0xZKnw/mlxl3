@@ -1,0 +1,38 @@
+{
+  "id": "DFLASH2-2026-10-08-GATE-UP-SUMS",
+  "status": "completed_retired_after_validation_failure",
+  "baseline": "two original N128Pipelined g48 Q4 projections plus original BF16 SwiGLU",
+  "previous_trial": "gate-up-decision.json",
+  "difference": "precompute all32 input quant-group sums once per paired tile, reuse them in two unchanged ordered MPP projections; fewer barriers and duplicate sums",
+  "geometry": {
+    "input": 2048,
+    "combined_output": 12288,
+    "input_rows": 8,
+    "groups": 48,
+    "sum_floats": 256,
+    "sum_bytes": 1024
+  },
+  "quality": "same six layers/three inputs/nonempty finite bitexact projection and SwiGLU oracles + shifted-gate mutation + invalid shape checks",
+  "micro": {
+    "orders": [
+      "ABBA",
+      "BAAB"
+    ],
+    "warmup_traversals_per_variant": 200,
+    "samples": 7,
+    "traversals_per_sample": 1000,
+    "layers_per_traversal": 6,
+    "minimum_gain_percent": 3,
+    "maximum_same_variant_drift_percent": 1
+  },
+  "maximum_micro_seconds": 240,
+  "production_enabled": false,
+  "baseline_sources": {
+    "native/src/dflash.rs": "26ee5ee14d72810f23a9527b75cb5852887b5a1f581e0b8f8a93535e911946ec",
+    "native/shaders/dflash_q4_mpp.h": "7983faeeca8f66daf3f3a0e8edbe7e93a40dc4df9c2fb05f88fbe739a757da52",
+    "native/shaders/dflash_q4.metal": "50a14c3d4f038123740042f8efea0e52497f5b421730f577abeea6e4dc8e4d7f"
+  },
+  "additional_quality": "Run normal exactness then one separate Apple API/Shader Validation exactness pass, never enabled for timing: MTL_DEBUG_LAYER=1, MTL_SHADER_VALIDATION=1, MTL_SHADER_VALIDATION_REPORT_TO_STDERR=1, MTL_SHADER_VALIDATION_ABORT_ON_FAULT=1. A missing layer remains explicitly unverified.",
+  "preregistered_or_initial_status": "preregistered",
+  "final_result": "gate-up-sums-decision.json"
+}

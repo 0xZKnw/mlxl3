@@ -1,0 +1,85 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________________ test_campaign[auto_cache] ___________________________
+
+tmp_path = PosixPath('/private/var/folders/dm/q2g7k5r94739pglk_0cp0lsw0000gn/T/pytest-of-justin/pytest-121/test_campaign_auto_cache_0')
+fault = 'auto_cache'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1093c1c70>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "ok",
+            "auto_cache",
+            "mode",
+            "hash",
+            "empty",
+            "timing",
+            "short",
+            "drift",
+            "invalid",
+            "silent",
+            "crash",
+            "compare_drift",
+            "counter_type",
+            "counter_range",
+            "negative_counter",
+            "missing_counter",
+        ],
+    )
+    def test_campaign(tmp_path, fault, monkeypatch):
+        monkeypatch.setenv("MLXL3_SSD_CACHE_GIB", "12")
+        engine = tmp_path / "bridge"
+        engine.write_text(
+            "#!/usr/bin/env python3\n"
+            + f"fault = {fault!r}\n"
+            + """
+    import json, os, sys, time
+    print(json.dumps({"type": "ready", "expert_cache": os.environ.get('MLXL3_SSD_CACHE_GIB')}), flush=True)
+    counter = 0
+    for line in sys.stdin:
+        r = json.loads(line)
+        if r['type'] == 'shutdown': break
+        counter += 1
+        if fault == 'silent': time.sleep(30)
+        if fault == 'crash': sys.exit(3)
+        if fault == 'invalid': print('null', flush=True); continue
+        if fault != 'mode': print(json.dumps({'type': 'generation_mode', 'request_id': r['request_id'], 'mtp_active': r['mtp'], 'dflash_active': False}), flush=True)
+        tokens = r['max_tokens']
+        e = {'type': 'complete', 'request_id': r['request_id'], 'token_hash': 'abc', 'cache_context': 'answer',
+             'stats': {'generated_tokens': tokens, 'decode_tokens': tokens - 1, 'decode_seconds': (tokens - 1) / 10, 'decode_tps': 10, 'ttft_seconds': .1, 'prefill_tps': 100}}
+        if fault == 'hash': del e['token_hash']
+        if fault == 'empty': e['cache_context'] = ''
+        if fault == 'timing': e['stats']['decode_tps'] = float('nan')
+        if fault == 'short': e['stats']['generated_tokens'] = 1
+        if fault == 'drift' and counter > 2: e['token_hash'] = 'different'
+        if r['mtp']:
+            e['stats'].update(mtp_proposed_tokens=0, mtp_accepted_tokens=0, mtp_blocks=0)
+            if fault == 'compare_drift': e['token_hash'] = 'different'
+            if fault == 'counter_type': e['stats']['mtp_blocks'] = True
+            if fault == 'counter_range': e['stats']['mtp_accepted_tokens'] = 1
+            if fault == 'negative_counter': e['stats']['mtp_blocks'] = -1
+            if fault == 'missing_counter': del e['stats']['mtp_blocks']
+        print(json.dumps(e), flush=True)
+    """
+        )
+        engine.chmod(0o755)
+        output = tmp_path / "results"
+        if fault in ("ok", "auto_cache"):
+            automatic = fault == "auto_cache"
+            result = bench.run(
+                engine, tmp_path, output, tokens=2, repeats=1, timeout=2, auto_cache=automatic
+            )
+            assert result["status"] == "validated"
+>           assert result["runtime"]["expert_cache"] == (None if automatic else "8")
+E           AssertionError: assert '8' == None
+
+tests/test_flash_benchmark.py:83: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{"prompt": "MAIN", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 0, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "MAIN", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+{"prompt": "HOLD", "mode": "baseline", "repeat": 1, "decode_tps": 10, "ttft_seconds": 0.1, "token_hash": "abc"}
+=========================== short test summary info ============================
+FAILED tests/test_flash_benchmark.py::test_campaign[auto_cache] - AssertionEr...
+1 failed, 19 deselected in 0.13s

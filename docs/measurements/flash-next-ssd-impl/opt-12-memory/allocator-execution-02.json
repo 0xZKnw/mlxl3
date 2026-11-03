@@ -1,0 +1,41 @@
+[
+  {
+    "name": "allocator-default",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "array::tests::model_default_cache_limit_releases_unused_buffers_and_preserves_live_arrays",
+      "--ignored",
+      "--exact",
+      "--nocapture"
+    ],
+    "override": null,
+    "passed": true,
+    "exit_code": 0
+  },
+  {
+    "name": "allocator-zero",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "array::tests::allocator_cache_limit_preserves_live_arrays",
+      "--ignored",
+      "--exact",
+      "--nocapture"
+    ],
+    "override": "0",
+    "passed": true,
+    "exit_code": 0
+  },
+  {
+    "name": "allocator-one",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "array::tests::allocator_cache_limit_preserves_live_arrays",
+      "--ignored",
+      "--exact",
+      "--nocapture"
+    ],
+    "override": "1",
+    "passed": true,
+    "exit_code": 0
+  }
+]

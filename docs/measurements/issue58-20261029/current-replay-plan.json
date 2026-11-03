@@ -1,0 +1,30 @@
+[
+  {
+    "name": "current-pool-replay",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--lib",
+      "--no-default-features",
+      "flash_cache_profile::shared::current::current_ar_traces_reconstruct_exact_cache_before_pool_scoring",
+      "--",
+      "--exact",
+      "--ignored",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1",
+      "MLXL3_CURRENT_POOL_CAPTURE": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue58-20261029/current-capture.json",
+      "MLXL3_CURRENT_POOL_REPORT": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/issue58-20261029/current-report.json"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 180,
+    "require_quiet": false,
+    "required_text": [
+      "1 passed; 0 failed; 0 ignored"
+    ]
+  }
+]

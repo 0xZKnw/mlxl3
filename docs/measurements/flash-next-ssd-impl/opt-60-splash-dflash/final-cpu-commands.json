@@ -1,0 +1,40 @@
+[
+  {
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features"
+    ],
+    "environment": {
+      "PATH_prefix": "/Users/justin/.cargo/bin",
+      "CARGO_TARGET_DIR": "/Users/justin/Documents/mix-stq1_0/target"
+    },
+    "status": "passed",
+    "counts": {
+      "lib_passed": 94,
+      "contracts_passed": 16,
+      "ignored": 3
+    },
+    "log": "rust-cpu-final-v7.log"
+  },
+  {
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python3.12",
+      "-m",
+      "pytest",
+      "-q"
+    ],
+    "status": "passed",
+    "log": "python-all-v7.log",
+    "counts": {
+      "passed": 915,
+      "skipped": 4
+    },
+    "skip_reasons": [
+      "ponyexl3.convert absent: quantization metrics and LFM adapter",
+      "ponyexl3.convert.measure absent: Ling adapter",
+      "local Ling model absent"
+    ]
+  }
+]

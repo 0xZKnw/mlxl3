@@ -1,0 +1,87 @@
+{
+  "status": "passed_cpu_inspector_checks_not_gpu_or_proof",
+  "checks": [
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py",
+        "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "All checks passed!\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py",
+        "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "2 files already formatted\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "py_compile",
+        "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py",
+        "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "--",
+        "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py",
+        "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "actual_s32_manifest_policy_only": {
+    "maximum_new_swapout_bytes": 33554432,
+    "swap_anchor_vm_bytes": {
+      "Swapouts": 262144,
+      "Swapins": 0
+    },
+    "swap_anchor_path": "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/post-p08-dense-epilogue-20261031/anchor-w1.json",
+    "swap_anchor_sha256": "052bdca4c7197f2980a992cb7290de26f5b3001841652b8d2aef92c6ea08fab8"
+  },
+  "selftests": {
+    "total": 89,
+    "positive": 17,
+    "negative": 72,
+    "preserved_existing": 52,
+    "new": 37
+  },
+  "mutation": {
+    "omitted_cumulative_limit": "detected_by_s32_total_plus_one",
+    "restored": true
+  },
+  "formal_verification": "CrossHair unavailable as already recorded; no proof claimed or new installation",
+  "sha256": {
+    "docs/measurements/post-p08-dense-epilogue-20261031/benchmark-inspection.py": "8d6c5ab36c58bf9a14e5ff97323d93a3ab4d87ef187e6f082955a7be08ee97bb",
+    "docs/measurements/post-p08-dense-epilogue-20261031/inspection_selftest.py": "23fa63786bf130eb626a80f3f5550ff13d7ba7686cbdd5e310a5b0bef6b0bbcc"
+  },
+  "limitations": [
+    "No native process, model, GPU, or xctrace executed",
+    "Full new identity/plans preflight remains root-owned",
+    "Existing AR17 external-inspection-v2 outputs preserved"
+  ]
+}

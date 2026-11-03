@@ -1,0 +1,225 @@
+Kani Rust Verifier 0.68.0 (cargo plugin)
+CBMC 6.11.0
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+warning: trailing semicolon in macro used in expression position
+   --> native/src/contracts.rs:496:17
+    |
+496 |         None => assert!(!(2..24).contains(&rows)),
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: `#[warn(semicolon_in_expressions_from_non_local_macros)]` (part of `#[warn(future_incompatible)]`) on by default
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: trailing semicolon in macro used in expression position
+   --> native/src/memory_policy.rs:341:21
+    |
+341 |             None => assert!(current > 3),
+    |                     ^^^^^^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = note: for more information, see issue #79813 <https://github.com/rust-lang/rust/issues/79813>
+    = note: this warning originates in the macro `assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of an unstable feature
+ --> <crate attribute>:1:12
+  |
+1 | #![feature(register_tool)]
+  |            ^^^^^^^^^^^^^
+  |
+  = note: requested on the command line with `--force-warn unstable-features`
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.16s
+warning: the following packages contain code that will be rejected by a future version of Rust: mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 4`
+Checking harness flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks...
+CBMC 6.11.0 (cbmc-6.11.0)
+CBMC version 6.11.0 (cbmc-6.11.0) 64-bit arm64 macos
+Reading GOTO program from file /Users/justin/Documents/mix-stq1_0/target/kani/aarch64-apple-darwin/debug/build/mlxl3-native/26b41060a165e7fc/out/mlxl3_native-26b41060a165e7fc__RNvNtNtCs3yamx1GSPoC_12mlxl3_native13flash_support12verification49slot_tiles_preserve_complete_shapes_and_fallbacks.out
+Generating GOTO Program
+Adding CPROVER library (arm64)
+Removal of function pointers and virtual functions
+Generic Property Instrumentation
+Running with 16 object bits, 48 offset bits (user-specified)
+Starting Bounded Model Checking
+Runtime Symex: 0.0103019s
+size of program expression: 1443 steps
+slicing removed 678 assignments
+Generated 41 VCC(s), 33 remaining after simplification
+Runtime Postprocess Equation: 0.00026525s
+Passing problem to propositional reduction
+converting SSA
+Runtime Convert SSA: 0.00160967s
+Running propositional reduction
+Post-processing
+Runtime Post-process: 1.6875e-05s
+Solving with CaDiCaL 3.0.0
+2409 variables, 8388 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000151333s
+Runtime decision procedure: 0.00183842s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2410 variables, 8389 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 5.5e-05s
+Runtime decision procedure: 9.3667e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2411 variables, 8390 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 4.7458e-05s
+Runtime decision procedure: 7.7833e-05s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2412 variables, 8391 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000451084s
+Runtime decision procedure: 0.00048575s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2413 variables, 8392 clauses
+SAT checker: instance is SATISFIABLE
+Runtime Solver: 0.000127417s
+Runtime decision procedure: 0.000161292s
+Running propositional reduction
+Solving with CaDiCaL 3.0.0
+2414 variables, 8393 clauses
+SAT checker: instance is UNSATISFIABLE
+Runtime Solver: 0.000593334s
+Runtime decision procedure: 0.000612958s
+
+RESULTS:
+Check 1: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.1
+	 - Status: SUCCESS
+	 - Description: "assertion failed: nt == 1 || nt == 2"
+	 - Location: native/src/flash_support.rs:1239:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 2: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.2
+	 - Status: SUCCESS
+	 - Description: "assertion failed: nt == 2"
+	 - Location: native/src/flash_support.rs:1241:72 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 3: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.3
+	 - Status: SUCCESS
+	 - Description: "assertion failed: nt == 1"
+	 - Location: native/src/flash_support.rs:1242:18 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 4: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.4
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1245:48 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 5: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.5
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:1245:48 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 6: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.1
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:1245:48 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 7: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.2
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1245:48 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 8: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.6
+	 - Status: SUCCESS
+	 - Description: "assertion failed: input > 0 && output > 0 && output % 32 == 0"
+	 - Location: native/src/flash_support.rs:1245:13 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 9: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.7
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 10: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.8
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 11: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.3
+	 - Status: SUCCESS
+	 - Description: "attempt to divide with overflow"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 12: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.4
+	 - Status: SUCCESS
+	 - Description: "attempt to divide by zero"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 13: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.9
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 14: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.10
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 15: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.5
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with overflow"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 16: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.arithmetic_overflow.6
+	 - Status: SUCCESS
+	 - Description: "attempt to calculate the remainder with a divisor of zero"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 17: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.assertion.11
+	 - Status: SUCCESS
+	 - Description: "assertion failed: (output / 16) % nt == 0"
+	 - Location: native/src/flash_support.rs:1246:13 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 18: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.1
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 2 && input == 2560"
+	 - Location: native/src/flash_support.rs:1248:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 19: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.2
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 2 && input == 640"
+	 - Location: native/src/flash_support.rs:1249:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 20: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.3
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 1 && !m5"
+	 - Location: native/src/flash_support.rs:1250:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 21: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.4
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 1 && !mul1"
+	 - Location: native/src/flash_support.rs:1251:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 22: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.5
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 1 && k == usize::MAX"
+	 - Location: native/src/flash_support.rs:1252:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 23: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.cover.6
+	 - Status: SATISFIED
+	 - Description: "cover condition: nt == 1 && input == i32::MIN"
+	 - Location: native/src/flash_support.rs:1253:9 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+Check 24: flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks.division-by-zero.1
+	 - Status: SUCCESS
+	 - Description: "division by zero"
+	 - Location: native/src/flash_support.rs:1246:24 in function flash_support::verification::slot_tiles_preserve_complete_shapes_and_fallbacks
+
+
+SUMMARY:
+ ** 0 of 18 failed
+
+ ** 6 of 6 cover properties satisfied
+
+
+VERIFICATION:- SUCCESSFUL
+Verification Time: 0.09229246s
+
+Manual Harness Summary:
+Complete - 1 successfully verified harnesses, 0 failures, 1 total.

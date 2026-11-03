@@ -22,7 +22,7 @@ use std::{
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 mod mtp_tune;
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(any(test, all(feature = "mlx", feature = "chat")))]
 mod openai;
 use std::{
     io::{self, BufRead, Read, Write},
@@ -116,6 +116,9 @@ enum Command {
     DflashDraft {
         #[arg(long)]
         inspect: Option<PathBuf>,
+        /// Download/validate the draft matching this target's configuration.
+        #[arg(long)]
+        target: Option<PathBuf>,
     },
     /// Install or inspect a native Qwen MTP head without downloading the target.
     MtpHead {
@@ -1032,6 +1035,7 @@ fn run(cli: Cli) -> Result<()> {
             }
             for token in tokens {
                 let (logits, arrays) = match (&mut model, states) {
+                    (NativeChatModel::Flash(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
@@ -1211,17 +1215,32 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Command::DflashDraft { inspect } => {
+        Command::DflashDraft { inspect, target } => {
+            use mlxl3_native::dflash::{Family, ManagedDraft};
+            let expected = target
+                .as_deref()
+                .map(ManagedDraft::from_target)
+                .transpose()?;
             let path = if let Some(path) = inspect {
-                mlxl3_native::dflash::inspect(path)?.directory
+                if let Some(expected) = expected {
+                    expected.inspect(&path)?
+                } else {
+                    mlxl3_native::dflash::inspect(path)?.directory
+                }
             } else {
-                mlxl3_native::hub::download_dflash(|completed, total| {
+                let progress = |completed, total| {
                     println!(
                         "{}",
                         json!({"type":"progress", "completed":completed, "total":total})
                     );
                     let _ = io::stdout().flush();
-                })?
+                };
+                match expected.unwrap_or(ManagedDraft::Packed(Family::Qwen36Moe)) {
+                    ManagedDraft::Packed(family) => {
+                        mlxl3_native::hub::download_dflash(family, progress)?
+                    }
+                    ManagedDraft::FlashNext => mlxl3_native::hub::download_flash_dflash(progress)?,
+                }
             };
             println!("{}", json!({"type":"installed", "path":path}));
         }
@@ -1373,6 +1392,7 @@ enum NativeChatModel {
     Lfm2(mlxl3_native::lfm2::Lfm2),
     Ling(mlxl3_native::ling::Ling),
     Qwen(mlxl3_native::qwen35::Qwen35Moe),
+    Flash(Box<mlxl3_native::qwen4::FlashNext>),
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1384,6 +1404,9 @@ impl NativeChatModel {
 
     fn from_checkpoint(checkpoint: &checkpoint::Checkpoint) -> Result<Self> {
         match checkpoint.model_type.as_str() {
+            "qwen4_exp" => Ok(Self::Flash(Box::new(
+                mlxl3_native::qwen4::FlashNext::from_checkpoint(checkpoint)?,
+            ))),
             "gemma4" => Ok(Self::Gemma4(mlxl3_native::gemma4::Gemma4::from_checkpoint(
                 checkpoint,
             )?)),
@@ -1406,11 +1429,31 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
             Self::Qwen(model) => model.forward(token),
+            Self::Flash(model) => model.forward(token),
         }
     }
 
     fn forward_many(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         anyhow::ensure!(!tokens.is_empty(), "empty token batch");
+        if let Self::Lfm2(model) = self
+            && model.uses_moe_exact_prefill()
+        {
+            let (output, stats) = model.prefill_moe_exact(tokens)?;
+            if std::env::var_os("MLXL3_LFM_PREFILL_TRACE").is_some_and(|value| value == "1") {
+                eprintln!(
+                    "{}",
+                    json!({
+                        "type": "lfm_prefill_dispatch",
+                        "tokens": stats.tokens,
+                        "blocks": stats.blocks,
+                        "grouped_moe_calls": stats.grouped_moe_calls,
+                        "router_rows": stats.router_rows,
+                        "max_block": stats.max_block,
+                    })
+                );
+            }
+            return Ok(output);
+        }
         if tokens.len() >= 24 {
             return match self {
                 Self::Gemma4(model) if model.can_batch(tokens.len()) => {
@@ -1419,6 +1462,7 @@ impl NativeChatModel {
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
+                Self::Flash(model) => model.forward_tokens(tokens),
                 Self::Gemma4(_) | Self::Lfm2(_) => self.forward_many_serial(tokens),
             };
         }
@@ -1428,6 +1472,7 @@ impl NativeChatModel {
     fn forward_many_serial(&mut self, tokens: &[u32]) -> Result<mlxl3_native::array::Array> {
         match self {
             Self::Qwen(model) => return model.prefill_serial(tokens),
+            Self::Flash(model) => return model.forward_tokens(tokens),
             Self::Ling(model) => return model.prefill_serial(tokens),
             _ => {}
         }
@@ -1442,7 +1487,9 @@ impl NativeChatModel {
         match self {
             Self::Gemma4(_) => 256,
             Self::Lfm2(model) if model.supports_batched_prefill() => 256,
+            Self::Lfm2(model) if model.uses_moe_exact_prefill() => 8,
             Self::Qwen(_) => 256,
+            Self::Flash(_) => mlxl3_native::flash_support::PREFILL_CHUNK,
             Self::Ling(_) => 128,
             Self::Lfm2(_) => 1,
         }
@@ -1454,6 +1501,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
             Self::Qwen(model) => model.context_limit(),
+            Self::Flash(model) => model.context_limit(),
         }
     }
 
@@ -1463,6 +1511,7 @@ impl NativeChatModel {
             Self::Lfm2(model) => model.reset(),
             Self::Ling(model) => model.reset(),
             Self::Qwen(model) => model.reset(),
+            Self::Flash(model) => model.reset(),
         }
     }
 
@@ -1473,7 +1522,7 @@ impl NativeChatModel {
                     state.eval()?;
                 }
             }
-            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) => {}
+            Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) | Self::Flash(_) => {}
         }
         Ok(())
     }
@@ -1484,6 +1533,7 @@ impl NativeChatModel {
             Self::Lfm2(_) => "LFM2",
             Self::Ling(_) => "Ling 3",
             Self::Qwen(_) => "Qwen3.5",
+            Self::Flash(_) => "Qwen3.8 Flash Next",
         }
     }
 }
@@ -1516,9 +1566,15 @@ struct BridgeRequest {
     #[serde(default)]
     mcp_enabled: bool,
     #[serde(default)]
+    allowed_tools: Option<Vec<String>>,
+    #[serde(default)]
+    response_schema: Option<String>,
+    #[serde(default)]
     dflash2: bool,
     #[serde(default)]
     dflash_draft_path: String,
+    #[serde(default = "default_mtp_depth")]
+    dflash_mode: usize,
     #[serde(default)]
     mtp: bool,
     #[serde(default)]
@@ -1533,6 +1589,108 @@ fn default_mtp_depth() -> usize {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+enum ChatMtpHead {
+    Qwen(Box<mlxl3_native::mtp::Head>),
+    Flash(Box<mlxl3_native::qwen4::FlashMtpHead>),
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ChatMtpHead {
+    fn load(path: &std::path::Path, model: &NativeChatModel) -> Result<Self> {
+        match model {
+            NativeChatModel::Qwen(target) => Ok(Self::Qwen(Box::new(
+                mlxl3_native::mtp::Head::load(path, target)?,
+            ))),
+            NativeChatModel::Flash(target) => Ok(Self::Flash(Box::new(
+                mlxl3_native::qwen4::FlashMtpHead::load(&checkpoint::inspect(path)?, target)?,
+            ))),
+            _ => bail!("MTP requires a supported Qwen target"),
+        }
+    }
+    fn reset(&mut self) -> Result<()> {
+        match self {
+            Self::Qwen(head) => head.reset(),
+            Self::Flash(head) => {
+                head.reset();
+                Ok(())
+            }
+        }
+    }
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+enum ChatMtpSession {
+    Qwen(mlxl3_native::mtp::Session),
+    Flash(mlxl3_native::qwen4::FlashMtpSession),
+}
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ChatMtpSession {
+    fn new(head: &ChatMtpHead, depth: usize) -> Result<Self> {
+        match head {
+            ChatMtpHead::Qwen(_) => Ok(Self::Qwen(mlxl3_native::mtp::Session::new(depth)?)),
+            ChatMtpHead::Flash(_) => {
+                anyhow::ensure!(depth == 1, "Flash MTP supports depth 1");
+                Ok(Self::Flash(Default::default()))
+            }
+        }
+    }
+    fn advance(
+        &mut self,
+        model: &mut NativeChatModel,
+        head: &mut ChatMtpHead,
+        anchor: u32,
+        context: usize,
+        remaining: usize,
+        allow_lookup: impl Fn(&[u32]) -> bool,
+    ) -> Result<u32> {
+        match (self, model, head) {
+            (Self::Qwen(session), NativeChatModel::Qwen(target), ChatMtpHead::Qwen(head)) => {
+                session.advance(target, head, anchor, context, remaining, allow_lookup)
+            }
+            (Self::Flash(session), NativeChatModel::Flash(target), ChatMtpHead::Flash(head)) => {
+                session.advance(target, head, anchor, context, remaining)
+            }
+            _ => bail!("MTP head and target do not match"),
+        }
+    }
+    fn enable_adaptive(&mut self) {
+        if let Self::Qwen(session) = self {
+            session.enable_adaptive();
+        }
+    }
+    fn enable_prompt_lookup(&mut self, tokens: &[u32]) {
+        if let Self::Qwen(session) = self {
+            session.enable_prompt_lookup(tokens);
+        }
+    }
+    fn stats(&self) -> (usize, usize, usize, usize, [usize; 4]) {
+        match self {
+            Self::Qwen(s) => (
+                s.proposed,
+                s.accepted,
+                s.blocks,
+                s.lookup_blocks,
+                s.depth_blocks,
+            ),
+            Self::Flash(s) => (s.proposed, s.accepted, s.blocks, 0, [0, s.blocks, 0, 0]),
+        }
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prefill_flash_mtp(
+    model: &mut NativeChatModel,
+    head: &mut mlxl3_native::qwen4::FlashMtpHead,
+    tokens: &[u32],
+    cache: &mut Option<PromptCache>,
+    cancelled: &AtomicBool,
+) -> Result<(mlxl3_native::array::Array, Option<DFlashChat>, usize)> {
+    let NativeChatModel::Flash(target) = model else {
+        bail!("Flash MTP requires Flash Next");
+    };
+    *cache = None;
+    Ok((target.prefill_mtp(head, tokens, cancelled)?, None, 0))
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 struct DFlashChat {
     cache: mlxl3_native::dflash::DFlashCache,
     pending: VecDeque<u32>,
@@ -1541,6 +1699,9 @@ struct DFlashChat {
     accepted: usize,
     blocks: usize,
     block_seconds: f64,
+    mode: usize,
+    copy: Option<mlxl3_native::speculative::DFlashCopy>,
+    lookup_blocks: usize,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1585,6 +1746,21 @@ struct PromptCache {
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn prompt_cache_budget() -> Result<usize> {
+    Ok(match std::env::var("MLXL3_PROMPT_CACHE_MIB") {
+        Ok(value) => value
+            .parse::<usize>()
+            .ok()
+            .and_then(mlxl3_native::memory_policy::mib_budget)
+            .context("MLXL3_PROMPT_CACHE_MIB must be an integer in 0..4096")?,
+        Err(std::env::VarError::NotPresent) => {
+            mlxl3_native::memory_policy::DEFAULT_PROMPT_CACHE_BYTES
+        }
+        Err(error) => return Err(error.into()),
+    })
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 impl PromptCache {
     fn capture(
         conversation: &str,
@@ -1600,22 +1776,48 @@ impl PromptCache {
             usize::try_from(target.offset()).ok() == Some(tokens.len()),
             "prefix cache position differs from its token history"
         );
-        let state = target.snapshot()?;
-        // ponytail: one checkpoint, capped at 256 MiB logical target state;
-        // add a multi-session budget only after its extra retained RAM is measured.
-        if state.byte_len()? > 256 * 1024 * 1024 {
+        if prompt_cache_budget()? == 0 {
             return Ok(None);
         }
-        Ok(Some(Self {
+        let state = target.snapshot()?.compact_for_cache()?;
+        let saved = Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
-            state: state.compact_for_cache()?,
+            state,
             logits: logits.compact_for_cache()?,
             draft: dflash
-                .map(|session| session.cache.try_clone())
+                .map(|session| session.cache.try_clone()?.compact_for_cache())
                 .transpose()?,
             mtp: None,
-        }))
+        };
+        saved.within_budget()
+    }
+
+    fn within_budget(self) -> Result<Option<Self>> {
+        let budget = prompt_cache_budget()?;
+        let fits = mlxl3_native::memory_policy::cache_fits(
+            [
+                self.state.retained_bytes()?,
+                self.logits.retained_bytes()?,
+                self.draft
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.mtp
+                    .as_ref()
+                    .map(|cache| cache.retained_bytes())
+                    .transpose()?
+                    .unwrap_or(0),
+                self.tokens
+                    .len()
+                    .checked_mul(4)
+                    .context("token cache size overflow")?,
+                self.conversation.len(),
+            ],
+            budget,
+        );
+        Ok(fits.then_some(self))
     }
 }
 
@@ -1632,6 +1834,12 @@ fn prefill_round(
     if cancelled.load(Ordering::Relaxed) {
         model.reset();
         bail!("generation cancelled");
+    }
+    if let NativeChatModel::Flash(target) = model
+        && target.dflash2_active()
+    {
+        *cache = None;
+        return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
     }
     let chunk_size = if draft.is_some() {
         mlxl3_native::dflash::PREFILL_CHUNK
@@ -1680,7 +1888,7 @@ fn prefill_round(
         logits = Some(
             if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                    bail!("DFlash2 requires a supported Qwen target")
                 };
                 if usize::try_from(target.offset())?
                     < mlxl3_native::dflash::prefill_capture_start(tokens.len())
@@ -1754,7 +1962,7 @@ fn prefill_mtp(
         if let Some(saved) = &mut saved {
             saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
         }
-        *cache = saved;
+        *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
     }
     // At every checkpoint the last trunk hidden is deliberately unpaired.
     // The next prompt token is supplied only after prefix eligibility is known.
@@ -1794,7 +2002,7 @@ fn prefill_mtp(
             if let Some(saved) = &mut saved {
                 saved.mtp = Some(head.snapshot()?.compact_for_cache()?);
             }
-            *cache = saved;
+            *cache = saved.map(PromptCache::within_budget).transpose()?.flatten();
         }
     }
     let logits = logits.context("empty MTP prefill")?;
@@ -1813,7 +2021,16 @@ impl DFlashChat {
             accepted: 0,
             blocks: 0,
             block_seconds: 0.,
+            mode: 1,
+            copy: None,
+            lookup_blocks: 0,
         }
+    }
+
+    fn configure(&mut self, mode: usize, family: mlxl3_native::dflash::Family, prompt: &[u32]) {
+        self.mode = mode;
+        self.copy = (mode == 1 && dflash_context_copy_enabled(Some(family)))
+            .then(|| mlxl3_native::speculative::DFlashCopy::new(prompt));
     }
 
     fn proposals_count(&self, context_remaining: usize, output_remaining: usize) -> Option<usize> {
@@ -1823,7 +2040,8 @@ impl DFlashChat {
             .fold((0, 0), |(accepted, proposed), &(a, p)| {
                 (accepted + a, proposed + p)
             });
-        mlxl3_native::speculative::adaptive_proposals(
+        mlxl3_native::speculative::dflash_proposals(
+            self.mode,
             context_remaining,
             output_remaining,
             self.recent.len(),
@@ -1875,10 +2093,19 @@ impl DFlashChat {
                 .context("model returned no logits");
         }
         let block_started = Instant::now();
-        let input = target.dflash_input(anchor, 248_077)?;
-        let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
-        let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
-        let proposals = draft.select_greedy(&draft_logits, &output.selector, anchor)?;
+        let copied = self
+            .copy
+            .as_ref()
+            .and_then(|copy| copy.propose(anchor, proposals_count));
+        let is_copy = copied.is_some();
+        let proposals = if let Some(tokens) = copied {
+            tokens.to_vec()
+        } else {
+            let input = target.dflash_input(anchor, draft.family.mask())?;
+            let output = draft.forward_hidden(&input, &self.cache, target.offset())?;
+            let draft_logits = target.dflash_logits(&output.hidden, proposals_count)?;
+            draft.select_greedy(&draft_logits, &output.selector, anchor)?
+        };
         let verify = std::iter::once(anchor)
             .chain(proposals.iter().copied())
             .collect::<Vec<_>>();
@@ -1902,6 +2129,10 @@ impl DFlashChat {
             &captured.slice(0, 0, i32::try_from(retained)?)?,
             position,
         )?;
+        if let Some(copy) = &mut self.copy {
+            copy.record(anchor, &proposals[..accepted], is_copy);
+        }
+        self.lookup_blocks += usize::from(is_copy);
         self.pending.extend(proposals[..accepted].iter().copied());
         self.pending.push_back(acceptance.target_token);
         // Wall time through materialized token selection, without extra GPU
@@ -1911,6 +2142,17 @@ impl DFlashChat {
             .pop_front()
             .context("DFlash produced no target token")
     }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_context_copy_enabled(family: Option<mlxl3_native::dflash::Family>) -> bool {
+    family == Some(mlxl3_native::dflash::Family::Qwen36Moe)
+        && std::env::var("MLXL3_DFLASH_CONTEXT_COPY").as_deref() == Ok("1")
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn dflash_runtime_key(base: &str, copy: bool) -> String {
+    format!("{base}:dflash-v4:copy={}", u8::from(copy))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1950,11 +2192,14 @@ struct NativeStats {
     dflash_proposed_tokens: Option<usize>,
     dflash_accepted_tokens: Option<usize>,
     dflash_blocks: Option<usize>,
+    dflash_lookup_blocks: Option<usize>,
     dflash_block_seconds: f64,
+    dflash_profile: Option<mlxl3_native::qwen4::FlashDraftProfile>,
     mtp_proposed_tokens: Option<usize>,
     mtp_accepted_tokens: Option<usize>,
     mtp_blocks: Option<usize>,
     mtp_lookup_blocks: Option<usize>,
+    mtp_depth_blocks: Option<[usize; 4]>,
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -1974,7 +2219,31 @@ impl NativeStats {
         self.context_limit = round.context_limit;
         self.round_count += round.round_count;
         self.dflash_block_seconds += round.dflash_block_seconds;
+        if let Some(profile) = round.dflash_profile {
+            let sum = self.dflash_profile.get_or_insert_with(Default::default);
+            sum.draft_seconds += profile.draft_seconds;
+            sum.verification_seconds += profile.verification_seconds;
+            sum.commit_cache_seconds += profile.commit_cache_seconds;
+            sum.verified_rows += profile.verified_rows;
+            sum.drafted_rows += profile.drafted_rows;
+            for (sum, value) in sum.drafted_widths.iter_mut().zip(profile.drafted_widths) {
+                *sum += value;
+            }
+            for (sum, value) in sum.verified_widths.iter_mut().zip(profile.verified_widths) {
+                *sum += value;
+            }
+            sum.expert_demand_bytes += profile.expert_demand_bytes;
+            for (sum, value) in sum.ssd_prefetch.iter_mut().zip(profile.ssd_prefetch) {
+                *sum = sum.saturating_add(value);
+            }
+        }
         self.memory = round.memory;
+        if let Some(counts) = round.mtp_depth_blocks {
+            let sum = self.mtp_depth_blocks.get_or_insert([0; 4]);
+            for (total, count) in sum.iter_mut().zip(counts) {
+                *total += count;
+            }
+        }
         for (sum, value) in [
             (
                 &mut self.dflash_proposed_tokens,
@@ -1985,6 +2254,7 @@ impl NativeStats {
                 round.dflash_accepted_tokens,
             ),
             (&mut self.dflash_blocks, round.dflash_blocks),
+            (&mut self.dflash_lookup_blocks, round.dflash_lookup_blocks),
             (&mut self.mtp_proposed_tokens, round.mtp_proposed_tokens),
             (&mut self.mtp_accepted_tokens, round.mtp_accepted_tokens),
             (&mut self.mtp_blocks, round.mtp_blocks),
@@ -1999,7 +2269,9 @@ impl NativeStats {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct RoundOutput {
+    stop_reason: mlxl3_native::GenerationStopReason,
     raw: String,
+    answer: String,
     stats: NativeStats,
     first_text_seconds: Option<f64>,
     token_hash: String,
@@ -2113,6 +2385,23 @@ fn select_token(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn bridge_emit_delta(
+    request_id: &str,
+    phase: &str,
+    text: &str,
+    buffered: bool,
+    answer: &mut String,
+) -> Result<()> {
+    if phase == "answer" {
+        answer.push_str(text);
+    }
+    if !buffered {
+        emit_event(json!({"type":"delta", "request_id":request_id, "phase":phase, "text":text}))?;
+    }
+    Ok(())
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 #[allow(clippy::too_many_arguments)]
 fn bridge_generate_round(
     model: &mut NativeChatModel,
@@ -2129,11 +2418,13 @@ fn bridge_generate_round(
     cancelled: &AtomicBool,
     random: &mut u64,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
-    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
+    dflash_mode: usize,
     cache: &mut Option<PromptCache>,
     conversation: &str,
     reuse: bool,
+    buffer_output: bool,
 ) -> Result<RoundOutput> {
     use mlxl3_native::{streaming::Channel, tool_call::StreamFilter};
     let started = Instant::now();
@@ -2156,20 +2447,34 @@ fn bridge_generate_round(
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
     let (mut logits, mut dflash, cached) = if let Some(head) = mtp.as_deref_mut() {
-        prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+        match head {
+            ChatMtpHead::Qwen(head) => {
+                prefill_mtp(model, head, &tokens, cache, conversation, reuse, cancelled)?
+            }
+            ChatMtpHead::Flash(head) => prefill_flash_mtp(model, head, &tokens, cache, cancelled)?,
+        }
     } else {
         prefill_round(model, &tokens, draft, cache, conversation, reuse, cancelled)?
     };
+    if let Some((session, weights)) = dflash.as_mut().zip(draft) {
+        session.configure(dflash_mode, weights.family, &tokens);
+    }
     let mut mtp_session = mtp
         .as_ref()
-        .map(|_| mlxl3_native::mtp::Session::new(mtp_depth))
+        .map(|head| ChatMtpSession::new(head, mtp_depth))
         .transpose()?;
+    if std::env::var("MLXL3_MTP_ADAPTIVE").as_deref() == Ok("1")
+        && let Some(session) = &mut mtp_session
+    {
+        session.enable_adaptive();
+    }
     if std::env::var("MLXL3_MTP_LOOKUP").as_deref() == Ok("1")
         && let Some(session) = &mut mtp_session
     {
         session.enable_prompt_lookup(&tokens);
     }
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
+    let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let available = context_limit - tokens.len();
     let budget = if max_tokens == -1 {
         available
@@ -2179,11 +2484,14 @@ fn bridge_generate_round(
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
     let mut filter = (!tools.is_empty()).then(StreamFilter::new);
+    let mut last_tool_progress: Option<Instant> = None;
     let mut decoded = String::new();
+    let mut answer = String::new();
     let mut generated = Vec::new();
     let mut first_token = None;
     let mut first_visible_text = None;
     let mut dflash_next = None;
+    let mut eos_observed = false;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
@@ -2202,6 +2510,7 @@ fn bridge_generate_round(
             )?
         };
         if tokenizer.eos_ids().contains(&next) {
+            eos_observed = true;
             break;
         }
         first_token.get_or_insert_with(|| started.elapsed().as_secs_f64());
@@ -2223,21 +2532,34 @@ fn bridge_generate_round(
                     if !text.is_empty() {
                         first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
                     }
-                    emit_event(json!({
-                        "type":"delta", "request_id":request_id,
-                        "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
-                        "text":text
-                    }))?;
+                    bridge_emit_delta(
+                        request_id,
+                        if fragment.channel == Channel::Thinking {
+                            "thinking"
+                        } else {
+                            "answer"
+                        },
+                        &text,
+                        buffer_output,
+                        &mut answer,
+                    )?;
                 }
             }
         }
+        if filter.as_ref().is_some_and(StreamFilter::is_preparing_tool)
+            && last_tool_progress
+                .is_none_or(|last| last.elapsed() >= std::time::Duration::from_millis(500))
+        {
+            emit_event(json!({
+                "type":"generation_status", "request_id":request_id, "phase":"tool_preparation",
+                "text":format!("Preparing tool call · {} tokens", generated.len())
+            }))?;
+            last_tool_progress = Some(Instant::now());
+        }
         if generated.len() < budget {
             if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
-                let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("MTP requires Qwen3.5/3.6");
-                };
                 dflash_next = Some(session.advance(
-                    target,
+                    model,
                     head,
                     next,
                     context_limit,
@@ -2251,7 +2573,7 @@ fn bridge_generate_round(
                 )?);
             } else if let Some((session, weights)) = dflash.as_mut().zip(draft) {
                 let NativeChatModel::Qwen(target) = &mut *model else {
-                    bail!("DFlash2 requires Qwen3.6-35B-A3B")
+                    bail!("DFlash2 requires a supported Qwen target")
                 };
                 dflash_next = Some(session.advance(
                     target,
@@ -2260,6 +2582,10 @@ fn bridge_generate_round(
                     context_limit,
                     budget - generated.len(),
                 )?);
+            } else if let NativeChatModel::Flash(target) = &mut *model
+                && target.dflash2_active()
+            {
+                dflash_next = Some(target.advance_dflash2(next, budget - generated.len())?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -2281,11 +2607,17 @@ fn bridge_generate_round(
             if !text.is_empty() {
                 first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
             }
-            emit_event(json!({
-                "type":"delta", "request_id":request_id,
-                "phase":if fragment.channel == Channel::Thinking { "thinking" } else { "answer" },
-                "text":text
-            }))?;
+            bridge_emit_delta(
+                request_id,
+                if fragment.channel == Channel::Thinking {
+                    "thinking"
+                } else {
+                    "answer"
+                },
+                &text,
+                buffer_output,
+                &mut answer,
+            )?;
         }
     }
     if let Some(filter) = &mut filter {
@@ -2293,11 +2625,11 @@ fn bridge_generate_round(
             if !text.is_empty() {
                 first_visible_text.get_or_insert_with(|| started.elapsed().as_secs_f64());
             }
-            emit_event(json!({
-                "type":"delta", "request_id":request_id,
-                "phase":"answer", "text":text
-            }))?;
+            bridge_emit_delta(request_id, "answer", &text, buffer_output, &mut answer)?;
         }
+    }
+    if let Some(capture) = gpu_capture {
+        capture.finish()?;
     }
     let elapsed = started.elapsed().as_secs_f64();
     let ttft = first_token.unwrap_or(elapsed);
@@ -2322,15 +2654,33 @@ fn bridge_generate_round(
         dflash_proposed_tokens: dflash.as_ref().map(|session| session.proposed),
         dflash_accepted_tokens: dflash.as_ref().map(|session| session.accepted),
         dflash_blocks: dflash.as_ref().map(|session| session.blocks),
+        dflash_lookup_blocks: dflash.as_ref().map(|session| session.lookup_blocks),
         dflash_block_seconds: dflash.as_ref().map_or(0., |session| session.block_seconds),
-        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.proposed),
-        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.accepted),
-        mtp_blocks: mtp_session.as_ref().map(|s| s.blocks),
-        mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.lookup_blocks),
+        mtp_proposed_tokens: mtp_session.as_ref().map(|s| s.stats().0),
+        mtp_accepted_tokens: mtp_session.as_ref().map(|s| s.stats().1),
+        mtp_blocks: mtp_session.as_ref().map(|s| s.stats().2),
+        mtp_lookup_blocks: mtp_session.as_ref().map(|s| s.stats().3),
+        mtp_depth_blocks: mtp_session.as_ref().map(|s| s.stats().4),
         ..Default::default()
     };
+    let mut stats = stats;
+    if let NativeChatModel::Flash(target) = &*model
+        && let Some((proposed, accepted, blocks, seconds)) = target.dflash2_stats()
+    {
+        stats.dflash_proposed_tokens = Some(proposed);
+        stats.dflash_accepted_tokens = Some(accepted);
+        stats.dflash_blocks = Some(blocks);
+        stats.dflash_lookup_blocks = Some(0);
+        stats.dflash_block_seconds = seconds;
+        stats.dflash_profile = target.dflash2_profile();
+    }
     Ok(RoundOutput {
+        stop_reason: mlxl3_native::GenerationStopReason::from_round(
+            eos_observed,
+            tokens.len() + generated.len() >= context_limit,
+        ),
         raw: complete,
+        answer,
         stats,
         first_text_seconds: first_visible_text,
         token_hash: token_hash(&generated),
@@ -2398,17 +2748,47 @@ fn bridge_generate(
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&mlxl3_native::dflash::DFlashWeights>,
-    mut mtp: Option<&mut mlxl3_native::mtp::Head>,
+    mut mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
+    dflash_mode: usize,
     started: Instant,
     draft_load_seconds: f64,
     cache: &mut Option<PromptCache>,
     conversation: &str,
     reuse: bool,
+    allowed_tools: Option<&[String]>,
+    response_schema: Option<&str>,
 ) -> Result<()> {
+    let schema = response_schema
+        .map(mlxl3_native::structured::Schema::parse)
+        .transpose()?;
     let mut dialogue = validated_bridge_messages(messages)?;
+    if let Some(schema) = &schema {
+        anyhow::ensure!(
+            mcp.chat_tools().is_empty(),
+            "JSON output and MCP must be used separately"
+        );
+        let instruction = schema.instruction();
+        if dialogue
+            .first()
+            .is_some_and(|message| message["role"] == "system")
+        {
+            let existing = dialogue[0]["content"].as_str().unwrap_or("");
+            dialogue[0]["content"] = json!(format!("{existing}\n\n{instruction}"));
+        } else {
+            dialogue.insert(0, json!({"role":"system", "content":instruction}));
+        }
+    }
     let original_length = dialogue.len();
-    let tools = mcp.chat_tools();
+    let tools: Vec<_> = mcp
+        .chat_tools()
+        .into_iter()
+        .filter(|tool| {
+            tool["function"]["name"]
+                .as_str()
+                .is_some_and(|name| mlxl3_native::structured::tool_allowed(name, allowed_tools))
+        })
+        .collect();
     let mut first_text = None;
     let mut summary: Option<NativeStats> = None;
     let mut round_stats = Vec::new();
@@ -2419,13 +2799,22 @@ fn bridge_generate(
             "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
         }))?;
         let round_start = started.elapsed().as_secs_f64();
+        let round_max_tokens = mlxl3_native::structured::remaining_tokens(
+            max_tokens,
+            summary.as_ref().map_or(0, |stats| stats.generated_tokens),
+        )
+        .context(if schema.is_some() {
+            "JSON token budget exhausted"
+        } else {
+            "Generation token budget exhausted"
+        })?;
         let output = bridge_generate_round(
             model,
             tokenizer,
             request_id,
             &dialogue,
             &tools,
-            max_tokens,
+            round_max_tokens,
             temperature,
             top_k,
             repetition_penalty,
@@ -2436,9 +2825,11 @@ fn bridge_generate(
             draft,
             mtp.as_deref_mut(),
             mtp_depth,
+            dflash_mode,
             cache,
             conversation,
             reuse,
+            schema.is_some(),
         )?;
         if first_text.is_none() {
             first_text = output
@@ -2453,6 +2844,20 @@ fn bridge_generate(
             summary = Some(first);
         }
         round_stats.push(output.stats.clone());
+        let validated_json = if let Some(schema) = &schema {
+            match schema.validate(&output.answer) {
+                Ok(answer) => Some(answer),
+                Err(error) if round < 2 => {
+                    dialogue.push(json!({"role":"assistant", "content":output.raw}));
+                    dialogue.push(json!({"role":"user", "content":format!("The previous response failed JSON validation: {error}. Return only valid JSON conforming to the schema.")}));
+                    *cache = None;
+                    continue;
+                }
+                Err(error) => return Err(error.context("JSON validation failed after 3 attempts")),
+            }
+        } else {
+            None
+        };
         let calls = if tools.is_empty() {
             Vec::new()
         } else {
@@ -2460,7 +2865,15 @@ fn bridge_generate(
         };
         let context_full = output.stats.context_used >= context_limit;
         if calls.is_empty() || context_full {
-            let assistant = mlxl3_native::tool_call::without_calls(&output.raw);
+            let assistant = validated_json
+                .clone()
+                .unwrap_or_else(|| mlxl3_native::tool_call::without_calls(&output.raw));
+            if let Some(answer) = &validated_json {
+                first_text = Some(started.elapsed().as_secs_f64());
+                emit_event(
+                    json!({"type":"delta", "request_id":request_id,"phase":"answer","text":answer}),
+                )?;
+            }
             let turn_context = if round == 0 {
                 None
             } else {
@@ -2473,12 +2886,13 @@ fn bridge_generate(
             stats.end_to_end_ttft_seconds = first_text;
             stats.tool_seconds = tool_seconds;
             stats.draft_load_seconds = draft_load_seconds;
-            stats.tool_rounds = round;
+            stats.tool_rounds = if schema.is_some() { 0 } else { round };
             return emit_event(json!({
                 "type":"complete", "request_id":request_id,
                 "assistant_context":assistant, "cache_context":output.raw,
                 "token_hash":output.token_hash,
                 "stats":stats, "round_stats":round_stats, "context_full":context_full,
+                "stop_reason":output.stop_reason.as_str(),
                 "turn_context":turn_context,
                 "elapsed_seconds":started.elapsed().as_secs_f64(),
                 "first_text_seconds":first_text,
@@ -2508,6 +2922,11 @@ fn bridge_generate(
                 "server_name":server
             }))?;
             let tool_started = Instant::now();
+            anyhow::ensure!(
+                mlxl3_native::structured::tool_allowed(&call.name, allowed_tools),
+                "MCP tool is not allowed in this project: {}",
+                call.name
+            );
             let mut result = mcp.call(&call.name, call.arguments);
             tool_seconds += tool_started.elapsed().as_secs_f64();
             let budget = 8192usize.min((context_limit / 8).max(256));
@@ -2533,13 +2952,61 @@ fn bridge_generate(
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
+fn load_dflash_weights(
+    slot: &mut Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)>,
+    cache: &mut Option<PromptCache>,
+    path: &str,
+    family: mlxl3_native::dflash::Family,
+) -> Result<bool> {
+    anyhow::ensure!(
+        !path.trim().is_empty(),
+        "DFlash2 draft folder is not configured"
+    );
+    let path = registry::expand_home(&PathBuf::from(path))?.canonicalize()?;
+    let revision = mtp_tune::artifact_key(&path.join("draft"))?;
+    if slot
+        .as_ref()
+        .is_some_and(|(previous, fingerprint, _)| previous == &path && fingerprint == &revision)
+    {
+        return Ok(false);
+    }
+    *slot = None;
+    *cache = None;
+    mlxl3_native::array::synchronize()?;
+    mlxl3_native::array::clear_cache()?;
+    let package = mlxl3_native::dflash::inspect(&path)?;
+    anyhow::ensure!(
+        package.family == family,
+        "DFlash draft does not match this target"
+    );
+    *slot = Some((
+        path,
+        revision,
+        mlxl3_native::dflash::DFlashWeights::load(&package)?,
+    ));
+    Ok(true)
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
 fn load_mtp_head(
-    head: &mut Option<(PathBuf, mlxl3_native::mtp::Head)>,
+    head: &mut Option<(PathBuf, ChatMtpHead)>,
     revision: &mut Option<String>,
     prompt_cache: &mut Option<PromptCache>,
     requested: &str,
-    target: &mlxl3_native::qwen35::Qwen35Moe,
+    model: &mut NativeChatModel,
+    dflash_weights: &mut Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)>,
 ) -> Result<bool> {
+    // A direct generate request can switch modes without a preceding set_mtp.
+    // Release both possible DFlash owners before validating or allocating MTP,
+    // including the failed-load and already-loaded-head paths.
+    let flash_dflash = matches!(&*model, NativeChatModel::Flash(target) if target.dflash2_active());
+    if flash_dflash || dflash_weights.is_some() {
+        *prompt_cache = None;
+    }
+    *dflash_weights = None;
+    if let NativeChatModel::Flash(target) = &mut *model {
+        target.configure_dflash2(None, 1)?;
+    }
     anyhow::ensure!(
         !requested.trim().is_empty(),
         "MTP head folder is not configured"
@@ -2555,7 +3022,7 @@ fn load_mtp_head(
     *revision = None;
     mlxl3_native::array::synchronize()?;
     mlxl3_native::array::clear_cache()?;
-    *head = Some((path.clone(), mlxl3_native::mtp::Head::load(&path, target)?));
+    *head = Some((path.clone(), ChatMtpHead::load(&path, model)?));
     *revision = Some(next_revision);
     Ok(true)
 }
@@ -2563,13 +3030,13 @@ fn load_mtp_head(
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn release_bridge_idle_state(
     model: &mut NativeChatModel,
-    head: Option<&mut mlxl3_native::mtp::Head>,
+    head: Option<&mut ChatMtpHead>,
     memory_saver: bool,
 ) -> Result<()> {
     // Both prefill paths reset or restore their separate PromptCache on the next
     // request. The final decode state is not a continuation checkpoint.
     model.reset();
-    let reset = head.map_or(Ok(()), mlxl3_native::mtp::Head::reset);
+    let reset = head.map_or(Ok(()), ChatMtpHead::reset);
     let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
     released
@@ -2611,29 +3078,44 @@ fn native_bridge(
         requested
     } as usize;
     let resident_gb = checkpoint.size_bytes as f64 / 1e9;
-    let dflash_supported =
-        matches!(&model, NativeChatModel::Qwen(target) if target.supports_dflash());
+    let dflash_family = match &model {
+        NativeChatModel::Qwen(target) => target.dflash_family(),
+        _ => None,
+    };
+    let dflash_supported = (dflash_family.is_some()
+        && mlxl3_native::array::supports_packed_dflash_q4()?)
+        || matches!(&model, NativeChatModel::Flash(_));
     let mtp_auto_download_supported = matches!(&model, NativeChatModel::Qwen(_))
         && mlxl3_native::mtp::target_layout(&path)
             .is_ok_and(|(layout, layers)| layout.managed_head(layers).is_some());
     let executable = std::env::current_exe()?.display().to_string();
     let tuning_key = mtp_tune::runtime_key(&path, context_limit)?;
+    let dflash_tuning_key =
+        dflash_runtime_key(&tuning_key, dflash_context_copy_enabled(dflash_family));
     emit_event(json!({
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
+        "memory":mlxl3_native::array::memory_stats(false)?,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
         "runtime_profile":env!("MLXL3_BUILD_PROFILE"),
         "mlx_version":env!("MLXL3_MLX_VERSION"),
         "runtime_executable":executable,
-        "dflash_supported":dflash_supported,
-        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "dflash_supported":dflash_supported, "dflash_family":dflash_family,
+        "dflash_tune_supported":dflash_family.is_some() && dflash_supported, "dflash_configure_supported":true,
+        "dflash_tuning_key":dflash_tuning_key,
+        "mtp_supported":matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
-        "mtp_max_depth":3, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
+        "mtp_max_depth":if matches!(&model, NativeChatModel::Flash(_)) { 1 } else { 3 }, "mtp_tune_supported":matches!(&model, NativeChatModel::Qwen(_)),
         "memory_saver_supported":true,
+        "context_memory":match &model {
+            NativeChatModel::Qwen(target) => Some(target.context_memory_profile()?),
+            NativeChatModel::Lfm2(target) => Some(target.context_memory_profile()?),
+            _ => None
+        },
         "mtp_tuning_key":tuning_key,
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
-        "mcp_servers":0, "mcp_tools":0, "mcp_errors":{},
+        "mcp_servers":0, "mcp_tools":0, "mcp_errors":{}, "workspace_features":true,
         "context_limit":context_limit, "model_context_limit":model_limit
     }))?;
     let cancelled = Arc::new(AtomicBool::new(false));
@@ -2644,8 +3126,8 @@ fn native_bridge(
         .as_nanos() as u64
         | 1;
     let mut mcp = mlxl3_native::mcp::Manager::disabled();
-    let mut dflash_weights: Option<(PathBuf, mlxl3_native::dflash::DFlashWeights)> = None;
-    let mut mtp_head: Option<(PathBuf, mlxl3_native::mtp::Head)> = None;
+    let mut dflash_weights: Option<(PathBuf, String, mlxl3_native::dflash::DFlashWeights)> = None;
+    let mut mtp_head: Option<(PathBuf, ChatMtpHead)> = None;
     let mut mtp_head_revision = None;
     let mut prompt_cache: Option<PromptCache> = None;
     for line in io::stdin().lock().lines() {
@@ -2670,7 +3152,7 @@ fn native_bridge(
                 mcp.set_enabled(&registry_path, request.enabled, true);
                 emit_event(json!({
                     "type":"mcp_status", "mcp_servers":mcp.server_count(),
-                    "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors
+                    "mcp_tools":mcp.tools.len(), "mcp_errors":mcp.errors, "mcp_tool_catalog":mcp.chat_tools()
                 }))?;
             }
             "set_mtp" => {
@@ -2678,16 +3160,17 @@ fn native_bridge(
                 model.reset();
                 let result = (|| -> Result<()> {
                     if request.enabled {
-                        let NativeChatModel::Qwen(target) = &model else {
-                            bail!("MTP requires a Qwen target");
-                        };
-                        dflash_weights = None;
+                        anyhow::ensure!(
+                            matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
+                            "MTP requires a supported Qwen target"
+                        );
                         load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            target,
+                            &mut model,
+                            &mut dflash_weights,
                         )?;
                     } else {
                         mtp_head = None;
@@ -2710,12 +3193,95 @@ fn native_bridge(
                         "memory":mlxl3_native::array::memory_stats(false)?}))?;
                 }
             }
+            "set_dflash" | "tune_dflash" => {
+                cancelled.store(false, Ordering::Relaxed);
+                prompt_cache = None;
+                model.reset();
+                let result = (|| -> Result<()> {
+                    if let NativeChatModel::Flash(target) = &mut model {
+                        anyhow::ensure!(
+                            request.kind != "tune_dflash",
+                            "Flash DFlash2 learns its verify budget online; Tune is not supported"
+                        );
+                        if request.enabled {
+                            mtp_head = None;
+                            mtp_head_revision = None;
+                        }
+                        dflash_weights = None;
+                        let path =
+                            registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
+                        target.configure_dflash2(
+                            request.enabled.then_some(path.as_path()),
+                            request.dflash_mode,
+                        )?;
+                        return emit_event(
+                            json!({"type":"dflash_status", "request_id":request.request_id,
+                            "dflash_active":target.dflash2_active(), "memory":mlxl3_native::array::memory_stats(false)?}),
+                        );
+                    }
+                    if request.enabled || request.kind == "tune_dflash" {
+                        let family = dflash_family.context("Unsupported DFlash target")?;
+                        mtp_head = None;
+                        mtp_head_revision = None;
+                        mlxl3_native::array::synchronize()?;
+                        mlxl3_native::array::clear_cache()?;
+                        load_dflash_weights(
+                            &mut dflash_weights,
+                            &mut prompt_cache,
+                            &request.dflash_draft_path,
+                            family,
+                        )?;
+                    } else {
+                        dflash_weights = None;
+                    }
+                    if request.kind == "tune_dflash" {
+                        mtp_tune::run_dflash(
+                            &mut model,
+                            &dflash_weights.as_ref().context("missing DFlash draft")?.2,
+                            &tokenizer,
+                            &request.request_id,
+                            &dflash_tuning_key,
+                            context_limit,
+                            &cancelled,
+                        )
+                    } else {
+                        mlxl3_native::array::synchronize()?;
+                        mlxl3_native::array::clear_cache()?;
+                        emit_event(
+                            json!({"type":"dflash_status", "request_id":request.request_id,
+                            "dflash_active":dflash_weights.is_some(), "memory":mlxl3_native::array::memory_stats(false)?}),
+                        )
+                    }
+                })();
+                if let Err(error) = release_bridge_idle_state(
+                    &mut model,
+                    mtp_head.as_mut().map(|(_, head)| head),
+                    request.memory_saver,
+                ) {
+                    eprintln!("Idle memory cleanup failed: {error:#}");
+                }
+                if let Err(error) = result {
+                    dflash_weights = None;
+                    if let NativeChatModel::Flash(target) = &mut model {
+                        target.configure_dflash2(None, 1)?;
+                    }
+                    mlxl3_native::array::synchronize()?;
+                    mlxl3_native::array::clear_cache()?;
+                    if cancelled.swap(false, Ordering::Relaxed) {
+                        emit_event(json!({"type":"cancelled","request_id":request.request_id}))?;
+                    } else {
+                        emit_event(
+                            json!({"type":"error","request_id":request.request_id,"message":error.to_string(),"dflash_active":false}),
+                        )?;
+                    }
+                }
+            }
             "tune_mtp" => {
                 cancelled.store(false, Ordering::Relaxed);
                 prompt_cache = None;
                 dflash_weights = None;
                 let result = (|| -> Result<()> {
-                    let NativeChatModel::Qwen(target) = &model else {
+                    let NativeChatModel::Qwen(_) = &model else {
                         bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets");
                     };
                     emit_event(
@@ -2727,11 +3293,17 @@ fn native_bridge(
                         &mut mtp_head_revision,
                         &mut prompt_cache,
                         &request.mtp_head_path,
-                        target,
+                        &mut model,
+                        &mut dflash_weights,
                     )?;
+                    let ChatMtpHead::Qwen(head) =
+                        &mut mtp_head.as_mut().context("missing MTP head")?.1
+                    else {
+                        bail!("Tune MTP requires a Qwen target");
+                    };
                     mtp_tune::run(
                         &mut model,
-                        &mut mtp_head.as_mut().context("missing MTP head")?.1,
+                        head,
                         &tokenizer,
                         &request.request_id,
                         &tuning_key,
@@ -2763,6 +3335,23 @@ fn native_bridge(
                 let started = Instant::now();
                 let _ = mlxl3_native::array::memory_stats(true);
                 cancelled.store(false, Ordering::Relaxed);
+                let schema_valid = request
+                    .response_schema
+                    .as_deref()
+                    .map(mlxl3_native::structured::Schema::parse)
+                    .transpose();
+                if let Err(error) = schema_valid {
+                    emit_event(
+                        json!({"type":"error", "request_id":request.request_id, "message":error.to_string()}),
+                    )?;
+                    continue;
+                }
+                if request.response_schema.is_some() && request.mcp_enabled {
+                    emit_event(
+                        json!({"type":"error", "request_id":request.request_id, "message":"JSON output and MCP must be used separately"}),
+                    )?;
+                    continue;
+                }
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
                 let result = (|| -> Result<()> {
@@ -2779,16 +3368,22 @@ fn native_bridge(
                             (1..=3).contains(&request.mtp_depth),
                             "MTP depth must be 1, 2 or 3"
                         );
-                        let NativeChatModel::Qwen(target) = &model else {
-                            bail!("MTP supports Qwen3.5/3.6/3.8 targets");
-                        };
+                        anyhow::ensure!(
+                            matches!(&model, NativeChatModel::Qwen(_) | NativeChatModel::Flash(_)),
+                            "MTP requires a supported Qwen target"
+                        );
+                        anyhow::ensure!(
+                            !matches!(&model, NativeChatModel::Flash(_)) || request.mtp_depth == 1,
+                            "Flash MTP supports depth 1"
+                        );
                         let started = Instant::now();
                         if load_mtp_head(
                             &mut mtp_head,
                             &mut mtp_head_revision,
                             &mut prompt_cache,
                             &request.mtp_head_path,
-                            target,
+                            &mut model,
+                            &mut dflash_weights,
                         )? {
                             prompt_cache = None;
                             draft_load_seconds += started.elapsed().as_secs_f64();
@@ -2799,49 +3394,52 @@ fn native_bridge(
                     }
                     if request.dflash2 {
                         anyhow::ensure!(
-                            dflash_supported,
-                            "DFlash2 currently supports Qwen3.6-35B-A3B only"
+                            (1..=3).contains(&request.dflash_mode),
+                            "DFlash mode must be 1, 2 or 3"
                         );
                         anyhow::ensure!(
                             (request.temperature == 0. || request.top_k == 1)
                                 && request.repetition_penalty == 1.,
                             "DFlash2 requires greedy sampling and repetition penalty 1.0"
                         );
-                        anyhow::ensure!(
-                            !request.dflash_draft_path.trim().is_empty(),
-                            "DFlash2 draft folder is not configured"
-                        );
-                        let draft_path =
-                            registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
-                        if dflash_weights.as_ref().map(|(path, _)| path) != Some(&draft_path) {
+                        let draft_started = Instant::now();
+                        if let NativeChatModel::Flash(target) = &mut model {
+                            dflash_weights = None;
                             prompt_cache = None;
-                            emit_event(json!({
-                                "type":"generation_status", "request_id":request.request_id,
-                                "phase":"loading_draft", "text":"Preparing DFlash2"
-                            }))?;
-                            let draft_started = Instant::now();
-                            let package = mlxl3_native::dflash::inspect(&draft_path)?;
-                            dflash_weights = Some((
-                                draft_path,
-                                mlxl3_native::dflash::DFlashWeights::load(&package)?,
-                            ));
-                            draft_load_seconds = draft_started.elapsed().as_secs_f64();
+                            let path =
+                                registry::expand_home(&PathBuf::from(&request.dflash_draft_path))?;
+                            target.configure_dflash2(Some(&path), request.dflash_mode)?;
+                            draft_load_seconds += draft_started.elapsed().as_secs_f64();
+                        } else if load_dflash_weights(
+                            &mut dflash_weights,
+                            &mut prompt_cache,
+                            &request.dflash_draft_path,
+                            dflash_family.context("Unsupported DFlash2 target")?,
+                        )? {
+                            draft_load_seconds += draft_started.elapsed().as_secs_f64();
                         }
                     } else {
+                        if let NativeChatModel::Flash(target) = &mut model {
+                            target.configure_dflash2(None, 1)?;
+                        }
                         if dflash_weights.is_some() {
                             prompt_cache = None;
                         }
                         dflash_weights = None;
                     }
+                    let flash_dflash =
+                        matches!(&model, NativeChatModel::Flash(target) if target.dflash2_active());
+                    let dflash_active = dflash_weights.is_some() || flash_dflash;
                     emit_event(json!({
                         "type":"generation_mode", "request_id":request.request_id,
                         "dflash_requested":request.dflash2,
-                        "dflash_active":dflash_weights.is_some(),
+                        "dflash_active":dflash_active,
                         "mtp_requested":request.mtp, "mtp_active":mtp_active,
                         "mtp_depth":if mtp_active { request.mtp_depth } else { 0 },
                         "mtp_reason":if request.mtp && !mtp_active { Some("MTP uses greedy sampling and repetition penalty 1; ordinary sampling remains active") } else { None },
-                        "dflash_proposals":if dflash_weights.is_some() { 5 } else { 0 },
-                        "dflash_draft_path":dflash_weights.as_ref().map(|(path, _)| path.display().to_string())
+                        "dflash_proposals":if let NativeChatModel::Flash(target) = &model { target.dflash2_proposals().unwrap_or(0) } else if dflash_active { if request.dflash_mode == 3 { 7 } else if request.dflash_mode == 2 { 2 } else { 5 } } else { 0 },
+                        "dflash_mode":if dflash_active { request.dflash_mode } else { 0 },
+                        "dflash_draft_path":if flash_dflash { Some(request.dflash_draft_path.clone()) } else { dflash_weights.as_ref().map(|(path, _, _)| path.display().to_string()) }
                     }))?;
                     bridge_generate(
                         &mut model,
@@ -2857,9 +3455,10 @@ fn native_bridge(
                         &cancelled,
                         &mut random,
                         &mut mcp,
-                        dflash_weights.as_ref().map(|(_, weights)| weights),
+                        dflash_weights.as_ref().map(|(_, _, weights)| weights),
                         mtp_head.as_mut().map(|(_, head)| head),
                         request.mtp_depth,
+                        request.dflash_mode,
                         started,
                         draft_load_seconds,
                         &mut prompt_cache,
@@ -2869,6 +3468,8 @@ fn native_bridge(
                             &request.conversation_id
                         },
                         request.reuse_prompt_cache && !request.memory_saver,
+                        request.allowed_tools.as_deref(),
+                        request.response_schema.as_deref(),
                     )
                 })();
                 // Runs after the whole turn (including tools), not between decode
@@ -2881,6 +3482,10 @@ fn native_bridge(
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
                 if let Err(error) = result {
+                    model.reset();
+                    prompt_cache = None;
+                    mtp_head = None;
+                    mtp_head_revision = None;
                     if cancelled.swap(false, Ordering::Relaxed) {
                         emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
                     } else {
@@ -3070,12 +3675,81 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires local Flash target/DFlash checkpoints and Apple GPU; run alone"]
+    fn mtp_preparation_retires_flash_draft_before_invalid_head_is_read() -> Result<()> {
+        let path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let draft = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT_MODEL")?);
+        let mut model = NativeChatModel::load(&path)?;
+        anyhow::ensure!(
+            matches!(&model, NativeChatModel::Flash(_)),
+            "requires a Flash Next target"
+        );
+        let baseline = model.forward(0)?.to_f32()?;
+        anyhow::ensure!(
+            baseline.len() == 248_320 && baseline.iter().all(|x| x.is_finite()),
+            "invalid reference logits"
+        );
+        model.reset();
+        let directory = tempfile::tempdir()?;
+        let missing = directory.path().join("absent-mtp-head");
+        let missing = missing.to_str().context("non-UTF8 temporary path")?;
+        let mut head = None;
+        let mut revision = None;
+        let mut cache = None;
+        let mut packed_draft = None;
+        for requested in ["", missing] {
+            let NativeChatModel::Flash(target) = &mut model else {
+                unreachable!();
+            };
+            target.configure_dflash2(Some(&draft), 1)?;
+            assert!(target.dflash2_active(), "fixture must own a live draft");
+            // This exact preparer is used by generate and set_mtp. Rejection of
+            // an invalid MTP path must happen after retiring the previous mode.
+            assert!(
+                load_mtp_head(
+                    &mut head,
+                    &mut revision,
+                    &mut cache,
+                    requested,
+                    &mut model,
+                    &mut packed_draft,
+                )
+                .is_err()
+            );
+            assert!(matches!(&model, NativeChatModel::Flash(target) if !target.dflash2_active()));
+            assert!(head.is_none() && revision.is_none() && cache.is_none());
+            assert!(packed_draft.is_none());
+            model.reset();
+            let actual = model.forward(0)?.to_f32()?;
+            assert_eq!(actual.len(), baseline.len());
+            assert!(actual.iter().all(|x| x.is_finite()));
+            assert!(
+                actual
+                    .iter()
+                    .zip(&baseline)
+                    .all(|(a, b)| a.to_bits() == b.to_bits()),
+                "ordinary target logits changed after a failed mode switch"
+            );
+            model.reset();
+        }
+        mlxl3_native::array::synchronize()?;
+        Ok(())
+    }
+
+    #[test]
     fn dflash_width_tracks_recent_acceptance() {
         let mut session = DFlashChat::new();
         session.blocks = 16;
         session.accepted = 48;
         session.proposed = 80;
         session.recent = std::iter::repeat_n((1, 5), 8).collect();
+        assert_eq!(session.proposals_count(128, 128), Some(2));
+        session.recent = std::iter::repeat_n((4, 5), 7).collect();
+        assert_eq!(session.proposals_count(128, 128), Some(5));
+        session.recent.push_back((4, 5));
+        assert_eq!(session.proposals_count(128, 128), Some(5));
+        assert_eq!(session.proposals_count(2, 128), Some(1));
+        session.mode = 2;
         assert_eq!(session.proposals_count(128, 128), Some(2));
     }
 
@@ -3096,6 +3770,22 @@ mod tests {
     }
 
     #[test]
+    fn dflash_runtime_key_distinguishes_copy_policy() {
+        assert_eq!(
+            dflash_runtime_key("model:runtime", false),
+            "model:runtime:dflash-v4:copy=0"
+        );
+        assert_eq!(
+            dflash_runtime_key("model:runtime", true),
+            "model:runtime:dflash-v4:copy=1"
+        );
+        assert!(!dflash_context_copy_enabled(None));
+        assert!(!dflash_context_copy_enabled(Some(
+            mlxl3_native::dflash::Family::Qwen38Dense
+        )));
+    }
+
+    #[test]
     fn bridge_stats_aggregate_work_not_rates_and_keep_latest_context() {
         let mut first = NativeStats {
             ttft_seconds: 0.5,
@@ -3106,9 +3796,21 @@ mod tests {
             decode_seconds: 1.,
             decode_tokens: 10,
             round_count: 1,
+            dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+                draft_seconds: 0.25,
+                verification_seconds: 0.5,
+                commit_cache_seconds: 0.125,
+                verified_rows: 12,
+                drafted_rows: 16,
+                drafted_widths: [1, 2, 3, 4, 5, 6, 7, 8],
+                verified_widths: [1, 2, 3, 4, 5, 6, 7, 8],
+                expert_demand_bytes: 1_248_012,
+                ssd_prefetch: [1, 2, 3, 4, 5, 6, 7, 8],
+            }),
             dflash_proposed_tokens: Some(10),
             dflash_accepted_tokens: Some(6),
             dflash_blocks: Some(2),
+            dflash_lookup_blocks: Some(1),
             mtp_lookup_blocks: Some(3),
             ..Default::default()
         };
@@ -3123,9 +3825,21 @@ mod tests {
             context_used: 231,
             context_limit: 4096,
             round_count: 1,
+            dflash_profile: Some(mlxl3_native::qwen4::FlashDraftProfile {
+                draft_seconds: 0.125,
+                verification_seconds: 1.,
+                commit_cache_seconds: 0.125,
+                verified_rows: 48,
+                drafted_rows: 64,
+                drafted_widths: [8, 7, 6, 5, 4, 3, 2, 1],
+                verified_widths: [8, 7, 6, 5, 4, 3, 2, 1],
+                expert_demand_bytes: 2_496_024,
+                ssd_prefetch: [8, 7, 6, 5, 4, 3, 2, 1],
+            }),
             dflash_proposed_tokens: Some(40),
             dflash_accepted_tokens: Some(22),
             dflash_blocks: Some(8),
+            dflash_lookup_blocks: Some(3),
             mtp_lookup_blocks: Some(4),
             ..Default::default()
         });
@@ -3143,6 +3857,31 @@ mod tests {
         );
         assert_eq!((first.context_used, first.context_limit), (231, 4096));
         assert_eq!(first.mtp_lookup_blocks, Some(7));
+        assert_eq!(first.dflash_lookup_blocks, Some(4));
+        let profile = first.dflash_profile.unwrap();
+        assert_eq!(
+            (
+                profile.draft_seconds,
+                profile.verification_seconds,
+                profile.commit_cache_seconds
+            ),
+            (0.375, 1.5, 0.25)
+        );
+        assert_eq!(
+            (profile.verified_rows, profile.expert_demand_bytes),
+            (60, 3_744_036)
+        );
+        let encoded = serde_json::to_value(&first).unwrap();
+        assert_eq!(encoded["dflash_profile"]["verified_rows"], 60);
+        assert_eq!(encoded["dflash_profile"]["verification_seconds"], 1.5);
+        assert_eq!(profile.ssd_prefetch, [9; 8]);
+        assert_eq!(profile.drafted_rows, 80);
+        assert_eq!(profile.drafted_widths, [9; 8]);
+        assert_eq!(profile.verified_widths, [9; 8]);
+        assert_eq!(
+            encoded["dflash_profile"]["ssd_prefetch"],
+            serde_json::to_value([9; 8]).unwrap()
+        );
         assert_eq!(
             (
                 first.dflash_proposed_tokens,
@@ -3170,13 +3909,13 @@ mod tests {
         let NativeChatModel::Qwen(target) = &model else {
             bail!("requires Qwen target")
         };
-        let mut head = Head::load(
+        let mut head = ChatMtpHead::Qwen(Box::new(Head::load(
             std::path::Path::new(
                 &std::env::var("MLXL3_MTP_TEST_HEAD")
                     .unwrap_or_else(|_| "models/Qwen3.6-35B-A3B-MTP-4bit".into()),
             ),
             target,
-        )?;
+        )?));
         let code = "def normalize_name(value):\n    return value.strip().casefold()\n\ndef average(values):\n    return sum(values) / len(values) if values else 0\n\n";
         let messages = vec![json!({"role":"user", "content":format!(
             "Recopie exactement le code suivant, sans commentaire ni changement :\n```python\n{}```", code.repeat(8))})];
@@ -3211,8 +3950,10 @@ mod tests {
                 None,
                 None,
                 1,
+                1,
                 &mut cache,
                 "lookup",
+                false,
                 false,
             )?;
             assert!(!baseline.raw.is_empty());
@@ -3239,9 +3980,11 @@ mod tests {
                         None,
                         Some(&mut head),
                         depth,
+                        1,
                         &mut cache,
                         "lookup",
                         true,
+                        false,
                     )?;
                     assert_eq!(actual.raw, baseline.raw);
                     assert_eq!(actual.token_hash, baseline.token_hash);
@@ -3281,8 +4024,10 @@ mod tests {
                 None,
                 mtp,
                 2,
+                1,
                 &mut cache,
                 "lookup",
+                false,
                 false,
             )
         };
@@ -3299,6 +4044,209 @@ mod tests {
         );
         eprintln!(
             "production lookup: 37 nonempty completions, {lookup_blocks} copy lookup blocks; in-line echo skipped"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires local Qwen/DFlash checkpoints and Apple GPU"]
+    fn dflash_copy_accepts_rejects_and_preserves_draft_cache() -> Result<()> {
+        use mlxl3_native::{dflash::DFlashWeights, speculative::DFlashCopy};
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut target = mlxl3_native::qwen35::Qwen35Moe::load(path)?;
+        let weights = DFlashWeights::load(&mlxl3_native::dflash::inspect(
+            "models/Qwen3.6-35B-A3B-DFlash2",
+        )?)?;
+        let prompt = (1..=24).collect::<Vec<u32>>();
+        let finite_bytes = |array: &mlxl3_native::array::Array| -> Result<Vec<u8>> {
+            let values = array.to_f32()?;
+            let count = array.shape().iter().try_fold(1usize, |count, &dim| {
+                count.checked_mul(usize::try_from(dim).ok()?)
+            });
+            anyhow::ensure!(
+                count == Some(values.len())
+                    && !values.is_empty()
+                    && values.iter().all(|v| v.is_finite()),
+                "invalid copy oracle array"
+            );
+            array.to_bytes()
+        };
+        let mut cases = 0;
+        for width in 1..=3 {
+            for accepted in 0..=width {
+                target.reset();
+                let mut session = DFlashChat::new();
+                let anchor = session
+                    .prefill(&mut target, &weights, &prompt)?
+                    .chat_greedy_ids()?[0];
+                let before = target.snapshot()?;
+                let mut reference_cache = session.cache.try_clone()?;
+                let mut caches = Vec::new();
+                let mut expected = Vec::new();
+                let mut token = anchor;
+                for _ in 0..width + 2 {
+                    let position = target.offset();
+                    let (logits, captures) = target.prefill_serial_with_dflash_capture(&[token])?;
+                    reference_cache.append_captured(&weights, &captures, position)?;
+                    reference_cache.eval()?;
+                    token = logits.chat_greedy_ids()?[0];
+                    expected.push(token);
+                    caches.push(reference_cache.try_clone()?);
+                }
+                target.restore(before)?;
+                let mut proposals = expected[..width].to_vec();
+                if accepted < width {
+                    proposals[accepted] = (proposals[accepted] + 1) % 248_320;
+                }
+                let history = (1..=7)
+                    .chain([anchor])
+                    .chain(proposals.iter().copied())
+                    .chain(1..=7)
+                    .collect::<Vec<_>>();
+                session.copy = Some(DFlashCopy::new(&history));
+                assert_eq!(
+                    session.copy.as_ref().unwrap().propose(anchor, width),
+                    Some(proposals.as_slice())
+                );
+                let mut delivered = Vec::new();
+                for i in 0..=accepted {
+                    delivered.push(session.advance(
+                        &mut target,
+                        &weights,
+                        if i == 0 { anchor } else { delivered[i - 1] },
+                        4096,
+                        width + 1 - i,
+                    )?);
+                }
+                assert_eq!(delivered, expected[..=accepted]);
+                assert_eq!(session.lookup_blocks, 1);
+                assert!(session.pending.is_empty());
+                assert_eq!(target.offset(), 24 + accepted as i32 + 1);
+                let input =
+                    target.dflash_input(*delivered.last().unwrap(), weights.family.mask())?;
+                let actual = weights.forward_hidden(&input, &session.cache, target.offset())?;
+                let oracle = weights.forward_hidden(&input, &caches[accepted], target.offset())?;
+                assert_eq!(finite_bytes(&actual.hidden)?, finite_bytes(&oracle.hidden)?);
+                assert_eq!(
+                    finite_bytes(&actual.selector)?,
+                    finite_bytes(&oracle.selector)?
+                );
+                let next =
+                    session.advance(&mut target, &weights, *delivered.last().unwrap(), 4096, 4)?;
+                assert_eq!(
+                    next,
+                    expected[accepted + 1],
+                    "neural continuation after copy"
+                );
+                cases += 1;
+            }
+        }
+        assert_eq!(cases, 9);
+        eprintln!(
+            "9 production copy blocks, all accept0..N/N1..3, finite hidden/selector and draft cache bit exact; neural continuation exact"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires Qwen/DFlash checkpoints, MLXL3_DFLASH_CONTEXT_COPY=1 and Apple GPU"]
+    fn bridge_dflash_copy_seeds_prompt_and_preserves_budget_and_prefix() -> Result<()> {
+        anyhow::ensure!(
+            dflash_context_copy_enabled(Some(mlxl3_native::dflash::Family::Qwen36Moe)),
+            "run with MLXL3_DFLASH_CONTEXT_COPY=1"
+        );
+        let path = std::path::Path::new("models/Qwen3.6-35B-A3B-EXL3-2.49bpw");
+        let mut model = NativeChatModel::load(path)?;
+        let tokenizer = mlxl3_native::tokenizer::ChatTokenizer::load(path)?;
+        let weights = mlxl3_native::dflash::DFlashWeights::load(&mlxl3_native::dflash::inspect(
+            "models/Qwen3.6-35B-A3B-DFlash2",
+        )?)?;
+        let code = "def normalize_name(value):\n    return value.strip().casefold()\n\ndef average(values):\n    return sum(values) / len(values) if values else 0\n\n";
+        let messages = vec![
+            json!({"role":"user", "content":format!("Recopie exactement le code suivant, sans commentaire ni changement :\n```python\n{}```", code.repeat(8))}),
+        ];
+        let cancelled = AtomicBool::new(false);
+        let mut cache = None;
+        let mut random = 7;
+        let mut copies = 0;
+        let mut completions = 0;
+        for budget in [1, 2, 3, 17, 256] {
+            let reference = bridge_generate_round(
+                &mut model,
+                &tokenizer,
+                "copy-reference",
+                &messages,
+                &[],
+                budget,
+                0.,
+                1,
+                1.,
+                4096,
+                0.,
+                &cancelled,
+                &mut random,
+                None,
+                None,
+                1,
+                1,
+                &mut cache,
+                "dflash-copy",
+                false,
+                false,
+            )?;
+            assert!(
+                !reference.raw.is_empty()
+                    && reference.stats.generated_tokens > 0
+                    && reference.stats.generated_tokens <= budget as usize
+            );
+            for mode in 1..=3 {
+                for pass in 0..2 {
+                    let actual = bridge_generate_round(
+                        &mut model,
+                        &tokenizer,
+                        "copy-candidate",
+                        &messages,
+                        &[],
+                        budget,
+                        0.,
+                        1,
+                        1.,
+                        4096,
+                        0.,
+                        &cancelled,
+                        &mut random,
+                        Some(&weights),
+                        None,
+                        1,
+                        mode,
+                        &mut cache,
+                        "dflash-copy",
+                        true,
+                        false,
+                    )?;
+                    assert_eq!(actual.raw, reference.raw);
+                    assert_eq!(actual.token_hash, reference.token_hash);
+                    assert_eq!(
+                        actual.stats.generated_tokens,
+                        reference.stats.generated_tokens
+                    );
+                    if pass == 1 {
+                        assert!(actual.stats.cached_prompt_tokens >= 256);
+                    }
+                    let count = actual.stats.dflash_lookup_blocks.unwrap();
+                    if mode != 1 {
+                        assert_eq!(count, 0, "fixed modes keep their neural proposals");
+                    }
+                    copies += count;
+                    completions += 1;
+                }
+            }
+            completions += 1;
+        }
+        assert_eq!(completions, 35);
+        assert!(copies > 0, "the production bridge must actually copy");
+        eprintln!(
+            "35 nonempty completions with budgets/cache/Auto/fixed modes exact; {copies} verified copy blocks"
         );
         Ok(())
     }

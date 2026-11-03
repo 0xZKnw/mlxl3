@@ -1,0 +1,1051 @@
+{
+  "baseline_counts_and_every_slot_hit": "exact_all_three_phases_both_prompts",
+  "confirmed_tps_gain": false,
+  "expert_bank_bytes": 3174942528,
+  "in_flight_gpu_leases": "not modeled; demand-only drained consumers",
+  "initial_state": "empty; two reconstructed full generations before three observed phases",
+  "status": "complete_simulation_not_speed",
+  "total_slots": 2544,
+  "variants": [
+    {
+      "cases": [
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                13498,
+                18212
+              ],
+              "candidate_prefill_decode_jobs": [
+                13997,
+                18383
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                -3.6968439768854644,
+                -0.9389413573468043
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13564,
+                18260
+              ],
+              "candidate_prefill_decode_jobs": [
+                13702,
+                18093
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                -1.0173989973459157,
+                0.9145673603504929
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13766,
+                18412
+              ],
+              "candidate_prefill_decode_jobs": [
+                13965,
+                18323
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                -1.4455905855005085,
+                0.48338040408429284
+              ]
+            }
+          ],
+          "prompt": "MAIN",
+          "slots_by_layer_after": [
+            48,
+            66,
+            64,
+            49,
+            47,
+            56,
+            64,
+            64,
+            58,
+            59,
+            63,
+            62,
+            66,
+            70,
+            58,
+            41,
+            50,
+            60,
+            62,
+            61,
+            67,
+            65,
+            57,
+            50,
+            57,
+            51,
+            55,
+            58,
+            61,
+            59,
+            49,
+            45,
+            47,
+            60,
+            64,
+            59,
+            63,
+            53,
+            57,
+            45,
+            41,
+            49,
+            32,
+            39,
+            23,
+            21,
+            24,
+            25
+          ]
+        },
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                12755,
+                19694
+              ],
+              "candidate_prefill_decode_jobs": [
+                12965,
+                19954
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                -1.6464131713053705,
+                -1.3201990453945365
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12834,
+                19626
+              ],
+              "candidate_prefill_decode_jobs": [
+                13036,
+                19861
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                -1.5739442106903538,
+                -1.1973912157342301
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12933,
+                19685
+              ],
+              "candidate_prefill_decode_jobs": [
+                13161,
+                19899
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                -1.7629320343307817,
+                -1.0871221742443484
+              ]
+            }
+          ],
+          "prompt": "HOLD",
+          "slots_by_layer_after": [
+            61,
+            66,
+            58,
+            50,
+            50,
+            58,
+            62,
+            57,
+            52,
+            43,
+            52,
+            43,
+            61,
+            55,
+            56,
+            31,
+            39,
+            53,
+            65,
+            55,
+            56,
+            73,
+            73,
+            48,
+            56,
+            47,
+            50,
+            40,
+            60,
+            49,
+            59,
+            38,
+            39,
+            57,
+            61,
+            49,
+            58,
+            63,
+            68,
+            37,
+            50,
+            50,
+            58,
+            42,
+            48,
+            50,
+            47,
+            51
+          ]
+        }
+      ],
+      "eligible_for_runtime_trial": false,
+      "floor": 0,
+      "local_53_control": false,
+      "policy": "Lfu"
+    },
+    {
+      "cases": [
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                13498,
+                18212
+              ],
+              "candidate_prefill_decode_jobs": [
+                13996,
+                18384
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                -3.689435471921766,
+                -0.9444322424774874
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13564,
+                18260
+              ],
+              "candidate_prefill_decode_jobs": [
+                13701,
+                18093
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                -1.010026540843409,
+                0.9145673603504929
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13766,
+                18412
+              ],
+              "candidate_prefill_decode_jobs": [
+                13965,
+                18323
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                -1.4455905855005085,
+                0.48338040408429284
+              ]
+            }
+          ],
+          "prompt": "MAIN",
+          "slots_by_layer_after": [
+            48,
+            66,
+            64,
+            49,
+            47,
+            56,
+            64,
+            64,
+            58,
+            59,
+            63,
+            62,
+            66,
+            70,
+            58,
+            41,
+            50,
+            60,
+            62,
+            61,
+            67,
+            65,
+            57,
+            50,
+            57,
+            51,
+            55,
+            58,
+            61,
+            59,
+            49,
+            45,
+            47,
+            60,
+            64,
+            59,
+            63,
+            53,
+            57,
+            45,
+            41,
+            49,
+            32,
+            39,
+            23,
+            21,
+            24,
+            25
+          ]
+        },
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                12755,
+                19694
+              ],
+              "candidate_prefill_decode_jobs": [
+                12965,
+                19954
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                -1.6464131713053705,
+                -1.3201990453945365
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12834,
+                19626
+              ],
+              "candidate_prefill_decode_jobs": [
+                13036,
+                19861
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                -1.5739442106903538,
+                -1.1973912157342301
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12933,
+                19685
+              ],
+              "candidate_prefill_decode_jobs": [
+                13161,
+                19899
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                -1.7629320343307817,
+                -1.0871221742443484
+              ]
+            }
+          ],
+          "prompt": "HOLD",
+          "slots_by_layer_after": [
+            61,
+            66,
+            58,
+            50,
+            50,
+            58,
+            62,
+            57,
+            52,
+            43,
+            52,
+            43,
+            61,
+            55,
+            56,
+            31,
+            39,
+            53,
+            65,
+            55,
+            56,
+            73,
+            73,
+            48,
+            56,
+            47,
+            50,
+            40,
+            60,
+            49,
+            59,
+            38,
+            39,
+            57,
+            61,
+            49,
+            58,
+            63,
+            68,
+            37,
+            50,
+            50,
+            58,
+            42,
+            48,
+            50,
+            47,
+            51
+          ]
+        }
+      ],
+      "eligible_for_runtime_trial": false,
+      "floor": 20,
+      "local_53_control": false,
+      "policy": "Lfu"
+    },
+    {
+      "cases": [
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                13498,
+                18212
+              ],
+              "candidate_prefill_decode_jobs": [
+                13310,
+                18865
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                1.3927989331752852,
+                -3.585547990336042
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13564,
+                18260
+              ],
+              "candidate_prefill_decode_jobs": [
+                13312,
+                18865
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                1.857859038631672,
+                -3.3132530120481927
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13766,
+                18412
+              ],
+              "candidate_prefill_decode_jobs": [
+                13312,
+                18865
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.2979805317448787,
+                -2.4603519443840973
+              ]
+            }
+          ],
+          "prompt": "MAIN",
+          "slots_by_layer_after": [
+            81,
+            70,
+            70,
+            41,
+            58,
+            67,
+            68,
+            66,
+            52,
+            56,
+            55,
+            53,
+            77,
+            76,
+            56,
+            38,
+            41,
+            55,
+            77,
+            61,
+            66,
+            70,
+            66,
+            38,
+            50,
+            43,
+            54,
+            51,
+            72,
+            64,
+            52,
+            33,
+            37,
+            52,
+            68,
+            47,
+            52,
+            61,
+            65,
+            33,
+            32,
+            38,
+            39,
+            33,
+            28,
+            27,
+            29,
+            26
+          ]
+        },
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                12755,
+                19694
+              ],
+              "candidate_prefill_decode_jobs": [
+                12510,
+                20448
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                1.9208153665229322,
+                -3.8285772316441555
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12834,
+                19626
+              ],
+              "candidate_prefill_decode_jobs": [
+                12510,
+                20448
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                2.524544179523142,
+                -4.188321614185265
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12933,
+                19685
+              ],
+              "candidate_prefill_decode_jobs": [
+                12510,
+                20448
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.270702853166319,
+                -3.8760477520955043
+              ]
+            }
+          ],
+          "prompt": "HOLD",
+          "slots_by_layer_after": [
+            71,
+            75,
+            66,
+            52,
+            59,
+            67,
+            61,
+            60,
+            52,
+            48,
+            52,
+            43,
+            66,
+            53,
+            55,
+            30,
+            37,
+            50,
+            67,
+            52,
+            55,
+            67,
+            76,
+            42,
+            53,
+            43,
+            45,
+            39,
+            65,
+            48,
+            53,
+            31,
+            35,
+            50,
+            63,
+            51,
+            55,
+            62,
+            71,
+            31,
+            45,
+            48,
+            61,
+            38,
+            49,
+            51,
+            52,
+            49
+          ]
+        }
+      ],
+      "eligible_for_runtime_trial": false,
+      "floor": 0,
+      "local_53_control": false,
+      "policy": "Clock"
+    },
+    {
+      "cases": [
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                13498,
+                18212
+              ],
+              "candidate_prefill_decode_jobs": [
+                13310,
+                18865
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                1.3927989331752852,
+                -3.585547990336042
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13564,
+                18260
+              ],
+              "candidate_prefill_decode_jobs": [
+                13312,
+                18865
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                1.857859038631672,
+                -3.3132530120481927
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13766,
+                18412
+              ],
+              "candidate_prefill_decode_jobs": [
+                13312,
+                18865
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.2979805317448787,
+                -2.4603519443840973
+              ]
+            }
+          ],
+          "prompt": "MAIN",
+          "slots_by_layer_after": [
+            81,
+            70,
+            70,
+            41,
+            58,
+            67,
+            68,
+            66,
+            52,
+            56,
+            55,
+            53,
+            77,
+            76,
+            56,
+            38,
+            41,
+            55,
+            77,
+            61,
+            66,
+            70,
+            66,
+            38,
+            50,
+            43,
+            54,
+            51,
+            72,
+            64,
+            52,
+            33,
+            37,
+            52,
+            68,
+            47,
+            52,
+            61,
+            65,
+            33,
+            32,
+            38,
+            39,
+            33,
+            28,
+            27,
+            29,
+            26
+          ]
+        },
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                12755,
+                19694
+              ],
+              "candidate_prefill_decode_jobs": [
+                12509,
+                20453
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                1.928655429243434,
+                -3.8539656748248197
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12834,
+                19626
+              ],
+              "candidate_prefill_decode_jobs": [
+                12510,
+                20446
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                2.524544179523142,
+                -4.178131050647101
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12933,
+                19685
+              ],
+              "candidate_prefill_decode_jobs": [
+                12511,
+                20451
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.2629706951210085,
+                -3.891287782575565
+              ]
+            }
+          ],
+          "prompt": "HOLD",
+          "slots_by_layer_after": [
+            71,
+            75,
+            66,
+            52,
+            59,
+            67,
+            61,
+            60,
+            52,
+            48,
+            52,
+            43,
+            66,
+            53,
+            55,
+            30,
+            37,
+            50,
+            67,
+            52,
+            55,
+            67,
+            76,
+            42,
+            53,
+            43,
+            45,
+            39,
+            65,
+            48,
+            53,
+            31,
+            35,
+            50,
+            63,
+            51,
+            55,
+            62,
+            71,
+            31,
+            45,
+            48,
+            61,
+            38,
+            49,
+            51,
+            52,
+            49
+          ]
+        }
+      ],
+      "eligible_for_runtime_trial": false,
+      "floor": 20,
+      "local_53_control": false,
+      "policy": "Clock"
+    },
+    {
+      "cases": [
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                13498,
+                18212
+              ],
+              "candidate_prefill_decode_jobs": [
+                13328,
+                18890
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                1.2594458438287153,
+                -3.722820118603119
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13564,
+                18260
+              ],
+              "candidate_prefill_decode_jobs": [
+                13325,
+                18892
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                1.7620171040990857,
+                -3.461117196056955
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                13766,
+                18412
+              ],
+              "candidate_prefill_decode_jobs": [
+                13319,
+                18908
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.247130611651896,
+                -2.69389528568325
+              ]
+            }
+          ],
+          "prompt": "MAIN",
+          "slots_by_layer_after": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ]
+        },
+        {
+          "phases": [
+            {
+              "baseline_prefill_decode_jobs": [
+                12755,
+                19694
+              ],
+              "candidate_prefill_decode_jobs": [
+                12471,
+                20638
+              ],
+              "phase": "trace_1",
+              "read_reduction_percent": [
+                2.226577812622501,
+                -4.7933380725093935
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12834,
+                19626
+              ],
+              "candidate_prefill_decode_jobs": [
+                12457,
+                20635
+              ],
+              "phase": "trace_2",
+              "read_reduction_percent": [
+                2.937509739753779,
+                -5.141139305003566
+              ]
+            },
+            {
+              "baseline_prefill_decode_jobs": [
+                12933,
+                19685
+              ],
+              "candidate_prefill_decode_jobs": [
+                12459,
+                20632
+              ],
+              "phase": "trace_3",
+              "read_reduction_percent": [
+                3.6650429134771514,
+                -4.810769621539243
+              ]
+            }
+          ],
+          "prompt": "HOLD",
+          "slots_by_layer_after": [
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53,
+            53
+          ]
+        }
+      ],
+      "eligible_for_runtime_trial": false,
+      "floor": 0,
+      "local_53_control": true,
+      "policy": "Clock"
+    }
+  ]
+}

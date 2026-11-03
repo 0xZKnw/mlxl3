@@ -42,6 +42,23 @@ import Foundation
         let encoded = try JSONEncoder().encode(valid)
         let decoded = try JSONDecoder().decode([MTPTuningRow].self, from: encoded)
         precondition(MTPTuning.winner(decoded) == 3)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("dflash-profile-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("draft"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let suite = "io.mlxl3.dflash-profile." + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        let weight = root.appendingPathComponent("draft/model.bin")
+        try Data([1, 2]).write(to: weight)
+        let key = MTPConfigurationKey(modelPath: root.path, headPath: root.path, runtime: "dflash", packedDraft: true)
+        MTPTuning.save(MTPSelection(key: key, depth: 2, rows: decoded, tunedAt: nil), preferences: preferences, storageKey: "studio.dflashSelections")
+        precondition(MTPTuning.load(key: key, preferences: preferences) == nil, "Draft profiles leaked into MTP")
+        precondition(MTPTuning.load(key: key, preferences: preferences, storageKey: "studio.dflashSelections")?.depth == 2)
+        try Data([1, 2, 3]).write(to: weight)
+        let changed = MTPConfigurationKey(modelPath: root.path, headPath: root.path, runtime: "dflash", packedDraft: true)
+        precondition(changed != key && MTPTuning.load(key: changed, preferences: preferences, storageKey: "studio.dflashSelections") == nil, "Replaced packed draft reused stale tuning")
+        precondition(MTPTuning.load(key: key, preferences: preferences, storageKey: "studio.dflashSelections")?.depth == 2)
+        precondition(decoded.map(\.dflashLabel) == ["Baseline", "Auto", "2 tokens", "7 tokens"])
         print("MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding")
     }
 }

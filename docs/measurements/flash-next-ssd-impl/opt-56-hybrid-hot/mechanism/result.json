@@ -1,0 +1,56 @@
+{
+  "status": "rejected_overlap_mechanism",
+  "speed_measured": false,
+  "independent_slot_shapes": "40 original + 120 masked byte exact",
+  "gpu_plan": "104 cases, 514 IDs, 6 invalid controls and wrong-map detected",
+  "early_failure": "byte exact recovery",
+  "overlap": "ready_at_routes=true, ready_at_demand=true under forced slow compute; route boundary 147.423208ms",
+  "commands": [
+    {
+      "name": "56-lookup",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 0.6487736249982845,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 22691840
+    },
+    {
+      "name": "56-masked-slots",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 1.5120415830169804,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 55754752
+    },
+    {
+      "name": "56-early-error",
+      "status": "completed_expected_outcome",
+      "exit_code": 0,
+      "reaped": true,
+      "seconds": 1.342229915986536,
+      "swapouts_bytes": 0,
+      "swapins_bytes": 0,
+      "children_maximum_rss_bytes": 715309056
+    },
+    {
+      "name": "56-overlap",
+      "status": "failed_or_interrupted",
+      "exit_code": 101,
+      "reaped": true,
+      "seconds": 1.189811832999112,
+      "swapouts_bytes": null,
+      "swapins_bytes": null,
+      "children_maximum_rss_bytes": null
+    }
+  ],
+  "limits": [
+    "not a full-model numerical validation",
+    "no throughput gain",
+    "no exclusive GPU timing",
+    "Kani CPU timeout / MLX ICE"
+  ]
+}

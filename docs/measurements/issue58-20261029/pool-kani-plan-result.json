@@ -1,0 +1,51 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "a5f4e0cb4e08063cfa5fd2d49bb10193233677e9922a09a494bb97156caacdb9",
+  "matrix_sha256": "c55391c8ba60acdf6805ae1d221650ae4b71694f35e10ea37384a4912fff0d93",
+  "commands": [
+    {
+      "name": "pool-kani",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--lib",
+        "--tests",
+        "--no-default-features",
+        "--harness",
+        "pooled_reservations_keep_batch_slots_distinct_and_bounded"
+      ],
+      "env": {
+        "CARGO_BUILD_JOBS": "1"
+      },
+      "expected_exit": 0,
+      "timeout_seconds": 150,
+      "require_quiet": false,
+      "required_text": [
+        "VERIFICATION:- SUCCESSFUL"
+      ],
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                    29779.\nPages active:                                 509811.\nPages inactive:                               670550.\nPages speculative:                              2484.\nPages throttled:                                   0.\nPages wired down:                             151189.\nPages purgeable:                               27696.\n\"Translation faults\":                     1920219259.\nPages copy-on-write:                        81342606.\nPages zero filled:                        2108824201.\nPages reactivated:                         153615451.\nPages purged:                               19375184.\nFile-backed pages:                            572360.\nAnonymous pages:                              610485.\nPages stored in compressor:                   269323.\nPages occupied by compressor:                 154885.\nDecompressions:                            361844034.\nCompressions:                              436822373.\nPageins:                                  2268218698.\nPageouts:                                     372940.\nSwapins:                                     3271297.\nSwapouts:                                    8597703.\nPages tagged:                                 124219.\nPages tagged resident:                        111374.\nPages tagged compressed:                       12845.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 5784.\nPages tag-storage free:                           16.\nPages tag-storage non-tag pageable:            43144.\nPages tag-storage non-tag wired:                  75.\nBytes of compressed tags:                    1661248.\nTagged compressions:                         9245725.\nTagged decompressions:                       8944685.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 2048.00M  used = 1048.50M  free = 999.50M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=22937699)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 487899136,
+          "File-backed pages": 9377546240,
+          "Pages occupied by compressor": 2537635840,
+          "Swapins": 53596930048,
+          "Swapouts": 140864765952
+        }
+      },
+      "executable_sha256": "ec1b9233e7f72990ecd8e62063fa7f6c3dfc2bec8e97f88bff165f9100ac696a",
+      "pid": 35704,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 196608,
+      "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'pooled_reservations_keep_batch_slots_distinct_and_bounded'], 150)",
+      "exit_code": -15,
+      "reaped": true,
+      "seconds": 150.02794870900107
+    }
+  ],
+  "error": "TimeoutExpired(['/Users/justin/.cargo/bin/cargo', 'kani', '--lib', '--tests', '--no-default-features', '--harness', 'pooled_reservations_keep_batch_slots_distinct_and_bounded'], 150)"
+}

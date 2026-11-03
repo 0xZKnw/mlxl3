@@ -1,0 +1,202 @@
+"""Pure Q27-19 validation; recompute gates without running or changing anything."""
+
+import math
+import statistics
+
+PROMPTS = {"short": 130, "document": 256}
+HASHES = ("token_hash", "text_sha256", "history_sha256")
+COUNTERS = (
+    "mtp_blocks",
+    "mtp_proposed_tokens",
+    "mtp_accepted_tokens",
+    "mtp_lookup_blocks",
+    "mtp_depth_blocks",
+)
+METRICS = (
+    "decode_tps",
+    "decode_seconds",
+    "prefill_tps",
+    "prefill_seconds",
+    "ttft_seconds",
+    "elapsed_seconds",
+)
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def positive(value):
+    return type(value) in (int, float) and math.isfinite(value) and value > 0
+
+
+def finite_tree(value):
+    if isinstance(value, dict):
+        for item in value.values():
+            finite_tree(item)
+    elif isinstance(value, list):
+        for item in value:
+            finite_tree(item)
+    elif type(value) is float:
+        require(math.isfinite(value), "non-finite report value")
+
+
+def check(data, reference, order):
+    """Reject incomplete, divergent or malformed evidence before computing speed.
+
+    post: isinstance(__return__["passed"], bool)
+    """
+    try:
+        return _check(data, reference, order)
+    except (KeyError, IndexError, TypeError, AttributeError, ZeroDivisionError) as error:
+        raise ValueError(f"incomplete or invalid campaign: {error}") from error
+
+
+def _check(data, reference, order):
+    require(order in ("ABBA", "BAAB"), "unsupported order")
+    for report in (data, reference):
+        require(report["status"] == "complete" and report["parity"] is True, "incomplete campaign")
+        require(len(report["passes"]) == 4, "missing or extra pass")
+        finite_tree(report)
+    protocol = data["protocol"]
+    required = {
+        "order": order,
+        "tokens": 256,
+        "repeats": 1,
+        "warmup_per_prompt": 1,
+        "warmup_tokens": 64,
+        "mtp_depth": 1,
+        "dflash_mode": 0,
+        "compare_mtp_dflash": False,
+        "context": 4096,
+        "cache": False,
+    }
+    for name, expected in required.items():
+        require(type(protocol[name]) is type(expected) and protocol[name] == expected, name)
+    for name in ("prompt_sha256", "mtp_head"):
+        require(
+            isinstance(protocol[name], str)
+            and protocol[name]
+            and protocol[name] == reference["protocol"][name],
+            f"changed {name}",
+        )
+    require(
+        protocol.get("candidate_mtp_head", protocol["mtp_head"]) == protocol["mtp_head"],
+        "changed candidate head",
+    )
+    digest = data["binaries"]["A"]["sha256"]
+    require(
+        isinstance(digest, str) and len(digest) == 64 and digest == data["binaries"]["B"]["sha256"],
+        "different binaries",
+    )
+    baseline = reference["passes"][0]
+    require(baseline["status"] == "complete" and baseline["exit_code"] == 0, "reference pass")
+    require(set(baseline["prompts"]) == set(PROMPTS), "reference prompts")
+    values = {name: {"A": [], "B": []} for name in PROMPTS}
+    normalized_keys = set()
+    for index, (current, label) in enumerate(zip(data["passes"], order, strict=True)):
+        require(current["index"] == index and current["label"] == label, "pass order")
+        require(
+            current["status"] == "complete"
+            and type(current["exit_code"]) is int
+            and current["exit_code"] == 0,
+            "failed process",
+        )
+        require(current["mtp_depth"] == 1 and current["dflash_mode"] == 0, "draft mode")
+        require(current.get("mtp_head", protocol["mtp_head"]) == protocol["mtp_head"], "pass head")
+        ready = current["ready"]
+        require(ready["type"] == "ready" and positive(current["ready_seconds"]), "ready")
+        require(ready["model"] == baseline["ready"]["model"], "target checkpoint")
+        require(ready["mcp_servers"] == 0 and ready["mcp_tools"] == 0, "MCP enabled")
+        parts = ready["mtp_tuning_key"].split(":")
+        required_key = {
+            "lanelayout-v1": str(int(label == "B")),
+            "smallm-v2": "1",
+            "pipeline": "off",
+            "allocator-cache-v1": "0",
+            "adaptive": "0",
+            "lookup": "0",
+        }
+        for name, expected in required_key.items():
+            matches = [part for part in parts if part.startswith(name + "=")]
+            require(matches == [name + "=" + expected], f"runtime key {name}")
+        normalized_keys.add(":".join(p for p in parts if not p.startswith("lanelayout-v1=")))
+        require(set(current["prompts"]) == set(PROMPTS), "missing or extra prompt")
+        for name, tokens in PROMPTS.items():
+            prompt, oracle = current["prompts"][name], baseline["prompts"][name]
+            require(len(prompt["runs"]) == 1, "number of measured runs")
+            samples = (prompt["warmup"], prompt["runs"][0])
+            oracles = (oracle["warmup"], oracle["runs"][0])
+            for sample, expected, count in zip(samples, oracles, (64, tokens), strict=True):
+                stats, expected_stats = sample["stats"], expected["stats"]
+                for key in HASHES:
+                    require(
+                        isinstance(sample[key], str)
+                        and sample[key]
+                        and isinstance(expected[key], str)
+                        and expected[key]
+                        and sample[key] == expected[key],
+                        f"divergent or empty {key}",
+                    )
+                for key in COUNTERS:
+                    value = stats[key]
+                    require(value == expected_stats[key], f"changed {key}")
+                    if key == "mtp_depth_blocks":
+                        require(
+                            isinstance(value, list)
+                            and len(value) == 4
+                            and all(type(v) is int and v >= 0 for v in value),
+                            key,
+                        )
+                    else:
+                        require(type(value) is int and value >= 0, key)
+                require(
+                    stats["mtp_blocks"] > 0 and stats["mtp_proposed_tokens"] > 0, "inactive MTP"
+                )
+                require(stats["mtp_lookup_blocks"] == 0, "lookup enabled")
+                require(
+                    type(stats["generated_tokens"]) is int
+                    and stats["generated_tokens"] == count == expected_stats["generated_tokens"]
+                    and stats["decode_tokens"] == count - 1,
+                    "token count",
+                )
+                require(
+                    stats["cached_prompt_tokens"] == 0
+                    and stats["context_limit"] == 4096
+                    and stats["tool_rounds"] == 0,
+                    "cache/context/tools",
+                )
+                require(all(positive(stats[key]) for key in METRICS), "positive timing")
+                require(
+                    all(not isinstance(v, float) or v >= 0 for v in stats.values()),
+                    "negative statistic",
+                )
+            for key in METRICS:
+                require(
+                    positive(prompt["medians"][key])
+                    and prompt["medians"][key] == samples[1]["stats"][key],
+                    f"median {key}",
+                )
+            values[name][label].append(samples[1]["stats"]["decode_tps"])
+    require(len(normalized_keys) == 1, "runtime differs beyond layout")
+    result = {}
+    for name, arms in values.items():
+        medians = {arm: statistics.median(samples) for arm, samples in arms.items()}
+        drift = {arm: (max(samples) / min(samples) - 1) * 100 for arm, samples in arms.items()}
+        separated = min(arms["B"]) >= max(arms["A"]) * 1.03
+        result[name] = {
+            "tps": arms,
+            "medians": medians,
+            "gain_percent": (medians["B"] / medians["A"] - 1) * 100,
+            "drift_percent": drift,
+            "min_b_over_max_a": min(arms["B"]) / max(arms["A"]),
+            "every_b_at_least_three_percent": separated,
+            "passed": separated and all(value <= 3 for value in drift.values()),
+        }
+    return {
+        "parity": True,
+        "order": order,
+        "prompts": result,
+        "passed": all(value["passed"] for value in result.values()),
+    }

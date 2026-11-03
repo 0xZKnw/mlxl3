@@ -1,0 +1,10 @@
+{
+  "status": "expected_missing_prediction_failure_detected",
+  "original_source_sha256": "6864bbc3c92921fc79b684e26f1da4e96cd2ef72888f6f3120f598ac066cde9d",
+  "mutated_source_sha256": "b25268860feb776007efea134fa4d77118d086e14a651714b2033175e3ffa548",
+  "path": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-69/mutant/mlxl3_native",
+  "sha256": "42fc28704f7192ff6f89c24d355916e09fd41f279f62b789b7fa153928936c60",
+  "mutation": "invert prefetch_pipeline guard; active flag skips predictions, reproducing old missing wiring",
+  "evidence": "quality-component-v2/missing-wiring-mutant.log",
+  "expected_exit": 101
+}

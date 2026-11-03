@@ -1,0 +1,88 @@
+Building for debugging...
+[2 / 8] SwiftMath
+[13 / 19] SwiftMath
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[17 / 22] SwiftMath
+[17 / 22] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[20 / 86]
+[27 / 86]
+[29 / 86]
+[36 / 86]
+[37 / 86]
+[40 / 86]
+[42 / 86]
+[54 / 86]
+[55 / 86]
+[59 / 86]
+[60 / 86]
+[64 / 86]
+[66 / 86]
+[67 / 86]
+[68 / 86]
+[71 / 86]
+[83 / 86] MLXL3Studio-product
+[84 / 86] MLXL3Studio-product
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/Users/justin/.codex/worktrees/desktop-v2-beta3/mix-stq1_0/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[86 / 88] MLXL3Studio-product
+Build complete! (20,27 secs)
+Context memory checks passed: 240 oracle cases, overflow/invalid/zero/maximum and bridge decoding
+Flash draft download checks passed: 9 cache/network fixtures, target/progress/transactional ack, CLI/JSON/ack failures, old protocol, cancel/switch/reaping
+Flash DFlash local checks passed: configure/generation/off, empty path/old protocol/invalid draft/wrong ack, stale ack, cancel/model switch, no legacy CLI
+Memory saving checks passed: opt-in/persistence, generation/Tune wire, busy guards, MTP/history, legacy capability
+Composer update checks passed: 49 app/engine states, UI notifications, empty draft, send/completion, ejection
+DFlash Desktop checks passed: one-click setup, production policy, Tune/restore, cancellation, OFF, dense selection and failures
+MTP inspector checks passed: eligible start, success, cancellation, errors, malformed replies and ineligible start
+Automatic MTP checks passed: dense→MoE→dense, foreign head, OFF, cancellation, download failure, unsupported target, process cleanup
+Markdown checks passed: fences, 300k code, long tables
+Desktop hardening checks passed: Hub metadata/search/detail/cancellation/errors, transfer rate/pause/resume/success/failure, crash, deletion, drafts, recovery, save ordering, tool state
+Agent sandbox checks passed: 25, real commands, file/network/child isolation, environment, limits, process cleanup and invalid input
+Agent protocol checks passed: 17, real MCP commands, errors, bounded input and parent-death cleanup
+Studio modes checks passed: 1174, navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle
+Model idle unload checks passed: 114 assertions, real deadline, preferences and Studio/bridge lifecycle
+Speculative sampling checks passed: 965 assertions, 180 capability/intent states, relaunch, Qwen/LFM dense/MoE, OFF/return, DFlash, persisted settings and real bridge requests
+Update channel checks passed: stable/beta selection, official suffixes/assets, persistence, no downgrade, beta1→beta2 build, lookup/download/ready cancellation
+Updater checks passed: independent channels, versions/URLs/hashes, hostile archives, activation/fallback, app-copy failure, helper bounds
+Installer boundaries passed: signed Mach-O engine activation and disposable app replacement/backup
+App updater preflight passed: 15 signed independent-version, compatibility and integrity cases
+Transfer snapshots /asset: ["0.0:false", "65536.0:false", "262144.0:false", "458752.0:false", "655360.0:false", "851968.0:false", "1028096.0:false", "1028096.0:true"]
+Transfer snapshots /unknown: ["0.0:false", "32768.0:false", "196608.0:false", "360448.0:false", "524288.0:false", "688128.0:false", "851968.0:false", "1015808.0:false", "1028096.0:false", "1028096.0:true"]
+Updater transfer checks passed: 22
+HTML preview checks passed: 34; CDN not requested
+CoreGraphics PDF has logged an error. Set environment variable "CG_PDF_VERBOSE" to learn more.
+File import checks passed: text/PDF, errors, 150 finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering
+Workspace checks passed: 229, including deterministic retrieval, persistence, branching, profiles, MCP validation and bridge journeys
+Chat timeline checks passed: ordering, progress, streaming, persistence, migration, cancellation
+MCP checks passed: default off, persisted on/off, request flag, isolated preview
+Bridge callback with 50 ms occupied IO: legacy 53.371 ms; independent UUID 0.098 ms
+Bridge checks passed: stale/current callbacks, stop during decoding, reload, cancellation, stale/current process exit
+Markdown checks passed: fences, 300k code, long tables
+Incremental code checks passed: 1194 Unicode/escaped/multiline fragments and replacements
+Incremental Markdown checks passed: 4845 fragments, table continuations and replacements
+Token fade checks passed: continuous ages, replacement/motion, 786 bounded append cases, Unicode and 63 native drawing comparisons
+Scroll checks passed: native initial/final anchor and interpolation; production state transitions for tracking/drag/deceleration/reading/resume
+HTML controls passed: Chat/Agent completion, global streaming gate, tool round and interruption pixels
+LaTeX rendering checks passed: 9 formulas, 2 styles, parse/copy/roundtrip, actual pixels/frame, invalid input
+Response UI checks passed: complete copy, native control/clipboard action, 63 parser/chunk parity cases, stale/cancelled updates, long streaming bridge/render/history
+CLI transport passed: large output, NDJSON, cancellation, error reporting
+Download progress checks passed: rate/resume/stall/reset/unknown/invalid/overflow and 300 finite cases
+MTP tuning checks passed: 64 grids/order/ties, noise boundary, collapsed acceptance, invalid rates/counts/hashes, decoding
+MCP configuration checks passed: fresh install, migration, idempotence, custom/disabled Exa, malformed files preserved
+Desktop E2E checks passed: lifecycle, file imports, bridge, streaming/rendering and CLI transport

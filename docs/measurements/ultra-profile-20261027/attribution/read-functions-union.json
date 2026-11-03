@@ -1,0 +1,53 @@
+[
+  {
+    "phase": "trace_1",
+    "timed_read_function_union_ms_per_output": 28.519870937007873,
+    "batch_scope_ms_per_output": 29.004212283464568,
+    "remaining_scope_ms_per_output": 0.4843413464566929,
+    "first_worker_start_from_cpp_epoch_distribution_ns": {
+      "count": 5376,
+      "total": 18046280,
+      "min": 0,
+      "p50": 3417,
+      "p90": 5834,
+      "p95": 6958,
+      "p99": 9750,
+      "max": 70375
+    },
+    "limits": "read functions include packing/OS waits; union is across readers only, not GPU overlap; C++ read epoch differs from outer span origin; remaining scope includes marshalling/eval/scheduling/cleanup and logging, not pure CPU"
+  },
+  {
+    "phase": "trace_2",
+    "timed_read_function_union_ms_per_output": 28.96926651181102,
+    "batch_scope_ms_per_output": 29.46747231496063,
+    "remaining_scope_ms_per_output": 0.49820580314960633,
+    "first_worker_start_from_cpp_epoch_distribution_ns": {
+      "count": 5376,
+      "total": 18351291,
+      "min": 0,
+      "p50": 3333,
+      "p90": 5583,
+      "p95": 6417,
+      "p99": 9500,
+      "max": 868250
+    },
+    "limits": "read functions include packing/OS waits; union is across readers only, not GPU overlap; C++ read epoch differs from outer span origin; remaining scope includes marshalling/eval/scheduling/cleanup and logging, not pure CPU"
+  },
+  {
+    "phase": "trace_3",
+    "timed_read_function_union_ms_per_output": 29.773484346456694,
+    "batch_scope_ms_per_output": 30.29165572440945,
+    "remaining_scope_ms_per_output": 0.5181713779527559,
+    "first_worker_start_from_cpp_epoch_distribution_ns": {
+      "count": 5387,
+      "total": 18495648,
+      "min": 0,
+      "p50": 3500,
+      "p90": 5875,
+      "p95": 7000,
+      "p99": 10167,
+      "max": 51875
+    },
+    "limits": "read functions include packing/OS waits; union is across readers only, not GPU overlap; C++ read epoch differs from outer span origin; remaining scope includes marshalling/eval/scheduling/cleanup and logging, not pure CPU"
+  }
+]

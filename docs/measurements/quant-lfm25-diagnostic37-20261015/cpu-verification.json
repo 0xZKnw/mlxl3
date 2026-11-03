@@ -1,0 +1,141 @@
+{
+  "status": "cpu_verified_before_gpu",
+  "suite": {
+    "passed": 951,
+    "skipped": 1,
+    "seconds": 96.9,
+    "skipped_reason": "local Ling model not installed",
+    "log": "lfm25-tuning37-full-tests.log"
+  },
+  "focused": {
+    "helper": 47,
+    "runner": 26
+  },
+  "source_sha256": {
+    "scripts/diagnose_lfm25_tuning.py": "e94d9f87ff67f04edf4ca97fbfd41010962add81aed24605f1ea17773c9e1ec2",
+    "scripts/diagnose_lfm25_tuning_modal.py": "539f05c55435f70bf58e5205ed38046ccccad80e91fbcf54c940a5f5447a88b2",
+    "tests/test_lfm25_tuning.py": "a75060e38e2080b9c9171232c6d35b2e016ac866428e4cb99b5f3926343b6fc7",
+    "tests/test_lfm25_tuning_modal.py": "c36a92754e312aca4c3744c702b75e8a56b9b1bd96b9ee426a7dcbc20d49d014",
+    ".github/workflows/quantization.yml": "79f822a8ac7b99ce2ae7431fde5db0efee5bd146de13e626057d949c0bf92f66"
+  },
+  "crosshair": {
+    "confirmed_postconditions": 4,
+    "seconds_per_condition": 20,
+    "scope": "symbolic stage and cache choices; no CUDA, tensors, I/O or numerical proof"
+  },
+  "mutations": [
+    "retune guard removal detected and restored",
+    "SDK unwrap removal detected and restored",
+    "routes-a incorrect cache B detected and restored"
+  ],
+  "checks": [
+    "Ruff format",
+    "Ruff lint",
+    "compileall from agents",
+    "real Modal SDK and CLI without RPC",
+    "workflow YAML parsed",
+    "git diff --check"
+  ],
+  "actionlint": "unavailable",
+  "gpu_started": false,
+  "artifacts": {
+    "lfm25-tuning37-ci-parse.log": {
+      "sha256": "d11a128bbf78a8eb91361bb357a376ff0a7c7b631acad5b456aefb2f62454dca",
+      "bytes": 37
+    },
+    "lfm25-tuning37-format.log": {
+      "sha256": "177f260a5645724013185e4b140c7045cc39e56c0c97b120f5cb23599f85f0de",
+      "bytes": 26
+    },
+    "lfm25-tuning37-full-tests.log": {
+      "sha256": "f416cdec26185f741c2b8b2b286b4a80ba9734a850dd5f5e05fb2595f7007ccd",
+      "bytes": 3256
+    },
+    "lfm25-tuning37-helper-cli-python.log": {
+      "sha256": "3d0413225bf924f49b171321bd5b3610bbada2951f85f869aa571f83ac80a595",
+      "bytes": 364
+    },
+    "lfm25-tuning37-helper-cli.log": {
+      "sha256": "9c219acc34d7384f81e14bd00b5d3620635932dbc7b19e179d4b70ddcfa920e0",
+      "bytes": 398
+    },
+    "lfm25-tuning37-helper-compile.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "lfm25-tuning37-helper-crosshair.log": {
+      "sha256": "ff3b5dadcd318261f018513d1c8d6c46a7ecb5fee54dce5de26b0e6fd2f8f5d8",
+      "bytes": 256
+    },
+    "lfm25-tuning37-helper-format.log": {
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "bytes": 26
+    },
+    "lfm25-tuning37-helper-lint.log": {
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    "lfm25-tuning37-helper-mutation-retune.log": {
+      "sha256": "67d53471345d00318c64c3f0fff4efe09e5c8b0f3fdf3a0a8de4fd99f761b0d0",
+      "bytes": 1296
+    },
+    "lfm25-tuning37-helper-mutation-sdk-unwrap.log": {
+      "sha256": "4596830895bb8fe5ae49b8edfd240839d11eb06ca0e1c1e3c9e84f8c564ae47b",
+      "bytes": 2333
+    },
+    "lfm25-tuning37-helper-tests-restored.log": {
+      "sha256": "51660a5119c2b8da0e116ebff311c389b39fabf82c4912a4421a824a59d17cea",
+      "bytes": 634
+    },
+    "lfm25-tuning37-helper-tests.log": {
+      "sha256": "b3cd4ab64f573826ffa992da0ee2af4fa8c767e65d878e56e2111fd10eddde5a",
+      "bytes": 634
+    },
+    "lfm25-tuning37-lint.log": {
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    "lfm25-tuning37-runner-cli-help.log": {
+      "sha256": "d4974fd148d1cb3504484f48adc9ce771bf971c6618033fa27fe2dd9a9329f90",
+      "bytes": 202
+    },
+    "lfm25-tuning37-runner-cli-preflight.log": {
+      "sha256": "5a0332a0d047419e274b11d50e38da38ede2037935aaa7c32ab35bcaf5d396d7",
+      "bytes": 90
+    },
+    "lfm25-tuning37-runner-crosshair.log": {
+      "sha256": "c43d7bb0ffa2558e5647771892ac4a3ae58ad2ad035e4be9b8d24a693a832f2e",
+      "bytes": 268
+    },
+    "lfm25-tuning37-runner-mutation.log": {
+      "sha256": "651acfb3cf9d75bc1ab638589558628e4c00c3bce8815a912565d7681ae357af",
+      "bytes": 3378
+    },
+    "lfm25-tuning37-runner-tests.log": {
+      "sha256": "b19bd753b264486da0797eed2b10e9c9ec3ebeba61f794b46567ef39b058a9c9",
+      "bytes": 99
+    },
+    "lfm25-tuning37-helper-mutations.json": {
+      "sha256": "5dfa5447407f7cf8e529e395a1872a58699ea2cd1f687262b993dda58e84e903",
+      "bytes": 237
+    },
+    "lfm25-tuning37-before-apps.json": {
+      "sha256": "223dfdcc62c99e29086e10c1ec2a978ded343eb26da502c3d48db75fd906c97e",
+      "bytes": 1857
+    },
+    "lfm25-tuning37-helper-verification.json": {
+      "sha256": "747e507f266a91cb4f43f1e0ee4dd6c5caecc12b0e5482823d09c9fa4302b5aa",
+      "bytes": 1946
+    },
+    "lfm25-tuning37-runner-sha.json": {
+      "sha256": "78d4830553e30104e2c6c50493fdf317ca83d74cb99d47475da89c6fafaaa834",
+      "bytes": 221
+    },
+    "lfm25-tuning37-before-volume.json": {
+      "sha256": "a273b056f4840d3a8b3fe4574544e5a9f7917fa59d07e7df894f5cd26b4b1d43",
+      "bytes": 3140
+    }
+  },
+  "log_archive": "cpu-logs.tar.gz",
+  "log_index": "cpu-logs-index.json"
+}

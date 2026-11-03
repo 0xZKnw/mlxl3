@@ -1,0 +1,93 @@
+{
+  "experiment": "82F05",
+  "status": "prepared_not_applied_not_compiled_not_tested",
+  "base_commit": "9dc85ef167e97e82bdefb8a9035dc53a0bd07361",
+  "preregistration": "W/opti.md FLASHSSD-2026-10-24-82T",
+  "flag": {
+    "name": "MLXL3_SSD_BATCH_ROUTES",
+    "default": "0",
+    "accepted": [
+      "0",
+      "1"
+    ],
+    "load_once": true
+  },
+  "files": {
+    "native/src/ssd_moe.rs": {
+      "base_sha256": "d4b979de40a54349a8c8126fabd3aa26023737f29a0aaa9214ae2f4f1e6db43c",
+      "candidate_sha256": "b0fb6c0c4e6899ad95f531035bb208eac7dbea8beea9a311240a7b998ce6330b"
+    },
+    "native/src/flash_support.rs": {
+      "base_sha256": "0c73bebd2565b16a5ec5213c6b8970a68e0615b39d3f19d7be4ee3e08d9b1a81",
+      "candidate_sha256": "430fbdea5ff62b03758b787ad988d5eb4dbb7a3404ee5ed554abda5492d5e2bf"
+    },
+    "native/src/ssd_moe/batch_route_tests.rs": {
+      "base_sha256": null,
+      "candidate_sha256": "163f75b1560ba04ee8e1adca630583271e2d2d18f3dd62a1009cd6bacdc0307b"
+    },
+    ".github/workflows/rust.yml": {
+      "base_sha256": "8c02337d7ca11b93ee7bea3baf7c50306451582eb933260719e1204714672296",
+      "candidate_sha256": "39491a91da2dc6de3b195dae9da5d669af57f6781a9b2a844de97c9d50daf72d"
+    }
+  },
+  "physical_coverage_prepared": {
+    "real_gate_cases": 1004,
+    "real_gate_fast_cases": 404,
+    "real_gate_matrices": 48,
+    "extra_resident_gate_layer": 0,
+    "edge_cases": 28,
+    "MoE_cases": 24,
+    "CPU_shape_cases": 148,
+    "existing_unique_pending_and_failure_oracle_required": true
+  },
+  "formal_domain": "Actual production eligibility helper; 4symbolic i32 dimensions, rank0..4, arbitrary fp32 boolean, unwind5,5covers. No GEMV/softmax/topk/Metal proof.",
+  "format": {
+    "copies_only": true,
+    "rustfmt_exit_code": 0
+  },
+  "source_applicability": {
+    "zero_fuzz": true,
+    "candidate_matches_applied_patch": true
+  },
+  "executed": {
+    "build": 0,
+    "tests": 0,
+    "Kani": 0,
+    "GPU": 0,
+    "benchmarks": 0
+  },
+  "artifacts": {
+    "source.patch": {
+      "sha256": "c1f7c523317658ceadbd399ae2e1ed1d5fede1b3ab5e6055d0aae99b5f958c0f",
+      "bytes": 27629
+    },
+    "ci.patch": {
+      "sha256": "c99b2db5060099c0210c2f24b4c7a48df9f60b44f6596cfccfce8a5cc99dc42b",
+      "bytes": 598
+    },
+    "combined.patch": {
+      "sha256": "a9deae65e4f9a0627db191072aaa930bfb7d49fd81447a28743a433156d8ef28",
+      "bytes": 28227
+    },
+    "commands.json": {
+      "sha256": "070a17f9c1914b6bcd2354d14afe0e53b3198792736b894ad195ad48a1076c0c",
+      "bytes": 5856
+    },
+    "mutations/admit-B1.patch": {
+      "sha256": "adce2dd0ea44ac030e094df8f4d05de3f47317ba31146874c3d970282db51dec",
+      "bytes": 370
+    },
+    "mutations/drop-normalization.patch": {
+      "sha256": "8b1a4b29d017128994824ae08334b366178f2fd2b32aac7e6b2578c001aab3ac",
+      "bytes": 452
+    },
+    "mutations/replace-scalar-GEMVs.patch": {
+      "sha256": "2dac26ff4b9006d7e27ad0afbd386ab6b56e273ba060f94709be313d96e9f595",
+      "bytes": 573
+    },
+    "README.md": {
+      "sha256": "9249333b0dc7094c593eca824a1e367404191697015d721d5dd732ac9bf1baab",
+      "bytes": 8875
+    }
+  }
+}

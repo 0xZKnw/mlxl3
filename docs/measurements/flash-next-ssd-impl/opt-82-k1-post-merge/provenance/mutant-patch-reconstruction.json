@@ -1,0 +1,60 @@
+{
+  "status": "PASS_six_mutant_source_bytes_no_build_GPU",
+  "normal_source_manifest_sha256": "2b4eb648ff2e0c4362bb88b1705c2022a6acb6d1896f1f2766923ed8d1ca98c4",
+  "mutants": [
+    {
+      "name": "h128-wrong-projection-slot",
+      "patch_relative_path": "post-merge/mutants/patches/h128-wrong-projection-slot.patch",
+      "patch_sha256": "3c55471e1dfc2d748e8209d995a716ad8281006a894231fe46ecb5898c15d8e4",
+      "file": "native/src/linear/hot_transform.rs",
+      "reconstructed_source_sha256": "c7150fd0d7f99d0ca7c21a77b443cb23f0660fc2d67b262951c6a93e051b955b",
+      "expected_source_sha256": "c7150fd0d7f99d0ca7c21a77b443cb23f0660fc2d67b262951c6a93e051b955b",
+      "exact": true
+    },
+    {
+      "name": "h128-remove-half-rounding",
+      "patch_relative_path": "post-merge/mutants/patches/h128-remove-half-rounding.patch",
+      "patch_sha256": "257bd42d3ef049e54ddfc4b61c5994655049820042dc5da38674a22b65f3fef9",
+      "file": "native/src/linear/hot_transform.rs",
+      "reconstructed_source_sha256": "8a2286199dd1f0852c378c45d83ce9ffa4be586726593272c030f1aefb67240f",
+      "expected_source_sha256": "8a2286199dd1f0852c378c45d83ce9ffa4be586726593272c030f1aefb67240f",
+      "exact": true
+    },
+    {
+      "name": "activation-wrong-row-mask",
+      "patch_relative_path": "post-merge/mutants/patches/activation-wrong-row-mask.patch",
+      "patch_sha256": "ab7d57f1bb11909eb95ca58f0dfe87077240be3c2c5c838524e1a0a39dd98c93",
+      "file": "native/src/ssd_moe/hot_activation.rs",
+      "reconstructed_source_sha256": "15ad115e11503610f89ea2313fdfaa1388c50ad4624850182059c509ce6e678e",
+      "expected_source_sha256": "15ad115e11503610f89ea2313fdfaa1388c50ad4624850182059c509ce6e678e",
+      "exact": true
+    },
+    {
+      "name": "activation-wrong-up-plane",
+      "patch_relative_path": "post-merge/mutants/patches/activation-wrong-up-plane.patch",
+      "patch_sha256": "f294c0577551a741aa07ff7af594831afbad88edbc35a427f924ad889c459c4b",
+      "file": "native/src/ssd_moe/hot_activation.rs",
+      "reconstructed_source_sha256": "8b8df6bc75a5691eca10d1469e7843413bd41358da3cc5949081e6fd9227ad82",
+      "expected_source_sha256": "8b8df6bc75a5691eca10d1469e7843413bd41358da3cc5949081e6fd9227ad82",
+      "exact": true
+    },
+    {
+      "name": "activation-skip-half-multiply-rounding",
+      "patch_relative_path": "post-merge/mutants/patches/activation-skip-half-multiply-rounding.patch",
+      "patch_sha256": "9ac2bf90a43faabfe7bf24cc9c94790ae180f5330665c4088a91c60a9f5b51cd",
+      "file": "native/src/ssd_moe/hot_activation.rs",
+      "reconstructed_source_sha256": "b4d872470982476c89e0d1670eab1acc372826ebb28e33ae73921b3740de22be",
+      "expected_source_sha256": "b4d872470982476c89e0d1670eab1acc372826ebb28e33ae73921b3740de22be",
+      "exact": true
+    },
+    {
+      "name": "activation-read-poison-cold",
+      "patch_relative_path": "post-merge/mutants/patches/activation-read-poison-cold.patch",
+      "patch_sha256": "3f445145557d84a559cc6b3d8769574c205923c07f14f2a595c43cd525251daf",
+      "file": "native/src/ssd_moe/hot_activation.rs",
+      "reconstructed_source_sha256": "af5134f648147ea09501c70d14ebed2fff470b46cac662f9b249de80bc03a947",
+      "expected_source_sha256": "af5134f648147ea09501c70d14ebed2fff470b46cac662f9b249de80bc03a947",
+      "exact": true
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "cbmc": {
+    "command": [
+      "/Users/justin/.kani/kani-0.68.0/bin/cbmc",
+      "native/shaders/dflash_select.metal",
+      "--bounds-check",
+      "--pointer-check",
+      "--signed-overflow-check",
+      "--unwinding-assertions",
+      "--unwind",
+      "8"
+    ],
+    "exit": 1,
+    "seconds": 0.018149540992453694,
+    "log": "docs/measurements/dflash2-web-02/single-cbmc.log"
+  },
+  "kani-packet": {
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "dflash_round_packet_checks_every_id_and_length"
+    ],
+    "exit": 1,
+    "seconds": 5.114839332993142,
+    "log": "docs/measurements/dflash2-web-02/single-kani-packet.log"
+  }
+}

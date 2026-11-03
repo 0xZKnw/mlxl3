@@ -1,0 +1,15 @@
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -425,11 +425,7 @@
+         }
+     }
+     fn gate_logits_rows(&self, x: &Array) -> Result<Array> {
+-        // Preserve every scalar GEMV and its input stride before grouping the reductions.
+-        let logits = (0..x.shape()[0])
+-            .map(|row| self.gate_logits(&x.slice(0, row, row + 1)?))
+-            .collect::<Result<Vec<_>>>()?;
+-        Array::concatenate(&logits.iter().collect::<Vec<_>>(), 0)
++        self.gate_logits(x)
+     }
+ 
+     fn route_rows(&self, x: &Array) -> Result<(Array, Array)> {

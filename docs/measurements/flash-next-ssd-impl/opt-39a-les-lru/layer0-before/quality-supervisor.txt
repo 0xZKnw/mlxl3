@@ -1,0 +1,138 @@
+from pathlib import Path
+import os, subprocess, json, time, signal, re, runpy, hashlib
+
+w = Path.cwd()
+root = Path("/Users/justin/Documents/mix-stq1_0")
+p = w / "docs/measurements/flash-next-ssd-impl/opt-39a-les-lru/layer0-before"
+old = json.loads((p / "quality-matrix.json").read_text())
+ident = json.loads((p / "identity.json").read_text())
+parse_vm = runpy.run_path(str(w / "benchmarks/benchmark_flash_memory.py"))["parse_vm"]
+records = []
+assert len(old) == 1
+for path, h in ident["binaries"].items():
+    assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == h
+for path, h in ident["files"].items():
+    assert hashlib.sha256((w / path).read_bytes()).hexdigest() == h
+
+
+def snapshot():
+    return {
+        key: subprocess.check_output(cmd, text=True, timeout=5)
+        for key, cmd in [
+            ("power", ["pmset", "-g", "batt"]),
+            ("vm_stat", ["vm_stat"]),
+            ("swap", ["sysctl", "vm.swapusage"]),
+        ]
+    }
+
+
+try:
+    for prev in old:
+        name = prev["name"]
+        cmd = [
+            x.replace("flash-opt-27/shared-overlap-repaired", "flash-opt-39a/les-lru")
+            for x in prev["command"]
+        ]
+        limit = prev["timeout_seconds"]
+        r = {
+            "name": name,
+            "command": cmd,
+            "env": prev["env"],
+            "timeout_seconds": limit,
+            "expected_tests": prev["expected_tests"],
+            "status": "running",
+            "before": snapshot(),
+        }
+        assert r["before"]["power"].splitlines()[0] == "Now drawing from 'AC Power'", (
+            "quality requires AC"
+        )
+        records.append(r)
+        (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+        child = None
+        t = time.monotonic()
+        try:
+            with (p / (name + ".log")).open("w") as f:
+                child = subprocess.Popen(
+                    cmd,
+                    env={**os.environ, **prev["env"]},
+                    stdout=f,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+                r["pid"] = child.pid
+                deadline = time.monotonic() + limit
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise subprocess.TimeoutExpired(cmd, limit)
+                    try:
+                        r["exit_code"] = child.wait(timeout=min(2, remaining))
+                        break
+                    except subprocess.TimeoutExpired:
+                        current = parse_vm(
+                            subprocess.check_output(["vm_stat"], text=True, timeout=5)
+                        )
+                        delta = current["Swapouts"] - parse_vm(r["before"]["vm_stat"])["Swapouts"]
+                        r["maximum_live_swapout_bytes"] = max(
+                            r.get("maximum_live_swapout_bytes", 0), delta
+                        )
+                        assert 0 <= delta <= 256 << 20, "live quality swap limit exceeded"
+            assert r["exit_code"] == 0, "quality process failed"
+            log = (p / (name + ".log")).read_text()
+            if r["expected_tests"] is not None:
+                counts = re.findall(r"test result: ok[.] (\d+) passed; 0 failed;", log)
+                assert counts and sum(map(int, counts)) == r["expected_tests"], (
+                    "absent or incorrect test count"
+                )
+                r["observed_tests"] = sum(map(int, counts))
+            else:
+                summary = json.loads(log.strip().splitlines()[-1])
+                assert summary == {
+                    "status": "validated",
+                    "budgets": [1, 2, 3, 17],
+                    "cancel_checked": True,
+                }
+                r["summary"] = summary
+            r["after"] = snapshot()
+            assert r["after"]["power"].splitlines()[0] == r["before"]["power"].splitlines()[0], (
+                "power changed"
+            )
+            r["swapout_bytes"] = (
+                parse_vm(r["after"]["vm_stat"])["Swapouts"]
+                - parse_vm(r["before"]["vm_stat"])["Swapouts"]
+            )
+            assert 0 <= r["swapout_bytes"] <= 256 << 20, "quality swap limit exceeded"
+            r["status"] = "passed"
+        except BaseException as exc:
+            r.update(
+                status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+                error=repr(exc),
+            )
+            raise
+        finally:
+            if child is not None and child.poll() is None:
+                os.killpg(child.pid, signal.SIGTERM)
+                try:
+                    child.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGKILL)
+                    child.wait()
+            r["reaped"] = child is None or child.poll() is not None
+            r["seconds"] = time.monotonic() - t
+            (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")
+            with (w / "opti.md").open("a") as f:
+                f.write(
+                    "\n- 39A qualité "
+                    + name
+                    + " : **"
+                    + r["status"]
+                    + "**, swapouts+"
+                    + str(r.get("swapout_bytes", "non mesuré"))
+                    + "octets ; quality.json/log.\n"
+                )
+            print(
+                {k: r[k] for k in ["name", "status", "seconds", "swapout_bytes"] if k in r},
+                flush=True,
+            )
+finally:
+    (p / "quality.json").write_text(json.dumps(records, indent=2) + "\n")

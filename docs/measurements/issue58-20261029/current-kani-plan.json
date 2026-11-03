@@ -1,0 +1,23 @@
+[
+  {
+    "name": "current-pool-kani",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--no-default-features",
+      "--harness",
+      "physical_reconstruction_cannot_accept_corrupt_first_slot_or_hit"
+    ],
+    "env": {
+      "CARGO_BUILD_JOBS": "1"
+    },
+    "expected_exit": 0,
+    "timeout_seconds": 90,
+    "require_quiet": false,
+    "required_text": [
+      "VERIFICATION:- SUCCESSFUL"
+    ]
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "status": "captured_validated_phase_pending_coverage",
+  "phase_validator_negative_checks": 6,
+  "clock_pairs": [
+    {
+      "wall_before_ns": 1793134284788992000,
+      "perf_ns": 170756418730708,
+      "wall_after_ns": 1793134284788993000
+    },
+    {
+      "wall_before_ns": 1793134354013600000,
+      "perf_ns": 170825643231000,
+      "wall_after_ns": 1793134354013600000
+    }
+  ],
+  "planned_stop": true,
+  "command": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace",
+    "record",
+    "--template",
+    "Time Profiler",
+    "--instrument",
+    "GPU",
+    "--instrument",
+    "Thread Activity",
+    "--instrument",
+    "System Call Trace",
+    "--instrument",
+    "Disk I/O Latency",
+    "--attach",
+    "95831",
+    "--time-limit",
+    "2s",
+    "--output",
+    "/Users/justin/.codex/worktrees/slotstream-flash/mix-stq1_0/docs/measurements/ultra-profile-20261027/attribution/short/AR-MAIN/capture.trace"
+  ],
+  "target_pid": 95831,
+  "capture_clock": {
+    "wall_before_ns": 1793134338325755000,
+    "perf_ns": 170809955410166,
+    "wall_after_ns": 1793134338325755000
+  },
+  "phase_numeric_validation": true,
+  "stop_clock": {
+    "wall_before_ns": 1793134349287516000,
+    "perf_ns": 170820917154416,
+    "wall_after_ns": 1793134349287516000
+  },
+  "completed_numeric_phases": 3,
+  "full_native_test_passed": false,
+  "trace_exit": 0,
+  "elapsed_s": 69.22490187498624,
+  "trace_reaped": true,
+  "native_reaped": true,
+  "native_exit": -15,
+  "native_supervisor_status": "completed_expected_outcomes_not_speed",
+  "swapouts_after_bytes": 137777463296,
+  "swapouts_anchor_bytes": 137777463296
+}

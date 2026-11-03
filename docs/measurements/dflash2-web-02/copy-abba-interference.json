@@ -1,0 +1,24 @@
+{
+  "status": "interrupted_external_cpu_test_suite",
+  "time_unix": 1791491813.13439,
+  "evidence": "  PID  PPID  PGID ELAPSED  %CPU COMMAND\n91034 91032 91034   05:12   0.0 /bin/zsh scripts/check-e2e.sh\n91454 91034 91034   04:16   0.0 /bin/zsh scripts/check-desktop.sh\n91966 55108 91966   02:33   0.0 /opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python -\n91973 91966 91973   02:33   0.0 /opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python benchmarks/compare_native.py /Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-EXL3-2.49bpw --baseline /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3 --candidate /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3 --output /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-02/copy-abba --prompt-file /Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/docs/measurements/dflash2-web-02/copy-prompt.txt --tokens 256 --warmup-tokens 256 --repeats 4 --order ABBA --settle-seconds 60 --dflash-mode 1 --dflash-draft /Users/justin/Documents/mix-stq1_0/models/Qwen3.6-35B-A3B-DFlash2 --baseline-env MLXL3_DFLASH_CONTEXT_COPY=0 --candidate-env MLXL3_DFLASH_CONTEXT_COPY=1 --baseline-env MLXL3_QWEN_PIPELINE=0 --candidate-env MLXL3_QWEN_PIPELINE=0 --baseline-env MLXL3_MTP_LOOKUP=0 --candidate-env MLXL3_MTP_LOOKUP=0 --load-timeout 300 --request-timeout 180\n",
+  "our_benchmark_parent": 91966,
+  "our_compare_driver_group": 91973,
+  "external_parent": 91034,
+  "external_processes_untouched": true,
+  "protocol_unchanged_on_possible_retry": true,
+  "reason": "A Swift Desktop check suite began externally during campaign, streaming-check observed100%CPU; no qualified complete ABBA, candidate speed not established.",
+  "immutable_interruption_snapshots": [
+    {
+      "path": "copy-abba/results-at-interruption.json",
+      "sha256": "93f1e8e3d0c7a0921ce76bfd8d5f57bfbba4d18aacdc4a428e34a84d4c4a3685",
+      "interpretation": "Exact partial snapshot at interruption, historically status running; not an active trial or complete validation."
+    },
+    {
+      "path": "copy-abba/1-B-at-interruption.json",
+      "sha256": "25723fd79b600e69c71f7ecef427fe5f457d5dde07516ba3c12862f728319e74",
+      "interpretation": "Exact partial snapshot at interruption, historically status running; not an active trial or complete validation."
+    }
+  ],
+  "partial_pass_status_closed": "copy-abba/1-B.json and current aggregate nested pass marked interrupted_external_suite/parity unknown; original snapshots preserved."
+}

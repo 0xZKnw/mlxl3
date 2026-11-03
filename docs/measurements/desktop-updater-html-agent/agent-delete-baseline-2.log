@@ -1,0 +1,25 @@
+apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:449:13: error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+447 |         if FileManager.default.fileExists(atPath: destination.path) {
+448 |             initial.isVerifying = true
+449 |             await progress(initial)
+    |             `- error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+450 |             if try await verifyAsset(at: destination, asset: release.asset) {
+451 |                 try Task.checkCancellation()
+
+apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:456:9: error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+454 |         }
+455 |         initial.isVerifying = false
+456 |         await progress(initial)
+    |         `- error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+457 |         let delegate = UpdateDownloadDelegate(size: release.asset.size) { value in
+458 |             Task { @MainActor in progress(value) }
+
+apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift:472:13: error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+470 |             var final = delegate.snapshot
+471 |             final.isVerifying = true
+472 |             await progress(final)
+    |             `- error: no 'async' operations occur within 'await' expression [#UnnecessaryEffectMarker]
+473 |             guard try await verifyAsset(at: staged, asset: release.asset) else {
+474 |                 throw UpdateError.integrityCheckFailed
+
+[#UnnecessaryEffectMarker]: <https://docs.swift.org/compiler/documentation/diagnostics/unnecessary-effect-marker>

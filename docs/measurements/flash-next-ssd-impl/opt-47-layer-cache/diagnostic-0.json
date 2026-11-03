@@ -1,0 +1,30 @@
+[
+  {
+    "name": "47-calibration-bridge-reference",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge.txt",
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/qualified/mlxl3-rs",
+      "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_CACHE_TRACE": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-trace.json",
+      "MLXL3_FLASH_CACHE_BRIDGE_REFERENCE": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/calibration-bridge/report.json",
+      "MLXL3_FLASH_CACHE_ALLOCATION": "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-47-layer-cache/allocation.json"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "\"prompt\": \"CAL\"",
+      "\"repeat\": 1"
+    ]
+  }
+]

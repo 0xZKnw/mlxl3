@@ -1,0 +1,17 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: the loop variable `route` is used to index `positions`
+   --> native/src/ssd_moe/compact_micro.rs:133:30
+    |
+133 |                 for route in 0..output_rows {
+    |                              ^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#needless_range_loop
+    = note: `-D clippy::needless-range-loop` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::needless_range_loop)]`
+help: consider using an iterator and enumerate()
+    |
+133 -                 for route in 0..output_rows {
+133 +                 for (route, <item>) in positions.iter().enumerate().take(output_rows) {
+    |
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

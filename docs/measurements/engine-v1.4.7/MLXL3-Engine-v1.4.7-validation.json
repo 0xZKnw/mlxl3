@@ -1,0 +1,1865 @@
+{
+  "schema": 1,
+  "engine_version": "1.4.7",
+  "source_commit": "957b19469e2a4ed0cb788046cad8e75c100c583d",
+  "source_clean_at_build": true,
+  "recorded_at_utc": "2026-10-16T17:44:40.200779+00:00",
+  "runtime_info": {
+    "architecture": "aarch64",
+    "bridge_protocol": 1,
+    "chat_enabled": true,
+    "commit": "957b19469e2a",
+    "mlx_enabled": true,
+    "profile": "release",
+    "version": "1.4.7"
+  },
+  "assets": {
+    "MLXL3-Engine-v1.4.7-arm64.tar.gz": {
+      "size": 66960079,
+      "sha256": "bd952551a310df8cbec8e2ba12513e0544998e794270f11c4b1819f74baaca30"
+    },
+    "MLXL3-Engine-v1.4.7-verification.tar.gz": {
+      "size": 36984,
+      "sha256": "7b0fd5c99cbd93784ff8f1dedee402266e5be0218f50f10b2e8349717226f02f"
+    },
+    "MLXL3-Engine-v1.4.7-arm64.json": {
+      "size": 13587,
+      "sha256": "ee9786aac69d681adebb80111e9f6aae1aad11b9c676a232cecb333500594074"
+    }
+  },
+  "package": {
+    "status": "complete",
+    "source_commit": "957b19469e2a4ed0cb788046cad8e75c100c583d",
+    "source_clean": true,
+    "checks": [
+      "mlxl3 ad-hoc signature and arm64",
+      "libmlx.dylib ad-hoc signature and arm64",
+      "libjaccl.dylib ad-hoc signature and arm64",
+      "archive byte reproducible",
+      "all5archive members, manifest, sizes, hashes verified",
+      "signed packaged executable runs runtime-info1.4.7",
+      "deployment target macOS26.2"
+    ],
+    "build": {
+      "status": "process_complete",
+      "parity": false,
+      "command": [
+        "cargo",
+        "build",
+        "--release",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "timeout_seconds": 600,
+      "pid": 22792,
+      "seconds": 31.685558333992958,
+      "exit_code": 0,
+      "reaped": true
+    },
+    "runtime_info": {
+      "architecture": "aarch64",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "957b19469e2a",
+      "mlx_enabled": true,
+      "profile": "release",
+      "version": "1.4.7"
+    },
+    "assets": {
+      "MLXL3-Engine-v1.4.7-arm64.tar.gz": {
+        "size": 66960079,
+        "sha256": "bd952551a310df8cbec8e2ba12513e0544998e794270f11c4b1819f74baaca30"
+      },
+      "MLXL3-Engine-v1.4.7-arm64.json": {
+        "size": 13587,
+        "sha256": "ee9786aac69d681adebb80111e9f6aae1aad11b9c676a232cecb333500594074"
+      }
+    },
+    "manifest": {
+      "architecture": "arm64",
+      "bridge_protocol": 1,
+      "files": {
+        "libjaccl.dylib": {
+          "sha256": "b6bdf1d1d472298217a0fb27893e15c35e78d1436f2bd023dc711ef84640b2b3",
+          "size": 1546672
+        },
+        "libmlx.dylib": {
+          "sha256": "40cb0b60beb0a1dde0e13647a644ece3625d6dd1a048ac846005db2c67c9fff2",
+          "size": 21815104
+        },
+        "mlx.metallib": {
+          "sha256": "dc59d1cceb1a5c7e578232e6e41e28e2c73c9463ac6dbc3886c3ee17ffc270ed",
+          "size": 182351120
+        },
+        "mlxl3": {
+          "sha256": "4c62cdd96d3c829e8c44b661c7a8eb680255efae996ff66a376c7168c68da914",
+          "size": 9955536
+        }
+      },
+      "minimum_app_version": "1.4.0",
+      "minimum_macos": "26.2.0",
+      "notices": {
+        "Apache-2.0": "                                 Apache License\n                           Version 2.0, January 2004\n                        http://www.apache.org/licenses/\n\n   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\n\n   1. Definitions.\n\n      \"License\" shall mean the terms and conditions for use, reproduction,\n      and distribution as defined by Sections 1 through 9 of this document.\n\n      \"Licensor\" shall mean the copyright owner or entity authorized by\n      the copyright owner that is granting the License.\n\n      \"Legal Entity\" shall mean the union of the acting entity and all\n      other entities that control, are controlled by, or are under common\n      control with that entity. For the purposes of this definition,\n      \"control\" means (i) the power, direct or indirect, to cause the\n      direction or management of such entity, whether by contract or\n      otherwise, or (ii) ownership of fifty percent (50%) or more of the\n      outstanding shares, or (iii) beneficial ownership of such entity.\n\n      \"You\" (or \"Your\") shall mean an individual or Legal Entity\n      exercising permissions granted by this License.\n\n      \"Source\" form shall mean the preferred form for making modifications,\n      including but not limited to software source code, documentation\n      source, and configuration files.\n\n      \"Object\" form shall mean any form resulting from mechanical\n      transformation or translation of a Source form, including but\n      not limited to compiled object code, generated documentation,\n      and conversions to other media types.\n\n      \"Work\" shall mean the work of authorship, whether in Source or\n      Object form, made available under the License, as indicated by a\n      copyright notice that is included in or attached to the work\n      (an example is provided in the Appendix below).\n\n      \"Derivative Works\" shall mean any work, whether in Source or Object\n      form, that is based on (or derived from) the Work and for which the\n      editorial revisions, annotations, elaborations, or other modifications\n      represent, as a whole, an original work of authorship. For the purposes\n      of this License, Derivative Works shall not include works that remain\n      separable from, or merely link (or bind by name) to the interfaces of,\n      the Work and Derivative Works thereof.\n\n      \"Contribution\" shall mean any work of authorship, including\n      the original version of the Work and any modifications or additions\n      to that Work or Derivative Works thereof, that is intentionally\n      submitted to Licensor for inclusion in the Work by the copyright owner\n      or by an individual or Legal Entity authorized to submit on behalf of\n      the copyright owner. For the purposes of this definition, \"submitted\"\n      means any form of electronic, verbal, or written communication sent\n      to the Licensor or its representatives, including but not limited to\n      communication on electronic mailing lists, source code control systems,\n      and issue tracking systems that are managed by, or on behalf of, the\n      Licensor for the purpose of discussing and improving the Work, but\n      excluding communication that is conspicuously marked or otherwise\n      designated in writing by the copyright owner as \"Not a Contribution.\"\n\n      \"Contributor\" shall mean Licensor and any individual or Legal Entity\n      on behalf of whom a Contribution has been received by Licensor and\n      subsequently incorporated within the Work.\n\n   2. Grant of Copyright License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      copyright license to reproduce, prepare Derivative Works of,\n      publicly display, publicly perform, sublicense, and distribute the\n      Work and such Derivative Works in Source or Object form.\n\n   3. Grant of Patent License. Subject to the terms and conditions of\n      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      (except as stated in this section) patent license to make, have made,\n      use, offer to sell, sell, import, and otherwise transfer the Work,\n      where such license applies only to those patent claims licensable\n      by such Contributor that are necessarily infringed by their\n      Contribution(s) alone or by combination of their Contribution(s)\n      with the Work to which such Contribution(s) was submitted. If You\n      institute patent litigation against any entity (including a\n      cross-claim or counterclaim in a lawsuit) alleging that the Work\n      or a Contribution incorporated within the Work constitutes direct\n      or contributory patent infringement, then any patent licenses\n      granted to You under this License for that Work shall terminate\n      as of the date such litigation is filed.\n\n   4. Redistribution. You may reproduce and distribute copies of the\n      Work or Derivative Works thereof in any medium, with or without\n      modifications, and in Source or Object form, provided that You\n      meet the following conditions:\n\n      (a) You must give any other recipients of the Work or Derivative\n          Works a copy of this License; and\n\n      (b) You must cause any modified files to carry prominent notices\n          stating that You changed the files; and\n\n      (c) You must retain, in the Source form of any Derivative Works\n          that You distribute, all copyright, patent, trademark, and\n          attribution notices from the Source form of the Work, excluding\n          those notices that do not pertain to any part of the Derivative\n          Works; and\n\n      (d) If the Work includes a \"NOTICE\" text file as part of its\n          distribution, then any Derivative Works that You distribute must\n          include a readable copy of the attribution notices contained\n          within such NOTICE file, excluding those notices that do not\n          pertain to any part of the Derivative Works, in at least one of\n          the following places: within a NOTICE text file distributed as\n          part of the Derivative Works; within the Source form or\n          documentation, if provided along with the Derivative Works; or,\n          within a display generated by the Derivative Works, if and\n          wherever such third-party notices normally appear. The contents\n          of the NOTICE file are for informational purposes only and do\n          not modify the License. You may add Your own attribution notices\n          within Derivative Works that You distribute, alongside or as an\n          addendum to the NOTICE text from the Work, provided that such\n          additional attribution notices cannot be construed as modifying\n          the License.\n\n      You may add Your own copyright statement to Your modifications and\n      may provide additional or different license terms and conditions\n      for use, reproduction, or distribution of Your modifications, or\n      for any such Derivative Works as a whole, provided Your use,\n      reproduction, and distribution of the Work otherwise complies with\n      the conditions stated in this License.\n\n   5. Submission of Contributions. Unless You explicitly state otherwise,\n      any Contribution intentionally submitted for inclusion in the Work\n      by You to the Licensor shall be under the terms and conditions of\n      this License, without any additional terms or conditions.\n      Notwithstanding the above, nothing herein shall supersede or modify\n      the terms of any separate license agreement you may have executed\n      with Licensor regarding such Contributions.\n\n   6. Trademarks. This License does not grant permission to use the trade\n      names, trademarks, service marks, or product names of the Licensor,\n      except as required for reasonable and customary use in describing the\n      origin of the Work and reproducing the content of the NOTICE file.\n\n   7. Disclaimer of Warranty. Unless required by applicable law or\n      agreed to in writing, Licensor provides the Work (and each\n      Contributor provides its Contributions) on an \"AS IS\" BASIS,\n      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\n      implied, including, without limitation, any warranties or conditions\n      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\n      PARTICULAR PURPOSE. You are solely responsible for determining the\n      appropriateness of using or redistributing the Work and assume any\n      risks associated with Your exercise of permissions under this License.\n\n   8. Limitation of Liability. In no event and under no legal theory,\n      whether in tort (including negligence), contract, or otherwise,\n      unless required by applicable law (such as deliberate and grossly\n      negligent acts) or agreed to in writing, shall any Contributor be\n      liable to You for damages, including any direct, indirect, special,\n      incidental, or consequential damages of any character arising as a\n      result of this License or out of the use or inability to use the\n      Work (including but not limited to damages for loss of goodwill,\n      work stoppage, computer failure or malfunction, or any and all\n      other commercial damages or losses), even if such Contributor\n      has been advised of the possibility of such damages.\n\n   9. Accepting Warranty or Additional Liability. While redistributing\n      the Work or Derivative Works thereof, You may choose to offer,\n      and charge a fee for, acceptance of support, warranty, indemnity,\n      or other liability obligations and/or rights consistent with this\n      License. However, in accepting such obligations, You may act only\n      on Your own behalf and on Your sole responsibility, not on behalf\n      of any other Contributor, and only if You agree to indemnify,\n      defend, and hold each Contributor harmless for any liability\n      incurred by, or claims asserted against, such Contributor by reason\n      of your accepting any such warranty or additional liability.\n\n   END OF TERMS AND CONDITIONS\n\n   APPENDIX: How to apply the Apache License to your work.\n\n      To apply the Apache License to your work, attach the following\n      boilerplate notice, with the fields enclosed by brackets \"[]\"\n      replaced with your own identifying information. (Don't include\n      the brackets!)  The text should be enclosed in the appropriate\n      comment syntax for the file format. We also recommend that a\n      file or class name and description of purpose be included on the\n      same \"printed page\" as the copyright notice for easier\n      identification within third-party archives.\n\n   Copyright 2026 Theinruj Toranavikrai\n\n   Licensed under the Apache License, Version 2.0 (the \"License\");\n   you may not use this file except in compliance with the License.\n   You may obtain a copy of the License at\n\n       http://www.apache.org/licenses/LICENSE-2.0\n\n   Unless required by applicable law or agreed to in writing, software\n   distributed under the License is distributed on an \"AS IS\" BASIS,\n   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n   See the License for the specific language governing permissions and\n   limitations under the License.\n",
+        "MTPLX": "MTPLX\nCopyright 2026 Youssof Altoukhi\n\nMTPLX is a native MTP speculative decoding project for Apple Silicon.\n\nATTRIBUTION REQUIREMENT\n\nThis NOTICE file is part of the Apache License 2.0 terms for MTPLX (see\nsection 4(d) of the LICENSE). Any product, application, service, or\ndistribution that includes, embeds, or is built on MTPLX, in whole or in\npart, modified or unmodified, must display the following attribution within\nthe product itself, in a place a user of that product can see (for example an\nAbout screen, a credits or acknowledgements screen, a settings or help page,\ndocumentation shipped with the product, or the startup banner of a command\nline tool):\n\n  Powered by MTPLX\n  https://github.com/youssofal/mtplx\n\nAttribution in a source repository, a README, or a marketing page alone does\nnot satisfy this requirement. The words \"Powered by MTPLX\" must appear\nin-product. The link is required wherever the display medium supports it.\n\nPublic benchmarks, articles, and research that use or build on MTPLX should\ncredit \"MTPLX by Youssof Altoukhi\" with the same link.\n\nIf MTPLX informs academic or technical writing, please cite the repository using\nthe included CITATION.cff metadata.\n"
+      },
+      "schema": 1,
+      "version": "1.4.7"
+    }
+  },
+  "cpu": {
+    "status": "complete",
+    "stages": [
+      {
+        "name": "fmt",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "fmt",
+            "--all",
+            "--check"
+          ],
+          "timeout_seconds": 600,
+          "pid": 19710,
+          "seconds": 0.4014052910497412,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "clippy",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "clippy",
+            "--locked",
+            "--all-targets",
+            "--features",
+            "mlx,chat",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "timeout_seconds": 600,
+          "pid": 19713,
+          "seconds": 5.950849750079215,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "rust",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--release",
+            "--features",
+            "mlx,chat"
+          ],
+          "timeout_seconds": 600,
+          "pid": 20066,
+          "seconds": 55.50199008407071,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "python-format",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+            "format",
+            "--check",
+            "benchmarks/benchmark_smallm.py",
+            "benchmarks/compare_native.py",
+            "benchmarks/analyze_smallm_profile.py",
+            "benchmarks/benchmark_smallm_reuse.py",
+            "scripts/experimental-draft-head.py",
+            "tests/test_compare_native.py",
+            "tests/test_experimental_draft_head.py",
+            "tests/test_smallm_profile.py",
+            "tests/test_smallm_reuse.py"
+          ],
+          "timeout_seconds": 600,
+          "pid": 20799,
+          "seconds": 0.03993537509813905,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "python-lint",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/ruff",
+            "check",
+            "benchmarks/benchmark_smallm.py",
+            "benchmarks/compare_native.py",
+            "benchmarks/analyze_smallm_profile.py",
+            "benchmarks/benchmark_smallm_reuse.py",
+            "scripts/experimental-draft-head.py",
+            "tests/test_compare_native.py",
+            "tests/test_experimental_draft_head.py",
+            "tests/test_smallm_profile.py",
+            "tests/test_smallm_reuse.py"
+          ],
+          "timeout_seconds": 600,
+          "pid": 20802,
+          "seconds": 0.019702125107869506,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "python-tests",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_bridge_benchmark.py",
+            "tests/test_package_engine.py",
+            "tests/test_qmm_tiles.py",
+            "tests/test_compare_native.py",
+            "tests/test_native_json_process.py",
+            "tests/test_mtp_model_switch.py",
+            "tests/test_smallm_benchmark.py",
+            "tests/test_decode_microbenchmarks.py",
+            "tests/test_experimental_draft_head.py",
+            "tests/test_dflash2_check.py",
+            "tests/test_smallm_profile.py",
+            "tests/test_smallm_reuse.py"
+          ],
+          "timeout_seconds": 600,
+          "pid": 20803,
+          "seconds": 107.28029741696082,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "exl3_lane_layout_key_distinguishes_options",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "exl3_lane_layout_key_distinguishes_options"
+          ],
+          "timeout_seconds": 600,
+          "pid": 21665,
+          "seconds": 2.0767616250086576,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "exl3_lane_permutation_is_bijective_and_preserves_tile_bounds"
+          ],
+          "timeout_seconds": 600,
+          "pid": 21735,
+          "seconds": 1.0004657920217142,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "exl3_lane_order_preserves_shape_and_large_m_fallback",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "cargo",
+            "kani",
+            "--lib",
+            "--no-default-features",
+            "--harness",
+            "exl3_lane_order_preserves_shape_and_large_m_fallback"
+          ],
+          "timeout_seconds": 600,
+          "pid": 21760,
+          "seconds": 1.0998367089778185,
+          "exit_code": 0,
+          "reaped": true
+        }
+      }
+    ],
+    "environment": {
+      "MACOSX_DEPLOYMENT_TARGET": "26.2",
+      "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+    },
+    "rust_totals": {
+      "passed": 179,
+      "ignored": 85
+    },
+    "python_result": "442 passed in 107.04s (0:01:47)"
+  },
+  "installer_real_desktop_1_4_6": {
+    "status": "complete",
+    "initial_failure": "check helper treated runProcess Data as String; swift-compile.log retained; real Swift source unchanged",
+    "proof": "strict compile and real disposable integration test; no formal Swift proof",
+    "compile": {
+      "status": "process_complete",
+      "parity": false,
+      "command": [
+        "swiftc",
+        "-swift-version",
+        "6",
+        "-parse-as-library",
+        "-warnings-as-errors",
+        "-sdk",
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk",
+        "-module-cache-path",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/swift-modules",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/UpdateManager.swift",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/Engine147InstallCheck.swift",
+        "-o",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/engine-install-check"
+      ],
+      "timeout_seconds": 120,
+      "pid": 23035,
+      "seconds": 1.0457040830515325,
+      "exit_code": 0,
+      "reaped": true
+    },
+    "install": {
+      "status": "process_complete",
+      "parity": false,
+      "command": [
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/engine-install-check",
+        "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/artifacts/MLXL3-Engine-v1.4.7-arm64.tar.gz"
+      ],
+      "timeout_seconds": 120,
+      "pid": 23043,
+      "seconds": 2.782971709035337,
+      "exit_code": 0,
+      "reaped": true
+    }
+  },
+  "physical_signed_package": {
+    "status": "complete",
+    "parity": true,
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check-mtp-bridge.py",
+      "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/runtime/mlxl3",
+      "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+      "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+      "--tokens",
+      "1,2,3,4,17,64",
+      "--prompt-file",
+      "docs/measurements/qwen27-20261016/prompt-boundaries-long.txt",
+      "--check-prefix"
+    ],
+    "engine_sha256": "4c62cdd96d3c829e8c44b661c7a8eb680255efae996ff66a376c7168c68da914",
+    "stages": [
+      {
+        "name": "boundaries",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "scripts/check-mtp-bridge.py",
+            "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/runtime/mlxl3",
+            "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+            "/Users/justin/Library/Application Support/io.mlxl3.desktop/Drafts/Qwen3.8-27B-MTP-4bit",
+            "--tokens",
+            "1,2,3,4,17,64",
+            "--prompt-file",
+            "docs/measurements/qwen27-20261016/prompt-boundaries-long.txt",
+            "--check-prefix"
+          ],
+          "timeout_seconds": 600,
+          "pid": 23359,
+          "seconds": 238.34970362496097,
+          "exit_code": 0,
+          "reaped": true
+        }
+      },
+      {
+        "name": "golden",
+        "child": {
+          "status": "process_complete",
+          "parity": false,
+          "command": [
+            "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+            "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/golden-check.py"
+          ],
+          "timeout_seconds": 600,
+          "pid": 24329,
+          "seconds": 79.87049420794938,
+          "exit_code": 0,
+          "reaped": true
+        }
+      }
+    ],
+    "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t66%; discharging; 3:16 remaining present: true\n",
+    "budgets": 6,
+    "prefixes": 2,
+    "cancellations": 2,
+    "rejections": 3,
+    "golden_passes": 2,
+    "golden_prompts": 4
+  },
+  "golden_comparison": {
+    "status": "complete",
+    "parity": true,
+    "kind": "functional comparison to historical golden hashes/counters, not a speed campaign",
+    "passes": [
+      {
+        "lane": 0,
+        "default_environment": true,
+        "status": "complete",
+        "prompts": {
+          "short": {
+            "stats": {
+              "cached_prompt_tokens": 0,
+              "context_limit": 4096,
+              "context_used": 199,
+              "decode_seconds": 13.151649749999999,
+              "decode_tokens": 129,
+              "decode_tps": 9.80865537420505,
+              "dflash_accepted_tokens": null,
+              "dflash_block_seconds": 0.0,
+              "dflash_blocks": null,
+              "dflash_lookup_blocks": null,
+              "dflash_proposed_tokens": null,
+              "draft_load_seconds": 0.053954375,
+              "elapsed_seconds": 14.513139209,
+              "end_to_end_ttft_seconds": 1.361501625,
+              "evaluated_prompt_tokens": 69,
+              "generated_tokens": 130,
+              "memory": {
+                "mlx_active_bytes": 9579806588,
+                "mlx_cache_bytes": 705166205,
+                "mlx_peak_bytes": 9895367319,
+                "process_footprint_bytes": 10423227864,
+                "process_lifetime_peak_bytes": 11990473376
+              },
+              "model_size_gb": 9.696705133,
+              "mtp_accepted_tokens": 60,
+              "mtp_blocks": 71,
+              "mtp_depth_blocks": [
+                0,
+                71,
+                0,
+                0
+              ],
+              "mtp_lookup_blocks": 0,
+              "mtp_proposed_tokens": 71,
+              "prefill_seconds": 1.305215791,
+              "prefill_tps": 52.8648216454194,
+              "prepare_seconds": 0.0012605,
+              "prompt_tokens": 69,
+              "round_count": 1,
+              "tool_rounds": 0,
+              "tool_seconds": 0.0,
+              "ttft_seconds": 1.3614737080000001
+            },
+            "token_hash": "c88e786888e89699",
+            "text_sha256": "b5b3e5826d6351dec0dbda3cc1851372a802691abc2dc328fd0ba1fd1b766739",
+            "history_sha256": "d4b8fc678f92cb7943a3264b8ef12c21b41503f0d1fb21efb310fca9de228e9f"
+          },
+          "document": {
+            "stats": {
+              "cached_prompt_tokens": 0,
+              "context_limit": 4096,
+              "context_used": 370,
+              "decode_seconds": 25.213155416,
+              "decode_tokens": 255,
+              "decode_tps": 10.113767824481807,
+              "dflash_accepted_tokens": null,
+              "dflash_block_seconds": 0.0,
+              "dflash_blocks": null,
+              "dflash_lookup_blocks": null,
+              "dflash_proposed_tokens": null,
+              "draft_load_seconds": 0.0,
+              "elapsed_seconds": 26.623726625,
+              "end_to_end_ttft_seconds": 1.41057775,
+              "evaluated_prompt_tokens": 114,
+              "generated_tokens": 256,
+              "memory": {
+                "mlx_active_bytes": 9592160124,
+                "mlx_cache_bytes": 1339800596,
+                "mlx_peak_bytes": 10043245124,
+                "process_footprint_bytes": 11071264264,
+                "process_lifetime_peak_bytes": 11990473376
+              },
+              "model_size_gb": 9.696705133,
+              "mtp_accepted_tokens": 113,
+              "mtp_blocks": 142,
+              "mtp_depth_blocks": [
+                0,
+                142,
+                0,
+                0
+              ],
+              "mtp_lookup_blocks": 0,
+              "mtp_proposed_tokens": 142,
+              "prefill_seconds": 1.409146541,
+              "prefill_tps": 80.90003181578261,
+              "prepare_seconds": 0.000974083,
+              "prompt_tokens": 114,
+              "round_count": 1,
+              "tool_rounds": 0,
+              "tool_seconds": 0.0,
+              "ttft_seconds": 1.410557875
+            },
+            "token_hash": "362fcad98930c47b",
+            "text_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de",
+            "history_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de"
+          }
+        },
+        "ready": {
+          "bridge_protocol": 1,
+          "context_limit": 4096,
+          "context_memory": {
+            "draft_bytes_per_token": 4096,
+            "fixed_bytes": 153954304,
+            "layers": [
+              {
+                "bytes_per_token": 65536,
+                "max_tokens": null,
+                "step": 1
+              }
+            ]
+          },
+          "dflash_configure_supported": true,
+          "dflash_family": "qwen38_dense",
+          "dflash_supported": true,
+          "dflash_tune_supported": true,
+          "dflash_tuning_key": "0ecfe80cf1bcb3e2:1.4.7:957b19469e2a:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=0:smallm-v2=1:dflash-v4:copy=0",
+          "load_seconds": 3.344091375,
+          "mcp_errors": {},
+          "mcp_servers": 0,
+          "mcp_tools": 0,
+          "memory_saver_supported": true,
+          "mlx_version": "0.32.2",
+          "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+          "model_context_limit": 262144,
+          "modules": 401,
+          "mtp_auto_download_supported": true,
+          "mtp_configure_supported": true,
+          "mtp_max_depth": 3,
+          "mtp_supported": true,
+          "mtp_tune_supported": true,
+          "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.7:957b19469e2a:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=0:smallm-v2=1",
+          "resident_gb": 9.696705133,
+          "runtime_commit": "957b19469e2a",
+          "runtime_executable": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/runtime/mlxl3",
+          "runtime_profile": "release",
+          "runtime_version": "1.4.7",
+          "type": "ready"
+        },
+        "exit_code": 0,
+        "reaped": true
+      },
+      {
+        "lane": 1,
+        "default_environment": false,
+        "status": "complete",
+        "prompts": {
+          "short": {
+            "stats": {
+              "cached_prompt_tokens": 0,
+              "context_limit": 4096,
+              "context_used": 199,
+              "decode_seconds": 9.788665125,
+              "decode_tokens": 129,
+              "decode_tps": 13.178507830504621,
+              "dflash_accepted_tokens": null,
+              "dflash_block_seconds": 0.0,
+              "dflash_blocks": null,
+              "dflash_lookup_blocks": null,
+              "dflash_proposed_tokens": null,
+              "draft_load_seconds": 0.054852875,
+              "elapsed_seconds": 11.157607209,
+              "end_to_end_ttft_seconds": 1.368958167,
+              "evaluated_prompt_tokens": 69,
+              "generated_tokens": 130,
+              "memory": {
+                "mlx_active_bytes": 9593372540,
+                "mlx_cache_bytes": 704494505,
+                "mlx_peak_bytes": 9908769431,
+                "process_footprint_bytes": 10437088920,
+                "process_lifetime_peak_bytes": 12004580192
+              },
+              "model_size_gb": 9.696705133,
+              "mtp_accepted_tokens": 60,
+              "mtp_blocks": 71,
+              "mtp_depth_blocks": [
+                0,
+                71,
+                0,
+                0
+              ],
+              "mtp_lookup_blocks": 0,
+              "mtp_proposed_tokens": 71,
+              "prefill_seconds": 1.311999459,
+              "prefill_tps": 52.59148510060476,
+              "prepare_seconds": 0.00137675,
+              "prompt_tokens": 69,
+              "round_count": 1,
+              "tool_rounds": 0,
+              "tool_seconds": 0.0,
+              "ttft_seconds": 1.368929209
+            },
+            "token_hash": "c88e786888e89699",
+            "text_sha256": "b5b3e5826d6351dec0dbda3cc1851372a802691abc2dc328fd0ba1fd1b766739",
+            "history_sha256": "d4b8fc678f92cb7943a3264b8ef12c21b41503f0d1fb21efb310fca9de228e9f"
+          },
+          "document": {
+            "stats": {
+              "cached_prompt_tokens": 0,
+              "context_limit": 4096,
+              "context_used": 370,
+              "decode_seconds": 19.772699708,
+              "decode_tokens": 255,
+              "decode_tps": 12.896569702964104,
+              "dflash_accepted_tokens": null,
+              "dflash_block_seconds": 0.0,
+              "dflash_blocks": null,
+              "dflash_lookup_blocks": null,
+              "dflash_proposed_tokens": null,
+              "draft_load_seconds": 0.0,
+              "elapsed_seconds": 21.108947584,
+              "end_to_end_ttft_seconds": 1.3362517919999999,
+              "evaluated_prompt_tokens": 114,
+              "generated_tokens": 256,
+              "memory": {
+                "mlx_active_bytes": 9605660540,
+                "mlx_cache_bytes": 1338569748,
+                "mlx_peak_bytes": 10056647236,
+                "process_footprint_bytes": 11084240536,
+                "process_lifetime_peak_bytes": 12004580192
+              },
+              "model_size_gb": 9.696705133,
+              "mtp_accepted_tokens": 113,
+              "mtp_blocks": 142,
+              "mtp_depth_blocks": [
+                0,
+                142,
+                0,
+                0
+              ],
+              "mtp_lookup_blocks": 0,
+              "mtp_proposed_tokens": 142,
+              "prefill_seconds": 1.334697584,
+              "prefill_tps": 85.41260684562684,
+              "prepare_seconds": 0.001112459,
+              "prompt_tokens": 114,
+              "round_count": 1,
+              "tool_rounds": 0,
+              "tool_seconds": 0.0,
+              "ttft_seconds": 1.336236084
+            },
+            "token_hash": "362fcad98930c47b",
+            "text_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de",
+            "history_sha256": "4e15a4bdae5833fdf4fd36544656fc415510c885059a0a6c1de05f2d97cda0de"
+          }
+        },
+        "ready": {
+          "bridge_protocol": 1,
+          "context_limit": 4096,
+          "context_memory": {
+            "draft_bytes_per_token": 4096,
+            "fixed_bytes": 153954304,
+            "layers": [
+              {
+                "bytes_per_token": 65536,
+                "max_tokens": null,
+                "step": 1
+              }
+            ]
+          },
+          "dflash_configure_supported": true,
+          "dflash_family": "qwen38_dense",
+          "dflash_supported": true,
+          "dflash_tune_supported": true,
+          "dflash_tuning_key": "0ecfe80cf1bcb3e2:1.4.7:957b19469e2a:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=0",
+          "load_seconds": 2.76487175,
+          "mcp_errors": {},
+          "mcp_servers": 0,
+          "mcp_tools": 0,
+          "memory_saver_supported": true,
+          "mlx_version": "0.32.2",
+          "model": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Qwen3.8-27B-exl3-6a9ca9d0",
+          "model_context_limit": 262144,
+          "modules": 401,
+          "mtp_auto_download_supported": true,
+          "mtp_configure_supported": true,
+          "mtp_max_depth": 3,
+          "mtp_supported": true,
+          "mtp_tune_supported": true,
+          "mtp_tuning_key": "0ecfe80cf1bcb3e2:1.4.7:957b19469e2a:release:0.32.2:Apple M5:4096:pipeline=off:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:lanelayout-v1=1:smallm-v2=1",
+          "resident_gb": 9.696705133,
+          "runtime_commit": "957b19469e2a",
+          "runtime_executable": "/Users/justin/.codex/worktrees/qwen27-smallm/mix-stq1_0/build/engine-v1.4.7/runtime/mlxl3",
+          "runtime_profile": "release",
+          "runtime_version": "1.4.7",
+          "type": "ready"
+        },
+        "exit_code": 0,
+        "reaped": true
+      }
+    ]
+  },
+  "unchanged_numeric_sources": {
+    "native/src/contracts.rs": "1383bf08bfa339e71bc3e051febb1fee7dd6a20ae4ade01c1e07c14d3c5377f9",
+    "native/src/linear.rs": "dfbf9a0f5e0aec2cb109dbbb380a351ff1a7c4d6f64645957741976d00002fe7",
+    "native/src/lib.rs": "0f14cad9235c92feeb45e814cdafa90c8aa25e8350354d86dd909f7bcc82136c",
+    "native/src/mtp_tune.rs": "0f95daaacbf47f30a127f5de1250ee7c02085a90961ae537df2e780ede725d6e",
+    "native/src/qwen35.rs": "5b440a0be31009f2ad53e102c20531f12cb6587b7fcb7945446d05300662ff3c",
+    "native/shaders/_qmv_tile_kernel.metal": "fb7c934cb24d7c84e6a0cb87c4bd85a59ce5c3e329ef7cf4c767f27f277db959",
+    "native/shaders/_qmv_mapped_tile_kernel.metal": "b8c3fedc2fc1b3eda85ce901e1f5be4e7dbb44700605030cac545dbd5e79e3ef"
+  },
+  "historical_benchmark": {
+    "status": "validated_local_opt_in",
+    "default_enabled": false,
+    "engine_sha256": "d6a4ea4425ee525add3f3102e9d9fb91cc88cd084334ef42de2e0aa43db24536",
+    "test_sha256": "32cc7e76dc337a0d3ec1dcd7876b291fbd21e5716727be5e899b9fa890b95a03",
+    "source_head": "7ce611c1c0db9a704bbe35abccc6293fc6ee7995",
+    "local_modified": true,
+    "branch": "codex/qwen27-smallm",
+    "device": "Apple M5 standard,10GPU,24GB",
+    "power": "battery, explicitly authorized",
+    "mlx": "0.32.2",
+    "mode": "MTP1, MLP M2/M4 default, stockhead, allocator default, pipeline/adaptive/lookup off,context4096,greedy, promptcache off",
+    "flag": "MLXL3_EXL3_LANE_ORDER=1",
+    "prompts": {
+      "short": {
+        "tps": {
+          "A": [
+            10.876999774130162,
+            11.055841071341852,
+            11.024847495752361,
+            10.91753561134555
+          ],
+          "B": [
+            13.335126626000614,
+            13.65733327333988,
+            13.712712898006345,
+            13.644312722089596
+          ]
+        },
+        "medians": {
+          "A": 10.971191553548955,
+          "B": 13.650822997714737
+        },
+        "gain_percent": 24.42425174227294,
+        "max_min_drift_percent": {
+          "A": 1.6442153252319347,
+          "B": 2.8315162097487745
+        },
+        "generated_tokens": 130
+      },
+      "document": {
+        "tps": {
+          "A": [
+            10.718314408473475,
+            10.768462145053785,
+            10.766085286098901,
+            10.876384825189358
+          ],
+          "B": [
+            13.163679261657725,
+            13.450448794130681,
+            13.49189984031543,
+            13.31066113007041
+          ]
+        },
+        "medians": {
+          "A": 10.767273715576344,
+          "B": 13.380554962100545
+        },
+        "gain_percent": 24.27059361130319,
+        "max_min_drift_percent": {
+          "A": 1.4747693591719901,
+          "B": 2.49338024828456
+        },
+        "generated_tokens": 256
+      }
+    },
+    "campaigns": {
+      "ABBA": {
+        "seconds": 202.1645614169538,
+        "analysis": {
+          "parity": true,
+          "order": "ABBA",
+          "prompts": {
+            "short": {
+              "tps": {
+                "A": [
+                  10.876999774130162,
+                  11.055841071341852
+                ],
+                "B": [
+                  13.335126626000614,
+                  13.65733327333988
+                ]
+              },
+              "medians": {
+                "A": 10.966420422736007,
+                "B": 13.496229949670248
+              },
+              "gain_percent": 23.06868995911684,
+              "drift_percent": {
+                "A": 1.6442153252319347,
+                "B": 2.4162248801674835
+              },
+              "min_b_over_max_a": 1.2061612083559123,
+              "every_b_at_least_three_percent": true,
+              "passed": true
+            },
+            "document": {
+              "tps": {
+                "A": [
+                  10.718314408473475,
+                  10.768462145053785
+                ],
+                "B": [
+                  13.163679261657725,
+                  13.450448794130681
+                ]
+              },
+              "medians": {
+                "A": 10.74338827676363,
+                "B": 13.307064027894203
+              },
+              "gain_percent": 23.862823208907248,
+              "drift_percent": {
+                "A": 0.46786961707958596,
+                "B": 2.1784907302340617
+              },
+              "min_b_over_max_a": 1.222428893219829,
+              "every_b_at_least_three_percent": true,
+              "passed": true
+            }
+          },
+          "passed": true
+        },
+        "source": "abba-status.json"
+      },
+      "BAAB": {
+        "seconds": 198.90970691700932,
+        "analysis": {
+          "parity": true,
+          "order": "BAAB",
+          "prompts": {
+            "short": {
+              "tps": {
+                "A": [
+                  11.024847495752361,
+                  10.91753561134555
+                ],
+                "B": [
+                  13.712712898006345,
+                  13.644312722089596
+                ]
+              },
+              "medians": {
+                "A": 10.971191553548955,
+                "B": 13.67851281004797
+              },
+              "gain_percent": 24.676638296623764,
+              "drift_percent": {
+                "A": 0.9829313887952162,
+                "B": 0.5013090604850445
+              },
+              "min_b_over_max_a": 1.2375965043821657,
+              "every_b_at_least_three_percent": true,
+              "passed": true
+            },
+            "document": {
+              "tps": {
+                "A": [
+                  10.766085286098901,
+                  10.876384825189358
+                ],
+                "B": [
+                  13.49189984031543,
+                  13.31066113007041
+                ]
+              },
+              "medians": {
+                "A": 10.82123505564413,
+                "B": 13.40128048519292
+              },
+              "gain_percent": 23.842430335187025,
+              "drift_percent": {
+                "A": 1.024509245090921,
+                "B": 1.3616056217942596
+              },
+              "min_b_over_max_a": 1.2238129988967792,
+              "every_b_at_least_three_percent": true,
+              "passed": true
+            }
+          },
+          "passed": true
+        },
+        "source": "baab-status.json"
+      }
+    },
+    "physical": {
+      "projections": 20,
+      "mutation_finite_values": 246227,
+      "mlp_cases": 384,
+      "prefix_configurations": 40,
+      "commits": 100,
+      "continuation_tokens": 200,
+      "state_arrays": 128,
+      "session_cycles": 32,
+      "speculative_blocks": 29,
+      "ar_cycles": 3,
+      "bridge_budgets": 6,
+      "prefixes": 2,
+      "cancellations": 2,
+      "invalid_requests": 3
+    },
+    "cpu": {
+      "rust_passed": 179,
+      "rust_ignored": 85,
+      "checker_tests": 34,
+      "kani_success": 79,
+      "kani_covers": 11,
+      "kani_unreachable": 0
+    },
+    "limits": [
+      "15tok/s not reached",
+      "long context not benchmarked",
+      "Kani real Array API ICE; MLX/Metal/concurrency not proved",
+      "CrossHair unavailable",
+      "local changes have no remote CI run",
+      "installed app unchanged",
+      "no RAM gain claimed"
+    ],
+    "conditions": [
+      {
+        "order": "ABBA",
+        "label": "A",
+        "conditions": {
+          "recorded_at_unix": 1792170331.8260171,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t79%; discharging; 2:23 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 2940.12M  free = 1155.88M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "ABBA",
+        "label": "B",
+        "conditions": {
+          "recorded_at_unix": 1792170388.226548,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t78%; discharging; 2:13 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3285.31M  free = 810.69M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "ABBA",
+        "label": "B",
+        "conditions": {
+          "recorded_at_unix": 1792170434.101915,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t77%; discharging; 2:03 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3237.19M  free = 858.81M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "ABBA",
+        "label": "A",
+        "conditions": {
+          "recorded_at_unix": 1792170479.580239,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t76%; discharging; 1:53 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3398.88M  free = 697.12M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "BAAB",
+        "label": "B",
+        "conditions": {
+          "recorded_at_unix": 1792170534.0222468,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t75%; discharging; 1:43 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3398.88M  free = 697.12M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "BAAB",
+        "label": "A",
+        "conditions": {
+          "recorded_at_unix": 1792170579.1311738,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t74%; discharging; 1:24 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "BAAB",
+        "label": "A",
+        "conditions": {
+          "recorded_at_unix": 1792170633.302408,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t73%; discharging; 1:16 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      },
+      {
+        "order": "BAAB",
+        "label": "B",
+        "conditions": {
+          "recorded_at_unix": 1792170687.491519,
+          "power": {
+            "returncode": 0,
+            "stdout": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=23461987)\t72%; discharging; 1:09 remaining present: true\n",
+            "stderr": ""
+          },
+          "thermal": {
+            "returncode": 0,
+            "stdout": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+            "stderr": ""
+          },
+          "swap": {
+            "returncode": 0,
+            "stdout": "vm.swapusage: total = 4096.00M  used = 3430.44M  free = 665.56M  (encrypted)\n",
+            "stderr": ""
+          }
+        }
+      }
+    ]
+  },
+  "benchmark_scope": "Historical Q27-19 pre-release source; native sources byte-identical; package verified functionally, no new speed campaign",
+  "ci": {
+    "38940141824": {
+      "conclusion": "",
+      "headSha": "957b19469e2a4ed0cb788046cad8e75c100c583d",
+      "jobs": [
+        {
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "databaseId": 117105414045,
+          "name": "kani",
+          "startedAt": "2026-10-16T17:30:00Z",
+          "status": "in_progress",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:02Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:05Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:05Z",
+              "conclusion": "success",
+              "name": "Verify validated API token usage with Kani",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Verify Rust safety contracts with Kani",
+              "number": 4,
+              "startedAt": "2026-10-16T17:31:05Z",
+              "status": "in_progress"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141824/job/117105414045"
+        },
+        {
+          "completedAt": "2026-10-16T17:32:59Z",
+          "conclusion": "success",
+          "databaseId": 117105414269,
+          "name": "native (ubuntu-latest)",
+          "startedAt": "2026-10-16T17:30:00Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:02Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:05Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:16Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:16Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T17:30:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:40Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T17:30:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:12Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T17:30:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:15Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T17:31:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:23Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T17:31:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:23Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T17:31:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:29Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T17:31:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:30Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T17:31:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:53Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T17:31:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:54Z",
+              "conclusion": "success",
+              "name": "Check factorial small-M profile and promotion gates",
+              "number": 13,
+              "startedAt": "2026-10-16T17:32:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:56Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 14,
+              "startedAt": "2026-10-16T17:32:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 15,
+              "startedAt": "2026-10-16T17:32:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "skipped",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 16,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "skipped",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 17,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "skipped",
+              "name": "Check EXL3 lane layout CPU state and Tune key",
+              "number": 18,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 35,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 36,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:57Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 37,
+              "startedAt": "2026-10-16T17:32:57Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141824/job/117105414269"
+        },
+        {
+          "completedAt": "2026-10-16T17:40:55Z",
+          "conclusion": "success",
+          "databaseId": 117105414432,
+          "name": "native (macos-26)",
+          "startedAt": "2026-10-16T17:30:07Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:08Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:12Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:21Z",
+              "conclusion": "success",
+              "name": "Install Rust tooling",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:22Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --check",
+              "number": 4,
+              "startedAt": "2026-10-16T17:30:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:07Z",
+              "conclusion": "success",
+              "name": "Run cargo clippy --locked --all-targets --features chat -- -D warnings",
+              "number": 5,
+              "startedAt": "2026-10-16T17:30:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:51Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --features chat",
+              "number": 6,
+              "startedAt": "2026-10-16T17:31:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:57Z",
+              "conclusion": "success",
+              "name": "Run cargo build --locked --features chat",
+              "number": 7,
+              "startedAt": "2026-10-16T17:31:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:03Z",
+              "conclusion": "success",
+              "name": "Check Metal cache key ordering and allocation regressions",
+              "number": 8,
+              "startedAt": "2026-10-16T17:31:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:04Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T17:32:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:09Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install pytest==8.4.2 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+              "number": 10,
+              "startedAt": "2026-10-16T17:32:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:09Z",
+              "conclusion": "success",
+              "name": "Lint native verification scripts and regressions",
+              "number": 11,
+              "startedAt": "2026-10-16T17:32:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:33:49Z",
+              "conclusion": "success",
+              "name": "Check bridge and QMM validation tools",
+              "number": 12,
+              "startedAt": "2026-10-16T17:32:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:33:50Z",
+              "conclusion": "success",
+              "name": "Check factorial small-M profile and promotion gates",
+              "number": 13,
+              "startedAt": "2026-10-16T17:33:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:33:52Z",
+              "conclusion": "success",
+              "name": "Check LFM2.5 quality evaluator and subprocess failures",
+              "number": 14,
+              "startedAt": "2026-10-16T17:33:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:33:54Z",
+              "conclusion": "success",
+              "name": "Check idle-memory benchmark failure and parity gates",
+              "number": 15,
+              "startedAt": "2026-10-16T17:33:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:36:32Z",
+              "conclusion": "success",
+              "name": "Compile and lint the shipped MLX bridge",
+              "number": 16,
+              "startedAt": "2026-10-16T17:33:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:38:13Z",
+              "conclusion": "success",
+              "name": "Check LFM prefill CPU oracles against the MLX-feature source",
+              "number": 17,
+              "startedAt": "2026-10-16T17:36:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:40:44Z",
+              "conclusion": "success",
+              "name": "Check EXL3 lane layout CPU state and Tune key",
+              "number": 18,
+              "startedAt": "2026-10-16T17:38:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:40:45Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 35,
+              "startedAt": "2026-10-16T17:40:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:40:46Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 36,
+              "startedAt": "2026-10-16T17:40:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:40:53Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 37,
+              "startedAt": "2026-10-16T17:40:46Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141824/job/117105414432"
+        }
+      ],
+      "status": "in_progress",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141824"
+    },
+    "38940141542": {
+      "conclusion": "success",
+      "headSha": "957b19469e2a4ed0cb788046cad8e75c100c583d",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T17:41:49Z",
+          "conclusion": "success",
+          "databaseId": 117105414436,
+          "name": "desktop-and-protocol",
+          "startedAt": "2026-10-16T17:30:07Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:09Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:13Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:19Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:47Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt",
+              "number": 4,
+              "startedAt": "2026-10-16T17:30:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:41:44Z",
+              "conclusion": "success",
+              "name": "Run scripts/check-e2e.sh",
+              "number": 5,
+              "startedAt": "2026-10-16T17:30:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:41:44Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 9,
+              "startedAt": "2026-10-16T17:41:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:41:45Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 10,
+              "startedAt": "2026-10-16T17:41:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:41:47Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "startedAt": "2026-10-16T17:41:45Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141542/job/117105414436"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141542"
+    },
+    "38940141850": {
+      "conclusion": "success",
+      "headSha": "957b19469e2a4ed0cb788046cad8e75c100c583d",
+      "jobs": [
+        {
+          "completedAt": "2026-10-16T17:30:30Z",
+          "conclusion": "success",
+          "databaseId": 117105413831,
+          "name": "packing-proof",
+          "startedAt": "2026-10-16T17:30:00Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:01Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:04Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:13Z",
+              "conclusion": "success",
+              "name": "Install CBMC 6.11.0 from the checked release asset",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:28Z",
+              "conclusion": "success",
+              "name": "Verify the shared source under the host address-space model",
+              "number": 4,
+              "startedAt": "2026-10-16T17:30:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:28Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-16T17:30:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:28Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-16T17:30:28Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141850/job/117105413831"
+        },
+        {
+          "completedAt": "2026-10-16T17:35:23Z",
+          "conclusion": "success",
+          "databaseId": 117105414326,
+          "name": "conversion",
+          "startedAt": "2026-10-16T17:30:04Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-16T17:30:06Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-16T17:30:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:09Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-16T17:30:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:14Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-10-16T17:30:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:37Z",
+              "conclusion": "success",
+              "name": "Run python -m pip install -e '.[dev]' -c packaging/constraints-macos.txt pytest==9.1.1 ruff==0.16.5 crosshair-tool==0.0.101 z3-solver==5.1.0.0",
+              "number": 4,
+              "startedAt": "2026-10-16T17:30:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:38Z",
+              "conclusion": "success",
+              "name": "Apply the pinned optional converter patch",
+              "number": 5,
+              "startedAt": "2026-10-16T17:30:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:30:43Z",
+              "conclusion": "success",
+              "name": "Check host contracts and benchmark failure gates",
+              "number": 6,
+              "startedAt": "2026-10-16T17:30:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:31:28Z",
+              "conclusion": "success",
+              "name": "Verify routed CUDA calibration on CPU without cloud credentials",
+              "number": 7,
+              "startedAt": "2026-10-16T17:30:43Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:32:01Z",
+              "conclusion": "success",
+              "name": "Check deployable router recalibration without cloud credentials",
+              "number": 8,
+              "startedAt": "2026-10-16T17:31:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:06Z",
+              "conclusion": "success",
+              "name": "Attempt symbolic expert map isolation (tensor and GPU paths excluded)",
+              "number": 9,
+              "startedAt": "2026-10-16T17:32:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:07Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to the three profile failure guards",
+              "number": 10,
+              "startedAt": "2026-10-16T17:35:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:08Z",
+              "conclusion": "success",
+              "name": "Search for counterexamples to routed calibration alignment",
+              "number": 11,
+              "startedAt": "2026-10-16T17:35:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:09Z",
+              "conclusion": "success",
+              "name": "Check CUDA launch contracts without allocating cloud resources",
+              "number": 12,
+              "startedAt": "2026-10-16T17:35:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:17Z",
+              "conclusion": "success",
+              "name": "Check the shared packing source with host sanitizers",
+              "number": 13,
+              "startedAt": "2026-10-16T17:35:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:18Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 25,
+              "startedAt": "2026-10-16T17:35:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:19Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 26,
+              "startedAt": "2026-10-16T17:35:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-16T17:35:22Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 27,
+              "startedAt": "2026-10-16T17:35:19Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141850/job/117105414326"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/0xZKnw/mlxl3/actions/runs/38940141850"
+    }
+  },
+  "limits": [
+    "Full Kani library suite still in progress unless completed in recorded job; no global proof claimed",
+    "Real Array Kani ICE; MLX/Metal/concurrency not formally proved",
+    "Swift installer strict compile and real integration test, not formal proof",
+    "Long context and other Macs not benchmarked",
+    "Ad-hoc signature, no Apple notarization",
+    "Installed user app and model weights unchanged; Desktop1.4.6 remains latest",
+    "Raw evidence whitespace preserved; source/documentation diffcheck excludes raw measurement folders"
+  ]
+}

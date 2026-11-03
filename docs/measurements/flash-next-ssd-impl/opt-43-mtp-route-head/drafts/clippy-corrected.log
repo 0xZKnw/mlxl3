@@ -1,0 +1,12 @@
+   Compiling mlxl3-native v1.4.3 (/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0)
+error: very complex type used. Consider factoring parts into `type` definitions
+   --> native/src/flash_draft.rs:494:29
+    |
+494 | fn top16(logits: &Array) -> Result<(Vec<Vec<u32>>, Vec<Vec<f32>>)> {
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: could not compile `mlxl3-native` (lib test) due to 1 previous error

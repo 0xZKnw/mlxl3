@@ -1,0 +1,92 @@
+[
+  {
+    "name": "v2-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.3505836659751367,
+    "reaped": true
+  },
+  {
+    "name": "v2-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 2.655923124984838,
+    "reaped": true
+  },
+  {
+    "name": "v2-cpu-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "exit_code": 0,
+    "seconds": 9.411122208985034,
+    "reaped": true
+  },
+  {
+    "name": "v2-release-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 49.14636970902211,
+    "reaped": true
+  },
+  {
+    "name": "v2-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "exit_code": 0,
+    "seconds": 0.12394845800008625,
+    "reaped": true
+  },
+  {
+    "name": "v2-kani-capture",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "qwen4::tests::actual_flash_cache_capture_preserves_all_routes_and_states",
+      "--output-format",
+      "terse"
+    ],
+    "exit_code": 1,
+    "seconds": 4.803850583994063,
+    "reaped": true
+  }
+]

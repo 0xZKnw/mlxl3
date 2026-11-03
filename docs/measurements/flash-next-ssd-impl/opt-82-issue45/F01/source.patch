@@ -1,0 +1,685 @@
+diff --git a/.github/workflows/rust.yml b/.github/workflows/rust.yml
+index 16b5d13e..ba819b7f 100644
+--- a/.github/workflows/rust.yml
++++ b/.github/workflows/rust.yml
+@@ -41,6 +41,7 @@ jobs:
+             --harness wide_cohorts_fit_every_pending_pattern_in_eighty_slots
+             --harness flash_reference_batch_has_exact_bounded_coverage
+             --harness reference_header_is_static_and_exactly_gated
++            --harness qmv_half_output_preserves_raw_multisplit_and_slot_contract_for_all_inputs
+             --harness draft_demand_counters_are_exact_or_reject_without_wrapping
+             --harness gdn_tape_prefix_covers_all_valid_commits
+             --harness wide_draft_commit_accepts_only_exact_finite_prefixes
+diff --git a/native/src/flash_support.rs b/native/src/flash_support.rs
+index e2d1c479..cbb617b6 100644
+--- a/native/src/flash_support.rs
++++ b/native/src/flash_support.rs
+@@ -2493,3 +2493,51 @@ fn slot_read_segments_initialize_every_byte_before_publication() {
+         }
+     }
+ }
++
++#[cfg(any(feature = "mlx", test, kani))]
++pub(crate) fn expert_qmv_half_output(
++    enabled: bool,
++    slot_major: bool,
++    raw: bool,
++    splits: i32,
++) -> bool {
++    enabled && slot_major && !raw && splits == 1
++}
++
++#[test]
++fn qmv_half_output_never_changes_raw_multisplit_or_ordinary_paths() {
++    for enabled in [false, true] {
++        for slot_major in [false, true] {
++            for raw in [false, true] {
++                for splits in [i32::MIN, -1, 0, 1, 2, 4, i32::MAX] {
++                    let actual = expert_qmv_half_output(enabled, slot_major, raw, splits);
++                    assert_eq!(
++                        actual,
++                        (enabled, slot_major, raw, splits) == (true, true, false, 1)
++                    );
++                }
++            }
++        }
++    }
++}
++
++#[cfg(kani)]
++#[kani::proof]
++fn qmv_half_output_preserves_raw_multisplit_and_slot_contract_for_all_inputs() {
++    let enabled: bool = kani::any();
++    let slot_major: bool = kani::any();
++    let raw: bool = kani::any();
++    let splits: i32 = kani::any();
++    let half = expert_qmv_half_output(enabled, slot_major, raw, splits);
++    if half {
++        assert!(enabled && slot_major && !raw);
++        assert_eq!(splits, 1);
++    }
++    if enabled && slot_major && !raw && splits == 1 {
++        assert!(half);
++    }
++    kani::cover!(half);
++    kani::cover!(enabled && raw && !half);
++    kani::cover!(enabled && splits == 2 && !half);
++    kani::cover!(enabled && !slot_major && !half);
++}
+diff --git a/native/src/linear.rs b/native/src/linear.rs
+index ed2f9e31..d0f0f0cd 100644
+--- a/native/src/linear.rs
++++ b/native/src/linear.rs
+@@ -1080,6 +1080,7 @@ pub fn expert_mapped(
+         false,
+         None,
+         false,
++        false,
+     )
+ }
+ 
+@@ -1221,6 +1222,7 @@ pub(crate) fn expert_slots(
+     k: usize,
+     cb: Codebook,
+     stable_shapes: bool,
++    half_output: bool,
+ ) -> Result<Array> {
+     ensure!(
+         trellis.shape().len() == 5 && trellis.shape()[0] == selected.capacity,
+@@ -1243,6 +1245,7 @@ pub(crate) fn expert_slots(
+         selected.masked,
+         selected.groups.as_ref(),
+         stable_shapes,
++        half_output,
+     )
+ }
+ 
+@@ -1264,6 +1267,7 @@ fn expert_mapped_layout(
+     masked: bool,
+     groups: Option<&GroupedRoutes>,
+     stable_shapes: bool,
++    half_output: bool,
+ ) -> Result<Array> {
+     codec::check_k(k)?;
+     ensure!(k != 7, "mapped K=7 is not supported");
+@@ -1334,6 +1338,8 @@ fn expert_mapped_layout(
+     } else {
+         split_count(tiles_k, local_tiles)
+     };
++    let half_output =
++        crate::flash_support::expert_qmv_half_output(half_output, slot_major, return_raw, splits);
+     let m5 = array::is_m5_gpu()?;
+     let use_nt4 = m5 && rows >= 64 && output_tiles % 4 == 0;
+     let mut nt = if slot_major {
+@@ -1426,6 +1432,11 @@ fn expert_mapped_layout(
+             String::new()
+         },
+     );
++    let name = if half_output {
++        format!("{name}_f16")
++    } else {
++        name
++    };
+     let dispatch = |group: Option<(i32, &Array)>| -> Result<Array> {
+         let (route_rows, work_tiles) = group.map_or((rows, local_tiles), |(width, origins)| {
+             let grouped_rows = origins.shape()[0] * projections_per_route;
+@@ -1461,7 +1472,11 @@ fn expert_mapped_layout(
+                 group.map_or(selected, |(_, origins)| origins),
+             ],
+             &[vec![splits, route_rows, output_dims]],
+-            &[Dtype::Float32],
++            &[if half_output {
++                Dtype::Float16
++            } else {
++                Dtype::Float32
++            }],
+             [
+                 (work_tiles / nt)
+                     .checked_mul(simdgroups * 32)
+@@ -1498,6 +1513,8 @@ fn expert_mapped_layout(
+     };
+     #[cfg(test)]
+     crate::flash_profile::stage("exl3_trellis_qmv", &partials)?;
++    #[cfg(test)]
++    half_output_tests::observe(&partials)?;
+     let yhat = if splits == 1 {
+         partials.reshape(&[rows, output_dims])?
+     } else {
+@@ -1713,6 +1730,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), before);
+                             assert_eq!(actual.shape(), [rows as i32, output as i32]);
+@@ -1733,6 +1751,7 @@ mod tests {
+                                 2,
+                                 Codebook::Mul1,
+                                 stable_shapes,
++                                false,
+                             )?;
+                             assert_eq!(Array::host_readbacks_for_test(), grouped_reads);
+                             assert_eq!(grouped.shape(), actual.shape());
+@@ -1763,6 +1782,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     changed.to_bytes()?,
+@@ -1832,6 +1852,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_eq!(masked.shape(), actual.shape());
+                                 let values = masked.to_f32()?;
+@@ -1867,6 +1888,7 @@ mod tests {
+                                     2,
+                                     Codebook::Mul1,
+                                     stable_shapes,
++                                    false,
+                                 )?;
+                                 assert_ne!(
+                                     actual.to_bytes()?,
+@@ -2061,6 +2083,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )?;
+             assert_eq!(
+                 Array::host_readbacks_for_test(),
+@@ -2117,6 +2140,7 @@ mod tests {
+                 k,
+                 Codebook::Mul1,
+                 false,
++                false,
+             )
+             .is_err()
+         );
+@@ -2443,3 +2467,7 @@ mod tests {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++#[path = "linear_half_output_tests.rs"]
++pub(crate) mod half_output_tests;
+diff --git a/native/src/qwen4.rs b/native/src/qwen4.rs
+index 9ca3e588..e7daf08f 100644
+--- a/native/src/qwen4.rs
++++ b/native/src/qwen4.rs
+@@ -3852,6 +3852,51 @@ mod tests {
+         );
+         Ok(())
+     }
++
++    #[test]
++    #[ignore = "physical Apple GPU; F01 flag0/1 target logits and semantic states"]
++    fn half_output_target_differential_preserves_all_layers() -> Result<()> {
++        let checkpoint =
++            crate::checkpoint::inspect(Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
++        let tokens = [EOS, 78768, 11, 261];
++        let mut golden: Vec<(Vec<u8>, Vec<Vec<u8>>)> = Vec::new();
++        ensure!(target.layers.len() == 48);
++        for enabled in [false, true] {
++            target.reset();
++            for layer in &mut target.layers {
++                ensure!(
++                    layer.moe.replace_half_output_for_test(enabled) != enabled,
++                    "F01 load/toggle not exercised"
++                );
++            }
++            for (step, &token) in tokens.iter().enumerate() {
++                let logits = target.forward(token)?;
++                ensure!(logits.shape() == [1, 248320]);
++                let values = logits.to_f32()?;
++                ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
++                let bytes = logits.to_bytes()?;
++                let states = state_bytes(&target)?;
++                ensure!(states.len() > 48 && states.iter().all(|v| !v.is_empty()));
++                if enabled {
++                    ensure!(
++                        bytes == golden[step].0,
++                        "F01 target logits differ at step{step}"
++                    );
++                    ensure!(
++                        states == golden[step].1,
++                        "F01 target states differ at step{step}"
++                    );
++                } else {
++                    golden.push((bytes, states));
++                }
++            }
++        }
++        println!(
++            "FLASH_HALF_TARGET tokens=4 layers=48 logits=byte_exact states=byte_exact one_model=true"
++        );
++        Ok(())
++    }
+ }
+ 
+ #[cfg(all(test, feature = "chat"))]
+diff --git a/native/src/ssd_moe.rs b/native/src/ssd_moe.rs
+index d57bb4de..695b7780 100644
+--- a/native/src/ssd_moe.rs
++++ b/native/src/ssd_moe.rs
+@@ -49,6 +49,7 @@ pub struct SsdMoe {
+     unique_cohorts: bool,
+     shared_exl3: bool,
+     stable_expert_kernels: bool,
++    qmv_half_output: bool,
+     shared_batch: bool,
+     pub(crate) prefetch_pipeline: bool,
+     #[cfg(test)]
+@@ -128,6 +129,9 @@ impl SsdMoe {
+             "0",
+         )?)
+         .context("MLXL3_SSD_STABLE_EXPERT_KERNELS must be 0 or 1")?;
++        let qmv_half_output =
++            crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_QMV_HALF_OUTPUT", "0")?)
++                .context("MLXL3_SSD_QMV_HALF_OUTPUT must be 0 or 1")?;
+         let shared_batch =
+             crate::flash_support::parse_gpu_hot_wide(&control("MLXL3_SSD_SHARED_BATCH", "0")?)
+                 .context("MLXL3_SSD_SHARED_BATCH must be 0 or 1")?;
+@@ -233,6 +237,7 @@ impl SsdMoe {
+             unique_cohorts,
+             shared_exl3,
+             stable_expert_kernels,
++            qmv_half_output,
+             shared_batch,
+             prefetch_pipeline,
+             #[cfg(test)]
+@@ -362,6 +367,7 @@ impl SsdMoe {
+             2,
+             Codebook::Mul1,
+             self.stable_expert_kernels,
++            self.qmv_half_output,
+         )?
+         .reshape(&[n, 2, I])?;
+         #[cfg(test)]
+@@ -383,6 +389,7 @@ impl SsdMoe {
+             2,
+             Codebook::Mul1,
+             self.stable_expert_kernels,
++            self.qmv_half_output,
+         )?;
+         #[cfg(test)]
+         crate::flash_profile::stage("expert_down_completion", &down)?;
+@@ -1194,6 +1201,11 @@ impl SsdMoe {
+         slots
+     }
+ 
++    #[cfg(test)]
++    pub(crate) fn replace_half_output_for_test(&mut self, enabled: bool) -> bool {
++        std::mem::replace(&mut self.qmv_half_output, enabled)
++    }
++
+     #[cfg(test)]
+     pub(crate) fn gate_for_test(&self) -> &Projection {
+         &self.gate
+@@ -2281,3 +2293,7 @@ mod tests {
+ #[cfg(test)]
+ #[path = "ssd_moe/grouped_micro.rs"]
+ mod grouped_micro;
++
++#[cfg(test)]
++#[path = "ssd_moe/half_output_tests.rs"]
++mod half_output_tests;
+diff --git a/native/src/linear_half_output_tests.rs b/native/src/linear_half_output_tests.rs
+new file mode 100644
+index 00000000..c7a86ca7
+--- /dev/null
++++ b/native/src/linear_half_output_tests.rs
+@@ -0,0 +1,245 @@
++use super::*;
++use std::cell::RefCell;
++
++thread_local! {
++    static PARTIALS: RefCell<Option<Vec<Array>>> = const { RefCell::new(None) };
++}
++
++pub(super) fn observe(partials: &Array) -> Result<()> {
++    PARTIALS.with_borrow_mut(|capture| {
++        if let Some(capture) = capture {
++            capture.push(partials.try_clone()?);
++        }
++        Ok(())
++    })
++}
++
++pub(crate) fn capture_all(run: impl FnOnce() -> Result<Array>) -> Result<(Array, Vec<Array>)> {
++    struct Clear;
++    impl Drop for Clear {
++        fn drop(&mut self) {
++            PARTIALS.with_borrow_mut(|capture| *capture = None);
++        }
++    }
++    PARTIALS.with_borrow_mut(|capture| {
++        assert!(capture.is_none());
++        *capture = Some(Vec::new());
++    });
++    let _clear = Clear;
++    let output = run()?;
++    let captures = PARTIALS.with_borrow_mut(|capture| capture.take().unwrap());
++    Ok((output, captures))
++}
++
++fn capture(run: impl FnOnce() -> Result<Array>) -> Result<(Array, Array)> {
++    let (output, mut captures) = capture_all(run)?;
++    ensure!(
++        captures.len() == 1,
++        "expected one actual QMV dispatch result"
++    );
++    Ok((output, captures.remove(0)))
++}
++
++#[test]
++#[ignore = "physical Apple GPU; exact F32 to F16 store boundaries"]
++fn half_store_matches_mlx_cast_at_every_finite_half_boundary() -> Result<()> {
++    let mut values = vec![0.0f32, -0.0, f32::from_bits(1), -f32::from_bits(1)];
++    for bits in 0..0x7bffu16 {
++        let low = half::f16::from_bits(bits).to_f32();
++        let high = half::f16::from_bits(bits + 1).to_f32();
++        let midpoint = (low + high) * 0.5;
++        for value in [
++            low,
++            midpoint,
++            f32::from_bits(midpoint.to_bits() - 1),
++            f32::from_bits(midpoint.to_bits() + 1),
++        ] {
++            values.extend([value, -value]);
++        }
++    }
++    for value in [
++        65504.0f32,
++        65520.0,
++        f32::from_bits(65520.0f32.to_bits() - 1),
++        f32::from_bits(65520.0f32.to_bits() + 1),
++        f32::MAX,
++        f32::INFINITY,
++    ] {
++        values.extend([value, -value]);
++    }
++    values.extend([f32::from_bits(0x7fc00000), f32::from_bits(0xffc00000)]);
++    let x = Array::from_f32(&values, &[values.len() as i32])?;
++    let expected = x.astype(Dtype::Float16)?;
++    let actual = array::metal_kernel(
++        "mlxl3_half_store_boundary",
++        &["x"],
++        &["out"],
++        "",
++        "uint i=thread_position_in_grid.x; if(i<uint(x_shape[0])) out[i]=x[i];",
++        &[&x],
++        &[x.shape().to_vec()],
++        &[Dtype::Float16],
++        [values.len() as i32, 1, 1],
++        [256, 1, 1],
++    )?
++    .remove(0);
++    ensure!(
++        actual.to_bytes()? == expected.to_bytes()?,
++        "Metal store differs from MLX cast"
++    );
++    println!(
++        "FLASH_HALF_STORE boundaries={} parity=byte_exact",
++        values.len()
++    );
++    Ok(())
++}
++
++#[test]
++#[ignore = "physical Apple GPU; F01 actual QMV partials and full expert outputs"]
++fn half_qmv_preserves_partials_outputs_masks_and_multisplit_fallback() -> Result<()> {
++    let cases = [
++        vec![2u32],
++        vec![0, 1],
++        vec![2, 0, 2, 1],
++        (0..10).map(|i| i % 3).collect(),
++        (0..20).map(|i| i % 3).collect(),
++    ];
++    let (mut checked, mut fast, mut fallback) = (0, 0, 0);
++    for (input, output, projections) in [
++        (2560usize, 640usize, 2usize),
++        (640, 2560, 1),
++        (6144, 2560, 1),
++    ] {
++        let words = input / 16 * (output / 16) * 32;
++        let packed = (0..3 * projections * words)
++            .map(|i| (i as u16).wrapping_mul(1777))
++            .collect::<Vec<_>>();
++        let bank = Array::from_u16(
++            &packed,
++            &[
++                3,
++                projections as i32,
++                (input / 16) as i32,
++                (output / 16) as i32,
++                32,
++            ],
++        )?;
++        for dtype in [Dtype::Float16, Dtype::Float32] {
++            for strided in [false, true] {
++                for routes in &cases {
++                    if input == 6144 && routes.len() > 2 {
++                        continue;
++                    }
++                    let rows = routes.len() * projections;
++                    let at = |r: usize, c: usize| match (r * input + c) % 17 {
++                        0 => -0.0,
++                        1 => 2.0f32.powi(-24),
++                        2 => -2.0f32.powi(-14),
++                        _ => ((r * 37 + c * 13) % 997) as f32 / 2048.0 - 0.25,
++                    };
++                    let x = if strided {
++                        let values = (0..input)
++                            .flat_map(|c| (0..rows).map(move |r| at(r, c)))
++                            .collect::<Vec<_>>();
++                        Array::from_f32(&values, &[input as i32, rows as i32])?
++                            .astype(dtype)?
++                            .transpose(&[1, 0])?
++                    } else {
++                        let values = (0..rows)
++                            .flat_map(|r| (0..input).map(move |c| at(r, c)))
++                            .collect::<Vec<_>>();
++                        Array::from_f32(&values, &[rows as i32, input as i32])?.astype(dtype)?
++                    };
++                    let scale = |width: usize| -> Result<Array> {
++                        Array::from_f32(
++                            &(0..rows * width)
++                                .map(|i| 0.125 + (i % 11) as f32 / 128.0)
++                                .collect::<Vec<_>>(),
++                            &[rows as i32, width as i32],
++                        )?
++                        .astype(Dtype::Float16)
++                    };
++                    let (su, sv) = (scale(input)?, scale(output)?);
++                    for kind in 0..5 {
++                        let slots = match kind {
++                            0 => ExpertSlots::new(routes, 3)?,
++                            1 => ExpertSlots::grouped(routes, 3)?,
++                            _ => {
++                                let mut map = [u32::MAX; 512];
++                                for (id, slot) in map.iter_mut().enumerate().take(3) {
++                                    if kind == 4 || (kind == 3 && id % 2 == 0) {
++                                        *slot = id as u32;
++                                    }
++                                }
++                                ExpertSlots::residents(
++                                    &Array::from_u32(routes, &[routes.len() as i32])?,
++                                    &map,
++                                    3,
++                                )?
++                            }
++                        };
++                        let run = |enabled| {
++                            capture(|| {
++                                expert_slots(
++                                    &x,
++                                    &bank,
++                                    &su,
++                                    &sv,
++                                    &slots,
++                                    output as i32,
++                                    projections as i32,
++                                    2,
++                                    Codebook::Mul1,
++                                    false,
++                                    enabled,
++                                )
++                            })
++                        };
++                        let (old, old_partial) = run(false)?;
++                        let (new, new_partial) = run(true)?;
++                        let eligible = input != 6144;
++                        ensure!(old_partial.dtype() == Dtype::Float32);
++                        ensure!(
++                            new_partial.dtype()
++                                == if eligible {
++                                    Dtype::Float16
++                                } else {
++                                    Dtype::Float32
++                                },
++                            "fast path/fallback not exercised"
++                        );
++                        let expected = if eligible {
++                            old_partial.astype(Dtype::Float16)?
++                        } else {
++                            old_partial
++                        };
++                        ensure!(
++                            new_partial.shape() == expected.shape()
++                                && new_partial.to_bytes()? == expected.to_bytes()?,
++                            "QMV partial differs input={input},kind={kind},dtype={dtype:?}"
++                        );
++                        ensure!(
++                            new.dtype() == dtype && new.shape() == [rows as i32, output as i32]
++                        );
++                        let values = new.to_f32()?;
++                        ensure!(
++                            values.len() == rows * output && values.iter().all(|v| v.is_finite())
++                        );
++                        ensure!(
++                            new.to_bytes()? == old.to_bytes()?,
++                            "expert output differs input={input},kind={kind},dtype={dtype:?},strided={strided},routes={routes:?}"
++                        );
++                        fast += usize::from(eligible);
++                        fallback += usize::from(!eligible);
++                        checked += 1;
++                    }
++                }
++            }
++        }
++    }
++    ensure!((checked, fast, fallback) == (240, 200, 40));
++    println!(
++        "FLASH_HALF_QMV cases={checked} fast={fast} multisplit_fallback={fallback} masks=none,mixed,all groups=singleton,shared partials=byte_exact outputs=byte_exact"
++    );
++    Ok(())
++}
+diff --git a/native/src/ssd_moe/half_output_tests.rs b/native/src/ssd_moe/half_output_tests.rs
+new file mode 100644
+index 00000000..a439acdf
+--- /dev/null
++++ b/native/src/ssd_moe/half_output_tests.rs
+@@ -0,0 +1,95 @@
++use super::*;
++
++#[test]
++#[ignore = "physical Apple GPU/checkpoint; actual Flash F01 loader and MoE paths"]
++fn real_flash_half_output_preserves_cold_hot_and_wide_moe() -> Result<()> {
++    let root = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_REFERENCE")?);
++    let reference: serde_json::Value =
++        serde_json::from_reader(std::fs::File::open(root.join("reference.json"))?)?;
++    ensure!(reference["status"] == "complete" && reference["mode"] == "eval");
++    let checkpoint =
++        crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
++    crate::array::set_default_cache_limit(64 << 20)?;
++    let mut checked = 0;
++    for layer in [0usize, 15, 31, 47] {
++        let entry = &reference["steps"][0]["components"][layer]["mlp"]["input"];
++        ensure!(entry["count"] == H);
++        let bytes =
++            std::fs::read(root.join(entry["file"].as_str().context("missing input fixture")?))?;
++        ensure!(bytes.len() == H as usize * 4);
++        let input = Array::from_bytes(&bytes, &[1, H], Dtype::Float32)?;
++        ensure!(input.to_f32()?.iter().all(|v| v.is_finite()));
++        for dtype in [Dtype::Float16, Dtype::Float32] {
++            for rows in [1, 2, 4, 8] {
++                let one = input.astype(dtype)?;
++                let x = Array::concatenate(&vec![&one; rows], 0)?;
++                let prefix = format!("model.language_model.layers.{layer}.mlp");
++                let mut baseline = SsdMoe::load(&checkpoint, &prefix, 20, true)?;
++                let mut candidate = SsdMoe::load(&checkpoint, &prefix, 20, true)?;
++                ensure!(
++                    baseline.qmv_half_output && candidate.qmv_half_output,
++                    "load-time F01 flag was not enabled"
++                );
++                baseline.qmv_half_output = false;
++                for round in 0..2 {
++                    let (old, old_partials) =
++                        crate::linear::half_output_tests::capture_all(|| {
++                            baseline.forward_draft_rows(&x)
++                        })?;
++                    let (new, new_partials) =
++                        crate::linear::half_output_tests::capture_all(|| {
++                            candidate.forward_draft_rows(&x)
++                        })?;
++                    ensure!(
++                        !old_partials.is_empty() && old_partials.len() == new_partials.len(),
++                        "missing real partials"
++                    );
++                    for (old_partial, new_partial) in old_partials.iter().zip(&new_partials) {
++                        ensure!(
++                            old_partial.dtype() == Dtype::Float32
++                                && new_partial.dtype() == Dtype::Float16,
++                            "F01 real store not exercised"
++                        );
++                        ensure!(
++                            old_partial.shape() == new_partial.shape()
++                                && old_partial.astype(Dtype::Float16)?.to_bytes()?
++                                    == new_partial.to_bytes()?,
++                            "real GU/down partial mismatch"
++                        );
++                    }
++                    ensure!(
++                        old.shape() == [rows as i32, H]
++                            && new.shape() == old.shape()
++                            && new.dtype() == dtype
++                    );
++                    let values = new.to_f32()?;
++                    ensure!(
++                        values.len() == rows * H as usize && values.iter().all(|v| v.is_finite())
++                    );
++                    ensure!(
++                        old.to_bytes()? == new.to_bytes()?,
++                        "F01 MoE mismatch layer={layer},rows={rows},dtype={dtype:?},round={round}"
++                    );
++                    baseline.drain()?;
++                    candidate.drain()?;
++                    checked += 1;
++                }
++                ensure!(
++                    candidate.hits > 0 && candidate.misses > 0,
++                    "cold/hot coverage missing"
++                );
++                if rows == 8 {
++                    ensure!(
++                        !candidate.cohort_sizes.is_empty(),
++                        "wide cohort path not exercised"
++                    );
++                }
++            }
++        }
++    }
++    ensure!(checked == 64);
++    println!(
++        "FLASH_HALF_REAL cases={checked} layers=4 rows=1,2,4,8 dtypes=F16,F32 rounds=cold,hot loader=true parity=byte_exact"
++    );
++    Ok(())
++}

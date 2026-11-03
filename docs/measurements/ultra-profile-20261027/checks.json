@@ -1,0 +1,60 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.6185686250100844
+  },
+  {
+    "name": "clippy-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 5.784687416016823
+  },
+  {
+    "name": "tests-mlx",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 78.90196908300277
+  },
+  {
+    "name": "tests-cpu",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat",
+      "--",
+      "--test-threads=1"
+    ],
+    "exit_code": 0,
+    "seconds": 56.87062766699819
+  }
+]

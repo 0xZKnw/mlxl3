@@ -1,0 +1,60 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_export_rejects_incomplete_or_impossible_blocks[verify] __________
+
+fault = 'verify'
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "verify",
+            "commit",
+            "head",
+            "target_row",
+            "offset",
+            "queued_offset",
+            "acceptance",
+            "proposal_count",
+            "steps",
+            "empty",
+            "bool",
+            "wrong_seconds",
+        ],
+    )
+    def test_export_rejects_incomplete_or_impossible_blocks(fault):
+        events, summary = fixture()
+        if fault in ["verify", "commit", "head"]:
+            target = {"verify": "verify_pair", "commit": "commit_pair", "head": "mtp_head_proposal"}[
+                fault
+            ]
+            next(e for e in events if e["name"] == target)["name"] = "missing"
+        elif fault == "target_row":
+            e = next(
+                e for e in events if e["name"] == "moe_forward_rows" and e["data"]["hot_rows"] == 20
+            )
+            d = e["data"]
+            d.update(rows=1, ids=d["ids"][:10], slots_hit=d["slots_hit"][:10], hot_rows=10)
+        elif fault == "offset":
+            summary["steps"][0]["offset"] = 3
+        elif fault == "queued_offset":
+            summary["steps"][1]["offset"] = 5
+        elif fault == "acceptance":
+            summary["steps"][0]["mtp_accepted"] = 2
+        elif fault == "proposal_count":
+            summary["mtp_proposed"] = 2
+        elif fault == "steps":
+            summary["steps"].pop()
+        elif fault == "empty":
+            events = []
+        elif fault == "bool":
+            summary["steps"][0]["mtp_proposed"] = True
+        elif fault == "wrong_seconds":
+            summary["decode_seconds"] = 100
+>       with pytest.raises((AssertionError, IndexError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, IndexError)
+
+tests/test_flash_profile_export.py:153: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_profile_export.py::test_export_rejects_incomplete_or_impossible_blocks[verify]
+1 failed in 0.02s

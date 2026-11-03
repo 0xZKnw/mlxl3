@@ -1,0 +1,74 @@
+.................................................FF..................    [100%]
+=================================== FAILURES ===================================
+_ test_only_stable_gains_in_both_pairs_and_prompts_qualify[zero-rejected_gain] _
+
+case = 'zero', status = 'rejected_gain'
+
+    @pytest.mark.parametrize(
+        "case,status",
+        [
+            ("gain", "validated_gain"),
+            ("zero", "rejected_gain"),
+            ("negative", "rejected_gain"),
+            ("drift", "inconclusive_drift"),
+            ("spread", "inconclusive_drift"),
+        ],
+    )
+    def test_only_stable_gains_in_both_pairs_and_prompts_qualify(case, status):
+        rows = records()
+        if case == "zero":
+            rows[2]["tps"] = 10.0
+        if case == "negative":
+            rows[5]["tps"] = 9.0
+        if case == "drift":
+            rows[0]["tps"] = 9.0
+        if case == "spread":
+            rows[1]["tps"] = 11.0
+        for row in rows:
+            row["seconds"] = 127 / row["tps"]
+        result = qualify(rows, "B", "Q")
+>       assert result["status"] == status and result["confirmed_gain"] == (case == "gain")
+E       AssertionError: assert ('inconclusive_drift' == 'rejected_gain'
+E         
+E         - rejected_gain
+E         + inconclusive_drift)
+
+tests/test_flash_splash60.py:59: AssertionError
+_ test_only_stable_gains_in_both_pairs_and_prompts_qualify[negative-rejected_gain] _
+
+case = 'negative', status = 'rejected_gain'
+
+    @pytest.mark.parametrize(
+        "case,status",
+        [
+            ("gain", "validated_gain"),
+            ("zero", "rejected_gain"),
+            ("negative", "rejected_gain"),
+            ("drift", "inconclusive_drift"),
+            ("spread", "inconclusive_drift"),
+        ],
+    )
+    def test_only_stable_gains_in_both_pairs_and_prompts_qualify(case, status):
+        rows = records()
+        if case == "zero":
+            rows[2]["tps"] = 10.0
+        if case == "negative":
+            rows[5]["tps"] = 9.0
+        if case == "drift":
+            rows[0]["tps"] = 9.0
+        if case == "spread":
+            rows[1]["tps"] = 11.0
+        for row in rows:
+            row["seconds"] = 127 / row["tps"]
+        result = qualify(rows, "B", "Q")
+>       assert result["status"] == status and result["confirmed_gain"] == (case == "gain")
+E       AssertionError: assert ('inconclusive_drift' == 'rejected_gain'
+E         
+E         - rejected_gain
+E         + inconclusive_drift)
+
+tests/test_flash_splash60.py:59: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_flash_splash60.py::test_only_stable_gains_in_both_pairs_and_prompts_qualify[zero-rejected_gain]
+FAILED tests/test_flash_splash60.py::test_only_stable_gains_in_both_pairs_and_prompts_qualify[negative-rejected_gain]
+2 failed, 67 passed in 8.26s

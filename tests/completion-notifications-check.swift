@@ -24,6 +24,13 @@ extension StudioModel {
         handle(try JSONDecoder().decode(BridgeEvent.self, from: Data(json.utf8)))
     }
     fileprivate var fixtureRequestID: String? { activeRequestID }
+    fileprivate var fixtureBridgeRunning: Bool { bridge.isRunning }
+    fileprivate func fixtureDeadline() {
+        let now = ContinuousClock.now
+        generationStartedAt = now - .seconds(601)
+        generationLastActivity = now
+        checkAgentGenerationDeadline(at: now)
+    }
 }
 
 @main struct CompletionNotificationsCheck {
@@ -102,6 +109,21 @@ extension StudioModel {
         try studio.fixtureEvent("{\"type\":\"error\",\"request_id\":\"" + requestID + "\",\"message\":\"fixture failure\"}")
         try await Task.sleep(for: .milliseconds(300))
         check(spy.ids.count == 1, "Failed generation notified")
+        // The main-branch watchdog shares cancellation with the Stop button.
+        // Inject completion synchronously to exercise the signal/completion race.
+        studio.draft = "Deadline race"; studio.send()
+        let deadlineRequest = studio.fixtureRequestID!
+        try studio.fixtureEvent("{\"type\":\"delta\",\"request_id\":\"" + deadlineRequest + "\",\"phase\":\"answer\",\"text\":\"Partial answer\"}")
+        studio.fixtureDeadline()
+        try studio.fixtureEvent("{\"type\":\"complete\",\"request_id\":\"" + deadlineRequest + "\"}")
+        try await Task.sleep(for: .milliseconds(300))
+        check(spy.ids.count == 1, "Watchdog cancellation notified on concurrent completion")
+        studio.draft = "Full context"; studio.send()
+        let fullRequest = studio.fixtureRequestID!
+        try studio.fixtureEvent("{\"type\":\"delta\",\"request_id\":\"" + fullRequest + "\",\"phase\":\"answer\",\"text\":\"Partial answer\"}")
+        try studio.fixtureEvent("{\"type\":\"complete\",\"request_id\":\"" + fullRequest + "\",\"context_full\":true}")
+        try await Task.sleep(for: .milliseconds(300))
+        check(spy.ids.count == 1, "Context-full completion notified")
         studio.setCompletionNotificationsEnabled(false)
         try await generate()
         check(spy.ids.count == 1, "Opt-out ignored")
@@ -127,6 +149,11 @@ extension StudioModel {
         studio.ejectModel()
         try await Task.sleep(for: .milliseconds(250))
         check(studio.engineState == .idle && studio.fixtureRequestID == nil, "A superseded load survived ejection")
+        // Stop services in the same actor turn, before the load task can run.
+        studio.selectModel("notification-fixture")
+        studio.stopServices()
+        try await Task.sleep(for: .milliseconds(300))
+        check(!studio.fixtureBridgeRunning, "Shutdown allowed an enqueued model load to start")
         print("Completion notification checks passed: \(checks) assertions; permission, persistence, background/foreground, cancellation, errors, duplicates")
     }
 }

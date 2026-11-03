@@ -1,0 +1,68 @@
+{
+  "status": "complete",
+  "checks": [
+    {
+      "name": "copy-stream-format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all"
+      ],
+      "exit": 0,
+      "seconds": 0.28938179201213643
+    },
+    {
+      "name": "copy-stream-fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "exit": 0,
+      "seconds": 0.18464266695082188
+    },
+    {
+      "name": "copy-stream-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "exit": 0,
+      "seconds": 2.85095958301099
+    },
+    {
+      "name": "copy-stream-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.0779129579896107
+    },
+    {
+      "name": "copy-stream-full",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat"
+      ],
+      "exit": 0,
+      "seconds": 37.96947829204146
+    }
+  ]
+}

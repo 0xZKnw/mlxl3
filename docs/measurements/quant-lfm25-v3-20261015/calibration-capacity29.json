@@ -1,0 +1,85 @@
+{
+  "status": "complete",
+  "scope": "tokenizer CPU only; two split_raw sources; no model forward",
+  "tokenizer_sha256": "695be7802a0e4b8a81048f0ff5ebb7fc811a0ba5a6be63dbb24deb5a81096f41",
+  "columns": 2048,
+  "corpora": {
+    "code.utf8": {
+      "sha256": "12a80d96af7e16b3ecbf2e6899a9c70aee2f4e0003b581979fe6876944e2d891",
+      "bytes": 1357117,
+      "tokens_without_special": 394262,
+      "complete_rows_2048": 192,
+      "requested_rows_cr250": 37,
+      "requested_rows_cr1000": 148,
+      "requested_rows_cr2000": 296
+    },
+    "technical.utf8": {
+      "sha256": "7cac2a0ddd7bc4db19e52e3b12ced3812514059f1f11bfc427b7849e0077a2ee",
+      "bytes": 350054,
+      "tokens_without_special": 72361,
+      "complete_rows_2048": 35,
+      "requested_rows_cr250": 18,
+      "requested_rows_cr1000": 74,
+      "requested_rows_cr2000": 148
+    }
+  },
+  "actual_split_raw_validation": {
+    "status": "complete",
+    "cases": [
+      {
+        "corpus": "code.utf8",
+        "cal_rows": 250,
+        "requested_source_rows": 37,
+        "returned_source_rows": 37,
+        "full_rows": 37,
+        "short_rows": 0,
+        "empty_rows": 0
+      },
+      {
+        "corpus": "code.utf8",
+        "cal_rows": 1000,
+        "requested_source_rows": 148,
+        "returned_source_rows": 148,
+        "full_rows": 148,
+        "short_rows": 0,
+        "empty_rows": 0
+      },
+      {
+        "corpus": "code.utf8",
+        "cal_rows": 2000,
+        "requested_source_rows": 296,
+        "returned_source_rows": 296,
+        "full_rows": 192,
+        "short_rows": 1,
+        "empty_rows": 103
+      },
+      {
+        "corpus": "technical.utf8",
+        "cal_rows": 250,
+        "requested_source_rows": 18,
+        "returned_source_rows": 18,
+        "full_rows": 18,
+        "short_rows": 0,
+        "empty_rows": 0
+      },
+      {
+        "corpus": "technical.utf8",
+        "cal_rows": 1000,
+        "requested_source_rows": 74,
+        "returned_source_rows": 74,
+        "full_rows": 35,
+        "short_rows": 1,
+        "empty_rows": 38
+      },
+      {
+        "corpus": "technical.utf8",
+        "cal_rows": 2000,
+        "requested_source_rows": 148,
+        "returned_source_rows": 148,
+        "full_rows": 35,
+        "short_rows": 1,
+        "empty_rows": 112
+      }
+    ]
+  }
+}

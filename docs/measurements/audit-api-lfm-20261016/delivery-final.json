@@ -1,0 +1,608 @@
+{
+  "status": "artifacts_validated_ci_publication_pending",
+  "artifact_source_commit": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+  "runtime_sha256": "961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc",
+  "versions": {
+    "desktop": "1.4.4",
+    "build": 26,
+    "engine": "1.4.5",
+    "mlx": "0.32.2"
+  },
+  "artifact_checks": {
+    "status": "complete",
+    "checks": [
+      "source-head",
+      "clean-source-metadata",
+      "desktop-version",
+      "runtime-info",
+      "release-runtime-identity",
+      "engine-manifest-contract",
+      "runtime-sha-libjaccl.dylib",
+      "runtime-sha-libmlx.dylib",
+      "runtime-sha-mlx.metallib",
+      "runtime-sha-mlxl3",
+      "engine-archive-members",
+      "archive-identical-engine.json",
+      "archive-identical-mlxl3",
+      "archive-identical-libmlx.dylib",
+      "archive-identical-libjaccl.dylib",
+      "archive-identical-mlx.metallib",
+      "signature-app",
+      "signature-runtime",
+      "signature-libmlx",
+      "signature-libjaccl",
+      "architecture-desktop",
+      "arm64-desktop",
+      "architecture-runtime",
+      "arm64-runtime",
+      "architecture-libmlx",
+      "arm64-libmlx",
+      "architecture-libjaccl",
+      "arm64-libjaccl",
+      "runtime-load-commands",
+      "runtime-min-os",
+      "math-fonts-present",
+      "chat-timeline",
+      "mcp-preferences",
+      "dmg-checksum",
+      "dmg-attach",
+      "dmg-app-bytes-identical",
+      "dmg-signature",
+      "relocated-runtime-info",
+      "relocated-runtime",
+      "dmg-detach"
+    ],
+    "installed_app_replaced": false,
+    "signing": "ad-hoc; not notarized",
+    "assets": [
+      {
+        "name": "MLXL3-Desktop-v1.4.4-b26-Apple-Silicon.dmg",
+        "size": 74068198,
+        "sha256": "2cf7b7a62d09ecede87051d694b2361e8b6704db309b40d56353948bc01cefdb"
+      },
+      {
+        "name": "MLXL3-Engine-v1.4.5-arm64.tar.gz",
+        "size": 66958857,
+        "sha256": "c7f1ae3af97cce9080050512f922474ace20c98144a1cf02f6440678dd74ef02"
+      },
+      {
+        "name": "MLXL3-Engine-v1.4.5-arm64.json",
+        "size": 13587,
+        "sha256": "8644f9cb3d2d95a49c6892486bb535287dcf59f765303d6d16af648999091f15"
+      }
+    ],
+    "source_commit": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+    "build_info": {
+      "version": "1.4.4",
+      "build": "26",
+      "commit": "f75cf254911e83bed9acdc2a4ad542614bedaa6c",
+      "tracked_changes": false,
+      "runtime": "Rust + MLX 0.32.2",
+      "signing": "ad-hoc; not notarized",
+      "swift_sdk": "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+    },
+    "runtime_info": {
+      "architecture": "aarch64",
+      "bridge_protocol": 1,
+      "chat_enabled": true,
+      "commit": "f75cf254911e",
+      "mlx_enabled": true,
+      "profile": "release",
+      "version": "1.4.5"
+    },
+    "dmg_detached": true
+  },
+  "updater": {
+    "status": "complete",
+    "command": [
+      "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/final-updater/updater-check",
+      "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/final-updater/archives",
+      "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3-Engine-v1.4.5-arm64.tar.gz",
+      "1.4.5"
+    ],
+    "joined": true,
+    "pid": 36427,
+    "returncode": 0,
+    "seconds": 2.9904100419953465,
+    "log": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/release-v1.4.4-final/updater-final.log",
+    "log_sha256": "e03fc9c06ca98a96bccb3a4f5cc544554f658cc31c9d9e0e29f3a5bc5ddb2744"
+  },
+  "physical_supervision": {
+    "status": "complete",
+    "parity": true,
+    "runs": [
+      {
+        "status": "complete",
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/release-numeric-final.py"
+        ],
+        "joined": true,
+        "pid": 36552,
+        "returncode": 0,
+        "seconds": 25.5922817500541,
+        "log": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/release-v1.4.4-final/numeric-final.log",
+        "log_sha256": "c7fd2793ff172d62e07ec860b13bf0871388fc4b3b6fe1b6dc7594cfe5f20f1d"
+      },
+      {
+        "status": "complete",
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/bridge-preflight-final.py"
+        ],
+        "joined": true,
+        "pid": 36565,
+        "returncode": 0,
+        "seconds": 33.10161083296407,
+        "log": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/release-v1.4.4-final/bridge-final.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "status": "complete",
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/api-physical.py",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+          "1",
+          "default",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/physical/api-final-active"
+        ],
+        "joined": true,
+        "pid": 36611,
+        "returncode": 0,
+        "seconds": 4.699600749998353,
+        "log": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/release-v1.4.4-final/api-active-final.log",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "status": "complete",
+        "command": [
+          "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+          "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/api-default-final.py"
+        ],
+        "joined": true,
+        "pid": 36622,
+        "returncode": 0,
+        "seconds": 4.645634624990635,
+        "log": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/release-v1.4.4-final/api-default-final.log",
+        "log_sha256": "c302f687421743387cbaf88b46bb95140cd882ec826afe86eb4fe4c26ae12a6d"
+      }
+    ],
+    "model_processes_left": []
+  },
+  "physical_reports": {
+    "numeric": {
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "name": "signed-default-m1-8",
+          "command": [
+            "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+            "forward",
+            "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+            "--tokens",
+            "101,174,247,320,393,466,539,612",
+            "--states"
+          ],
+          "flags": {
+            "MLXL3_HOME": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/physical/release-numeric-final/home",
+            "MTL_DEBUG_LAYER": "1",
+            "MTL_SHADER_VALIDATION": "1",
+            "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+            "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1",
+            "MLXL3_LFM_PREFILL_TRACE": "1"
+          },
+          "status": "complete",
+          "exit_code": 0,
+          "joined": true,
+          "seconds": 6.081576792057604,
+          "positions": 8,
+          "dump_sha256": "9033cb5af618b2d928088a556f71cd58f301ad31296b2685f03f9725bc63263a"
+        },
+        {
+          "name": "signed-batch65-0",
+          "command": [
+            "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+            "forward",
+            "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+            "--tokens",
+            "101,174,247,320,393,466,539,612,685,758,831,904,977,1050,1123,1196,1269,1342,1415,1488,1561,1634,1707,1780,1853,1926,1999,2072,2145,2218,2291,2364,2437,2510,2583,2656,2729,2802,2875,2948,3021,3094,3167,3240,3313,3386,3459,3532,3605,3678,3751,3824,3897,3970,4043,4116,4189,4262,4335,4408,4481,4554,4627,4700,4773",
+            "--states",
+            "--batch"
+          ],
+          "flags": {
+            "MLXL3_HOME": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/physical/release-numeric-final/home",
+            "MTL_DEBUG_LAYER": "1",
+            "MTL_SHADER_VALIDATION": "1",
+            "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+            "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1",
+            "MLXL3_LFM_MOE_PREFILL": "0",
+            "MLXL3_LFM_PREFILL_TRACE": "1"
+          },
+          "status": "complete",
+          "exit_code": 0,
+          "joined": true,
+          "seconds": 9.149323749938048,
+          "positions": 1,
+          "dump_sha256": "678021acbd3ac5682da10e91ba786e0f1517441aee8c9f92d408093ce0079ebc"
+        },
+        {
+          "name": "signed-batch65-1",
+          "command": [
+            "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+            "forward",
+            "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+            "--tokens",
+            "101,174,247,320,393,466,539,612,685,758,831,904,977,1050,1123,1196,1269,1342,1415,1488,1561,1634,1707,1780,1853,1926,1999,2072,2145,2218,2291,2364,2437,2510,2583,2656,2729,2802,2875,2948,3021,3094,3167,3240,3313,3386,3459,3532,3605,3678,3751,3824,3897,3970,4043,4116,4189,4262,4335,4408,4481,4554,4627,4700,4773",
+            "--states",
+            "--batch"
+          ],
+          "flags": {
+            "MLXL3_HOME": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/physical/release-numeric-final/home",
+            "MTL_DEBUG_LAYER": "1",
+            "MTL_SHADER_VALIDATION": "1",
+            "MTL_SHADER_VALIDATION_REPORT_TO_STDERR": "1",
+            "MTL_SHADER_VALIDATION_ABORT_ON_FAULT": "1",
+            "MLXL3_LFM_MOE_PREFILL": "1",
+            "MLXL3_LFM_PREFILL_TRACE": "1"
+          },
+          "status": "complete",
+          "exit_code": 0,
+          "joined": true,
+          "seconds": 9.408099291962571,
+          "positions": 1,
+          "dump_sha256": "678021acbd3ac5682da10e91ba786e0f1517441aee8c9f92d408093ce0079ebc"
+        }
+      ],
+      "binary_sha256": "961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc",
+      "scope": "signed shipped runtime; exact full F16 logits and all50states; numeric qualification, no speed claim",
+      "trace": [
+        {
+          "blocks": 9,
+          "grouped_moe_calls": 304,
+          "max_block": 8,
+          "router_rows": 2470,
+          "tokens": 65,
+          "type": "lfm_prefill_dispatch"
+        }
+      ]
+    },
+    "bridge": {
+      "status": "complete",
+      "parity": true,
+      "runs": {
+        "fr-266": {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 270,
+            "decode_seconds": 0.09755020800000036,
+            "decode_tokens": 3,
+            "decode_tps": 30.753394190609917,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 6.112199625,
+            "end_to_end_ttft_seconds": 6.014612667000001,
+            "evaluated_prompt_tokens": 266,
+            "generated_tokens": 4,
+            "memory": {
+              "mlx_active_bytes": 12617147258,
+              "mlx_cache_bytes": 75745134,
+              "mlx_peak_bytes": 12622738836,
+              "process_footprint_bytes": 12934219984,
+              "process_lifetime_peak_bytes": 13636307512
+            },
+            "model_size_gb": 12.641698501,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 6.008707417,
+            "prefill_tps": 44.2690884311367,
+            "prepare_seconds": 0.002057333,
+            "prompt_tokens": 266,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 6.014584
+          },
+          "token_hash": "9c8ed9af88837602",
+          "text_sha256": "2f810dc47ce2beb5080d891f62182a5bd2420a2a04c45ff60916158290317bab",
+          "history_sha256": "2f810dc47ce2beb5080d891f62182a5bd2420a2a04c45ff60916158290317bab"
+        },
+        "code-266": {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 270,
+            "decode_seconds": 0.07985454200000053,
+            "decode_tokens": 3,
+            "decode_tps": 37.568307636151495,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 5.390232,
+            "end_to_end_ttft_seconds": 5.310289084,
+            "evaluated_prompt_tokens": 266,
+            "generated_tokens": 4,
+            "memory": {
+              "mlx_active_bytes": 12616881012,
+              "mlx_cache_bytes": 76011380,
+              "mlx_peak_bytes": 12622887076,
+              "process_footprint_bytes": 12947802320,
+              "process_lifetime_peak_bytes": 13636307512
+            },
+            "model_size_gb": 12.641698501,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 5.309170958,
+            "prefill_tps": 50.101984303064135,
+            "prepare_seconds": 0.000822125,
+            "prompt_tokens": 266,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 5.310283209
+          },
+          "token_hash": "e81860eaf6e6f2ba",
+          "text_sha256": "ee409d549c154d0708b8678a4737aa678ea5e6a8c1dbd99b83576768bd47209a",
+          "history_sha256": "ee409d549c154d0708b8678a4737aa678ea5e6a8c1dbd99b83576768bd47209a"
+        },
+        "fr-600": {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 604,
+            "decode_seconds": 0.05959241700000106,
+            "decode_tokens": 3,
+            "decode_tps": 50.341975557056976,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 10.10128725,
+            "end_to_end_ttft_seconds": 10.041699667000001,
+            "evaluated_prompt_tokens": 600,
+            "generated_tokens": 4,
+            "memory": {
+              "mlx_active_bytes": 12623762292,
+              "mlx_cache_bytes": 401430388,
+              "mlx_peak_bytes": 12634585252,
+              "process_footprint_bytes": 13281691856,
+              "process_lifetime_peak_bytes": 13636307512
+            },
+            "model_size_gb": 12.641698501,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 10.040695375,
+            "prefill_tps": 59.7568173907477,
+            "prepare_seconds": 0.000647208,
+            "prompt_tokens": 600,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 10.041681
+          },
+          "token_hash": "6e41cf1e8e78f0e6",
+          "text_sha256": "0b343afe4b912d30c7725c214f3faeb33f77a06f028c0b17708a27e56aa29319",
+          "history_sha256": "0b343afe4b912d30c7725c214f3faeb33f77a06f028c0b17708a27e56aa29319"
+        },
+        "code-600": {
+          "stats": {
+            "cached_prompt_tokens": 0,
+            "context_limit": 4096,
+            "context_used": 604,
+            "decode_seconds": 0.0609126670000002,
+            "decode_tokens": 3,
+            "decode_tps": 49.25083973092149,
+            "dflash_accepted_tokens": null,
+            "dflash_block_seconds": 0.0,
+            "dflash_blocks": null,
+            "dflash_lookup_blocks": null,
+            "dflash_proposed_tokens": null,
+            "draft_load_seconds": 0.0,
+            "elapsed_seconds": 7.9282048750000005,
+            "end_to_end_ttft_seconds": 7.867289874000001,
+            "evaluated_prompt_tokens": 600,
+            "generated_tokens": 4,
+            "memory": {
+              "mlx_active_bytes": 12623762292,
+              "mlx_cache_bytes": 401430388,
+              "mlx_peak_bytes": 12634585252,
+              "process_footprint_bytes": 13281790160,
+              "process_lifetime_peak_bytes": 13636307512
+            },
+            "model_size_gb": 12.641698501,
+            "mtp_accepted_tokens": null,
+            "mtp_blocks": null,
+            "mtp_depth_blocks": null,
+            "mtp_lookup_blocks": null,
+            "mtp_proposed_tokens": null,
+            "prefill_seconds": 7.866605958,
+            "prefill_tps": 76.27177504547889,
+            "prepare_seconds": 0.000385458,
+            "prompt_tokens": 600,
+            "round_count": 1,
+            "tool_rounds": 0,
+            "tool_seconds": 0.0,
+            "ttft_seconds": 7.867282749
+          },
+          "token_hash": "7513e4b68548b433",
+          "text_sha256": "8597f84767e49e514f8e28715b9a3bc4df8739cbe9b0cd09eca097a6b18e8915",
+          "history_sha256": "8597f84767e49e514f8e28715b9a3bc4df8739cbe9b0cd09eca097a6b18e8915"
+        }
+      },
+      "binary_sha256": "961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc",
+      "flags": {
+        "MLXL3_HOME": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/build/audit-api-lfm/physical/bridge-final-signed/home",
+        "MLXL3_LFM_PREFILL_TRACE": "1",
+        "MLXL3_LFM_MOE_PREFILL": "1"
+      },
+      "scope": "template counts and actual bridge microblock dispatch; no performance conclusion",
+      "startup_events": [
+        {
+          "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+          "type": "loading"
+        },
+        {
+          "bridge_protocol": 1,
+          "context_limit": 4096,
+          "context_memory": {
+            "draft_bytes_per_token": null,
+            "fixed_bytes": 245760,
+            "layers": [
+              {
+                "bytes_per_token": 20480,
+                "max_tokens": null,
+                "step": 1
+              }
+            ]
+          },
+          "dflash_configure_supported": true,
+          "dflash_family": null,
+          "dflash_supported": false,
+          "dflash_tune_supported": false,
+          "dflash_tuning_key": "05a894fad1dd5c86:1.4.5:f75cf254911e:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+          "load_seconds": 3.3277912499999998,
+          "mcp_errors": {},
+          "mcp_servers": 0,
+          "mcp_tools": 0,
+          "memory_saver_supported": true,
+          "mlx_version": "0.32.2",
+          "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+          "model_context_limit": 131072,
+          "modules": 7402,
+          "mtp_auto_download_supported": false,
+          "mtp_configure_supported": true,
+          "mtp_max_depth": 3,
+          "mtp_supported": false,
+          "mtp_tune_supported": false,
+          "mtp_tuning_key": "05a894fad1dd5c86:1.4.5:f75cf254911e:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+          "resident_gb": 12.641698501,
+          "runtime_commit": "f75cf254911e",
+          "runtime_executable": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+          "runtime_profile": "release",
+          "runtime_version": "1.4.5",
+          "type": "ready"
+        }
+      ],
+      "ready": {
+        "bridge_protocol": 1,
+        "context_limit": 4096,
+        "context_memory": {
+          "draft_bytes_per_token": null,
+          "fixed_bytes": 245760,
+          "layers": [
+            {
+              "bytes_per_token": 20480,
+              "max_tokens": null,
+              "step": 1
+            }
+          ]
+        },
+        "dflash_configure_supported": true,
+        "dflash_family": null,
+        "dflash_supported": false,
+        "dflash_tune_supported": false,
+        "dflash_tuning_key": "05a894fad1dd5c86:1.4.5:f75cf254911e:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0:dflash-v4:copy=0",
+        "load_seconds": 3.3277912499999998,
+        "mcp_errors": {},
+        "mcp_servers": 0,
+        "mcp_tools": 0,
+        "memory_saver_supported": true,
+        "mlx_version": "0.32.2",
+        "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+        "model_context_limit": 131072,
+        "modules": 7402,
+        "mtp_auto_download_supported": false,
+        "mtp_configure_supported": true,
+        "mtp_max_depth": 3,
+        "mtp_supported": false,
+        "mtp_tune_supported": false,
+        "mtp_tuning_key": "05a894fad1dd5c86:1.4.5:f75cf254911e:release:0.32.2:Apple M5:4096:pipeline=mtp-m5-v1:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:smallm-v1=0",
+        "resident_gb": 12.641698501,
+        "runtime_commit": "f75cf254911e",
+        "runtime_executable": "/Users/justin/.codex/worktrees/lfm-mtp-ui-state/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+        "runtime_profile": "release",
+        "runtime_version": "1.4.5",
+        "type": "ready"
+      },
+      "trace": {
+        "records": 218,
+        "tokens": 1732,
+        "grouped_graph_calls": 8284,
+        "router_rows": 65816
+      },
+      "seconds": 32.98888112499844,
+      "exit_code": 0
+    },
+    "api_active": {
+      "status": "complete",
+      "parity": true,
+      "checks": [
+        "server ready with real model",
+        "resident child owned by server",
+        "ready healthy and free",
+        "capabilities schema",
+        "nonstream max_tokens=1 is length",
+        "stream status and bound",
+        "stream max_tokens=1 is length",
+        "stream starts with assistant role",
+        "actual prefill is busy before disconnect",
+        "busy request disconnected and ready again within15s",
+        "next request equals cold control",
+        "SIGTERM server exits cleanly",
+        "resident child reaped"
+      ],
+      "binary_sha256": "961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc",
+      "moe_mode": "1",
+      "kv_mode": "default",
+      "model": "/Users/justin/Documents/mix-stq1_0/models/LFM2.5-24B-A2B-EXL3-4bpw-v2",
+      "scope": "actual HTTP/model finish reason, disconnect after dispatch while busy, recovery, process cleanup; no proof that no model delta or terminal cancellation occurred; not performance or full numeric proof",
+      "cancel_recovery_seconds": 0.09924300003331155,
+      "seconds": 4.58397833397612
+    },
+    "api_default": {
+      "status": "complete",
+      "parity": true,
+      "checks": [
+        "actual server ready",
+        "JSON length, usage1 and bounded response",
+        "SSE length, usage1 and bounded response",
+        "SIGTERM joined exit0"
+      ],
+      "binary_sha256": "961a1ad2cb1b3e2bd45c4d9a4946bca0e0a7525f9c9b975f4469bcb81b9f5fdc",
+      "scope": "default selection HTTP JSON/SSE one-token finish reason and usage; no cancellation witness or numeric proof",
+      "seconds": 4.55278441705741
+    }
+  },
+  "installed_app_replaced": false,
+  "publication": {
+    "published": false,
+    "ci_exact_final_head": "pending; inspect GitHub before release"
+  },
+  "limitations": [
+    "Ad-hoc, not notarized",
+    "Timing not qualified; K03 opt-in only",
+    "No full context or all intermediate logits qualified",
+    "No formal Swift/AppKit proof",
+    "No new KL/PPL measurement; model weights unchanged"
+  ]
+}

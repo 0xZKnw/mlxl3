@@ -1,0 +1,60 @@
+{
+  "status": "compiled_before_final_quality",
+  "base_commit": "db52b7304a057ad8f0d8fcf464cd66b22b44fe08",
+  "state": "local uncommitted changes",
+  "files": {
+    "native/src/main.rs": "4fc6689e13611bea73799f0e855232ed568ac933665e0cbeb713baf25a1048ee",
+    "native/src/mtp_tune.rs": "d49124a57c9d2225109558346a26b223b0647d7f232aad413a1e2202c5953d30",
+    "native/src/speculative.rs": "cb8290e6280cb70a246a3a28ca1736edc93cf91fce2c27beb517a954b989ab8a",
+    "native/src/dflash.rs": "6efc6688bb64e44a29cd0a0ae2742d63b54cef81a2f969444e25ba825af1dec8",
+    "native/src/qwen35.rs": "b2df6d002b84ec3dcb18dd6cbcf38ff1bb22203112078064c1709960e1d8faf0",
+    "native/shaders/dflash_select.metal": "6cf00d4210878dd641d8668c57be4a3a8e889377f775fc879ead7cb3b3057c00",
+    "benchmarks/compare_native.py": "4e0f2dd03edea7cecd8b30b555a75bddd89fb011f9bc083b2e205fc93715f1eb",
+    "binary": {
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/dist/MLXL3 Desktop.app/Contents/Resources/runtime/mlxl3",
+      "bytes": 9766160,
+      "sha256": "b77dc67a822476cf67bfcbb57ac708978ef2369fcc210494ce0486e4f02cf0e0"
+    }
+  },
+  "family": "qwen36_moe",
+  "precision": "EXL3 2.49bpw target / packed Q4 DFlash2",
+  "mlx": "0.32.2",
+  "build_environment": {
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "SDK": "26.5"
+  },
+  "flags": {
+    "MLXL3_DFLASH_CONTEXT_COPY": "1",
+    "MLXL3_QWEN_PIPELINE": "0",
+    "MLXL3_MTP_LOOKUP": "0"
+  },
+  "app_install_changed": false,
+  "old_local_app_engine_archive": "build/dflash2-web-02/baseline/signed-mlxl3",
+  "test_binaries": [
+    {
+      "name": "mlxl3_native",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_native-28585053ede733ec",
+      "sha256": "26e9b68fa95f43c856479e8bbaa800bf790e3ce34d71e393472730fe404bd7f3"
+    },
+    {
+      "name": "contracts",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/contracts-9f7ebcdf882c4d55",
+      "sha256": "27d7e248f33669370b90e4376e88209a969bf85a4a84b7e0dbe430ab5784f658"
+    },
+    {
+      "name": "mlxl3-rs",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/mlxl3_rs-e0604e16381edbe0",
+      "sha256": "fdf0912b1bbcdcc95d0b6e8d08f0db84b2576a9bd546e94770b5a62dcea7b63a"
+    },
+    {
+      "name": "runtime_gpu",
+      "path": "/Users/justin/.codex/worktrees/dflash2-stable/mix-stq1_0/target/release/deps/runtime_gpu-cf506846e033fe44",
+      "sha256": "5ef884be090fd66540d9ab5c06b269829c5aa81801104426137f2c09ac7006ab"
+    }
+  ],
+  "proof_only_revision": {
+    "previous_sha256": "a5135244bbb55eb7d358890b9370e659139d8a8ebd804f421d111936c8f438d9",
+    "current_sha256": "cb8290e6280cb70a246a3a28ca1736edc93cf91fce2c27beb517a954b989ab8a",
+    "change": "Split cfg(kani) contracts without production changes, domains unchanged"
+  }
+}

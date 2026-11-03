@@ -1,0 +1,15 @@
+{
+  "experiment": "POSTP08-GDN-CONST-01",
+  "status": "implementation_and_cpu_checks_in_progress_no_gpu_launched",
+  "source_base": "7978fceac30d991a8c06d72114fc932b2443f555 plus preexistingdirty",
+  "candidate_flag": "MLXL3_FLASH_PREPARED_CONV",
+  "default": "0",
+  "F02_flag": "0",
+  "scope": "Gdn immutable conv only, noepsilon/kernel/arithmeticalorderchange",
+  "same_original_swap_anchor": "../post-p08-dense-epilogue-20261031/anchor-w1.json",
+  "maximum_new_swapout_bytes": 33554432,
+  "new_anchor": false,
+  "code_review": "Option prepared owned perGdn; half_weight F16 before F32 conversion; exact old broadcast; stream error propagated before storing field; no cache/state/reset changes; oldF16 retained intentionally +5.625MiB worstpayload36layers",
+  "ci": "Existing PR/main pinnedmlx0.32.2 all-targetClippy and actualMLXbuild compile changedcode/ignoredtests; physicalmodelrequired tests explicitlocally; no remoteCI forunpublishedcode",
+  "proof": "ActualGdn::prepare_conv attempted underKani0.68; compilerICEintrinsics243 before obligations, NOTverified; no CPUrewrite/stub"
+}

@@ -1,0 +1,137 @@
+warning: /Users/justin/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/justin/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+Building for debugging...
+[Computing dependencies]
+[Planning deferred tasks]
+[1 / 7]
+[2 / 8] SwiftMath
+[2 / 19] SwiftMath
+[2 / 66]
+[12 / 119]
+[14 / 119]
+[16 / 119]
+[19 / 119]
+[24 / 119]
+[25 / 119]
+[26 / 119]
+[27 / 119]
+[31 / 119]
+[33 / 119]
+[34 / 119]
+[35 / 119]
+[36 / 119]
+[38 / 119]
+[39 / 119]
+[43 / 119]
+[45 / 119]
+[46 / 119]
+[48 / 119]
+[49 / 119]
+[58 / 119]
+[59 / 119]
+[60 / 119]
+[62 / 119]
+[64 / 119]
+[65 / 119]
+[72 / 119]
+[73 / 119]
+[78 / 119]
+[79 / 119]
+[80 / 119]
+[82 / 119]
+[83 / 119]
+[84 / 119]
+[85 / 119]
+[92 / 119]
+[93 / 119]
+[96 / 119]
+[97 / 119]
+[99 / 119]
+[100 / 119]
+[101 / 119]
+[102 / 119]
+[112 / 119] SwiftMath
+[113 / 119] SwiftMath
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:114:15: warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+112 |         /// So we first load a CGFont from the file and then convert it to a CTFont.
+113 |         var errorRef: Unmanaged<CFError>? = nil
+114 |         guard CTFontManagerRegisterGraphicsFont(defaultCGFont, &errorRef) else {
+    |               `- warning: 'CTFontManagerRegisterGraphicsFont' was deprecated in macOS 15: Use CTFontManagerCreateFontDescriptorsFromData or CTFontManagerRegisterFontsForURL [#DeprecatedDeclaration]
+115 |             throw FontError.registerFailed
+116 |         }
+
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Vendor/SwiftMath/Sources/SwiftMath/MathBundle/MathFont.swift:196:13: warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+194 |         var errorRef: Unmanaged<CFError>? = nil
+195 |         cgFonts.values.forEach { cgFont in
+196 |             CTFontManagerUnregisterGraphicsFont(cgFont, &errorRef)
+    |             `- warning: 'CTFontManagerUnregisterGraphicsFont' was deprecated in macOS 15: Use the API corresponding to the one used to register the font [#DeprecatedDeclaration]
+197 |         }
+198 |         cgFonts.removeAll()
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[114 / 118] SwiftMath
+[117 / 122] SwiftMath
+[117 / 122] MLXL3Studio-product
+[117 / 132] MLXL3Studio-product
+[117 / 163]
+[117 / 241]
+[125 / 257]
+[129 / 257]
+[131 / 257]
+[134 / 257]
+[139 / 257] SwiftMath
+[141 / 257]
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: SwiftMath: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+[141 / 258]
+[142 / 258]
+[143 / 258]
+[144 / 258]
+[148 / 258]
+[149 / 258]
+[151 / 258]
+[152 / 258]
+[153 / 258]
+[155 / 258]
+[156 / 258]
+[161 / 258]
+[163 / 258]
+[164 / 258]
+[166 / 258]
+[167 / 258]
+[176 / 258]
+[180 / 258]
+[181 / 258]
+[182 / 258]
+[186 / 258]
+[187 / 258]
+[188 / 258]
+[190 / 258]
+[191 / 258]
+[192 / 258]
+[194 / 258]
+[195 / 258]
+[202 / 258]
+[203 / 258]
+[204 / 258]
+[209 / 258]
+[210 / 258]
+[211 / 258]
+[213 / 258]
+[214 / 258]
+[215 / 258]
+[216 / 258]
+[227 / 258]
+[228 / 258]
+[232 / 258]
+[233 / 258]
+[237 / 258]
+[239 / 258]
+[240 / 258]
+[241 / 258]
+[243 / 258]
+[254 / 258] MLXL3Studio-product
+[255 / 258] MLXL3Studio-product
+[257 / 258] MLXL3Studio-product
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/usr/lib' not found
+/private/tmp/mlxl3-features-20261018/apps/MLXL3Studio/Package.swift: MLXL3Studio-product: ld: warning: search path '/Library/Developer/CommandLineTools/Developer/Library/Frameworks' not found
+Build complete! (205,26 secs)

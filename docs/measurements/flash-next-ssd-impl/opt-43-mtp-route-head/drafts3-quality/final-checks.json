@@ -1,0 +1,125 @@
+[
+  {
+    "name": "reader-positive",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--lib",
+      "--features",
+      "mlx,chat",
+      "qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config",
+      "--",
+      "--exact",
+      "--nocapture"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 75001,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 3.2606340830097906
+  },
+  {
+    "name": "phase3-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 75047,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.29137945800903253
+  },
+  {
+    "name": "phase3-fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "timeout_seconds": 30,
+    "status": "passed",
+    "pid": 75052,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.2862781670119148
+  },
+  {
+    "name": "phase3-mlx-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--features",
+      "mlx,chat",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "timeout_seconds": 180,
+    "status": "passed",
+    "pid": 75055,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 2.675826541002607
+  },
+  {
+    "name": "phase3-release-full",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 75098,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 44.27295700000832
+  },
+  {
+    "name": "phase3-release-build",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "mlx,chat"
+    ],
+    "timeout_seconds": 300,
+    "status": "passed",
+    "pid": 75241,
+    "exit_code": 0,
+    "joined": true,
+    "elapsed_seconds": 0.12967541698890273
+  },
+  {
+    "name": "phase3-kani-reader",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_raw_draft_loader_checks_types_and_geometry"
+    ],
+    "timeout_seconds": 120,
+    "status": "unverified",
+    "pid": 75244,
+    "exit_code": 1,
+    "joined": true,
+    "elapsed_seconds": 4.395426041999599
+  }
+]

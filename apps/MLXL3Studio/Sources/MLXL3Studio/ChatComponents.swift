@@ -1,102 +1,102 @@
 import SwiftUI
 
-struct MessagesView: View {
-    let messages: [ChatMessage]
-    @State private var followsBottom = true
-    @State private var userIsScrolling = false
+struct StreamingScrollState {
+  var followsBottom = true
+  private(set) var userIsScrolling = false
+  var shouldFollow: Bool { followsBottom && !userIsScrolling }
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 38) {
-                    ForEach(messages) { message in
-                        MessageView(message: message)
-                            .id(message.id)
-                    }
-                    Color.clear
-                        .frame(height: 4)
-                        .id("conversation-bottom")
-                }
-                .padding(.horizontal, 28)
-                .padding(.top, 38)
-                .padding(.bottom, 26)
-                .frame(maxWidth: 820)
-                .frame(maxWidth: .infinity)
-            }
-            .scrollIndicators(.never)
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .onScrollPhaseChange { _, phase in
-                userIsScrolling = phase == .interacting || phase == .decelerating
-            }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY < 100
-            } action: { _, nearBottom in
-                if userIsScrolling || nearBottom { followsBottom = nearBottom }
-            }
-            .onChange(of: messages.last?.id) {
-                followsBottom = true
-                Task { @MainActor in
-                    await Task.yield()
-                    var transaction = Transaction(animation: nil)
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                    }
-                }
-            }
-            .overlay {
-                if let lastMessage = messages.last {
-                    StreamingScrollFollower(message: lastMessage) {
-                        guard followsBottom else { return }
-                        var transaction = Transaction(animation: nil)
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) {
-                            proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                        }
-                    }
-                    .frame(width: 0, height: 0)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                if !followsBottom {
-                    Button {
-                        followsBottom = true
-                        proxy.scrollTo("conversation-bottom", anchor: .bottom)
-                    } label: {
-                        Label(L("Dernier message", "Latest message"), systemImage: "arrow.down")
-                            .font(.system(size: 11, weight: .medium))
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                    }
-                    .buttonStyle(GlassPillButtonStyle())
-                    .padding(.bottom, 12)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+  mutating func phaseChanged(_ phase: ScrollPhase) {
+    userIsScrolling = phase == .tracking || phase == .interacting || phase == .decelerating
+  }
+
+  mutating func proximityChanged(_ nearBottom: Bool) {
+    if userIsScrolling || nearBottom { followsBottom = nearBottom }
+  }
 }
 
-private struct StreamingScrollFollower: View {
-    @ObservedObject var message: ChatMessage
-    let scrollToBottom: @MainActor () -> Void
-    @State private var pendingScroll: Task<Void, Never>?
+struct MessagesView: View {
+  let messages: [ChatMessage]
+  @State private var scroll = StreamingScrollState()
+  @State private var renderedHeight: CGFloat = 0
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    var body: some View {
-        Color.clear
-            .onChange(of: message.streamRevision) {
-                guard pendingScroll == nil else { return }
-                pendingScroll = Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(250))
-                    guard !Task.isCancelled else { return }
-                    scrollToBottom()
-                    pendingScroll = nil
-                }
+  var body: some View {
+    ScrollViewReader { proxy in
+      ScrollView {
+        VStack(spacing: 38) {
+          if messages.count > 1 {
+            LazyVStack(spacing: 38) {
+              ForEach(messages.dropLast()) { message in
+                MessageView(message: message)
+                  .id(message.id)
+              }
             }
-            .onDisappear {
-                pendingScroll?.cancel()
-                pendingScroll = nil
-            }
+          }
+          // Keep the growing response measured while older messages remain lazy.
+          if let message = messages.last {
+            MessageView(message: message)
+              .id(message.id)
+          }
+          Color.clear
+            .frame(height: 4)
+            .id("conversation-bottom")
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 38)
+        .padding(.bottom, 26)
+        .frame(maxWidth: 820)
+        .frame(maxWidth: .infinity)
+      }
+      .scrollIndicators(.never)
+      .defaultScrollAnchor(.bottom, for: .initialOffset)
+      .onScrollPhaseChange { _, phase in
+        scroll.phaseChanged(phase)
+      }
+      .onScrollGeometryChange(for: Bool.self) { geometry in
+        geometry.contentSize.height - geometry.visibleRect.maxY < 100
+      } action: { _, nearBottom in
+        scroll.proximityChanged(nearBottom)
+      }
+      .onScrollGeometryChange(for: CGFloat.self) { geometry in
+        geometry.contentSize.height
+      } action: { _, height in
+        renderedHeight = height
+      }
+      .task(id: renderedHeight) {
+        guard renderedHeight > 0, scroll.shouldFollow else { return }
+        await Task.yield()
+        guard !Task.isCancelled, scroll.shouldFollow else { return }
+        withAnimation(reduceMotion ? nil : .linear(duration: 0.12)) {
+          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+        }
+      }
+      .task(id: messages.last?.id) {
+        scroll.followsBottom = true
+        await Task.yield()
+        guard !Task.isCancelled else { return }
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+        }
+      }
+      .overlay(alignment: .bottom) {
+        if !scroll.followsBottom {
+          Button {
+            scroll.followsBottom = true
+            proxy.scrollTo("conversation-bottom", anchor: .bottom)
+          } label: {
+            Label(L("Dernier message", "Latest message"), systemImage: "arrow.down")
+              .font(.system(size: 11, weight: .medium))
+              .padding(.horizontal, 14).padding(.vertical, 9)
+          }
+          .buttonStyle(GlassPillButtonStyle())
+          .padding(.bottom, 12)
+        }
+      }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
 }
 
 private struct MessageView: View {
@@ -125,7 +125,7 @@ private struct MessageView: View {
                     .padding(.vertical, 13)
                     .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 12))
                 }
-                MessageCopyButton(message: message)
+                HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -138,6 +138,7 @@ private struct MessageView: View {
 
 private struct AssistantMessageView: View {
     @ObservedObject var message: ChatMessage
+    @State private var citedSource: DocumentExcerpt?
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -163,8 +164,16 @@ private struct AssistantMessageView: View {
                         ThinkingBlock(text: part.text, streaming: live)
                             .equatable()
                     case .answer:
-                        MarkdownResponseView(part.text, streaming: live)
+                        MarkdownResponseView(part.text, streaming: live,
+                                             htmlPreviewEnabled: !message.isStreaming && message.error == nil)
                             .equatable()
+                            .environment(\.openURL, OpenURLAction { url in
+                                if url.scheme == "mlxl3-source" {
+                                    citedSource = message.sources.first { $0.id.lowercased() == url.host?.lowercased() }
+                                    return .handled
+                                }
+                                return ["http", "https"].contains(url.scheme ?? "") ? .systemAction : .discarded
+                            })
                     case .tool:
                         if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
                             MCPToolActivityRow(activity: activity)
@@ -180,15 +189,25 @@ private struct AssistantMessageView: View {
                         .foregroundStyle(Color(red: 1.0, green: 0.48, blue: 0.50))
                 }
 
+                if !message.sources.isEmpty {
+                    ScrollView(.horizontal) {
+                        HStack {
+                            ForEach(message.sources) { source in
+                                Button(source.label) { citedSource = source }.buttonStyle(.bordered).font(.caption)
+                            }
+                        }
+                    }
+                }
                 if let stats = message.stats {
                     StatsRow(stats: stats)
                 }
                 if !message.content.isEmpty {
-                    MessageCopyButton(message: message)
+                    HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .sheet(item: $citedSource) { DocumentSourceView(source: $0) }
     }
 
 }
@@ -342,7 +361,8 @@ private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
     @State private var expanded = true
-    @State private var chunkCache = StreamingTextChunker.Cache()
+    @State private var chunkCache = StreamingTextChunker.Cache(markdown: false)
+    @State private var scroll = StreamingScrollState()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.text == rhs.text && lhs.streaming == rhs.streaming
@@ -352,7 +372,7 @@ private struct ThinkingBlock: View, Equatable {
         DisclosureGroup(isExpanded: $expanded) {
             ScrollView {
                 let chunks = chunkCache.chunks(text)
-                LazyVStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(chunks) { chunk in
                         ThinkingTextChunk(
                             source: chunk.source,
@@ -365,7 +385,13 @@ private struct ThinkingBlock: View, Equatable {
                 .padding(.top, 10)
             }
             .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(.bottom, for: .sizeChanges)
+            .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+            .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentSize.height - geometry.visibleRect.maxY < 60
+            } action: { _, nearBottom in
+                scroll.proximityChanged(nearBottom)
+            }
             .frame(maxHeight: 180)
         } label: {
             HStack(spacing: 8) {
@@ -556,8 +582,9 @@ struct ComposerView: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
             }
+            ComposerVoiceControl(studio: studio, voice: studio.voice)
             HStack(alignment: .bottom, spacing: 12) {
-                TextField(L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
+                TextField(studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…") : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...6)
@@ -652,7 +679,11 @@ private struct ComposerFooterView: View {
                 .accessibilityLabel(L("Joindre des fichiers", "Attach files"))
                 .help(L("Joindre des PDF ou fichiers texte, ou les déposer ici (⌘⇧O).", "Attach PDFs or text files, or drop them here (⌘⇧O)."))
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
-                Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
+                if studio.selectedMode == .agent {
+                    Label(L("Sandbox native", "Native sandbox"), systemImage: "lock.shield")
+                    if studio.mcpUpdating { ProgressView().controlSize(.mini) }
+                } else {
+                  Toggle(isOn: Binding(get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) })) {
                     HStack(spacing: 5) {
                         Image(systemName: "network")
                         Text("MCP")
@@ -671,6 +702,7 @@ private struct ComposerFooterView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                         .help(studio.mcpErrors.values.sorted().joined(separator: "\n"))
+                }
                 }
                 Rectangle().fill(StudioTheme.edge).frame(width: 1, height: 12)
                 HStack(spacing: 6) {

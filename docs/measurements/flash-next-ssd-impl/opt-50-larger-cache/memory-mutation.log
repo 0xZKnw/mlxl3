@@ -1,0 +1,66 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_report_refuses_bad_evidence[peak] ____________________
+
+fault = 'peak'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108fdabd0>
+
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            "status",
+            "empty",
+            "extra_repeat",
+            "cache",
+            "engine",
+            "binary",
+            "hash",
+            "text",
+            "peak",
+            "nan",
+            "timing",
+            "warm_drift",
+            "counts",
+            "banks",
+            "missing_bank",
+        ],
+    )
+    def test_report_refuses_bad_evidence(fault, monkeypatch):
+        monkeypatch.chdir(ROOT)
+        d, item, log = fixture("mtp")
+        if fault == "status":
+            d["status"] = "incomplete"
+        elif fault == "empty":
+            d["runs"] = []
+        elif fault == "extra_repeat":
+            d["repeats"] = 2
+        elif fault == "cache":
+            d["expert_cache_gib"] = 3
+        elif fault in ("engine", "binary"):
+            d["engine" if fault == "engine" else "binary_sha256"] = "wrong"
+        elif fault == "hash":
+            d["warmup"][0]["token_hash"] = "wrong"
+        elif fault == "text":
+            d["runs"][0]["text"] += "wrong"
+        elif fault == "peak":
+            d["runs"][0]["stats"]["memory"]["process_lifetime_peak_bytes"] += 1
+        elif fault == "nan":
+            d["runs"][0]["stats"]["decode_tps"] = math.nan
+        elif fault == "timing":
+            d["runs"][0]["stats"]["decode_seconds"] = 1.0
+        elif fault == "warm_drift":
+            d["warmup"][0]["stats"].update(decode_tps=7.0, decode_seconds=127 / 7)
+        elif fault == "counts":
+            d["runs"][0]["stats"]["mtp_accepted_tokens"] = 56
+        elif fault == "banks":
+            log = log.replace("107 exact", "89 exact")
+        else:
+            log = log.split("\n", 1)[1]
+>       with pytest.raises((AssertionError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AssertionError, ValueError)
+
+tests/test_flash_larger_cache.py:131: Failed
+=========================== short test summary info ============================
+FAILED tests/test_flash_larger_cache.py::test_report_refuses_bad_evidence[peak]
+1 failed in 0.02s

@@ -1,0 +1,71 @@
+[
+  {
+    "name": "kani-plan",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "shared_expert_plan_covers_every_original_row_once"
+    ],
+    "timeout_seconds": 120,
+    "status": "timeout_unverified",
+    "exit": -15,
+    "pid": 27444,
+    "reaped": true,
+    "seconds": 120.01008554200001
+  },
+  {
+    "name": "kani-actual",
+    "command": [
+      "cargo",
+      "kani",
+      "--tests",
+      "--features",
+      "mlx,chat",
+      "--harness",
+      "actual_flash_slots_preserve_reference_outputs"
+    ],
+    "timeout_seconds": 60,
+    "status": "completed",
+    "exit": 1,
+    "pid": 27698,
+    "reaped": true,
+    "seconds": 4.045935459000006
+  },
+  {
+    "name": "crosshair",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "-m",
+      "crosshair",
+      "check",
+      "tests/test_flash_pair_kernel.py",
+      "--analysis_kind=asserts"
+    ],
+    "timeout_seconds": 15,
+    "status": "completed",
+    "exit": 1,
+    "pid": 27773,
+    "reaped": true,
+    "seconds": 0.02042466700000034
+  },
+  {
+    "name": "cpu-chat",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "chat"
+    ],
+    "timeout_seconds": 120,
+    "status": "completed",
+    "exit": 0,
+    "pid": 27774,
+    "reaped": true,
+    "seconds": 9.023571333000007
+  }
+]

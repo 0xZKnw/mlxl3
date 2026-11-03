@@ -1,0 +1,341 @@
+[
+  {
+    "name": "dspark-off-prefix-0",
+    "native_test": "qwen4::draft::flash_draft_calibration_arm",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::draft::flash_draft_calibration_arm",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "off",
+      "MLXL3_FLASH_DRAFT_KIND": "dspark",
+      "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dspark-3",
+      "MLXL3_FLASH_DRAFT_HEAD_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dspark-3",
+      "MLXL3_FLASH_FORCE_PREFIX": "0"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_DRAFT_CALIBRATION ",
+      "\"status\":\"complete_calibration_arm\""
+    ]
+  },
+  {
+    "name": "dspark-off-prefix-3",
+    "native_test": "qwen4::draft::flash_draft_calibration_arm",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::draft::flash_draft_calibration_arm",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "off",
+      "MLXL3_FLASH_DRAFT_KIND": "dspark",
+      "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dspark-3",
+      "MLXL3_FLASH_DRAFT_HEAD_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dspark-3",
+      "MLXL3_FLASH_FORCE_PREFIX": "3"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_DRAFT_CALIBRATION ",
+      "\"status\":\"complete_calibration_arm\""
+    ]
+  },
+  {
+    "name": "dspark-off-prefix-1",
+    "native_test": "qwen4::draft::flash_draft_calibration_arm",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::draft::flash_draft_calibration_arm",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "off",
+      "MLXL3_FLASH_DRAFT_KIND": "dspark",
+      "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dspark-3",
+      "MLXL3_FLASH_DRAFT_HEAD_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dspark-3",
+      "MLXL3_FLASH_FORCE_PREFIX": "1"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_DRAFT_CALIBRATION ",
+      "\"status\":\"complete_calibration_arm\""
+    ]
+  },
+  {
+    "name": "dspark-off-prefix-2",
+    "native_test": "qwen4::draft::flash_draft_calibration_arm",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::draft::flash_draft_calibration_arm",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "off",
+      "MLXL3_FLASH_DRAFT_KIND": "dspark",
+      "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DSpark-aafaf1bf",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dspark-3",
+      "MLXL3_FLASH_DRAFT_HEAD_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dspark-3",
+      "MLXL3_FLASH_FORCE_PREFIX": "2"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_DRAFT_CALIBRATION ",
+      "\"status\":\"complete_calibration_arm\""
+    ]
+  },
+  {
+    "name": "dflash2-on-prefix-3",
+    "native_test": "qwen4::draft::flash_draft_calibration_arm",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::draft::flash_draft_calibration_arm",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_FLASH_DRAFT_KIND": "dflash2",
+      "MLXL3_FLASH_DRAFT_MODEL": "/Users/justin/Documents/mix-stq1_0/models/drafts/Qwen3.8-Flash-Next-DFlash2-a22a1744",
+      "MLXL3_FLASH_DRAFT_ORACLE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/numpy-dflash2-3",
+      "MLXL3_FLASH_DRAFT_HEAD_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-opt-44/pony-head-dflash2-3",
+      "MLXL3_FLASH_FORCE_PREFIX": "3"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "FLASH_DRAFT_CALIBRATION ",
+      "\"status\":\"complete_calibration_arm\""
+    ]
+  },
+  {
+    "name": "light-MAIN-mtp-0",
+    "native_test": "qwen4::tests::flash_light_profile_preserves_natural_decode",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::tests::flash_light_profile_preserves_natural_decode",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_FLASH_PROFILE_MTP": "0",
+      "MLXL3_FLASH_PROFILE_PROMPT": "MAIN"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_LIGHT_PROFILE ",
+      "\"phase\":\"measured\""
+    ]
+  },
+  {
+    "name": "light-HOLD-mtp-0",
+    "native_test": "qwen4::tests::flash_light_profile_preserves_natural_decode",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::tests::flash_light_profile_preserves_natural_decode",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_FLASH_PROFILE_MTP": "0",
+      "MLXL3_FLASH_PROFILE_PROMPT": "HOLD"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_LIGHT_PROFILE ",
+      "\"phase\":\"measured\""
+    ]
+  },
+  {
+    "name": "light-MAIN-mtp-1",
+    "native_test": "qwen4::tests::flash_light_profile_preserves_natural_decode",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::tests::flash_light_profile_preserves_natural_decode",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_FLASH_PROFILE_MTP": "1",
+      "MLXL3_FLASH_PROFILE_PROMPT": "MAIN"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_LIGHT_PROFILE ",
+      "\"phase\":\"measured\""
+    ]
+  },
+  {
+    "name": "light-HOLD-mtp-1",
+    "native_test": "qwen4::tests::flash_light_profile_preserves_natural_decode",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/profile/mlxl3_native",
+      "qwen4::tests::flash_light_profile_preserves_natural_decode",
+      "--exact",
+      "--ignored",
+      "--test-threads=1",
+      "--nocapture"
+    ],
+    "env": {
+      "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+      "MLXL3_FLASH_REFERENCE": "/Users/justin/Documents/mix-stq1_0/docs/measurements/flash-next-ssd-impl/oracle-07",
+      "MLXL3_FLASH_PROJECTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-projection-oracle-02",
+      "MLXL3_FLASH_NORM_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+      "MLXL3_FLASH_ATTENTION_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-attention-oracle-06",
+      "MLXL3_FLASH_MTP_REFERENCE": "/Users/justin/Documents/mix-stq1_0/build/flash-mtp-oracle-held-02",
+      "MLXL3_SSD_CACHE_GIB": "3",
+      "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+      "MLXL3_SSD_OVERLAP": "1",
+      "MLXL3_SSD_READERS": "4",
+      "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+      "MLXL3_SSD_CACHE_POLICY": "auto",
+      "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+      "MLXL3_FLASH_DRAFT_WIDTH": "3",
+      "MLXL3_FLASH_THINKING": "on",
+      "MLXL3_FLASH_PROFILE_MTP": "1",
+      "MLXL3_FLASH_PROFILE_PROMPT": "HOLD"
+    },
+    "expected_exit": 0,
+    "required_text": [
+      "SSD_LIGHT_PROFILE ",
+      "\"phase\":\"measured\""
+    ]
+  }
+]

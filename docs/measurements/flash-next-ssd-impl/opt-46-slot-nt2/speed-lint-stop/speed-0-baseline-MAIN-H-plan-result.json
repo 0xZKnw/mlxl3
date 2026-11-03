@@ -1,0 +1,54 @@
+{
+  "status": "failed_or_interrupted",
+  "source_sha256": "b8cf0affcd5d0fd0cb1b375001e89eec234ca9e2ace431379516336d0b1ec503",
+  "matrix_sha256": "614cd4414d4a23ccfee99fe62921a9c1549a6b26a276d929b497a134766fbd04",
+  "commands": [
+    {
+      "name": "speed-0-baseline-MAIN-H",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/bridge-driver.txt",
+        "/Users/justin/Documents/mix-stq1_0/build/flash-opt-45/qualified/mlxl3-rs",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/flash-next-ssd-205/mix-stq1_0/docs/measurements/flash-next-ssd-impl/opt-46-slot-nt2/speed-0-baseline-MAIN-H-bridge",
+        "baseline",
+        "MAIN"
+      ],
+      "expected_exit": 0,
+      "env": {
+        "MLXL3_SSD_CACHE_GIB": "3",
+        "MLXL3_ALLOCATOR_CACHE_MIB": "512",
+        "MLXL3_SSD_READERS": "4",
+        "MLXL3_SSD_OVERLAP": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+        "MLXL3_SSD_CACHE_POLICY": "auto",
+        "MLXL3_SSD_PREDICTOR_DTYPE": "f32"
+      },
+      "required_text": [
+        "\"repeat\": 2"
+      ],
+      "status": "failed_or_interrupted",
+      "before": {
+        "vm_stat": "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                                   302451.\nPages active:                                 430576.\nPages inactive:                               416230.\nPages speculative:                             14607.\nPages throttled:                                   0.\nPages wired down:                             184385.\nPages purgeable:                                6922.\n\"Translation faults\":                     1100488201.\nPages copy-on-write:                        34890496.\nPages zero filled:                        1337021289.\nPages reactivated:                         111262472.\nPages purged:                               12238843.\nFile-backed pages:                            545365.\nAnonymous pages:                              316048.\nPages stored in compressor:                   342507.\nPages occupied by compressor:                 170449.\nDecompressions:                            313703593.\nCompressions:                              369489120.\nPageins:                                  1097683466.\nPageouts:                                     164899.\nSwapins:                                     4188843.\nSwapouts:                                    5304370.\nPages tagged:                                 100559.\nPages tagged resident:                         78820.\nPages tagged compressed:                       21739.\nPages tag-storage:                             49152.\nPages tag-storage holding tags:                 4066.\nPages tag-storage free:                         2704.\nPages tag-storage non-tag pageable:            42171.\nPages tag-storage non-tag wired:                  82.\nBytes of compressed tags:                    3391808.\nTagged compressions:                         5279675.\nTagged decompressions:                       5039176.\n",
+        "sysctl vm.swapusage": "vm.swapusage: total = 6144.00M  used = 5066.56M  free = 1077.44M  (encrypted)\n",
+        "pmset -g batt": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+        "pmset -g therm": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded\n",
+        "vm_bytes": {
+          "Pages free": 4955357184,
+          "File-backed pages": 8935260160,
+          "Pages occupied by compressor": 2792636416,
+          "Swapins": 68630003712,
+          "Swapouts": 86906798080
+        }
+      },
+      "executable_sha256": "30b2a6bf9706029b609327ca5db722cd458239df96efc87e1f8e37beed49db2e",
+      "pid": 40629,
+      "maximum_live_swapout_bytes": 0,
+      "maximum_live_swapin_bytes": 196608,
+      "error": "KeyboardInterrupt()",
+      "reaped": true,
+      "seconds": 38.059002958005294
+    }
+  ],
+  "error": "KeyboardInterrupt()"
+}

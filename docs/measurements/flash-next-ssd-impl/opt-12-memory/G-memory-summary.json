@@ -1,0 +1,108 @@
+{
+  "status": "validated_memory_footprint",
+  "speed_gain_validated": false,
+  "arms": [
+    {
+      "arm": "01-A8",
+      "source_report": "docs/measurements/flash-next-ssd-impl/opt-12-memory/01-A8/report.json",
+      "report_sha256": "8380cd13ae0ab549da6735c41ffef475ab0585b2ede3daddd1e59d4f353e42c6",
+      "engine_sha256": "cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa",
+      "slots_per_layer": 143,
+      "max_process_lifetime_peak_gib": 12.979761466383934,
+      "active_off_gib": 11.146914720535278,
+      "active_mtp_gib": 11.812291830778122,
+      "delta_vm_mib": {
+        "Pages free": 752.1875,
+        "File-backed pages": 1167.78125,
+        "Pages occupied by compressor": 826.484375,
+        "Swapins": 19.671875,
+        "Swapouts": 0.0
+      },
+      "hashes": [
+        "d7c2f53d11d70633",
+        "d7c2f53d11d70633",
+        "c2d954f130ed2a98",
+        "c2d954f130ed2a98"
+      ],
+      "expert_gib": 7.97803920507431
+    },
+    {
+      "arm": "02-Gauto",
+      "source_report": "docs/measurements/flash-next-ssd-impl/opt-12-memory/02-Gauto/report.json",
+      "report_sha256": "dc758b413191bfc68b781612a20f6e63a1d158a2d6b017335271dcaf6f6c5489",
+      "engine_sha256": "938e2aa7b3532c608607c852810313bf9fe6630b021d8560cffb992c64b1478e",
+      "slots_per_layer": 83,
+      "max_process_lifetime_peak_gib": 9.30712104588747,
+      "active_off_gib": 7.7982497215271,
+      "active_mtp_gib": 8.463626831769943,
+      "delta_vm_mib": {
+        "Pages free": 2714.046875,
+        "File-backed pages": -1333.328125,
+        "Pages occupied by compressor": 1116.640625,
+        "Swapins": 3.875,
+        "Swapouts": 0.0
+      },
+      "hashes": [
+        "d7c2f53d11d70633",
+        "d7c2f53d11d70633",
+        "c2d954f130ed2a98",
+        "c2d954f130ed2a98"
+      ],
+      "expert_gib": 4.630610167980194
+    },
+    {
+      "arm": "03-Gauto",
+      "source_report": "docs/measurements/flash-next-ssd-impl/opt-12-memory/03-Gauto/report.json",
+      "report_sha256": "eb2fe49b5529b66149036e914615f490d2d6196482330a61ecb368d54f615ad3",
+      "engine_sha256": "938e2aa7b3532c608607c852810313bf9fe6630b021d8560cffb992c64b1478e",
+      "slots_per_layer": 106,
+      "max_process_lifetime_peak_gib": 10.596245497465134,
+      "active_off_gib": 9.082930028438568,
+      "active_mtp_gib": 9.748307138681412,
+      "delta_vm_mib": {
+        "Pages free": 1202.078125,
+        "File-backed pages": -757.671875,
+        "Pages occupied by compressor": -32.25,
+        "Swapins": 2.859375,
+        "Swapouts": 0.0
+      },
+      "hashes": [
+        "d7c2f53d11d70633",
+        "d7c2f53d11d70633",
+        "c2d954f130ed2a98",
+        "c2d954f130ed2a98"
+      ],
+      "expert_gib": 5.913791298866272
+    },
+    {
+      "arm": "04-A8",
+      "source_report": "docs/measurements/flash-next-ssd-impl/opt-12-memory/04-A8/report.json",
+      "report_sha256": "beedb330918f8b979ab2b325cc39f7873ba1b1891e81f6cdafd5367c939d631d",
+      "engine_sha256": "cbff15f63ae1343344b4cd7b1530d09e180c780adfb153e12f227552564b39fa",
+      "slots_per_layer": 143,
+      "max_process_lifetime_peak_gib": 12.979257859289646,
+      "active_off_gib": 11.146914720535278,
+      "active_mtp_gib": 11.812291830778122,
+      "delta_vm_mib": {
+        "Pages free": 1801.171875,
+        "File-backed pages": -1296.25,
+        "Pages occupied by compressor": -257.25,
+        "Swapins": 10.453125,
+        "Swapouts": 262.875
+      },
+      "hashes": [
+        "d7c2f53d11d70633",
+        "d7c2f53d11d70633",
+        "c2d954f130ed2a98",
+        "c2d954f130ed2a98"
+      ],
+      "expert_gib": 7.97803920507431
+    }
+  ],
+  "limitations": [
+    "Global VM counters include all applications and OS.",
+    "Power/thermal not separately recorded for 01-A8; final three arms were AC 100% with no pmset warning.",
+    "Automatic cache budget is estimated once at load; no guaranteed zero swap if other applications grow.",
+    "Timings in these reports include diagnostic sampling, with no speed claim."
+  ]
+}
