@@ -46,6 +46,49 @@ fn prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row() {
     kani::cover!(rows == 0 && result.is_none());
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_chain_flag(value: Option<&str>) -> Option<bool> {
+    match value {
+        None | Some("0") => Some(false),
+        Some("1") => Some(true),
+        _ => None,
+    }
+}
+
+#[test]
+fn hc_chain_flag_is_strict_and_default_off() {
+    assert_eq!(hc_chain_flag(None), Some(false));
+    assert_eq!(hc_chain_flag(Some("0")), Some(false));
+    assert_eq!(hc_chain_flag(Some("1")), Some(true));
+    for invalid in ["", "01", " 1", "1 ", "true", "false", "2", "é", "1\0"] {
+        assert_eq!(hc_chain_flag(Some(invalid)), None);
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(17)]
+fn hc_chain_flag_defaults_off_and_accepts_only_exact_literals() {
+    assert_eq!(hc_chain_flag(None), Some(false));
+    let bytes: [u8; 4] = kani::any();
+    let size = usize::from(kani::any::<u8>() % 5);
+    if let Ok(value) = std::str::from_utf8(&bytes[..size]) {
+        let result = hc_chain_flag(Some(value));
+        assert_eq!(
+            result,
+            match value.as_bytes() {
+                [b'0'] => Some(false),
+                [b'1'] => Some(true),
+                _ => None,
+            }
+        );
+        kani::cover!(result == Some(true));
+        kani::cover!(result == Some(false));
+        kani::cover!(size == 0 && result.is_none());
+        kani::cover!(size == 4 && result.is_none());
+    }
+}
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(14)]

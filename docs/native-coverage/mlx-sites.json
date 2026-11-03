@@ -1848,6 +1848,7 @@
     ".to_f32": 2,
     "array::from_fn": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
+    "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/dense_projection.metal": 1,
@@ -1887,7 +1888,7 @@
     ".sum": 1,
     ".to_f32": 11,
     ".transpose": 1,
-    "config MLXL3_FLASH_MODEL": 3,
+    "config MLXL3_FLASH_MODEL": 4,
     "config MLXL3_FLASH_PREFILL_HEADS": 1,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
@@ -1897,8 +1898,10 @@
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/hc.rs": {
+    ".finish": 2,
     ".shape": 4,
     ".transpose": 3,
+    "config MLXL3_FLASH_MODEL": 1,
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2

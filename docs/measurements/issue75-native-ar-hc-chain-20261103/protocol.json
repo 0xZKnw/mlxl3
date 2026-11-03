@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "id": "ISSUE75-NATIVE-AR-HC-CHAIN-01",
+  "status": "CPU_checked_physical_pending",
+  "date": "2026-11-03",
+  "base_main": "599628120c95df45b00a2076ffe466331a9c94f2",
+  "audit": "../issue75-native-ar-host-audit-20261103/README.md",
+  "hypothesis": "Group the already-adjacent attention HC write and next MLP HC read in one eager native Metal command, removing one source-level commit/wait per completed layer while retaining all shader work.",
+  "new_reason": "Native Metal::command waits at both sides of this device-buffer-only dependency; old MLX T01B factory wrapping and DEC-ONE kernels are different mechanisms with preserved negative/withdrawn outcomes.",
+  "flag": "MLXL3_NATIVE_AR_HC_CHAIN",
+  "control": "0",
+  "candidate": "1",
+  "default": "0",
+  "invariants": [
+    "same HC shader functions, dispatch order, casts, dimensions and buffer storage",
+    "both HC stages owned by the same Metal instance/queue",
+    "written stream returned for later residual injection, intermediate views retained until command completion",
+    "wait/status check at end of combined pair; no global async scheduler",
+    "same routing IDs, expert IO timing/ownership, MoE, snapshots and error rollback"
+  ],
+  "quality": [
+    "cfg(test) counters at actual helper command creation and actual joint encoding;48 joint chains per current Flash row and48 fewer helper command submissions than control",
+    "actual HC pair finite full output/read/gate equality; shapes/owner rejection and errors",
+    "complete248320 finite final logits, hidden and84 target states /28803072 finite F32 words per step against same eager control",
+    "multi-token and restored suffix continuation; malformed/IO/cancel/reset recovery through actual AR bridge before speed",
+    "existing independent target checkpoint oracle remains a distinct control",
+    "Existing independent archived target oracle predictive_reads_match_archived_full_states_and_imposed_continuation with CHAIN1 and lookahead1 if required; reuse archived HC-write oracle if fixtures are available, so shared factor changes cannot self-mask."
+  ],
+  "verification": [
+    "strict flag default/invalid input regression and actual-source Kani harness; finite string bounds explicit",
+    "attempt strongest practical actual Rust path verification without Metal stubs; GPU ownership/concurrency not proved by CPU policy",
+    "fmt/Clippy/CPU/direct full suites and private release artifact only in a root CPU slot",
+    "GPU only after every heavy process drains and root grants exclusive slot"
+  ],
+  "model": {
+    "path": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+    "average_bpw": 2.05,
+    "layers": 48
+  },
+  "hardware": "Apple M5,24GiB; conditions recorded per physical run",
+  "planned_timing": {
+    "status": "not_authorized_until_quality_and_root_slot",
+    "mode": "AR only",
+    "harness": "scripts/benchmark-flash-bridge.py",
+    "same_binary_order": [
+      "0",
+      "1",
+      "1",
+      "0"
+    ],
+    "prompts": [
+      "MAIN",
+      "HOLD"
+    ],
+    "tokens": 32,
+    "warmup_per_prompt_per_process": 1,
+    "measured_per_prompt_per_process": 1,
+    "cache_gib": 3,
+    "readers": 4,
+    "lookahead": 0,
+    "reuse_prompt_cache": false,
+    "context": 4096,
+    "other_ports": "fixed identically; exact values frozen before launch",
+    "metrics": [
+      "decode_tps",
+      "TTFT",
+      "prefill_seconds",
+      "elapsed_seconds",
+      "native_metal_bytes",
+      "process_footprint_peak"
+    ],
+    "retain_all_samples": true,
+    "gain": "unmeasured;48 fewer waits is not a measured saving"
+  },
+  "scope": "AR source preparation only during root GPU queue; no MTP/DFlash changes, no compiler/prover/inference until grant",
+  "formal_scope": {
+    "parser_domain": "absence plus valid UTF8 strings of0..4bytes, all byte patterns generated, unwind17; longer strings not included in bounded check",
+    "GPU": "Metal queue/ownership/concurrency and numerical semantics not established by parser proof; actual-path attempt and physical oracles retain separate status"
+  }
+}
