@@ -371,7 +371,15 @@ impl Metal {
             let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
             let gdn_norm_gate = hc_kernel_setting("MLXL3_NATIVE_GDN_NORM_GATE")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
-            let moe_deferred = hc_kernel_setting("MLXL3_NATIVE_MOE_DEFERRED")?;
+            // Only qualified L1 consumers defer completion, so use L1's hardware default.
+            let moe_deferred = match std::env::var("MLXL3_NATIVE_MOE_DEFERRED") {
+                Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_gdn_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_MOE_DEFERRED must be 0 or 1")?;
             let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
                 Ok(value) => crate::hc_workspace_policy::flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {

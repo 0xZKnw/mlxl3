@@ -25243,3 +25243,69 @@ UAR-FIXED-RESIDENCY exact source variant before code: add one private RAII owner
 UAR-FIXED-RESIDENCY SOURCE READY (uncompiled): private set/queue/owned fixed-buffer handles, opt-in collector/no ordinary ledger cloning; strictflag/defaultOFF/M5, class/selectors/nilfallback, existingadmittedpayload cappedwithoutnewbudgetmachinery. Drop uses queue detach + endResidency only (membership retained until set object release, avoiding mutation seen by older committed work); idle drains then detaches, resume reattaches once. Existing SSD independent model fixture conditionally adds actualSDKcount/ledger/clear/restore/replay underflag1, original marker offset3 retained. CPU guard test + actual-source Kani obligation prepared, not executed; no fakeObjCproof. SDK27.2headers/StrongPtrownership inspected, selected-file rustfmt anddiffcheckPASS. No build/proof/GPU/test/benchmark yet. README docs/measurements/issue125-uar-residency-20261104; root onebuild/physical gates pending.
 
 UAR intégration des5prototypes prête : MoEf681a8c6 +half6763094b +queue101cfad9 +normcbe33f48 +résidencef663a2b2, conflits uniquement journal/manifest/policy et formatage testGDN résolus en conservant toutes obligations et le nouveau gate8cas. Revue du shader norm : même réduction et rsqrt/exp précis, matérialisations volatileF32 normalisé/probabilité/produit, corpusT17 préparé ; pas de paritéGPU encore. Le test modèle commun exige aussi un compteur réel de soumissions dynamiques nonnul. Audit résidence a trouvé un CBidle ajouté mêmeOFF : corrigé pour ne drainer/détacher que si un set existe, aucun nouveauwait dans le cheminOFF. Clippy initial a signalé LayerOutput304B/344Btest après ownershipMoE ; choix explicite d'un seul pending borné surstack, sans ajouter34allocationsBox/row, allowdocumenté surcetenum uniquement. ClippystrictDIRECT ensuitePASS ; inventaire258 revu/configs/gardescomptés,2testsmanifestPASS. SuiteDIRECT/chat unique :369PASS/61ignored/0échec ; les testsGPUignored restent nonexécutés. Mutation réelle AND→OR de gardeMoE rejetée(exit101), source restaurée ; relance comprise dans suiteDIRECT passée. AucunGPU commencé.
+
+UAR avantGPU : gel source635c8a1af721085d43e6c5f342949a3548d50bb8 propre/522empreintes ; CLI487d15a69ff2ec2b5b6233c4d46eb42e5b711dccb73c8b4f44305c7eb646b342, libc6facf3257e512f47939bf3ba81f606529eaa89013ab41194d7899a355a63ac2 ; vrais minos26.2/sdk27.2. BuildreleaseCLI32.89s/lib41.76s PASS, clippyexactfinalPASS ; Kaniresidency2assertions/6covers surbool/u64sansassumePASS. Contrôleursminimaux réutilisent driver/strictJSON/marker/cleanup etvalidatorqualifiés, Ruff+pycompilePASS,4mauvaisesreceiptsrejetées ; CrossHairabsent, orchestration nonprouvée. Quatre gates uniquement avantvitesse : MoE4pas/erreurs/recovery, GDN2tokens×4modes+corpusT17+queue réelle avec5optionsON, anciengateSSDmodèle étendu résidenceSDKOFF/ON/idle/resume, vraiCLIshortgolden4096avec5ON. Pasprofilage/matricekernel/qualitésL3L5. TousCPU/proveursjoints ; créneauGPUexclusif accordé àces4gates puisMAIN32 préenregistré. ConditionsAC100%,aucunwarningthermal/perf enregistré,tempnonmesurée,swapobservépasgardé ; preuves freeze/conditions docs/measurements/issue125-uar-20261104. Toutefaute bloque la vitesse du chemin concerné et conserve rapportpartielnonvalidé.
+
+UAR QUALITY moe STARTED
+
+UAR QUALITY moe VALIDATED
+
+UAR QUALITY gdn-composed STARTED
+
+UAR QUALITY gdn-composed VALIDATED
+
+UAR QUALITY residency STARTED
+
+UAR QUALITY residency VALIDATED
+
+UAR QUALITY cli STARTED
+
+UAR QUALITY cli VALIDATED
+
+UAR QUALITY 4/4 VALIDATED before MAIN32
+
+UAR MAIN32 published STARTED
+
+UAR MAIN32 published VALIDATED 6.317693953145261
+
+UAR MAIN32 opening STARTED
+
+UAR MAIN32 opening VALIDATED 6.7134778956909225
+
+UAR MAIN32 moe STARTED
+
+UAR MAIN32 moe VALIDATED 7.532705304282789
+
+UAR MAIN32 half STARTED
+
+UAR MAIN32 half VALIDATED 6.681594701354357
+
+UAR MAIN32 normgate STARTED
+
+UAR MAIN32 normgate VALIDATED 6.543291153027104
+
+UAR MAIN32 queue STARTED
+
+UAR MAIN32 queue VALIDATED 6.526605420985958
+
+UAR MAIN32 residency STARTED
+
+UAR MAIN32 residency VALIDATED 6.687134209875868
+
+UAR MAIN32 closing STARTED
+
+UAR MAIN32 closing VALIDATED 6.650899268208055
+
+UAR MAIN32 singles CLOS :8processus/16réponses warm+mesurées exactes tokenhashbfa49090cb33d4fe/textescomplets,32generated/31decode, tousprocess/lecteursjoints. CLI487d gel635 : témoinOFF6.713477896 puis6.650899268tok/s(dérive−0.9321%) ; MoE7.532705304 (+12.20/+13.26% vscesdeuxtémoins), half6.681594701, normgate6.543291153, queue6.526605421, résidence6.687134210. AncienCLIpubliéb4896.317693953 plusbas, pasutilisépourgonflerleboost. Résultatcourt favorableMoE ; autresincertains/N1pasd'améliorationisoléeétablie. Auditadaptation : cheminsréels36half/36norm et1631soumissionsqueue enqualité ; dtypes/casts/trace/offsets, copies/waits et volumeI/Opréservés. Normfusion garde4gates/lane au lieu d'un/lanedukernelgatehistorique : tradeoffparallélismeplausible, pasbugprouvé ni coût isolé. Queue ajoutemutex maiscapacity10cohérentavecguarddemand≤10/active0 etbackground<4 ; aucunbugouI/Oenplusidentifié. Résidence1644allocationsSDK/3272810112B exactsledger,aucunSSD/transient,guardidleOFFcorrigé ; pasdeuseResourcesinitialàretirer. Pasderejetautomatique/activationdepuisN1 ; pistescompatibles conservéespourcomposition conformémentAGENTS.
+
+UAR-COMPOSITION-ALL-FIVE — préenregistré AVANT mesure : même635/487d/5optionsON, L1ON/anciens4OFF. Oraclesmodèle8cas+CLIontDÉJÀqualifié cettecompositionexacteavantlesécrans ; aucun nouveaucode/build/proof/gate nécessaire. Un seulprocessMAIN32/1warm+1mesuré avecmêmesconditions, comparéaux2témoinsOFFfigés6.71348/6.65090 etMoEseul7.53271 (sanssomme niattributionindividuelle). Hypothèse : petites suppressionscompatiblespeuventdevenirutilessurcheminMoEaccéléré ; N1 incertitudedocumentée. Auditprécédentidentifiecoûtsconnus/fallbacksmaispasdéfautconcretrestant. ÉtatENCOURS, pasdeHOLD/matrice/benchmarkkernel.
+
+UAR-COMPOSITION préparation interrompue avantGPU : assertion de remplacement de chemin du contrôleur (formatRuffsurunechaînecomplète) a échoué, donc aucunprocessusGPU ni mesurecomposition lancé. Sourcefigée/modèle inchangés ; correction uniquementcheminOUTexact. Shelldépendant désormaisset-e ; contrôleurcréé/linté/compiléavantrelance. Les8singles/16réponses validéesetleursbrutsrestentpréservés.
+
+UAR MAIN32 all-five STARTED
+
+UAR MAIN32 all-five VALIDATED 7.564626540223451
+
+UAR-COMPOSITION-ALL-FIVE CLOS favorableensemble : MAIN32CLI487d les5ON7.564626540tok/s,2réponsescomplèteswarm/mesuréeidentiques32/31, tousprocess/lecteursjoints. +12.68/+13.74% vscontrôlesOFF6.71348/6.65090 ; +0.4238% vsMoEseul7.53271 surN1, aucuneattributionindividuelle/confirmationstatistique. Aucun résultat négatif effacé. Les5 chemins sontqualifiés ensemble ; les4petitespistes restent prometteusesconservéesenoptions avec performanceisoléeincertaine, pasrejetées. Résidence peutmodifierleworking-setphysique(pasnouvelleallocationpayload), etqueuenouveaubackendn'estpasdéfautM5-snapshot : aucunbesoin d'activercespolitiquesglobalespourlivrerleboostMoE. RevueindépendanterésidenceSDK/ownership/ledger/idleOFF : aucundéfautconcretrestant trouvé. Brutscomposition/report.json ; premierrefuspréparationOUT conservé, aucun essaiGPUinterrompu.
+
+UAR-MOE-DEFAULT — préenregistré AVANT édition/build : choisir uniquementdéfautMoE actif exactM5/rollbackenv0, gardesL1/export/depth inchangées,4autresnouveauxdéfautsOFF/anciens4OFF. Sourcecompute/math/ownershipdes5prototypes inchangée ; seuleinitialisationMoE réutilisera le mêmeparseur strict/défaulthardwarequalifié queL1. Motivation : écranMoE7.53271 vsdeuxcontrôles6.71348/6.65090 ; n'additionneraucungain. Vérifierseulementlescontrôlesaffectés : fmt/strictclippy/buildsDIRECT réels ; Kani parseurqualifiéexistant (sourcehelperidentique) ; gatecrosslayer/MoEexistant maisVARIABLEMOEABSENTE pourqualifierdéfautréel+erreurs/rollback ; CLIshortgoldenavecMOEABSENTE/4autresOFF ; unMAIN32warm+mesuré dubinairefinalpar défautcontrecontrôlesfigés. RéutiliserqualitésGDN/queue/résidence précédentes carsourcecomputeidentique ; pasautrematrice, profiling ouessaiL3L5. Baseline/newfrozenartifactspréservés ; gel final séparé, nepasattribuerlesmesuresCLI487dau nouveaubinaireavantcontrôle.
