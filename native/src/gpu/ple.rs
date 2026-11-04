@@ -299,9 +299,22 @@ impl<'a> FlashPleLayer<'a> {
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
     ) -> Result<MatrixView> {
+        self.forward_deferred(x, token, next, depth, false)?
+            .complete(self.ple.gpu)
+    }
+    pub(super) fn forward_deferred(
+        &mut self,
+        x: &MatrixView,
+        token: u32,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+        defer_write: bool,
+    ) -> Result<super::gdn::LayerOutput> {
         let before = self.ple.snapshot();
         let streams = self.ple.forward(x, token, false)?;
-        let result = self.body.forward_lookahead(&streams.values, next, depth);
+        let result = self
+            .body
+            .forward_deferred(&streams.values, next, depth, defer_write);
         if result.is_err() {
             self.ple.restore(&before)?;
         }

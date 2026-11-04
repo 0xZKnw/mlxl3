@@ -1,0 +1,36 @@
+{
+  "trial": "I125-L1-CROSS-LAYER-20261104",
+  "reference": {
+    "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+    "sha256": "3dfea63ea3c2be58e3126f91686817d53d21fcf137c1eb62d8991e1d1647c4c4"
+  },
+  "candidate": {
+    "path": "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen/cli",
+    "sha256": "cb41f7553fe757e281e3029b54607037c3b4f542c4315ec2b2b11360921f26c0"
+  },
+  "driver_sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8",
+  "order": [
+    "reference",
+    "candidate",
+    "candidate",
+    "reference"
+  ],
+  "prompts": [
+    "MAIN",
+    "HOLD"
+  ],
+  "tokens": 32,
+  "repeats": 1,
+  "warmups_per_prompt_per_process": 1,
+  "cache_gib": 3,
+  "readers": 4,
+  "dynamic": 0,
+  "lookahead": 0,
+  "prefix_reuse": false,
+  "context": 4096,
+  "sampling": "T0/topk1/penalty1",
+  "prior_eight_flags": "absent, actual qualified defaults",
+  "candidate_flag": "MLXL3_NATIVE_CROSS_LAYER=1",
+  "conditions": "AC100%, no thermal or performance warning recorded; temperature unmeasured; all owned CPU/prover/inference joined",
+  "quality": "actual34triples+2doubles/row; full finite logits/hidden/84states; deferred rollback/prefix/export/capture and CLI golden; noMLX"
+}

@@ -1,0 +1,9 @@
+# CPU validation of the P13 evidence controller
+
+The completed GPU run used controllerV1, preserved exactly as../controller.v1.py.txt with its SHA. V1 accepted tokenTrue and token1.0 as the expected integer1 because Python equality aliases these values. The39case driver reproduces both false acceptances on that archived controller; its failing results remain preserved. The actual captured GPU payloads contain integer tokens.
+
+ControllerV2 (../controller.v2.py.txt) adds an explicit exact-int token guard. Ruff formatting/lint pass; normalized AST comparison confirms the only behavioral edit is that added assertion. All39deterministic selfchecks then pass. The real validate/exact_fields functions are imported with runpy under a non-main name; the test scaffold derives its valid payloads from the real phase plan and previously validated report. It rejects zero tests, missing/duplicate markers, false parity, incorrect scalar/list types, missing steps,35joins, incorrect command/wait differences and invalid half coverage. The initial linter's two driver-style failures and their passing correction are retained.
+
+The two original Rust logs are revalidated by V2 without launching GPU/main; both evidence dictionaries remain exactly unchanged. This is an additional parser check, not a second physical run or a new numerical validation. No frozen Rust source/binary or performance artifact was changed.
+
+Python3.12.14 and Ruff0.16.5. CrossHair was attempted on the actual two helper locations with a25second outer bound/20second condition option, but the project venv reports No module named crosshair. Symbolic/formal verification is NOT VERIFIED. These39finite tests and subprocess API guards do not prove process reaping, timeouts, OS, Metal or full generation. All owned test/probe child processes were joined. Commands, legacy failures, corrected results, version receipts and lossless gzip logs are retained here.

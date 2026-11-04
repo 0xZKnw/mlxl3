@@ -736,10 +736,24 @@ impl<'a> FlashQsaLayer<'a> {
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
     ) -> Result<MatrixView> {
+        self.forward_deferred(streams, next, depth, false)?
+            .complete(self.attention.gpu)
+    }
+    pub(super) fn forward_deferred(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+        defer_write: bool,
+    ) -> Result<super::gdn::LayerOutput> {
         let before = self.snapshot();
-        let out = self
-            .residual
-            .forward(streams, |x| self.attention.forward(x, false), next, depth);
+        let out = self.residual.forward(
+            streams,
+            |x| self.attention.forward(x, false),
+            next,
+            depth,
+            defer_write,
+        );
         if out.is_err() {
             self.restore(&before)?;
         }

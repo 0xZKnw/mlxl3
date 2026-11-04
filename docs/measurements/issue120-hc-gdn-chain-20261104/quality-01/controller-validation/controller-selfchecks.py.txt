@@ -1,0 +1,266 @@
+"""Deterministic CPU checks of the real P13 evidence validators; never calls main."""
+
+import argparse
+import copy
+import hashlib
+import json
+import runpy
+import subprocess
+from contextlib import ExitStack
+from pathlib import Path
+from unittest.mock import patch
+
+
+def no_process(*_args, **_kwargs):
+    raise RuntimeError("selfchecks attempted an external process")
+
+
+def guarded(function, *args, **kwargs):
+    with ExitStack() as stack:
+        for name in ("Popen", "run", "check_output"):
+            stack.enter_context(patch.object(subprocess, name, side_effect=no_process))
+        return function(*args, **kwargs)
+
+
+def rejected(function, *args):
+    try:
+        guarded(function, *args)
+    except (AssertionError, ValueError, TypeError, KeyError):
+        return
+    raise AssertionError("invalid evidence was accepted")
+
+
+def log_for(phase, payload, summary="test result: ok. 1 passed; 0 failed; 0 ignored;", marker=None):
+    return (
+        "dyld[4242]: /System/Library/Frameworks/Metal.framework/Versions/A/Metal\n"
+        + (phase["marker"] if marker is None else marker)
+        + " "
+        + json.dumps(payload, sort_keys=True)
+        + "\n"
+        + summary
+        + "\n"
+    )
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--controller", type=Path, default=Path(__file__).with_name("run.py"))
+    parser.add_argument(
+        "--output", type=Path, default=Path(__file__).with_name("controller-selfchecks.json")
+    )
+    args = parser.parse_args()
+    namespace = guarded(runpy.run_path, str(args.controller), run_name="__p13_helpers_only__")
+    validate = namespace["validate"]
+    exact_fields = namespace["exact_fields"]
+    plan = json.loads(namespace["PLAN"].read_text())
+    physical = json.loads(namespace["REPORT"].read_text())
+    assert physical["status"] == "essential_validated" and physical["parity"] is True
+    phases = {phase["label"]: phase for phase in plan["phases"]}
+    evidence = {phase["label"]: phase["evidence"] for phase in physical["phases"]}
+    assert set(phases) == set(evidence) == {"component", "model"}
+    for phase in physical["phases"]:
+        assert phase["expected"] == phases[phase["label"]]["expected"]
+
+    report = {
+        "status": "started",
+        "scope": "deterministic CPU evidence-validator checks only; not process/OS/GPU proof",
+        "controller_sha256": hashlib.sha256(args.controller.read_bytes()).hexdigest(),
+        "plan_sha256": hashlib.sha256(namespace["PLAN"].read_bytes()).hexdigest(),
+        "physical_report_sha256": hashlib.sha256(namespace["REPORT"].read_bytes()).hexdigest(),
+        "calls": "actual validate/exact_fields imported by runpy, non-main name; subprocess APIs forbidden",
+        "checks": [],
+    }
+
+    def case(name, function):
+        try:
+            function()
+        except (AssertionError, ValueError, TypeError, KeyError, RuntimeError) as error:
+            report["checks"].append({"name": name, "status": "failed", "error": repr(error)})
+        else:
+            report["checks"].append({"name": name, "status": "passed"})
+
+    def valid(label):
+        payload = copy.deepcopy(evidence[label])
+        actual = guarded(validate, log_for(phases[label], payload), phases[label])
+        assert actual == payload
+
+    def altered(label, edit):
+        payload = copy.deepcopy(evidence[label])
+        edit(payload)
+        rejected(validate, log_for(phases[label], payload), phases[label])
+
+    for label, phase in phases.items():
+        case(label + "-valid", lambda label=label: valid(label))
+        case(
+            label + "-zero-tests",
+            lambda label=label, phase=phase: rejected(
+                validate,
+                log_for(
+                    phase,
+                    evidence[label],
+                    "test result: ok. 0 passed; 0 failed; 0 ignored;",
+                ),
+                phase,
+            ),
+        )
+        case(
+            label + "-missing-marker",
+            lambda label=label, phase=phase: rejected(
+                validate,
+                log_for(phase, evidence[label], marker="UNRELATED_EVIDENCE"),
+                phase,
+            ),
+        )
+        case(
+            label + "-duplicate-marker",
+            lambda label=label, phase=phase: rejected(
+                validate,
+                log_for(phase, evidence[label])
+                + phase["marker"]
+                + " "
+                + json.dumps(evidence[label])
+                + "\n",
+                phase,
+            ),
+        )
+        case(
+            label + "-false-parity",
+            lambda label=label: altered(label, lambda payload: payload.update(parity=False)),
+        )
+        case(
+            label + "-integer-parity",
+            lambda label=label: altered(label, lambda payload: payload.update(parity=1)),
+        )
+        case(
+            label + "-missing-images",
+            lambda label=label, phase=phase: rejected(
+                validate,
+                "\n".join(log_for(phase, evidence[label]).splitlines()[1:]),
+                phase,
+            ),
+        )
+        case(
+            label + "-mlx-loaded",
+            lambda label=label, phase=phase: rejected(
+                validate,
+                log_for(phase, evidence[label]) + "dyld[4242]: /tmp/libmlx.dylib\n",
+                phase,
+            ),
+        )
+
+    case(
+        "component-invalid-half-type",
+        lambda: altered("component", lambda payload: payload["cases"][0].update(half=0)),
+    )
+    case(
+        "component-invalid-half-coverage",
+        lambda: altered("component", lambda payload: payload["cases"][1].update(half=False)),
+    )
+    case(
+        "component-missing-half",
+        lambda: altered("component", lambda payload: payload["cases"].pop()),
+    )
+    case(
+        "component-zero-pairs",
+        lambda: altered("component", lambda payload: payload["cases"][0].update(actual_pairs=0)),
+    )
+    case(
+        "component-waits-wrong",
+        lambda: altered("component", lambda payload: payload["cases"][0].update(joined_waits=2)),
+    )
+    case(
+        "component-finite-words-bool",
+        lambda: altered("component", lambda payload: payload.update(finite_words_per_case=True)),
+    )
+    case(
+        "component-false-recovery",
+        lambda: altered("component", lambda payload: payload["cases"][0].update(recovery=False)),
+    )
+    case("model-step-missing", lambda: altered("model", lambda payload: payload["steps"].pop()))
+    case(
+        "model-35-joins",
+        lambda: altered("model", lambda payload: payload["steps"][0].update(actual_pairs=35)),
+    )
+    case(
+        "model-waits-wrong",
+        lambda: altered(
+            "model",
+            lambda payload: payload["steps"][0].update(
+                joined_waits=payload["steps"][0]["joined_waits"] + 1
+            ),
+        ),
+    )
+    case(
+        "model-commands-wrong",
+        lambda: altered(
+            "model",
+            lambda payload: payload["steps"][0].update(
+                joined_commands=payload["steps"][0]["joined_commands"] + 1
+            ),
+        ),
+    )
+    case(
+        "model-bool-count",
+        lambda: altered("model", lambda payload: payload["steps"][0].update(control_commands=True)),
+    )
+    case(
+        "model-zero-waits",
+        lambda: altered("model", lambda payload: payload["steps"][0].update(joined_waits=0)),
+    )
+    case(
+        "model-legacy-joins",
+        lambda: altered(
+            "model", lambda payload: payload["steps"][0].update(legacy_continuation_pairs=1)
+        ),
+    )
+    case(
+        "model-snapshot-wrong",
+        lambda: altered("model", lambda payload: payload["steps"][0].update(snapshot_position=2)),
+    )
+    case(
+        "model-token-bool",
+        lambda: altered("model", lambda payload: payload["steps"][1].update(token=True)),
+    )
+    case(
+        "model-token-float",
+        lambda: altered("model", lambda payload: payload["steps"][1].update(token=1.0)),
+    )
+
+    case(
+        "exact-fields-valid-extra-field",
+        lambda: guarded(
+            exact_fields, {"count": 2, "ids": [1, 3], "extra": False}, {"count": 2, "ids": [1, 3]}
+        ),
+    )
+    case("exact-fields-missing-key", lambda: rejected(exact_fields, {}, {"count": 1}))
+    case("exact-fields-bool-as-int", lambda: rejected(exact_fields, {"count": True}, {"count": 1}))
+    case(
+        "exact-fields-int-as-bool", lambda: rejected(exact_fields, {"parity": 1}, {"parity": True})
+    )
+    case(
+        "exact-fields-bool-list-item",
+        lambda: rejected(exact_fields, {"ids": [True, 3]}, {"ids": [1, 3]}),
+    )
+    case("exact-fields-list-length", lambda: rejected(exact_fields, {"ids": [1]}, {"ids": [1, 3]}))
+    report["status"] = (
+        "passed" if all(check["status"] == "passed" for check in report["checks"]) else "failed"
+    )
+    report["test_count"] = len(report["checks"])
+    report["subprocesses_launched"] = 0
+    report["GPU_main_invoked"] = False
+    args.output.write_text(json.dumps(report, indent=2) + "\n")
+    print(
+        json.dumps(
+            {
+                "status": report["status"],
+                "test_count": report["test_count"],
+                "failed": [check for check in report["checks"] if check["status"] != "passed"],
+            },
+            indent=2,
+        )
+    )
+    raise SystemExit(0 if report["status"] == "passed" else 1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,110 @@
+{
+  "status": "qualified_short_screen_with_MAIN_control_drift",
+  "outputs_checked": 16,
+  "parity": true,
+  "all_children_joined": true,
+  "prompts": {
+    "MAIN": {
+      "reference_decode_tps": [
+        6.62559026258902,
+        6.970369083345431
+      ],
+      "chain_decode_tps": [
+        6.915489383346499,
+        7.070144882918757
+      ],
+      "reference_median": 6.797979672967225,
+      "chain_median": 6.992817133132628,
+      "relative_decode_percent": 2.8661083077401894,
+      "reference_drift_percent": 5.203744981080138,
+      "chain_drift_percent": 2.236363777011796,
+      "all_chain_gt_all_reference": false,
+      "metrics": {
+        "elapsed_seconds": {
+          "reference": [
+            17.1729805,
+            17.179775708
+          ],
+          "chain": [
+            17.275904083,
+            17.184604417
+          ],
+          "median_relative_percent": 0.31366418271530083
+        },
+        "ttft_seconds": {
+          "reference": [
+            12.494126667,
+            12.732359958
+          ],
+          "chain": [
+            12.793198542,
+            12.799954166
+          ],
+          "median_relative_percent": 1.4534964319471433
+        },
+        "end_to_end_ttft_seconds": {
+          "reference": [
+            12.494131542,
+            12.732365083
+          ],
+          "chain": [
+            12.79320375,
+            12.799966583
+          ],
+          "median_relative_percent": 1.453526081923795
+        }
+      }
+    },
+    "HOLD": {
+      "reference_decode_tps": [
+        6.920605704948898,
+        6.9413246191346945
+      ],
+      "chain_decode_tps": [
+        6.990193097319612,
+        7.037675979735512
+      ],
+      "reference_median": 6.930965162041796,
+      "chain_median": 7.013934538527562,
+      "relative_decode_percent": 1.1970825786307149,
+      "reference_drift_percent": 0.2993800697384197,
+      "chain_drift_percent": 0.6792785514624589,
+      "all_chain_gt_all_reference": true,
+      "metrics": {
+        "elapsed_seconds": {
+          "reference": [
+            16.626021666,
+            16.332845167
+          ],
+          "chain": [
+            16.067548,
+            16.160891708
+          ],
+          "median_relative_percent": -2.216177906543393
+        },
+        "ttft_seconds": {
+          "reference": [
+            12.146625958,
+            11.866824208
+          ],
+          "chain": [
+            11.63274625,
+            11.756011040999999
+          ],
+          "median_relative_percent": -2.60142907696157
+        },
+        "end_to_end_ttft_seconds": {
+          "reference": [
+            12.146630291,
+            11.866838750000001
+          ],
+          "chain": [
+            11.6327515,
+            11.756026582999999
+          ],
+          "median_relative_percent": -2.601419049173692
+        }
+      }
+    }
+  }
+}
