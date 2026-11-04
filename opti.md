@@ -24066,3 +24066,7 @@ Décision parent explicite : conserver HEADS1 comme élimination de travail vali
 - I75-FLASH-STATIC-K-DEFAULT quality01 ar-absent result=validated,parity=True,elapsed=59.99s,joined=True,remaining=[]; allrawpreserved.
 
 - I75-FLASH-STATIC-K-DEFAULT quality01 final=validated,parity=True,all_children_joined=True,elapsed=98.78s; no speedmeasurement.
+
+## I75-AR-COMPOSE-KCB-HC-20261104 — préenregistré AVANT composition/code
+
+BasePR117b56df620, conserveranciensHCf026/16bcd etartéfactsd62/1e282. Composerles2mécanismesqualifiésK/CB+HC, puisdéfautHC1uniquementdeviceAppleM5physiquementqualifié(explicite0rollback/1expérimentalautresGPU,invalidesrefusés). AucunKshader/table/grillemodifié. Plan docs/measurements/issue75-native-ar-compose-20261104/protocol.json. CPUcibleprivéeAPFS+packageclean,fmt/strict3configs/fullCPU-direct-compat/buildsréels,MLX_ROOTexplicite,MACOSX_DEPLOYMENT_TARGET26.2 ;Kanihelperréelboolhardware/absence/UTF8<=4/unwind10justifié,sansassume,ancienséchecsnonréinterprétés. Aprèsdrain+grantroot : qualitéCOMPOSÉEaveccompteursK+HCactifs/fullARprefix0/2/9+indépendants+bridge+budget avantvitesse. RootABBA32MAIN/HOLD,mêmebinaireA(K0/HC0)contreB(K1/HC1),NT2=1fixé,3GiB53x48/4lecteurs/lookahead0/reuseOFF. Aucuneadditionpourcentages, aucunboostensembleavantmesure,statutsqualité/perf/intégrationséparés. Stadeinitial : préenregistré, sourcecompositionpasencoremodifiée,aucunGPUautorisé.
