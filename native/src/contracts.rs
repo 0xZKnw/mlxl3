@@ -3,9 +3,51 @@
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn flash_nt2_flag(value: Option<&str>) -> Option<bool> {
     match value {
-        None | Some("0") => Some(false),
-        Some("1") => Some(true),
+        Some("0") => Some(false),
+        None | Some("1") => Some(true),
         Some(_) => None,
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn native_flash_nt2_default_and_supported_overrides_are_exact() {
+    let present: bool = kani::any();
+    let enabled: bool = kani::any();
+    let literal = if enabled { "1" } else { "0" };
+    let actual = flash_nt2_flag(present.then_some(literal));
+    assert_eq!(actual, Some(!present || enabled));
+    kani::cover!(!present);
+    kani::cover!(present && !enabled);
+    kani::cover!(present && enabled);
+}
+
+/// All valid UTF-8 strings of zero through four bytes, plus an absent setting.
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn native_flash_nt2_flag_default_and_bounded_unicode_literals() {
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    if !present {
+        assert_eq!(flash_nt2_flag(None), Some(true));
+        kani::cover!(!present);
+    } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+        let expected = if length == 1 && bytes[0] == 0x30 {
+            Some(false)
+        } else if length == 1 && bytes[0] == 0x31 {
+            Some(true)
+        } else {
+            None
+        };
+        assert_eq!(flash_nt2_flag(Some(value)), expected);
+        kani::cover!(value == "0");
+        kani::cover!(value == "1");
+        kani::cover!(value.is_empty());
+        kani::cover!(value == " 1");
+        kani::cover!(value == "é");
     }
 }
 
@@ -43,7 +85,7 @@ pub(crate) fn flash_reference_groups(output: u32, nt: u32) -> Option<u32> {
 #[test]
 fn native_flash_resident_nt2_keeps_defaults_scope_and_tail_boundaries() {
     for (value, expected) in [
-        (None, Some(false)),
+        (None, Some(true)),
         (Some("0"), Some(false)),
         (Some("1"), Some(true)),
         (Some(""), None),

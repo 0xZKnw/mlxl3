@@ -1,0 +1,154 @@
+{
+  "status": "preregistered_not_run",
+  "created_utc": "2026-11-04T09:51:28.896722+00:00",
+  "trial": "I75-AR-HC-CURRENT-20261104 physical qualification",
+  "source_commit": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "artifacts": {
+    "direct-cli": {
+      "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/mlxl3-rs",
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/direct-cli",
+      "sha256": "1e282c471a8e525191d69d5e2b1c7b11b21923dd3d747654d5c0d5f99a8608c4",
+      "bytes": 10101792
+    },
+    "native-libtest": {
+      "source_path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/cargo-target/release/deps/mlxl3_native-bd13435986c206bf",
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+      "sha256": "7bde83431cd09e871ff86266d4f0add5061ed9b6303e24de63cce46d87f2aea8",
+      "bytes": 9056672
+    },
+    "budget-fixture": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+      "sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006",
+      "source_commit": "cb93d1b342e0b9b4ab3abd107c06783f98e32d5f",
+      "behavior": "fixture invokes new CLI via explicit MLXL3_FLASH_TEST_CLI; no cached old production engine",
+      "current_test_body_sha256": "df16efe3efadc26c4aac31bd21ed4cbe00d5333101f02b9c464522d749e65dcb",
+      "body_identity": "current source function byte-identical to fixture sourcecb93"
+    }
+  },
+  "environment_policy": "Remove inherited MLXL3_/DYLD_ variables then apply listed settings and phaseoverrides. MLXL3_FLASH_REQUEST_MIB absent except budgetfixture internallysets8192; no draft model env. HCcandidate1/NT2qualified1; candidatecomponenttests toggleHCinternally.",
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_AR_HC_CHAIN": "1",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0"
+  },
+  "phases": [
+    {
+      "label": "hc-component",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::hc::tests::joint_write_read_keeps_buffers_values_and_rejects_invalid_inputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;4cases51216finiteF32words bit-exact vs unchained,actualhelpercommands2->1, strided/mixedF16-F32/error/recovery/foreignMetal checks.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "hc-independent-writes",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::hc::tests::frozen_residual_writes_preserve_mixed_precision_rounding",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {
+        "MLXL3_HC_FROZEN": "/Users/justin/Documents/mix-stq1_0/build/flash-hc-oracle",
+        "MLXL3_HC_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+      },
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;independentfrozen6cases61440finiteF32outputwords bit-exact; F16/F32branches,errorargumentorder; manifest matches priorprovenance726e7e2a.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "hc-full-ar",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::flash::tests::hc_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {},
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;prefix0/2/9,248320finitehalflogits+hidden and84states perprefix;86409216finiteF32statewords bitexact;48actualjointpairs and48fewerhelpercommands perforward;lateIOrollback/invalidtoken/emptyprefill/recovery.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "target-independent-states",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 180,
+      "expected": "Exactly1selected pass/0ignored;84states28803072finiteF32wordsmatcharchivedindependenthashes,496640finitehalflogits,resetprefill/continuation;nonzeroprefetchsubmitted/published,inflight0. Lookahead1required byexistingfixture,correctnessonly.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "production-ar-bridge",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/docs/measurements/issue75-native-ar-hc-current-20261104/ar-bridge.json",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240,
+      "expected": "Reportstatusverified/paritytrue,4completegolden9f850af1cbba074b+text/cachecontextequal,invalidmessagesrefused,context+deltaSIGUSR1cancel/recovery,48x53slots,noMLXMetalDYLD,allownedchildrenjoined.",
+      "status": "not_run",
+      "parity": false
+    },
+    {
+      "label": "production-ar-budget",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "environment_override": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/frozen/direct-cli",
+        "MLXL3_FLASH_TEST_CACHE_GIB": "0.6"
+      },
+      "timeout_seconds": 360,
+      "expected": "Exactly1selectedpass/0ignored;oldfixturebodybyteidenticaltosourcecb93,invokesfreshCLIexplicitly;8GiBrequestbudgetARonly,2completeindependentgoldenresponses,memory-saverstatescleared,readers0,ledgerallocated>0,noMLX,shutdownjoined. MTP/DFlashconfiguration/generaterequestsareonlyrejected;noMTP/DFlashmodel/draftinference. Internal0.6GiBqualityonly,nospeedcomparison.",
+      "status": "not_run",
+      "parity": false
+    }
+  ],
+  "ownership": "One phase/process/model at a time, start_new_session and hard outer timeout; on failure persist parityfalse/status then TERM5s/KILL15s ownedprocessgroup and wait/reap allchildren. ExistingRustfixturealso owns/reapsnativeCLI. Abort speed eligibility on any missingmarker/nonemptycounts/finiteness/parity/selectedtest/dyldaudit failure.",
+  "quality_contract": "All six phases must pass before model speed. No executablecodechange after freeze; hash-check binaries beforelaunch and recordsource/dyld/process/power/results. Exactlyone ignoredGPUtest deliberatelyselected per Rustphase; a zero-testfiltercannotpass.",
+  "concurrency": "Metadata preparation only; static-K owns GPU now. Do not launch until root explicitgrant and allcompilers/provers/otherinference drained.",
+  "scope": "AR only; no draft downloads/MTP/DFlashinference, no speedmeasurement inthisplan,no swapstop, no app/mainmerge/release.",
+  "limits": "Boundedsourcechecks do notproveMetal/allocator/queue/lifetimes/concurrency. CurrentKani90stimeoutnoverdict, oldICE/187/97stimeouts remainvisible. Snapshot/rollback differencing plusindependentarchives/realbridge qualify thisfixedpoint only."
+}

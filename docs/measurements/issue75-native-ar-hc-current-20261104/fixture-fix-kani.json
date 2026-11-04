@@ -1,0 +1,26 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--manifest-path",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-hc-current/mix-stq1_0/build/hc-current/fixture-fix-kani/source/Cargo.toml",
+    "--lib",
+    "--no-default-features",
+    "--features",
+    "direct-metal,chat",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "actual_corrected_hc_full_ar_fixture",
+    "--output-format",
+    "terse"
+  ],
+  "status": "completed",
+  "scope": "Actual corrected fixed physical test body in disposable source copy; expose test/counters to cfg(kani) and explicit proof wrapper only. No Metal/FS stubs, no rewritten state model. Fixedprefixes0/2/9; attempt is not symbolicGPUproof.",
+  "source_sha256": "c704fbdb73a6ddebdfa78d4cbf8eb67cc44f6635a463681e7cdbdd6bd262f216",
+  "timeout_seconds": 45,
+  "exit_code": 1,
+  "seconds": 9.880374875006964,
+  "joined": true,
+  "diagnosis": "Kani compiler ICE intrinsics.rs:243:17 before obligations; no source-property verdict; actual changed body selected by explicit proof wrapper"
+}

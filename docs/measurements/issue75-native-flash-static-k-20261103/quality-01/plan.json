@@ -1,0 +1,125 @@
+{
+  "status": "preregistered_not_run",
+  "source_commit": "b8f0323313b046456fa887f54fc12f913613a49b",
+  "binaries": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final": "9825ac7debdfaf22e1d6ea7d532df6451857cf9a35f751878192fba975dd7613",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/direct-cli": "d2ff7420acae31ca0123e5ccff9d12bec5198c47947a739c2c51e016c3b04c8e",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle": "405b025f5c6ecb7c6ca08b18a25b75ff98e7260d3272cc283887ab9b9764284d"
+  },
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0"
+  },
+  "conditions": "Root exclusive GPU grant09:48:11UTC, all3agents CPU drained, AC100%; known desktop Equibop~8%CPU, no other inference; correctness only, no speed claim",
+  "phases": [
+    {
+      "label": "component-0",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/tests/physical_flash_nt2.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-0.json",
+        "--static-k",
+        "0"
+      ],
+      "timeout": 240,
+      "env": {},
+      "kind": "component"
+    },
+    {
+      "label": "component-1",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/tests/physical_flash_nt2.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/component-1.json",
+        "--static-k",
+        "1"
+      ],
+      "timeout": 240,
+      "env": {},
+      "kind": "component"
+    },
+    {
+      "label": "target-0",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NATIVE_FLASH_STATIC_K": "0",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "kind": "target"
+    },
+    {
+      "label": "target-1",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 180,
+      "env": {
+        "MLXL3_NATIVE_FLASH_STATIC_K": "1",
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "kind": "target"
+    },
+    {
+      "label": "memory-1",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/libtest-static-final",
+        "gpu::memory::tests::native_ledger_tracks_aliases_and_request_shrink_preserves_replay",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout": 240,
+      "env": {
+        "MLXL3_NATIVE_FLASH_STATIC_K": "1"
+      },
+      "kind": "memory"
+    },
+    {
+      "label": "ar-1",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/build/static-k/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-static-k/mix-stq1_0/docs/measurements/issue75-native-flash-static-k-20261103/quality-01/ar-1.json",
+        "--timeout",
+        "180"
+      ],
+      "timeout": 240,
+      "env": {
+        "MLXL3_NATIVE_FLASH_STATIC_K": "1"
+      },
+      "kind": "bridge"
+    }
+  ],
+  "cleanup": "Each phase Popen own process group; finite outer timeout; TERM5s/KILL15s on error, parent wait then process-group absence; preserve reports and logs; stop on first failure"
+}

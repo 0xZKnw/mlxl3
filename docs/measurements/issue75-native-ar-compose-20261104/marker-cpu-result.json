@@ -1,0 +1,71 @@
+[
+  {
+    "name": "marker-fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "status": "passed",
+    "pid": 94001,
+    "exit_code": 0,
+    "seconds": 0.5453695839969441,
+    "joined": true
+  },
+  {
+    "name": "marker-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "pid": 94004,
+    "exit_code": 0,
+    "seconds": 1.6503234169795178,
+    "joined": true
+  },
+  {
+    "name": "marker-lib-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--features",
+      "chat",
+      "--lib"
+    ],
+    "status": "passed",
+    "pid": 94055,
+    "exit_code": 0,
+    "seconds": 22.931058917019982,
+    "joined": true
+  },
+  {
+    "name": "marker-release-libtest",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "status": "passed",
+    "pid": 94197,
+    "exit_code": 0,
+    "seconds": 36.12957366698538,
+    "joined": true
+  }
+]

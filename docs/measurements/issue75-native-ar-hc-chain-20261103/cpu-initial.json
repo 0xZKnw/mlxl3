@@ -1,0 +1,50 @@
+{
+  "status": "CPU_direct_passed_remaining_checks_and_physical_pending",
+  "base_main": "599628120c95df45b00a2076ffe466331a9c94f2",
+  "build_source": "9e91e708-dirty",
+  "source_sha256": {
+    "native/src/gpu.rs": "9b4d5ccd68cb92da6f3878a6adff62d71809932374990464b9337bdb41413874",
+    "native/src/gpu/hc.rs": "4832339a12964b2b15bc6984c285c8b5601de0d8adb07325963aee28b2f89f0a",
+    "native/src/gpu/gdn.rs": "b04157ddcef3c4486ca43d5cc5ceec631561d3a2564d7eb000432ecb50db5ea4",
+    "native/src/gpu/flash.rs": "0e515aa2bab4df6f92075347d3ad5705f56a79f1abe6baa65e01870198d2198a",
+    "native/src/flash_support.rs": "31a108c2857043b676687b237f15562a327a2da19e511744bc1bf81129c37129"
+  },
+  "artifacts": [
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-packaging/mix-stq1_0/build/issue75hccore/target-release/release/deps/mlxl3_rs-9fc39270fa4706fb",
+      "test": true,
+      "sha256": "6bf9ab165a440eb50ebd332ec07b1dc29bdfee05b77ce554aae8313ba0e8cca3",
+      "bytes": 4049536
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-packaging/mix-stq1_0/build/issue75hccore/target-release/release/deps/mlxl3_native-4fcc6c8116a33ded",
+      "test": true,
+      "sha256": "7df23d8e76ed7cb67452cf4c034dab046eaac45a962ade0f0e1723d9f226d65f",
+      "bytes": 9017504
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-packaging/mix-stq1_0/build/issue75hccore/target-release/release/mlxl3-rs",
+      "test": false,
+      "sha256": "ba90cf834b6b7a43a135ebc09580510e75342be8fb3da950f164396df6e5d8c8",
+      "bytes": 10061264
+    }
+  ],
+  "checks": {
+    "direct": {
+      "passed": 337,
+      "ignored": 37
+    },
+    "CPU": {
+      "passed": 329,
+      "ignored": 9
+    },
+    "strict_direct_CPU_clippy": "passed",
+    "release_all_targets": "passed129s",
+    "compatibility": "initial no-default mlx/chat command failed missing optional metal in inherited array.rs539; corrected default-direct+mlx/chat pending after trace",
+    "Kani_flag": "normal CBMC stopped after187s, mutant after97s; no verdict, no weakened domain",
+    "actual_GPU_Kani": "unmatched test selector after18s; no actual path verified",
+    "mutant_deterministic": "pending next CPU slot",
+    "physical": "not run",
+    "native_gain": "not measured"
+  }
+}

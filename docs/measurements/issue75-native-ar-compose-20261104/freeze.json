@@ -1,0 +1,51 @@
+{
+  "status": "CPU_drained_physical_pending",
+  "time_utc": "2026-11-04T10:48:03.381239+00:00",
+  "source_parent": "5e63912ff1b3ff382950576fd7e29eb03dfa2b8e",
+  "source_state": "dirtyonlycomposedM5HCdefault+activationtestmarkers/contractnames/inventory;KshadersunchangedPR117",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "source_sha256": {
+    "native/src/gpu.rs": "f980c3714bb074f2dcc2cbd68ed5e7e1a47dd79f970e2539758a7f27ee96e225",
+    "native/src/gpu/flash.rs": "5bf62101876f519927194f48767aa9c801a359211efd0d05948695003726743f",
+    "native/src/flash_support.rs": "b95997296a0cb47576c37fadccd4850e2046de678f27b79a55f8ac76cfad0ef3",
+    "native/src/gpu/hc.rs": "4832339a12964b2b15bc6984c285c8b5601de0d8adb07325963aee28b2f89f0a",
+    "native/src/gpu/gdn.rs": "57495fa007372a90295b3fc63d263baeda2eeb76000e0483a9d8a1834e4dd95c",
+    "native/src/gpu/projection.rs": "15def64cb237cc25d4df9aa5a5f1d527cd3d31aec6a1f1ab01cead1039b2c3d6",
+    "native/src/flash_qmv.rs": "24989321f1d4b78a8e7a0566593f61c5ee8959738d213d59d38ed9da7063bd16",
+    "native/shaders/flash_projection.metal": "87a497173ad84314ba56babfb6914c90d8c243dac051f30890fe3be805bcb351",
+    "native/shaders/flash_static_qmv.metal": "7ea92d537787e5d95f50cb03d009fd40a8375b5806e6eb9755457b59af0d3e15",
+    "native/shaders/_qmv_tile_kernel.metal": "27e37f490799673a62f07138cb6fb8c5b3e787fc7fbc9168668a59cf1c15bc88",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/shaders/flash_hc_gemv.metal": "15130e24ee4e48a9f4f001969b9b0681e10dd49d8cecc3a6801b4c0274ee3159",
+    "scripts/kani_obligations.json": "429b9bed9033e2fa80e569dd86f1bff9ebb8075b6960f912bd31adbb6be82b0c",
+    "tests/test_kani_ci.py": "a42131a3a5e55ea54e8719882d5cb5ac7926df9fd04729f5982d0faabfeddb59",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9"
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/cargo-target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2"
+  },
+  "CPU_checks": "fmt/inventory246/strictCPU-direct-compat/full333/342/378passed9/41/259ignored;Python6passed44skipped+2exactpolicychecks pass; aftermarkerstrictdirectandlibrary253/37 pass;releaseactualCLI+libtestminos26.2",
+  "proof": "hc-default-proof.json,all237checks and7covers inspected;7unreachablelisted",
+  "mutation": "actualhelper+actualunit extractedbyteexact:Nonefalsemutationfails101;originalpasses0;notformalproof",
+  "independent_review": "Staticagentread-onlyno concrete runtimefinding;HCexactM5/defaultoverrides,resourceownership,Ksourceidentity androllbackchecked",
+  "GPU": "not run;requires rootgrant;candidatedefaultabsenceandactualHC/Kcountersstrict."
+}

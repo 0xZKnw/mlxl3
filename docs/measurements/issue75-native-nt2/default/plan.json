@@ -1,0 +1,76 @@
+{
+  "status": "preregistered_not_run",
+  "scope": "Actual new unconfigured NT2 default versus explicit1 and explicit0 rollback; no speculative generation",
+  "environment_policy": "Clear inherited MLXL3_/DYLD_ settings; outer MLXL3_NATIVE_FLASH_NT2 must be absent",
+  "environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0"
+  },
+  "artifacts": {
+    "default-direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-direct-cli",
+      "sha256": "57e4ccd88f2fa3fd80af4fa30837fa2352ba46fa80619f333cf718becef853e7",
+      "bytes": 10067776
+    },
+    "default-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-libtest",
+      "sha256": "cdac996f463f9267c427f86f0afe56da0508057618c5499bbff8dbedc0731893",
+      "bytes": 9009360
+    },
+    "default-stock-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-stock-cli",
+      "sha256": "d4ec788612ed8021917ca3b662f49ba31a2848954324b3d77378d8dd9e727dbb",
+      "bytes": 11844272
+    }
+  },
+  "phases": [
+    {
+      "label": "component-default",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/tests/physical_flash_nt2.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-libtest",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default/component.json"
+      ],
+      "timeout_seconds": 240,
+      "expected": "48cases per setting0/1/absent;30 actualNT2 encodes for1/absent,0 for0; fullword equality, malformed/unsupported controls; projection-only fc_hidden exclusion, no MTP session/generation"
+    },
+    {
+      "label": "target-default",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment_override": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 180,
+      "expected": "84states/28803072finiteF32+496640half logits, continuation/reset/prefill, nonzero actualprefetch; setting absent"
+    },
+    {
+      "label": "ar-default",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default-direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/default/ar.json"
+      ],
+      "timeout_seconds": 240,
+      "expected": "independent AR2 token hash, error/context+delta cancel/recovery,48x53slots, noMLX; setting absent"
+    }
+  ]
+}

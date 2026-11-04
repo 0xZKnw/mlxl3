@@ -326,10 +326,12 @@ impl<'a> LayerResidual<'a> {
             .as_ref()
             .context("missing attention injection gate")?;
         let attention = attend(&read.mixed)?;
-        let written = self.attn_hc.write(streams, &attention.values, gate)?;
+        let (written, mlp_read) =
+            self.mlp_hc
+                .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
         Ok(self
             .mlp_hc
-            .forward_moe_lookahead(&written, &mut self.moe, false, next, depth)?
+            .forward_moe_read(&written, &mut self.moe, mlp_read, next, depth)?
             .0)
     }
 }
