@@ -3521,3 +3521,50 @@ fn native_prefetch_room_rejects_invalid_ownership_counts() {
     assert_eq!(native_prefetch_room(usize::MAX, 0), None);
     assert_eq!(native_prefetch_room(0, usize::MAX), None);
 }
+
+/// Experimental HC kernels remain off unless explicitly selected on qualified M5.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_kernel_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    hc_chain_flag(value, false).map(|enabled| enabled && qualified_m5)
+}
+
+#[test]
+fn hc_kernels_default_off_and_reject_non_literals() {
+    for m5 in [false, true] {
+        assert_eq!(hc_kernel_flag(None, m5), Some(false));
+        assert_eq!(hc_kernel_flag(Some("0"), m5), Some(false));
+        assert_eq!(hc_kernel_flag(Some("1"), m5), Some(m5));
+        for value in ["", "01", "true", " 1", "1\n", "é"] {
+            assert_eq!(hc_kernel_flag(Some(value), m5), None);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals() {
+    let m5: bool = kani::any();
+    let bytes: [u8; 4] = kani::any();
+    let length = usize::from(kani::any::<u8>() % 5);
+    let present: bool = kani::any();
+    if !present {
+        assert_eq!(hc_kernel_flag(None, m5), Some(false));
+        kani::cover!(m5);
+        kani::cover!(!m5);
+    } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
+        let result = hc_kernel_flag(Some(value), m5);
+        assert_eq!(
+            result,
+            match value {
+                "0" => Some(false),
+                "1" => Some(m5),
+                _ => None,
+            }
+        );
+        kani::cover!(value == "1" && m5 && result == Some(true));
+        kani::cover!(value == "1" && !m5 && result == Some(false));
+        kani::cover!(value == "0");
+        kani::cover!(value == "é" && result.is_none());
+    }
+}

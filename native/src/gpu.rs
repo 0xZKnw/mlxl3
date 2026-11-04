@@ -209,6 +209,12 @@ pub struct Metal {
     hc_chain: std::cell::Cell<bool>,
     hc_gate_chain: std::cell::Cell<bool>,
     hc_gdn_chain: std::cell::Cell<bool>,
+    hc_up_mix: std::cell::Cell<bool>,
+    hc_down_inject: std::cell::Cell<bool>,
+    #[cfg(test)]
+    hc_up_mix_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    hc_down_inject_uses: std::cell::Cell<usize>,
     #[cfg(test)]
     hc_gdn_pairs: std::cell::Cell<usize>,
     ssd_direct_enabled: bool,
@@ -321,6 +327,17 @@ impl Metal {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
+            let hc_kernel_setting = |name: &str| -> Result<bool> {
+                let value = match std::env::var(name) {
+                    Ok(value) => Some(value),
+                    Err(std::env::VarError::NotPresent) => None,
+                    Err(error) => return Err(error.into()),
+                };
+                crate::flash_support::hc_kernel_flag(value.as_deref(), qualified_m5)
+                    .with_context(|| format!("{name} must be 0 or 1"))
+            };
+            let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
+            let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             let hc_gdn_chain = match std::env::var("MLXL3_NATIVE_HC_GDN_CHAIN") {
                 Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -559,8 +576,8 @@ impl Metal {
             let route_half = pipeline("route_half")?;
             let route_float = pipeline("route_float")?;
             let hc = [
-                hc::Pipelines::load(&pipeline, "half")?,
-                hc::Pipelines::load(&pipeline, "float")?,
+                hc::Pipelines::load(&pipeline, "half", false, false)?,
+                hc::Pipelines::load(&pipeline, "float", hc_up_mix, hc_down_inject)?,
             ];
             let mtp_hidden_qmv = pipeline("flash_mtp_hidden_qmv")?;
             let mtp_norm = pipeline("mtp_hidden_norm")?;
@@ -577,6 +594,12 @@ impl Metal {
                 hc_chain: std::cell::Cell::new(hc_chain),
                 hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
                 hc_gdn_chain: std::cell::Cell::new(hc_gdn_chain),
+                hc_up_mix: std::cell::Cell::new(hc_up_mix),
+                hc_down_inject: std::cell::Cell::new(hc_down_inject),
+                #[cfg(test)]
+                hc_up_mix_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                hc_down_inject_uses: std::cell::Cell::new(0),
                 #[cfg(test)]
                 hc_gdn_pairs: std::cell::Cell::new(0),
                 ssd_direct_enabled,

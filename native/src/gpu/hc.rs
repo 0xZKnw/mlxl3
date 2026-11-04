@@ -16,11 +16,15 @@ pub(super) struct Pipelines {
     activate: ComputePipelineState,
     mix: ComputePipelineState,
     write: ComputePipelineState,
+    up_mix: Option<ComputePipelineState>,
+    down_inject: Option<ComputePipelineState>,
 }
 impl Pipelines {
     pub(super) fn load(
         pipeline: &impl Fn(&str) -> Result<ComputePipelineState>,
         suffix: &str,
+        up_mix: bool,
+        down_inject: bool,
     ) -> Result<Self> {
         let stage = |name: &str| pipeline(&format!("hc_{name}_{suffix}"));
         Ok(Self {
@@ -30,6 +34,12 @@ impl Pipelines {
             activate: stage("activate")?,
             mix: stage("mix")?,
             write: stage("write")?,
+            up_mix: (suffix == "float" && up_mix)
+                .then(|| stage("up_mix"))
+                .transpose()?,
+            down_inject: (suffix == "float" && down_inject)
+                .then(|| stage("down_inject"))
+                .transpose()?,
         })
     }
 }
@@ -54,7 +64,8 @@ pub(super) struct ReadBuffers {
     normalized: MatrixView,
     down: MatrixView,
     active: MatrixView,
-    up: MatrixView,
+    up: Option<MatrixView>,
+    _raw_gate: Option<MatrixView>,
     mixed: MatrixView,
     gate: Option<MatrixView>,
 }
@@ -68,6 +79,7 @@ impl ReadBuffers {
             down,
             active,
             up,
+            _raw_gate,
             mixed,
             gate,
         } = self;
@@ -80,7 +92,9 @@ impl ReadBuffers {
                         normalized: normalized.read_output()?,
                         down: down.read_output()?,
                         active: active.read_output()?,
-                        up: up.read_output()?,
+                        up: up
+                            .context("HC trace requires materialized up")?
+                            .read_output()?,
                     })
                 })
                 .transpose()?,
@@ -259,32 +273,110 @@ impl<'a> FlashHc<'a> {
             );
             Ok(a)
         };
-        let down = gemv(&normalized, &self.down, 320)?;
+        let fused_up = crate::contracts::flash_hc_kernel_eligible(
+            self.gpu.hc_up_mix.get(),
+            trace,
+            x.dtype == FloatType::F32,
+        );
+        let fused_down = self.inject.is_some()
+            && crate::contracts::flash_hc_kernel_eligible(
+                self.gpu.hc_down_inject.get(),
+                trace,
+                x.dtype == FloatType::F32,
+            );
+        let (down, raw_gate) = if fused_down {
+            let pipeline = p
+                .down_inject
+                .as_ref()
+                .context("HC down/inject pipeline not loaded")?;
+            let (count, threads) = crate::contracts::flash_hc_down_inject_dispatch(10240, 320, 4)
+                .context("invalid joint HC dimensions")?;
+            ensure!(
+                pipeline.thread_execution_width() == 32
+                    && pipeline.max_total_threads_per_threadgroup() >= u64::from(threads),
+                "unsupported joint HC geometry"
+            );
+            let down = output(320, storage)?;
+            let gate = output(4, storage)?;
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[
+                    &normalized.buffer,
+                    &self.down,
+                    self.inject.as_ref().context("missing HC injection")?,
+                    &down.buffer,
+                    &gate.buffer,
+                ],
+                [320u32, 4],
+                groups(count),
+                threads as usize,
+            );
+            #[cfg(test)]
+            self.gpu
+                .hc_down_inject_uses
+                .set(self.gpu.hc_down_inject_uses.get() + 1);
+            (down, Some(gate))
+        } else {
+            (gemv(&normalized, &self.down, 320)?, None)
+        };
         let active = activate(&down, false)?;
-        let up = gemv(&active, &self.up, 10240)?;
+        let up = if fused_up {
+            None
+        } else {
+            Some(gemv(&active, &self.up, 10240)?)
+        };
         #[cfg(test)]
         let mixed_scope = crate::flash_profile::span("native.hc.result.mixed");
         let mixed = output(2560, Storage::StorageModeShared)?;
         #[cfg(test)]
         drop(mixed_scope);
-        Metal::encode(
-            cmd,
-            &p.mix,
-            &[&up.buffer, &normalized.buffer, &mixed.buffer],
-            [2560u32],
-            groups(80),
-            32,
-        );
-        let gate = self
-            .inject
-            .as_ref()
-            .map(|w| activate(&gemv(&normalized, w, 4)?, true))
-            .transpose()?;
+        if fused_up {
+            let pipeline = p.up_mix.as_ref().context("HC up/mix pipeline not loaded")?;
+            let (count, threads) = crate::contracts::flash_hc_up_mix_dispatch(320, 10240, 2560)
+                .context("invalid fused HC dimensions")?;
+            ensure!(
+                pipeline.thread_execution_width() == 32
+                    && pipeline.max_total_threads_per_threadgroup() >= u64::from(threads),
+                "unsupported fused HC geometry"
+            );
+            Metal::encode(
+                cmd,
+                pipeline,
+                &[&active.buffer, &self.up, &normalized.buffer, &mixed.buffer],
+                [2560u32],
+                groups(count),
+                threads as usize,
+            );
+            #[cfg(test)]
+            self.gpu
+                .hc_up_mix_uses
+                .set(self.gpu.hc_up_mix_uses.get() + 1);
+        } else {
+            let up = up.as_ref().context("missing HC up output")?;
+            Metal::encode(
+                cmd,
+                &p.mix,
+                &[&up.buffer, &normalized.buffer, &mixed.buffer],
+                [2560u32],
+                groups(80),
+                32,
+            );
+        }
+        let gate = match raw_gate.as_ref() {
+            Some(raw) => Some(activate(raw, true)?),
+            None => self
+                .inject
+                .as_ref()
+                .map(|w| activate(&gemv(&normalized, w, 4)?, true))
+                .transpose()?,
+        };
         Ok(ReadBuffers {
             normalized,
             down,
             active,
             up,
+            _raw_gate: raw_gate,
             mixed,
             gate,
         })
@@ -769,3 +861,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "hc_kernel_tests.rs"]
+mod hc_kernel_tests;

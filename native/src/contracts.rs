@@ -3255,3 +3255,110 @@ fn native_prompt_reuse_rejects_partial_states_and_mismatched_requests() {
         );
     }
 }
+
+/// These F32-only variants retain legacy materialization for component tracing.
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_hc_kernel_eligible(enabled: bool, trace: bool, f32: bool) -> bool {
+    enabled && !trace && f32
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_hc_up_mix_dispatch(
+    input: u32,
+    normalized: u32,
+    output: u32,
+) -> Option<(u32, u32)> {
+    ((input, normalized, output) == (320, 10240, 2560)).then_some((320, 256))
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn flash_hc_down_inject_dispatch(
+    input: u32,
+    down: u32,
+    inject: u32,
+) -> Option<(u32, u32)> {
+    ((input, down, inject) == (10240, 320, 4)).then_some((81, 256))
+}
+
+#[test]
+fn hc_fused_grids_preserve_two_outputs_and_exact_stream_coverage() {
+    assert_eq!(
+        flash_hc_down_inject_dispatch(10240, 320, 4),
+        Some((81, 256))
+    );
+    assert_eq!(flash_hc_up_mix_dispatch(320, 10240, 2560), Some((320, 256)));
+    for value in [0, 1, 319, 321, 324, 10239, u32::MAX] {
+        assert_eq!(flash_hc_down_inject_dispatch(value, 320, 4), None);
+        assert_eq!(flash_hc_up_mix_dispatch(value, 10240, 2560), None);
+    }
+    assert_eq!(flash_hc_down_inject_dispatch(10240, 324, 0), None);
+    assert_eq!(flash_hc_up_mix_dispatch(320, 10240, 2559), None);
+    assert_eq!(flash_hc_dispatch(10240, 324), None);
+    let mut coverage = [0u8; 10240];
+    for group in 0..320 {
+        for sg in 0..8 {
+            for m in 0..4 {
+                let row = (sg / 2) * 2560 + group * 8 + (sg % 2) * 4 + m;
+                coverage[row] += 1;
+            }
+        }
+    }
+    assert!(coverage.iter().all(|&count| count == 1));
+    for enabled in [false, true] {
+        for trace in [false, true] {
+            for f32 in [false, true] {
+                assert_eq!(
+                    flash_hc_kernel_eligible(enabled, trace, f32),
+                    enabled && !trace && f32
+                );
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds() {
+    let (a, b, c): (u32, u32, u32) = kani::any();
+    assert_eq!(
+        flash_hc_up_mix_dispatch(a, b, c).is_some(),
+        (a, b, c) == (320, 10240, 2560)
+    );
+    assert_eq!(
+        flash_hc_down_inject_dispatch(a, b, c).is_some(),
+        (a, b, c) == (10240, 320, 4)
+    );
+    let (enabled, trace, f32): (bool, bool, bool) = kani::any();
+    assert_eq!(
+        flash_hc_kernel_eligible(enabled, trace, f32),
+        enabled && !trace && f32
+    );
+    kani::cover!(enabled && !trace && f32);
+    kani::cover!(enabled && trace && f32);
+    kani::cover!(enabled && !trace && !f32);
+    let group: u32 = kani::any();
+    let sg: u32 = kani::any();
+    let m: u32 = kani::any();
+    let k: u32 = kani::any();
+    if let Some((groups, threads)) = flash_hc_up_mix_dispatch(320, 10240, 2560) {
+        assert_eq!((groups, threads), (320, 256));
+        if group < groups && sg < 8 && m < 4 && k < 320 {
+            let row = (sg / 2) * 2560 + group * 8 + (sg % 2) * 4 + m;
+            assert!(row < 10240 && row * 320 + k < 10240 * 320);
+            assert!(group * 8 + (sg % 2) * 4 + m < 2560);
+            assert!((sg / 2) * 8 + (sg % 2) * 4 + m < 32);
+            kani::cover!(row == 10239 && k == 319);
+        }
+    }
+    if let Some((groups, threads)) = flash_hc_down_inject_dispatch(10240, 320, 4) {
+        assert_eq!((groups, threads), (81, 256));
+        if group < groups && m < 4 && k < 10240 {
+            let injection = group == 80;
+            let row = if injection { m } else { group * 4 + m };
+            let rows = if injection { 4 } else { 320 };
+            assert!(row < rows && row * 10240 + k < rows * 10240);
+            kani::cover!(injection && row == 3 && k == 10239);
+            kani::cover!(!injection && row == 319 && k == 10239);
+        }
+    }
+}

@@ -78,6 +78,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+        "contracts::hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds",
         "hc_gdn_policy_tests::hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
         "hc_gdn_policy_tests::hc_gdn_flag_preserves_qualified_defaults_and_exact_literals",
         "ssd_reads::direct_tests::native_direct_destination_requires_exact_shared_extent",

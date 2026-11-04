@@ -1,0 +1,199 @@
+{
+  "status": "cpu_ready_physical_GPU_unverified",
+  "commands": {
+    "fmt": [
+      "/Users/justin/.cargo/bin/cargo",
+      "fmt",
+      "--all"
+    ],
+    "inventory": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py"
+    ],
+    "clippy": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "tests": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--features",
+      "chat"
+    ],
+    "kani": [
+      "/Users/justin/.cargo/bin/cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "-Z",
+      "stubbing",
+      "--harness",
+      "hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds",
+      "--harness",
+      "hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
+      "--output-format",
+      "terse"
+    ],
+    "metal": [
+      "xcrun",
+      "-sdk",
+      "macosx",
+      "metal",
+      "-c",
+      "native/shaders/exl3.metal",
+      "-o",
+      "build/issue125-hc/exl3.air"
+    ],
+    "release-cli": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "--bin",
+      "mlxl3-rs",
+      "--message-format=json"
+    ],
+    "release-libtest": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ]
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "build/issue125-hc/cargo-target",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "metal_success_environment": {
+      "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer"
+    }
+  },
+  "results": {
+    "clippy": "pass_initial_and_final",
+    "first_fullsuite": {
+      "passed": 354,
+      "ignored": 55
+    },
+    "final_fullsuite": "failed_on_temporary_319_grid_mutation_due_to_overlapped_launch; source_restored; requires_rerun",
+    "kani": {
+      "harnesses_passed": 2,
+      "checks": 301,
+      "covers_satisfied": 12,
+      "unreachable": 7,
+      "unreachable_scope": "UTF8 standard-library guards, not functional HC assertion"
+    },
+    "mutation": "wrong319grid_detected_by_Kani_and_unit; restored_Kani_pass",
+    "metal": "default_xcrun_missing; explicit_Xcode_success_20_existing_other_shader_warnings",
+    "gpu": "not_run_no_grant",
+    "release": {
+      "cli": "pass35.96s",
+      "libtest": "pass61s"
+    },
+    "restored_fullsuite": {
+      "passed": 354,
+      "ignored": 55
+    },
+    "Python": {
+      "Ruff": "pass",
+      "pytest": "44skipped_Linux_only",
+      "direct_manifest_checks": 2,
+      "CrossHair": "absent_not_verified"
+    },
+    "frozen_artifacts": {
+      "direct-cli": {
+        "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/frozen/direct-cli",
+        "sha256": "1e378cf32442031d5acd45e6c3c9dbf61bc27cb54a7d81056bf31ca9314a9edd",
+        "bytes": 10141280,
+        "minos": "26.2",
+        "sdk": "27.2"
+      },
+      "native-libtest": {
+        "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/frozen/native-libtest",
+        "sha256": "8c0425b9e0127500f0b99c46dac9f1ada9b3401d8a9c05cdb3da9807c82d4c4a",
+        "bytes": 9376944,
+        "minos": "26.2",
+        "sdk": "27.2"
+      }
+    }
+  },
+  "logs": {
+    "clippy.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/clippy.log",
+      "sha256": "2fd02067929ff4a083926ec6c27c5c50d0643c5fa0c4ebf0e3e23c7b7f952600",
+      "bytes": 412
+    },
+    "clippy-final.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/clippy-final.log",
+      "sha256": "70862d6ffaa1a237f65a1f5f2d10a0e7846284d1180cc39d48bab775b1a95647",
+      "bytes": 412
+    },
+    "tests.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/tests.log",
+      "sha256": "7f816453b4e0ebe4f7c866fe5c0a0b0662ed311c81dd924cf7bec78a126f456d",
+      "bytes": 42530
+    },
+    "tests-final.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/tests-final.log",
+      "sha256": "07148862dceb4bc4414ac15249796fd32bccc30a0415fd720786b33284ca79a5",
+      "bytes": 33272
+    },
+    "kani.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/kani.log",
+      "sha256": "e918dc2288c702654b39d410a03107189420cdfbd8334b5c2de3b0c5a1d12cbd",
+      "bytes": 10745
+    },
+    "mutation-mutant.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/mutation-mutant.log",
+      "sha256": "b62442bb5daf1b1e13ee7d571f8e908b1390fbb76dd5d58312b7ed80f5f97a7e",
+      "bytes": 10503
+    },
+    "mutation-restored.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/mutation-restored.log",
+      "sha256": "720c477aea55044f6ecc2dd172b7cee149f6390b1c24b56a4f4bda8b18d4310b",
+      "bytes": 10177
+    },
+    "mutation.json": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/mutation.json",
+      "sha256": "82387e6f6286407902ce36fa3ae42a026e17f7ce3107140ae057ab88d9c272bb",
+      "bytes": 408
+    },
+    "inventory-initial.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/inventory-initial.log",
+      "sha256": "393b7dc3be576aab89706a384140ecc8d9c92794a94df27273255c6cfd73e78b",
+      "bytes": 277
+    },
+    "inventory.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/inventory.log",
+      "sha256": "05a9b590ed9bfaa0505f0d6b24dbea0cbe64207e56b6708b88d0fe03a2e39504",
+      "bytes": 39
+    },
+    "metal.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/metal.log",
+      "sha256": "572c1cca65a25a3855dff4e21e7acdb5779374334322757e18491b3ae8ff6506",
+      "bytes": 78
+    },
+    "metal-xcode.log": {
+      "path": "/Users/justin/.codex/worktrees/issue125-hc-kernels/mix-stq1_0/build/issue125-hc/metal-xcode.log",
+      "sha256": "17ba7e4a99ccd84dd81e51240b1aa24067879bd8dc8909fe1f75dd288dce93c2",
+      "bytes": 5621
+    }
+  },
+  "archive_manifest": "build-manifest.json"
+}

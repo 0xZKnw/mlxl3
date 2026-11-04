@@ -106,3 +106,65 @@ HC_KERNELS(half,"hc_norm_half","hc_narrow_half","hc_wide_half","hc_activate_half
 HC_KERNELS(float,"hc_norm_float","hc_narrow_float","hc_wide_float","hc_activate_float","hc_mix_float","hc_write_float")
 #undef HC_KERNELS
 #undef HC_GEMV_PARAMS
+
+// F32-only exact up GEMV + four-stream mix. Each SIMD group keeps hc_wide's
+// K320/BN1 FMA and shuffle sequence; only independent output rows are regrouped.
+kernel void hc_up_mix_float(const device float* x [[buffer(0)]],
+    const device half* weight [[buffer(1)]], const device float* normalized [[buffer(2)]],
+    device float* out [[buffer(3)]], constant uint* dims [[buffer(4)]],
+    uint lane [[thread_index_in_simdgroup]], uint sg [[simdgroup_index_in_threadgroup]],
+    uint group [[threadgroup_position_in_grid]]) {
+    #pragma clang fp contract(off)
+    uint stream = sg / 2;
+    uint local = (sg % 2) * 4;
+    uint output = stream * 2560 + group * 8 + local;
+    float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    uint column = lane * 4;
+    for (uint block = 0; block < (320 + 128 - 1) / 128; ++block) {
+        float coeff[4];
+        for (uint n = 0; n < 4; ++n) coeff[n] = column + n < 320 ? x[column + n] : 0.0f;
+        for (uint m = 0; m < 4; ++m) {
+            for (uint n = 0; n < 4; ++n) {
+                float w = column + n < 320 ? float(weight[(output + m) * 320 + column + n]) : 0.0f;
+                result[m] = fma(w, coeff[n], result[m]);
+            }
+        }
+        column += 128;
+    }
+    for (uint m = 0; m < 4; ++m) {
+        for (ushort delta = 16; delta >= 1; delta >>= 1) result[m] += simd_shuffle_down(result[m], delta);
+    }
+    threadgroup float up[32];
+    if (lane == 0) {
+        for (uint m = 0; m < 4; ++m) up[stream * 8 + local + m] = float(result[m]);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (sg == 0 && lane < 8) {
+        float sum = 0;
+        for (uint s = 0; s < 4; ++s) {
+            uint i = s * 2560 + group * 8 + lane;
+            sum += hc_sigmoid(up[s * 8 + lane]) * normalized[i];
+        }
+        out[group * 8 + lane] = sum * 0.25f;
+    }
+}
+
+// The final group computes injection's four rows, with its own zero-offset output.
+// All groups reuse the original narrow GEMV body and reduction order verbatim.
+kernel void hc_down_inject_float(const device float* x [[buffer(0)]],
+    const device half* down_weight [[buffer(1)]], const device half* inject_weight [[buffer(2)]],
+    device float* down_out [[buffer(3)]], device float* inject_out [[buffer(4)]],
+    constant uint* dims [[buffer(5)]], uint thread_index_in_simdgroup [[thread_index_in_simdgroup]],
+    uint simdgroup_index_in_threadgroup [[simdgroup_index_in_threadgroup]],
+    uint3 group [[threadgroup_position_in_grid]]) {
+    const device half* weight = group.x < 80 ? down_weight : inject_weight;
+    device float* out = group.x < 80 ? down_out : inject_out;
+    uint3 threadgroup_position_in_grid = uint3(group.x < 80 ? group.x : 0, 0, 0);
+#define K 10240
+#define BM 1
+#define BN 8
+#include "flash_hc_gemv.metal"
+#undef K
+#undef BM
+#undef BN
+}
