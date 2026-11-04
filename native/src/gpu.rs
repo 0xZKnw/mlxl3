@@ -277,9 +277,9 @@ impl Metal {
             }
             .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
             let hc_gate_chain = match std::env::var("MLXL3_NATIVE_AR_HC_GATE_CHAIN") {
-                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
-                    crate::flash_support::hc_chain_flag(None, false)
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
                 }
                 Err(error) => return Err(error.into()),
             }
@@ -298,16 +298,20 @@ impl Metal {
                 };
             let flash_fixed_setting = if qualified_m5 {
                 match std::env::var("MLXL3_NATIVE_FLASH_FIXED_DIMS") {
-                    Ok(value) => crate::flash_qmv::fixed_flag(Some(&value)),
-                    Err(std::env::VarError::NotPresent) => crate::flash_qmv::fixed_flag(None),
+                    Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                    Err(std::env::VarError::NotPresent) => {
+                        crate::flash_support::hc_chain_flag(None, qualified_m5)
+                    }
                     Err(std::env::VarError::NotUnicode(_)) => None,
                 }
             } else {
                 Some(false)
             };
             let flash_expert_scratch_setting = match std::env::var("MLXL3_NATIVE_ROUTED_SCRATCH") {
-                Ok(value) => crate::flash_expert_scratch::flag(Some(&value)),
-                Err(std::env::VarError::NotPresent) => crate::flash_expert_scratch::flag(None),
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
+                }
                 Err(std::env::VarError::NotUnicode(_)) => None,
             };
             let options = CompileOptions::new();

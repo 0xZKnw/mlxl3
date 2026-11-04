@@ -141,14 +141,6 @@ fn native_static_qmv_flag_preserves_default_and_bounded_utf8_literals() {
 
 pub(crate) const FIXED_SHAPES: [[u32; 2]; 2] = [[2560, 640], [640, 2560]];
 
-pub(crate) fn fixed_flag(value: Option<&str>) -> Option<bool> {
-    match value {
-        None | Some("0") => Some(false),
-        Some("1") => Some(true),
-        Some(_) => None,
-    }
-}
-
 /// The complete key is checked once for resident and cold-backed projections.
 pub(crate) fn fixed_select(
     shape: [u32; 2],
@@ -173,20 +165,7 @@ pub(crate) fn fixed_select(
 }
 
 #[test]
-fn fixed_qmv_flags_shapes_splits_and_fallbacks_are_exact() {
-    for (value, expected) in [
-        (None, Some(false)),
-        (Some("0"), Some(false)),
-        (Some("1"), Some(true)),
-        (Some(""), None),
-        (Some("true"), None),
-        (Some(" 1"), None),
-        (Some("01"), None),
-        (Some("1\n"), None),
-        (Some("é"), None),
-    ] {
-        assert_eq!(fixed_flag(value), expected);
-    }
+fn fixed_qmv_shapes_splits_and_fallbacks_are_exact() {
     for (key, shape) in FIXED_SHAPES.into_iter().enumerate() {
         assert_eq!(
             fixed_select(shape, 1, [2, 2, 1], true, Some(true)),
@@ -252,29 +231,5 @@ fn native_fixed_qmv_key_checks_complete_shape_split_and_format() {
         kani::cover!(!eligible && setting.is_none());
         kani::cover!(format[0] == 7 && setting == Some(true));
         kani::cover!(splits == 2 && setting == Some(true));
-    }
-}
-
-#[cfg(kani)]
-#[kani::proof]
-#[kani::unwind(10)]
-fn native_fixed_qmv_flag_is_off_by_default_and_exact_bounded_utf8() {
-    let bytes: [u8; 4] = kani::any();
-    let length = usize::from(kani::any::<u8>() % 5);
-    let present: bool = kani::any();
-    if !present {
-        assert_eq!(fixed_flag(None), Some(false));
-        kani::cover!(!present);
-    } else if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
-        let expected = match (length, bytes[0]) {
-            (1, 0x30) => Some(false),
-            (1, 0x31) => Some(true),
-            _ => None,
-        };
-        assert_eq!(fixed_flag(Some(value)), expected);
-        kani::cover!(value == "0");
-        kani::cover!(value == "1");
-        kani::cover!(value.is_empty());
-        kani::cover!(value == "é");
     }
 }

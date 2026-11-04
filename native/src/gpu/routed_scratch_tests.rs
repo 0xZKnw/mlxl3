@@ -127,8 +127,9 @@ fn physical_routed_expert_scratch() -> Result<()> {
     let snapshot = gpu.flash_expert_scratch_setting;
     ensure!(
         snapshot
-            == crate::flash_expert_scratch::flag(
-                std::env::var("MLXL3_NATIVE_ROUTED_SCRATCH").ok().as_deref()
+            == crate::flash_support::hc_chain_flag(
+                std::env::var("MLXL3_NATIVE_ROUTED_SCRATCH").ok().as_deref(),
+                gpu.device_name() == "Apple M5"
             )
     );
     let mut checks = Vec::new();

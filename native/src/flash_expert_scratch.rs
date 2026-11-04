@@ -3,14 +3,6 @@
 pub(crate) const EXTENTS: [[u32; 3]; 3] = [[2560, 640, 640], [2560, 640, 640], [640, 2560, 2560]];
 pub(crate) const CAPACITIES: [u64; 2] = [5120, 10240];
 
-pub(crate) fn flag(value: Option<&str>) -> Option<bool> {
-    match value {
-        None | Some("0") => Some(false),
-        Some("1") => Some(true),
-        Some(_) => None,
-    }
-}
-
 pub(crate) fn select(
     routed: bool,
     extents: [[u32; 3]; 3],
@@ -32,19 +24,7 @@ pub(crate) fn fits([inputs, partials, outputs]: [u32; 3], capacities: [u64; 2]) 
 }
 
 #[test]
-fn routed_scratch_flags_scope_and_prefix_boundaries() {
-    for (value, expected) in [
-        (None, Some(false)),
-        (Some("0"), Some(false)),
-        (Some("1"), Some(true)),
-        (Some(""), None),
-        (Some("true"), None),
-        (Some(" 1"), None),
-        (Some("01"), None),
-        (Some("é"), None),
-    ] {
-        assert_eq!(flag(value), expected);
-    }
+fn routed_scratch_scope_and_prefix_boundaries() {
     assert_eq!(select(true, EXTENTS, None), Err(()));
     assert_eq!(select(false, EXTENTS, None), Ok(false));
     assert_eq!(select(true, EXTENTS, Some(false)), Ok(false));
@@ -111,24 +91,4 @@ fn native_routed_scratch_prefix_capacities_use_wide_arithmetic() {
     assert_eq!(fits(extents, capacities), expected);
     kani::cover!(fits(extents, capacities) && extents[0] == u32::MAX);
     kani::cover!(!fits(extents, capacities) && extents[0] > 0 && extents[1] > 0 && extents[2] > 0);
-}
-
-#[cfg(kani)]
-#[kani::proof]
-#[kani::unwind(10)]
-fn native_routed_scratch_flag_is_default_off_and_strict() {
-    let bytes: [u8; 4] = kani::any();
-    let length = usize::from(kani::any::<u8>() % 5);
-    assert_eq!(flag(None), Some(false));
-    if let Ok(value) = std::str::from_utf8(&bytes[..length]) {
-        let expected = match (length, bytes[0]) {
-            (1, b'0') => Some(false),
-            (1, b'1') => Some(true),
-            _ => None,
-        };
-        assert_eq!(flag(Some(value)), expected);
-        kani::cover!(value == "0");
-        kani::cover!(value == "1");
-        kani::cover!(value == "é");
-    }
 }

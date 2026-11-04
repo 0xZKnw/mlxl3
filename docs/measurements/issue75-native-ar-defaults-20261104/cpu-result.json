@@ -1,0 +1,52 @@
+{
+  "status": "CPU-qualified; default-absence physical pending root grant",
+  "built_from": "508b8260b803bc235219c0a480c6678574fb4c7a + default changes recorded in source hashes",
+  "PR_base_later": "d8438059: later merged CI/analyzer/docs/cfgKani bounds not locally tested in this graph",
+  "suites": {
+    "cpu": {
+      "passed": 336,
+      "ignored": 9
+    },
+    "direct": {
+      "passed": 345,
+      "ignored": 47
+    },
+    "compat": {
+      "passed": 381,
+      "ignored": 265
+    }
+  },
+  "strict_clippy": [
+    "CPU",
+    "direct+chat",
+    "mlx+chat compatibility"
+  ],
+  "format_inventory": "fmt/Ruff/exact247sourceinventory/manifest2removedduplicates passed",
+  "python": {
+    "passed": 2,
+    "skipped": 44,
+    "scope": "portable exact Kani policy; Linux runner tests skipped"
+  },
+  "kani": {
+    "actual_function": "flash_support::hc_chain_flag",
+    "harness": "hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",
+    "checks": 237,
+    "failed": 0,
+    "covers": 7,
+    "unreachable": 7,
+    "unreachable_scope": "std fmt::Arguments/ptr::align_offset/UTF8 guards individually inspected",
+    "seconds": 17.973362,
+    "domain": "symbolic qualifiedM5 bool,presence bool,arbitrary UTF8 length0..4,unwind10,noassume",
+    "limits": "bounded CPU check, not Metal/concurrency/fullgeneration proof"
+  },
+  "mutation": {
+    "actual_shared_function_and_test": true,
+    "original_exit": 0,
+    "None_hardware_to_false_exit": 101
+  },
+  "no_shader_math_selector_change": true,
+  "old_evidence": "root21explicit1quality gates+AR32pilot preserved; no rerun",
+  "all_owned_children_joined": true,
+  "new_GPU_started": false,
+  "publication": "no push/merge/release/app by this agent"
+}

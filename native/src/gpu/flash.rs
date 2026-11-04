@@ -818,6 +818,9 @@ mod tests {
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
         let hc_initially_enabled = gpu.hc_chain.get();
+        let hc_gate_initially_enabled = gpu.hc_gate_chain.get();
+        let fixed_initially_enabled = gpu.flash_fixed_setting == Some(true);
+        let scratch_initially_enabled = gpu.flash_expert_scratch_setting == Some(true);
         let mut model = FlashNext::load(&gpu, &c, 64)?;
         if predictive {
             ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
@@ -943,7 +946,7 @@ mod tests {
         );
         eprintln!(
             "NATIVE_FLASH_COMPOSED_FEATURES {}",
-            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":fixed_submissions,"scratch_enabled":gpu.flash_expert_scratch_setting == Some(true),"scratch_uses":gpu.flash_scratch_uses.get()})
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_gate_initially_enabled":hc_gate_initially_enabled,"fixed_initially_enabled":fixed_initially_enabled,"scratch_initially_enabled":scratch_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":fixed_submissions,"scratch_enabled":gpu.flash_expert_scratch_setting == Some(true),"scratch_uses":gpu.flash_scratch_uses.get()})
         );
         Ok(())
     }
@@ -960,6 +963,15 @@ mod tests {
         );
         let finite =
             |x: &[u16]| x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite());
+        let initially_enabled = [
+            gpu.hc_gate_chain.get(),
+            gpu.flash_fixed_setting == Some(true),
+            gpu.flash_expert_scratch_setting == Some(true),
+        ];
+        eprintln!(
+            "NATIVE_FLASH_INITIAL_DEFAULTS {}",
+            serde_json::json!({"hc_gate":initially_enabled[0],"fixed_dims":initially_enabled[1],"scratch":initially_enabled[2]})
+        );
         let mut expected = Vec::new();
         let mut expected_continuation = None;
         for enabled in [false, true] {
