@@ -1,0 +1,448 @@
+{
+  "pr": "https://github.com/0xZKnw/mlxl3/pull/119",
+  "status": "open_ready_for_review_mergeable",
+  "base": "d843805972d395bccfa380c4e144929e306f498b",
+  "qualified_published_head": "6040e6b5d934cee7e9e17f88375f0e2f6e3f1af7",
+  "runtime_integration": "all three new options default ON only on exact Apple M5; explicit0 rollback; user authorized integration; no merge/release/app replacement",
+  "quality": "21 qualification checks +3 final actual-absence checks passed; frozen f4b5/af2c default artifacts; all owned children/PGIDs joined",
+  "performance": "32tokenABBA againstactualmain942d:decodeunchanged~5.9tok/s;TTFT-7.36/-4.02%;complete-response-5.37/-2.86%;allwarm+measuredfulltext/hash/countparity;allocatedMetal6608617472Bunchanged",
+  "CPU": "336/345/381passed9/47/265ignored;3strictClippy;sharedpolicyKani237checks7coversvalidUTF8<=4/unwind10;notGPUproof",
+  "CI": {
+    "workflow_runs": [
+      {
+        "id": 41830655919,
+        "name": "Apple compatibility contracts",
+        "status": "pending",
+        "conclusion": null,
+        "run_number": 145,
+        "jobs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655919/jobs",
+        "logs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655919/logs",
+        "workflow_id": 401608531
+      },
+      {
+        "id": 41830655780,
+        "name": "Regression checks",
+        "status": "pending",
+        "conclusion": null,
+        "run_number": 580,
+        "jobs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655780/jobs",
+        "logs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655780/logs",
+        "workflow_id": 351551174
+      },
+      {
+        "id": 41830655728,
+        "name": "Native Rust checks",
+        "status": "pending",
+        "conclusion": null,
+        "run_number": 566,
+        "jobs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655728/jobs",
+        "logs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655728/logs",
+        "workflow_id": 356390014
+      },
+      {
+        "id": 41830655612,
+        "name": "Flash profile compatibility",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_number": 136,
+        "jobs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655612/jobs",
+        "logs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655612/logs",
+        "workflow_id": 404455272
+      },
+      {
+        "id": 41830655821,
+        "name": "EXL3 conversion contracts",
+        "status": "queued",
+        "conclusion": null,
+        "run_number": 244,
+        "jobs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655821/jobs",
+        "logs_url": "https://api.github.com/repos/0xZKnw/mlxl3/actions/runs/41830655821/logs",
+        "workflow_id": 383563703
+      }
+    ]
+  },
+  "jobs": [
+    {
+      "run": "Apple compatibility contracts",
+      "run_id": 41830655919,
+      "data": {
+        "jobs": []
+      }
+    },
+    {
+      "run": "Regression checks",
+      "run_id": 41830655780,
+      "data": {
+        "jobs": [
+          {
+            "id": 126577091342,
+            "name": "desktop-and-protocol",
+            "status": "queued",
+            "conclusion": null,
+            "run_id": 41830655780,
+            "logs_url": null,
+            "steps": null
+          },
+          {
+            "id": 126577091651,
+            "name": "native-engine-archive",
+            "status": "queued",
+            "conclusion": null,
+            "run_id": 41830655780,
+            "logs_url": null,
+            "steps": null
+          },
+          {
+            "id": 126577091665,
+            "name": "native-coverage",
+            "status": "in_progress",
+            "conclusion": null,
+            "run_id": 41830655780,
+            "logs_url": null,
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-python@v5",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_native_coverage.py",
+                "status": "in_progress",
+                "conclusion": null,
+                "number": 4
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_flash_run_report.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 5
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_flash_trace_report.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 6
+              },
+              {
+                "name": "Run python -m pip install numpy==2.5.2 safetensors==0.8.0",
+                "status": "pending",
+                "conclusion": null,
+                "number": 7
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_physical_qwen_gdn.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 8
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_physical_mapped_expert.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 9
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_physical_projection_group.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 10
+              },
+              {
+                "name": "Run python -m unittest discover -s tests -p test_physical_flash_nt2.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 11
+              },
+              {
+                "name": "Run python -m py_compile tests/physical_flash_projection.py tests/physical_qwen_gdn.py tests/physical_mapped_expert.py tests/physical_projection_group.py tests/physical_flash_nt2.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 12
+              },
+              {
+                "name": "Run python scripts/check_native_coverage.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 13
+              },
+              {
+                "name": "Run python -m pip install pytest==8.3.5 numpy==2.5.2 safetensors==0.8.0 ruff==0.16.5",
+                "status": "pending",
+                "conclusion": null,
+                "number": 14
+              },
+              {
+                "name": "Run PYTHONPATH=. python -m pytest -q tests/test_physical_flash_ar_bridge.py tests/test_native_json_process.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 15
+              },
+              {
+                "name": "Run PYTHONPATH=. python -m pytest -q tests/test_kani_manifest.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 16
+              },
+              {
+                "name": "Run python -m ruff check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py tests/test_kani_ci.py tests/test_kani_manifest.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 17
+              },
+              {
+                "name": "Run python -m ruff format --check tests/physical_flash_nt2.py tests/test_physical_flash_nt2.py tests/physical_flash_ar_bridge.py tests/test_physical_flash_ar_bridge.py tests/test_kani_ci.py tests/test_kani_manifest.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 18
+              },
+              {
+                "name": "Run PYTHONPATH=src python -m pytest -q tests/test_package_engine.py tests/test_engine_builder.py tests/test_build_manifest.py tests/test_native_quantizer.py tests/test_native_transforms.py tests/test_native_converter_host.py tests/test_native_capture.py tests/test_native_feedback.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 19
+              },
+              {
+                "name": "Run python -m ruff format --check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 20
+              },
+              {
+                "name": "Run python -m ruff check scripts/analyze_native_metal_trace.py tests/test_native_trace_analyzer.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 21
+              },
+              {
+                "name": "Run python -m pytest -q tests/test_native_trace_analyzer.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 22
+              },
+              {
+                "name": "Run python -m ruff format --check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 23
+              },
+              {
+                "name": "Run python -m ruff check src/mlxl3_quantizer/capture.py src/mlxl3_quantizer/transforms.py src/mlxl3_quantizer/native.py src/mlxl3_quantizer/process.py src/mlxl3_quantizer/feedback.py tests/test_native_feedback.py tests/physical_native_feedback.py tests/test_native_capture.py tests/test_native_converter_host.py tests/test_native_transforms.py tests/physical_native_converter_host.py tests/test_native_quantizer.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 24
+              },
+              {
+                "name": "Run python -m ruff format --check scripts/build_manifest.py tests/test_build_manifest.py tests/test_engine_builder.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 25
+              },
+              {
+                "name": "Run python -m ruff check scripts/build_manifest.py tests/test_build_manifest.py tests/test_engine_builder.py",
+                "status": "pending",
+                "conclusion": null,
+                "number": 26
+              },
+              {
+                "name": "Post Run actions/setup-python@v5",
+                "status": "pending",
+                "conclusion": null,
+                "number": 51
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "pending",
+                "conclusion": null,
+                "number": 52
+              }
+            ]
+          },
+          {
+            "id": 126577091862,
+            "name": "desktop-preferences",
+            "status": "queued",
+            "conclusion": null,
+            "run_id": 41830655780,
+            "logs_url": null,
+            "steps": null
+          }
+        ]
+      }
+    },
+    {
+      "run": "Native Rust checks",
+      "run_id": 41830655728,
+      "data": {
+        "jobs": []
+      }
+    },
+    {
+      "run": "Flash profile compatibility",
+      "run_id": 41830655612,
+      "data": {
+        "jobs": [
+          {
+            "id": 126576678552,
+            "name": "python-profile",
+            "status": "completed",
+            "conclusion": "success",
+            "run_id": 41830655612,
+            "logs_url": null,
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-python@v5",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Run python -m pip install pytest==9.1.1 ruff==0.16.5 numpy==2.5.4 crosshair-tool==0.0.101 z3-solver==5.3.3.0",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Check profiler formatting and regressions",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Check historical counters against the actual Python validators",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Check packaged engine backend classification",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Check native trace composite ordering on the bounded name domain",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Run actions/upload-artifact@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Post Run actions/setup-python@v5",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 18
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 19
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "run": "EXL3 conversion contracts",
+      "run_id": 41830655821,
+      "data": {
+        "jobs": [
+          {
+            "id": 126576684596,
+            "name": "packing-proof",
+            "status": "completed",
+            "conclusion": "success",
+            "run_id": 41830655821,
+            "logs_url": null,
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Install CBMC 6.11.0 from the checked release asset",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Verify the shared source under the host address-space model",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              }
+            ]
+          },
+          {
+            "id": 126576684777,
+            "name": "conversion",
+            "status": "queued",
+            "conclusion": null,
+            "run_id": 41830655821,
+            "logs_url": null,
+            "steps": null
+          }
+        ]
+      }
+    }
+  ],
+  "limits": "Only short32token screen/two measuredsamples pervariantprompt; no sustained/sparse>512/longcontext qualification, nonM5 physical paths unmeasured; GPU formal attempts blocked/unsupported. Global CI pending; existing successful profile+packing jobs do not make all CI green.",
+  "receipt": "One final docs-only publication receipt follows the qualified source; no executable modification or repeated benchmark."
+}
