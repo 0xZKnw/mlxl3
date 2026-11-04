@@ -151,6 +151,107 @@ def test_generic_event_or_catalog_never_fabricates_kernel(tmp_path):
     assert result["unknown_or_unmapped"]["GPU_intervals"] == 5
 
 
+def test_aggregated_encoder_preserves_order_repetition_and_whole_duration(tmp_path):
+    fixture(tmp_path)
+    path = tmp_path / f"{trace.ENCODERS}.xml"
+    tree = ET.parse(path)
+    tree.find(
+        ".//metal-object-label"
+    ).text = "mlxl3.kernel/prepare & mlxl3.kernel/qmv & mlxl3.kernel/prepare"
+    tree.write(path)
+    result = trace.analyze(tmp_path, 111)
+    assert result["named_encoder_groups"] == []
+    assert result["aggregated_encoder_groups"] == [
+        {
+            "declared_kernel_sequence": ["prepare", "qmv", "prepare"],
+            "encoders": 1,
+            "gpu_intervals": 3,
+            "raw_duration_ns": 24,
+            "interval_union_ns": 10,
+            "per_encoder_union_sum_ns": 10,
+        }
+    ]
+    assert result["unknown_or_unmapped"] == {"GPU_intervals": 2, "interval_union_ns": 15}
+    output = tmp_path / "aggregate.json"
+    process = subprocess.run(
+        [sys.executable, str(SCRIPT), str(tmp_path), "--pid", "111", "--output", str(output)],
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
+    assert process.returncode == 0, process.stderr
+    assert (
+        json.loads(output.read_text())["aggregated_encoder_groups"]
+        == result["aggregated_encoder_groups"]
+    )
+
+
+def test_composite_label_grammar_preserves_every_ordered_name():
+    names = ("a", "Z", "_", "a1")
+    for length in range(1, 4):
+        for sequence in itertools.product(names, repeat=length):
+            label = " & ".join("mlxl3.kernel/" + name for name in sequence)
+            assert trace._kernel_sequence(label) == sequence
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        None,
+        "",
+        "mlxl3.kernel/a & Compute Command 0",
+        "Compute Command 0 & mlxl3.kernel/a",
+        "mlxl3.kernel/a & mlxl3.kernel/",
+        "mlxl3.kernel/a & mlxl3.kernel/1x",
+        "mlxl3.kernel/a & mlxl3.kernel/é",
+        "mlxl3.kernel/a & mlxl3.kernel/a/b",
+        "mlxl3.kernel/a &  & mlxl3.kernel/b",
+        "mlxl3.kernel/a&mlxl3.kernel/b",
+        "mlxl3.kernel/a &mlxl3.kernel/b",
+        "mlxl3.kernel/a& mlxl3.kernel/b",
+        "mlxl3.kernel/a  & mlxl3.kernel/b",
+        " mlxl3.kernel/a & mlxl3.kernel/b",
+        "mlxl3.kernel/a & mlxl3.kernel/b ",
+        "mlxl3.kernel/a & mlxl3.kernel/b\n",
+    ],
+)
+def test_partial_or_malformed_composite_stays_wholly_unknown(tmp_path, label):
+    assert trace._kernel_sequence(label) is None
+    if label is not None:
+        fixture(tmp_path)
+        path = tmp_path / f"{trace.ENCODERS}.xml"
+        tree = ET.parse(path)
+        tree.find(".//metal-object-label").text = label
+        tree.write(path)
+        result = trace.analyze(tmp_path, 111)
+        # XML cell whitespace is stripped before label interpretation.
+        expected = trace._kernel_sequence(label.strip())
+        if expected is None:
+            assert result["named_encoder_groups"] == []
+            assert result["aggregated_encoder_groups"] == []
+            assert result["unknown_or_unmapped"]["GPU_intervals"] == 5
+
+
+def crosshair_composite_keeps_order_and_repetition(a: int, b: int) -> tuple[str, ...] | None:
+    """Actual parser of two independently selected valid labels.
+
+    pre: 0 <= a < 4 and 0 <= b < 4
+    post: _ == (("a", "Z", "_", "a1")[a], ("a", "Z", "_", "a1")[b])
+    """
+    names = ("a", "Z", "_", "a1")
+    return trace._kernel_sequence("mlxl3.kernel/" + names[a] + " & mlxl3.kernel/" + names[b])
+
+
+def crosshair_bounded_sequence_is_whole(label: str | None) -> tuple[str, ...] | None:
+    """No partial attribution for bounded arbitrary Unicode labels.
+
+    pre: label is None or len(label) <= 128
+    post: _ is None or len(_) > 0
+    post: _ is None or label == " & ".join("mlxl3.kernel/" + name for name in _)
+    """
+    return trace._kernel_sequence(label)
+
+
 @pytest.mark.parametrize(
     "label",
     [

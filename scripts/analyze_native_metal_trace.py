@@ -147,6 +147,18 @@ def _kernel(label: str | None) -> str | None:
     return name if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", name) else None
 
 
+def _kernel_sequence(label: str | None) -> tuple[str, ...] | None:
+    """Keep exported physical-encoder aggregation intact, including repetition.
+
+    post: _ is None or len(_) > 0
+    post: _ is None or label == " & ".join(KERNEL_PREFIX + name for name in _)
+    """
+    if label is None:
+        return None
+    names = tuple(_kernel(part) for part in label.split(" & "))
+    return names if all(name is not None for name in names) else None
+
+
 def analyze(directory: Path, pid: int) -> dict:
     if isinstance(pid, bool) or pid <= 0:
         raise ValueError("pid must be positive")
@@ -189,15 +201,21 @@ def analyze(directory: Path, pid: int) -> dict:
     per_encoder = sum(interval_union_ns(values) for values in intervals.values())
     union = interval_union_ns(all_intervals)
     labels = defaultdict(list)
+    sequences = defaultdict(list)
     unknown = []
     named_encoders = Counter()
+    sequence_encoders = Counter()
     for key, values in intervals.items():
-        name = _kernel(encodings[key][0]) if key in encodings else None
-        if name is None:
+        sequence = _kernel_sequence(encodings[key][0]) if key in encodings else None
+        if sequence is None:
             unknown.extend(values)
-        else:
+        elif len(sequence) == 1:
+            name = sequence[0]
             labels[name].extend(values)
             named_encoders[name] += 1
+        else:
+            sequences[sequence].extend(values)
+            sequence_encoders[sequence] += 1
     groups = []
     for name, values in labels.items():
         groups.append(
@@ -211,6 +229,22 @@ def analyze(directory: Path, pid: int) -> dict:
                     interval_union_ns(v)
                     for k, v in intervals.items()
                     if k in encodings and _kernel(encodings[k][0]) == name
+                ),
+            }
+        )
+    aggregates = []
+    for sequence, values in sequences.items():
+        aggregates.append(
+            {
+                "declared_kernel_sequence": list(sequence),
+                "encoders": sequence_encoders[sequence],
+                "gpu_intervals": len(values),
+                "raw_duration_ns": sum(b - a for a, b in values),
+                "interval_union_ns": interval_union_ns(values),
+                "per_encoder_union_sum_ns": sum(
+                    interval_union_ns(v)
+                    for k, v in intervals.items()
+                    if k in encodings and _kernel_sequence(encodings[k][0]) == sequence
                 ),
             }
         )
@@ -260,12 +294,16 @@ def analyze(directory: Path, pid: int) -> dict:
         },
         "shader_timeline": {"target_rows": len(selected[TIMELINE]), "timing_analyzed": False},
         "named_encoder_groups": sorted(groups, key=lambda g: g["interval_union_ns"], reverse=True),
+        "aggregated_encoder_groups": sorted(
+            aggregates, key=lambda g: g["interval_union_ns"], reverse=True
+        ),
         "unknown_or_unmapped": {
             "GPU_intervals": len(unknown),
             "interval_union_ns": interval_union_ns(unknown),
         },
         "limits": [
             "Named groups require the explicit diagnostic encoder-label contract, not shader-catalog guesses.",
+            "Aggregated encoder sequences preserve whole-group duration; no constituent kernel timing is assigned.",
             "Encoder activity can contain nested/overlapping events; group sums are not exclusive GPU percentages.",
             "No correctness, clean measurement conditions, full-generation coverage or release speed gain is established.",
             "Zero ShaderTimeline rows do not mean zero kernel work or per-kernel timing.",
