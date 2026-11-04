@@ -1,0 +1,167 @@
+{
+  "status": "frozen_ready",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/direct-cli",
+      "sha256": "d419a9ffa3264af50096779760392f4d43f9cd0d40cba2d6297f337e6958a9fb"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/native-libtest",
+      "sha256": "1787abcd74699f612e99b3d220491aa9ff95f0ca6ebeb5df30a169e96054e12d"
+    },
+    "old-budget-fixture": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+      "sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "label": "expert",
+      "test": "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+      "marker": "NATIVE_SSD_DIRECT_EXPERT",
+      "timeout_seconds": 120,
+      "expected": {
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/native-libtest",
+        "gpu::ssd_direct_tests::direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "kind": "rust-marker",
+      "require_initial_direct": true
+    },
+    {
+      "label": "model",
+      "test": "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+      "marker": "NATIVE_SSD_DIRECT_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "compared_state_words": 57606144,
+        "compared_logits": 744960,
+        "initial_archive_states": 84,
+        "finite": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/native-libtest",
+        "gpu::ssd_direct_tests::direct_ssd_preserves_archived_full_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "kind": "rust-marker",
+      "require_initial_direct": true
+    },
+    {
+      "label": "cli4096-full",
+      "kind": "cli-json",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/final-quality/cli4096-full.json",
+        "--context-length",
+        "4096",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240,
+      "report_path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/final-quality/cli4096-full.json",
+      "engine_sha256": "d419a9ffa3264af50096779760392f4d43f9cd0d40cba2d6297f337e6958a9fb"
+    },
+    {
+      "label": "budget-frozen",
+      "kind": "budget",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/direct-cli"
+      }
+    },
+    {
+      "label": "prefix-ar",
+      "kind": "prefix",
+      "marker": "NATIVE_SSD_DIRECT_PREFIX",
+      "expected": {
+        "status": "verified",
+        "parity": true,
+        "completed": 2,
+        "prefix_hits": 1,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/prefix_ar.py",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/direct-cli",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/final-quality"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_PROMPT_CACHE_MIB": "512"
+      }
+    },
+    {
+      "label": "prefetch-fallback",
+      "kind": "rust-marker",
+      "marker": "NATIVE_FLASH_COMPOSED_FEATURES",
+      "expected": {
+        "hc_initially_enabled": true,
+        "hc_gate_initially_enabled": true,
+        "fixed_initially_enabled": true,
+        "scratch_initially_enabled": true,
+        "hc_gate_pairs": 0,
+        "fixed_submissions": [
+          3840,
+          1920
+        ],
+        "scratch_uses": 5760
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen-final/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "environment": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      }
+    }
+  ],
+  "limits": "Six final gates, SSD_DIRECT absent in every process; prefix AR only. No P04/MTP/DFlash or new timing; old explicit1 quality retained. Initial policy true required in component/model markers, release per-token direct counters not exposed.",
+  "source_head": "08a8aa5a9424c64e3fda38e2e4500e9ae34d569a",
+  "freeze_path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/freeze-final.json",
+  "prior_failed_quality": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-ssd-direct-20261104/quality-01/report.json",
+  "freeze_sha256": "6daea1beff7b4c1eda3aed195b34e1486303abaf3f7fd76b349ea6d4ffd58a6b",
+  "root_grant": "exclusive final GPU; all CPU/proofs/builds joined"
+}

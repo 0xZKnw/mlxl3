@@ -1,4 +1,4 @@
-//! Bounded owned disk reads. No GPU pointer crosses the worker boundary.
+//! Bounded owned disk reads. Workers own their entire unpublished destination.
 use crate::{
     checkpoint::TensorInfo,
     flash_support::{EXPERT_BYTES, SlotLease},
@@ -17,9 +17,41 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub(crate) enum ReadPayload {
+    Bytes(Vec<u8>),
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    Shared(metal::Buffer),
+}
+
+impl ReadPayload {
+    #[cfg(test)]
+    fn legacy_bytes(&self) -> &[u8] {
+        match self {
+            Self::Bytes(bytes) => bytes,
+            #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+            Self::Shared(_) => panic!("legacy bytes expected"),
+        }
+    }
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn direct_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    crate::flash_support::hc_chain_flag(value, qualified_m5).map(|enabled| enabled && qualified_m5)
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn direct_read_eligible(enabled: bool, depth: usize, prefetcher: bool) -> bool {
+    enabled && depth == 0 && !prefetcher
+}
+
+#[cfg(any(test, kani, all(target_os = "macos", feature = "direct-metal")))]
+pub(crate) fn direct_destination_valid(bytes: usize, length: u64, shared: bool) -> bool {
+    bytes > 0 && bytes <= EXPERT_BYTES as usize && length == bytes as u64 && shared
+}
+
 pub(crate) struct Completed {
     lease: SlotLease,
-    result: Result<Vec<u8>>,
+    result: Result<ReadPayload>,
     #[cfg(test)]
     timing: (Instant, Instant),
 }
@@ -28,7 +60,7 @@ impl Completed {
     fn new(lease: SlotLease, result: Result<Vec<u8>>) -> Self {
         Self {
             lease,
-            result,
+            result: result.map(ReadPayload::Bytes),
             #[cfg(test)]
             timing: (Instant::now(), Instant::now()),
         }
@@ -46,6 +78,7 @@ struct Read {
     file: File,
     offset: u64,
     bytes: usize,
+    payload: ReadPayload,
     result: Sender<Completed>,
     ticket: Ticket,
     #[cfg(test)]
@@ -53,27 +86,59 @@ struct Read {
 }
 impl Read {
     fn run(self) {
+        let Read {
+            lease,
+            file,
+            offset,
+            bytes,
+            mut payload,
+            result: sender,
+            ticket,
+            #[cfg(test)]
+            gate,
+        } = self;
         #[cfg(test)]
         let started = Instant::now();
         #[cfg(test)]
-        if let Some(gate) = self.gate {
+        if let Some(gate) = gate {
             gate.wait();
         }
-        let result = (|| -> Result<Vec<u8>> {
-            let mut bytes = Vec::new();
-            bytes.try_reserve_exact(self.bytes)?;
-            bytes.resize(self.bytes, 0);
-            self.file.read_exact_at(&mut bytes, self.offset)?;
-            Ok(bytes)
+        let result = (|| -> Result<ReadPayload> {
+            match &mut payload {
+                ReadPayload::Bytes(destination) => {
+                    destination.try_reserve_exact(bytes)?;
+                    destination.resize(bytes, 0);
+                    file.read_exact_at(destination, offset)?;
+                }
+                #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+                ReadPayload::Shared(destination) => {
+                    ensure!(
+                        direct_destination_valid(
+                            bytes,
+                            destination.length(),
+                            destination.storage_mode() == metal::MTLStorageMode::Shared
+                        ),
+                        "invalid owned SSD destination"
+                    );
+                    ensure!(!destination.contents().is_null(), "null SSD destination");
+                    // Only this job owns this fresh allocation. No views or buffer
+                    // clones exist until the completed payload is received.
+                    let target = unsafe {
+                        std::slice::from_raw_parts_mut(destination.contents().cast::<u8>(), bytes)
+                    };
+                    file.read_exact_at(target, offset)?;
+                }
+            }
+            Ok(payload)
         })();
-        drop(self.ticket);
+        drop(ticket);
         let result = Completed {
-            lease: self.lease,
+            lease,
             result,
             #[cfg(test)]
             timing: (started, Instant::now()),
         };
-        let _ = self.result.send(result);
+        let _ = sender.send(result);
     }
 }
 
@@ -127,6 +192,39 @@ impl ReadService {
         self.start(Self::sources(records)?, Duration::from_secs(30))
     }
     #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    pub(crate) fn submit_shared(
+        &self,
+        records: impl IntoIterator<Item = (SlotLease, TensorInfo)>,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
+        self.start_shared(Self::sources(records)?, Duration::from_secs(30), device)
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
+    fn start_shared(
+        &self,
+        reads: Vec<(SlotLease, File, u64, usize)>,
+        limit: Duration,
+        device: &metal::DeviceRef,
+    ) -> Result<ReadBatch> {
+        self.validate_start(reads.len(), false)?;
+        let reads = reads
+            .into_iter()
+            .map(|(lease, file, offset, bytes)| {
+                ensure!(
+                    direct_destination_valid(bytes, bytes as u64, true),
+                    "invalid owned SSD destination extent"
+                );
+                let destination = crate::gpu::buffer(
+                    device,
+                    bytes as u64,
+                    metal::MTLResourceOptions::StorageModeShared,
+                )?;
+                Ok((lease, file, offset, bytes, ReadPayload::Shared(destination)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        self.start_payloads(reads.into_iter(), limit, false)
+    }
+    #[cfg(all(target_os = "macos", feature = "direct-metal"))]
     pub(crate) fn submit_background(
         &self,
         lease: SlotLease,
@@ -169,15 +267,30 @@ impl ReadService {
         limit: Duration,
         background: bool,
     ) -> Result<ReadBatch> {
-        ensure!(reads.len() <= 10, "native SSD demand exceeds one AR cohort");
+        let reads = reads.into_iter().map(|(lease, file, offset, bytes)| {
+            (lease, file, offset, bytes, ReadPayload::Bytes(Vec::new()))
+        });
+        self.start_payloads(reads, limit, background)
+    }
+    fn validate_start(&self, count: usize, background: bool) -> Result<()> {
+        ensure!(count <= 10, "native SSD demand exceeds one AR cohort");
         ensure!(
-            !background || (reads.len() == 1 && self.in_flight() < 4),
+            !background || (count == 1 && self.in_flight() < 4),
             "native prefetch exceeds four readers"
         );
         ensure!(
             background || self.active.load(Ordering::Acquire) == 0,
             "previous native SSD reads are still draining"
         );
+        Ok(())
+    }
+    fn start_payloads(
+        &self,
+        reads: impl ExactSizeIterator<Item = (SlotLease, File, u64, usize, ReadPayload)>,
+        limit: Duration,
+        background: bool,
+    ) -> Result<ReadBatch> {
+        self.validate_start(reads.len(), background)?;
         let (result, receiver) = mpsc::channel();
         let mut batch = ReadBatch {
             receiver,
@@ -188,13 +301,14 @@ impl ReadService {
         };
         #[cfg(test)]
         let count = reads.len();
-        for (lease, file, offset, bytes) in reads {
+        for (lease, file, offset, bytes, payload) in reads {
             self.active.fetch_add(1, Ordering::Relaxed);
             let read = Read {
                 lease,
                 file,
                 offset,
                 bytes,
+                payload,
                 result: result.clone(),
                 ticket: Ticket(self.active.clone()),
                 #[cfg(test)]
@@ -237,7 +351,7 @@ impl ReadBatch {
     pub(crate) fn remaining(&self) -> usize {
         self.remaining
     }
-    pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, Vec<u8>)>> {
+    pub(crate) fn poll(&mut self) -> Result<Option<(SlotLease, ReadPayload)>> {
         ensure!(self.remaining == 1, "prefetch must own one pending read");
         match self.receiver.try_recv() {
             Ok(next) => {
@@ -254,7 +368,7 @@ impl ReadBatch {
             Err(error) => Err(error.into()),
         }
     }
-    pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, Vec<u8>)>> {
+    pub(crate) fn ready(&mut self, all: bool) -> Result<Vec<(SlotLease, ReadPayload)>> {
         let mut completed = Vec::new();
         while self.remaining > 0 {
             let next = if completed.is_empty() || all {
@@ -315,7 +429,7 @@ mod tests {
         let mut words = batch
             .ready(true)?
             .into_iter()
-            .map(|(_, v)| v)
+            .map(|(_, v)| v.legacy_bytes().to_vec())
             .collect::<Vec<_>>();
         words.sort();
         assert_eq!(words, vec![b"23456".to_vec(), b"9abcdef".to_vec()]);
@@ -331,7 +445,7 @@ mod tests {
         drop(broken);
         assert_eq!(pool.in_flight(), 0);
         let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
-        assert_eq!(retry.ready(true)?[0].1, b"0123456789abcdef");
+        assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"0123456789abcdef");
         Ok(())
     }
     #[test]
@@ -353,8 +467,8 @@ mod tests {
         let mut batch = pool.submit([(lease()?, record.clone())])?;
         let result = batch.ready(true)?;
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].1.len(), bytes);
-        assert!(result[0].1.iter().all(|&v| v == 71));
+        assert_eq!(result[0].1.legacy_bytes().len(), bytes);
+        assert!(result[0].1.legacy_bytes().iter().all(|&v| v == 71));
         file.set_len((8 + header.len() + bytes - 1) as u64)?;
         assert!(pool.submit([(lease()?, record)]).is_err());
         Ok(())
@@ -379,7 +493,7 @@ mod tests {
         assert!(timed_out && still_active && refused_reuse);
         assert_eq!(pool.in_flight(), 0);
         let mut retry = pool.start(vec![(lease()?, file, 0, 5)], Duration::from_secs(2))?;
-        assert_eq!(retry.ready(true)?[0].1, b"owned");
+        assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"owned");
         Ok(())
     }
     #[test]
@@ -421,7 +535,7 @@ mod tests {
         assert_eq!(active, 4);
         assert!(refused && polls_empty);
         for read in &mut pending {
-            assert_eq!(read.ready(true)?[0].1, b"owned");
+            assert_eq!(read.ready(true)?[0].1.legacy_bytes(), b"owned");
         }
         assert_eq!(pool.in_flight(), 0);
         assert!(pool.start_mode(Vec::new(), Duration::ZERO, true).is_err());
@@ -479,7 +593,7 @@ mod tests {
             batch
                 .ready(false)?
                 .into_iter()
-                .map(|(_, v)| v)
+                .map(|(_, v)| v.legacy_bytes().to_vec())
                 .collect::<Vec<_>>(),
             vec![vec![2], vec![1]]
         );
@@ -497,3 +611,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/direct_tests.rs"]
+mod direct_tests;

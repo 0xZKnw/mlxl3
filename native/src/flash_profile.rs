@@ -16,6 +16,9 @@ pub(crate) struct Event {
     start_ns: u64,
     end_ns: u64,
     data: Value,
+    allocation_requests: u64,
+    allocation_requested_bytes: u64,
+    allocation_api_ns: u64,
 }
 struct Trace {
     epoch: Instant,
@@ -218,6 +221,9 @@ pub(crate) fn span(name: &str) -> Option<Span> {
                 .expect("profile duration fits u64"),
             end_ns: 0,
             data: Value::Null,
+            allocation_requests: 0,
+            allocation_requested_bytes: 0,
+            allocation_api_ns: 0,
         });
         trace.stack.push(index);
         Some(Span(index))
@@ -225,6 +231,99 @@ pub(crate) fn span(name: &str) -> Option<Span> {
 }
 pub(crate) fn active() -> bool {
     TRACE.with_borrow(Option::is_some)
+}
+
+// Only the innermost event owns a request; ancestor scopes must not count it again.
+pub(crate) fn native_allocation(bytes: u64, api_ns: u64) {
+    TRACE.with_borrow_mut(|trace| {
+        let Some(trace) = trace.as_mut() else { return };
+        let Some(&index) = trace.stack.last() else {
+            return;
+        };
+        let event = &mut trace.events[index];
+        event.allocation_requests = event.allocation_requests.saturating_add(1);
+        event.allocation_requested_bytes = event.allocation_requested_bytes.saturating_add(bytes);
+        event.allocation_api_ns = event.allocation_api_ns.saturating_add(api_ns);
+    });
+}
+
+#[test]
+fn native_allocations_belong_only_to_the_innermost_active_scope() -> Result<()> {
+    native_allocation(99, 99);
+    start(false)?;
+    native_allocation(99, 99);
+    {
+        let outer = span("outer").unwrap();
+        native_allocation(10, 20);
+        {
+            let _inner = span("inner").unwrap();
+            native_allocation(30, 40);
+            native_allocation(50, 60);
+        }
+        outer.data(serde_json::json!({"preserved":true}));
+        native_allocation(70, 80);
+    }
+    let events = finish()?;
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].data["preserved"], true);
+    assert_eq!(
+        (
+            events[0].allocation_requests,
+            events[0].allocation_requested_bytes,
+            events[0].allocation_api_ns
+        ),
+        (2, 80, 100)
+    );
+    assert_eq!(
+        (
+            events[1].allocation_requests,
+            events[1].allocation_requested_bytes,
+            events[1].allocation_api_ns
+        ),
+        (2, 80, 100)
+    );
+    assert_eq!(events[1].parent, Some(0));
+    assert!(!active());
+    start(false)?;
+    {
+        let _scope = span("saturation").unwrap();
+        native_allocation(u64::MAX, u64::MAX);
+        native_allocation(1, 1);
+    }
+    let events = finish()?;
+    assert_eq!(events[0].allocation_requests, 2);
+    assert_eq!(events[0].allocation_requested_bytes, u64::MAX);
+    assert_eq!(events[0].allocation_api_ns, u64::MAX);
+    Ok(())
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(33)]
+fn native_allocation_attributes_two_symbolic_requests_exclusively() {
+    let outer_bytes: u64 = kani::any();
+    let outer_ns: u64 = kani::any();
+    let inner_bytes: u64 = kani::any();
+    let inner_ns: u64 = kani::any();
+    start(false).unwrap();
+    {
+        let _outer = span("outer").unwrap();
+        native_allocation(outer_bytes, outer_ns);
+        {
+            let _inner = span("inner").unwrap();
+            native_allocation(inner_bytes, inner_ns);
+        }
+    }
+    let events = finish().unwrap();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].allocation_requests, 1);
+    assert_eq!(events[0].allocation_requested_bytes, outer_bytes);
+    assert_eq!(events[0].allocation_api_ns, outer_ns);
+    assert_eq!(events[1].allocation_requests, 1);
+    assert_eq!(events[1].allocation_requested_bytes, inner_bytes);
+    assert_eq!(events[1].allocation_api_ns, inner_ns);
+    kani::cover!(outer_bytes == 0 && inner_bytes == u64::MAX);
+    kani::cover!(outer_ns == u64::MAX && inner_ns == 0);
 }
 
 #[cfg(all(target_os = "macos", feature = "direct-metal"))]
@@ -238,7 +337,7 @@ pub(crate) fn native_gpu_interval(command: &metal::CommandBufferRef, owner: &str
     if let Some(event) = span("native.gpu_interval") {
         let start: f64 = unsafe { msg_send![command, GPUStartTime] };
         let end: f64 = unsafe { msg_send![command, GPUEndTime] };
-        event.data(serde_json::json!({"owner":owner,"command_address":command.as_ptr() as usize,"gpu_start_seconds":start,"gpu_end_seconds":end,"valid":start.is_finite() && end.is_finite() && start>0.0 && end>=start,"clock":"Metal GPU seconds; not mapped to CPU Instant epoch"}));
+        event.data(serde_json::json!({"owner":owner,"command_address":command.as_ptr() as usize,"gpu_start_seconds":start,"gpu_end_seconds":end,"valid":start.is_finite() && end.is_finite() && start>0.0 && end>=start,"clock":"MTLCommandBuffer host seconds; no mapping to CPU Instant epoch recorded"}));
     }
 }
 

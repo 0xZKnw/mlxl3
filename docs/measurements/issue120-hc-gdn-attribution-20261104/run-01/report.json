@@ -1,0 +1,42 @@
+{
+  "status": "validated_diagnostic_only",
+  "parity": true,
+  "all_children_joined": true,
+  "artifact": {
+    "path": "/Users/justin/.codex/worktrees/issue120-next-profile/mix-stq1_0/build/hc-gdn/frozen/hc-gdn-libtest",
+    "sha256": "4ef4d51884b4c2982415e91db5dd459acfd9d9fd67062dc25ff37b92d902a7e2",
+    "bytes": 9286384,
+    "minos": "26.2",
+    "sdk": "27.2"
+  },
+  "source_freeze_sha256": "b9f11d4fdc4a0aa14ba63b1342563231c5c113adcd00de5dc233806f1a8f6716",
+  "timeout_seconds": 180,
+  "owner_helper_path": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/run.py",
+  "owner_helper_sha256": "dd4228cd32375bb71c47ce79361c8c81c8f093f92501f3ca36931048ba5fa0c6",
+  "environment": {
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "argv": [
+    "/Users/justin/.codex/worktrees/issue120-next-profile/mix-stq1_0/build/hc-gdn/frozen/hc-gdn-libtest",
+    "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "pid": 38125,
+  "pgid_empty": true,
+  "returncode": 0,
+  "elapsed_seconds": 47.82604770900798,
+  "events": 14271,
+  "mlx_loaded": false
+}

@@ -1,0 +1,267 @@
+{
+  "status": "favorable_short_screen_only",
+  "parity": true,
+  "outputs_checked": 16,
+  "all_children_joined": true,
+  "metrics": {
+    "MAIN": {
+      "decode_tps": {
+        "reference_samples": [
+          6.26222606969262,
+          6.1978289005361455
+        ],
+        "candidate_samples": [
+          6.378087032700966,
+          6.308412487238542
+        ],
+        "reference_median": 6.230027485114382,
+        "candidate_median": 6.343249759969754,
+        "candidate_vs_reference_percent": 1.817363970317909,
+        "reference_drift_percent": -1.0283430914150182,
+        "candidate_drift_percent": -1.0924050597804214,
+        "all_candidates_faster": true
+      },
+      "ttft_seconds": {
+        "reference_samples": [
+          14.011881707999999,
+          14.163666125
+        ],
+        "candidate_samples": [
+          13.453342834,
+          13.846130500000001
+        ],
+        "reference_median": 14.0877739165,
+        "candidate_median": 13.649736667,
+        "candidate_vs_reference_percent": -3.1093432652759767,
+        "reference_drift_percent": 1.0832550556956422,
+        "candidate_drift_percent": 2.919628755816195,
+        "all_candidates_faster": true
+      },
+      "elapsed_seconds": {
+        "reference_samples": [
+          18.962210583,
+          19.165432916
+        ],
+        "candidate_samples": [
+          18.313748208,
+          18.760228708
+        ],
+        "reference_median": 19.0638217495,
+        "candidate_median": 18.536988458,
+        "candidate_vs_reference_percent": -2.763524011201046,
+        "reference_drift_percent": 1.0717227936609452,
+        "candidate_drift_percent": 2.4379525967544113,
+        "all_candidates_faster": true
+      }
+    },
+    "HOLD": {
+      "decode_tps": {
+        "reference_samples": [
+          6.280115432573339,
+          6.242813894408881
+        ],
+        "candidate_samples": [
+          6.447091664510326,
+          6.519806905646639
+        ],
+        "reference_median": 6.26146466349111,
+        "candidate_median": 6.483449285078482,
+        "candidate_vs_reference_percent": 3.545250728343219,
+        "reference_drift_percent": -0.5939626200337722,
+        "candidate_drift_percent": 1.1278766445433464,
+        "all_candidates_faster": true
+      },
+      "ttft_seconds": {
+        "reference_samples": [
+          13.157038583999999,
+          13.408121083
+        ],
+        "candidate_samples": [
+          12.81588425,
+          13.213463416
+        ],
+        "reference_median": 13.282579833499998,
+        "candidate_median": 13.014673833,
+        "candidate_vs_reference_percent": -2.0169726352730954,
+        "reference_drift_percent": 1.9083511642607576,
+        "candidate_drift_percent": 3.102237490948001,
+        "all_candidates_faster": false
+      },
+      "elapsed_seconds": {
+        "reference_samples": [
+          18.093268792,
+          18.37384725
+        ],
+        "candidate_samples": [
+          17.624269375,
+          17.968228958
+        ],
+        "reference_median": 18.233558021,
+        "candidate_median": 17.7962491665,
+        "candidate_vs_reference_percent": -2.398373669013698,
+        "reference_drift_percent": 1.5507339288744815,
+        "candidate_drift_percent": 1.951624635787197,
+        "all_candidates_faster": true
+      }
+    }
+  },
+  "memory_samples": [
+    {
+      "process": 1,
+      "prompt": "MAIN",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 30811176960,
+        "process_compressed_logical_bytes": 4231331840,
+        "process_compressed_peak_logical_bytes": 4586078208,
+        "process_decompressions": 849000,
+        "process_footprint_bytes": 7223416664,
+        "process_id": 32401,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7264016216,
+        "process_start_abstime": 4851866230606
+      }
+    },
+    {
+      "process": 1,
+      "prompt": "HOLD",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 38986317824,
+        "process_compressed_logical_bytes": 4247322624,
+        "process_compressed_peak_logical_bytes": 4586078208,
+        "process_decompressions": 1057916,
+        "process_footprint_bytes": 7210866520,
+        "process_id": 32401,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7264016216,
+        "process_start_abstime": 4851866230606
+      }
+    },
+    {
+      "process": 2,
+      "prompt": "MAIN",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 28259106816,
+        "process_compressed_logical_bytes": 3653468160,
+        "process_compressed_peak_logical_bytes": 3788701696,
+        "process_decompressions": 679473,
+        "process_footprint_bytes": 7219320664,
+        "process_id": 32499,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7255398232,
+        "process_start_abstime": 4855012422012
+      }
+    },
+    {
+      "process": 2,
+      "prompt": "HOLD",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 36653137920,
+        "process_compressed_logical_bytes": 3541532672,
+        "process_compressed_peak_logical_bytes": 3809378304,
+        "process_decompressions": 879770,
+        "process_footprint_bytes": 7216207704,
+        "process_id": 32499,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7260493656,
+        "process_start_abstime": 4855012422012
+      }
+    },
+    {
+      "process": 3,
+      "prompt": "MAIN",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 28836315136,
+        "process_compressed_logical_bytes": 3654713344,
+        "process_compressed_peak_logical_bytes": 3957833728,
+        "process_decompressions": 745134,
+        "process_footprint_bytes": 7212848960,
+        "process_id": 32582,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7251384128,
+        "process_start_abstime": 4858360100593
+      }
+    },
+    {
+      "process": 3,
+      "prompt": "HOLD",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 37449547776,
+        "process_compressed_logical_bytes": 3611115520,
+        "process_compressed_peak_logical_bytes": 4075945984,
+        "process_decompressions": 967646,
+        "process_footprint_bytes": 7216011072,
+        "process_id": 32582,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7251384128,
+        "process_start_abstime": 4858360100593
+      }
+    },
+    {
+      "process": 4,
+      "prompt": "MAIN",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 29471473664,
+        "process_compressed_logical_bytes": 3237773312,
+        "process_compressed_peak_logical_bytes": 3549970432,
+        "process_decompressions": 741190,
+        "process_footprint_bytes": 7235245912,
+        "process_id": 32664,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7263639384,
+        "process_start_abstime": 4861531510226
+      }
+    },
+    {
+      "process": 4,
+      "prompt": "HOLD",
+      "memory": {
+        "mlx_active_bytes": 0,
+        "mlx_cache_bytes": 0,
+        "mlx_peak_bytes": 0,
+        "native_metal_allocated_bytes": 6608617472,
+        "process_compressed_lifetime_logical_bytes": 38244958208,
+        "process_compressed_logical_bytes": 3216195584,
+        "process_compressed_peak_logical_bytes": 3549970432,
+        "process_decompressions": 975046,
+        "process_footprint_bytes": 7222695768,
+        "process_id": 32664,
+        "process_ledger_swapins_logical_bytes": 0,
+        "process_lifetime_peak_bytes": 7265310552,
+        "process_start_abstime": 4861531510226
+      }
+    }
+  ],
+  "limits": [
+    "Two measured samples per prompt/variant; no sustained or sparse-context result.",
+    "Instrumented copy durations are not recovered-time promises.",
+    "No gains added to previous experiments; P04 absent."
+  ]
+}

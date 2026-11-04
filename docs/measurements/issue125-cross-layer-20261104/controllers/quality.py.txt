@@ -1,0 +1,65 @@
+import copy, hashlib, json, os, runpy, subprocess, time
+from pathlib import Path
+ROOT=Path.cwd(); HERE=ROOT/'docs/measurements/issue125-cross-layer-20261104/quality'; HERE.mkdir(exist_ok=True)
+old=runpy.run_path(str(ROOT/'docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt'))
+
+def validate_model(actual):
+ old['exact_fields'](actual,{'parity':True,'compared_state_words':115212288,'compared_logits':1986560,'initial_archive_states':84,'encode_failure_no_commit':True,'late_failure_layer':20,'retained_prefix':True,'recovery':True,'export_fallback':True})
+ steps=actual['steps']; assert type(steps) is list and len(steps)==4
+ for token,step in zip([248044,1,42,7],steps,strict=True):
+  old['exact_fields'](step,{'token':token,'triples':34,'doubles':2,'final_writes':14})
+  assert all(type(step[k]) is int and step[k]>0 for k in ('control_commands','candidate_commands'))
+  assert step['candidate_commands']+34==step['control_commands']
+ return actual
+
+fixture={'parity':True,'compared_state_words':115212288,'compared_logits':1986560,'initial_archive_states':84,'encode_failure_no_commit':True,'late_failure_layer':20,'retained_prefix':True,'recovery':True,'export_fallback':True,'steps':[{'token':t,'triples':34,'doubles':2,'final_writes':14,'control_commands':170,'candidate_commands':136} for t in [248044,1,42,7]]}
+validate_model(fixture); rejected=0
+for field in fixture:
+ bad=copy.deepcopy(fixture); bad.pop(field)
+ try: validate_model(bad)
+ except (AssertionError,KeyError,TypeError): rejected+=1
+ else: raise AssertionError('missing field accepted '+field)
+for field,value in [('triples',0),('triples',True),('doubles',36),('final_writes',48),('token',True),('candidate_commands',0),('candidate_commands',170),('control_commands',float('nan'))]:
+ bad=copy.deepcopy(fixture); bad['steps'][0][field]=value
+ try: validate_model(bad)
+ except (AssertionError,KeyError,TypeError): rejected+=1
+ else: raise AssertionError('bad step accepted '+field)
+for value in [[],fixture['steps'][:3],fixture['steps']*2]:
+ bad=copy.deepcopy(fixture); bad['steps']=value
+ try: validate_model(bad)
+ except (AssertionError,KeyError,TypeError): rejected+=1
+ else: raise AssertionError('bad steps accepted')
+(HERE/'validator-selfchecks.json').write_text(json.dumps({'valid':1,'invalid_rejected':rejected,'unchanged_helpers':'P13 final controller (39+15 checks archived separately)'},indent=2)+'\n')
+freeze=json.loads((HERE.parent/'freeze.json').read_text())
+for key in ['cli','libtest']:
+ item=freeze[key]; assert hashlib.sha256(Path(item['path']).read_bytes()).hexdigest()==item['sha256']
+for file,sha in freeze['sources'].items(): assert hashlib.sha256((ROOT/file).read_bytes()).hexdigest()==sha,file
+env={k:v for k,v in os.environ.items() if not k.startswith(('MLXL3_','DYLD_'))}; env.update({'DYLD_PRINT_LIBRARIES':'1','PYTHONPATH':str(ROOT),'MLXL3_FLASH_MODEL':'/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531','MLXL3_SSD_CACHE_GIB':'3','MLXL3_SSD_READERS':'4','MLXL3_SSD_DYNAMIC_READERS':'0','MLXL3_SSD_LOOKAHEAD_DEPTH':'0','MLXL3_SSD_OVERLAP':'1','MLXL3_SSD_CACHE_POLICY':'auto','MLXL3_SSD_PREDICTOR_DTYPE':'f32','MLXL3_PROMPT_CACHE_MIB':'0','MLXL3_NATIVE_CROSS_LAYER':'1'})
+phases=[('model',[freeze['libtest']['path'],'gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries','--exact','--ignored','--nocapture','--test-threads=1'],'NATIVE_CROSS_LAYER_MODEL',180),('cli',['/Users/justin/Documents/mix-stq1_0/.venv/bin/python','/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py',freeze['cli']['path'],str(HERE)],'NATIVE_SSD_DIRECT_CLI',180)]
+report={'status':'started','parity':False,'all_children_joined':False,'phases':[]}; sink=HERE/'report.json'; assert not sink.exists()
+def save(): sink.write_text(json.dumps(report,indent=2,allow_nan=False)+'\n')
+def journal(s):
+ with (ROOT/'opti.md').open('a') as f: f.write('\nI125-L1 QUALITY '+s+'\n')
+save()
+try:
+ for name,cmd,marker,limit in phases:
+  record={'name':name,'command':cmd,'status':'running','parity':False,'joined':False}; report['phases'].append(record); save(); journal(name+' STARTED exclusive root grant'); child=None; start=time.monotonic()
+  try:
+   with (HERE/(name+'.log')).open('xb') as log:
+    child=subprocess.Popen(cmd,cwd=ROOT,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True); record['pid']=child.pid; save(); code=child.wait(timeout=limit)
+   assert code==0 and not old['members'](child.pid)
+   text=(HERE/(name+'.log')).read_text()
+   if name=='model':
+    assert 'test result: ok. 1 passed; 0 failed; 0 ignored;' in text
+    old['native_images'](text)
+   actual=old['marker'](text,marker)
+   if name=='model': validate_model(actual)
+   else: old['exact_fields'](actual,{'status':'verified','parity':True,'completed':1,'context_length':4096,'token_hash':'9f850af1cbba074b','mlx_loaded':False,'child_joined':True})
+   record.update(status='validated',parity=True,joined=True,seconds=time.monotonic()-start,evidence=actual); save(); journal(name+' VALIDATED '+json.dumps(actual,sort_keys=True)); print(name+' validated',flush=True)
+  except BaseException as error:
+   record.update(status='failed',parity=False,joined=old['stop'](child),error=repr(error)); save(); raise
+ assert len(report['phases'])==2 and all(x['parity'] and x['joined'] for x in report['phases'])
+ report.update(status='validated',parity=True,all_children_joined=True); journal('2/2 VALIDATED no speed measurement')
+except BaseException as error:
+ report.update(status='failed',parity=False,error=repr(error),all_children_joined=all(x['joined'] for x in report['phases'])); journal('FAILED '+repr(error)); raise
+finally: save()

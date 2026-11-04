@@ -1,0 +1,5 @@
+# IO fixture correction: library-test only
+
+Quality01 failed because a partially empty cache did not guarantee the test would reserve the same slot twice. The test-only correction creates a fresh capacity10 cache with nine Ready entries32–40, forcing a unique empty slot for expert22; the same-slot/new-generation assertion remains strict. This fixes the scenario, not the production algorithm.
+
+Source `2b8553a50edd81406c6633ae2937f200424b0e85` changes only the IO fixture relative to the original source hashes. Productionb0dc, CLId860 and original test443c remain byte-identical. The only rebuild was the native library-test,38.00s, frozen separately as `native-libtest-iofix` SHAe9b12a2548f5294da7088b89aa573f5d5da8c048190b21648db0a8c6a7b46ce8. Actual minos26.2/sdk27.2 and source/artifact identities are in [freeze02.json](freeze02.json). Quality01 evidence remains separate. No unchanged Kani, production build or physical test was rerun by this agent. All its CPU children joined before handing control back for quality02. These are build results only; root owns physical quality/performance status.

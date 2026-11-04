@@ -1,0 +1,424 @@
+{
+  "status": "source_artifact_research_complete_no_trial",
+  "base": "c146e9a4 / qualified post-P13 PR124",
+  "input": "/Users/justin/.codex/worktrees/issue120-profile-opportunities/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/native8-profile.json.gz",
+  "input_sha256": "a34cd74a04cd805f3bc1cab8e7beaadb5bb19f1bb574d9b327cf9f12bbba0424",
+  "workload": {
+    "decode_rows": 7,
+    "layer_rows": 336,
+    "context": 4096,
+    "prompt_tokens": 87,
+    "cache_GiB": 3,
+    "slots_per_layer": 53,
+    "readers": 4,
+    "lookahead_depth": 0,
+    "payload": "P01 direct Shared active"
+  },
+  "observations": {
+    "route_occurrences": 3360,
+    "resident_hits": 2263,
+    "records": 1097,
+    "record_bytes": 1248012,
+    "logical_read_bytes": 1369069164,
+    "miss_histogram": {
+      "0": 35,
+      "1": 51,
+      "2": 59,
+      "3": 48,
+      "4": 47,
+      "5": 32,
+      "6": 28,
+      "7": 25,
+      "8": 7,
+      "9": 3,
+      "10": 1
+    },
+    "first_cold_wave_histogram": {
+      "1": 290,
+      "2": 9,
+      "3": 1,
+      "4": 1
+    },
+    "hot_submissions": 301,
+    "intermediate_W1_submissions": 249,
+    "final_submissions": 336,
+    "total_MoE_CBs": 886,
+    "read_call_interval": {
+      "n": 1097,
+      "p50_ms": 0.6895,
+      "p95_ms": 1.368333,
+      "max_ms": 2.667375
+    },
+    "first_read_start_from_MoE_epoch": {
+      "n": 301,
+      "p50_ms": 0.158708,
+      "p95_ms": 0.544958,
+      "max_ms": 0.946666
+    },
+    "last_read_end_minus_W1_submit_nonnegative": {
+      "n": 249,
+      "p50_ms": 0.333083,
+      "p95_ms": 1.16375,
+      "max_ms": 2.2555
+    },
+    "final_submit_minus_last_read_end": {
+      "n": 301,
+      "p50_ms": 0.049708,
+      "p95_ms": 0.115,
+      "max_ms": 0.224792
+    },
+    "progressive_second_wave": {
+      "batches_with_at_least_two_remaining": 187,
+      "positive_completion_spread_batches": 185,
+      "remaining_completion_spread": {
+        "n": 187,
+        "p50_ms": 0.320083,
+        "p95_ms": 0.922959,
+        "max_ms": 1.463292
+      },
+      "some_but_not_all_remaining_finished_by_W1": 18
+    },
+    "dynamic_queue_eligibility": {
+      "batches_jobs_gt4": 96,
+      "records_in_these_batches": 596
+    },
+    "row_counts": {
+      "1": {
+        "hits": 319,
+        "misses": 161
+      },
+      "2": {
+        "hits": 334,
+        "misses": 146
+      },
+      "3": {
+        "hits": 331,
+        "misses": 149
+      },
+      "4": {
+        "hits": 295,
+        "misses": 185
+      },
+      "5": {
+        "hits": 318,
+        "misses": 162
+      },
+      "6": {
+        "hits": 356,
+        "misses": 124
+      },
+      "7": {
+        "hits": 310,
+        "misses": 170
+      }
+    },
+    "layer_counts": {
+      "0": {
+        "hits": 12,
+        "misses": 58,
+        "unique_ids_in_7row_window": 67
+      },
+      "1": {
+        "hits": 24,
+        "misses": 46,
+        "unique_ids_in_7row_window": 48
+      },
+      "2": {
+        "hits": 29,
+        "misses": 41,
+        "unique_ids_in_7row_window": 45
+      },
+      "3": {
+        "hits": 52,
+        "misses": 18,
+        "unique_ids_in_7row_window": 36
+      },
+      "4": {
+        "hits": 39,
+        "misses": 31,
+        "unique_ids_in_7row_window": 46
+      },
+      "5": {
+        "hits": 27,
+        "misses": 43,
+        "unique_ids_in_7row_window": 49
+      },
+      "6": {
+        "hits": 35,
+        "misses": 35,
+        "unique_ids_in_7row_window": 40
+      },
+      "7": {
+        "hits": 27,
+        "misses": 43,
+        "unique_ids_in_7row_window": 50
+      },
+      "8": {
+        "hits": 50,
+        "misses": 20,
+        "unique_ids_in_7row_window": 28
+      },
+      "9": {
+        "hits": 51,
+        "misses": 19,
+        "unique_ids_in_7row_window": 30
+      },
+      "10": {
+        "hits": 50,
+        "misses": 20,
+        "unique_ids_in_7row_window": 28
+      },
+      "11": {
+        "hits": 51,
+        "misses": 19,
+        "unique_ids_in_7row_window": 30
+      },
+      "12": {
+        "hits": 37,
+        "misses": 33,
+        "unique_ids_in_7row_window": 43
+      },
+      "13": {
+        "hits": 58,
+        "misses": 12,
+        "unique_ids_in_7row_window": 27
+      },
+      "14": {
+        "hits": 61,
+        "misses": 9,
+        "unique_ids_in_7row_window": 25
+      },
+      "15": {
+        "hits": 68,
+        "misses": 2,
+        "unique_ids_in_7row_window": 18
+      },
+      "16": {
+        "hits": 63,
+        "misses": 7,
+        "unique_ids_in_7row_window": 20
+      },
+      "17": {
+        "hits": 61,
+        "misses": 9,
+        "unique_ids_in_7row_window": 21
+      },
+      "18": {
+        "hits": 31,
+        "misses": 39,
+        "unique_ids_in_7row_window": 48
+      },
+      "19": {
+        "hits": 49,
+        "misses": 21,
+        "unique_ids_in_7row_window": 34
+      },
+      "20": {
+        "hits": 45,
+        "misses": 25,
+        "unique_ids_in_7row_window": 37
+      },
+      "21": {
+        "hits": 27,
+        "misses": 43,
+        "unique_ids_in_7row_window": 51
+      },
+      "22": {
+        "hits": 23,
+        "misses": 47,
+        "unique_ids_in_7row_window": 52
+      },
+      "23": {
+        "hits": 55,
+        "misses": 15,
+        "unique_ids_in_7row_window": 27
+      },
+      "24": {
+        "hits": 54,
+        "misses": 16,
+        "unique_ids_in_7row_window": 26
+      },
+      "25": {
+        "hits": 58,
+        "misses": 12,
+        "unique_ids_in_7row_window": 26
+      },
+      "26": {
+        "hits": 51,
+        "misses": 19,
+        "unique_ids_in_7row_window": 28
+      },
+      "27": {
+        "hits": 50,
+        "misses": 20,
+        "unique_ids_in_7row_window": 29
+      },
+      "28": {
+        "hits": 37,
+        "misses": 33,
+        "unique_ids_in_7row_window": 42
+      },
+      "29": {
+        "hits": 53,
+        "misses": 17,
+        "unique_ids_in_7row_window": 30
+      },
+      "30": {
+        "hits": 57,
+        "misses": 13,
+        "unique_ids_in_7row_window": 30
+      },
+      "31": {
+        "hits": 63,
+        "misses": 7,
+        "unique_ids_in_7row_window": 24
+      },
+      "32": {
+        "hits": 60,
+        "misses": 10,
+        "unique_ids_in_7row_window": 24
+      },
+      "33": {
+        "hits": 58,
+        "misses": 12,
+        "unique_ids_in_7row_window": 25
+      },
+      "34": {
+        "hits": 37,
+        "misses": 33,
+        "unique_ids_in_7row_window": 43
+      },
+      "35": {
+        "hits": 46,
+        "misses": 24,
+        "unique_ids_in_7row_window": 35
+      },
+      "36": {
+        "hits": 50,
+        "misses": 20,
+        "unique_ids_in_7row_window": 33
+      },
+      "37": {
+        "hits": 33,
+        "misses": 37,
+        "unique_ids_in_7row_window": 45
+      },
+      "38": {
+        "hits": 31,
+        "misses": 39,
+        "unique_ids_in_7row_window": 47
+      },
+      "39": {
+        "hits": 55,
+        "misses": 15,
+        "unique_ids_in_7row_window": 29
+      },
+      "40": {
+        "hits": 55,
+        "misses": 15,
+        "unique_ids_in_7row_window": 28
+      },
+      "41": {
+        "hits": 50,
+        "misses": 20,
+        "unique_ids_in_7row_window": 31
+      },
+      "42": {
+        "hits": 44,
+        "misses": 26,
+        "unique_ids_in_7row_window": 41
+      },
+      "43": {
+        "hits": 63,
+        "misses": 7,
+        "unique_ids_in_7row_window": 21
+      },
+      "44": {
+        "hits": 58,
+        "misses": 12,
+        "unique_ids_in_7row_window": 23
+      },
+      "45": {
+        "hits": 63,
+        "misses": 7,
+        "unique_ids_in_7row_window": 23
+      },
+      "46": {
+        "hits": 53,
+        "misses": 17,
+        "unique_ids_in_7row_window": 31
+      },
+      "47": {
+        "hits": 59,
+        "misses": 11,
+        "unique_ids_in_7row_window": 29
+      }
+    }
+  },
+  "comparison": {
+    "old_P00_input": "/Users/justin/.codex/worktrees/issue120-profile-opportunities/mix-stq1_0/docs/measurements/issue120-native8-profile-20261104/run-01/profile.json.gz",
+    "IDs_hits_logical_bytes_identical_in_all336_layers": true,
+    "timing_comparison": "not attributed; old worker intervals include a different staging lifecycle and profiles are not controlled speed A/B"
+  },
+  "limits": [
+    "Read intervals include syscall/OS scheduling/validation; not NAND time.",
+    "MoE event epochs are CPU-local, not aligned to GPU clock; no device idle or exposed CPU wait inferred.",
+    "No worker IDs, enqueue timestamps or ready-entry/exit spans; queue delay is not isolated.",
+    "The first read start includes main routing/checks/allocation/dispatch plus any queue delay; these costs are not separated.",
+    "Completion spreads and inclusive waits are not recoverable-time estimates and must not be added to GPU durations.",
+    "Seven MAIN rows omit prefill routes, initial cache keys/frequencies and longer history; unsuitable for choosing an allegedly optimal static budget."
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "name": "P02 bounded extra ready wave",
+      "mechanism": "After W1 only when remaining>=3, consume at least2 ready records for one extra intermediate cohort; then final ready(true). Strict1extraCB cap, canonical final plan.routes order. Do not merely call ready(false), which can block and produce1record.",
+      "source_sites": [
+        "native/src/gpu/moe.rs:302-328",
+        "native/src/ssd_reads.rs:369-391"
+      ],
+      "evidence": "W1 first cohort is almost always one record.185 batches have at least two remaining reads whose completion span extends beyond W1; p50 remaining completion spread0.320ms, p950.923ms. These are opportunity indicators only.",
+      "history": "Current native HOT/W1/W2 is already ColdU. Earlier MLX ColdReady starts after2records and has its own qualified history. This candidate is specifically an extra bounded progressive cohort in the native one-record-ready path, not rebranding old ColdU.",
+      "risk": "An extra commit/encoder boundary can cost more than overlap gained; preserve bounded work, strong owners, generation checks, final reduction order and error draining.",
+      "first_test": "Deterministic held middle/tail readers must prove actual extra wave submission before held tail without fabricated counters; independent F16/F32 MoE outputs/routes/full nonempty finite arrays, EOF/timeout/stale-generation recovery, then84-state/logit/continuation model plus real CLIgolden. Only then one AR32 MAIN/HOLD ABBA versus qualified post-P13 fixed binary; no percentage inferred from spans.",
+      "initial_candidate_before_GPU_gap_check": "After W1, consume/encode one more ready(false) cohort before the final ready(true) tail, with a strict one-extra-CB cap and ordered final plan.routes mix. Same reads, allocations, expert kernels and weights; no expert encoder experiment.",
+      "GPU_gap_analysis": "build/research-ssd-gpu-gaps.json",
+      "threshold_refinement": {
+        "policy_not_implemented": "remaining>=3; collect at least2 ready records; at most1extraCB; final all-tail after that",
+        "eligible_batches": 141,
+        "positive_read_completion_span_batches": 141,
+        "CPU_read_end_span_p50_ms": 0.314167,
+        "CPU_read_end_span_p95_ms": 0.768084,
+        "limit": "CPU read-end dispersion only, separate from Metal CB gaps; no addition or gain estimate."
+      }
+    },
+    {
+      "rank": 2,
+      "name": "P02 native shared demand work batch",
+      "mechanism": "Keep4owned workers and exact jobs. For demand batches>4, use a bounded shared next-job queue so a free reader may take the next record instead of a fixed per-worker RR tail. Keep single/background/small-batch fallback; no extra worker threads and no raw pointer ownership.",
+      "source_sites": [
+        "native/src/ssd_reads.rs:151-177",
+        "native/src/ssd_reads.rs:297-334"
+      ],
+      "evidence": "Only96/336batches (596/1097records) have>4jobs, the minimal domain where reassignment can help. Actual queue imbalance cannot be established without worker/enqueue markers.",
+      "history": "MLX/C++ POSTP09-DYNAMIC-COLD already achieved a small qualified AR gain in a different implementation; it is not a new general idea or transferable gain. Current Rust ReadService still uses4private sync_channels and round-robin assignment.",
+      "risk": "Synchronization/message overhead and changed arrival waves can erase any balancing benefit. At current depth0 every job is demand, so demand-over-prefetch priority itself has no benefit here.",
+      "first_test": "Source-level acceptance/unique claim bounds if implemented, deterministic held-worker test with6/10jobs must demonstrate actual reassignment, typed owned destinations/failure/timeouts/drain. Reuse full numerics/CLIbefore one AR32 ABBA; new worker/enqueue stamps only if selected, no standalone profiler framework."
+    },
+    {
+      "rank": 3,
+      "name": "P07 fixed-total layer budget, deferred",
+      "mechanism": "Existing MLXL3_SSD_LAYER_SLOTS already reaches native FlashNext::load;48capacities20..512 with sum2544 preserve the3GiB configured budget. No new pool is required.",
+      "source_sites": [
+        "native/src/flash_config.rs:92-133",
+        "native/src/gpu/flash.rs:193-218",
+        "native/src/flash_support.rs:331-370"
+      ],
+      "evidence": "Layer0 has58/70misses and67unique IDs in this7-row window, versus layer15 only2/70misses and18unique IDs. This suggests unequal pressure but does not identify an optimal allocation.",
+      "history": "FLASHSSD-2026-10-19-31 already prepared exactly this static LES approach, with prior old18/25 reallocations negative. Do not present it as new or tune on evaluation MAIN/HOLD.",
+      "risk": "Prefill LFU pollution and unknown initial frequencies can dominate; moving slots from a low-miss layer can hurt other prompts or prefill. Capacity budget equality does not imply equal measured residency/RSS.",
+      "first_test": "Deferred until an independent third-prompt prefill+decode chronological route trace can be replayed through actual ExpertCache. Freeze a small fixed-total table from that calibration before MAIN/HOLD evaluation. Then unchanged-parser/budget checks and numerical/CLIoracles before AR32. Do not select table from this MAIN profile."
+    }
+  ],
+  "no_GPU_build_proof_prototype_or_push": true
+}

@@ -1,0 +1,49 @@
+{
+  "status": "failed",
+  "parity": false,
+  "all_children_joined": true,
+  "expected_phases": 4,
+  "phases": [
+    {
+      "label": "io",
+      "test": "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+      "marker": "NATIVE_SSD_DIRECT_IO",
+      "timeout_seconds": 60,
+      "expected": {
+        "range_cases": 4,
+        "distinct_live_backings": 4,
+        "exact_record_bytes": 1248012,
+        "partial_eof": true,
+        "post_enqueue_truncation": true,
+        "timeout_retained": true,
+        "stale_generation_rejected": true,
+        "batch_and_service_drop_drained": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/frozen/native-libtest",
+        "ssd_reads::direct_tests::physical::shared_destinations_preserve_bytes_failures_generations_and_worker_lifetimes",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "failed",
+      "parity": false,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 31636,
+      "elapsed_seconds": 0.41506629198556766,
+      "returncode": 101
+    }
+  ],
+  "plan_sha256": "26f0708338706cd31a4d84cf91fc45488769ec22d78bc1ec30ede12260806af4",
+  "error": "AssertionError('child exit 101')",
+  "diagnosis": "Fixture same-slot premise not guaranteed: victim selects another older empty slot after dropping the old plan; runtime correctness remains unqualified; preserve same-slot assertion and construct a full cache in a new frozen fixture before rerun.",
+  "unlaunched_phases": [
+    "expert",
+    "model",
+    "cli4096-short"
+  ],
+  "GPU_handed_back": true
+}

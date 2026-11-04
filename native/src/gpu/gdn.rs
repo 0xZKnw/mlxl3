@@ -1,7 +1,10 @@
 use super::{FlashProjection, MatrixView, Metal, view::FloatType};
 use crate::checkpoint::Checkpoint;
 use anyhow::{Context, Result, ensure};
-use metal::{Buffer, ComputePipelineState, MTLResourceOptions as Storage, MTLSize, NSRange};
+use metal::{
+    Buffer, CommandBuffer, CommandBufferRef, ComputePipelineState, MTLCommandBufferStatus,
+    MTLResourceOptions as Storage, MTLSize, NSRange,
+};
 use std::{collections::BTreeMap, rc::Rc};
 
 pub(super) struct Pipelines {
@@ -39,7 +42,46 @@ pub struct FlashGdnState {
     frame: Option<Frame>,
 }
 
+// The standard command buffer retains encoded resources through completion.
+// Pending keeps the state/output owners and the publication-status guard.
+struct PendingGdn {
+    command: CommandBuffer,
+    next: Frame,
+    values: MatrixView,
+    steps: Option<[(&'static str, MatrixView); 11]>,
+}
+
 pub type FlashGdnOutput = super::FlashAttentionOutput;
+
+pub(super) struct DeferredHcWrite {
+    streams: MatrixView,
+    branch: MatrixView,
+    gate: MatrixView,
+}
+pub(super) enum LayerOutput {
+    Ready(MatrixView),
+    Pending(DeferredHcWrite),
+}
+impl LayerOutput {
+    pub(super) fn complete(self, gpu: &Metal) -> Result<MatrixView> {
+        match self {
+            Self::Ready(streams) => Ok(streams),
+            Self::Pending(write) => gpu.command(|cmd| write.encode(gpu, cmd)),
+        }
+    }
+    pub(super) fn ready(&self) -> Result<&MatrixView> {
+        match self {
+            Self::Ready(streams) => Ok(streams),
+            Self::Pending(_) => anyhow::bail!("deferred HC output cannot escape the layer loop"),
+        }
+    }
+}
+impl DeferredHcWrite {
+    fn encode(&self, gpu: &Metal, cmd: &CommandBufferRef) -> Result<MatrixView> {
+        gpu.encode_hc_write(cmd, &self.streams, &self.branch, &self.gate)
+    }
+}
+
 pub struct FlashGdn<'a> {
     gpu: &'a Metal,
     qkv: FlashProjection<'a>,
@@ -108,6 +150,13 @@ impl<'a> FlashGdn<'a> {
     }
 
     pub fn forward(&mut self, x: &MatrixView, trace: bool) -> Result<FlashGdnOutput> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.gdn.body");
+        let pending = self.gpu.command(|cmd| self.encode(cmd, x, trace))?;
+        self.finish(pending)
+    }
+
+    fn encode(&self, cmd: &CommandBufferRef, x: &MatrixView, trace: bool) -> Result<PendingGdn> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -133,136 +182,153 @@ impl<'a> FlashGdn<'a> {
         let (value_groups, state_words) =
             crate::contracts::packed_gdn_grid(48, 128).context("invalid Flash GDN state extent")?;
         let frame = || -> Result<Frame> {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.gdn.frame");
             Ok(Frame {
                 history: half(30720)?,
                 recurrent: matrix(FloatType::F32, state_words)?,
             })
         };
         let g = |x, y, z| MTLSize::new(x, y, z);
-        let (next, values, steps) = gpu.command(|cmd| {
-            let prev = match &self.state.frame {
-                Some(previous) => previous.clone(),
-                None => {
-                    let zero = frame()?;
-                    let blit = cmd.new_blit_command_encoder();
-                    for v in [&zero.history, &zero.recurrent] {
-                        blit.fill_buffer(&v.buffer, NSRange::new(0, v.buffer.length()), 0);
-                    }
-                    blit.end_encoding();
-                    zero
+        let prev = match &self.state.frame {
+            Some(previous) => previous.clone(),
+            None => {
+                let zero = frame()?;
+                let blit = cmd.new_blit_command_encoder();
+                for v in [&zero.history, &zero.recurrent] {
+                    blit.fill_buffer(&v.buffer, NSRange::new(0, v.buffer.length()), 0);
                 }
-            };
-            let next = frame()?;
-            let input = half(2560)?;
+                blit.end_encoding();
+                zero
+            }
+        };
+        let next = frame()?;
+        let input = half(2560)?;
+        Metal::encode(
+            cmd,
+            &p.from[usize::from(x.dtype == FloatType::F32)],
+            &[&x.buffer, &input.buffer],
+            [x.layout.offset, x.layout.strides[1]],
+            g(80, 1, 1),
+            32,
+        );
+        let qkv = self.qkv.encode_row(cmd, &input, storage)?;
+        let z = self.z.encode_row(cmd, &input, storage)?;
+        let dense = |w: &Buffer| -> Result<MatrixView> {
+            let gate = half(48)?;
             Metal::encode(
                 cmd,
-                &p.from[usize::from(x.dtype == FloatType::F32)],
-                &[&x.buffer, &input.buffer],
-                [x.layout.offset, x.layout.strides[1]],
-                g(80, 1, 1),
-                32,
+                &p.dense,
+                &[&input.buffer, w, &gate.buffer],
+                [48u32],
+                g(12, 1, 1),
+                256,
             );
-            let qkv = self.qkv.encode_row(cmd, &input, storage)?;
-            let z = self.z.encode_row(cmd, &input, storage)?;
-            let dense = |w: &Buffer| -> Result<MatrixView> {
-                let gate = half(48)?;
-                Metal::encode(
-                    cmd,
-                    &p.dense,
-                    &[&input.buffer, w, &gate.buffer],
-                    [48u32],
-                    g(12, 1, 1),
-                    256,
-                );
-                Ok(gate)
-            };
-            let a = dense(&self.a)?;
-            let b = dense(&self.b)?;
-            let conv = half(10240)?;
-            let q = half(2048)?;
-            let k = half(2048)?;
-            let v = half(6144)?;
-            Metal::encode(
-                cmd,
-                &p.prepare,
-                &[
-                    &qkv.buffer,
-                    &prev.history.buffer,
-                    &self.conv,
-                    &conv.buffer,
-                    &q.buffer,
-                    &k.buffer,
-                    &v.buffer,
-                    &next.history.buffer,
-                ],
-                [10240u32],
-                g(1, 80, 1),
-                32,
-            );
-            let delta = half(6144)?;
-            Metal::encode(
-                cmd,
-                &p.step,
-                &[
-                    &q.buffer,
-                    &k.buffer,
-                    &v.buffer,
-                    &a.buffer,
-                    &b.buffer,
-                    &self.a_log,
-                    &self.dt_bias,
-                    &prev.recurrent.buffer,
-                    &delta.buffer,
-                    &next.recurrent.buffer,
-                ],
-                [128u32],
-                g(1, u64::from(value_groups), 48),
-                64,
-            );
-            let normed = matrix(FloatType::F32, 6144)?;
-            Metal::encode(
-                cmd,
-                &p.norm,
-                &[&delta.buffer, &self.gain, &normed.buffer],
-                [self.eps.to_bits()],
-                g(48, 1, 1),
-                32,
-            );
-            let gated = half(6144)?;
-            Metal::encode(
-                cmd,
-                &p.gate,
-                &[&normed.buffer, &z.buffer, &gated.buffer],
-                [6144u32],
-                g(192, 1, 1),
-                32,
-            );
-            let out_half = self.out.encode_row(cmd, &gated, storage)?;
-            let values =
-                MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
-            Metal::encode(
-                cmd,
-                &p.to_float,
-                &[&out_half.buffer, &values.buffer],
-                [2560u32],
-                g(80, 1, 1),
-                32,
-            );
-            let steps = trace.then_some([
-                ("qkv", qkv),
-                ("z", z),
-                ("a", a),
-                ("b", b),
-                ("conv", conv),
-                ("q", q),
-                ("k", k),
-                ("v", v),
-                ("delta", delta),
-                ("normed", normed),
-                ("gated", gated),
-            ]);
-            Ok((next, values, steps))
-        })?;
+            Ok(gate)
+        };
+        let a = dense(&self.a)?;
+        let b = dense(&self.b)?;
+        let conv = half(10240)?;
+        let q = half(2048)?;
+        let k = half(2048)?;
+        let v = half(6144)?;
+        Metal::encode(
+            cmd,
+            &p.prepare,
+            &[
+                &qkv.buffer,
+                &prev.history.buffer,
+                &self.conv,
+                &conv.buffer,
+                &q.buffer,
+                &k.buffer,
+                &v.buffer,
+                &next.history.buffer,
+            ],
+            [10240u32],
+            g(1, 80, 1),
+            32,
+        );
+        let delta = half(6144)?;
+        Metal::encode(
+            cmd,
+            &p.step,
+            &[
+                &q.buffer,
+                &k.buffer,
+                &v.buffer,
+                &a.buffer,
+                &b.buffer,
+                &self.a_log,
+                &self.dt_bias,
+                &prev.recurrent.buffer,
+                &delta.buffer,
+                &next.recurrent.buffer,
+            ],
+            [128u32],
+            g(1, u64::from(value_groups), 48),
+            64,
+        );
+        let normed = matrix(FloatType::F32, 6144)?;
+        Metal::encode(
+            cmd,
+            &p.norm,
+            &[&delta.buffer, &self.gain, &normed.buffer],
+            [self.eps.to_bits()],
+            g(48, 1, 1),
+            32,
+        );
+        let gated = half(6144)?;
+        Metal::encode(
+            cmd,
+            &p.gate,
+            &[&normed.buffer, &z.buffer, &gated.buffer],
+            [6144u32],
+            g(192, 1, 1),
+            32,
+        );
+        let out_half = self.out.encode_row(cmd, &gated, storage)?;
+        let values = MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
+        Metal::encode(
+            cmd,
+            &p.to_float,
+            &[&out_half.buffer, &values.buffer],
+            [2560u32],
+            g(80, 1, 1),
+            32,
+        );
+        let steps = trace.then_some([
+            ("qkv", qkv),
+            ("z", z),
+            ("a", a),
+            ("b", b),
+            ("conv", conv),
+            ("q", q),
+            ("k", k),
+            ("v", v),
+            ("delta", delta),
+            ("normed", normed),
+            ("gated", gated),
+        ]);
+        Ok(PendingGdn {
+            command: cmd.to_owned(),
+            next,
+            values,
+            steps,
+        })
+    }
+
+    fn finish(&mut self, pending: PendingGdn) -> Result<FlashGdnOutput> {
+        ensure!(
+            pending.command.status() == MTLCommandBufferStatus::Completed,
+            "GDN state cannot publish before command completion"
+        );
+        let PendingGdn {
+            next,
+            values,
+            steps,
+            ..
+        } = pending;
         let trace = steps
             .map(|steps| -> Result<BTreeMap<_, _>> {
                 let mut result = steps
@@ -276,6 +342,37 @@ impl<'a> FlashGdn<'a> {
             .transpose()?;
         self.state.frame = Some(next);
         Ok(FlashGdnOutput { values, trace })
+    }
+
+    pub(super) fn forward_after_hc(
+        &mut self,
+        hc: &super::FlashHc,
+        streams: &MatrixView,
+        trace: bool,
+    ) -> Result<(super::FlashHcRead, FlashGdnOutput)> {
+        let gpu = self.gpu;
+        if !crate::flash_support::hc_gdn_chain_eligible(
+            gpu.hc_gdn_chain.get(),
+            trace,
+            std::ptr::eq(gpu, hc.gpu),
+            streams.shape(),
+        ) {
+            let read = hc.read(streams, trace)?;
+            let attention = self.forward(&read.mixed, trace)?;
+            return Ok((read, attention));
+        }
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc_gdn.joined");
+        let (read, pending) = gpu.command(|cmd| {
+            let read = hc.encode_read(cmd, streams, false)?;
+            let pending = self.encode(cmd, read.mixed(), false)?;
+            Ok((read, pending))
+        })?;
+        let read = read.finish(false)?;
+        let attention = self.finish(pending)?;
+        #[cfg(test)]
+        gpu.hc_gdn_pairs.set(gpu.hc_gdn_pairs.get() + 1);
+        Ok((read, attention))
     }
 }
 
@@ -319,13 +416,26 @@ impl<'a> LayerResidual<'a> {
         attend: impl FnOnce(&MatrixView) -> Result<super::FlashAttentionOutput>,
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
-    ) -> Result<MatrixView> {
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let read = self.attn_hc.read(streams, false)?;
+        ensure!(read.gate.is_some(), "missing attention injection gate");
+        let attention = attend(&read.mixed)?;
+        self.forward_after_attention_read(streams, read, attention, next, depth, defer_write)
+    }
+    fn forward_after_attention_read(
+        &mut self,
+        streams: &MatrixView,
+        read: super::FlashHcRead,
+        attention: super::FlashAttentionOutput,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let gate = read
             .gate
             .as_ref()
             .context("missing attention injection gate")?;
-        let attention = attend(&read.mixed)?;
         if self.moe.joint_gate_eligible(depth) {
             let (written, mlp_read, routing) = self.mlp_hc.read_after_write_with_gate(
                 &self.attn_hc,
@@ -335,19 +445,46 @@ impl<'a> LayerResidual<'a> {
                 &self.moe,
             )?;
             let experts = self.moe.with_completed_gate(&mlp_read.mixed, routing)?;
-            return self.mlp_hc.write(
+            return self.final_write(
                 &written,
                 experts.completed()?,
                 mlp_read.gate.as_ref().context("missing MLP injection")?,
+                defer_write,
             );
         }
         let (written, mlp_read) =
             self.mlp_hc
                 .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
-        Ok(self
-            .mlp_hc
-            .forward_moe_read(&written, &mut self.moe, mlp_read, next, depth)?
-            .0)
+        let experts = self.moe.lookahead(&mlp_read.mixed, next, depth)?;
+        self.final_write(
+            &written,
+            experts.completed()?,
+            mlp_read.gate.as_ref().context("missing MLP injection")?,
+            defer_write,
+        )
+    }
+    fn final_write(
+        &self,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
+        if defer_write {
+            Ok(LayerOutput::Pending(DeferredHcWrite {
+                streams: streams.clone(),
+                branch: branch.clone(),
+                gate: gate.clone(),
+            }))
+        } else {
+            let written = self.mlp_hc.write(streams, branch, gate)?;
+            #[cfg(test)]
+            self.mlp_hc
+                .gpu
+                .hc_final_writes
+                .set(self.mlp_hc.gpu.hc_final_writes.get() + 1);
+            Ok(LayerOutput::Ready(written))
+        }
     }
 }
 
@@ -407,14 +544,70 @@ impl<'a> FlashGdnLayer<'a> {
         next: Option<&mut super::FlashMoeRow<'a>>,
         depth: usize,
     ) -> Result<MatrixView> {
+        self.forward_deferred(streams, next, depth, false)?
+            .complete(self.attention.gpu)
+    }
+    pub(super) fn forward_deferred(
+        &mut self,
+        streams: &MatrixView,
+        next: Option<&mut super::FlashMoeRow<'a>>,
+        depth: usize,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
         let before = self.snapshot();
-        let residual =
-            self.residual
-                .forward(streams, |x| self.attention.forward(x, false), next, depth);
+        let residual = (|| {
+            let (read, attention) =
+                self.attention
+                    .forward_after_hc(&self.residual.attn_hc, streams, false)?;
+            self.residual.forward_after_attention_read(
+                streams,
+                read,
+                attention,
+                next,
+                depth,
+                defer_write,
+            )
+        })();
         if residual.is_err() {
             self.restore(&before)?;
         }
         residual
+    }
+
+    pub(super) fn forward_pending(
+        &mut self,
+        write: DeferredHcWrite,
+        defer_write: bool,
+    ) -> Result<LayerOutput> {
+        let before = self.snapshot();
+        let result = (|| {
+            let gpu = self.attention.gpu;
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
+            let (streams, read, pending) = gpu.command(|cmd| {
+                let streams = write.encode(gpu, cmd)?;
+                let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
+                let pending = self.attention.encode(cmd, read.mixed(), false)?;
+                Ok((streams, read, pending))
+            })?;
+            let read = read.finish(false)?;
+            let attention = self.attention.finish(pending)?;
+            #[cfg(test)]
+            gpu.cross_layer_triples
+                .set(gpu.cross_layer_triples.get() + 1);
+            self.residual.forward_after_attention_read(
+                &streams,
+                read,
+                attention,
+                None,
+                0,
+                defer_write,
+            )
+        })();
+        if result.is_err() {
+            self.restore(&before)?;
+        }
+        result
     }
 }
 
@@ -536,3 +729,11 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "hc_gdn_tests.rs"]
+mod hc_gdn_tests;
+
+#[cfg(test)]
+#[path = "cross_layer_tests.rs"]
+mod cross_layer_tests;

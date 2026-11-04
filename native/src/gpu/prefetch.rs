@@ -120,13 +120,13 @@ impl<'a> PrefetchPool<'a> {
             }
             let job = self.pending.remove(index);
             let result = result.and_then(|completed| {
-                let (lease, bytes) = completed.expect("nonempty completion checked above");
+                let (lease, payload) = completed.expect("nonempty completion checked above");
                 ensure!(lease == job.lease, "native prefetch returned another lease");
                 if job.cache.borrow().pending_lease(lease.slot, lease.expert) != Some(lease) {
                     self.stats.discarded += 1;
                     return Ok(());
                 }
-                let backing = crate::gpu::upload(&self.gpu.device, &bytes)?;
+                let backing = self.gpu.completed_record(payload)?;
                 let expert = FlashExpert::from_backing(self.gpu, &backing)?;
                 if job.cache.borrow_mut().finish_lease(lease, true) {
                     job.slots.borrow_mut()[lease.slot] = Some(expert);

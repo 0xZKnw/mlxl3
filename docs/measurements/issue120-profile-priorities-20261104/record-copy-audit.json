@@ -1,0 +1,76 @@
+{
+  "status": "source_artifact_audit_complete_no_prototype",
+  "base": "34776ba9 / PR121c330",
+  "input": "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/docs/measurements/issue120-native8-profile-20261104/run-01/profile.json.gz",
+  "input_sha256": "cca5894dc7fb584584cde1aff8450f1138d722432a1b94d70d037c5f6ca6918d",
+  "decode_rows": 7,
+  "upload_size_groups": {
+    "40960": {
+      "count": 7,
+      "host_ns": 34789,
+      "bytes": 286720
+    },
+    "1248012": {
+      "count": 1097,
+      "host_ns": 89136489,
+      "bytes": 1369069164
+    },
+    "5120": {
+      "count": 7,
+      "host_ns": 1042,
+      "bytes": 35840
+    },
+    "496640": {
+      "count": 7,
+      "host_ns": 218749,
+      "bytes": 3476480
+    }
+  },
+  "record_copy_bytes": 1369069164,
+  "record_copy_host_ms_per_row": 12.733784142857143,
+  "misses_histogram": {
+    "0": 35,
+    "1": 51,
+    "2": 59,
+    "3": 48,
+    "4": 47,
+    "5": 32,
+    "6": 28,
+    "7": 25,
+    "8": 7,
+    "9": 3,
+    "10": 1
+  },
+  "read_duration": {
+    "p50_ms": 0.596875,
+    "p95_ms": 0.971083,
+    "max_ms": 3.504875
+  },
+  "last_read_end_relative_MoE_epoch": {
+    "p50_ms": 0.884916,
+    "p95_ms": 1.838459,
+    "max_ms": 3.681459
+  },
+  "tail_after_hot_submit": {
+    "p50_ms": 0.643417,
+    "p95_ms": 1.446959,
+    "max_ms": 3.381583
+  },
+  "ownership": [
+    "Read owns File, offset/bytes, SlotLease, active Ticket; worker owns allocated/zeroed Vec through read_exact_at.",
+    "Completed moves Result<Vec<u8>> across channel; ready/poll move ownership to main.",
+    "Main upload allocates shared Metal backing and copies Vec; from_backing retains cloned Buffer in projection views and cache.",
+    "DemandPlan generation publication occurs only after successful from_backing. Prefetch has same upload path.",
+    "Timeout retains owned I/O destination until completion; active ticket drops before send. No unretained GPU pointer currently crosses workers."
+  ],
+  "minimal_trial": "Experimental direct read into main-created exact-size shared backing with exclusive owned job destination, return backing through Completed; preserve lease validation/cache policy/three waves/kernels. Verify Buffer transfer legality first; no naked pointer and retain timed-out reads through completion.",
+  "historical_exclusions": "ColdShared changes shared/W1 placement, T01B MLX prepared encoder; neither removes current native Vec\u2192shared buffer copy. No replay of those trials proposed.",
+  "limits": [
+    "Host profile spans are instrumented and overlap; do not add upload and aggregate allocation envelopes.",
+    "Read duration includes Vec reserve/zero and read_exact_at, not pure SSD/NAND latency.",
+    "No enqueue instant/worker ID; queue tail cannot be causally isolated.",
+    "Page/no-copy alternative would touch alignment and current exactEXPERT_BYTES backing guard, so it is not the smallest variant.",
+    "No performance or correctness of proposed direct-backed read has been measured/verified."
+  ],
+  "executed": "Read existing source/artifacts and aggregate existing JSON only; no prototype/build/test/proof/GPU/push."
+}

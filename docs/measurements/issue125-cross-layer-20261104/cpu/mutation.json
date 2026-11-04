@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "test",
+    "--locked",
+    "--no-default-features",
+    "--lib",
+    "flash_support::cross_layer_keeps_every_export_depth_and_consumer_fallback",
+    "--",
+    "--exact"
+  ],
+  "results": [
+    {
+      "variant": "export-guard-removed",
+      "exit_code": 101,
+      "detected": true
+    },
+    {
+      "variant": "restored",
+      "exit_code": 0,
+      "one_pass": true
+    }
+  ],
+  "source_restored": true
+}

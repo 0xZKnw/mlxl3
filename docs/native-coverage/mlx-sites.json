@@ -1849,9 +1849,12 @@
     "array::from_fn": 2,
     "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
+    "config MLXL3_NATIVE_CROSS_LAYER": 1,
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
+    "config MLXL3_NATIVE_HC_GDN_CHAIN": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
+    "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_SSD_READERS": 1,
     "shader ../shaders/_qmv_tile_kernel.metal": 1,
     "shader ../shaders/dense_projection.metal": 1,
@@ -1884,31 +1887,47 @@
     "shader mlxl3_convert_matmul": 1,
     "shader mlxl3_convert_matmul_nax": 1
   },
+  "native/src/gpu/cross_layer_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 1
+  },
   "native/src/gpu/flash.rs": {
     ".exp": 1,
     ".log_probs": 1,
     ".memory_stats": 1,
+    ".ready": 2,
     ".shape": 1,
     ".sum": 1,
     ".to_f32": 11,
     ".transpose": 1,
     "config MLXL3_FLASH_MODEL": 6,
     "config MLXL3_FLASH_PREFILL_HEADS": 1,
+    "config MLXL3_NATIVE_AR_HC_CHAIN": 1,
+    "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
+    "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
+    "config MLXL3_NATIVE_FLASH_NT2": 1,
+    "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
+    "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
+    "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/gdn.rs": {
-    ".shape": 1,
+    ".finish": 5,
+    ".shape": 2,
     ".transpose": 1,
     "config MLXL3_GDN_MODEL": 1
   },
   "native/src/gpu/hc.rs": {
     ".finish": 3,
-    ".shape": 4,
+    ".shape": 5,
     ".transpose": 3,
     "config MLXL3_FLASH_MODEL": 2,
     "config MLXL3_HC_FROZEN": 1,
     "config MLXL3_HC_MODEL": 1,
     "mlx": 2
+  },
+  "native/src/gpu/hc_gdn_tests.rs": {
+    ".finish": 1,
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/gpu/memory.rs": {
     ".memory_stats": 2,
@@ -1985,6 +2004,9 @@
     ".to_f32": 2,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_ROUTED_SCRATCH_FIXTURES": 1
+  },
+  "native/src/gpu/ssd_direct_tests.rs": {
+    "config MLXL3_FLASH_MODEL": 2
   },
   "native/src/hub.rs": {
     ".sum": 3,
@@ -2884,6 +2906,10 @@
     ".start": 8,
     ".take": 1,
     ".try_clone": 10
+  },
+  "native/src/ssd_reads/direct_tests.rs": {
+    ".ready": 7,
+    ".try_clone": 8
   },
   "native/src/streaming.rs": {
     ".finish": 5

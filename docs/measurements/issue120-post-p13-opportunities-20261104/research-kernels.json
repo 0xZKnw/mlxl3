@@ -1,0 +1,204 @@
+{
+  "status": "source_artifacts_research_complete_no_experiment",
+  "base": "c146e9a4 / PR124",
+  "scope": "Flash Next AR only, no MTP/DFlash/P04/expert-encoder",
+  "model": "Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "header_inspection": {
+    "files": 5,
+    "header_bytes_read": 40286974,
+    "payload_bytes_read": 0,
+    "groups": {
+      "embedding_or_head": {
+        "tensors": 2,
+        "checkpoint_bytes": 1589248000,
+        "dtypes": {
+          "BF16": 1,
+          "I16": 1
+        },
+        "shapes": {
+          "[248320, 2560]": 1,
+          "[160, 15520, 64]": 1
+        }
+      },
+      "router_gate": {
+        "tensors": 48,
+        "checkpoint_bytes": 125829120,
+        "dtypes": {
+          "F16": 48
+        },
+        "shapes": {
+          "[512, 2560]": 48
+        }
+      },
+      "HC_down": {
+        "tensors": 97,
+        "checkpoint_bytes": 635699200,
+        "dtypes": {
+          "F16": 97
+        },
+        "shapes": {
+          "[320, 10240]": 97
+        }
+      },
+      "HC_up": {
+        "tensors": 97,
+        "checkpoint_bytes": 635699200,
+        "dtypes": {
+          "F16": 97
+        },
+        "shapes": {
+          "[10240, 320]": 97
+        }
+      },
+      "HC_inject": {
+        "tensors": 96,
+        "checkpoint_bytes": 7864320,
+        "dtypes": {
+          "F16": 96
+        },
+        "shapes": {
+          "[4, 10240]": 96
+        }
+      },
+      "HC_gain": {
+        "tensors": 97,
+        "checkpoint_bytes": 1986560,
+        "dtypes": {
+          "F16": 97
+        },
+        "shapes": {
+          "[10240]": 97
+        }
+      },
+      "GDN_a_b": {
+        "tensors": 72,
+        "checkpoint_bytes": 17694720,
+        "dtypes": {
+          "F16": 72
+        },
+        "shapes": {
+          "[48, 2560]": 72
+        }
+      },
+      "GDN_float_scalars": {
+        "tensors": 72,
+        "checkpoint_bytes": 12672,
+        "dtypes": {
+          "BF16": 72
+        },
+        "shapes": {
+          "[48]": 36,
+          "[128]": 36
+        }
+      },
+      "PLE": {
+        "tensors": 6,
+        "checkpoint_bytes": 65679360,
+        "dtypes": {
+          "BF16": 3,
+          "F16": 3
+        },
+        "shapes": {
+          "[10240]": 3,
+          "[10240, 1, 4]": 1,
+          "[10240, 2560]": 1,
+          "[2560, 2560]": 1
+        }
+      },
+      "QSA_norm": {
+        "tensors": 24,
+        "checkpoint_bytes": 12288,
+        "dtypes": {
+          "BF16": 24
+        },
+        "shapes": {
+          "[256]": 24
+        }
+      }
+    }
+  },
+  "resident_weights": {
+    "HC_down_F16_bytes": 635699200,
+    "HC_up_F16_bytes": 635699200,
+    "HC_inject_F16_bytes": 7864320,
+    "HC_gain_current_F32_bytes": 3973120,
+    "HC_total_logical_bytes_per_row": 1283235840,
+    "HC_gain_exact_F16_alternative_bytes": 1986560,
+    "GDN_a_b_F16_bytes": 17694720,
+    "router_F16_bytes": 125829120,
+    "head": "EXL3 I16 trellis, not an expanded float32 matrix",
+    "embedding": "BF16 file tensor; native Flash retains TensorInfo and reads a token row, not a full GPU F32 embedding",
+    "interpretation": "Logical resident bytes and one logical matrix traversal per row, not measured physical bandwidth/cache traffic. Large HC/router/a-b matrices already use half loads with float FMAs. Exact16 compression applies only small expanded norm/gain vectors, not the large matrices."
+  },
+  "profile": {
+    "path": "/Users/justin/.codex/worktrees/issue120-profile-opportunities/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/native8-safe-summary.json",
+    "rows": 7,
+    "HC_GDN_joint_GPU_ms_per_row": 21.85482142210406,
+    "other_HC_including_gate_GPU_ms_per_row": 12.544857105240226,
+    "head_GPU_ms_per_row": 3.5476190470425144,
+    "MoE_GPU_ms_per_row": 39.13043455187498,
+    "limitation": "Composite intrusive completed-CB envelopes. No current per-kernel norm/down/up/mix/inject/a/b timings; no gain estimated."
+  },
+  "candidates": [
+    {
+      "priority": 1,
+      "id": "P09-up-mix-native",
+      "sites": [
+        "native/src/gpu/hc.rs:264-277",
+        "native/shaders/flash_hc.metal:44-52,55-57,74-82",
+        "native/shaders/flash_hc_gemv.metal"
+      ],
+      "mechanism": "Compute the four stream-specific up outputs for the same columns within one threadgroup; keep each canonical BN1/K320 per-output FMA/shuffle order, cast each result to T, barrier, then copy the exact stream0..3 hc_mix arithmetic to final mixed output. Trace/F16 fallback may initially remain legacy.",
+      "source_delta_only_counts": {
+        "dispatches_removed_per_row": 97,
+        "temporary_allocations_removed_per_row": 97,
+        "temporary_up_bytes_requested_removed_per_row_F32": 3973120,
+        "logical_up_write_plus_read_bytes_removed_per_row_F32": 7946240
+      },
+      "risk": "Current four needed up rows belong to distant output groups. Remapping rows and adding threadgroup exchange must preserve per-output FMA order, T cast before sigmoid, ordinary hc_sigmoid (not fast compiled activation), stream sum order and fp-contract(off). Register/shared-memory/occupancy impact unknown. Output remains separately owned; no workspace reuse.",
+      "history": "HC24 fused down/inject activation epilogues and regressed old AR; this up-to-mix materialization fusion is different and not implemented. HC22 grouped two tokens, also distinct.",
+      "first_quality": "Real and synthetic HC mixed/gate/up captures F32 exact; finite/ties/extremes, trace/F16 fallback, four-row model logits/hidden/84states with true97fused-calls marker, CLI2token golden. Then prereg32-token MAIN/HOLD ABBA vs frozen final P13, all earlier flags absent, no unrelated matrix repeats."
+    },
+    {
+      "priority": 2,
+      "id": "P08-down-inject-one-dispatch",
+      "sites": [
+        "native/src/gpu/hc.rs:262-281",
+        "native/src/contracts.rs:2677-2682",
+        "native/shaders/flash_hc.metal:29-42,67-71"
+      ],
+      "mechanism": "One 81-group narrow GEMV covers320down rows and4inject rows with identical K10240/BM1/BN8 arithmetic. Keep separate weight/output buffers and select the last group, or adapt explicit offsets if physically concatenating. Gate activation and down activation remain canonical.",
+      "source_delta_only_counts": {
+        "dispatches_removed_per_row": 96,
+        "allocated_bytes_removed": 0,
+        "logical_weight_bytes_removed": 0
+      },
+      "risk": "Concatenating into324outputs alone is insufficient: flash_hc_dispatch rejects324 and hc_activate ignores MatrixView offsets. Two zero-offset output buffers avoid changing downstream indexing. No input-normalization read/FMA or weight-byte reduction is promised; only pass/launch structure and timing of independent injection change.",
+      "history": "Not HC22 token-pair batching or standalone HC24 epilogues. No current runtime down+inject kernel found. No SUH sharing is involved: both are plain F16 matrices using the same normalized vector.",
+      "first_quality": "Bitexact320down+4inject+activations on real/strided/F16/F32 and mutation of last-group routing; actual96dual-pass marker, full states/logits/CLI then32AR ABBA."
+    },
+    {
+      "priority": 3,
+      "id": "P11-GDN-a-b-one-dispatch",
+      "sites": [
+        "native/src/gpu/gdn.rs:188-202",
+        "native/shaders/flash_gdn.metal:10-21"
+      ],
+      "mechanism": "One24-group BM1/BN8 K2560 shader selects A/B weights and two separate48-half outputs, retaining the same shared half input and per-output FMA/shuffle/cast. No generic EXL3 qkv/z preparation sharing.",
+      "source_delta_only_counts": {
+        "dispatches_removed_per_row": 36,
+        "allocated_bytes_removed": 0,
+        "logical_weight_bytes_removed": 0
+      },
+      "risk": "A packed96-half output needs binding offsets or changed consumer indexing; current gdn_step receives two zero-offset buffers. Keep dual outputs initially. Do not change the existing half cast before a/b.",
+      "history": "SMALLM-2026-10-06-B already tested fused48+48 at K5120, verifyM2..8,162cases exact; only micro feedback-chain effects, never promoted/full-model measured. New reason would be K2560, AR row1 and native post-P13 caller; not an unprecedented mechanism or a rerun of that old protocol."
+    }
+  ],
+  "next_attribution": "If ranking by cost is required before a risky kernel rewrite, one bounded current native HC/GDN component capture should isolate norm/down/up/mix/inject and a/b durations. Current composite data alone cannot prove which candidate dominates. No profiling run is authorized or executed by this report.",
+  "validation_limits": [
+    "No executable source edited.",
+    "No GPU/model load/download/build/proof/test/benchmark executed.",
+    "Checkpoint payloads not scanned for weight finiteness; only headers inspected.",
+    "No predicted tok/s or additive recovered-time claim."
+  ]
+}

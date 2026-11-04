@@ -233,11 +233,20 @@ impl<'a> FlashMoeRow<'a> {
         for lease in &plan.reads {
             self.slots.borrow_mut()[lease.slot] = None;
         }
-        let mut reads = gpu.readers()?.submit(
+        let records = || {
             plan.reads
                 .iter()
-                .map(|&lease| (lease, self.records[lease.expert as usize].clone())),
-        )?;
+                .map(|&lease| (lease, self.records[lease.expert as usize].clone()))
+        };
+        let mut reads = if crate::ssd_reads::direct_read_eligible(
+            gpu.ssd_direct_enabled,
+            depth,
+            self.prefetcher.is_some(),
+        ) {
+            gpu.readers()?.submit_shared(records(), &gpu.device)?
+        } else {
+            gpu.readers()?.submit(records())?
+        };
         // Demanded I/O has already started before the optional prediction is submitted.
         let prediction = if depth > 0 {
             next.as_ref()
@@ -294,8 +303,8 @@ impl<'a> FlashMoeRow<'a> {
                 command = gpu.queue.new_command_buffer().to_owned();
                 let mut wave = reads.ready(false)?;
                 loop {
-                    for (lease, bytes) in wave {
-                        let backing = super::upload(&gpu.device, &bytes)?;
+                    for (lease, payload) in wave {
+                        let backing = gpu.completed_record(payload)?;
                         let expert = FlashExpert::from_backing(gpu, &backing)?;
                         ensure!(plan.publish(lease), "stale native SSD demand completion");
                         self.slots.borrow_mut()[lease.slot] = Some(expert);

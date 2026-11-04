@@ -1,0 +1,34 @@
+{
+  "status": "final_native_AR_scope_validated",
+  "quality01": "failed fixture same-slot premise; negative retained",
+  "quality02": "4/4 passed; explicit1; all process groups empty",
+  "model": {
+    "state_words": 57606144,
+    "logits": 744960,
+    "initial_archive_states": 84,
+    "legacy_upload_bytes": 1395277416,
+    "direct_records": 1118,
+    "direct_bytes": 1395277416,
+    "candidate_legacy_upload_bytes": 0
+  },
+  "interpretation": "Copy-count evidence only; not a causal time gain. OS/Metal/concurrent safety not proved. Worker threads not individually instrumented as joined.",
+  "pending": "No physical GPU/OS/concurrency proof; no sustained or long-context speed claim; no real worker publication-before-completion mutation. Installed app unchanged.",
+  "final_quality": "6/6 PASS, direct policy genuinely absent; initial real Metal flag true; external processes joined/PGIDs empty",
+  "final_artifacts": {
+    "direct-cli": "d419a9ffa3264af50096779760392f4d43f9cd0d40cba2d6297f337e6958a9fb",
+    "native-libtest": "1787abcd74699f612e99b3d220491aa9ff95f0ca6ebeb5df30a169e96054e12d"
+  },
+  "final_checks": {
+    "expert_model_default_absent": true,
+    "CLI_context4096_completions": 4,
+    "CLI_cancellations": [
+      "context_usage",
+      "delta"
+    ],
+    "CLI_rejection_recovery": true,
+    "budget_completions": 2,
+    "AR_prefix_rounds": 2,
+    "AR_prefix_hits": 1,
+    "predictive_depth1_archive_and_drain": true
+  }
+}
