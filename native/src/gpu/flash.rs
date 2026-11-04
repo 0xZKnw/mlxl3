@@ -142,6 +142,8 @@ pub struct FlashTraceTensor {
     pub data: Vec<u8>,
 }
 pub struct FlashNext<'a> {
+    pub(super) fixed_residency: Option<super::fixed_residency::FixedResidency>,
+    pub(super) fixed_residency_checked: bool,
     checkpoint_path: std::path::PathBuf,
     lookahead_depth: usize,
     #[cfg(feature = "chat")]
@@ -251,7 +253,9 @@ impl<'a> FlashNext<'a> {
             "invalid Flash language model head"
         );
         gpu.admit_load(request_limit, total_slots)?;
-        Ok(Self {
+        let mut model = Self {
+            fixed_residency: None,
+            fixed_residency_checked: false,
             checkpoint_path: c.path.clone(),
             lookahead_depth,
             #[cfg(feature = "chat")]
@@ -269,7 +273,9 @@ impl<'a> FlashNext<'a> {
             context,
             offset: 0,
             request_limit,
-        })
+        };
+        model.ensure_fixed_residency()?;
+        Ok(model)
     }
     pub fn snapshot(&self) -> FlashSnapshot {
         FlashSnapshot {
@@ -542,6 +548,7 @@ impl<'a> FlashNext<'a> {
             tokens.iter().all(|&t| t < 248320),
             "token outside Flash vocabulary"
         );
+        self.ensure_fixed_residency()?;
         let (&last, prefix) = tokens.split_last().context("empty Flash prompt")?;
         let before = self.snapshot();
         let result = (|| {

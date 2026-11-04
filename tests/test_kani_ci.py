@@ -83,6 +83,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "ssd_reads::common_queue_tests::native_common_queue_flag_is_strict_and_off_without_override",
         "flash_support::hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals",
         "contracts::hc_fused_dispatches_require_exact_shapes_and_preserve_index_bounds",
+        "fixed_residency_policy::fixed_residency_enrollment_requires_capability_and_admitted_nonempty_bytes",
         "hc_workspace_policy::tests::hc_workspace_exclusivity_and_error_clear_follow_actual_state_transitions",
         "hc_workspace_policy::tests::hc_workspace_reserve_is_exact_or_rejects_overflow",
         "hc_workspace_policy::tests::hc_workspace_flag_preserves_off_default_and_bounded_literals",

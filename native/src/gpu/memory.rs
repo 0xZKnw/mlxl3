@@ -14,8 +14,22 @@ pub(super) struct Backings {
     pub slots: Vec<usize>,
     pub resident_experts: usize,
     pub ple_rows: usize,
+    fixed: Option<Vec<Buffer>>,
 }
 impl Backings {
+    pub(super) fn collect_fixed() -> Self {
+        Self {
+            fixed: Some(Vec::new()),
+            ..Self::default()
+        }
+    }
+    pub(super) fn take_fixed(self) -> Result<(Vec<Buffer>, u64)> {
+        Ok((
+            self.fixed
+                .context("fixed-weight collection was not enabled")?,
+            self.bytes.get("fixed_weights").copied().unwrap_or(0),
+        ))
+    }
     pub(super) fn total(&self) -> Result<u64> {
         self.bytes
             .values()
@@ -24,6 +38,11 @@ impl Backings {
     }
     pub(super) fn record(&mut self, category: &'static str, buffer: &Buffer) -> Result<()> {
         if self.seen.insert(buffer.as_ptr() as usize) {
+            if category == "fixed_weights"
+                && let Some(buffers) = &mut self.fixed
+            {
+                buffers.push(buffer.clone());
+            }
             let total = self.bytes.entry(category).or_default();
             *total = total
                 .checked_add(buffer.length())
@@ -188,6 +207,8 @@ impl FlashNext<'_> {
     pub fn release_idle_state(&mut self) -> Result<()> {
         self.gpu.ensure_reads_idle()?;
         self.gpu.command(|_| Ok(()))?;
+        self.fixed_residency = None;
+        self.fixed_residency_checked = false;
         self.reset();
         self.mixer.release_workspace()?;
         for layer in &mut self.layers {

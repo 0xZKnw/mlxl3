@@ -40,6 +40,7 @@ pub use router::RouteOutput;
 mod view;
 pub use view::{MatrixView, TensorStorage};
 pub mod convert_matmul;
+mod fixed_residency;
 mod projection;
 pub mod quantize;
 pub use projection::{
@@ -239,6 +240,7 @@ pub struct Metal {
     #[cfg(test)]
     hc_gdn_pairs: std::cell::Cell<usize>,
     ssd_direct_enabled: bool,
+    fixed_residency_enabled: std::cell::Cell<bool>,
     #[cfg(test)]
     ssd_direct_records: std::cell::Cell<u64>,
     #[cfg(test)]
@@ -348,6 +350,14 @@ impl Metal {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
+            let fixed_residency_enabled = match std::env::var("MLXL3_NATIVE_FIXED_RESIDENCY") {
+                Ok(value) => crate::flash_support::hc_kernel_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_kernel_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_FIXED_RESIDENCY must be 0 or 1")?;
             let hc_kernel_setting = |name: &str| -> Result<bool> {
                 let value = match std::env::var(name) {
                     Ok(value) => Some(value),
@@ -664,6 +674,7 @@ impl Metal {
                 #[cfg(test)]
                 hc_gdn_pairs: std::cell::Cell::new(0),
                 ssd_direct_enabled,
+                fixed_residency_enabled: std::cell::Cell::new(fixed_residency_enabled),
                 #[cfg(test)]
                 ssd_direct_records: std::cell::Cell::new(0),
                 #[cfg(test)]
