@@ -1,0 +1,63 @@
+[
+  {
+    "name": "default-clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "returncode": 0,
+    "seconds": 2.4842080839999996
+  },
+  {
+    "name": "default-policy-kani",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "hc_gdn_policy_tests::hc_gdn_flag_preserves_qualified_defaults_and_exact_literals"
+    ],
+    "returncode": 0,
+    "seconds": 18.574844292
+  },
+  {
+    "name": "default-release-cli",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--bin",
+      "mlxl3-rs",
+      "--message-format=json"
+    ],
+    "returncode": 0,
+    "seconds": 30.082272666999998
+  },
+  {
+    "name": "default-release-lib",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "returncode": 0,
+    "seconds": 40.700922083
+  }
+]

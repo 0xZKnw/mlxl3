@@ -1,0 +1,67 @@
+[
+  {
+    "name": "kani-residency",
+    "command": [
+      "cargo",
+      "kani",
+      "--lib",
+      "--no-default-features",
+      "--harness",
+      "fixed_residency_policy::fixed_residency_enrollment_requires_capability_and_admitted_nonempty_bytes"
+    ],
+    "returncode": 0,
+    "status": "finished",
+    "seconds": 2.5080664169999998
+  },
+  {
+    "name": "clippy-final",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "returncode": 0,
+    "status": "finished",
+    "seconds": 1.8091786659999998
+  },
+  {
+    "name": "release-cli",
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--bin",
+      "mlxl3-rs",
+      "--message-format=json"
+    ],
+    "returncode": 0,
+    "status": "finished",
+    "seconds": 32.889997832999995
+  },
+  {
+    "name": "release-lib",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--features",
+      "chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "returncode": 0,
+    "status": "finished",
+    "seconds": 41.758217125
+  }
+]

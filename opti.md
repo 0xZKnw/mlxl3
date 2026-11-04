@@ -25309,3 +25309,33 @@ UAR MAIN32 all-five VALIDATED 7.564626540223451
 UAR-COMPOSITION-ALL-FIVE CLOS favorableensemble : MAIN32CLI487d les5ON7.564626540tok/s,2réponsescomplèteswarm/mesuréeidentiques32/31, tousprocess/lecteursjoints. +12.68/+13.74% vscontrôlesOFF6.71348/6.65090 ; +0.4238% vsMoEseul7.53271 surN1, aucuneattributionindividuelle/confirmationstatistique. Aucun résultat négatif effacé. Les5 chemins sontqualifiés ensemble ; les4petitespistes restent prometteusesconservéesenoptions avec performanceisoléeincertaine, pasrejetées. Résidence peutmodifierleworking-setphysique(pasnouvelleallocationpayload), etqueuenouveaubackendn'estpasdéfautM5-snapshot : aucunbesoin d'activercespolitiquesglobalespourlivrerleboostMoE. RevueindépendanterésidenceSDK/ownership/ledger/idleOFF : aucundéfautconcretrestant trouvé. Brutscomposition/report.json ; premierrefuspréparationOUT conservé, aucun essaiGPUinterrompu.
 
 UAR-MOE-DEFAULT — préenregistré AVANT édition/build : choisir uniquementdéfautMoE actif exactM5/rollbackenv0, gardesL1/export/depth inchangées,4autresnouveauxdéfautsOFF/anciens4OFF. Sourcecompute/math/ownershipdes5prototypes inchangée ; seuleinitialisationMoE réutilisera le mêmeparseur strict/défaulthardwarequalifié queL1. Motivation : écranMoE7.53271 vsdeuxcontrôles6.71348/6.65090 ; n'additionneraucungain. Vérifierseulementlescontrôlesaffectés : fmt/strictclippy/buildsDIRECT réels ; Kani parseurqualifiéexistant (sourcehelperidentique) ; gatecrosslayer/MoEexistant maisVARIABLEMOEABSENTE pourqualifierdéfautréel+erreurs/rollback ; CLIshortgoldenavecMOEABSENTE/4autresOFF ; unMAIN32warm+mesuré dubinairefinalpar défautcontrecontrôlesfigés. RéutiliserqualitésGDN/queue/résidence précédentes carsourcecomputeidentique ; pasautrematrice, profiling ouessaiL3L5. Baseline/newfrozenartifactspréservés ; gel final séparé, nepasattribuerlesmesuresCLI487dau nouveaubinaireavantcontrôle.
+
+UAR-MOE-DEFAULT avantGPUfinal : source4771b20d parcomputeidentique635 saufUNESEULEempreinte native/src/gpu.rs(politiqueinitialisation). ClippyalltargetsPASS, Kani réelparseurqualifiéhérité240checks/7covers,UTF8≤4/unwind10,7gardesstdinatteignables, PASS ; buildCLI30.08s/lib40.70sPASS, tousCPU/proveursjoints. Artefacts distincts build/uar/frozen-default etfreeze-default.json, originals487d/c6faetleursrésultatspréservés. Contrôleursadaptésuniquementfreeze/OUT/2gates/plan1processetMOEenvABSENTE, autresoptions0 ; Ruff/pycompilePASS. CréneauGPUfinalautorisépources2gatespuisMAIN32sansautretravailGPU/compilateur.
+
+UAR QUALITY moe STARTED
+
+UAR QUALITY moe VALIDATED
+
+UAR QUALITY cli STARTED
+
+UAR QUALITY cli VALIDATED
+
+UAR QUALITY 4/4 VALIDATED before MAIN32
+
+UAR-MOE-DEFAULT qualité2/2PASS avecvariableMOEABSENTE : modèle4pas/nonvide115212288states+1986560logits/84archives+erreursproducer/rollback etCLIgolden4096/noMLX/shutdown ; tousenfantsjoints. VitessefinaleREFUSÉEAVANTGPUparcontrôled'empreinte : contrôleurcopié référençaitencorefreeze.jsonexploratoire635 (gpursdiffattendu4771). Pasdeprocessusmesuré ni rapportvalidé ; contrôleurerronéconservé default_screen.preflight-refused.py.txt. Corrigeruniquementcheminfreeze-default.json,réutiliserles2qualitésdéjàPASSexactsartefacts etrelanceruniquementMAIN32final. Aucunecompilation/source/kernel/poidsmodifiée.
+
+UAR MAIN32 final-default STARTED
+
+UAR MAIN32 final-default VALIDATED 7.3945524153455695
+
+UAR-MOE-DEFAULT CLOS VALIDÉ qualité+écran court final : CLI dc8bb065514550d8cedb86009b426eb910399330525df27742330b23597a3a32/lib543db49ef2d0b40a15315e0244be534bf1ec2892860c1812bcbdf4924daceb23, source4771b20d052ad727594419da32c4f473896b2eb3. Deuxgates cibléesPASSavecMOEABSENTE puisMAIN32warm+mesuré7.394552415tok/s,31decode/32generated,TTFT11.248913874s/total15.441205333s/Metal6608617472B. +10.1449/+11.1812% vscontrôlesOFFfigés6.713477896/6.650899268 ; anciensMoEseul7.532705 etall57.564627restentdistincts, aucuneaddition. Deuxsortiesfinalescomplèteshashbfa49090cb33d4fe conformes ; total20sortiesvitessevalidées, tousprocess/lecteursjoints, aucunGPUrestant. PasdeHOLD/longcontexte/débitétablisoutenu ; écranMAIN32favorableseulement.
+
+Clôture explicite des5lots :
+- UAR-MOE-WAIT : correction VALIDÉE (gatesinitial/final,4tokens/états/logits/84archives,34cheminsréels, erreurproducteuraprèsconsumercommit/abandon/rollback), performance favorableécrancourt ; intégrélocaldéfautONexactM5, rollbackMLXL3_NATIVE_MOE_DEFERRED=0.
+- UAR-GDN-HALF : correction VALIDÉE (8cascomposés/36chemins/publicF16trace), perfisolée NONCONCLUANTE ; PROMETTEURCONSERVÉ opt-in/OFF, mémoirelogique évitée368640B/row≠gainmesuré.
+- UAR-GDN-NORMGATE : correction VALIDÉE (réductionF32canonique/corpus6144+T17sousnormale03f2/36chemins/états), perfisolée NONCONCLUANTE ; PROMETTEURCONSERVÉ opt-in/OFF ; tradeoff4gates/lane explicite, aucunbugd'adaptationidentifié.
+- UAR-SSD-COMMON-QUEUE : correction VALIDÉE (14CPU/I/O+1631soumissionsmodèleréelles, EOF/reprise, heldworker, mêmesrecords/threads/drain), perfisolée NONCONCLUANTE ; PROMETTEURCONSERVÉ opt-in/OFF. AprèscréneauxGPU, mutationréelle du test versordonnancementstatiqueéchoue101(timeoutattendu), restauréexactsourcepuis1/1PASS ; celaexercelecontre-exempleinitialsansmodèle/profilage.
+- UAR-FIXED-RESIDENCY : correction VALIDÉE SDK1644allocs/3272810112Bfixes=ledger, OFFfallback/idle/reprise/ownersrevu ; perfisolée NONCONCLUANTE, PROMETTEURCONSERVÉ opt-in/OFF ; mémoirewired/coûtdrivernonattribués.
+UAR-COMPOSITION-ALL-FIVE : qualitéVALIDÉE etécranfavorableensemble7.564627 ; contributiondes4petitespistesnonétablie, codeoptionsconservé. Aucunlotencoreencours, source-onlySSD5/3restetoujoursdifféré/horspérimètre. Aucun testL3/L5/MTP/DFlash/P04/encodeurexpertannulé, aucun appinstallée/merge/release.
+
+Preuves finales docs/measurements/issue125-uar-20261104/{README.md,summary.json,freeze.json,freeze-default.json,quality,default-quality,speed,composition,default-speed,cpu,log-archive.json,controller-manifest.json}. 522empreintessourcefinaleset4binairesrehachésconformes ; unique deltaexécutable635→4771initialisationgpu.rs ; minos26.2/sdk27.2confirmés. 47logs conservésgzip sansperte+SHAbrut ; contrôleurs ethelpers utilisésarchivésbyteidentiques, ycomprisrefuspréflightancienfreeze ; shellset-eaprèsrefuspréparationOUT. SuiteDIRECT369PASS/61ignored,14SSD+2manifest,fmt/clippy/inventaire258/buildsréelsPASS ; 4Kaniciblés+parseurhéritéPASSauxdomainesdocumentés, mutationsgarde/queuerejetées/restaurées ; paspreuveMetal/IO/concurrence/ObjC ni injectionvraieGPUFailed/OOM, CrossHairabsent etICEancestryparentdocumentée. LescheminsMLXfeature/autresGPU/appinstallée restentnonvérifiés. PrêtpublicationPRempiléesur129, sansCIglobaleverteprésumée. Originworkspacedirty/poidsjamaismodifiés.

@@ -1,0 +1,30 @@
+import hashlib,json,sys,tempfile,time,os
+from pathlib import Path
+sys.path[:0]=[str(Path.cwd()/'tests')]
+from scripts.native_json_process import JsonProcess
+from physical_flash_ar_bridge import complete,GOLDEN
+CLI=Path(sys.argv[1]);Q=Path(sys.argv[2])
+out=Q/'cli4096-short';out.mkdir();report={'status':'running','parity':False,'completed':0,'context_length':4096};sink=out/'report.json';sink.write_text(json.dumps(report))
+try:
+ with (out/'stderr.log').open('x') as error,(out/'events.jsonl').open('x') as raw,tempfile.TemporaryDirectory(prefix='mlxl3-round2-short-') as temp,JsonProcess([str(CLI),'--registry',str(Path(temp)/'models.json'),'bridge',os.environ['MLXL3_FLASH_MODEL'],'--context-length','4096'],stderr=error,env=os.environ) as child:
+  def until(wanted,identity):
+   deadline=time.monotonic()+180;mode={};text=''
+   while True:
+    event=child.receive(deadline);raw.write(json.dumps(event,allow_nan=False)+'\n');raw.flush();assert isinstance(event.get('type'),str)
+    if event.get('request_id','')!=identity:continue
+    kind=event['type']
+    if kind=='generation_mode':mode=event
+    if kind=='delta':text+=event.get('text','')
+    if kind==wanted:return event,mode,text
+    assert kind not in ('error','complete','cancelled'),event
+  until('ready','')
+  child.send({'type':'generate','request_id':'essential-golden','messages':[{'role':'user','content':'Combien font 2 + 2 ?'}],'max_tokens':2,'temperature':0,'top_k':1,'repetition_penalty':1,'mtp':False,'dflash2':False,'reuse_prompt_cache':False},time.monotonic()+5)
+  event,mode,text=until('complete','essential-golden');complete(event,mode,text)
+  child.send({'type':'flash_memory','request_id':'ledger'},time.monotonic()+5);memory,_,_=until('flash_memory','ledger');slots=memory['ledger']['expert_slots_by_layer'];assert len(slots)==48 and all(type(n) is int and n==53 for n in slots)
+  child.send({'type':'shutdown'},time.monotonic()+5);assert child.process.wait(timeout=10)==0
+ images=[x.lower() for x in (out/'stderr.log').read_text().splitlines() if x.startswith('dyld[')];assert any('/metal.framework/' in x for x in images);assert not any(k in x for x in images for k in ('/libmlx','/libjaccl','/site-packages/mlx/'))
+ report.update(status='verified',parity=True,completed=1,token_hash=GOLDEN,text_sha256=hashlib.sha256(text.encode()).hexdigest(),mode=mode,stats=event['stats'],ledger=memory['ledger'],mlx_loaded=False,child_joined=True)
+except BaseException as e:report.update(status='failed',parity=False,error=repr(e));raise
+finally:sink.write_text(json.dumps(report,indent=2)+'\n')
+assert GOLDEN=='9f850af1cbba074b'
+print('NATIVE_SSD_DIRECT_CLI '+json.dumps({k:report[k] for k in ('status','parity','completed','context_length','token_hash','mlx_loaded','child_joined')}),flush=True)

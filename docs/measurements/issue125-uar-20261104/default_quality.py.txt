@@ -1,0 +1,227 @@
+"""Four essential physical/CLI gates, existing oracles and process helpers."""
+
+import hashlib
+import json
+import os
+import runpy
+import subprocess
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "docs/measurements/issue125-uar-20261104/default-quality"
+OLD = runpy.run_path(
+    str(ROOT / "docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/controller.py.txt")
+)
+FLAGS = [
+    "MLXL3_NATIVE_MOE_DEFERRED",
+    "MLXL3_NATIVE_GDN_HALF_ELISION",
+    "MLXL3_NATIVE_GDN_NORM_GATE",
+    "MLXL3_SSD_DYNAMIC_READERS",
+    "MLXL3_NATIVE_FIXED_RESIDENCY",
+]
+
+
+def main():
+    f = OLD["strict_json"]((OUT.parent / "freeze-default.json").read_text())
+    for item in f["artifacts"].values():
+        assert hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest() == item["sha256"]
+    for path, sha in f["source_files"].items():
+        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == sha, path
+    OUT.mkdir(parents=True, exist_ok=True)
+    sink = OUT / "report.json"
+    assert not sink.exists()
+    report = {"status": "running", "parity": False, "all_children_joined": False, "phases": []}
+
+    def save():
+        sink.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+
+    def journal(value):
+        with (ROOT / "opti.md").open("a") as out:
+            out.write("\nUAR QUALITY " + value + "\n")
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
+    env.update(
+        {
+            "DYLD_PRINT_LIBRARIES": "1",
+            "PYTHONPATH": str(ROOT),
+            "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+            "MLXL3_SSD_CACHE_GIB": "3",
+            "MLXL3_SSD_READERS": "4",
+            "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+            "MLXL3_SSD_OVERLAP": "1",
+            "MLXL3_SSD_CACHE_POLICY": "auto",
+            "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+            "MLXL3_PROMPT_CACHE_MIB": "0",
+            "MLXL3_NATIVE_HC_UP_MIX": "0",
+            "MLXL3_NATIVE_HC_DOWN_INJECT": "0",
+            "MLXL3_NATIVE_HC_WORKSPACE": "0",
+            "MLXL3_NATIVE_SSD_EXTRA_WAVE": "0",
+        }
+    )
+    lib = f["artifacts"]["native-libtest"]["path"]
+    cli = f["artifacts"]["direct-cli"]["path"]
+    phases = [
+        (
+            "moe",
+            "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries",
+            "NATIVE_CROSS_LAYER_MODEL",
+            [],
+        ),
+        ("cli", None, "NATIVE_SSD_DIRECT_CLI", []),
+    ]
+    save()
+    try:
+        for name, test, marker, selected in phases:
+            runenv = {**env, **{flag: str(int(i in selected)) for i, flag in enumerate(FLAGS)}}
+            runenv.pop("MLXL3_NATIVE_MOE_DEFERRED", None)
+            cmd = (
+                [lib, test, "--exact", "--ignored", "--nocapture", "--test-threads=1"]
+                if test
+                else [
+                    "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+                    "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+                    cli,
+                    str(OUT),
+                ]
+            )
+            item = {
+                "name": name,
+                "status": "running",
+                "parity": False,
+                "joined": False,
+                "command": cmd,
+                "flags": {flag: runenv.get(flag) for flag in FLAGS},
+            }
+            report["phases"].append(item)
+            save()
+            journal(name + " STARTED")
+            child = None
+            t = time.monotonic()
+            try:
+                path = OUT / (name + ".log")
+                with path.open("x") as log:
+                    child = subprocess.Popen(
+                        cmd,
+                        cwd=ROOT,
+                        env=runenv,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        start_new_session=True,
+                    )
+                    item["pid"] = child.pid
+                    save()
+                    code = child.wait(timeout=180)
+                assert code == 0 and not OLD["members"](child.pid)
+                text = path.read_text()
+                e = OLD["marker"](text, marker)
+                assert e["parity"] is True
+                if test:
+                    assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in text
+                    OLD["native_images"](text)
+                if name == "moe":
+                    OLD["exact_fields"](
+                        e,
+                        {
+                            "moe_deferred": True,
+                            "deferred_producer_failure_recovery": True,
+                            "compared_state_words": 115212288,
+                            "compared_logits": 1986560,
+                            "initial_archive_states": 84,
+                            "retained_prefix": True,
+                            "recovery": True,
+                        },
+                    )
+                    assert len(e["steps"]) == 4 and all(x["triples"] == 34 for x in e["steps"])
+                elif name == "gdn-composed":
+                    OLD["exact_fields"](
+                        e,
+                        {
+                            "case_count": 8,
+                            "compared_state_words": 230424576,
+                            "compared_logits": 3973120,
+                            "compared_hidden_words": 81920,
+                            "initial_archive_states": 84,
+                            "context": 4096,
+                            "norm_gate_component_values": 6144,
+                            "t17_known_subnormal": True,
+                            "public_f32_fallback": True,
+                            "trace_fallback": True,
+                            "half_stream_fallback": True,
+                        },
+                    )
+                    assert e["dynamic_read_submissions"] > 0 and len(e["cases"]) == 8
+                    assert {(x["token"], x["half"], x["norm"]) for x in e["cases"]} == {
+                        (t, h, n) for t in [248044, 1] for h in [False, True] for n in [False, True]
+                    }
+                    for x in e["cases"]:
+                        assert (
+                            x["half_uses"] == 36 * int(x["half"])
+                            and x["norm_uses"] == 36 * int(x["norm"])
+                            and x["cross_layer_triples"] == 34
+                            and x["parity"] is True
+                        )
+                elif name == "residency":
+                    assert (
+                        len(e["branches"]) == 2
+                        and e["finite"] is True
+                        and e["initial_archive_states"] == 84
+                    )
+                    for x in e["branches"]:
+                        assert (
+                            x["fixed_residency_requested"] is True
+                            and x["residency_idle_resume"] is True
+                        )
+                        assert (
+                            (
+                                x["residency_count"] > 0
+                                and x["residency_bytes"] == x["fixed_weight_bytes"]
+                            )
+                            if x["enabled"]
+                            else (x["residency_count"] == 0 and x["residency_bytes"] == 0)
+                        )
+                else:
+                    OLD["exact_fields"](
+                        e,
+                        {
+                            "status": "verified",
+                            "completed": 1,
+                            "context_length": 4096,
+                            "token_hash": "9f850af1cbba074b",
+                            "mlx_loaded": False,
+                            "child_joined": True,
+                        },
+                    )
+                item.update(
+                    status="validated",
+                    parity=True,
+                    joined=True,
+                    seconds=time.monotonic() - t,
+                    evidence=e,
+                )
+                save()
+                journal(name + " VALIDATED")
+                print(name, "validated", flush=True)
+            except BaseException as error:
+                item.update(
+                    status="failed", parity=False, joined=OLD["stop"](child), error=repr(error)
+                )
+                save()
+                raise
+        report.update(status="validated", parity=True, all_children_joined=True)
+        journal("4/4 VALIDATED before MAIN32")
+    except BaseException as error:
+        report.update(
+            status="failed",
+            parity=False,
+            error=repr(error),
+            all_children_joined=all(x["joined"] for x in report["phases"]),
+        )
+        journal("FAILED " + repr(error))
+        raise
+    finally:
+        save()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,41 @@
+{
+  "status": "exploratory_singles_complete",
+  "parity": true,
+  "source_commit": "635c8a1af721085d43e6c5f342949a3548d50bb8",
+  "opening_tps": 6.7134778956909225,
+  "closing_tps": 6.650899268208055,
+  "control_drift_percent": -0.9321342596962157,
+  "published_tps": 6.317693953145261,
+  "candidates": {
+    "moe": {
+      "decode_tps": 7.532705304282789,
+      "percent_vs_opening": 12.20272742862074,
+      "percent_vs_closing": 13.258448226540631
+    },
+    "half": {
+      "decode_tps": 6.681594701354357,
+      "percent_vs_opening": -0.47491322429212834,
+      "percent_vs_closing": 0.4615230498683065
+    },
+    "normgate": {
+      "decode_tps": 6.543291153027104,
+      "percent_vs_opening": -2.5350011619618806,
+      "percent_vs_closing": -1.6179483531697514
+    },
+    "queue": {
+      "decode_tps": 6.526605420985958,
+      "percent_vs_opening": -2.783541967493619,
+      "percent_vs_closing": -1.8688276909595292
+    },
+    "residency": {
+      "decode_tps": 6.687134209875868,
+      "percent_vs_opening": -0.3923999784368526,
+      "percent_vs_closing": 0.5448126667775499
+    }
+  },
+  "limits": [
+    "one measured response per arm; no sustained/HOLD/significance claim",
+    "published frozen control was slower than both current controls, not used to inflate gain",
+    "no sum of percentages"
+  ]
+}
