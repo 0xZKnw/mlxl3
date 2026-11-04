@@ -1,0 +1,105 @@
+{
+  "checks": [
+    {
+      "label": "selfchecks-v1",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py",
+        "--controller",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run.py",
+        "--output",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks-v1.json"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "joined": true,
+      "controller_sha256": "0664c571bab30de47ff437fd8ea128ad5c24f65651370a7e05aab11897f9153b"
+    },
+    {
+      "label": "controller-format",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py"
+      ],
+      "exit_code": 0,
+      "joined": true,
+      "seconds": 0.07603412499884143
+    },
+    {
+      "label": "controller-lint",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py"
+      ],
+      "exit_code": 1,
+      "joined": true,
+      "seconds": 0.040081416023895144
+    },
+    {
+      "label": "controller-format-final",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "joined": true,
+      "seconds": 0.03942191699752584
+    },
+    {
+      "label": "controller-lint-fixed",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "joined": true,
+      "seconds": 0.04002724998281337
+    },
+    {
+      "label": "controller-selfchecks-v1-final-driver",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py",
+        "--controller",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/quality-01/controller.v1.py.txt",
+        "--output",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks-v1-final-driver.json"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "joined": true,
+      "seconds": 0.07481770898448303
+    },
+    {
+      "label": "controller-selfchecks-v2",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks.py",
+        "--output",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/controller-selfchecks-v2.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "joined": true,
+      "seconds": 0.07539979097782634
+    }
+  ]
+}

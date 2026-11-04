@@ -1,0 +1,7 @@
+# P13v2 lean Pending: source and initial CPU evidence
+
+Only PendingGdn retention and its private finish argument change. Optional trace views are built eagerly with the original trace.then_some contract inside encode; untraced wrappers are released before commit. Previous/input/out-half Rust holders are removed, relying on the existing standard retained-resource command-buffer contract. The owned command, next frame, output values and actual Completed check remain. Shaders, bindings, arithmetic, allocation requests, guards, state-publication order and rollback are unchanged; the experiment stays defaultOFF.
+
+The archived v1 source copies were reconstructed by reversing this precise edit and matched the original freeze hashes exactly before being saved. The [delta](v1-v2.patch.gz) and [source hashes](source-review.json) distinguish v1 and v2. All other frozen source hashes match. Original e621/bd2f binaries are retained unchanged. This archive does not infer a cost from moved wrapper drops or claim that the variable OFF ablation establishes a Pending-only cause.
+
+Format check passes; strict direct/chat all-target Clippy passes2.62s. Existing CPU policy/eligibility proofs are unchanged and reused, not a proof of Metal retention, OS or concurrency. Root owns subsequent full-suite/release/physical qualification. No new GPU run or speed result is claimed here. Raw initial logs remain in build/hc-gdn-chain/v2.

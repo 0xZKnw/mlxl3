@@ -57,6 +57,21 @@ pub(crate) fn hc_chain_flag(value: Option<&str>, qualified_m5: bool) -> Option<b
 }
 
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_gdn_chain_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    hc_chain_flag(value, qualified_m5).map(|enabled| enabled && qualified_m5)
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_gdn_chain_eligible(
+    enabled: bool,
+    trace: bool,
+    same_owner: bool,
+    shape: [u32; 2],
+) -> bool {
+    enabled && !trace && same_owner && shape == [1, 10240]
+}
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn hc_gate_chain_eligible(
     enabled: bool,
     hc_enabled: bool,

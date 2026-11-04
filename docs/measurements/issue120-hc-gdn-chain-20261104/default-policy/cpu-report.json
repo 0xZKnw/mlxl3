@@ -1,0 +1,141 @@
+{
+  "status": "passed",
+  "all_children_joined": true,
+  "checks": [
+    {
+      "name": "unit-policy",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--lib",
+        "hc_gdn_policy_tests::"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 5.506810374994529,
+      "joined": true,
+      "status": "passed",
+      "test_results": [
+        {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        }
+      ],
+      "totals": {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "name": "clippy-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "limit_seconds": 120,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 2.4011458329914603,
+      "joined": true,
+      "status": "passed"
+    },
+    {
+      "name": "full-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features"
+      ],
+      "limit_seconds": 180,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 30.12433679201058,
+      "joined": true,
+      "status": "passed",
+      "test_results": [
+        {
+          "status": "ok",
+          "passed": 248,
+          "failed": 0,
+          "ignored": 8
+        },
+        {
+          "status": "ok",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      ],
+      "totals": {
+        "passed": 336,
+        "failed": 0,
+        "ignored": 8
+      }
+    },
+    {
+      "name": "manifest",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_kani_manifest.py"
+      ],
+      "limit_seconds": 60,
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 0.25781508299405687,
+      "joined": true,
+      "status": "passed"
+    }
+  ]
+}

@@ -782,7 +782,6 @@ mod tests {
             ("native.projection_readback_copy", 7),
             ("native.hc.encode_read", 7 * 97),
             ("native.hc.chain_write_read_gate", 7 * 48),
-            ("native.gdn.body", 7 * 36),
             ("native.gdn.frame", 7 * 36),
         ] {
             ensure!(
@@ -790,6 +789,16 @@ mod tests {
                 "wrong event coverage{name}"
             );
         }
+        let separate_gdn = events
+            .iter()
+            .filter(|e| e["name"] == "native.gdn.body")
+            .count();
+        let joined_gdn = events
+            .iter()
+            .filter(|e| e["name"] == "native.hc_gdn.joined")
+            .count();
+        ensure!(separate_gdn + joined_gdn == 7 * 36);
+        ensure!(joined_gdn == if gpu.hc_gdn_chain.get() { 7 * 36 } else { 0 });
         for (exclusive, row_total) in [
             ("allocation_requests", "metal_requests"),
             ("allocation_requested_bytes", "metal_requested_bytes"),

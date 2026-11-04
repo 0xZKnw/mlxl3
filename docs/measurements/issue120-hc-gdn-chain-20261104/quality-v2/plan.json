@@ -1,0 +1,76 @@
+{
+  "status": "frozen_ready",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/direct-cli",
+      "sha256": "549057398f213e20a70434084ddd7d0732e5adb17fc12a7722aee45fcab6e54a",
+      "bytes": 10123808
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/native-libtest",
+      "sha256": "0c3cea09cd74a89fffbf5e4dd597fd459ad15872ff9a111aea2b6caeb3f38907",
+      "bytes": 9341104
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_NATIVE_HC_GDN_CHAIN": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "label": "component",
+      "marker": "NATIVE_HC_GDN_COMPONENT",
+      "timeout_seconds": 180,
+      "expected": {
+        "finite_words_per_case": 2560,
+        "foreign_owner_fallback": true,
+        "late_failure_actual_pairs": 1,
+        "old_frame_retained": true,
+        "layer_recovery": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/native-libtest",
+        "gpu::gdn::hc_gdn_tests::physical_hc_gdn_chain_preserves_component_outputs_and_failure_ownership",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    },
+    {
+      "label": "model",
+      "marker": "NATIVE_HC_GDN_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "untraced_joined_rows": 4,
+        "actual_pairs": 144,
+        "compared_state_words": 115212288,
+        "compared_logits": 1986560,
+        "initial_archive_states": 84,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/native-libtest",
+        "gpu::gdn::hc_gdn_tests::physical_hc_gdn_chain_preserves_untraced_model_states_and_actual_joins",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ]
+    }
+  ],
+  "limits": "Two physical gates only; all seven older flags genuinely absent, P04/encoder absent. Whole-model forward_trace is an export API; continuation flag explicitly OFF; component trace=true separately verifies fallback. No CLI/model speed here."
+}

@@ -35,7 +35,7 @@ impl Pipelines {
 }
 
 pub struct FlashHc<'a> {
-    gpu: &'a Metal,
+    pub(super) gpu: &'a Metal,
     gain: Buffer,
     down: Buffer,
     up: Buffer,
@@ -50,7 +50,7 @@ pub struct FlashHcRead {
 }
 
 // These views remain owned until the enclosing command has completed.
-struct ReadBuffers {
+pub(super) struct ReadBuffers {
     normalized: MatrixView,
     down: MatrixView,
     active: MatrixView,
@@ -59,7 +59,10 @@ struct ReadBuffers {
     gate: Option<MatrixView>,
 }
 impl ReadBuffers {
-    fn finish(self, trace: bool) -> Result<FlashHcRead> {
+    pub(super) fn mixed(&self) -> &MatrixView {
+        &self.mixed
+    }
+    pub(super) fn finish(self, trace: bool) -> Result<FlashHcRead> {
         let Self {
             normalized,
             down,
@@ -181,7 +184,7 @@ impl<'a> FlashHc<'a> {
             .finish(trace)
     }
 
-    fn encode_read(
+    pub(super) fn encode_read(
         &self,
         cmd: &metal::CommandBufferRef,
         x: &MatrixView,

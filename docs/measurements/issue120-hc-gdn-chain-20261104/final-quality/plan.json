@@ -1,0 +1,181 @@
+{
+  "status": "frozen_ready",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+      "sha256": "3dfea63ea3c2be58e3126f91686817d53d21fcf137c1eb62d8991e1d1647c4c4"
+    },
+    "old-budget-fixture": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+      "sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/native-libtest",
+      "sha256": "920501d641920bdac35fd71f9128d9b1ba820c83550ad7280cd3885de39e5964"
+    }
+  },
+  "environment": {
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "phases": [
+    {
+      "label": "cli4096-full",
+      "kind": "cli-json",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/cli4096-full.json",
+        "--context-length",
+        "4096",
+        "--timeout",
+        "180"
+      ],
+      "timeout_seconds": 240,
+      "report_path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality/cli4096-full.json",
+      "engine_sha256": "3dfea63ea3c2be58e3126f91686817d53d21fcf137c1eb62d8991e1d1647c4c4"
+    },
+    {
+      "label": "budget-frozen",
+      "kind": "budget",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli"
+      }
+    },
+    {
+      "label": "prefix-ar",
+      "kind": "prefix",
+      "marker": "NATIVE_SSD_DIRECT_PREFIX",
+      "expected": {
+        "status": "verified",
+        "parity": true,
+        "completed": 2,
+        "prefix_hits": 1,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      },
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/prefix_ar.py",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/direct-cli",
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/docs/measurements/issue120-hc-gdn-chain-20261104/final-quality"
+      ],
+      "timeout_seconds": 180,
+      "environment": {
+        "MLXL3_PROMPT_CACHE_MIB": "512"
+      }
+    },
+    {
+      "label": "native8",
+      "kind": "native8",
+      "marker": "I120_NATIVE8_PROFILE",
+      "expected": {
+        "status": "diagnostic_complete",
+        "parity": true,
+        "prompt_tokens": 87,
+        "context": 4096,
+        "decode_rows": 7,
+        "independent_first_state": true,
+        "independent_first_logits": true,
+        "continuation_state_words": 28803072
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/native-libtest",
+        "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "label": "prefetch-depth1",
+      "kind": "prefetch",
+      "marker": "NATIVE_FLASH_COMPOSED_FEATURES",
+      "expected": {
+        "hc_initially_enabled": true,
+        "hc_gate_initially_enabled": true,
+        "fixed_initially_enabled": true,
+        "scratch_initially_enabled": true,
+        "hc_gate_pairs": 0,
+        "hc_joint_pairs": 192,
+        "fixed_dims": true,
+        "fixed_submissions": [
+          3840,
+          1920
+        ],
+        "scratch_enabled": true,
+        "scratch_uses": 5760
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "timeout_seconds": 120,
+      "environment": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      }
+    },
+    {
+      "label": "model-default",
+      "marker": "NATIVE_HC_GDN_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "untraced_joined_rows": 4,
+        "actual_pairs": 144,
+        "compared_state_words": 115212288,
+        "compared_logits": 1986560,
+        "initial_archive_states": 84,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-final/native-libtest",
+        "gpu::gdn::hc_gdn_tests::physical_hc_gdn_chain_preserves_untraced_model_states_and_actual_joins",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "kind": "p13-model",
+      "initial_enabled_evidence": "Actual test ensure!(gpu.hc_gdn_chain.get()) immediately after Metal::new, before model load and before any set(false); successful exact nonempty test + absent env proves default initial true. No getter/test-source edit."
+    }
+  ],
+  "limits": "Six final quality gates. HC_GDN_CHAIN and seven older flags genuinely absent in every subprocess. native8 diagnostic not production speed; model initial-enabled guard precedes overrides; true component trace fallback already S2 qualified.",
+  "source_head": "S2 frozen exact source fingerprints",
+  "freeze_path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/freeze-final.json",
+  "validator_dependency": {
+    "path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/quality/run-v2.py",
+    "sha256": "9173f93bc25704b6b22dbcd429f3adc56411ea8591fe9491ea328a7ee729cfd4"
+  },
+  "freeze_sha256": "6492fd47738b06bca76b311d6637c3682d8eda34dc5b3161f3d27e0e06a7a9da",
+  "root_grant": "exclusive FINAL6 after54controllerchecks and all CPU/proofs/releases joined",
+  "selfchecks_path": "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/final-controller-selfchecks.json"
+}

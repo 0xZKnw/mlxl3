@@ -1,0 +1,118 @@
+{
+  "status": "validated_diagnostic_only",
+  "rows": 7,
+  "tokens": [
+    63611,
+    222460,
+    177571,
+    644,
+    52543,
+    13,
+    436,
+    82458
+  ],
+  "events": 13262,
+  "joined_gdn_scopes": 252,
+  "separate_gdn_scopes": 0,
+  "hc_encode_reads": 679,
+  "workspace_allocations": 2716,
+  "exclusive_allocation_equals_rows": true,
+  "allocation_global": {
+    "requests": 39701,
+    "requested_bytes": 2467297434,
+    "API_host_ns": 82186550
+  },
+  "allocation_exclusive": {
+    "other": {
+      "requests": 28746,
+      "requested_bytes": 1503701402,
+      "API_host_ns": 52591198
+    },
+    "GDN_non_frame": {
+      "requests": 5040,
+      "requested_bytes": 63528192,
+      "API_host_ns": 9109557
+    },
+    "HC_read_results": {
+      "requests": 2023,
+      "requested_bytes": 6974464,
+      "API_host_ns": 3322961
+    },
+    "HC_workspace_layers": {
+      "requests": 2688,
+      "requested_bytes": 56770560,
+      "API_host_ns": 8132597
+    },
+    "GDN_frame": {
+      "requests": 504,
+      "requested_bytes": 808206336,
+      "API_host_ns": 1479524
+    },
+    "HC_write_results": {
+      "requests": 672,
+      "requested_bytes": 27525120,
+      "API_host_ns": 7478088
+    },
+    "HC_workspace_head": {
+      "requests": 28,
+      "requested_bytes": 591360,
+      "API_host_ns": 72625
+    }
+  },
+  "central_host_inclusive": {
+    "HC_GDN_joined::encode": {
+      "events": 252,
+      "host_ms_per_row": 2.8042197142857144
+    },
+    "HC_GDN_joined::wait": {
+      "events": 252,
+      "host_ms_per_row": 32.182298714285714
+    },
+    "HC_existing_commands_including_gate::encode": {
+      "events": 763,
+      "host_ms_per_row": 3.2399925714285716
+    },
+    "HC_existing_commands_including_gate::wait": {
+      "events": 763,
+      "host_ms_per_row": 29.710539571428573
+    },
+    "other::encode": {
+      "events": 182,
+      "host_ms_per_row": 1.0539114285714286
+    },
+    "other::wait": {
+      "events": 182,
+      "host_ms_per_row": 9.782774
+    }
+  },
+  "completed_GPU_CB": {
+    "HC_GDN_joined": {
+      "events": 252,
+      "GPU_ms_per_row": 21.85482142210406
+    },
+    "HC_existing_commands_including_gate": {
+      "events": 763,
+      "GPU_ms_per_row": 12.544857105240226
+    },
+    "moe": {
+      "events": 886,
+      "GPU_ms_per_row": 39.13043455187498
+    },
+    "other": {
+      "events": 182,
+      "GPU_ms_per_row": 5.857458288249161
+    },
+    "projection": {
+      "events": 7,
+      "GPU_ms_per_row": 3.5476190470425144
+    }
+  },
+  "unique_completed_commands": 2090,
+  "parity": true,
+  "limits": [
+    "Intrusive diagnostic, not production speed.",
+    "Joint HC/GDN command remains a joint attribution; no perkernel split.",
+    "Inclusive host waits overlap GPU and are not saved time.",
+    "Metal host-second timestamps not mapped to CPU Instant epoch."
+  ]
+}

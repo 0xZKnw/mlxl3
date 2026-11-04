@@ -1851,6 +1851,7 @@
     "config MLXL3_NATIVE_AR_HC_GATE_CHAIN": 1,
     "config MLXL3_NATIVE_FLASH_FIXED_DIMS": 1,
     "config MLXL3_NATIVE_FLASH_STATIC_K": 1,
+    "config MLXL3_NATIVE_HC_GDN_CHAIN": 1,
     "config MLXL3_NATIVE_ROUTED_SCRATCH": 1,
     "config MLXL3_NATIVE_SSD_DIRECT": 1,
     "config MLXL3_SSD_READERS": 1,
@@ -1905,7 +1906,8 @@
     "config MLXL3_SSD_LOOKAHEAD_DEPTH": 1
   },
   "native/src/gpu/gdn.rs": {
-    ".shape": 1,
+    ".finish": 3,
+    ".shape": 2,
     ".transpose": 1,
     "config MLXL3_GDN_MODEL": 1
   },
@@ -3191,5 +3193,9 @@
   "native/src/ssd_reads/direct_tests.rs": {
     ".ready": 7,
     ".try_clone": 8
+  },
+  "native/src/gpu/hc_gdn_tests.rs": {
+    ".finish": 1,
+    "config MLXL3_FLASH_MODEL": 2
   }
 }
