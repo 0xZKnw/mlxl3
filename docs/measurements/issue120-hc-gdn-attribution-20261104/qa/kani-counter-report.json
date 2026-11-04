@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/justin/.cargo/bin/cargo",
+    "kani",
+    "--manifest-path",
+    "/Users/justin/.codex/worktrees/issue120-next-profile/mix-stq1_0/build/hc-gdn/kani-source/Cargo.toml",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "flash_profile::native_allocation_attributes_two_symbolic_requests_exclusively",
+    "--output-format",
+    "regular"
+  ],
+  "timeout_seconds": 30,
+  "domain": "four symbolic u64 values; two actual nested profiling spans; unwind33; no assumes or clock/Metal stubs",
+  "source_profile_sha256": "f21796effbae405f2ec0fccd652cf1e3475c8159041193d1829de1a55b5c396f",
+  "exposure": "Disposable current native source; only cfgtest module exposure and test attributes adjusted. Actual counter/lifecycle/harness bodies unchanged.",
+  "status": "completed",
+  "returncode": 1,
+  "elapsed_seconds": 3.232940083980793,
+  "joined": true,
+  "verdict": "NOT_VERIFIED compiler ICE before obligations",
+  "diagnostic": "Kani0.68 intrinsics.rs243 expected i32; no codegen item/location; no stubs"
+}

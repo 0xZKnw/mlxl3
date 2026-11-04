@@ -1,0 +1,1467 @@
+{
+  "status": "offline_research_only_no_new_timing",
+  "profile_sha256": "a34cd74a04cd805f3bc1cab8e7beaadb5bb19f1bb574d9b327cf9f12bbba0424",
+  "rows": 7,
+  "scopes": {
+    "native.hc.write_separate": {
+      "completed_CB_count": 336,
+      "GPU_ms_per_row": 0.16213686987092452
+    },
+    "native.hc.chain_write_read_gate": {
+      "completed_CB_count": 336,
+      "GPU_ms_per_row": 9.888517836640988
+    },
+    "native.hc.read_separate": {
+      "completed_CB_count": 91,
+      "GPU_ms_per_row": 2.494202398728313
+    },
+    "native.hc_gdn.joined": {
+      "completed_CB_count": 252,
+      "GPU_ms_per_row": 21.85482142210406
+    }
+  },
+  "next_GDN_boundaries_per_row": 34,
+  "GPU_end_to_next_GPU_start_gap_ms": {
+    "median_per_pair": 0.31508333631791174,
+    "sum_per_row": 11.530309545508187
+  },
+  "limits": [
+    "Recorded intrusive Metal host-second intervals only; no CPU Instant mapping, global GPU idle or removable-time inference.",
+    "Gap sums are not speed predictions and are not added to inclusive waits.",
+    "The34 eligible joins require preserving existing HC-read+GDN chain; joining only write+read would split that pair again.",
+    "Initial analysis included7PLE-prelude pairs; corrected here before recommendation, original retained."
+  ],
+  "pairs": [
+    {
+      "row": 1,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.39037500391714275
+    },
+    {
+      "row": 1,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.29387499671429396
+    },
+    {
+      "row": 1,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.3518749726936221
+    },
+    {
+      "row": 1,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.38687497726641595
+    },
+    {
+      "row": 1,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.38212499930523336
+    },
+    {
+      "row": 1,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.3265000123064965
+    },
+    {
+      "row": 1,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.3282916732132435
+    },
+    {
+      "row": 1,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.3028333594556898
+    },
+    {
+      "row": 1,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.31137498444877565
+    },
+    {
+      "row": 1,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.3394999948795885
+    },
+    {
+      "row": 1,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.2938333200290799
+    },
+    {
+      "row": 1,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.3301250108052045
+    },
+    {
+      "row": 1,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.3582499921321869
+    },
+    {
+      "row": 1,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.3139999753329903
+    },
+    {
+      "row": 1,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.3031666565220803
+    },
+    {
+      "row": 1,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.31291667255572975
+    },
+    {
+      "row": 1,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.35287500941194594
+    },
+    {
+      "row": 1,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.32104167621582747
+    },
+    {
+      "row": 1,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.3257083590142429
+    },
+    {
+      "row": 1,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.33137499121949077
+    },
+    {
+      "row": 1,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.30112499371171
+    },
+    {
+      "row": 1,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.2699999895412475
+    },
+    {
+      "row": 1,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.2907916787080467
+    },
+    {
+      "row": 1,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.30633332789875567
+    },
+    {
+      "row": 1,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.28787500923499465
+    },
+    {
+      "row": 1,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.3242499951738864
+    },
+    {
+      "row": 1,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.33420833642594516
+    },
+    {
+      "row": 1,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3179999766871333
+    },
+    {
+      "row": 1,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.29687501955777407
+    },
+    {
+      "row": 1,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.3187500115018338
+    },
+    {
+      "row": 1,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.28654164634644985
+    },
+    {
+      "row": 1,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.35775001742877066
+    },
+    {
+      "row": 1,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.293916673399508
+    },
+    {
+      "row": 1,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.3589166735764593
+    },
+    {
+      "row": 2,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.34587501431815326
+    },
+    {
+      "row": 2,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.3078749869018793
+    },
+    {
+      "row": 2,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.2928749890998006
+    },
+    {
+      "row": 2,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.3224166575819254
+    },
+    {
+      "row": 2,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.30616665026172996
+    },
+    {
+      "row": 2,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.29337499290704727
+    },
+    {
+      "row": 2,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.3024999750778079
+    },
+    {
+      "row": 2,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.2967500186059624
+    },
+    {
+      "row": 2,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.36179166636429727
+    },
+    {
+      "row": 2,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.30545832123607397
+    },
+    {
+      "row": 2,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.33333332976326346
+    },
+    {
+      "row": 2,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.27666668756864965
+    },
+    {
+      "row": 2,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.3079166926909238
+    },
+    {
+      "row": 2,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.2932499919552356
+    },
+    {
+      "row": 2,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.4562083340715617
+    },
+    {
+      "row": 2,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.4049583512824029
+    },
+    {
+      "row": 2,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.3114166611339897
+    },
+    {
+      "row": 2,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.3289583546575159
+    },
+    {
+      "row": 2,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.3057916765101254
+    },
+    {
+      "row": 2,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.3216666809748858
+    },
+    {
+      "row": 2,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.28387497877702117
+    },
+    {
+      "row": 2,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.3687499847728759
+    },
+    {
+      "row": 2,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.29554165666922927
+    },
+    {
+      "row": 2,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.2991666551679373
+    },
+    {
+      "row": 2,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.3005000180564821
+    },
+    {
+      "row": 2,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.3416250110603869
+    },
+    {
+      "row": 2,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.31295832013711333
+    },
+    {
+      "row": 2,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3788333269767463
+    },
+    {
+      "row": 2,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.3468749928288162
+    },
+    {
+      "row": 2,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.29787502717226744
+    },
+    {
+      "row": 2,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.3533333074301481
+    },
+    {
+      "row": 2,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.307291658828035
+    },
+    {
+      "row": 2,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.29466665000654757
+    },
+    {
+      "row": 2,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.294625002425164
+    },
+    {
+      "row": 3,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.3037500136997551
+    },
+    {
+      "row": 3,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.3176666796207428
+    },
+    {
+      "row": 3,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.29799999902024865
+    },
+    {
+      "row": 3,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.323208310874179
+    },
+    {
+      "row": 3,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.28974999440833926
+    },
+    {
+      "row": 3,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.2978333504870534
+    },
+    {
+      "row": 3,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.2813749888446182
+    },
+    {
+      "row": 3,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.41812501149252057
+    },
+    {
+      "row": 3,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.29762499616481364
+    },
+    {
+      "row": 3,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.3278750227764249
+    },
+    {
+      "row": 3,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.2872500044759363
+    },
+    {
+      "row": 3,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.3288750012870878
+    },
+    {
+      "row": 3,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.2934583171736449
+    },
+    {
+      "row": 3,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.3005000180564821
+    },
+    {
+      "row": 3,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.2864583511836827
+    },
+    {
+      "row": 3,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.287791684968397
+    },
+    {
+      "row": 3,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.304749992210418
+    },
+    {
+      "row": 3,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.3375000087544322
+    },
+    {
+      "row": 3,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.3151250130031258
+    },
+    {
+      "row": 3,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.34766667522490025
+    },
+    {
+      "row": 3,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.29075000202283263
+    },
+    {
+      "row": 3,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.3308333398308605
+    },
+    {
+      "row": 3,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.31108330585993826
+    },
+    {
+      "row": 3,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 1.4131249918136746
+    },
+    {
+      "row": 3,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.31566666439175606
+    },
+    {
+      "row": 3,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.38412498543038964
+    },
+    {
+      "row": 3,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.544041657121852
+    },
+    {
+      "row": 3,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3792500065173954
+    },
+    {
+      "row": 3,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.3166249953210354
+    },
+    {
+      "row": 3,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.33183334744535387
+    },
+    {
+      "row": 3,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.4319583240430802
+    },
+    {
+      "row": 3,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.3361249982845038
+    },
+    {
+      "row": 3,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.32362499041482806
+    },
+    {
+      "row": 3,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.3124583454336971
+    },
+    {
+      "row": 4,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.30937499832361937
+    },
+    {
+      "row": 4,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.3463749890215695
+    },
+    {
+      "row": 4,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.31025000498630106
+    },
+    {
+      "row": 4,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.3134583530481905
+    },
+    {
+      "row": 4,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.3184166853316128
+    },
+    {
+      "row": 4,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.3037499845959246
+    },
+    {
+      "row": 4,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.3089166712015867
+    },
+    {
+      "row": 4,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.29337499290704727
+    },
+    {
+      "row": 4,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.3330833569634706
+    },
+    {
+      "row": 4,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.30499999411404133
+    },
+    {
+      "row": 4,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.305499997921288
+    },
+    {
+      "row": 4,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.42366667184978724
+    },
+    {
+      "row": 4,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.3028750070370734
+    },
+    {
+      "row": 4,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.35012498847208917
+    },
+    {
+      "row": 4,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.31695832149125636
+    },
+    {
+      "row": 4,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.3820833517238498
+    },
+    {
+      "row": 4,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.35424999077804387
+    },
+    {
+      "row": 4,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.30191667610779405
+    },
+    {
+      "row": 4,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.3932916733901948
+    },
+    {
+      "row": 4,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.3878749848809093
+    },
+    {
+      "row": 4,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.38949999725446105
+    },
+    {
+      "row": 4,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.317416648613289
+    },
+    {
+      "row": 4,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.42899997788481414
+    },
+    {
+      "row": 4,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.3683333343360573
+    },
+    {
+      "row": 4,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.447750004241243
+    },
+    {
+      "row": 4,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.3487916837912053
+    },
+    {
+      "row": 4,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.2793750027194619
+    },
+    {
+      "row": 4,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3343749849591404
+    },
+    {
+      "row": 4,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.30241667991504073
+    },
+    {
+      "row": 4,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.32750001992098987
+    },
+    {
+      "row": 4,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.2979583223350346
+    },
+    {
+      "row": 4,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.286333350231871
+    },
+    {
+      "row": 4,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.3605833335313946
+    },
+    {
+      "row": 4,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.30612500268034637
+    },
+    {
+      "row": 5,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.30916667310521007
+    },
+    {
+      "row": 5,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.2722499775700271
+    },
+    {
+      "row": 5,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.38425001548603177
+    },
+    {
+      "row": 5,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.2897083468269557
+    },
+    {
+      "row": 5,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.30087499180808663
+    },
+    {
+      "row": 5,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.30774998595006764
+    },
+    {
+      "row": 5,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.30537499696947634
+    },
+    {
+      "row": 5,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.33979167346842587
+    },
+    {
+      "row": 5,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.2948750043287873
+    },
+    {
+      "row": 5,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.3195000172127038
+    },
+    {
+      "row": 5,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.32924997503869236
+    },
+    {
+      "row": 5,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.2903749991673976
+    },
+    {
+      "row": 5,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.34462500480003655
+    },
+    {
+      "row": 5,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.306208326946944
+    },
+    {
+      "row": 5,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.29912497848272324
+    },
+    {
+      "row": 5,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.33599999733269215
+    },
+    {
+      "row": 5,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.39312499575316906
+    },
+    {
+      "row": 5,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.28983334777876735
+    },
+    {
+      "row": 5,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.3339166578371078
+    },
+    {
+      "row": 5,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.3510833194013685
+    },
+    {
+      "row": 5,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.35716668935492635
+    },
+    {
+      "row": 5,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.3728749870788306
+    },
+    {
+      "row": 5,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.534208316821605
+    },
+    {
+      "row": 5,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.31049997778609395
+    },
+    {
+      "row": 5,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.29424999956972897
+    },
+    {
+      "row": 5,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.30762498499825597
+    },
+    {
+      "row": 5,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.29262498719617724
+    },
+    {
+      "row": 5,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3994999860879034
+    },
+    {
+      "row": 5,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.43204164830967784
+    },
+    {
+      "row": 5,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.286666676402092
+    },
+    {
+      "row": 5,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.30895834788680077
+    },
+    {
+      "row": 5,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.29916668427176774
+    },
+    {
+      "row": 5,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.41866666288115084
+    },
+    {
+      "row": 5,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.3627916448749602
+    },
+    {
+      "row": 6,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.3857916744891554
+    },
+    {
+      "row": 6,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.30495834653265774
+    },
+    {
+      "row": 6,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.3060416493099183
+    },
+    {
+      "row": 6,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.3095416759606451
+    },
+    {
+      "row": 6,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.34012499963864684
+    },
+    {
+      "row": 6,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.3168749972246587
+    },
+    {
+      "row": 6,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.29841664945706725
+    },
+    {
+      "row": 6,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.30574999982491136
+    },
+    {
+      "row": 6,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.29024999821558595
+    },
+    {
+      "row": 6,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.29975001234561205
+    },
+    {
+      "row": 6,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.294625002425164
+    },
+    {
+      "row": 6,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.294666679110378
+    },
+    {
+      "row": 6,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.3017916460521519
+    },
+    {
+      "row": 6,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.33845833968371153
+    },
+    {
+      "row": 6,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.34100000630132854
+    },
+    {
+      "row": 6,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.29337499290704727
+    },
+    {
+      "row": 6,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.36525001632981
+    },
+    {
+      "row": 6,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.29516665381379426
+    },
+    {
+      "row": 6,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.291375006781891
+    },
+    {
+      "row": 6,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.378625001758337
+    },
+    {
+      "row": 6,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.3542916674632579
+    },
+    {
+      "row": 6,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.30475002131424844
+    },
+    {
+      "row": 6,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.40591665310785174
+    },
+    {
+      "row": 6,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.7309583306778222
+    },
+    {
+      "row": 6,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.3291666798759252
+    },
+    {
+      "row": 6,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.31658331863582134
+    },
+    {
+      "row": 6,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.33362500835210085
+    },
+    {
+      "row": 6,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.28512501739896834
+    },
+    {
+      "row": 6,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.44870833517052233
+    },
+    {
+      "row": 6,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.3525000065565109
+    },
+    {
+      "row": 6,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.3315000212751329
+    },
+    {
+      "row": 6,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.3032500098925084
+    },
+    {
+      "row": 6,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.31674999627284706
+    },
+    {
+      "row": 6,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.4284166789148003
+    },
+    {
+      "row": 7,
+      "layer": 1,
+      "next_layer": 2,
+      "gpu_gap_ms": 0.3056666755583137
+    },
+    {
+      "row": 7,
+      "layer": 3,
+      "next_layer": 4,
+      "gpu_gap_ms": 0.3096250002272427
+    },
+    {
+      "row": 7,
+      "layer": 4,
+      "next_layer": 5,
+      "gpu_gap_ms": 0.30404169228859246
+    },
+    {
+      "row": 7,
+      "layer": 5,
+      "next_layer": 6,
+      "gpu_gap_ms": 0.31329167541116476
+    },
+    {
+      "row": 7,
+      "layer": 7,
+      "next_layer": 8,
+      "gpu_gap_ms": 0.3062916512135416
+    },
+    {
+      "row": 7,
+      "layer": 8,
+      "next_layer": 9,
+      "gpu_gap_ms": 0.3175416786689311
+    },
+    {
+      "row": 7,
+      "layer": 9,
+      "next_layer": 10,
+      "gpu_gap_ms": 0.2932499919552356
+    },
+    {
+      "row": 7,
+      "layer": 11,
+      "next_layer": 12,
+      "gpu_gap_ms": 0.32879167702049017
+    },
+    {
+      "row": 7,
+      "layer": 12,
+      "next_layer": 13,
+      "gpu_gap_ms": 0.3117083397228271
+    },
+    {
+      "row": 7,
+      "layer": 13,
+      "next_layer": 14,
+      "gpu_gap_ms": 0.3660833463072777
+    },
+    {
+      "row": 7,
+      "layer": 15,
+      "next_layer": 16,
+      "gpu_gap_ms": 0.3013749956153333
+    },
+    {
+      "row": 7,
+      "layer": 16,
+      "next_layer": 17,
+      "gpu_gap_ms": 0.36949999048374593
+    },
+    {
+      "row": 7,
+      "layer": 17,
+      "next_layer": 18,
+      "gpu_gap_ms": 0.29024999821558595
+    },
+    {
+      "row": 7,
+      "layer": 19,
+      "next_layer": 20,
+      "gpu_gap_ms": 0.40620833169668913
+    },
+    {
+      "row": 7,
+      "layer": 20,
+      "next_layer": 21,
+      "gpu_gap_ms": 0.28412500978447497
+    },
+    {
+      "row": 7,
+      "layer": 21,
+      "next_layer": 22,
+      "gpu_gap_ms": 0.36079168785363436
+    },
+    {
+      "row": 7,
+      "layer": 23,
+      "next_layer": 24,
+      "gpu_gap_ms": 0.3801250131800771
+    },
+    {
+      "row": 7,
+      "layer": 24,
+      "next_layer": 25,
+      "gpu_gap_ms": 0.29062500107102096
+    },
+    {
+      "row": 7,
+      "layer": 25,
+      "next_layer": 26,
+      "gpu_gap_ms": 0.29720834572799504
+    },
+    {
+      "row": 7,
+      "layer": 27,
+      "next_layer": 28,
+      "gpu_gap_ms": 0.2875833597499877
+    },
+    {
+      "row": 7,
+      "layer": 28,
+      "next_layer": 29,
+      "gpu_gap_ms": 0.8098750258795917
+    },
+    {
+      "row": 7,
+      "layer": 29,
+      "next_layer": 30,
+      "gpu_gap_ms": 0.29174998053349555
+    },
+    {
+      "row": 7,
+      "layer": 31,
+      "next_layer": 32,
+      "gpu_gap_ms": 0.3024166508112103
+    },
+    {
+      "row": 7,
+      "layer": 32,
+      "next_layer": 33,
+      "gpu_gap_ms": 0.3357499954290688
+    },
+    {
+      "row": 7,
+      "layer": 33,
+      "next_layer": 34,
+      "gpu_gap_ms": 0.4175000067334622
+    },
+    {
+      "row": 7,
+      "layer": 35,
+      "next_layer": 36,
+      "gpu_gap_ms": 0.3150416596326977
+    },
+    {
+      "row": 7,
+      "layer": 36,
+      "next_layer": 37,
+      "gpu_gap_ms": 0.39637499139644206
+    },
+    {
+      "row": 7,
+      "layer": 37,
+      "next_layer": 38,
+      "gpu_gap_ms": 0.3533750132191926
+    },
+    {
+      "row": 7,
+      "layer": 39,
+      "next_layer": 40,
+      "gpu_gap_ms": 0.28837501304224133
+    },
+    {
+      "row": 7,
+      "layer": 40,
+      "next_layer": 41,
+      "gpu_gap_ms": 0.7578333315905184
+    },
+    {
+      "row": 7,
+      "layer": 41,
+      "next_layer": 42,
+      "gpu_gap_ms": 0.3481250023469329
+    },
+    {
+      "row": 7,
+      "layer": 43,
+      "next_layer": 44,
+      "gpu_gap_ms": 0.42387499706819654
+    },
+    {
+      "row": 7,
+      "layer": 44,
+      "next_layer": 45,
+      "gpu_gap_ms": 0.29329166864044964
+    },
+    {
+      "row": 7,
+      "layer": 45,
+      "next_layer": 46,
+      "gpu_gap_ms": 0.3115000145044178
+    }
+  ],
+  "revision": "Exclude PLE at index1; initial joined-scope count35 also included PLE prelude, so only34 pure write/read/GDN boundaries are eligible.",
+  "observed_next_joined_scope_pairs_including_PLE": 245,
+  "eligible_next_regular_GDN_pairs": 238
+}

@@ -78,6 +78,9 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "flash_support::cross_layer_selection_requires_all_transaction_guards",
+        "hc_gdn_policy_tests::hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
+        "hc_gdn_policy_tests::hc_gdn_flag_preserves_qualified_defaults_and_exact_literals",
         "ssd_reads::direct_tests::native_direct_destination_requires_exact_shared_extent",
         "ssd_reads::direct_tests::native_direct_reads_require_depth_zero_without_prefetch",
         "ssd_reads::direct_tests::native_direct_flag_preserves_qualified_default_and_exact_override",

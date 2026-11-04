@@ -1,0 +1,241 @@
+{
+  "status": "source_artifact_research_only",
+  "base": "c146e9a4",
+  "profile_sha256": "a34cd74a04cd805f3bc1cab8e7beaadb5bb19f1bb574d9b327cf9f12bbba0424",
+  "rows": 7,
+  "exclusive_global": {
+    "requests": 39701,
+    "requested_bytes": 2467297434,
+    "API_host_ns": 82186550
+  },
+  "exclusive_by_event": {
+    "native.central_encode": {
+      "requests": 8448,
+      "requested_bytes": 86696672,
+      "API_host_ns": 15086573
+    },
+    "native.gdn.frame": {
+      "requests": 504,
+      "requested_bytes": 808206336,
+      "API_host_ns": 1479524
+    },
+    "native.hc.encode_write": {
+      "requests": 672,
+      "requested_bytes": 27525120,
+      "API_host_ns": 7478088
+    },
+    "native.hc.result.gate_activation": {
+      "requests": 672,
+      "requested_bytes": 10752,
+      "API_host_ns": 930748
+    },
+    "native.hc.result.gate_gemv": {
+      "requests": 672,
+      "requested_bytes": 10752,
+      "API_host_ns": 997322
+    },
+    "native.hc.result.mixed": {
+      "requests": 679,
+      "requested_bytes": 6952960,
+      "API_host_ns": 1394891
+    },
+    "native.hc.workspace.activation": {
+      "requests": 679,
+      "requested_bytes": 869120,
+      "API_host_ns": 1177665
+    },
+    "native.hc.workspace.gemv": {
+      "requests": 1358,
+      "requested_bytes": 28680960,
+      "API_host_ns": 3851050
+    },
+    "native.hc.workspace.norm": {
+      "requests": 679,
+      "requested_bytes": 27811840,
+      "API_host_ns": 3176507
+    },
+    "native.head": {
+      "requests": 21,
+      "requested_bytes": 10465280,
+      "API_host_ns": 80419
+    },
+    "native.layer": {
+      "requests": 25296,
+      "requested_bytes": 1466304428,
+      "API_host_ns": 46394515
+    },
+    "native.logprobs": {
+      "requests": 14,
+      "requested_bytes": 3476494,
+      "API_host_ns": 80248
+    },
+    "native.row": {
+      "requests": 7,
+      "requested_bytes": 286720,
+      "API_host_ns": 59000
+    }
+  },
+  "central_exclusive_by_ancestry": {
+    "native.row > native.layer > native.hc_gdn.joined": {
+      "requests": 5040,
+      "requested_bytes": 63528192,
+      "API_host_ns": 9109557
+    },
+    "native.row > native.layer > native.hc.chain_write_read_gate": {
+      "requests": 1344,
+      "requested_bytes": 1403136,
+      "API_host_ns": 1881997
+    },
+    "native.row > native.layer": {
+      "requests": 2064,
+      "requested_bytes": 21765344,
+      "API_host_ns": 4095019
+    }
+  },
+  "native_layer_structural_reconciliation": {
+    "measured": {
+      "requests": 25296,
+      "requested_bytes": 1466304428,
+      "API_host_ns": 46394515
+    },
+    "parts": [
+      {
+        "name": "336 MoE calls: 10 routed experts x6 +1 shared expert x10 +multiplier+values",
+        "requests": 24192,
+        "requested_bytes": 97199424,
+        "API_host_ns": null
+      },
+      {
+        "name": "1097 P01 direct fresh backings x1248012B",
+        "requests": 1097,
+        "requested_bytes": 1369069164,
+        "API_host_ns": null
+      },
+      {
+        "name": "7 PLE embedding uploads x5120B",
+        "requests": 7,
+        "requested_bytes": 35840,
+        "API_host_ns": null
+      }
+    ],
+    "exact_counts_and_bytes": true,
+    "API_time_attribution": "unknown within layer; no perallocation event histogram"
+  },
+  "hc_write_distribution_ns": {
+    "count": 672,
+    "min": 5375,
+    "median": 9166.5,
+    "max": 32875,
+    "sum": 7478088
+  },
+  "hc_up_workspace_alone": {
+    "requests": 679,
+    "requested_bytes": 27811840,
+    "API_host_ns": 2366346
+  },
+  "defaults_and_retention": {
+    "native8_explicit_prior_flags_absent": "flash.rs:705-717",
+    "M5_fixed_and_scratch_default_on": "gpu.rs:368-385",
+    "stage_retention_affects_native_GPU": false,
+    "fixed_individual_counter_in_profile": "not exposed, source/PSO policy unchanged"
+  },
+  "ranked_allocation_candidates": [
+    {
+      "rank": 1,
+      "name": "per-HC four-buffer workspace lease",
+      "remove_requests_per_row_after_warmup": 388,
+      "persistent_capacity_bytes": 8194560,
+      "associated_API_host_ms_per_row": 1.1721745714285714,
+      "source": "hc.rs:201-289,65-87; memory.rs:188-204",
+      "contract": "per-HC lease to enclosing CB Completed or error drop; mixed/gate remain separate; trace/occupied fallback; F16/F32 capacity; ledger and idle clear",
+      "complexity": "about100-150 production lines before QA",
+      "speed_gain": "unmeasured"
+    },
+    {
+      "rank": 2,
+      "name": "extend existing expert-local scratch to qualified shared K4 class",
+      "remove_requests_per_row": 192,
+      "remove_requested_bytes_per_row": 552960,
+      "associated_API_host_ms_per_row": null,
+      "source": "flash_expert_scratch.rs:7-16; projection.rs:1088-1139",
+      "contract": "only fixed batch1/640hidden/splits1 verified extents; actual capacity helper, sameCB,4outputs separate",
+      "risk": "adds gate/up WAR dependencies; could lose overlap; existing routed scope was deliberately excluded shared",
+      "speed_gain": "unmeasured"
+    },
+    {
+      "rank": 3,
+      "name": "nontrace HC320 activation in place",
+      "remove_requests_per_row": 97,
+      "remove_requested_bytes_per_row": 124160,
+      "associated_API_host_ms_per_row": 0.16823785714285713,
+      "source": "hc.rs:236-264; flash_hc.metal:67-71",
+      "contract": "pointwise owned down buffer only when tracefalse; trace needs original down; no persistent cache",
+      "complexity": "about20-35 production lines before QA",
+      "speed_gain": "unmeasured; small associated API envelope"
+    }
+  ],
+  "other_new_mechanisms": [
+    {
+      "name": "Private intermediate attention HCwrite only",
+      "remove_requests_per_row": 0,
+      "mode_changes_per_row": 48,
+      "associated_API_host_ms_per_row": 0.5825472857142857,
+      "source": "hc.rs:315-319,346-350,436; gdn.rs:408-420",
+      "finding": "Shared40960B HCwrite mean11.128us vs Private40960B HCnorm4.678us, observational only",
+      "contract": "public write/finalhidden/trace remain readable; only internal attention intermediate mode changes",
+      "speed_gain": "unknown, mode could merely move cost"
+    },
+    {
+      "name": "routed-down contribution slab",
+      "remove_requests_per_row": 432,
+      "remove_requested_bytes_per_row": 0,
+      "source": "projection.rs:439,488-513; moe.rs:286-347; flash_moe.metal:30-51",
+      "contract": "new destination binding byteoffset+extent; disjoint5120B slices,orderedroutes/duplicates/lateerror/drop;4expert outputs distinct",
+      "risk": "same resource may add tracked dependencies across hot/cold experts and waves, unlike separate buffers",
+      "complexity": "about100-180 production lines before QA",
+      "speed_gain": "unmeasured; broad API plumbing"
+    },
+    {
+      "name": "up-to-mix fusion",
+      "owner": "resume_trace_hc",
+      "remove_requests_per_row": 97,
+      "note": "competes with workspace cache by removing up entirely; consult B audit, not a gain combined with P03"
+    }
+  ],
+  "deprioritized": [
+    {
+      "name": "GDN frame pool",
+      "requests_per_row": 72,
+      "requested_bytes_per_row": 115458048,
+      "associated_API_host_ms_per_row": 0.21136057142857143,
+      "reason": "snapshots clone Frame Buffer owners; naive pingpong corrupts retained snapshots/rollback/prefix; need logical exclusivity+COW/completion lease"
+    },
+    {
+      "name": "global/interexpert scratch pool",
+      "reason": "routed local scratch already active; cross-expert WAR/wave hazards and hidden persistent budget/eviction accounting"
+    }
+  ],
+  "first_trial_if_authorized": {
+    "quality": "one preregistered candidate; existing independent finite fullword component oracles plus actual nonzero allocation/reuse counters; F16/F32/strides/trace/lateerror/recovery;84states/logits/continuation and realCLI golden; snapshot/prefix/budget/idle ledger if pooling",
+    "speed": "32-token MAIN/HOLD A/B/B/A vs final baseline, same3GiB/48x53/readers4/depth0/prefixoff/T0K1penalty1; warm+measured/process; GPU exclusive, allchildrenjoined; preserve output/counters/drift; no gain inference from host API envelope"
+  },
+  "limits": [
+    "Existing intrusive7-row profile only. No new prototype/build/proof/test/GPU/measurement.",
+    "Allocation APIhost is not processRAM/GPUtraffic/removablewall/predictedtok/s.",
+    "Event allocations exclusive, duration parents and GPU composites overlap.",
+    "P01 direct and routed scratch already active. P04/expert-encoder canceled, no reuse."
+  ],
+  "source_sha256": {
+    "native/src/gpu.rs": "16e5011f05b5e9863869574573fcc6fac3ac6130a9e190a96891a55162c58ecf",
+    "native/src/gpu/flash.rs": "03c34e1a958657251f5e5e2ded168f3626786ca7d5ed567321a99708d7869e44",
+    "native/src/gpu/hc.rs": "15a104a2f828833d70a95f10513cf0c8c600e177a8a16f7350daca57aaa0554c",
+    "native/src/gpu/gdn.rs": "0846bfda289ddf7b6922066d04a66fcda5bd987c5cb01e2fdaed5aa302998dae",
+    "native/src/gpu/projection.rs": "dbfef0a03a7936fbe253909f06324374c9354fa8d6e7bafd69e61c83ad5c0596",
+    "native/src/gpu/moe.rs": "3398b0584c8374eaec389d177644826067fb7fead8abc87c20967aaa95b84f3c",
+    "native/src/flash_expert_scratch.rs": "34830590b0fec1e6794be7a8c1c47de10d468196ef4b10283ff85fa9a308f218",
+    "native/src/gpu/memory.rs": "6259dd00d1940e68a27bada934b9ba6d89bcbe9471af0d27671a3d850fd4e752",
+    "native/src/gpu/view.rs": "05c21cf3b4eca5def9e9e4a4b8f23c81a0853e32fb448b2ba564f48cfaba0187",
+    "native/shaders/flash_hc.metal": "27069c1918834b2d40170506679d108513ff015827d6baf28852bf35b2f6343a",
+    "native/shaders/flash_moe.metal": "0b2c1cc901e1b538ccece69973d237ed9dfeec4deca749efa8400c10365b6dfa"
+  }
+}

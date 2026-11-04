@@ -74,13 +74,9 @@ pub(crate) fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Resul
     {
         BUFFER_REQUESTED_BYTES.with(|v| v.set(v.get().saturating_add(length)));
         if let Some(start) = observed {
-            BUFFER_ALLOCATION_NS.with(|v| {
-                v.set(
-                    v.get().saturating_add(
-                        u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX),
-                    ),
-                )
-            });
+            let elapsed = u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX);
+            BUFFER_ALLOCATION_NS.with(|v| v.set(v.get().saturating_add(elapsed)));
+            crate::flash_profile::native_allocation(length, elapsed);
         }
     }
     ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
@@ -212,6 +208,16 @@ pub struct Metal {
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
     hc_gate_chain: std::cell::Cell<bool>,
+    hc_gdn_chain: std::cell::Cell<bool>,
+    cross_layer: std::cell::Cell<bool>,
+    #[cfg(test)]
+    cross_layer_triples: std::cell::Cell<usize>,
+    #[cfg(test)]
+    cross_layer_fail_after: std::cell::Cell<Option<usize>>,
+    #[cfg(test)]
+    hc_final_writes: std::cell::Cell<usize>,
+    #[cfg(test)]
+    hc_gdn_pairs: std::cell::Cell<usize>,
     ssd_direct_enabled: bool,
     #[cfg(test)]
     ssd_direct_records: std::cell::Cell<u64>,
@@ -322,6 +328,22 @@ impl Metal {
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
             let qualified_m5 = device.name() == "Apple M5";
+            let cross_layer = match std::env::var("MLXL3_NATIVE_CROSS_LAYER") {
+                Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_gdn_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_CROSS_LAYER must be 0 or 1")?;
+            let hc_gdn_chain = match std::env::var("MLXL3_NATIVE_HC_GDN_CHAIN") {
+                Ok(value) => crate::flash_support::hc_gdn_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_gdn_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_HC_GDN_CHAIN must be 0 or 1")?;
             let ssd_direct_enabled = match std::env::var("MLXL3_NATIVE_SSD_DIRECT") {
                 Ok(value) => crate::ssd_reads::direct_flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -569,6 +591,16 @@ impl Metal {
                 queue,
                 hc_chain: std::cell::Cell::new(hc_chain),
                 hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
+                hc_gdn_chain: std::cell::Cell::new(hc_gdn_chain),
+                cross_layer: std::cell::Cell::new(cross_layer),
+                #[cfg(test)]
+                cross_layer_triples: std::cell::Cell::new(0),
+                #[cfg(test)]
+                cross_layer_fail_after: std::cell::Cell::new(None),
+                #[cfg(test)]
+                hc_final_writes: std::cell::Cell::new(0),
+                #[cfg(test)]
+                hc_gdn_pairs: std::cell::Cell::new(0),
                 ssd_direct_enabled,
                 #[cfg(test)]
                 ssd_direct_records: std::cell::Cell::new(0),

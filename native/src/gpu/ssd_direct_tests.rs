@@ -101,7 +101,7 @@ fn direct_ssd_experts_match_legacy_cold_hot_outputs_and_real_counters() -> Resul
     Ok(())
 }
 
-fn digest(bytes: &[u8]) -> Result<String> {
+pub(super) fn digest(bytes: &[u8]) -> Result<String> {
     use std::io::Write;
     let mut file = tempfile::NamedTempFile::new()?;
     file.write_all(bytes)?;
@@ -118,7 +118,7 @@ fn digest(bytes: &[u8]) -> Result<String> {
     ensure!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
     Ok(hash.to_owned())
 }
-fn check_tensors(states: &[FlashTraceTensor]) -> Result<usize> {
+pub(super) fn check_tensors(states: &[FlashTraceTensor]) -> Result<usize> {
     ensure!(states.len() == 84, "incomplete state oracle");
     let mut total = 0usize;
     for state in states {
@@ -142,7 +142,7 @@ fn check_tensors(states: &[FlashTraceTensor]) -> Result<usize> {
     ensure!(total == 28_803_072);
     Ok(total)
 }
-fn check_initial(logits: &[u16], states: &[FlashTraceTensor]) -> Result<()> {
+pub(super) fn check_initial(logits: &[u16], states: &[FlashTraceTensor]) -> Result<()> {
     let reference: serde_json::Value = serde_json::from_str(include_str!(
         "../../../docs/native-coverage/flash-state/initial.json"
     ))?;

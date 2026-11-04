@@ -1,0 +1,83 @@
+{
+  "status": "CPU_policy_verified_GPU_unverified",
+  "scope": "actual production hc_gdn_chain_flag and hc_gdn_chain_eligible; CPU guard contracts only",
+  "tests_passed": 3,
+  "tests_ignored": 0,
+  "manifest_tests_passed": 2,
+  "proofs": [
+    {
+      "harness": "hc_gdn_flag_preserves_default_off_and_qualified_exact_literals",
+      "checks": 240,
+      "unreachable": 7,
+      "covers_satisfied": 7,
+      "covers_total": 7,
+      "unreachable_properties": [
+        [
+          "std::fmt::Arguments::<'_>::from_str.assertion.1",
+          "attempt to shift left with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.1",
+          "attempt to subtract with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.2",
+          "attempt to shift right with overflow"
+        ],
+        [
+          "std::ptr::align_offset::mod_inv.assertion.3",
+          "index out of bounds: the length is less than or equal to the given index"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.2",
+          "attempt to subtract with overflow"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.3",
+          "attempt to add with overflow"
+        ],
+        [
+          "core::str::validations::run_utf8_validation.assertion.18",
+          "attempt to add with overflow"
+        ]
+      ],
+      "status": "successful",
+      "log": "hc_gdn_flag_preserves_default_off_and_qualified_exact_literals.log.gz"
+    },
+    {
+      "harness": "hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes",
+      "checks": 43,
+      "unreachable": 0,
+      "covers_satisfied": 8,
+      "covers_total": 8,
+      "unreachable_properties": [],
+      "status": "successful",
+      "log": "hc_gdn_joint_selection_requires_every_guard_for_symbolic_shapes.log.gz"
+    }
+  ],
+  "versions": {
+    "rustc": "1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "1.98.1 (797e8a9bc 2026-08-05)",
+    "kani": "0.68.0",
+    "cbmc": "6.11.0",
+    "version_read_commands": [
+      "rustc --version",
+      "cargo --version",
+      "Kani log header"
+    ]
+  },
+  "domains": {
+    "eligibility": "all bool enabled/trace/same_owner and all u32[2] shapes, unwind10 for fixed comparisons",
+    "flag": "all qualified/present bools, valid UTF8 strings0..4bytes, unwind10; no assume/stub"
+  },
+  "mutation": "exact production helpers+actual test module, remove only !trace: original0,mutant101,reused original0; worktree helper unchanged",
+  "limitations": [
+    "does not prove device-name to qualified mapping or owner identity computation",
+    "does not prove Metal/GPU scheduling/dtype math/OS/command ownership",
+    "does not prove frame publication/rollback/full generation; physical fixtures remain required",
+    "F16 and F32 are both eligible by production closed dtype enum; their numerical paths need physical checks"
+  ],
+  "unreachable_explanation": "7 std fmt/align/UTF8 guards; no functional assertion unreachable; all15covers satisfied",
+  "source_policy_sha256": "1062df0b844f5516d08611ae36b3f0db9baac5599e3041444e63f5f2e800e1c5",
+  "all_owned_children_joined": true
+}

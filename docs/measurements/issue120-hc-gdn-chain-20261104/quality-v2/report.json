@@ -1,0 +1,151 @@
+{
+  "status": "essential_validated",
+  "parity": true,
+  "all_children_joined": true,
+  "expected_phases": 2,
+  "phases": [
+    {
+      "label": "component",
+      "marker": "NATIVE_HC_GDN_COMPONENT",
+      "timeout_seconds": 180,
+      "expected": {
+        "finite_words_per_case": 2560,
+        "foreign_owner_fallback": true,
+        "late_failure_actual_pairs": 1,
+        "old_frame_retained": true,
+        "layer_recovery": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/native-libtest",
+        "gpu::gdn::hc_gdn_tests::physical_hc_gdn_chain_preserves_component_outputs_and_failure_ownership",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 46388,
+      "returncode": 0,
+      "elapsed_seconds": 1.192738375015324,
+      "evidence": {
+        "cases": [
+          {
+            "actual_pairs": 1,
+            "control_commands": 2,
+            "control_waits": 2,
+            "half": false,
+            "joined_commands": 1,
+            "joined_waits": 1,
+            "recovery": true,
+            "trace_fallback": true,
+            "uncommitted_rejected": true
+          },
+          {
+            "actual_pairs": 1,
+            "control_commands": 2,
+            "control_waits": 2,
+            "half": true,
+            "joined_commands": 1,
+            "joined_waits": 1,
+            "recovery": true,
+            "trace_fallback": true,
+            "uncommitted_rejected": true
+          }
+        ],
+        "finite_words_per_case": 2560,
+        "foreign_owner_fallback": true,
+        "late_failure_actual_pairs": 1,
+        "layer_recovery": true,
+        "old_frame_retained": true,
+        "parity": true
+      }
+    },
+    {
+      "label": "model",
+      "marker": "NATIVE_HC_GDN_MODEL",
+      "timeout_seconds": 180,
+      "expected": {
+        "untraced_joined_rows": 4,
+        "actual_pairs": 144,
+        "compared_state_words": 115212288,
+        "compared_logits": 1986560,
+        "initial_archive_states": 84,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "parity": true
+      },
+      "command": [
+        "/Users/justin/.codex/worktrees/issue120-hc-gdn-chain/mix-stq1_0/build/hc-gdn-chain/frozen-v2/native-libtest",
+        "gpu::gdn::hc_gdn_tests::physical_hc_gdn_chain_preserves_untraced_model_states_and_actual_joins",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pgid_empty": true,
+      "pid": 46392,
+      "returncode": 0,
+      "elapsed_seconds": 6.713654374994803,
+      "evidence": {
+        "actual_pairs": 144,
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "context": 4096,
+        "explicit_legacy_continuation": true,
+        "initial_archive_states": 84,
+        "parity": true,
+        "steps": [
+          {
+            "actual_pairs": 36,
+            "control_commands": 206,
+            "control_waits": 206,
+            "joined_commands": 170,
+            "joined_waits": 170,
+            "legacy_continuation_pairs": 0,
+            "snapshot_position": 1,
+            "token": 248044
+          },
+          {
+            "actual_pairs": 36,
+            "control_commands": 218,
+            "control_waits": 218,
+            "joined_commands": 182,
+            "joined_waits": 182,
+            "legacy_continuation_pairs": 0,
+            "snapshot_position": 2,
+            "token": 1
+          },
+          {
+            "actual_pairs": 36,
+            "control_commands": 218,
+            "control_waits": 218,
+            "joined_commands": 182,
+            "joined_waits": 182,
+            "legacy_continuation_pairs": 0,
+            "snapshot_position": 3,
+            "token": 42
+          },
+          {
+            "actual_pairs": 36,
+            "control_commands": 218,
+            "control_waits": 218,
+            "joined_commands": 182,
+            "joined_waits": 182,
+            "legacy_continuation_pairs": 0,
+            "snapshot_position": 4,
+            "token": 7
+          }
+        ],
+        "untraced_joined_rows": 4
+      }
+    }
+  ],
+  "plan_sha256": "b28b08fb4e536adc55d7cfbc4e7657616c7fbe8ae31604720c1ba49d4d7f02b9"
+}

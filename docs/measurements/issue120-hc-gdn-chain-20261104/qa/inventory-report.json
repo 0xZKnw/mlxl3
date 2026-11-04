@@ -1,0 +1,72 @@
+[
+  {
+    "name": "inventory-before",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py"
+    ],
+    "exit_code": 1,
+    "joined": true
+  },
+  {
+    "name": "inventory-update",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py",
+      "--inventory"
+    ],
+    "exit_code": 0,
+    "joined": true
+  },
+  {
+    "name": "inventory-after",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py"
+    ],
+    "exit_code": 1,
+    "joined": true
+  },
+  {
+    "name": "inventory-reviewed-update",
+    "explicit_changes": [
+      {
+        "path": "native/src/gpu.rs",
+        "marker": "config MLXL3_NATIVE_HC_GDN_CHAIN",
+        "old": 0,
+        "new": 1
+      },
+      {
+        "path": "native/src/gpu/gdn.rs",
+        "marker": ".finish",
+        "old": 0,
+        "new": 3
+      },
+      {
+        "path": "native/src/gpu/gdn.rs",
+        "marker": ".shape",
+        "old": 1,
+        "new": 2
+      },
+      {
+        "path": "native/src/gpu/hc_gdn_tests.rs",
+        "marker": ".finish",
+        "old": 0,
+        "new": 1
+      },
+      {
+        "path": "native/src/gpu/hc_gdn_tests.rs",
+        "marker": "config MLXL3_FLASH_MODEL",
+        "old": 0,
+        "new": 2
+      }
+    ],
+    "note": "--inventory emits for review; initial mismatch retained until explicit five-marker update",
+    "command": [
+      "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+      "scripts/check_native_coverage.py"
+    ],
+    "exit_code": 0,
+    "joined": true
+  }
+]
