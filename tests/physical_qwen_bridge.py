@@ -37,19 +37,20 @@ def exercise(engine, model, output, *, native, timeout=180):
         with tempfile.TemporaryDirectory(prefix="qwen-native-bridge-") as tmp:
             with (
                 (output / "stderr.log").open("w") as err,
-                (output / "events.jsonl").open("w") as events,JsonProcess(
-                [
-                    str(engine),
-                    "--registry",
-                    str(Path(tmp) / "models.json"),
-                    "bridge",
-                    str(model),
-                    "--context-length",
-                    "4096",
-                ],
-                stderr=err,
-                env={**os.environ, "DYLD_PRINT_LIBRARIES": "1"},
-            ) as child
+                (output / "events.jsonl").open("w") as events,
+                JsonProcess(
+                    [
+                        str(engine),
+                        "--registry",
+                        str(Path(tmp) / "models.json"),
+                        "bridge",
+                        str(model),
+                        "--context-length",
+                        "4096",
+                    ],
+                    stderr=err,
+                    env={**os.environ, "DYLD_PRINT_LIBRARIES": "1"},
+                ) as child,
             ):
 
                 def until(kind, rid=None, cancel=None):

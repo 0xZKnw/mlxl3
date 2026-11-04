@@ -1,0 +1,35 @@
+import hashlib,json,os,signal,subprocess
+from pathlib import Path
+root=Path.cwd();out=root/'docs/measurements/qwen36-native-20261104/integration';py='/Users/henko/Documents/Codex/2026-10-05/chec/work/venv/bin/python'
+model='/Users/henko/Documents/Code/mlxl3-post-smallm/models/Qwen3.6-35B-A3B-EXL3-2.49bpw'
+env={**os.environ,'MLXL3_QWEN_TEST_MODEL':model,'MLXL3_QWEN_NATIVE_ORACLE':str(root/'docs/measurements/qwen36-native-20261104/model-oracle'),'DYLD_PRINT_LIBRARIES':'1'}
+pre=subprocess.check_output(['ps','-axo','pid=,ppid=,comm='],text=True)
+conflicts=[line for line in pre.splitlines() if any(word in line.split()[-1].lower() for word in ['mlxl3','cargo-kani','cbmc','rustc','kani-driver'])]
+report={'status':'in_progress','parity':False,'conflicts_before':conflicts,'checks':[],'artifacts':json.loads((out/'host.json').read_text())['artifacts']}
+def save():(out/'physical.json').write_text(json.dumps(report,indent=2)+'\n')
+def run(label,cmd,timeout):
+ row={'label':label,'command':cmd,'status':'in_progress','reaped':False};report['checks'].append(row);save()
+ with (out/(label+'.log')).open('w') as log:
+  p=subprocess.Popen(cmd,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+  try:code=p.wait(timeout=timeout)
+  except BaseException:
+   os.killpg(p.pid,signal.SIGTERM)
+   try:p.wait(timeout=5)
+   except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
+   row.update(status='failed',reaped=p.poll() is not None);save();raise
+ row.update(status='passed' if code==0 else 'failed',exit_code=code,reaped=p.poll() is not None);save();print(label,row['status'],flush=True)
+ if code:raise RuntimeError(label)
+try:
+ if conflicts:raise RuntimeError('competing inference/compiler/prover')
+ with (out/'power.log').open('w') as log:subprocess.run(['pmset','-g','batt'],stdout=log,stderr=subprocess.STDOUT,check=True)
+ run('model-native',[str(root/'build/artifacts/qwen36-pr-libtest'),'--ignored','--exact','gpu::qwen::tests::complete_session_matches_independent_mlx_and_restores_branches','--nocapture','--test-threads=1'],300)
+ text=(out/'model-native.log').read_text()
+ if '1 passed; 0 failed; 0 ignored' not in text:raise RuntimeError('model selection/count')
+ if '/libmlx' in text or '/Python.framework' in text:raise RuntimeError('native model loaded MLX/Python')
+ run('bridge',[py,'tests/physical_qwen_bridge.py','/Users/henko/Library/Application Support/io.mlxl3.desktop/Engines/v2.0.2/mlxl3',str(root/'build/artifacts/mlxl3-qwen36-pr-direct'),model,str(out/'bridge')],600)
+ bridge=json.loads((out/'bridge/report.json').read_text())
+ if bridge.get('status')!='validated' or bridge.get('parity') is not True:raise RuntimeError('bridge report incomplete')
+ report.update(status='validated',parity=True)
+except BaseException as e:
+ report.update(status='failed',parity=False,error=repr(e));raise
+finally:save()
