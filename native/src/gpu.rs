@@ -180,10 +180,21 @@ pub struct Metal {
     device: Device,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
+    hc_gate_chain: std::cell::Cell<bool>,
     #[cfg(test)]
     helper_commands: std::cell::Cell<usize>,
     #[cfg(test)]
+    helper_commits: std::cell::Cell<usize>,
+    #[cfg(test)]
     hc_chain_pairs: std::cell::Cell<usize>,
+    #[cfg(test)]
+    hc_gate_chain_pairs: std::cell::Cell<usize>,
+    #[cfg(test)]
+    gate_commands: std::cell::Cell<usize>,
+    #[cfg(test)]
+    helper_waits: std::cell::Cell<usize>,
+    #[cfg(test)]
+    route_waits: std::rc::Rc<std::cell::Cell<usize>>,
     pack_pipeline: ComputePipelineState,
     decode_pipeline: ComputePipelineState,
     codebook_pipeline: ComputePipelineState,
@@ -253,6 +264,14 @@ impl Metal {
                 Err(error) => return Err(error.into()),
             }
             .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
+            let hc_gate_chain = match std::env::var("MLXL3_NATIVE_AR_HC_GATE_CHAIN") {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), false),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, false)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_AR_HC_GATE_CHAIN must be 0 or 1")?;
             // Snapshot once; cold expert records never re-read this environment.
             // Defer malformed-setting errors to eligible projection loads.
             let flash_static_setting =
@@ -466,10 +485,21 @@ impl Metal {
                 device,
                 queue,
                 hc_chain: std::cell::Cell::new(hc_chain),
+                hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
                 #[cfg(test)]
                 helper_commands: std::cell::Cell::new(0),
                 #[cfg(test)]
+                helper_commits: std::cell::Cell::new(0),
+                #[cfg(test)]
                 hc_chain_pairs: std::cell::Cell::new(0),
+                #[cfg(test)]
+                hc_gate_chain_pairs: std::cell::Cell::new(0),
+                #[cfg(test)]
+                gate_commands: std::cell::Cell::new(0),
+                #[cfg(test)]
+                helper_waits: std::cell::Cell::new(0),
+                #[cfg(test)]
+                route_waits: std::rc::Rc::new(std::cell::Cell::new(0)),
                 pack_pipeline,
                 decode_pipeline,
                 codebook_pipeline,
@@ -522,6 +552,11 @@ impl Metal {
             self.helper_commands.set(self.helper_commands.get() + 1);
             let value = encode(cmd)?;
             cmd.commit();
+            #[cfg(test)]
+            {
+                self.helper_commits.set(self.helper_commits.get() + 1);
+                self.helper_waits.set(self.helper_waits.get() + 1);
+            }
             cmd.wait_until_completed();
             ensure!(
                 cmd.status() == MTLCommandBufferStatus::Completed,
@@ -530,6 +565,16 @@ impl Metal {
             );
             Ok(value)
         })
+    }
+
+    #[allow(
+        unexpected_cfgs,
+        reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
+    )]
+    fn owns_command_queue(&self, cmd: &CommandBufferRef) -> bool {
+        // MTLCommandBuffer.commandQueue is a nonnull borrowed MTLCommandQueue.
+        let queue: *mut metal::MTLCommandQueue = unsafe { msg_send![cmd, commandQueue] };
+        queue == self.queue.as_ptr()
     }
 
     pub fn device_name(&self) -> &str {

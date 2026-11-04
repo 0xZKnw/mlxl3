@@ -56,6 +56,53 @@ pub(crate) fn hc_chain_flag(value: Option<&str>, qualified_m5: bool) -> Option<b
     }
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_gate_chain_eligible(
+    enabled: bool,
+    hc_enabled: bool,
+    depth: usize,
+    has_prefetcher: bool,
+) -> bool {
+    enabled && hc_enabled && depth == 0 && !has_prefetcher
+}
+
+#[test]
+fn hc_gate_chain_keeps_every_fallback_and_default_off() {
+    assert_eq!(hc_chain_flag(None, false), Some(false));
+    for enabled in [false, true] {
+        for hc_enabled in [false, true] {
+            for depth in [0, 1, 10, usize::MAX] {
+                for has_prefetcher in [false, true] {
+                    assert_eq!(
+                        hc_gate_chain_eligible(enabled, hc_enabled, depth, has_prefetcher),
+                        (enabled, hc_enabled, depth, has_prefetcher) == (true, true, 0, false)
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn hc_gate_chain_selection_requires_every_production_guard() {
+    let enabled: bool = kani::any();
+    let hc_enabled: bool = kani::any();
+    let depth: usize = kani::any();
+    let has_prefetcher: bool = kani::any();
+    let selected = hc_gate_chain_eligible(enabled, hc_enabled, depth, has_prefetcher);
+    assert_eq!(
+        selected,
+        (enabled, hc_enabled, depth, has_prefetcher) == (true, true, 0, false)
+    );
+    assert_eq!(hc_chain_flag(None, false), Some(false));
+    kani::cover!(selected);
+    kani::cover!(!enabled && hc_enabled && depth == 0 && !has_prefetcher);
+    kani::cover!(enabled && !hc_enabled && depth == 0 && !has_prefetcher);
+    kani::cover!(enabled && hc_enabled && depth == 1 && !has_prefetcher);
+    kani::cover!(enabled && hc_enabled && depth == 0 && has_prefetcher);
+}
+
 #[test]
 fn hc_chain_flag_preserves_hardware_default_and_strict_overrides() {
     for qualified_m5 in [false, true] {

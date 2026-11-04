@@ -326,6 +326,21 @@ impl<'a> LayerResidual<'a> {
             .as_ref()
             .context("missing attention injection gate")?;
         let attention = attend(&read.mixed)?;
+        if self.moe.joint_gate_eligible(depth) {
+            let (written, mlp_read, routing) = self.mlp_hc.read_after_write_with_gate(
+                &self.attn_hc,
+                streams,
+                &attention.values,
+                gate,
+                &self.moe,
+            )?;
+            let experts = self.moe.with_completed_gate(&mlp_read.mixed, routing)?;
+            return self.mlp_hc.write(
+                &written,
+                experts.completed()?,
+                mlp_read.gate.as_ref().context("missing MLP injection")?,
+            );
+        }
         let (written, mlp_read) =
             self.mlp_hc
                 .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;

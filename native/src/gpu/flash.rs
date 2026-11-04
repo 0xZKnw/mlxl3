@@ -601,6 +601,16 @@ mod tests {
     #[test]
     #[ignore = "physical Flash AR HC chain counts, full target states and late IO rollback"]
     fn hc_chain_keeps_ar_logits_states_and_actual_command_savings() -> Result<()> {
+        check_hc_ar_chain(false)
+    }
+
+    #[test]
+    #[ignore = "physical HC gate joint path, 48 real CB savings and complete restored AR states"]
+    fn hc_gate_chain_keeps_ar_logits_states_and_actual_command_savings() -> Result<()> {
+        check_hc_ar_chain(true)
+    }
+
+    fn check_hc_ar_chain(gate_chain: bool) -> Result<()> {
         let c =
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
@@ -612,7 +622,8 @@ mod tests {
         let mut compared = 0;
         for prefix in [0, 2, 9] {
             model.reset();
-            gpu.hc_chain.set(false);
+            gpu.hc_chain.set(gate_chain);
+            gpu.hc_gate_chain.set(false);
             if prefix > 0 {
                 ensure!(finite(&model.prefill(&prompt[..prefix])?));
             }
@@ -620,11 +631,18 @@ mod tests {
             // Give both restored branches the same QSA copy-on-write cost.
             ensure!(finite(&model.forward(11)?));
             model.restore(&saved)?;
-            let commands = gpu.helper_commands.get();
+            let commands = gpu.helper_commits.get();
             let pairs = gpu.hc_chain_pairs.get();
+            let gate_commands = gpu.gate_commands.get();
+            let waits = gpu.helper_waits.get() + gpu.route_waits.get();
             let expected = model.forward(11)?;
-            let control_commands = gpu.helper_commands.get() - commands;
-            ensure!(finite(&expected) && gpu.hc_chain_pairs.get() == pairs);
+            let control_gate_commands = gpu.gate_commands.get() - gate_commands;
+            let control_waits = gpu.helper_waits.get() + gpu.route_waits.get() - waits;
+            let control_commands = gpu.helper_commits.get() - commands;
+            ensure!(
+                finite(&expected)
+                    && gpu.hc_chain_pairs.get() - pairs == if gate_chain { 48 } else { 0 }
+            );
             let hidden = model
                 .last_hidden()
                 .context("missing control row")?
@@ -641,14 +659,28 @@ mod tests {
             ensure!(finite(&next) && states.len() == 84);
             model.restore(&saved)?;
             gpu.hc_chain.set(true);
-            let commands = gpu.helper_commands.get();
+            gpu.hc_gate_chain.set(gate_chain);
+            let gate_pairs = gpu.hc_gate_chain_pairs.get();
+            let gate_commands = gpu.gate_commands.get();
+            let waits = gpu.helper_waits.get() + gpu.route_waits.get();
+            let commands = gpu.helper_commits.get();
             let pairs = gpu.hc_chain_pairs.get();
             let actual = model.forward(11)?;
-            let candidate_commands = gpu.helper_commands.get() - commands;
-            ensure!(
-                gpu.hc_chain_pairs.get() - pairs == 48
-                    && candidate_commands + 48 == control_commands,
-                "joint encoding did not remove exactly48 helper commands at prefix={prefix}: {control_commands}->{candidate_commands}"
+            let candidate_commands = gpu.helper_commits.get() - commands;
+            let candidate_gate_commands = gpu.gate_commands.get() - gate_commands;
+            let candidate_waits = gpu.helper_waits.get() + gpu.route_waits.get() - waits;
+            ensure!(gpu.hc_chain_pairs.get() - pairs == 48);
+            if gate_chain {
+                ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
+                ensure!(gpu.hc_gate_chain_pairs.get() - gate_pairs == 48);
+                ensure!(control_gate_commands == 48 && candidate_gate_commands == 0);
+                ensure!(candidate_commands == control_commands && candidate_waits == control_waits);
+            } else {
+                ensure!(candidate_commands + 48 == control_commands);
+            }
+            eprintln!(
+                "NATIVE_FLASH_CHAIN_COUNTS {}",
+                serde_json::json!({"gate_chain":gate_chain,"prefix":prefix,"control_helper_cb":control_commands,"candidate_helper_cb":candidate_commands,"control_gate_cb":control_gate_commands,"candidate_gate_cb":candidate_gate_commands,"control_wait_calls":control_waits,"candidate_wait_calls":candidate_waits,"joint_gate_pairs":gpu.hc_gate_chain_pairs.get()-gate_pairs})
             );
             ensure!(actual == expected && finite(&actual) && model.offset() as usize == prefix + 1);
             ensure!(
@@ -755,6 +787,16 @@ mod tests {
     #[test]
     #[ignore = "physical Flash lookahead, archived independent full states/logits and continuation"]
     fn predictive_reads_match_archived_full_states_and_imposed_continuation() -> Result<()> {
+        check_archived_full_states(true)
+    }
+
+    #[test]
+    #[ignore = "physical depth0 joint HC gate against independent archived full states/logits"]
+    fn hc_gate_depth_zero_matches_archived_full_states_and_continuation() -> Result<()> {
+        check_archived_full_states(false)
+    }
+
+    fn check_archived_full_states(predictive: bool) -> Result<()> {
         fn digest(bytes: &[u8]) -> Result<String> {
             use std::io::Write;
             let mut file = tempfile::NamedTempFile::new()?;
@@ -777,7 +819,16 @@ mod tests {
         let gpu = Metal::new()?;
         let hc_initially_enabled = gpu.hc_chain.get();
         let mut model = FlashNext::load(&gpu, &c, 64)?;
-        ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        if predictive {
+            ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        } else {
+            ensure!(
+                model.lookahead_depth == 0
+                    && model.prefetcher.is_none()
+                    && gpu.hc_gate_chain.get()
+                    && gpu.hc_chain.get()
+            );
+        }
         let oracle: serde_json::Value = serde_json::from_str(include_str!(
             "../../../docs/native-coverage/flash-state/initial.json"
         ))?;
@@ -836,17 +887,22 @@ mod tests {
         );
         model.reset();
         ensure!(model.prefill(&[248044, 1])? == second);
-        let pool = model.prefetcher.as_ref().unwrap();
-        pool.borrow_mut().drain()?;
-        ensure!(
-            pool.borrow().stats.submitted > 0
-                && pool.borrow().stats.published > 0
-                && pool.borrow().in_flight() == 0
-        );
-        eprintln!(
-            "native prefetch model: {}",
-            serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
-        );
+        if predictive {
+            let pool = model.prefetcher.as_ref().unwrap();
+            pool.borrow_mut().drain()?;
+            ensure!(
+                pool.borrow().stats.submitted > 0
+                    && pool.borrow().stats.published > 0
+                    && pool.borrow().in_flight() == 0
+            );
+            ensure!(gpu.hc_gate_chain_pairs.get() == 0 && gpu.gate_commands.get() > 0);
+            eprintln!(
+                "native prefetch model: {}",
+                serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
+            );
+        } else {
+            ensure!(gpu.hc_gate_chain_pairs.get() == 192 && gpu.gate_commands.get() == 0);
+        }
         let static_submissions = gpu
             .flash_static_submissions
             .each_ref()
@@ -867,7 +923,7 @@ mod tests {
         );
         eprintln!(
             "NATIVE_FLASH_COMPOSED_FEATURES {}",
-            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":gpu.flash_fixed_submissions.each_ref().map(std::cell::Cell::get)})
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":gpu.flash_fixed_submissions.each_ref().map(std::cell::Cell::get)})
         );
         Ok(())
     }

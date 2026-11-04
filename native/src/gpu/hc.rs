@@ -295,6 +295,41 @@ impl<'a> FlashHc<'a> {
         Ok((written, read.finish(false)?))
     }
 
+    pub(super) fn read_after_write_with_gate(
+        &self,
+        writer: &FlashHc,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+        moe: &super::FlashMoeRow,
+    ) -> Result<(MatrixView, FlashHcRead, super::RouteOutput)> {
+        ensure!(
+            self.inject.is_some(),
+            "Flash MLP requires an injection gate"
+        );
+        ensure!(moe.joint_gate_eligible(0), "ineligible joint HC gate");
+        ensure!(
+            std::ptr::eq(self.gpu, writer.gpu),
+            "HC chain requires the same Metal instance"
+        );
+        let (written, read, gate) = self.gpu.command(|cmd| {
+            let written = writer.encode_write(cmd, streams, branch, gate)?;
+            let read = self.encode_read(cmd, &written, false)?;
+            let gate = moe.encode_gate(self.gpu, cmd, &read.mixed)?;
+            #[cfg(test)]
+            {
+                self.gpu
+                    .hc_chain_pairs
+                    .set(self.gpu.hc_chain_pairs.get() + 1);
+                self.gpu
+                    .hc_gate_chain_pairs
+                    .set(self.gpu.hc_gate_chain_pairs.get() + 1);
+            }
+            Ok((written, read, gate))
+        })?;
+        Ok((written, read.finish(false)?, gate.routes))
+    }
+
     /// Read the four streams, run the ordinary demand-loaded MLP and inject its residual.
     pub fn forward_moe(
         &self,
@@ -521,6 +556,71 @@ mod tests {
         );
         eprintln!(
             "HC chain:4cases,51216 finite F32 words exact, actual helper commands2->1, strided/mixed dtype/error/recovery/owner checks passed"
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical joint HC gate owner rejection before commit and recovery"]
+    fn joint_hc_gate_rejects_foreign_moe_before_commit_and_recovers() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let gpu = Metal::new()?;
+        gpu.hc_chain.set(true);
+        gpu.hc_gate_chain.set(true);
+        let writer = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.attn_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let reader = FlashHc::load(
+            &gpu,
+            &c,
+            "model.language_model.layers.0.mlp_hyper_connection",
+            1e-6,
+            true,
+        )?;
+        let moe =
+            super::super::FlashMoeRow::load(&gpu, &c, "model.language_model.layers.0.mlp", 10)?;
+        let view = |n| {
+            gpu.f32_storage(&vec![0.0; n])?.matrix(MatrixLayout {
+                shape: [1, n as u32],
+                strides: [n as i64, 1],
+                offset: 0,
+            })
+        };
+        let streams = view(10240)?;
+        let branch = view(2560)?;
+        let gate = view(4)?;
+        let (expected, read) = reader.read_after_write(&writer, &streams, &branch, &gate)?;
+        let expected_mixed = read.mixed.read_output()?;
+        let other = Metal::new()?;
+        other.hc_chain.set(true);
+        other.hc_gate_chain.set(true);
+        let foreign =
+            super::super::FlashMoeRow::load(&other, &c, "model.language_model.layers.0.mlp", 10)?;
+        let commits = gpu.helper_commits.get();
+        ensure!(
+            reader
+                .read_after_write_with_gate(&writer, &streams, &branch, &gate, &foreign)
+                .is_err()
+        );
+        ensure!(gpu.helper_commits.get() == commits);
+        let (actual, read, routing) =
+            reader.read_after_write_with_gate(&writer, &streams, &branch, &gate, &moe)?;
+        ensure!(
+            actual.export_bytes(&gpu)? == expected.export_bytes(&gpu)?
+                && read.mixed.read_output()? == expected_mixed
+        );
+        ensure!(
+            routing.indices()?.len() == 10
+                && routing
+                    .completed_scores()?
+                    .read_output()?
+                    .iter()
+                    .all(|&b| f32::from_bits(b).is_finite())
         );
         Ok(())
     }

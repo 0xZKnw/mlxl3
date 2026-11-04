@@ -143,12 +143,50 @@ impl<'a> FlashMoeRow<'a> {
     ) -> Result<MoeOutput> {
         self.forward(x, false, next, depth)
     }
+    pub(super) fn joint_gate_eligible(&self, depth: usize) -> bool {
+        crate::flash_support::hc_gate_chain_eligible(
+            self.gpu.hc_gate_chain.get(),
+            self.gpu.hc_chain.get(),
+            depth,
+            self.prefetcher.is_some(),
+        )
+    }
+    pub(super) fn encode_gate(
+        &self,
+        owner: &Metal,
+        cmd: &metal::CommandBufferRef,
+        x: &MatrixView,
+    ) -> Result<super::gate::GateBuffers> {
+        ensure!(
+            std::ptr::eq(self.gpu, owner),
+            "MoE gate chain requires the same Metal instance"
+        );
+        self.gate.encode(owner, cmd, x, Storage::StorageModePrivate)
+    }
+    pub(super) fn with_completed_gate(
+        &mut self,
+        x: &MatrixView,
+        routing: super::RouteOutput,
+    ) -> Result<MoeOutput> {
+        ensure!(self.joint_gate_eligible(0), "ineligible joint HC gate");
+        self.forward_routed(x, false, None, 0, Some(routing))
+    }
     fn forward(
+        &mut self,
+        x: &MatrixView,
+        trace: bool,
+        next: Option<&mut FlashMoeRow<'a>>,
+        depth: usize,
+    ) -> Result<MoeOutput> {
+        self.forward_routed(x, trace, next, depth, None)
+    }
+    fn forward_routed(
         &mut self,
         x: &MatrixView,
         trace: bool,
         mut next: Option<&mut FlashMoeRow<'a>>,
         depth: usize,
+        routing: Option<super::RouteOutput>,
     ) -> Result<MoeOutput> {
         ensure!(depth <= 10, "lookahead depth must be in 0..=10");
         if let Some(pool) = &self.prefetcher {
@@ -168,7 +206,10 @@ impl<'a> FlashMoeRow<'a> {
                 && switch.max_total_threads_per_threadgroup() >= 512,
             "unsupported Flash shared expert switch threadgroup"
         );
-        let routing = self.gate.submit(x)?;
+        let routing = match routing {
+            Some(routing) => routing,
+            None => self.gate.submit(x)?,
+        };
         // SSD demand starts as soon as the route is known. This queue has also passed its previous row.
         let ids = routing.indices()?;
         let weights = routing.completed_scores()?;
