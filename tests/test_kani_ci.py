@@ -79,7 +79,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     )
     added = {
         "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
-        "flash_support::hc_chain_flag_defaults_off_and_accepts_only_exact_literals",
+        "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",
         "tensor_layout::accepted_matrix_views_bound_every_sampled_coordinate",
         "tensor_layout::matrix_row_preserves_backing_and_address",
         "contracts::draft_blas_extents_reject_overflow_and_truncation",

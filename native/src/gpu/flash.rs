@@ -604,6 +604,7 @@ mod tests {
         let c =
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
+        eprintln!("HC chain initially enabled: {}", gpu.hc_chain.get());
         let mut model = FlashNext::load(&gpu, &c, 64)?;
         let prompt = [248044, 78768, 11, 7, 19, 31, 13, 29, 17];
         let finite =
@@ -707,6 +708,16 @@ mod tests {
         let before = model.snapshot();
         ensure!(model.forward(248320).is_err() && model.offset() == before.offset);
         ensure!(model.prefill(&[]).is_err() && model.offset() == before.offset);
+        let static_submissions = gpu
+            .flash_static_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
+        if gpu.flash_static_setting == Some(true) {
+            ensure!(static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0);
+        } else {
+            ensure!(static_submissions == [0; 5]);
+        }
+        eprintln!("HC chain static QMV submissions: {static_submissions:?}");
         Ok(())
     }
 
@@ -760,6 +771,7 @@ mod tests {
         let c =
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
+        let hc_initially_enabled = gpu.hc_chain.get();
         let mut model = FlashNext::load(&gpu, &c, 64)?;
         ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
         let oracle: serde_json::Value = serde_json::from_str(include_str!(
@@ -846,6 +858,10 @@ mod tests {
         eprintln!(
             "NATIVE_FLASH_STATIC_SUBMISSIONS {}",
             serde_json::json!(static_submissions)
+        );
+        eprintln!(
+            "NATIVE_FLASH_COMPOSED_FEATURES {}",
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions})
         );
         Ok(())
     }

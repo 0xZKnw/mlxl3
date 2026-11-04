@@ -24143,3 +24143,31 @@ I75-AR-HC-CURRENT-FIXTURE-02 phase production-ar-budget résultat=validated, par
 I75-AR-HC-CURRENT-FIXTURE-02 outcome=validated, 4/4phases exécutées +2oraclesinchangésréutilisés, allchildrenjoined/groupesvides=True, vitesse non mesurée. Voir quality-02/physical-result.json ; ancienéchecconservé.
 
 I75-AR-HC-CURRENT-FIXTURE-02 clôturequalité VALIDÉE :4/4phasescorrigées98.76s +2oraclesHCinchangésréutilisés ; fullAR8.66s confirme242->194prefix0et254->206prefix2/9,48pairs+86409216motsF32finis/84états×3/logits/hidden exacts,rollback/reprise. Oracleindépendant84états28803072mots+496640logits3.28s ; réelARbridge61.01s4completionsgolden/rejet/context+deltaannulations/reprise ;budget25.77s2goldens/memorysaver/ledger/rejetsavantdraft. Dyldnatif/noMLXpartout, tousprocessus/PGIDsvidesvérifiés10:22:41UTC,secteur100%auxbornes. Résumé quality-summary.json, brutsquality-02 ; ancienéchecfailed/parityfalse conservé. IntégrationlocaleflagHCdéfaut0, vitesseNONMESURÉE ; handbackGPUroot pourABBAHC, cetagentmetadataonly.
+
+I75-AR-COMPOSE flag mutation préenregistrée : extrairebyteexactvraifonction+vraitestunitaire(sansréécriture), muterNonehardwareversfalsepourreproduireanciencomportementM5 ; attendreéchecduvraitest puisoriginalpasse. VérificationCPUdéterministe, paspreuveMetal.
+
+I75-AR-COMPOSE gateactivationaffectétest-only avantgel : rootimposemarkerduvraiMetalarchivéinitialHCbool+actualHCpairs+K2/K4dansmêmeprocessus,afinrefusfallbacksilencieux. AjoutcfgtestNATIVE_FLASH_COMPOSED_FEATURES, aucuncompteur/flagproduitnouveau. La gateexterneexigeraHCtrue,pairs>0,K2>0,K4>0surcandidatabsent. Relancerseulementlintdirect+suitebibliothèquedirecte+libtestreleaseaffectés ; CLIproductionetsespreuvesinchangés.
+
+I75-AR-COMPOSE relecturepreuve préenregistrée : sortieKani terse237/7coverspassemais7UNREACHABLEnonlistés ; répéterexactementmêmedomaine/helper/unwind10enformatregularpourinspecterobligationsindividuelles, pasnouvellemétrique/perf. Aucunassume/stub/domainechangé, borne60s.
+
+I75-AR-COMPOSE CPU+gel clos : strict3configs/fullCPU333/direct342/compat378passés,9/41/259ignorés,Python6pass44skip+2policyexactesdirectes. Markeractivationarchivéajouté,test-only ;lintdirect+suitebibliothèque253pass37ignore+libtestreleaseaffectésrepassent. Kanihelperréel237checks0fail/7covers passe22.10s,puisformatregularmêmedomaine17.23s confirme7UNREACHABLEdeguardsstdUTF8/fmt (détails hc-default-proof.json),aucunassume/unwind10,domainestr<=4nonréduit. MutationNonehardware->false détectée,originalpasse. Arctifacts26.2figés freeze.json ;Kshaders/selector/projectionbyteidentiques117,aucunGPUlancé. TousCPU/proofs joints,qualitécomposéeattendgrantroot.
+
+I75-AR-COMPOSE 2026-11-04T10:50:34.167851+00:00 phase hc-full-ar lancée942d/4253 aprèsgrantroot,HC/KvariablesABSENTES,NT2=1,activationstricteinitialHC+actualpairs+K2/K4requise ;logsquality-01,noperf.
+
+I75-AR-COMPOSE phase hc-full-ar outcome=validated,parity=True,joined=True,PGIDempty=True,elapsed7.57s ;rawquality-01/report+logs preserved,nospeedclaim.
+
+I75-AR-COMPOSE 2026-11-04T10:50:41.749590+00:00 phase target-independent-states lancée942d/4253 aprèsgrantroot,HC/KvariablesABSENTES,NT2=1,activationstricteinitialHC+actualpairs+K2/K4requise ;logsquality-01,noperf.
+
+I75-AR-COMPOSE phase target-independent-states outcome=validated,parity=True,joined=True,PGIDempty=True,elapsed3.54s ;rawquality-01/report+logs preserved,nospeedclaim.
+
+I75-AR-COMPOSE 2026-11-04T10:50:45.300235+00:00 phase production-ar-bridge lancée942d/4253 aprèsgrantroot,HC/KvariablesABSENTES,NT2=1,activationstricteinitialHC+actualpairs+K2/K4requise ;logsquality-01,noperf.
+
+I75-AR-COMPOSE phase production-ar-bridge outcome=validated,parity=True,joined=True,PGIDempty=True,elapsed56.16s ;rawquality-01/report+logs preserved,nospeedclaim.
+
+I75-AR-COMPOSE 2026-11-04T10:51:41.473728+00:00 phase production-ar-budget lancée942d/4253 aprèsgrantroot,HC/KvariablesABSENTES,NT2=1,activationstricteinitialHC+actualpairs+K2/K4requise ;logsquality-01,noperf.
+
+I75-AR-COMPOSE phase production-ar-budget outcome=validated,parity=True,joined=True,PGIDempty=True,elapsed23.54s ;rawquality-01/report+logs preserved,nospeedclaim.
+
+I75-AR-COMPOSE qualitéfinale=validated,4phasesattendues/4exécutées,alljoined=True;défautsréeletcompteursactivationsqualifiésseulementsi4/4paritytrue. Aucunepilotevitesseparcetagent.
+
+I75-AR-COMPOSE qualitéCOMPOSÉEVALIDÉE4/4en90.85s :fullAR7.57s/86409216motsF32finis+logits/hidden/48joints-commandes ;oracleindep3.54s/28803072mots+496640logits ;ACTIVATIONMÊMEMETALréelledéfautsabsentsHCinitialtrue,pairs192,K[5760,0,0,480,723] ;réelAR56.16sgolden4/rejet/cancel2/reprise ;budget23.54sgolden2/memorysaver/ledger/rejet,draftsnonchargés. Tousenfants/PGIDsvides10:52:43UTC,dyldMetal/noMLX. quality-summary.json+quality-01raw/compressedSHAmanifest. HCisoléancienABBA retenu séparément(5.1009->5.2409 MAIN/5.1664->5.3508 HOLD),pasrésultatcomposéetpasaddition. Rootpiloteglobalencours,métadonnéesseulementici,aucunpushavantverdict.

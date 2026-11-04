@@ -238,14 +238,17 @@ impl Metal {
     }
 
     pub fn new() -> Result<Self> {
-        let hc_chain = match std::env::var("MLXL3_NATIVE_AR_HC_CHAIN") {
-            Ok(value) => crate::flash_support::hc_chain_flag(Some(&value)),
-            Err(std::env::VarError::NotPresent) => crate::flash_support::hc_chain_flag(None),
-            Err(error) => return Err(error.into()),
-        }
-        .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
         objc::rc::autoreleasepool(|| {
             let device = Device::system_default().context("no Metal device")?;
+            let qualified_m5 = device.name() == "Apple M5";
+            let hc_chain = match std::env::var("MLXL3_NATIVE_AR_HC_CHAIN") {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
             // Snapshot once; cold expert records never re-read this environment.
             // Defer malformed-setting errors to eligible projection loads.
             let flash_static_setting =
