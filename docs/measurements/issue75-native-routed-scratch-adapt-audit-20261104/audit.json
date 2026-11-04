@@ -1,0 +1,150 @@
+{
+  "status": "read_only_audit_closed_inconclusive_causality",
+  "source_sha256": {
+    "native/src/gpu.rs": "7902ed87dd9492c8c5956d7ae389afb3cac817a9c6bf829564f1621e2363b0a7",
+    "native/src/gpu/projection.rs": "a0ff89f0ea71435c7f11ccc1a92ff31145403ea42bcb3712065e24f078e80fab",
+    "native/src/gpu/moe.rs": "bc61f50ea4372f99c8613b6b772bdef1e2ccf47f3c852e8228065804ecb21ae2",
+    "native/src/flash_expert_scratch.rs": "dbed12179c89ceb145a9f133d4f38c76d4548e545b7f1bad7d909161c7a2f21b"
+  },
+  "source_matches_frozen_789a": true,
+  "artifacts": {
+    "ensemble_cli": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+    "reference_cli": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90"
+  },
+  "protocol": {
+    "order": [
+      "1-reference",
+      "2-ensemble",
+      "3-ensemble",
+      "4-reference"
+    ],
+    "tokens": 32,
+    "repeats_per_process": 1,
+    "aggregate": "arithmetic mean of two single-measurement process rates, not pooled tokens/time",
+    "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "cache_gib": 3.0
+  },
+  "metrics": {
+    "MAIN": {
+      "decode_tps": {
+        "reference_mean": 5.877077949156296,
+        "ensemble_mean": 5.861515025296745,
+        "change_percent": -0.2648071710838029,
+        "individual": [
+          5.940528554216437,
+          5.668174721120092,
+          6.054855329473399,
+          5.813627344096155
+        ]
+      },
+      "ttft_seconds": {
+        "reference_mean": 15.2403284785,
+        "ensemble_mean": 14.118794563,
+        "change_percent": -7.358987813695639,
+        "individual": [
+          15.292608249,
+          13.807364583,
+          14.430224543,
+          15.188048708
+        ]
+      },
+      "elapsed_seconds": {
+        "reference_mean": 20.515687854,
+        "ensemble_mean": 19.413417312500002,
+        "change_percent": -5.372817861844615,
+        "individual": [
+          20.511013791,
+          19.276531208,
+          19.550303417,
+          20.520361917
+        ]
+      }
+    },
+    "HOLD": {
+      "decode_tps": {
+        "reference_mean": 5.949796051711623,
+        "ensemble_mean": 5.9361142992042915,
+        "change_percent": -0.2299533024059719,
+        "individual": [
+          5.99034920964486,
+          6.051717391568707,
+          5.8205112068398766,
+          5.9092428937783845
+        ]
+      },
+      "ttft_seconds": {
+        "reference_mean": 14.091012187499999,
+        "ensemble_mean": 13.524636020500001,
+        "change_percent": -4.019414357631634,
+        "individual": [
+          14.010067083,
+          13.525321958,
+          13.523950083,
+          14.171957292
+        ]
+      },
+      "elapsed_seconds": {
+        "reference_mean": 19.3015298125,
+        "ensemble_mean": 18.748920228499998,
+        "change_percent": -2.8630351550793853,
+        "individual": [
+          19.185069125,
+          18.647858166,
+          18.849982291,
+          19.4179905
+        ]
+      }
+    }
+  },
+  "inputs": [
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/performance/campaign.json",
+      "sha256": "15fca44a15fc585f1d42622aba1ef6d57890b553afd9fba4cc7e62f74124ee4f"
+    },
+    {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/routed-scratch/native-scratch.json",
+      "sha256": "2c056d30591a069cad99102109fb02218a9465b761477b36c6226247e674d5a9"
+    }
+  ],
+  "observed_component": {
+    "cases": 16,
+    "parity": true,
+    "allocation_pairs": [
+      [
+        false,
+        10
+      ],
+      [
+        true,
+        6
+      ]
+    ],
+    "duplicates": 3,
+    "poison": true,
+    "rejections_recovered": true
+  },
+  "hypothesis": "New WAR edges are real; lost baseline overlap and their runtime cost are unmeasured. Serial factory describes commands within a pass; each native pass has one dispatch.",
+  "conditional_adaptation": {
+    "name": "gate pair separate from up/down pair",
+    "allocations": 8,
+    "requested_bytes": 32000,
+    "new_war_between_independent_gate_up": false,
+    "existing_dependencies_order_down_reuse": true,
+    "prototype": false
+  },
+  "activity": {
+    "source_edits": false,
+    "build": false,
+    "tests": false,
+    "proof": false,
+    "gpu": false,
+    "only_docs_and_read_only_api_sources": true
+  },
+  "sources": [
+    "https://developer.apple.com/documentation/metal/mtlcommandbuffer/makecomputecommandencoder()",
+    "https://developer.apple.com/documentation/metal/resource-synchronization",
+    "https://developer.apple.com/documentation/xcode/optimizing-gpu-performance",
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp#L367-L394",
+    "https://github.com/ml-explore/mlx/blob/v0.32.2/mlx/backend/metal/device.cpp#L539-L546"
+  ]
+}
