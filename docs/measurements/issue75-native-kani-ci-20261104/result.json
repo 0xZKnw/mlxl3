@@ -1,5 +1,5 @@
 {
-  "status": "partial_verified_core_bounds_local_only",
+  "status": "validated_targeted_core_bounds_and_inventory_local_not_full_ci",
   "base_sha": "717b92312e1c12a1a31386608dffcd78e3c0f916",
   "ci_run": 41731429083,
   "ci_head": "717b92312e1c12a1a31386608dffcd78e3c0f916",
@@ -301,7 +301,9 @@
     "SpecFill bound64 attempt timed out120s; no source change retained",
     "Grouped routes8/80 and two-route cache proof remain timeout in original CI; not rerun",
     "Core remainder previously exhausted shard budget; no full CI success inferred",
-    "Full affected-module test wrapper initially lacked serde_json; compile failure retained, needs corrected replay in next CPU window"
+    "44 Linux process-orchestration pytest cases skipped locally; require hosted run",
+    "Python oracle symbolic verification unavailable because formal environment lacks pytest; deterministic before/after check passed",
+    "Whole-engine builds/Clippy/physical GPU are not rerun for proof-only attributes; production functions and harness domains are unchanged and hosted normal checks still apply"
   ],
   "checks_completed": [
     "cargo fmt --check",
@@ -309,5 +311,183 @@
     "byte comparison of production/harness bodies and domains against base"
   ],
   "integration": "local branch codex/issue75-native-kani-ci only; no PR/push, PR113 unchanged",
-  "raw_evidence": "build/kani-ci-bounds contains original CI logs and every local failure/result; public summary preserves hashes; not all raw build files are committed"
+  "raw_evidence": "build/kani-ci-bounds contains original CI logs and every local failure/result; public summary preserves hashes; not all raw build files are committed",
+  "delivery_base_sha": "17c66327a93af96f94d062f809d31b41e8fe5215",
+  "rebase_check": "Delivery base17c; final actual three harnesses reverified after clean rebase; no production function/body/input/assumption/stub changes.",
+  "source_sha256": {
+    "native/src/contracts.rs": "b67a9268fad92162160aa99bae7aaf448de2235eb703c894e6b769986b97b3dd",
+    "native/src/cold_ready.rs": "ba153395495b297827bdea2516cf22b0c237d4c0e5e9d02bff12cb08ffb1f152",
+    "tests/test_kani_ci.py": "2b22afd427011f7cad48a9cdb9d3eeae711dac2443be3e574f276e6224ebc459",
+    "scripts/kani_ci.py": "f1892bd8b5e5b6bba18aa935d49e504495dbcb50a66fb40a01006f335262123f",
+    "scripts/kani_obligations.json": "16d79ca7002f35a666648bd8e0a12183a7828797ce399bc1a6e6ff618a60eb22",
+    ".github/workflows/rust.yml": "bed72efd3e610c789ff4f1ae37dd6aab1ada410b79e7344c2111eadfae05d257"
+  },
+  "final_core_checks": [
+    {
+      "harness": "cold_row_limit_has_only_qualified_and_opt_in_values",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--manifest-path",
+        "build/kani-ci-bounds/Cargo.toml",
+        "--lib",
+        "-Z",
+        "stubbing",
+        "--harness",
+        "cold_row_limit_has_only_qualified_and_opt_in_values",
+        "--output-format",
+        "regular"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "seconds": 2.2894830419973005,
+      "joined": true,
+      "tail": [
+        "\t - Status: SUCCESS",
+        "\t - Description: \"unwinding assertion loop 0\"",
+        "\t - Location: <builtin-library-memcmp>:25 in function memcmp",
+        "",
+        "",
+        "SUMMARY:",
+        " ** 0 of 70 failed",
+        "",
+        " ** 3 of 3 cover properties satisfied",
+        "",
+        "",
+        "VERIFICATION:- SUCCESSFUL",
+        "Verification Time: 0.073353715s",
+        "",
+        "Manual Harness Summary:",
+        "Complete - 1 successfully verified harnesses, 0 failures, 1 total."
+      ],
+      "raw_sha256": "7495f84bbfef4b924ba430e00d7d249d081c82e97b4c4ddebf9d2d0e1df58da8"
+    },
+    {
+      "harness": "flash_reference_mb34_role_parser_preserves_default_and_named_choices",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--manifest-path",
+        "build/kani-ci-bounds/Cargo.toml",
+        "--lib",
+        "-Z",
+        "stubbing",
+        "--harness",
+        "flash_reference_mb34_role_parser_preserves_default_and_named_choices",
+        "--output-format",
+        "regular"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "seconds": 0.6993823749944568,
+      "joined": true,
+      "tail": [
+        "\t - Status: SUCCESS",
+        "\t - Description: \"unwinding assertion loop 0\"",
+        "\t - Location: <builtin-library-memcmp>:25 in function memcmp",
+        "",
+        "",
+        "SUMMARY:",
+        " ** 0 of 79 failed",
+        "",
+        " ** 5 of 5 cover properties satisfied",
+        "",
+        "",
+        "VERIFICATION:- SUCCESSFUL",
+        "Verification Time: 0.17468026s",
+        "",
+        "Manual Harness Summary:",
+        "Complete - 1 successfully verified harnesses, 0 failures, 1 total."
+      ],
+      "raw_sha256": "a672989822407b3d922cef94a8dfd825f7a7e94048edcb1dc00cafbb16e90a3e"
+    },
+    {
+      "harness": "flash_reference_mb34_role_shapes_and_selection_are_exact",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "kani",
+        "--manifest-path",
+        "build/kani-ci-bounds/Cargo.toml",
+        "--lib",
+        "-Z",
+        "stubbing",
+        "--harness",
+        "flash_reference_mb34_role_shapes_and_selection_are_exact",
+        "--output-format",
+        "regular"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "seconds": 4.5011371670116205,
+      "joined": true,
+      "tail": [
+        "\t - Status: SUCCESS",
+        "\t - Description: \"unwinding assertion loop 0\"",
+        "\t - Location: <builtin-library-memcmp>:25 in function memcmp",
+        "",
+        "",
+        "SUMMARY:",
+        " ** 0 of 143 failed (1 unreachable)",
+        "",
+        " ** 4 of 4 cover properties satisfied",
+        "",
+        "",
+        "VERIFICATION:- SUCCESSFUL",
+        "Verification Time: 3.55155s",
+        "",
+        "Manual Harness Summary:",
+        "Complete - 1 successfully verified harnesses, 0 failures, 1 total."
+      ],
+      "raw_sha256": "f3c5e93cfbed346d7f17a6824ed676b8e7258cee0656ed6fc0658a4500e1359c"
+    }
+  ],
+  "final_checks": {
+    "affected_rust_modules": {
+      "command": "CARGO_TARGET_DIR=build/kani-ci-bounds/test-target cargo test --manifest-path build/kani-ci-bounds/Cargo.toml --lib -- --test-threads=1",
+      "passed": 104,
+      "failed": 0,
+      "ignored": 0,
+      "test_seconds": 1.23,
+      "log": "/Users/justin/.codex/worktrees/issue75-native-kani-ci/mix-stq1_0/build/kani-ci-bounds/affected-tests-corrected.log",
+      "sha256": "adaf20d1f9c6112cf53a759d011d6a9669ab4dbcb1247a933f74bb4fc28479ee"
+    },
+    "inventory_before": {
+      "status": "reproduced_expected_stale_inventory_failure",
+      "assertion": "assert required - frozen == added",
+      "missing_expected_names": [
+        "contracts::native_flash_resident_nt2_selector_preserves_every_fallback",
+        "contracts::native_flash_reference_grid_covers_only_complete_output_tiles"
+      ]
+    },
+    "inventory_after": {
+      "status": "passed_fixed_production_test_function",
+      "test": "test_required_obligations_preserve_baseline_and_complete_partitions",
+      "scope": "Direct invocation bypasses only module-wide prlimit skip; function is pure fixture checking and performs no process calls."
+    },
+    "python_pytest": {
+      "command": "QPY -m pytest -q tests/test_kani_ci.py",
+      "passed": 0,
+      "skipped": 44,
+      "reason": "prlimit unavailable on this Mac; Linux process cases remain unexecuted locally"
+    },
+    "ruff": [
+      "QPY -m ruff format --check tests/test_kani_ci.py scripts/kani_ci.py: passed",
+      "QPY -m ruff check tests/test_kani_ci.py scripts/kani_ci.py: passed"
+    ],
+    "crosshair": {
+      "command": "crosshair check tests/test_kani_ci.py:66 --analysis_kind=asserts --report_all --per_condition_timeout=5 --per_path_timeout=2",
+      "returncode": 2,
+      "status": "unverified_context_dependency_missing",
+      "diagnostic": "ModuleNotFoundError: No module named pytest in existing formal Python3.12 environment",
+      "log": "/Users/justin/.codex/worktrees/issue75-native-kani-ci/mix-stq1_0/build/kani-ci-bounds/inventory-crosshair.log",
+      "sha256": "dcb1d0bffdc9a71d53587a3111f3c0bf010c2f5f7da3bff0d18d97fb68af6ff9"
+    }
+  },
+  "preserved_initial_failures": [
+    "Default2015 standalone edition import failures; corrected with edition2024 Cargo wrapper",
+    "Initial Flash wrapper lacked libc; corrected pinned0.2.189",
+    "SpecFill64 stopped after30s scheduling window, then timed out120s in extended window; source remains27",
+    "Initial affected-module test wrapper lacked serde_json; corrected pinned1.0.151; final104 tests pass",
+    "Baseline main17c inventory oracle failed exactly required-frozen==added; two existing NT2 names added and same function then passes"
+  ]
 }

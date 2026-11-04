@@ -106,6 +106,8 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "contracts::ordinary_bundle_width_matches_wide_sum_for_up_to_three_projections",
         "contracts::ordinary_group_lane_layout_selects_the_original_scalar_operands",
         "contracts::native_projection_thread_count_matches_its_fixed_kernel",
+        "contracts::native_flash_resident_nt2_selector_preserves_every_fallback",
+        "contracts::native_flash_reference_grid_covers_only_complete_output_tiles",
         "contracts::native_projection_plan_has_bounded_power_of_two_splits_and_extents",
         "contracts::model_gqa_widths_reject_invalid_groups_and_overflow",
         "speculative::normalized_greedy_retains_first_finite_maximum",
