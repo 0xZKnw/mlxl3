@@ -191,3 +191,65 @@ fn physical_workspace_reuses_only_completed_private_temporaries() -> Result<()> 
     );
     Ok(())
 }
+
+#[test]
+#[ignore = "physical HC workspace OFF/ON four rows, independent initial archive and full states; run alone"]
+fn physical_workspace_preserves_model_states_logits_hidden_and_prefix() -> Result<()> {
+    use super::super::{FlashNext, ssd_direct_tests::{check_initial, check_tensors}};
+    let checkpoint = crate::checkpoint::inspect(std::path::Path::new(
+        &std::env::var("MLXL3_FLASH_MODEL")?,
+    ))?;
+    let gpu = Metal::new()?;
+    let initial_workspace_enabled = gpu.hc_workspace_enabled.get();
+    ensure!(initial_workspace_enabled, "requires explicit workspace1 on qualified M5");
+    let mut model = FlashNext::load(&gpu, &checkpoint, 4096)?;
+    gpu.hc_workspace_enabled.set(false);
+    let empty = model.snapshot();
+    let (first, states) = model.forward_trace(248044)?;
+    check_initial(&first, &states)?;
+    check_tensors(&states)?;
+    drop(states);
+    model.restore(&empty)?;
+    let finite = |v: &[u16]| v.len() == 248320 && v.iter().all(|&b| f16::from_bits(b).is_finite());
+    let mut steps = Vec::new();
+    let mut state_words = 0usize;
+    for token in [248044, 1, 42, 7] {
+        let prefix = model.snapshot();
+        gpu.hc_workspace_enabled.set(false);
+        let uses = gpu.hc_workspace_uses.get();
+        let expected = model.forward(token)?;
+        ensure!(gpu.hc_workspace_uses.get() == uses && finite(&expected));
+        let hidden = model.last_hidden().context("missing control hidden")?.export_bytes(&gpu)?;
+        ensure!(hidden.len() == 40960 && hidden.as_chunks::<4>().0.iter()
+            .all(|v| f32::from_le_bytes(*v).is_finite()));
+        let (expected_next, expected_states) = model.forward_trace(11)?;
+        check_tensors(&expected_states)?;
+        ensure!(finite(&expected_next));
+        model.restore(&prefix)?;
+        gpu.hc_workspace_enabled.set(true);
+        let uses = gpu.hc_workspace_uses.get();
+        let actual = model.forward(token)?;
+        let actual_uses = gpu.hc_workspace_uses.get() - uses;
+        ensure!(actual_uses == 97 && actual == expected && finite(&actual));
+        ensure!(model.offset() == prefix.position() + 1);
+        ensure!(model.last_hidden().context("missing candidate hidden")?.export_bytes(&gpu)? == hidden);
+        let candidate = model.snapshot();
+        // Read the candidate state through the unchanged workspace-OFF continuation.
+        gpu.hc_workspace_enabled.set(false);
+        let uses = gpu.hc_workspace_uses.get();
+        let (next, states) = model.forward_trace(11)?;
+        ensure!(gpu.hc_workspace_uses.get() == uses && next == expected_next && finite(&next));
+        state_words += check_tensors(&states)?;
+        ensure!(states.len() == expected_states.len());
+        for (actual, expected) in states.iter().zip(&expected_states) {
+            ensure!(actual.name == expected.name && actual.shape == expected.shape
+                && actual.data == expected.data, "workspace changed {}", actual.name);
+        }
+        model.restore(&candidate)?;
+        steps.push(serde_json::json!({"token":token,"workspace_uses":actual_uses,"control_workspace_uses":0,"continuation_workspace_uses":0,"snapshot_position":candidate.position()}));
+    }
+    ensure!(steps.len() == 4 && state_words == 115_212_288 && model.offset() == 4);
+    ensure!(gpu.readers()?.in_flight() == 0);
+    eprintln!("I125_HC_WORKSPACE_MODEL {}", serde_json::json!({"parity":true,"initial_workspace_enabled":initial_workspace_enabled,"steps":steps,"actual_workspace_uses":388,"compared_state_words":state_words,"compared_logits":1986560,"compared_hidden_words":40960,"initial_archive_states":84,"context":4096,"retained_prefix":true,"explicit_legacy_continuation":true}));
+    Ok(())
+}
