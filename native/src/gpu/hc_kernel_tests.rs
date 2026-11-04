@@ -151,6 +151,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
     let c = checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = ready()?;
     let workspace_enabled = gpu.hc_workspace_enabled.get();
+    gpu.hc_workspace_enabled.set(false);
     set(&gpu, false, false);
     let mut model = FlashNext::load(&gpu, &c, 4096)?;
     ensure!(model.prefetcher.is_none());
@@ -164,6 +165,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
     let mut compared = 0usize;
     for token in [248044, 1, 42, 7] {
         let saved = model.snapshot();
+        gpu.hc_workspace_enabled.set(false);
         set(&gpu, false, false);
         ensure!(finite_logits(&model.forward(19)?));
         model.restore(&saved)?;
@@ -186,6 +188,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
         check_tensors(&expected_states)?;
         for (up, down) in [(false, false), (true, false), (false, true), (true, true)] {
             model.restore(&saved)?;
+            gpu.hc_workspace_enabled.set(workspace_enabled);
             set(&gpu, up, down);
             let before = (gpu.hc_up_mix_uses.get(), gpu.hc_down_inject_uses.get());
             let workspace_before = gpu.hc_workspace_uses.get();
@@ -209,6 +212,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
                         .export_bytes(&gpu)?
                         == expected_hidden
             );
+            gpu.hc_workspace_enabled.set(false);
             set(&gpu, false, false);
             let (next, states) = model.forward_trace(11)?;
             ensure!(next == expected_next && finite_logits(&next) && states.len() == 84);
@@ -234,7 +238,7 @@ fn physical_hc_kernel_variants_preserve_model_states_and_actual_paths() -> Resul
     );
     eprintln!(
         "NATIVE_HC_KERNEL_MODEL {}",
-        serde_json::json!({"cases":cases,"case_count":16,"workspace_enabled":workspace_enabled,"initial_archive_states":84,"compared_state_words":compared,"compared_logits":7946240,"context":4096,"explicit_legacy_continuation":true,"parity":true})
+        serde_json::json!({"cases":cases,"case_count":16,"workspace_enabled":workspace_enabled,"reference_workspace_off":true,"continuation_workspace_off":true,"initial_archive_states":84,"compared_state_words":compared,"compared_logits":7946240,"context":4096,"explicit_legacy_continuation":true,"parity":true})
     );
     Ok(())
 }
