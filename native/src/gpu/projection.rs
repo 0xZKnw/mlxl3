@@ -48,12 +48,25 @@ pub struct ProjectionOutput {
 
 impl ProjectionOutput {
     pub fn read(self) -> Result<Vec<u16>> {
+        #[cfg(test)]
+        let wait = crate::flash_profile::span("native.projection_wait");
         self.command.wait_until_completed();
         ensure!(
             self.command.status() == MTLCommandBufferStatus::Completed,
             "Flash projection command failed ({:?})",
             self.command.status()
         );
+        #[cfg(test)]
+        {
+            drop(wait);
+            crate::flash_profile::native_gpu_interval(&self.command, "projection");
+        }
+        #[cfg(test)]
+        let _copy = crate::flash_profile::span("native.projection_readback_copy");
+        #[cfg(test)]
+        if let Some(span) = &_copy {
+            span.data(serde_json::json!({"bytes":self.count*2}));
+        }
         Ok(Metal::read(&self.buffer, self.count))
     }
 }

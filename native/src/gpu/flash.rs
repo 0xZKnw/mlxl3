@@ -363,6 +363,12 @@ impl<'a> FlashNext<'a> {
     ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
         for i in 0..self.layers.len() {
+            #[cfg(test)]
+            let _layer = crate::flash_profile::span("native.layer");
+            #[cfg(test)]
+            if let Some(span) = &_layer {
+                span.data(serde_json::json!({"layer":i,"input_token":token}));
+            }
             let (current, remaining) = self.layers.split_at_mut(i + 1);
             let layer = &mut current[i];
             let next = remaining.first_mut().map(Layer::moe);
@@ -519,6 +525,8 @@ impl<'a> FlashNext<'a> {
             }
             let streams = self.hidden(last, trace, captures)?;
             let logits = if head {
+                #[cfg(test)]
+                let _head = crate::flash_profile::span("native.head");
                 let mixed = self.mixer.read(&streams, false)?.mixed;
                 #[cfg(test)]
                 {
@@ -543,6 +551,12 @@ impl<'a> FlashNext<'a> {
 impl Metal {
     /// FP16 logsumexp and rounded subtraction preserve stock greedy ties.
     pub fn flash_log_probs(&self, logits: &[u16]) -> Result<Vec<f32>> {
+        #[cfg(test)]
+        let _logprobs = crate::flash_profile::span("native.logprobs");
+        #[cfg(test)]
+        if let Some(span) = &_logprobs {
+            span.data(serde_json::json!({"input_bytes":logits.len()*2,"normalizer_readback_bytes":2,"output_F32_words":logits.len()}));
+        }
         ensure!(logits.len() == 248320, "invalid Flash vocabulary width");
         ensure!(
             self.logsumexp.thread_execution_width() == 32
@@ -597,6 +611,186 @@ fn first_embedding(embed: &TensorInfo) -> Result<TensorInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical current baseline native8 sampling-first diagnostic; exclusive GPU"]
+    fn native8_sampling_profile_preserves_outputs() -> Result<()> {
+        use crate::flash_profile as profile;
+        use std::io::Write;
+        fn digest(bytes: &[u8]) -> Result<String> {
+            let mut file = tempfile::NamedTempFile::new()?;
+            file.write_all(bytes)?;
+            let out = std::process::Command::new("/usr/bin/shasum")
+                .args(["-a", "256"])
+                .arg(file.path())
+                .output()?;
+            ensure!(out.status.success());
+            Ok(String::from_utf8(out.stdout)?
+                .split_whitespace()
+                .next()
+                .context("missing digest")?
+                .to_owned())
+        }
+        fn finite(x: &[u16]) -> bool {
+            x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite())
+        }
+        fn select(model: &FlashNext, logits: &[u16]) -> Result<u32> {
+            ensure!(finite(logits));
+            let values = model.log_probs(logits)?;
+            let _selection = profile::span("native.cpu_select");
+            crate::speculative::greedy_log_prob_id(&values).context("invalid plain AR greedy")
+        }
+        fn run(
+            model: &mut FlashNext,
+            prompt: &[u32],
+            observed: bool,
+        ) -> Result<(Vec<u32>, Vec<serde_json::Value>)> {
+            model.reset();
+            let logits = model.prefill(prompt)?;
+            let mut next = select(model, &logits)?;
+            let mut ids = vec![next];
+            if observed {
+                profile::start(false)?;
+            }
+            for row in 1..8 {
+                let request_before = super::super::BUFFER_REQUESTS.with(std::cell::Cell::get);
+                let bytes_before = super::super::BUFFER_REQUESTED_BYTES.with(std::cell::Cell::get);
+                let alloc_before = super::super::BUFFER_ALLOCATION_NS.with(std::cell::Cell::get);
+                let row_span = profile::span("native.row");
+                let input = next;
+                let logits = model.forward(input)?;
+                next = select(model, &logits)?;
+                if let Some(span) = &row_span {
+                    span.data(serde_json::json!({"row":row,"input_token":input,"selected_token":next,"vocabulary_words":logits.len(),"metal_requests":super::super::BUFFER_REQUESTS.with(std::cell::Cell::get)-request_before,"metal_requested_bytes":super::super::BUFFER_REQUESTED_BYTES.with(std::cell::Cell::get)-bytes_before,"metal_allocation_host_ns":super::super::BUFFER_ALLOCATION_NS.with(std::cell::Cell::get)-alloc_before}));
+                }
+                ids.push(next);
+            }
+            let events = if observed {
+                serde_json::to_value(profile::finish()?)?
+                    .as_array()
+                    .context("events")?
+                    .clone()
+            } else {
+                Vec::new()
+            };
+            ensure!(ids.len() == 8 && model.offset() as usize == prompt.len() + 7);
+            Ok((ids, events))
+        }
+        fn terminal(
+            model: &mut FlashNext,
+            gpu: &Metal,
+        ) -> Result<(Vec<u8>, Vec<u16>, Vec<FlashTraceTensor>)> {
+            let hidden = model
+                .last_hidden()
+                .context("missing hidden")?
+                .export_bytes(gpu)?;
+            ensure!(
+                hidden.len() == 40960
+                    && hidden
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite())
+            );
+            let (logits, states) = model.forward_trace(7)?;
+            ensure!(finite(&logits) && states.len() == 84);
+            Ok((hidden, logits, states))
+        }
+        let path = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+        let prompt=tokenizer.encode(&tokenizer.render_values(&serde_json::json!([{"role":"user","content":"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE."}]),None)?)?;
+        ensure!(prompt.len() == 87);
+        let c = crate::checkpoint::inspect(&path)?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 4096)?;
+        ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
+        let (first, first_states) = model.forward_trace(248044)?;
+        ensure!(finite(&first) && first_states.len() == 84);
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/native-coverage/flash-state/initial.json"
+        ))?;
+        let state = &first_states[0];
+        let reference = &oracle["step_tensors"][0];
+        ensure!(
+            state.name == reference["name"]
+                && serde_json::to_value(&state.shape)? == reference["shape"]
+                && digest(&state.data)? == reference["sha256"]
+        );
+        ensure!(
+            digest(
+                &first
+                    .iter()
+                    .flat_map(|v| v.to_le_bytes())
+                    .collect::<Vec<_>>()
+            )? == "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445"
+        );
+        drop(first_states);
+        let (warm, _) = run(&mut model, &prompt, false)?;
+        let (control, _) = run(&mut model, &prompt, false)?;
+        let expected = terminal(&mut model, &gpu)?;
+        let (observed, events) = run(&mut model, &prompt, true)?;
+        let actual = terminal(&mut model, &gpu)?;
+        ensure!(
+            warm == control
+                && observed == control
+                && expected.0 == actual.0
+                && expected.1 == actual.1
+        );
+        let mut state_words = 0usize;
+        for (a, b) in expected.2.iter().zip(&actual.2) {
+            let n = a
+                .shape
+                .iter()
+                .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                .context("state overflow")?;
+            ensure!(
+                n > 0
+                    && a.name == b.name
+                    && a.shape == b.shape
+                    && a.data == b.data
+                    && a.data.len() == n * 4
+                    && a.data
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite())
+            );
+            state_words += n;
+        }
+        ensure!(state_words == 28803072 && gpu.readers()?.in_flight() == 0);
+        for (name, count) in [
+            ("native.row", 7),
+            ("native.layer", 336),
+            ("native.head", 7),
+            ("native.logprobs", 7),
+            ("native.cpu_select", 7),
+            ("native.projection_readback_copy", 7),
+        ] {
+            ensure!(
+                events.iter().filter(|e| e["name"] == name).count() == count,
+                "wrong event coverage{name}"
+            );
+        }
+        ensure!(
+            events
+                .iter()
+                .all(|e| e["end_ns"].as_u64() >= e["start_ns"].as_u64())
+        );
+        let head_gpu = events
+            .iter()
+            .filter(|e| {
+                e["name"] == "native.gpu_interval"
+                    && e["data"]["owner"] == "projection"
+                    && e["data"]["valid"] == true
+            })
+            .count();
+        ensure!(head_gpu == 7);
+        eprintln!(
+            "I120_NATIVE8_PROFILE {}",
+            serde_json::json!({"status":"diagnostic_complete","parity":true,"tokens":observed,"prompt_tokens":87,"context":4096,"decode_rows":7,"independent_first_state":true,"independent_first_logits":true,"continuation_state_words":state_words,"events":events,"scope":"test-only intrusive sampling-first current baseline; no release speed","limits":["CPU/GPU clocks not aligned; intervals overlap and are not additive","GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split","SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic","CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated","allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"]})
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Flash AR HC chain counts, full target states and late IO rollback"]

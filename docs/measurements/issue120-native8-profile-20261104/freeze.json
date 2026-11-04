@@ -1,0 +1,42 @@
+{
+  "source_base": "5fbf0c1d",
+  "state": "local modified cfg(test) diagnostic only; no production CLI rebuilt",
+  "source_sha256": {
+    "native/src/flash_profile.rs": "b106d3f778c77596e5b540a874ab94a5a19b16133977f6754c268723ef3b56be",
+    "native/src/gpu.rs": "ed5a3697570317ed04399829812a487936289fd3e45a4a6fe9ccb97f90f41aa1",
+    "native/src/gpu/flash.rs": "bb1ca0c9d540995f81440d510ffba61b2c33f540d53eb340e45be5c040fe44bd",
+    "native/src/gpu/moe.rs": "7c750bce4ee6d0961d7418a01921b785a3dba8a547b7e8a3810bd5981ee1316a",
+    "native/src/gpu/projection.rs": "dbfef0a03a7936fbe253909f06324374c9354fa8d6e7bafd69e61c83ad5c0596",
+    "native/src/gpu/router.rs": "2198154821b7f29c32051ee755f20362c05bee81dd9a2e8ab6053688b0fe49d6"
+  },
+  "artifact": {
+    "path": "/Users/justin/.codex/worktrees/issue120-native-profile/mix-stq1_0/build/native8/frozen/native-libtest",
+    "sha256": "83ddec44896257efd4c26fb6ee648cd15843741c14549cb863d0aa85d52d7e38",
+    "bytes": 9227264
+  },
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue120-native-profile/mix-stq1_0/build/native8/cargo-target",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx"
+  },
+  "CPU": {
+    "strict_direct_alltargets": "pass",
+    "lifecycle": "6passed/0failed/0ignored/295filtered",
+    "inventory": "247files, firstdiff2newtestcall/config sites updated exactly",
+    "Kani": "actual lifecycle wrapper compile ICE intrinsics.rs243 before obligations in2.90s; no clock/Metal stubs, property not verified"
+  },
+  "physical": {
+    "status": "not_run",
+    "parity": false,
+    "test": "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+    "timeout_seconds": 180,
+    "counts": "8generated/7decoded,7rows/336layers/7head/logprobs/select/readbacks,independentfirststate/logitshashes,fullcontrolvsobservedhidden/logits84states exact finite"
+  },
+  "limits": [
+    "Sampling-first slice, not complete P00",
+    "No CPU/GPU clock alignment or exclusive-cost sums",
+    "GPU timestamps central/projection/MoE completed CB coverage only",
+    "CPUencode central helper only; MoEencode not isolated",
+    "Test-instrumented timings not production throughput"
+  ]
+}

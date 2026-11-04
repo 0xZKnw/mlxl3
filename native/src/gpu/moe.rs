@@ -41,6 +41,8 @@ pub struct MoeOutput {
 
 impl MoeOutput {
     pub fn completed(&self) -> Result<&MatrixView> {
+        #[cfg(test)]
+        let _wait = crate::flash_profile::span("native.moe_wait");
         for command in &self.commands {
             command.wait_until_completed();
             ensure!(
@@ -48,6 +50,8 @@ impl MoeOutput {
                 "Flash MoE command failed ({:?})",
                 command.status()
             );
+            #[cfg(test)]
+            crate::flash_profile::native_gpu_interval(command, "moe");
         }
         Ok(&self.values)
     }
@@ -354,6 +358,10 @@ impl<'a> FlashMoeRow<'a> {
                 hits,
             })
         })?;
+        #[cfg(test)]
+        if let Some(span) = crate::flash_profile::span("native.ssd_timeline") {
+            span.data(serde_json::json!({"events":output.timeline,"read_bytes":output.read_bytes,"indices":output.indices,"hits":output.hits,"clock":"relative to MoE CPU epoch; do not align with GPU clock"}));
+        }
         if let (Some(next), Some(prediction)) = (next.as_mut(), prediction) {
             let mut ids = prediction.indices()?;
             ensure!(
