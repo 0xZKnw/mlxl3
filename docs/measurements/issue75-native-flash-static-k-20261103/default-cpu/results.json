@@ -1,0 +1,57 @@
+[
+  {
+    "label": "clippy-cpu",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 1.5092514999851119,
+    "parent_joined": true
+  },
+  {
+    "label": "clippy-direct",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 1.7316612919967156,
+    "parent_joined": true
+  },
+  {
+    "label": "clippy-compat",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "mlx,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "failed_or_interrupted",
+    "exit_code": 101,
+    "error": "AssertionError()",
+    "elapsed_seconds": 0.9914914160035551,
+    "parent_joined": true
+  }
+]

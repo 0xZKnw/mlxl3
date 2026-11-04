@@ -8,6 +8,12 @@ Minimal change: actual flag absent→true, literal0=false/literal1=true and malf
 
 Affected physical gate after all CPU drains and root grant: absent static setting must match retained explicit1 component PSO counts and independent finite words, target84states/logits/continuation/reset with actual routedK2/residentK4 usage, and production AR golden/error/cancel/recovery/ledger. Reuse old oracle inputs/outputs where practicable; do not repeat the unchanged shader mechanism or MTP/DFlash. Memory fixture and literal0 numerical paths remain qualified on unchanged shader/selector sources; only rerun if an affected source changes. No new speed trial before the gate, and no publication until default physical checks pass. PR base will be open PR113's branch if necessary to avoid duplicating it; no merge/release/app replacement.
 
+**Default CPU closed, physical still pending.** Real Rust absence regression fails on old parser (Some(false) vs Some(true)), then passes after the minimal flag edit; Python actual verifier's new equal-values/disabled-default mutation also fails before wiring and passes afterward.8Python tests/20subtests pass, strict CPU/direct/compatibility Clippy and direct full suite341passed/39ignored pass. First compatibility invocation failed because MLXL3_MLX_ROOT was absent; diagnostic retained, retry with installed0.32.2 package succeeds. Real affected Kani helper:226checks/0failures,5/5covers,7std-only unreachable, boundedUTF8≤4bytes/unwind10,16.06s; this is not a GPU proof. Source51e90e6e. New local CLI SHA d62bcbeddade6ac0b824ca380754167e1131f1639277a00f432d84718abbba7f; libtest c9eb3026ed14dde07131b5647d3852366662dcc38c3bc074e42d3f51dfb2fd99. Old d2ff/9825 byte hashes remain intact. Both old/new local CLI minos11.0/sdk27.2; distributed26.2 artifacts/app are neither replaced nor qualified here. All owned CPU/proof children joined, no GPU launched. Next gate reuses retained independent inputs/oracles for three absent-setting component NT2 modes, then actual-setting K2/K4 target oracle and real AR absent default; explicit1 physical evidence remains preserved, unchanged memory fixture not repeated.
+
+**Default physical gate VALIDATED, 2026-11-04.** Source51e90e6e, newCLI d62bcb/ lib c9eb3026, static setting absent in every phase. Three component replays against unchanged retained independent stock corpus and literal1 outputs:48cases/738,304finiteHalfwords each, aggregate2,214,912exact; actual PSO counts[6,32,28,16,32]. Full target84states/28,803,072finiteF32words+496,640logits exact, actual K2/K4 counts[5760,0,0,480,723] explicitly required outside any environment conditional. Real unconfigured AR passes59.99s/4golden completions/1rejection/context+delta cancel+exactrecovery/48x53ledger/noMLX. Five phases98.78s; all owned parents joined and groups empty, explicitGPUhandback10:19:31UTC. No speed inference from these durations. [Default plan/results](docs/measurements/issue75-native-flash-static-k-20261103/default-quality-01/report.json).
+
+Root's separate d2ff explicit0/1 ABBA shortscreen is retained byte-exact under [screen](docs/measurements/issue75-native-flash-static-k-20261103/screen/README.md): MAIN4.963007→5.441811tok/s (+9.647%), HOLD5.036959→5.522159 (+9.633%); bothBabovebothA, control drift+1.60/−2.03%, Metalallocated6,608,617,472bytes unchanged.32tokens/two measured samples per variant/prompt, no sustained/long-context/default-artifact throughput claim. New default changes only absent flag/wiring; measured shaders/math unchanged and physical default separately qualified. Publication authorized next, based on openPR113 branch to avoid duplicate NT2 changes; no merge/release/app replacement.
+
 ## I75-FLASH-STATIC-DIMS-AUDIT-20261104 — read-only native/MLX dimension and split bindings
 
 Preregistered before new source research. Root's static-K release ABBA is running on frozen CLI d2ff7420; this audit cannot edit executable source, compile, test, prove or launch a model. Read-only scope: compare the remaining runtime dimensions/splits in native b8f03233 with the maintained legacy MLX canonical-header literals; trace their exact uses in the shared tile body and enumerate only real projection shapes already loaded by the qualified local Flash checkpoint. Re-read historical54Q closure/candidate summaries to distinguish a new native adaptation gap from its already rejected register/window/layout trials, and search for existing shape-specialization implementations.
@@ -24034,3 +24040,27 @@ Décision parent explicite : conserver HEADS1 comme élimination de travail vali
 - I75-FLASH-STATIC-KCB quality01 ar-1 result=validated,parity=True,elapsed=61.93s,parentjoined=True,remaining=[]; raw quality-01/ar-1.*.log
 
 - I75-FLASH-STATIC-KCB quality01 final=validated,parity=True,all_children_joined=True,elapsed=152.68s. No speed measurement; raw report quality-01/report.json.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 launch 2026-11-04T10:17:17.092556+00:00 after explicit GPU grant; source51e90e6e/CLId62/libc9; allstaticsettingsabsent. Retained component corpus threeNT2modes vs stock+oldliteral1, then independenttargetactualK2/K4 and productionAR. No speedmeasurement; plan default-quality-01/plan.json.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-0 running
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-0 result=validated,parity=True,elapsed=12.14s,joined=True,remaining=[]; allrawpreserved.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-1 running
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-1 result=validated,parity=True,elapsed=11.50s,joined=True,remaining=[]; allrawpreserved.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-default running
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 component-default result=validated,parity=True,elapsed=11.73s,joined=True,remaining=[]; allrawpreserved.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 target-absent running
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 target-absent result=validated,parity=True,elapsed=3.42s,joined=True,remaining=[]; allrawpreserved.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 ar-absent running
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 ar-absent result=validated,parity=True,elapsed=59.99s,joined=True,remaining=[]; allrawpreserved.
+
+- I75-FLASH-STATIC-K-DEFAULT quality01 final=validated,parity=True,all_children_joined=True,elapsed=98.78s; no speedmeasurement.

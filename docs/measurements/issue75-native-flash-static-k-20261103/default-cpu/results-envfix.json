@@ -1,0 +1,72 @@
+[
+  {
+    "label": "clippy-compat-envfix",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "clippy",
+      "--locked",
+      "--features",
+      "mlx,chat",
+      "--all-targets",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 8.313441000005696,
+    "parent_joined": true
+  },
+  {
+    "label": "suite-direct",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 28.848757542000385,
+    "parent_joined": true
+  },
+  {
+    "label": "release",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "build",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "--bin",
+      "mlxl3-rs"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 29.791297500021756,
+    "parent_joined": true
+  },
+  {
+    "label": "libtest",
+    "command": [
+      "/Users/justin/.cargo/bin/cargo",
+      "test",
+      "--locked",
+      "--release",
+      "--no-default-features",
+      "--features",
+      "direct-metal,chat",
+      "--lib",
+      "--no-run",
+      "--message-format=json"
+    ],
+    "status": "passed",
+    "exit_code": 0,
+    "elapsed_seconds": 36.3955934580008,
+    "parent_joined": true
+  }
+]

@@ -1,0 +1,37 @@
+{
+  "status": "qualified_CPU_then_default_physical_passed",
+  "source_commit": "51e90e6ec05ed6d8b6cb6d8c0f3ac272dcdfac68",
+  "default_change": "Only None->Some(true), existingM5/KCB/NTguardssame; literal0rollback,1enable,malformedreject",
+  "real_regression": "Rust oldparser fails expectedSome(true), thenpasses; Python old verifier accepted equal-values disabled default and fails new test, fixed verifier rejects it",
+  "checks": {
+    "Rust_targeted": {
+      "passed": 1,
+      "ignored": 0
+    },
+    "Python": {
+      "passed": 8,
+      "subtests": 20
+    },
+    "direct_full": {
+      "passed": 341,
+      "ignored": 39
+    },
+    "strict_clippy": [
+      "CPU",
+      "direct-chat",
+      "MLX-chat compatibility"
+    ],
+    "kani": {
+      "checks": 226,
+      "failed": 0,
+      "covers_satisfied": 5,
+      "unreachable_std_only": 7,
+      "bound": "UTF8<=4bytes,unwind10,real flag function,no assumptions",
+      "elapsed_seconds": 16.062346
+    }
+  },
+  "setup_failure": "First compatibility Clippy lacks MLXL3_MLX_ROOT; retained diagnostic. Same command succeeds with installedMLX0.32.2 directory.",
+  "artifact_environment": "Oldd2ff andnewd62 localMachO minos11.0/sdk27.2; distribution26.2/app unchanged, unqualified here.",
+  "unaffected_checks": "Original selector/table Kani64checks/8covers, explicit0/1component/fullstate/memoryfixture and compatibilityfull377/257 remain preserved; not relabelled as rerun afterdefault-onlychange.",
+  "limits": "No GPU/concurrency proof; existing Python helper CrossHairNotconfirmed retained, subprocess wiring validated by regression/error tests."
+}
