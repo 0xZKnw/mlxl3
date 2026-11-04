@@ -1,0 +1,497 @@
+{
+  "status": "essential_validated_pending_extended",
+  "parity": true,
+  "source": "508b8260",
+  "expected_phases": 14,
+  "phases": [
+    {
+      "label": "stock-fixed",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+        "flash_projection_stock_oracle",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_PROJECTION_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed-supplement"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 1.0538619169965386,
+      "evidence": {
+        "references": 8,
+        "words": 26880
+      }
+    },
+    {
+      "label": "stock-scratch",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle",
+        "flash_projection_stock_oracle",
+        "--exact",
+        "--ignored",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_PROJECTION_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/routed-scratch"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 0.8906012079969514,
+      "evidence": {
+        "references": 5,
+        "words": 12800
+      }
+    },
+    {
+      "label": "fixed0-nt0",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed0-nt0"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 18.109565708000446,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          0,
+          0
+        ],
+        "static_counts": [
+          10,
+          20,
+          0,
+          16,
+          0
+        ],
+        "nt2": false
+      }
+    },
+    {
+      "label": "fixed0-nt1",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NATIVE_FLASH_NT2": "1",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed0-nt1"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 17.481883040978573,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          0,
+          0
+        ],
+        "static_counts": [
+          10,
+          6,
+          14,
+          0,
+          16
+        ],
+        "nt2": true
+      }
+    },
+    {
+      "label": "fixed0-ntunset",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+        "MLXL3_NATIVE_FLASH_NT2": null,
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed0-ntunset"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 17.981345083011547,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          0,
+          0
+        ],
+        "static_counts": [
+          10,
+          6,
+          14,
+          0,
+          16
+        ],
+        "nt2": true
+      }
+    },
+    {
+      "label": "fixed1-nt0",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NATIVE_FLASH_NT2": "0",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed1-nt0"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 17.658583749987883,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          6,
+          2
+        ],
+        "static_counts": [
+          2,
+          20,
+          0,
+          16,
+          0
+        ],
+        "nt2": false
+      }
+    },
+    {
+      "label": "fixed1-nt1",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NATIVE_FLASH_NT2": "1",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed1-nt1"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 17.624444457993377,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          6,
+          2
+        ],
+        "static_counts": [
+          2,
+          6,
+          14,
+          0,
+          16
+        ],
+        "nt2": true
+      }
+    },
+    {
+      "label": "fixed1-ntunset",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+        "MLXL3_NATIVE_FLASH_NT2": null,
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/fixed1-ntunset"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 18.24412383401068,
+      "evidence": {
+        "finite_half_words": 765184,
+        "fixed_counts": [
+          6,
+          2
+        ],
+        "static_counts": [
+          2,
+          6,
+          14,
+          0,
+          16
+        ],
+        "nt2": true
+      }
+    },
+    {
+      "label": "fixed-malformed",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::physical_flash_resident_nt2",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_NATIVE_FLASH_FIXED_DIMS": "true",
+        "MLXL3_NT2_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/combined"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 1.5576002089946996,
+      "evidence": {
+        "rejected": true,
+        "recovery": true
+      }
+    },
+    {
+      "label": "zero-pso-claim-mutation",
+      "status": "validated",
+      "parity": true,
+      "evidence": {
+        "actual_OFF_unchanged_words": true,
+        "zero_counters_false_ON_claim_rejected": true
+      }
+    },
+    {
+      "label": "scratch-component",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::projection::routed_scratch_tests::physical_routed_expert_scratch",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_ROUTED_SCRATCH_FIXTURES": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/routed-scratch"
+      },
+      "timeout_seconds": 120,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 15.162312166008633,
+      "evidence": {
+        "cases": 16,
+        "actual_newBuffer_OFF": 10,
+        "actual_newBuffer_ON": 6,
+        "duplicate": 3,
+        "poison_and_recovery": true
+      }
+    },
+    {
+      "label": "independent-depth0",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::flash::tests::hc_gate_depth_zero_matches_archived_full_states_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 4.120588374993531,
+      "evidence": {
+        "actual_features": {
+          "fixed_dims": true,
+          "fixed_submissions": [
+            3840,
+            1920
+          ],
+          "gate_commands": 0,
+          "hc_gate_pairs": 192,
+          "hc_initially_enabled": true,
+          "hc_joint_pairs": 192,
+          "scratch_enabled": true,
+          "scratch_uses": 5760,
+          "static_submissions": [
+            0,
+            0,
+            0,
+            480,
+            723
+          ]
+        },
+        "state_words": 28803072,
+        "finite_half_logits": 496640
+      }
+    },
+    {
+      "label": "context4096-off-on",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::flash::tests::fixed_dimensions_keep_context4096_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 240,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 4.809283750015311,
+      "evidence": {
+        "actual_markers": [
+          {
+            "continuation": true,
+            "enabled": false,
+            "fixed_submissions": [
+              0,
+              0
+            ],
+            "hc_gate_pairs": 240,
+            "logits": 744960,
+            "scratch_uses": 7200,
+            "state_words": 86409216,
+            "states": 252,
+            "steps": 3
+          },
+          {
+            "continuation": true,
+            "enabled": true,
+            "fixed_submissions": [
+              4860,
+              2400
+            ],
+            "hc_gate_pairs": 240,
+            "logits": 744960,
+            "scratch_uses": 7200,
+            "state_words": 86409216,
+            "states": 252,
+            "steps": 3
+          }
+        ]
+      }
+    },
+    {
+      "label": "cli4096-short",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/essential_cli_short.py"
+      ],
+      "overrides": {},
+      "timeout_seconds": 240,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 13.38006191700697,
+      "evidence": {
+        "golden": "9f850af1cbba074b",
+        "completed": 1,
+        "ledger48x53": true,
+        "context4096": true,
+        "mlx_loaded": false
+      }
+    }
+  ],
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest": "d3f6018bc4d72ffd42215b4fd2d7bd1f543378cb6b72e09509b24553bd286ad2",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle": "405b025f5c6ecb7c6ca08b18a25b75ff98e7260d3272cc283887ab9b9764284d"
+  },
+  "deferred_until_after_speed": [
+    "gateanalytic",
+    "hc-gate-owner",
+    "router-lifetime",
+    "fullAR-prefixes0-2-9",
+    "prefetch-fallback",
+    "full-CLI-cancel-and-budget"
+  ],
+  "protocol_revision": "Root/user speed priority before unlaunched phases: essential independent depth0+ctx4096+one realCLI now; remaining physical gates explicitly pending, not qualified.",
+  "scope": "14 essential pre-pilot phases only; extended physical/cancel/budget explicitly deferred",
+  "all_children_joined": true,
+  "retained_provenance": {
+    "status": "validated_semantic_identity_with_explicit_metadata_extension",
+    "initial_byte_identity_assertion": "failed: staged JSON was reserialized; not a numerical divergence",
+    "audit_python_setup_failure": "system Python3.9 zip(strict) TypeError; this audit reran with project Python3.12, GPU phases already used3.12",
+    "native_original_fields_equal": true,
+    "native_extra_field": "fixed_key:null on48cases",
+    "stock_integer_arrays_equal": true,
+    "original_archive_sha256_preserved": {
+      "native-cases.json": "17917353d2e9aec790b4278eb2b310d000fa9338ada5bd26e674439cd2206530",
+      "stock.json": "c166fe3dd11c612fe6d3dc6bcebaccdc492fc55f933b2fb6c31188ac92040f04"
+    },
+    "staged_sha256": {
+      "retained-native-cases.json": "537f9a3e3b89415e2dbb451f2b1bf258215c4e6ab12a99ef26eb393fc57bc25e",
+      "retained-stock.json": "9933dbb9939ab75949c715bca16a03758fc8d89e7d734db566073e85d463b5f0"
+    },
+    "frozen_artifact_hashes_unchanged": true
+  },
+  "frozen_artifact_hashes_unchanged": true
+}

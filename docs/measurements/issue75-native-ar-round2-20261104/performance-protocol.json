@@ -1,0 +1,85 @@
+{
+  "id": "I75-AR-ROUND2-20261104",
+  "status": "preregistered_before_first_timing_reference_corrected_to_actual_main",
+  "created_utc": "2026-11-04T12:07:40.049131+00:00",
+  "source": "508b8260",
+  "baseline": "actual qualified main21cf frozen942d versus new composed789a, including all code overhead",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+      "sha256": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+      "bytes": 10120352,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+      "sha256": "d3f6018bc4d72ffd42215b4fd2d7bd1f543378cb6b72e09509b24553bd286ad2",
+      "bytes": 9187968,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "driver": {
+    "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/scripts/benchmark-flash-bridge.py",
+    "sha256": "8560057f3bcf8e1c722d9cdd20885413beb9f5134a4b07c283de42b94cc3bdf8"
+  },
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+  "checkpoint": "65c895314393431c09050b2e04e250836b3a6eb4",
+  "environment": {
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_NATIVE_FLASH_STATIC_K": "1",
+    "MLXL3_NATIVE_AR_HC_CHAIN": "1",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0"
+  },
+  "reference": {
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS": "0",
+    "MLXL3_NATIVE_ROUTED_SCRATCH": "0",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN": "0"
+  },
+  "ensemble": {
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+    "MLXL3_NATIVE_ROUTED_SCRATCH": "1",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN": "1"
+  },
+  "order": [
+    "reference",
+    "ensemble",
+    "ensemble",
+    "reference"
+  ],
+  "arguments": [
+    "--cache-gib",
+    "3",
+    "--tokens",
+    "32",
+    "--repeats",
+    "1",
+    "--timeout",
+    "300"
+  ],
+  "prompts": [
+    "MAIN",
+    "HOLD"
+  ],
+  "context": 4096,
+  "warmup": "one per prompt/process",
+  "samples": "two measured per variant/prompt, four total processes",
+  "scope": "AR only, no speculative decoding; no CPU compile/proof or other inference during the exclusive root window",
+  "comparison": "fulltext/hash/count parity for allwarm+measured; decodeTPS andTTFT perprompt medians, control drift, resourceledger/Metalallocated andprocessmemory keptseparate; no gains added",
+  "conditions": "M5standard24GiB/macOS27.2build26B123/Xcode27.2;AC100%;pmsetno warnings recorded doesnot measuretemperature;backgroundEquibop about8%CPU observed, record launchconditions again",
+  "limits": "shortoutputs/twosamples; no sustained/sparse>512/longcontext speedqualification; new flags currently defaultOFF/app unchanged",
+  "reference_binary": {
+    "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+    "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+    "source": "qualified34adade tree-identical main21cf; all recorded native/Cargo/build source hashes independently rechecked against21cf with zero mismatches"
+  },
+  "ensemble_binary": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+  "revision_utc": "2026-11-04T12:14:15.018250+00:00"
+}

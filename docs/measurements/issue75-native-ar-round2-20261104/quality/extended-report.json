@@ -1,0 +1,249 @@
+{
+  "status": "validated",
+  "parity": true,
+  "scope": "7 post-pilot deferred physical/cancel/budget gates on same frozen789a/d3f6",
+  "expected_phases": 7,
+  "phases": [
+    {
+      "label": "gateanalytic",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::gate::tests::encoded_gate_matches_independent_uniform_oracle_and_owner_errors",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 90,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 0.14218204200733453,
+      "evidence": {
+        "exactly_one_test": true,
+        "nonignored": true
+      }
+    },
+    {
+      "label": "hc-gate-owner",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::hc::tests::joint_hc_gate_rejects_foreign_moe_before_commit_and_recovers",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 90,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 0.8970023329893593,
+      "evidence": {
+        "exactly_one_test": true,
+        "nonignored": true
+      }
+    },
+    {
+      "label": "router-lifetime",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::router::tests::publishes_complete_routes_after_producer_and_input_drop",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 90,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 0.0843483750068117,
+      "evidence": {
+        "exactly_one_test": true,
+        "nonignored": true
+      }
+    },
+    {
+      "label": "fullAR-prefixes",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::flash::tests::hc_gate_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 7.158084082999267,
+      "evidence": {
+        "actual_counts": [
+          {
+            "candidate_gate_cb": 0,
+            "candidate_helper_cb": 194,
+            "candidate_wait_calls": 290,
+            "control_gate_cb": 48,
+            "control_helper_cb": 194,
+            "control_wait_calls": 290,
+            "gate_chain": true,
+            "joint_gate_pairs": 48,
+            "prefix": 0
+          },
+          {
+            "candidate_gate_cb": 0,
+            "candidate_helper_cb": 206,
+            "candidate_wait_calls": 302,
+            "control_gate_cb": 48,
+            "control_helper_cb": 206,
+            "control_wait_calls": 302,
+            "gate_chain": true,
+            "joint_gate_pairs": 48,
+            "prefix": 2
+          },
+          {
+            "candidate_gate_cb": 0,
+            "candidate_helper_cb": 206,
+            "candidate_wait_calls": 302,
+            "control_gate_cb": 48,
+            "control_helper_cb": 206,
+            "control_wait_calls": 302,
+            "gate_chain": true,
+            "joint_gate_pairs": 48,
+            "prefix": 9
+          }
+        ],
+        "state_words": 86409216,
+        "logits_hidden_exact": true,
+        "late_IO_recovery": true
+      }
+    },
+    {
+      "label": "prefetch-fallback",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_SSD_LOOKAHEAD_DEPTH": "1"
+      },
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 4.025327709008707,
+      "evidence": {
+        "actual_features": {
+          "fixed_dims": true,
+          "fixed_submissions": [
+            3840,
+            1920
+          ],
+          "gate_commands": 380,
+          "hc_gate_pairs": 0,
+          "hc_initially_enabled": true,
+          "hc_joint_pairs": 192,
+          "scratch_enabled": true,
+          "scratch_uses": 5760,
+          "static_submissions": [
+            0,
+            0,
+            0,
+            480,
+            723
+          ]
+        },
+        "independent_state_words": 28803072,
+        "finite_logits": 496640,
+        "prefetch_drained": true
+      }
+    },
+    {
+      "label": "cli4096-full",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/quality-01/cli4096-full.json",
+        "--context-length",
+        "4096",
+        "--timeout",
+        "180"
+      ],
+      "overrides": {},
+      "timeout_seconds": 240,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 58.595994750008686,
+      "evidence": {
+        "goldens": 4,
+        "cancelled": [
+          "context_usage",
+          "delta"
+        ],
+        "rejected": 1,
+        "token_hash": "9f850af1cbba074b",
+        "ledger48x53": true,
+        "mlx_loaded": false
+      }
+    },
+    {
+      "label": "budget-frozen",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {
+        "MLXL3_FLASH_TEST_CLI": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli"
+      },
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 25.252057250007056,
+      "evidence": {
+        "exactly_one_test": true,
+        "goldens": 2,
+        "memory_saver_recovery": true,
+        "fresh_cli_sha256": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+        "fixture_sha256": "fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006"
+      }
+    }
+  ],
+  "source": "508b8260",
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest": "d3f6018bc4d72ffd42215b4fd2d7bd1f543378cb6b72e09509b24553bd286ad2"
+  },
+  "all_children_joined": true
+}

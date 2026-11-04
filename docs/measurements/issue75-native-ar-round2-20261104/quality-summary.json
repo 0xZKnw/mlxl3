@@ -1,0 +1,97 @@
+{
+  "status": "validated",
+  "parity": true,
+  "source": "508b8260",
+  "scope": "21 physical correctness phases; no new timing or claim of complete formal proof",
+  "essential_pre_pilot": 14,
+  "extended_post_pilot": 7,
+  "all_children_joined": true,
+  "all_process_groups_empty": true,
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest": "d3f6018bc4d72ffd42215b4fd2d7bd1f543378cb6b72e09509b24553bd286ad2",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-gpu-ports/mix-stq1_0/build/issue75nt2/stock-oracle": "405b025f5c6ecb7c6ca08b18a25b75ff98e7260d3272cc283887ab9b9764284d"
+  },
+  "base_environment": {
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN": "1",
+    "MLXL3_NATIVE_AR_HC_CHAIN": "1",
+    "MLXL3_NATIVE_FLASH_STATIC_K": "1",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS": "1",
+    "MLXL3_NATIVE_ROUTED_SCRATCH": "1",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_SSD_OVERLAP": "1",
+    "MLXL3_SSD_CACHE_POLICY": "auto",
+    "MLXL3_SSD_PREDICTOR_DTYPE": "f32",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1",
+    "PYTHONPATH": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0",
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531"
+  },
+  "unset": [
+    "MLXL3_SSD_CACHE_MIB"
+  ],
+  "per_phase_overrides": "quality/{essential,extended}-report.json",
+  "conditions": {
+    "power": "AC100% root observation",
+    "background": "Equibop about8%CPU root observation",
+    "pmset": "no warning recorded byroot",
+    "temperature": "not measured",
+    "other_compile_proof_inference": "none during physical campaigns, root coordinated"
+  },
+  "fixture_sha256": {
+    "retained-native-cases.json": "537f9a3e3b89415e2dbb451f2b1bf258215c4e6ab12a99ef26eb393fc57bc25e",
+    "retained-stock.json": "9933dbb9939ab75949c715bca16a03758fc8d89e7d734db566073e85d463b5f0",
+    "fixed-supplement/cases.json": "c29848dc05d596a17738c879e26aecad6aa0b5462adff72ea6a3697991bb6723",
+    "fixed-supplement/stock.json": "b455c0f96803d844f7acebf0f0f56169e5d6b658ffbbcfb9c6ce154c84903817",
+    "routed-scratch/cases.json": "f81f0b9281f27ad0ce2ee9261e039152cdd5fef17a8c1382c9ed7929eaae2f86",
+    "routed-scratch/stock.json": "e6a9cdb342737c330509c9492af7f67ea33536db765234c0bc63cf57dbb6ed2c",
+    "combined/native-cases.json": "332d35ada8f35b3ea5879b60057092ac8a9a93d5c53feb4d42c9334d7a41cff0",
+    "combined/stock.json": "57a4470d4b5c3d35e09875015c97ea4bdfca05cb754abab30531a8eec4c2bc7a"
+  },
+  "actual_counts": {
+    "fixed_component_ON": [
+      6,
+      2
+    ],
+    "scratch_component_newBuffer_OFF_ON": [
+      10,
+      6
+    ],
+    "archive_depth0_fixed": [
+      3840,
+      1920
+    ],
+    "archive_depth0_scratch": 5760,
+    "archive_depth0_hc_gate": 192,
+    "context4096_fixed_ON": [
+      4860,
+      2400
+    ],
+    "context4096_scratch_per_branch": 7200,
+    "context4096_hc_gate_per_branch": 240,
+    "fullAR_gateCB_OFF_ON": [
+      48,
+      0
+    ],
+    "fullAR_waitAPI_calls": "equal; no claimed wait API saving"
+  },
+  "numeric_evidence": {
+    "retained48_plus_new8_projection_refs": "6modes\u00d7765184 finite exact half words; no new regeneration of old48",
+    "scratch": "5independentrefs,16real F16/F32 OFF/ON cases plus shared/batch/error/lifetime/poison/duplicate gates",
+    "archive": "84states28803072finiteF32words and496640half logits independent, depth0active and depth1fallback",
+    "context4096": "86409216finiteF32words+744960logits perbranch, continuation exact",
+    "fullAR": "restored prefixes0/2/9,86409216finiteF32words plus hidden/logits exact",
+    "real_cli": "short1+full4golden completions, malformed rejection,context/delta cancellation+recovery,ledger48x53,noMLX",
+    "budget": "2goldens,memorysaver,rejection/recovery,frozenfixtureSHA verified/freshCLI789a"
+  },
+  "limits": [
+    "Hosted CI and final CPU/compat follow-up owned byroot, not claimed here",
+    "No full formal proof of Metal/async allocator",
+    "No new speed measurement; root pilot verdict separate",
+    "Retained JSON staged is reserialized with fixed_key:null; original fields and stock word arrays exact, raw SHA distinction explicit"
+  ]
+}

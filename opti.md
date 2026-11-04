@@ -24256,3 +24256,99 @@ I75-AR-ROUTED-SCRATCH relectureindépendante pré-gel : seul testfixture renforc
 I75-AR-ROUTED-SCRATCH-REVIEW-20261104 préenregistré avant audit indépendant : lecture journal AGENTS/opti du checkout issue75-native-routed-scratch terminée. Répéter seulement le contrat d’ownership/géométrie des projections natives main21cf pour le nouveau mécanisme scratch local ; chercher contre-exemples de tailles, alias, overwrite entre dispatchs, erreurs avant commit et crédibilité des allocations réelles10/6. Lecture seule source/fixtures, aucune compilation/test/preuve/GPU ni modification exécutable. Rapport prévu docs/measurements/issue75-native-flash-fixed-dims-20261104/routed-scratch-review.md, état ENCOURS.
 
 I75-AR-ROUTED-SCRATCH-REVIEW-20261104 clos lecture seule : aucun défautproduit identifié dans sélection/géométrie/scratchlocal/sameCB/ownership/erreurs. Un trou concret de fixture signalé avantgel root+owner : distinctprefixesinclutshared etséquence0/1/0 n’imposepasdeuxexpertsroutés ; READMEgénèrebien0/1maisleharnaisaccepteraitunseulroutérépété+shared. Recommandéassertionssurroutedslice+identités0/1, statutcorrectionENATTENTEowner. Rapport court+SHA sources docs/measurements/issue75-native-flash-fixed-dims-20261104/routed-scratch-review.md. Aucune compilation/test/preuve/GPU/modificationexécutable, allocations10/6 seulementassertionssourcepasmesures.
+
+I75-AR-ROUND2 essential GPU stock-fixed STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU stock-fixed VALIDATED {'references': 8, 'words': 26880}
+
+I75-AR-ROUND2 essential GPU stock-scratch STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU stock-scratch VALIDATED {'references': 5, 'words': 12800}
+
+I75-AR-ROUND2 essential GPU fixed0-nt0 STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed0-nt0 VALIDATED {'finite_half_words': 765184, 'fixed_counts': [0, 0], 'static_counts': [10, 20, 0, 16, 0], 'nt2': False}
+
+I75-AR-ROUND2 essential GPU fixed0-nt1 STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed0-nt1 VALIDATED {'finite_half_words': 765184, 'fixed_counts': [0, 0], 'static_counts': [10, 6, 14, 0, 16], 'nt2': True}
+
+I75-AR-ROUND2 essential GPU fixed0-ntunset STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed0-ntunset VALIDATED {'finite_half_words': 765184, 'fixed_counts': [0, 0], 'static_counts': [10, 6, 14, 0, 16], 'nt2': True}
+
+I75-AR-ROUND2 essential GPU fixed1-nt0 STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed1-nt0 VALIDATED {'finite_half_words': 765184, 'fixed_counts': [6, 2], 'static_counts': [2, 20, 0, 16, 0], 'nt2': False}
+
+I75-AR-ROUND2 essential GPU fixed1-nt1 STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed1-nt1 VALIDATED {'finite_half_words': 765184, 'fixed_counts': [6, 2], 'static_counts': [2, 6, 14, 0, 16], 'nt2': True}
+
+I75-AR-ROUND2 essential GPU fixed1-ntunset STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed1-ntunset VALIDATED {'finite_half_words': 765184, 'fixed_counts': [6, 2], 'static_counts': [2, 6, 14, 0, 16], 'nt2': True}
+
+I75-AR-ROUND2 essential GPU fixed-malformed STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fixed-malformed VALIDATED {'rejected': True, 'recovery': True}
+
+I75-AR-ROUND2 essential GPU zero-pso-claim-mutation VALIDATED; actual OFF result unchanged, false ON rejected
+
+I75-AR-ROUND2 essential GPU scratch-component STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU scratch-component VALIDATED {'cases': 16, 'actual_newBuffer_OFF': 10, 'actual_newBuffer_ON': 6, 'duplicate': 3, 'poison_and_recovery': True}
+
+I75-AR-ROUND2 essential GPU PREREG REVISION avant phases nonlancées : priorité vitesse demandée user/root ; garder6 matrices déjàpassées, déférer gateanalytic/owner/router/fullARprefixes/prefetch après pilote ; exécuter archive depth0+ctx4096OFF/ON+CLI courte, compteurs stricts. Aucune gate déférée qualifiée.
+
+I75-AR-ROUND2 essential GPU independent-depth0 STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU independent-depth0 VALIDATED {'actual_features': {'fixed_dims': True, 'fixed_submissions': [3840, 1920], 'gate_commands': 0, 'hc_gate_pairs': 192, 'hc_initially_enabled': True, 'hc_joint_pairs': 192, 'scratch_enabled': True, 'scratch_uses': 5760, 'static_submissions': [0, 0, 0, 480, 723]}, 'state_words': 28803072, 'finite_half_logits': 496640}
+
+I75-AR-ROUND2 essential GPU context4096-off-on STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU context4096-off-on VALIDATED {'actual_markers': [{'continuation': True, 'enabled': False, 'fixed_submissions': [0, 0], 'hc_gate_pairs': 240, 'logits': 744960, 'scratch_uses': 7200, 'state_words': 86409216, 'states': 252, 'steps': 3}, {'continuation': True, 'enabled': True, 'fixed_submissions': [4860, 2400], 'hc_gate_pairs': 240, 'logits': 744960, 'scratch_uses': 7200, 'state_words': 86409216, 'states': 252, 'steps': 3}]}
+
+I75-AR-ROUND2 essential GPU cli4096-short STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU cli4096-short VALIDATED {'golden': '9f850af1cbba074b', 'completed': 1, 'ledger48x53': True, 'context4096': True, 'mlx_loaded': False}
+
+I75-AR-ROUND2 essential GPU ESSENTIAL14/14 PASS, tous enfants joints/PGIDs vides ; composants et archive84etats+ctx4096+1CLIgolden/ledger/noMLX. Gatesétendues/cancel/budget déféréesexplicitement après pilote, pas qualitéglobale complète, pasde vitesse ici. Handback rootpourpilote32ABBA.
+
+I75-AR-ROUND2 avantpremiertiming : ESSENTIAL14/14VALIDÉ sur789a/d3f6, archive84états+ctx4096 exacts et3cheminsactifs, CLIgolden4096/48x53/noMLX/tousjoints ;5gates+fullcancel/budgetdifférésaprèschiffres. Premierlauncher arrêtéAVANTinférence surassertstatut tropstrict(validated au lieu essential_validated_pending_extended), aucunbinaire/GPUlancé ; statutpartielpréservé. Correctionréférencepréalable : comparerauVRAImain21cf figé942d(source34adade treeidentique, hashestousnative/Cargo/buildrecontrôlészérodiff) plutôtqueflags0dansnouveaubinaire afinmesurergainmoteuravecoverhead. Même32ABBA/MAIN-HOLD/cache3GiB4readersdepth0,NT2/K/HC1fixes ;3nouveauxflags0référence/1ensemble. Nouvellesource789a etréférence942d intacts, aucune mesureencorelancéeavantcetenregistrement.
+
+I75-AR-ROUND2 contrôle metadata après handback : assertion identitéoctets JSON staged→archive échoue ; cause attendue explicitée : resérialisation et seul nouveau champ natif fixed_key:null. Audit metadata lancé Python système3.9 échoue zip(strict), repris Python projet3.12 (toutes phasesGPU avaient déjà utilisé3.12). Comparaison exhaustive48 tableaux stock et tous champs natifs originaux EXACTE, SHA archive originaux toujours inchangés, SHA CLI/libtest toujours inchangés. retained-provenance-audit.json conserve diagnostics et SHA staged distincts ; aucune divergence numérique ni relance GPU. Ne pas dire byteexactJSONstaged.
+
+I75-AR-ROUND2 essential GPU PREREG EXTENDED après pilote root, grantGPUexclusif renouvelé : gateanalytic+owner+routerlifetime+fullARprefixes0/2/9+prefetchfallback1 puisrealAR4096cancel/recovery+budgetfixturefrozen ;3flags1, mêmes789a/d3f6. Pas de timing/build/proof, stopfirstfailure, rapportsFalsejusqu’à7/7.
+
+I75-AR-ROUND2 essential GPU gateanalytic STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU gateanalytic VALIDATED {'exactly_one_test': True, 'nonignored': True}
+
+I75-AR-ROUND2 essential GPU hc-gate-owner STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU hc-gate-owner VALIDATED {'exactly_one_test': True, 'nonignored': True}
+
+I75-AR-ROUND2 essential GPU router-lifetime STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU router-lifetime VALIDATED {'exactly_one_test': True, 'nonignored': True}
+
+I75-AR-ROUND2 essential GPU fullAR-prefixes STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU fullAR-prefixes VALIDATED {'actual_counts': [{'candidate_gate_cb': 0, 'candidate_helper_cb': 194, 'candidate_wait_calls': 290, 'control_gate_cb': 48, 'control_helper_cb': 194, 'control_wait_calls': 290, 'gate_chain': True, 'joint_gate_pairs': 48, 'prefix': 0}, {'candidate_gate_cb': 0, 'candidate_helper_cb': 206, 'candidate_wait_calls': 302, 'control_gate_cb': 48, 'control_helper_cb': 206, 'control_wait_calls': 302, 'gate_chain': True, 'joint_gate_pairs': 48, 'prefix': 2}, {'candidate_gate_cb': 0, 'candidate_helper_cb': 206, 'candidate_wait_calls': 302, 'control_gate_cb': 48, 'control_helper_cb': 206, 'control_wait_calls': 302, 'gate_chain': True, 'joint_gate_pairs': 48, 'prefix': 9}], 'state_words': 86409216, 'logits_hidden_exact': True, 'late_IO_recovery': True}
+
+I75-AR-ROUND2 essential GPU prefetch-fallback STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU prefetch-fallback VALIDATED {'actual_features': {'fixed_dims': True, 'fixed_submissions': [3840, 1920], 'gate_commands': 380, 'hc_gate_pairs': 0, 'hc_initially_enabled': True, 'hc_joint_pairs': 192, 'scratch_enabled': True, 'scratch_uses': 5760, 'static_submissions': [0, 0, 0, 480, 723]}, 'independent_state_words': 28803072, 'finite_logits': 496640, 'prefetch_drained': True}
+
+I75-AR-ROUND2 PILOTE32ABBA CLOS :942dmain21cf→789acomposé,4processus322.5senviron,tousparents/readersjoints,8warm+8mesuresfulltext/hash/countparité. MAINmédiane5.877077949→5.861515025tok/s(-0.264807%),HOLD5.949796052→5.936114299(-0.229953%) : débitDÉCODEINCHANGÉ/nonboostétabli. TTFTMAIN-7.358988%,HOLD-4.019414% ;tempscomplet32tokens-5.372818/-2.863035%,chaqueB inférieurauxdeuxA pourceslatences. Metalalloué6608617472Bidentique8mesures,mémoireprocessusséparéedansrawstats. Touséchantillons conservés ;pasdesommeavecanciensgains32,pasqualificationlongcontexte/soutenu. 3flagsnouveauxdefaultOFFconservés/prototypequalifiéessentiellement,appinchangée. Sourceauditsadaptationfixed/scratchpréenregistrésavantlecture,pasrejetminpourcentage. 5gatesétendues+cancel/budgetencoursaprèschiffres,source789a/d3f6immuable. Rapportsdocs/measurements/issue75-native-ar-round2-20261104/performance-summary.json+performance/*,aucunrawtrace/TOC/envglobal.
+
+I75-AR-ROUND2 essential GPU cli4096-full STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU cli4096-full VALIDATED {'goldens': 4, 'cancelled': ['context_usage', 'delta'], 'rejected': 1, 'token_hash': '9f850af1cbba074b', 'ledger48x53': True, 'mlx_loaded': False}
+
+I75-AR-ROUND2 essential GPU budget-frozen STARTED, grant root exclusif, une commande/model, pas de vitesse.
+
+I75-AR-ROUND2 essential GPU budget-frozen VALIDATED {'exactly_one_test': True, 'goldens': 2, 'memory_saver_recovery': True, 'fresh_cli_sha256': '789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46', 'fixture_sha256': 'fce0d5e32bb3b5ba44d0c872ef1cd63ef2dc32219c37245001863e4f8d791006'}
+
+I75-AR-ROUND2 essential GPU EXTENDED7/7 PASS, tousprocessus joints/PGIDsvides ;5gates différées+réelAR4096 4goldens/rejet/context+deltaannulations/reprise+budgetfrozen2goldens/memorysaver. Même789a/d3f6, aucun nouveau timing/source/runtime modifié. HandbackGPUroot pourchecksCPUfinal/PRoptin.
