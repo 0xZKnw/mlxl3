@@ -57,6 +57,7 @@ pub(super) struct DeferredHcWrite {
     streams: MatrixView,
     branch: MatrixView,
     gate: MatrixView,
+    producer: Option<super::MoeOutput>,
 }
 pub(super) enum LayerOutput {
     Ready(MatrixView),
@@ -66,7 +67,13 @@ impl LayerOutput {
     pub(super) fn complete(self, gpu: &Metal) -> Result<MatrixView> {
         match self {
             Self::Ready(streams) => Ok(streams),
-            Self::Pending(write) => gpu.command(|cmd| write.encode(gpu, cmd)),
+            Self::Pending(mut write) => {
+                let encoded = gpu.command(|cmd| write.encode(gpu, cmd));
+                let producer = write.finish_producer();
+                let streams = encoded?;
+                producer?;
+                Ok(streams)
+            }
         }
     }
     pub(super) fn ready(&self) -> Result<&MatrixView> {
@@ -79,6 +86,18 @@ impl LayerOutput {
 impl DeferredHcWrite {
     fn encode(&self, gpu: &Metal, cmd: &CommandBufferRef) -> Result<MatrixView> {
         gpu.encode_hc_write(cmd, &self.streams, &self.branch, &self.gate)
+    }
+    fn finish_producer(&mut self) -> Result<()> {
+        if let Some(producer) = self.producer.take() {
+            producer.completed()?;
+        }
+        Ok(())
+    }
+}
+impl Drop for DeferredHcWrite {
+    fn drop(&mut self) {
+        // An abandoned/failed consumer must still join all submitted producers.
+        let _ = self.finish_producer();
     }
 }
 
@@ -444,40 +463,49 @@ impl<'a> LayerResidual<'a> {
                 gate,
                 &self.moe,
             )?;
+            let gate = mlp_read.gate.as_ref().context("missing MLP injection")?;
             let experts = self.moe.with_completed_gate(&mlp_read.mixed, routing)?;
-            return self.final_write(
-                &written,
-                experts.completed()?,
-                mlp_read.gate.as_ref().context("missing MLP injection")?,
-                defer_write,
-            );
+            return self.final_write(&written, experts, gate, defer_write);
         }
         let (written, mlp_read) =
             self.mlp_hc
                 .read_after_write(&self.attn_hc, streams, &attention.values, gate)?;
+        let gate = mlp_read.gate.as_ref().context("missing MLP injection")?;
         let experts = self.moe.lookahead(&mlp_read.mixed, next, depth)?;
-        self.final_write(
-            &written,
-            experts.completed()?,
-            mlp_read.gate.as_ref().context("missing MLP injection")?,
-            defer_write,
-        )
+        self.final_write(&written, experts, gate, defer_write)
     }
     fn final_write(
         &self,
         streams: &MatrixView,
-        branch: &MatrixView,
+        #[allow(unused_mut)] mut experts: super::MoeOutput,
         gate: &MatrixView,
         defer_write: bool,
     ) -> Result<LayerOutput> {
+        let deferred = crate::flash_support::defer_moe_completion(
+            self.mlp_hc.gpu.moe_deferred.get(),
+            defer_write,
+        );
+        let branch = if deferred {
+            experts.values_for_gpu()
+        } else {
+            experts.completed()?
+        }
+        .clone();
+        #[cfg(test)]
+        if deferred {
+            let gpu = self.mlp_hc.gpu;
+            gpu.moe_deferred_uses.set(gpu.moe_deferred_uses.get() + 1);
+            experts.injected_failure = gpu.moe_deferred_fail.replace(false);
+        }
         if defer_write {
             Ok(LayerOutput::Pending(DeferredHcWrite {
                 streams: streams.clone(),
-                branch: branch.clone(),
+                branch,
                 gate: gate.clone(),
+                producer: deferred.then_some(experts),
             }))
         } else {
-            let written = self.mlp_hc.write(streams, branch, gate)?;
+            let written = self.mlp_hc.write(streams, &branch, gate)?;
             #[cfg(test)]
             self.mlp_hc
                 .gpu
@@ -576,7 +604,7 @@ impl<'a> FlashGdnLayer<'a> {
 
     pub(super) fn forward_pending(
         &mut self,
-        write: DeferredHcWrite,
+        mut write: DeferredHcWrite,
         defer_write: bool,
     ) -> Result<LayerOutput> {
         let before = self.snapshot();
@@ -584,16 +612,19 @@ impl<'a> FlashGdnLayer<'a> {
             let gpu = self.attention.gpu;
             #[cfg(test)]
             let _scope = crate::flash_profile::span("native.hc_gdn.cross_layer");
-            let (streams, read, pending) = gpu.command(|cmd| {
+            let encoded = gpu.command(|cmd| {
                 let streams = write.encode(gpu, cmd)?;
                 let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
                 let pending = self.attention.encode(cmd, read.mixed(), false)?;
                 Ok((streams, read, pending))
-            })?;
-            let read = read.finish(false)?;
-            let attention = self.attention.finish(pending)?;
+            });
             #[cfg(test)]
             drop(_scope);
+            let producer = write.finish_producer();
+            let (streams, read, pending) = encoded?;
+            producer?;
+            let read = read.finish(false)?;
+            let attention = self.attention.finish(pending)?;
             #[cfg(test)]
             gpu.cross_layer_triples
                 .set(gpu.cross_layer_triples.get() + 1);

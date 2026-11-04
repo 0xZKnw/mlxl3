@@ -82,6 +82,34 @@ pub(crate) fn cross_layer_eligible(
     enabled && hc_gdn && depth == 0 && !exporting && next_gdn
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn defer_moe_completion(enabled: bool, deferred_write: bool) -> bool {
+    enabled && deferred_write
+}
+
+#[test]
+fn moe_completion_requires_a_bounded_deferred_consumer() {
+    for enabled in [false, true] {
+        for deferred_write in [false, true] {
+            assert_eq!(
+                defer_moe_completion(enabled, deferred_write),
+                (enabled, deferred_write) == (true, true)
+            );
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn deferred_moe_cannot_escape_the_existing_cross_layer_guard() {
+    let enabled: bool = kani::any();
+    let deferred_write: bool = kani::any();
+    let result = defer_moe_completion(enabled, deferred_write);
+    assert_eq!(result, enabled && deferred_write);
+    kani::cover!(result);
+    kani::cover!(enabled && !deferred_write && !result);
+}
+
 #[test]
 fn cross_layer_keeps_every_export_depth_and_consumer_fallback() {
     for enabled in [false, true] {

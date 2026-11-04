@@ -45,23 +45,38 @@ pub struct MoeOutput {
     timeline: Vec<serde_json::Value>,
     #[cfg(test)]
     pub(super) extra_wave_submissions: usize,
+    #[cfg(test)]
+    pub(super) injected_failure: bool,
 }
 
 impl MoeOutput {
     pub fn completed(&self) -> Result<&MatrixView> {
         #[cfg(test)]
         let _wait = crate::flash_profile::span("native.moe_wait");
+        let mut failure = None;
         for command in &self.commands {
             command.wait_until_completed();
-            ensure!(
-                command.status() == MTLCommandBufferStatus::Completed,
-                "Flash MoE command failed ({:?})",
-                command.status()
-            );
+            if command.status() != MTLCommandBufferStatus::Completed && failure.is_none() {
+                failure = Some(anyhow::anyhow!(
+                    "Flash MoE command failed ({:?})",
+                    command.status()
+                ));
+            }
             #[cfg(test)]
             crate::flash_profile::native_gpu_interval(command, "moe");
         }
+        if let Some(error) = failure {
+            return Err(error);
+        }
+        #[cfg(test)]
+        ensure!(
+            !self.injected_failure,
+            "injected deferred MoE producer failure"
+        );
         Ok(&self.values)
+    }
+    pub(super) fn values_for_gpu(&self) -> &MatrixView {
+        &self.values
     }
     pub fn multiplier_trace(&self) -> Result<Option<Vec<u32>>> {
         self.multiplier_trace
@@ -405,6 +420,8 @@ impl<'a> FlashMoeRow<'a> {
                 timeline,
                 #[cfg(test)]
                 extra_wave_submissions,
+                #[cfg(test)]
+                injected_failure: false,
                 values,
                 read_bytes: plan.reads.len() as u64 * EXPERT_BYTES,
                 multiplier_trace: trace.then_some(multiplier),

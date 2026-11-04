@@ -23,6 +23,7 @@ fn view(gpu: &Metal, values: &[f32]) -> Result<MatrixView> {
 fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Result<()> {
     let c = checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
     let gpu = Metal::new()?;
+    let initial_moe_deferred = gpu.moe_deferred.get();
     ensure!(
         gpu.cross_layer.get() && gpu.hc_gdn_chain.get(),
         "qualified M5 and CROSS_LAYER=1 required"
@@ -42,6 +43,7 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
             streams: input.clone(),
             branch: branch.clone(),
             gate: view(&gpu, &[0.5; 3])?,
+            producer: None,
         };
         ensure!(layer.forward_pending(bad, false).is_err());
         ensure!(gpu.helper_commits.get() == commits && layer.recurrent().is_none());
@@ -49,6 +51,7 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
             streams: input,
             branch,
             gate,
+            producer: None,
         };
         let actual = layer
             .forward_pending(good, false)?
@@ -64,6 +67,7 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
     let mut model = FlashNext::load(&gpu, &c, 4096)?;
     ensure!(model.prefetcher.is_none());
     gpu.cross_layer.set(false);
+    gpu.moe_deferred.set(false);
     let empty = model.snapshot();
     let (initial, states) = model.forward_trace(248044)?;
     check_initial(&initial, &states)?;
@@ -97,6 +101,8 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
         check_tensors(&expected_states)?;
         model.restore(&saved)?;
         gpu.cross_layer.set(true);
+        gpu.moe_deferred.set(initial_moe_deferred);
+        let deferred = gpu.moe_deferred_uses.get();
         let (triples, doubles, writes, commits, waits) = (
             gpu.cross_layer_triples.get(),
             gpu.hc_gdn_pairs.get(),
@@ -111,6 +117,7 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
                 && gpu.hc_gdn_pairs.get() - doubles == 2
                 && gpu.hc_final_writes.get() - writes == 14
         );
+        ensure!(gpu.moe_deferred_uses.get() - deferred == 34 * usize::from(initial_moe_deferred));
         ensure!(
             used_commits + 34 == control_commits && gpu.helper_waits.get() - waits == used_commits
         );
@@ -157,6 +164,17 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
     let (recovery_next, recovery_states) = model.forward_trace(11)?;
     model.restore(&prefix)?;
     gpu.cross_layer.set(true);
+    if initial_moe_deferred {
+        let commits = gpu.helper_commits.get();
+        gpu.moe_deferred_fail.set(true);
+        let failed = model.forward(42);
+        let error = failed.err().context("missing deferred producer failure")?;
+        ensure!(format!("{error:#}").contains("injected deferred MoE producer failure"));
+        ensure!(gpu.helper_commits.get() > commits && model.offset() == prefix.position());
+        ensure!(held_hidden.export_bytes(&gpu)? == held_bytes);
+        ensure!(model.forward(19)? == recovery);
+        model.restore(&prefix)?;
+    }
     gpu.cross_layer_fail_after.set(Some(20));
     let triples = gpu.cross_layer_triples.get();
     ensure!(model.forward(42).is_err());
@@ -199,7 +217,7 @@ fn physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries() -> Re
     ensure!(gpu.readers()?.in_flight() == 0);
     eprintln!(
         "NATIVE_CROSS_LAYER_MODEL {}",
-        serde_json::json!({"steps":cases,"compared_state_words":compared,"compared_logits":1986560,"initial_archive_states":84,"encode_failure_no_commit":true,"late_failure_layer":20,"retained_prefix":true,"recovery":true,"export_fallback":true,"parity":true})
+        serde_json::json!({"steps":cases,"compared_state_words":compared,"compared_logits":1986560,"initial_archive_states":84,"encode_failure_no_commit":true,"late_failure_layer":20,"retained_prefix":true,"recovery":true,"export_fallback":true,"moe_deferred":initial_moe_deferred,"deferred_producer_failure_recovery":initial_moe_deferred,"parity":true})
     );
     Ok(())
 }

@@ -219,6 +219,11 @@ pub struct Metal {
     #[cfg(test)]
     hc_workspace_uses: std::cell::Cell<usize>,
     cross_layer: std::cell::Cell<bool>,
+    moe_deferred: std::cell::Cell<bool>,
+    #[cfg(test)]
+    moe_deferred_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    moe_deferred_fail: std::cell::Cell<bool>,
     #[cfg(test)]
     cross_layer_triples: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -348,6 +353,7 @@ impl Metal {
             };
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
+            let moe_deferred = hc_kernel_setting("MLXL3_NATIVE_MOE_DEFERRED")?;
             let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
                 Ok(value) => crate::hc_workspace_policy::flag(Some(&value), qualified_m5),
                 Err(std::env::VarError::NotPresent) => {
@@ -630,6 +636,11 @@ impl Metal {
                 #[cfg(test)]
                 hc_workspace_uses: std::cell::Cell::new(0),
                 cross_layer: std::cell::Cell::new(cross_layer),
+                moe_deferred: std::cell::Cell::new(moe_deferred),
+                #[cfg(test)]
+                moe_deferred_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                moe_deferred_fail: std::cell::Cell::new(false),
                 #[cfg(test)]
                 cross_layer_triples: std::cell::Cell::new(0),
                 #[cfg(test)]
