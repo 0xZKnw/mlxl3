@@ -28,6 +28,7 @@ pub struct FlashProjection<'a> {
     generic: bool,
     simdgroups: u32,
     nt: u32,
+    static_key: Option<usize>,
     #[cfg(test)]
     nt2_submissions: std::cell::Cell<u64>,
 }
@@ -204,6 +205,7 @@ impl<'a> FlashProjection<'a> {
                 "unsupported Flash NT2 projection threadgroup"
             );
         }
+        let static_key = static_key(metal, k, cb, nt, !generic && !mtp_hidden)?;
         if generic {
             let pipeline =
                 &metal.dense_qmv[usize::from(simdgroups == 8)][nt.trailing_zeros() as usize];
@@ -243,6 +245,7 @@ impl<'a> FlashProjection<'a> {
             generic,
             simdgroups,
             nt,
+            static_key,
             #[cfg(test)]
             nt2_submissions: std::cell::Cell::new(0),
         })
@@ -379,6 +382,8 @@ impl<'a> FlashProjection<'a> {
                 } else if self.generic {
                     &gpu.dense_qmv[usize::from(self.simdgroups == 8)]
                         [self.nt.trailing_zeros() as usize]
+                } else if let Some(key) = self.static_key {
+                    &gpu.flash_static_qmv[key]
                 } else if self.nt == 2 {
                     &gpu.flash_qmv_nt2
                 } else {
@@ -439,11 +444,34 @@ impl<'a> FlashProjection<'a> {
             64,
         );
         #[cfg(test)]
+        if let Some(key) = self.static_key {
+            let count = &gpu.flash_static_submissions[key];
+            count.set(count.get() + 1);
+        }
+        #[cfg(test)]
         if !self.generic && self.nt == 2 {
             self.nt2_submissions.set(self.nt2_submissions.get() + 1);
         }
         Ok(dest)
     }
+}
+
+fn static_key(
+    metal: &Metal,
+    k: u32,
+    cb: Codebook,
+    nt: u32,
+    eligible: bool,
+) -> Result<Option<usize>> {
+    let key = crate::flash_qmv::select(k, cb as u32, nt, eligible, metal.flash_static_setting)
+        .map_err(|()| anyhow::anyhow!("MLXL3_NATIVE_FLASH_STATIC_K must be 0 or 1"))?;
+    if let Some(key) = key {
+        ensure!(
+            metal.flash_static_supported[key],
+            "unsupported Flash static K projection threadgroup"
+        );
+    }
+    Ok(key)
 }
 
 fn submit(
@@ -504,7 +532,9 @@ fn physical_flash_resident_nt2() -> Result<()> {
     );
     let real = crate::checkpoint::inspect(&cases.last().context("missing real fixture")?.path)?;
     let hidden = FlashProjection::load(&gpu, &real, "mtp.fc_hidden")?;
-    ensure!(hidden.nt == 1 && hidden.mtp_hidden && hidden.splits == 2);
+    ensure!(
+        hidden.nt == 1 && hidden.mtp_hidden && hidden.splits == 2 && hidden.static_key.is_none()
+    );
     ensure!(hidden.submit(&vec![0; 2560]).is_err() && hidden.nt2_submissions.get() == 0);
     let selected_case = cases
         .iter()
@@ -532,6 +562,48 @@ fn physical_flash_resident_nt2() -> Result<()> {
         )?;
         return Ok(());
     };
+    if gpu.flash_static_setting.is_none() {
+        let mut fallbacks = [0; 2];
+        let error = FlashProjection::load(&gpu, &selected_checkpoint, &selected_case.prefix)
+            .err()
+            .context("invalid static K flag accepted")?;
+        ensure!(
+            error
+                .to_string()
+                .contains("MLXL3_NATIVE_FLASH_STATIC_K must be 0 or 1")
+        );
+        for (i, case) in cases
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.generic || c.prefix == "p")
+        {
+            let checkpoint = crate::checkpoint::inspect(&case.path)?;
+            let k7 = checkpoint.tensors[&format!("{}.trellis", case.prefix)].shape[2] == 112;
+            if !case.generic && !k7 {
+                continue;
+            }
+            let layer = if case.generic {
+                FlashProjection::load_exl3(&gpu, &checkpoint, &case.prefix)?
+            } else {
+                FlashProjection::load(&gpu, &checkpoint, &case.prefix)?
+            };
+            ensure!(layer.static_key.is_none());
+            ensure!(
+                layer.submit(&case.x)?.read()? == refs[i],
+                "static invalid flag broke fallback"
+            );
+            fallbacks[usize::from(case.generic)] += 1;
+        }
+        ensure!(
+            fallbacks.iter().all(|&count| count > 0),
+            "missing fallback control"
+        );
+        fs::write(
+            root.join("static-invalid-flag.json"),
+            b"{\"rejected\":true,\"fc_hidden\":true,\"fallbacks\":true}",
+        )?;
+        return Ok(());
+    }
     for invalid in 0..5 {
         let mut c = crate::checkpoint::inspect(&selected_case.path)?;
         let trellis = c
@@ -566,6 +638,10 @@ fn physical_flash_resident_nt2() -> Result<()> {
             FlashProjection::load
         };
         let layer = load(&gpu, &checkpoint, &case.prefix)?;
+        let before_static = gpu
+            .flash_static_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
         let nt = if enabled {
             case.candidate_nt
         } else {
@@ -580,6 +656,12 @@ fn physical_flash_resident_nt2() -> Result<()> {
         ensure!(
             layer.nt2_submissions.get() == 0,
             "invalid input encoded a command"
+        );
+        ensure!(
+            gpu.flash_static_submissions
+                .each_ref()
+                .map(std::cell::Cell::get)
+                == before_static
         );
         let actual = if case.fp32 {
             let values: Vec<f32> = case
@@ -605,6 +687,39 @@ fn physical_flash_resident_nt2() -> Result<()> {
             "case {i}: wrong encoded path count"
         );
         selected += submissions;
+        let expected_static = if gpu.flash_static_setting == Some(true)
+            && !case.generic
+            && layer.cb == Codebook::Mul1
+        {
+            match (layer.k, nt) {
+                (2, 1) => Some(0),
+                (3, 1) => Some(1),
+                (3, 2) => Some(2),
+                (4, 1) => Some(3),
+                (4, 2) => Some(4),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        ensure!(
+            layer.static_key == expected_static,
+            "case {i}: wrong static PSO identity"
+        );
+        let static_submissions = gpu
+            .flash_static_submissions
+            .each_ref()
+            .map(std::cell::Cell::get)
+            .iter()
+            .zip(before_static)
+            .map(|(after, before)| after - before)
+            .collect::<Vec<_>>();
+        ensure!(
+            static_submissions
+                .iter()
+                .enumerate()
+                .all(|(key, &count)| count == u64::from(expected_static == Some(key)))
+        );
         ensure!(
             actual.len() == expected.len() && !actual.is_empty(),
             "case {i}: truncated output"
@@ -629,12 +744,12 @@ fn physical_flash_resident_nt2() -> Result<()> {
                 .flat_map(|w| w.to_le_bytes())
                 .collect::<Vec<_>>(),
         )?;
-        result.push(serde_json::json!({"case":i,"prefix":case.prefix,"fp32":case.fp32,"nt":nt,"nt2_submissions":submissions,"words":actual.len(),"unequal":differs}));
+        result.push(serde_json::json!({"case":i,"prefix":case.prefix,"fp32":case.fp32,"nt":nt,"nt2_submissions":submissions,"words":actual.len(),"unequal":differs,"static_key":expected_static,"static_submissions":static_submissions}));
     }
     fs::write(
         root.join(format!("native-{}.json", u8::from(enabled))),
         serde_json::to_vec_pretty(
-            &serde_json::json!({"parity":unequal==0,"cases":result,"nt2_submissions":selected,"unequal":unequal}),
+            &serde_json::json!({"parity":unequal==0,"cases":result,"nt2_submissions":selected,"unequal":unequal,"static_k":gpu.flash_static_setting == Some(true),"static_submissions":gpu.flash_static_submissions.each_ref().map(std::cell::Cell::get)}),
         )?,
     )?;
     ensure!(!enabled || selected > 0, "candidate never encoded NT2");
@@ -747,6 +862,7 @@ impl<'a> FlashExpert<'a> {
                 generic: false,
                 simdgroups: 4,
                 nt: 1,
+                static_key: static_key(gpu, 2, Codebook::Mul1, 1, true)?,
                 #[cfg(test)]
                 nt2_submissions: std::cell::Cell::new(0),
             })

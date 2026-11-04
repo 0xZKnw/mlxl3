@@ -1,0 +1,172 @@
+{
+  "status": "validated",
+  "parity": true,
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "start_utc": "2026-11-04T10:50:34.167600+00:00",
+  "default_contract": "HC and STATIC_K variables absent;M5realdefaults,NT2=1. RequireactualinitialHCtrue/HCpairs>0/K2>0/K4>0,notonlyifconditionalparity.",
+  "reused_components": "Kshaders/table/projection identicalPR117;HCcomponent+6indepwrites unchanged, previousqualifiedresultsretained",
+  "phases": [
+    {
+      "label": "hc-full-ar",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+        "gpu::flash::tests::hc_chain_keeps_ar_logits_states_and_actual_command_savings",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T10:50:34.167851+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 94465,
+      "exit_code": 0,
+      "actual_rows": [
+        [
+          "0",
+          "242",
+          "194",
+          "28803072"
+        ],
+        [
+          "2",
+          "254",
+          "206",
+          "28803072"
+        ],
+        [
+          "9",
+          "254",
+          "206",
+          "28803072"
+        ]
+      ],
+      "actual_static_counts": [
+        44640,
+        0,
+        0,
+        3720,
+        5600
+      ],
+      "initial_HC_enabled": true,
+      "dyld_images": 706,
+      "mlx_loaded": false,
+      "elapsed_seconds": 7.573000874981517,
+      "joined": true,
+      "owned_process_group_empty": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "label": "target-independent-states",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+        "gpu::flash::tests::predictive_reads_match_archived_full_states_and_imposed_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T10:50:41.749590+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 94473,
+      "exit_code": 0,
+      "oracle_counts": {
+        "logits": 496640,
+        "prefetch": {
+          "demand_reused": 0,
+          "discarded": 0,
+          "failed": 0,
+          "published": 188,
+          "submitted": 188
+        },
+        "state_words": 28803072
+      },
+      "actual_composed_features": {
+        "hc_initially_enabled": true,
+        "hc_joint_pairs": 192,
+        "static_submissions": [
+          5760,
+          0,
+          0,
+          480,
+          723
+        ]
+      },
+      "dyld_images": 706,
+      "mlx_loaded": false,
+      "elapsed_seconds": 3.543111292005051,
+      "joined": true,
+      "owned_process_group_empty": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "label": "production-ar-bridge",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/tests/physical_flash_ar_bridge.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+        "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/docs/measurements/issue75-native-ar-compose-20261104/quality-01/ar-bridge.json",
+        "--timeout",
+        "180"
+      ],
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T10:50:45.300235+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 94565,
+      "exit_code": 0,
+      "bridge_report": "ar-bridge.json",
+      "dyld_images": 706,
+      "mlx_loaded": false,
+      "elapsed_seconds": 56.15786449998268,
+      "joined": true,
+      "owned_process_group_empty": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "label": "production-ar-budget",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-cache/mix-stq1_0/build/issue75cache/physical-openai_transport",
+        "native_flash_memory_budget_preserves_bridge_recovery",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "start_utc": "2026-11-04T10:51:41.473728+00:00",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "pid": 94591,
+      "exit_code": 0,
+      "dyld_images": 1410,
+      "mlx_loaded": false,
+      "elapsed_seconds": 23.53909616699093,
+      "joined": true,
+      "owned_process_group_empty": true,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "elapsed_seconds": 90.85451287499745,
+  "all_owned_children_joined": true,
+  "remaining_phases": []
+}

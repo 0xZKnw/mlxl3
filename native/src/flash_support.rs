@@ -46,6 +46,58 @@ fn prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row() {
     kani::cover!(rows == 0 && result.is_none());
 }
 
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn hc_chain_flag(value: Option<&str>, qualified_m5: bool) -> Option<bool> {
+    match value {
+        None => Some(qualified_m5),
+        Some("0") => Some(false),
+        Some("1") => Some(true),
+        _ => None,
+    }
+}
+
+#[test]
+fn hc_chain_flag_preserves_hardware_default_and_strict_overrides() {
+    for qualified_m5 in [false, true] {
+        assert_eq!(hc_chain_flag(None, qualified_m5), Some(qualified_m5));
+        assert_eq!(hc_chain_flag(Some("0"), qualified_m5), Some(false));
+        assert_eq!(hc_chain_flag(Some("1"), qualified_m5), Some(true));
+        for invalid in ["", "01", " 1", "1 ", "true", "false", "2", "é", "1\0"] {
+            assert_eq!(hc_chain_flag(Some(invalid), qualified_m5), None);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn hc_chain_flag_uses_qualified_hardware_default_and_exact_literals() {
+    let qualified_m5: bool = kani::any();
+    let present: bool = kani::any();
+    let bytes: [u8; 4] = kani::any();
+    let size = usize::from(kani::any::<u8>() % 5);
+    if !present {
+        assert_eq!(hc_chain_flag(None, qualified_m5), Some(qualified_m5));
+        kani::cover!(qualified_m5);
+        kani::cover!(!qualified_m5);
+    } else if let Ok(value) = std::str::from_utf8(&bytes[..size]) {
+        let result = hc_chain_flag(Some(value), qualified_m5);
+        assert_eq!(
+            result,
+            match value.as_bytes() {
+                [b'0'] => Some(false),
+                [b'1'] => Some(true),
+                _ => None,
+            }
+        );
+        kani::cover!(result == Some(true));
+        kani::cover!(result == Some(false));
+        kani::cover!(size == 0 && result.is_none());
+        kani::cover!(size == 4 && result.is_none());
+        kani::cover!(value == "é" && result.is_none());
+    }
+}
+
 #[cfg(kani)]
 #[kani::proof]
 #[kani::unwind(14)]

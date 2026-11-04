@@ -1,0 +1,102 @@
+{
+  "status": "validated_short_screen",
+  "decision": "retain HC candidate; qualify composition with static-K before default activation",
+  "parity": true,
+  "source_commit": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "binary_sha256": "1e282c471a8e525191d69d5e2b1c7b11b21923dd3d747654d5c0d5f99a8608c4",
+  "generated_utc": "2026-11-04T10:31:46.753463+00:00",
+  "tokens": 32,
+  "samples_per_variant_per_prompt": 2,
+  "warmups": 8,
+  "measured_responses": 8,
+  "by_prompt": {
+    "MAIN": {
+      "control_tps": [
+        5.119162262293306,
+        5.082660975507332
+      ],
+      "candidate_tps": [
+        5.2837499799268635,
+        5.198102117314043
+      ],
+      "control_median_tps": 5.100911618900319,
+      "candidate_median_tps": 5.240926048620453,
+      "change_percent": 2.744890329041194,
+      "paired_change_percent": [
+        3.215129921664639,
+        2.2712736962588354
+      ],
+      "control_drift_percent": -0.7130324243643349,
+      "ttft_change_percent": -3.5518589423167213,
+      "candidate_both_above_both_controls": true
+    },
+    "HOLD": {
+      "control_tps": [
+        5.172248852446412,
+        5.160579440680171
+      ],
+      "candidate_tps": [
+        5.362832835137695,
+        5.338688286134249
+      ],
+      "control_median_tps": 5.166414146563291,
+      "candidate_median_tps": 5.3507605606359725,
+      "change_percent": 3.5681695048645823,
+      "paired_change_percent": [
+        3.684741166333083,
+        3.45133424456312
+      ],
+      "control_drift_percent": -0.22561582203689534,
+      "ttft_change_percent": -2.955654677888886,
+      "candidate_both_above_both_controls": true
+    }
+  },
+  "memory_values": {
+    "native_metal_allocated_bytes": [
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472
+    ],
+    "process_footprint_bytes": [
+      7235917656,
+      7213897560,
+      7237277552,
+      7224727408,
+      7230248768,
+      7236572992,
+      7235802920,
+      7238965032
+    ],
+    "process_lifetime_peak_bytes": [
+      7269111640,
+      7269111640,
+      7270455152,
+      7270455152,
+      7264114496,
+      7269685056,
+      7270946624,
+      7270946624
+    ],
+    "process_compressed_logical_bytes": [
+      5091295232,
+      5107843072,
+      2383036416,
+      2368372736,
+      2402713600,
+      2321235968,
+      2516844544,
+      2411790336
+    ]
+  },
+  "limits": [
+    "No gain summation with static-K or older binaries.",
+    "No sustained/long-context/MTP/DFlash gain established.",
+    "HC default remains0 in this measured binary.",
+    "Initial failed fixture and its source diagnosis are preserved."
+  ]
+}
