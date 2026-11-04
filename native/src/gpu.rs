@@ -48,12 +48,19 @@ pub use projection::{
 
 #[cfg(test)]
 thread_local! { static BUFFER_REQUESTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! {
+    static BUFFER_REQUESTED_BYTES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static BUFFER_ALLOCATION_NS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
 
 #[allow(
     unexpected_cfgs,
     reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
 )]
 fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
+    #[cfg(test)]
+    let observed = crate::flash_profile::active().then(std::time::Instant::now);
     ensure!(
         length > 0 && length <= device.max_buffer_length(),
         "invalid Metal buffer length {length}"
@@ -63,6 +70,19 @@ fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
         unsafe { msg_send![device, newBufferWithLength:length options:storage] };
     #[cfg(test)]
     BUFFER_REQUESTS.with(|count| count.set(count.get() + 1));
+    #[cfg(test)]
+    {
+        BUFFER_REQUESTED_BYTES.with(|v| v.set(v.get().saturating_add(length)));
+        if let Some(start) = observed {
+            BUFFER_ALLOCATION_NS.with(|v| {
+                v.set(
+                    v.get().saturating_add(
+                        u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    ),
+                )
+            });
+        }
+    }
     ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
     Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
 }
@@ -176,6 +196,12 @@ fn read_buffer(
 fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
     let bytes = std::mem::size_of_val(data);
     let dest = buffer(device, (bytes as u64).max(1), Storage::StorageModeShared)?;
+    #[cfg(test)]
+    let _copy = crate::flash_profile::span("native.upload_copy");
+    #[cfg(test)]
+    if let Some(span) = &_copy {
+        span.data(serde_json::json!({"bytes":bytes}));
+    }
     // The private-to-this-function allocation is shared-storage and unpublished.
     unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), dest.contents().cast(), data.len()) };
     Ok(dest)
@@ -578,19 +604,27 @@ impl Metal {
             let cmd = self.queue.new_command_buffer();
             #[cfg(test)]
             self.helper_commands.set(self.helper_commands.get() + 1);
+            #[cfg(test)]
+            let encoding = crate::flash_profile::span("native.central_encode");
             let value = encode(cmd)?;
+            #[cfg(test)]
+            drop(encoding);
             cmd.commit();
             #[cfg(test)]
             {
                 self.helper_commits.set(self.helper_commits.get() + 1);
                 self.helper_waits.set(self.helper_waits.get() + 1);
             }
+            #[cfg(test)]
+            let _wait = crate::flash_profile::span("native.central_wait");
             cmd.wait_until_completed();
             ensure!(
                 cmd.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",
                 cmd.status()
             );
+            #[cfg(test)]
+            crate::flash_profile::native_gpu_interval(cmd, "central");
             Ok(value)
         })
     }
@@ -687,6 +721,12 @@ impl Metal {
     }
 
     fn read(buffer: &Buffer, count: usize) -> Vec<u16> {
+        #[cfg(test)]
+        let _copy = crate::flash_profile::span("native.readback_copy");
+        #[cfg(test)]
+        if let Some(span) = &_copy {
+            span.data(serde_json::json!({"bytes":count*2}));
+        }
         // Called only after a successful wait. Shared storage is CPU-coherent,
         // buffer length was allocated from this count, and u16 is POD/aligned.
         unsafe { std::slice::from_raw_parts(buffer.contents().cast::<u16>(), count).to_vec() }

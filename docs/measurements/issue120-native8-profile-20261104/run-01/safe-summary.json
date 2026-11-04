@@ -1,0 +1,157 @@
+{
+  "status": "validated_sampling_first_slice_only",
+  "binary_sha256": "83ddec44896257efd4c26fb6ee648cd15843741c14549cb863d0aa85d52d7e38",
+  "decode_rows": 7,
+  "generated_tokens": 8,
+  "events": 7759,
+  "phase_host_intervals": {
+    "native.row": {
+      "events": 7,
+      "host_ms_total": 1155.637083,
+      "host_ms_per_decode_row": 165.09101185714286,
+      "bytes": 0
+    },
+    "native.layer": {
+      "events": 336,
+      "host_ms_total": 1118.841828,
+      "host_ms_per_decode_row": 159.83454685714287,
+      "bytes": 0
+    },
+    "native.head": {
+      "events": 7,
+      "host_ms_total": 26.642959,
+      "host_ms_per_decode_row": 3.806137,
+      "bytes": 0
+    },
+    "native.projection_wait": {
+      "events": 7,
+      "host_ms_total": 24.126249,
+      "host_ms_per_decode_row": 3.446607,
+      "bytes": 0
+    },
+    "native.projection_readback_copy": {
+      "events": 7,
+      "host_ms_total": 0.331667,
+      "host_ms_per_decode_row": 0.047381,
+      "bytes": 3476480
+    },
+    "native.logprobs": {
+      "events": 7,
+      "host_ms_total": 2.438249,
+      "host_ms_per_decode_row": 0.3483212857142857,
+      "bytes": 0
+    },
+    "native.cpu_select": {
+      "events": 7,
+      "host_ms_total": 0.832625,
+      "host_ms_per_decode_row": 0.11894642857142856,
+      "bytes": 0
+    },
+    "native.central_encode": {
+      "events": 1449,
+      "host_ms_total": 47.053493,
+      "host_ms_per_decode_row": 6.721927571428572,
+      "bytes": 0
+    },
+    "native.central_wait": {
+      "events": 1449,
+      "host_ms_total": 500.047085,
+      "host_ms_per_decode_row": 71.43529785714286,
+      "bytes": 0
+    },
+    "native.moe_wait": {
+      "events": 336,
+      "host_ms_total": 168.383007,
+      "host_ms_per_decode_row": 24.054715285714284,
+      "bytes": 0
+    },
+    "native.upload_copy": {
+      "events": 1118,
+      "host_ms_total": 89.391069,
+      "host_ms_per_decode_row": 12.770152714285715,
+      "bytes": 1372868204
+    },
+    "native.route_readback_copy": {
+      "events": 336,
+      "host_ms_total": 0.07382,
+      "host_ms_per_decode_row": 0.010545714285714285,
+      "bytes": 13440
+    },
+    "head_leaf_readback": {
+      "events": 7,
+      "host_ms_total": 0.328999,
+      "host_ms_per_decode_row": 0.04699985714285714,
+      "bytes": 3476480
+    },
+    "normalizer_leaf_readback": {
+      "events": 7,
+      "host_ms_total": 0.001792,
+      "host_ms_per_decode_row": 0.000256,
+      "bytes": 14
+    },
+    "logprobs_upload": {
+      "events": 7,
+      "host_ms_total": 0.218749,
+      "host_ms_per_decode_row": 0.03124985714285714,
+      "bytes": 3476480
+    },
+    "logprobs_central_wait": {
+      "events": 7,
+      "host_ms_total": 1.670252,
+      "host_ms_per_decode_row": 0.23860742857142858,
+      "bytes": 0
+    }
+  },
+  "gpu_command_durations": {
+    "central": {
+      "commands": 1449,
+      "duration_ms_sum": 259.5900831511244
+    },
+    "moe": {
+      "commands": 887,
+      "duration_ms_sum": 253.1601251102984
+    },
+    "projection": {
+      "commands": 7,
+      "duration_ms_sum": 22.687833348754793
+    },
+    "normalizer_subset": {
+      "commands": 7,
+      "duration_ms_sum": 0.09987503290176392
+    }
+  },
+  "gpu_records": 2343,
+  "gpu_unique_valid_commands": 2343,
+  "gpu_invalid_records": 0,
+  "allocations": {
+    "requests": 39701,
+    "requested_bytes": 2467297434,
+    "host_ms": 79.071142,
+    "host_ms_per_row": 11.295877428571428
+  },
+  "ssd_timeline": {
+    "layer_records": 336,
+    "demand_bytes": 1369069164,
+    "route_occurrences": 3360,
+    "resident_hits": 2263,
+    "events": 1984,
+    "CPU_SSD_wait_ms": "not isolated",
+    "NAND_bytes": "not measured"
+  },
+  "limits": [
+    "CPU/GPU clocks not aligned; intervals overlap and are not additive",
+    "GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split",
+    "SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic",
+    "CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated",
+    "allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX",
+    "GPU duration sums may overlap; not GPU utilization or exclusive total",
+    "Host parent/child spans overlap; do not sum all phases",
+    "No removable time or production TPS inferred; head projection remains required in P04",
+    "Sequential command addresses can be reused; address alone never identifies a command. Timestamp tuple used for deduplication."
+  ],
+  "gpu_deduplication_key": [
+    "command_address",
+    "gpu_start_seconds",
+    "gpu_end_seconds"
+  ]
+}

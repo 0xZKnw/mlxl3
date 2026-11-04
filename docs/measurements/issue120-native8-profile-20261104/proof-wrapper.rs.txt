@@ -1,0 +1,10 @@
+// Disposable Kani preparation: expose only flash_profile module to cfg(kani),
+// replace #[test] by #[cfg_attr(not(kani),test)] in its copy (bodies unchanged).
+// No clock/Metal stubs; actual new lifecycle calls Instant through start/span.
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(10)]
+fn actual_native_profile_lifecycle() {
+    native_observer_active_tracks_the_existing_lifecycle().unwrap();
+}
+// Compiler ICE intrinsics.rs:243 before any obligations. NOT VERIFIED.
