@@ -942,6 +942,7 @@ fn flash_reference_mb34_role_parser_and_scopes_are_strict() {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::unwind(128)]
 fn flash_reference_mb34_role_shapes_and_selection_are_exact() {
     use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
     let input: i32 = kani::any();
@@ -1007,6 +1008,7 @@ fn flash_reference_mb34_role_shapes_and_selection_are_exact() {
 
 #[cfg(kani)]
 #[kani::proof]
+#[kani::unwind(8)]
 fn flash_reference_mb34_role_parser_preserves_default_and_named_choices() {
     use FlashReferenceMb34Roles::{All, Out, Qkv, Z};
     let choice: u8 = kani::any();

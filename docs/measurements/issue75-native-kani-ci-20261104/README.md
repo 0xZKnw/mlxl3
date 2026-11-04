@@ -1,0 +1,11 @@
+# Bound existing core Kani contracts without changing input domains
+
+The PR113 CI run [41731429083](https://github.com/0xZKnw/mlxl3/actions/runs/41731429083) timed out in three unchanged core harnesses while CBMC kept unrolling `memcmp` thousands of times. This patch adds only explicit unwind attributes:8 for the cold-row literal parser,8 for the MB34 role literal parser,128 for the MB34 role/shape scope check. It changes no production function, assertion, symbolic input, assumption, stub or harness registration. Existing PR/push CI already discovers these harnesses.
+
+The two literal checks retain their complete symbolic `u8` choice domains and original sets of absent, valid and invalid literals. The shape check retains all `i32` input/output dimensions and all four roles at its original fixed layer-name strings. It does not prove every arbitrary prefix string. Unwinding assertions remain active.
+
+Real-source bounded model checks through an edition2024 Cargo wrapper pass292 obligations and12/12 covers:70/3 for cold rows,79/5 for MB34 role literals,143/4 for shapes. The shape check has one unreachable standard formatting overflow assertion. The command and raw-log locations are in [result.json](result.json), with individual compact proof summaries beside it. Source functions are included directly from the repository; they are not rewritten in the wrapper.
+
+The first standalone wrapper used the default2015 edition and failed compilation; that invocation is retained. A separate attempt at the unchanged Flash failed-fill harness, with a larger CLI unwind budget64, timed out120s. Its source stays at27. Existing grouped-route8/80 and two-route cache CI timeouts are preserved and outside this patch. The original Flash run also reported two standard slice-fill unwinding errors, rather than a discovered dead-object violation. No full CI success follows from these targeted results.
+
+Status: local proof-only patch; full affected-module wrapper tests need their corrected test dependency setup and a coordinated CPU slot. No new GPU trial, model result or throughput claim. Raw original CI and local logs are retained in `build/kani-ci-bounds`; the public report preserves hashes and stable GitHub job links if local build files later disappear.
