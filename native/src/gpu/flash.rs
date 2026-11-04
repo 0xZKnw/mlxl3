@@ -363,6 +363,12 @@ impl<'a> FlashNext<'a> {
     ) -> Result<MatrixView> {
         let mut streams = self.streams(token)?;
         for i in 0..self.layers.len() {
+            #[cfg(test)]
+            let _layer = crate::flash_profile::span("native.layer");
+            #[cfg(test)]
+            if let Some(span) = &_layer {
+                span.data(serde_json::json!({"layer":i,"input_token":token}));
+            }
             let (current, remaining) = self.layers.split_at_mut(i + 1);
             let layer = &mut current[i];
             let next = remaining.first_mut().map(Layer::moe);
@@ -519,6 +525,8 @@ impl<'a> FlashNext<'a> {
             }
             let streams = self.hidden(last, trace, captures)?;
             let logits = if head {
+                #[cfg(test)]
+                let _head = crate::flash_profile::span("native.head");
                 let mixed = self.mixer.read(&streams, false)?.mixed;
                 #[cfg(test)]
                 {
@@ -543,6 +551,12 @@ impl<'a> FlashNext<'a> {
 impl Metal {
     /// FP16 logsumexp and rounded subtraction preserve stock greedy ties.
     pub fn flash_log_probs(&self, logits: &[u16]) -> Result<Vec<f32>> {
+        #[cfg(test)]
+        let _logprobs = crate::flash_profile::span("native.logprobs");
+        #[cfg(test)]
+        if let Some(span) = &_logprobs {
+            span.data(serde_json::json!({"input_bytes":logits.len()*2,"normalizer_readback_bytes":2,"output_F32_words":logits.len()}));
+        }
         ensure!(logits.len() == 248320, "invalid Flash vocabulary width");
         ensure!(
             self.logsumexp.thread_execution_width() == 32
@@ -599,8 +613,198 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "physical current baseline native8 sampling-first diagnostic; exclusive GPU"]
+    fn native8_sampling_profile_preserves_outputs() -> Result<()> {
+        use crate::flash_profile as profile;
+        use std::io::Write;
+        fn digest(bytes: &[u8]) -> Result<String> {
+            let mut file = tempfile::NamedTempFile::new()?;
+            file.write_all(bytes)?;
+            let out = std::process::Command::new("/usr/bin/shasum")
+                .args(["-a", "256"])
+                .arg(file.path())
+                .output()?;
+            ensure!(out.status.success());
+            Ok(String::from_utf8(out.stdout)?
+                .split_whitespace()
+                .next()
+                .context("missing digest")?
+                .to_owned())
+        }
+        fn finite(x: &[u16]) -> bool {
+            x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite())
+        }
+        fn select(model: &FlashNext, logits: &[u16]) -> Result<u32> {
+            ensure!(finite(logits));
+            let values = model.log_probs(logits)?;
+            let _selection = profile::span("native.cpu_select");
+            crate::speculative::greedy_log_prob_id(&values).context("invalid plain AR greedy")
+        }
+        fn run(
+            model: &mut FlashNext,
+            prompt: &[u32],
+            observed: bool,
+        ) -> Result<(Vec<u32>, Vec<serde_json::Value>)> {
+            model.reset();
+            let logits = model.prefill(prompt)?;
+            let mut next = select(model, &logits)?;
+            let mut ids = vec![next];
+            if observed {
+                profile::start(false)?;
+            }
+            for row in 1..8 {
+                let request_before = super::super::BUFFER_REQUESTS.with(std::cell::Cell::get);
+                let bytes_before = super::super::BUFFER_REQUESTED_BYTES.with(std::cell::Cell::get);
+                let alloc_before = super::super::BUFFER_ALLOCATION_NS.with(std::cell::Cell::get);
+                let row_span = profile::span("native.row");
+                let input = next;
+                let logits = model.forward(input)?;
+                next = select(model, &logits)?;
+                if let Some(span) = &row_span {
+                    span.data(serde_json::json!({"row":row,"input_token":input,"selected_token":next,"vocabulary_words":logits.len(),"metal_requests":super::super::BUFFER_REQUESTS.with(std::cell::Cell::get)-request_before,"metal_requested_bytes":super::super::BUFFER_REQUESTED_BYTES.with(std::cell::Cell::get)-bytes_before,"metal_allocation_host_ns":super::super::BUFFER_ALLOCATION_NS.with(std::cell::Cell::get)-alloc_before}));
+                }
+                ids.push(next);
+            }
+            let events = if observed {
+                serde_json::to_value(profile::finish()?)?
+                    .as_array()
+                    .context("events")?
+                    .clone()
+            } else {
+                Vec::new()
+            };
+            ensure!(ids.len() == 8 && model.offset() as usize == prompt.len() + 7);
+            Ok((ids, events))
+        }
+        fn terminal(
+            model: &mut FlashNext,
+            gpu: &Metal,
+        ) -> Result<(Vec<u8>, Vec<u16>, Vec<FlashTraceTensor>)> {
+            let hidden = model
+                .last_hidden()
+                .context("missing hidden")?
+                .export_bytes(gpu)?;
+            ensure!(
+                hidden.len() == 40960
+                    && hidden
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite())
+            );
+            let (logits, states) = model.forward_trace(7)?;
+            ensure!(finite(&logits) && states.len() == 84);
+            Ok((hidden, logits, states))
+        }
+        let path = std::path::PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(&path)?;
+        let prompt=tokenizer.encode(&tokenizer.render_values(&serde_json::json!([{"role":"user","content":"Explique en français, avec un exemple concret, comment un cache LFU évite les lectures SSD inutiles pendant l’inférence d’un modèle MoE."}]),None)?)?;
+        ensure!(prompt.len() == 87);
+        let c = crate::checkpoint::inspect(&path)?;
+        let gpu = Metal::new()?;
+        let mut model = FlashNext::load(&gpu, &c, 4096)?;
+        ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
+        let (first, first_states) = model.forward_trace(248044)?;
+        ensure!(finite(&first) && first_states.len() == 84);
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/native-coverage/flash-state/initial.json"
+        ))?;
+        let state = &first_states[0];
+        let reference = &oracle["step_tensors"][0];
+        ensure!(
+            state.name == reference["name"]
+                && serde_json::to_value(&state.shape)? == reference["shape"]
+                && digest(&state.data)? == reference["sha256"]
+        );
+        ensure!(
+            digest(
+                &first
+                    .iter()
+                    .flat_map(|v| v.to_le_bytes())
+                    .collect::<Vec<_>>()
+            )? == "2f78a4d78cb113666fa3eda97cf115abe293bd428e593bc54400744eae422445"
+        );
+        drop(first_states);
+        let (warm, _) = run(&mut model, &prompt, false)?;
+        let (control, _) = run(&mut model, &prompt, false)?;
+        let expected = terminal(&mut model, &gpu)?;
+        let (observed, events) = run(&mut model, &prompt, true)?;
+        let actual = terminal(&mut model, &gpu)?;
+        ensure!(
+            warm == control
+                && observed == control
+                && expected.0 == actual.0
+                && expected.1 == actual.1
+        );
+        let mut state_words = 0usize;
+        for (a, b) in expected.2.iter().zip(&actual.2) {
+            let n = a
+                .shape
+                .iter()
+                .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                .context("state overflow")?;
+            ensure!(
+                n > 0
+                    && a.name == b.name
+                    && a.shape == b.shape
+                    && a.data == b.data
+                    && a.data.len() == n * 4
+                    && a.data
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|v| f32::from_le_bytes(*v).is_finite())
+            );
+            state_words += n;
+        }
+        ensure!(state_words == 28803072 && gpu.readers()?.in_flight() == 0);
+        for (name, count) in [
+            ("native.row", 7),
+            ("native.layer", 336),
+            ("native.head", 7),
+            ("native.logprobs", 7),
+            ("native.cpu_select", 7),
+            ("native.projection_readback_copy", 7),
+        ] {
+            ensure!(
+                events.iter().filter(|e| e["name"] == name).count() == count,
+                "wrong event coverage{name}"
+            );
+        }
+        ensure!(
+            events
+                .iter()
+                .all(|e| e["end_ns"].as_u64() >= e["start_ns"].as_u64())
+        );
+        let head_gpu = events
+            .iter()
+            .filter(|e| {
+                e["name"] == "native.gpu_interval"
+                    && e["data"]["owner"] == "projection"
+                    && e["data"]["valid"] == true
+            })
+            .count();
+        ensure!(head_gpu == 7);
+        eprintln!(
+            "I120_NATIVE8_PROFILE {}",
+            serde_json::json!({"status":"diagnostic_complete","parity":true,"tokens":observed,"prompt_tokens":87,"context":4096,"decode_rows":7,"independent_first_state":true,"independent_first_logits":true,"continuation_state_words":state_words,"events":events,"scope":"test-only intrusive sampling-first current baseline; no release speed","limits":["CPU/GPU clocks not aligned; intervals overlap and are not additive","GPUcoverage central/projection/MoE completed CB only, no devicewide utilization or perkernel split","SSDtimeline is existing worker bytes/CPU offsets, not NAND traffic","CPUencode coverage central helper only; MoE encode CPU residual and allocator-internal work not isolated","allocation counters are native Metal requests, not process RAM; counters saturate only at u64MAX"]})
+        );
+        Ok(())
+    }
+
+    #[test]
     #[ignore = "physical Flash AR HC chain counts, full target states and late IO rollback"]
     fn hc_chain_keeps_ar_logits_states_and_actual_command_savings() -> Result<()> {
+        check_hc_ar_chain(false)
+    }
+
+    #[test]
+    #[ignore = "physical HC gate joint path, 48 real CB savings and complete restored AR states"]
+    fn hc_gate_chain_keeps_ar_logits_states_and_actual_command_savings() -> Result<()> {
+        check_hc_ar_chain(true)
+    }
+
+    fn check_hc_ar_chain(gate_chain: bool) -> Result<()> {
         let c =
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
@@ -612,7 +816,8 @@ mod tests {
         let mut compared = 0;
         for prefix in [0, 2, 9] {
             model.reset();
-            gpu.hc_chain.set(false);
+            gpu.hc_chain.set(gate_chain);
+            gpu.hc_gate_chain.set(false);
             if prefix > 0 {
                 ensure!(finite(&model.prefill(&prompt[..prefix])?));
             }
@@ -620,11 +825,18 @@ mod tests {
             // Give both restored branches the same QSA copy-on-write cost.
             ensure!(finite(&model.forward(11)?));
             model.restore(&saved)?;
-            let commands = gpu.helper_commands.get();
+            let commands = gpu.helper_commits.get();
             let pairs = gpu.hc_chain_pairs.get();
+            let gate_commands = gpu.gate_commands.get();
+            let waits = gpu.helper_waits.get() + gpu.route_waits.get();
             let expected = model.forward(11)?;
-            let control_commands = gpu.helper_commands.get() - commands;
-            ensure!(finite(&expected) && gpu.hc_chain_pairs.get() == pairs);
+            let control_gate_commands = gpu.gate_commands.get() - gate_commands;
+            let control_waits = gpu.helper_waits.get() + gpu.route_waits.get() - waits;
+            let control_commands = gpu.helper_commits.get() - commands;
+            ensure!(
+                finite(&expected)
+                    && gpu.hc_chain_pairs.get() - pairs == if gate_chain { 48 } else { 0 }
+            );
             let hidden = model
                 .last_hidden()
                 .context("missing control row")?
@@ -641,14 +853,28 @@ mod tests {
             ensure!(finite(&next) && states.len() == 84);
             model.restore(&saved)?;
             gpu.hc_chain.set(true);
-            let commands = gpu.helper_commands.get();
+            gpu.hc_gate_chain.set(gate_chain);
+            let gate_pairs = gpu.hc_gate_chain_pairs.get();
+            let gate_commands = gpu.gate_commands.get();
+            let waits = gpu.helper_waits.get() + gpu.route_waits.get();
+            let commands = gpu.helper_commits.get();
             let pairs = gpu.hc_chain_pairs.get();
             let actual = model.forward(11)?;
-            let candidate_commands = gpu.helper_commands.get() - commands;
-            ensure!(
-                gpu.hc_chain_pairs.get() - pairs == 48
-                    && candidate_commands + 48 == control_commands,
-                "joint encoding did not remove exactly48 helper commands at prefix={prefix}: {control_commands}->{candidate_commands}"
+            let candidate_commands = gpu.helper_commits.get() - commands;
+            let candidate_gate_commands = gpu.gate_commands.get() - gate_commands;
+            let candidate_waits = gpu.helper_waits.get() + gpu.route_waits.get() - waits;
+            ensure!(gpu.hc_chain_pairs.get() - pairs == 48);
+            if gate_chain {
+                ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
+                ensure!(gpu.hc_gate_chain_pairs.get() - gate_pairs == 48);
+                ensure!(control_gate_commands == 48 && candidate_gate_commands == 0);
+                ensure!(candidate_commands == control_commands && candidate_waits == control_waits);
+            } else {
+                ensure!(candidate_commands + 48 == control_commands);
+            }
+            eprintln!(
+                "NATIVE_FLASH_CHAIN_COUNTS {}",
+                serde_json::json!({"gate_chain":gate_chain,"prefix":prefix,"control_helper_cb":control_commands,"candidate_helper_cb":candidate_commands,"control_gate_cb":control_gate_commands,"candidate_gate_cb":candidate_gate_commands,"control_wait_calls":control_waits,"candidate_wait_calls":candidate_waits,"joint_gate_pairs":gpu.hc_gate_chain_pairs.get()-gate_pairs})
             );
             ensure!(actual == expected && finite(&actual) && model.offset() as usize == prefix + 1);
             ensure!(
@@ -713,7 +939,11 @@ mod tests {
             .each_ref()
             .map(std::cell::Cell::get);
         if gpu.flash_static_setting == Some(true) {
-            ensure!(static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0);
+            ensure!(
+                (static_submissions[0] > 0
+                    || gpu.flash_fixed_submissions.iter().all(|c| c.get() > 0))
+                    && static_submissions[3] + static_submissions[4] > 0
+            );
         } else {
             ensure!(static_submissions == [0; 5]);
         }
@@ -751,6 +981,16 @@ mod tests {
     #[test]
     #[ignore = "physical Flash lookahead, archived independent full states/logits and continuation"]
     fn predictive_reads_match_archived_full_states_and_imposed_continuation() -> Result<()> {
+        check_archived_full_states(true)
+    }
+
+    #[test]
+    #[ignore = "physical depth0 joint HC gate against independent archived full states/logits"]
+    fn hc_gate_depth_zero_matches_archived_full_states_and_continuation() -> Result<()> {
+        check_archived_full_states(false)
+    }
+
+    fn check_archived_full_states(predictive: bool) -> Result<()> {
         fn digest(bytes: &[u8]) -> Result<String> {
             use std::io::Write;
             let mut file = tempfile::NamedTempFile::new()?;
@@ -772,8 +1012,20 @@ mod tests {
             crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
         let gpu = Metal::new()?;
         let hc_initially_enabled = gpu.hc_chain.get();
+        let hc_gate_initially_enabled = gpu.hc_gate_chain.get();
+        let fixed_initially_enabled = gpu.flash_fixed_setting == Some(true);
+        let scratch_initially_enabled = gpu.flash_expert_scratch_setting == Some(true);
         let mut model = FlashNext::load(&gpu, &c, 64)?;
-        ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        if predictive {
+            ensure!(model.lookahead_depth > 0 && model.prefetcher.is_some());
+        } else {
+            ensure!(
+                model.lookahead_depth == 0
+                    && model.prefetcher.is_none()
+                    && gpu.hc_gate_chain.get()
+                    && gpu.hc_chain.get()
+            );
+        }
         let oracle: serde_json::Value = serde_json::from_str(include_str!(
             "../../../docs/native-coverage/flash-state/initial.json"
         ))?;
@@ -832,37 +1084,187 @@ mod tests {
         );
         model.reset();
         ensure!(model.prefill(&[248044, 1])? == second);
-        let pool = model.prefetcher.as_ref().unwrap();
-        pool.borrow_mut().drain()?;
-        ensure!(
-            pool.borrow().stats.submitted > 0
-                && pool.borrow().stats.published > 0
-                && pool.borrow().in_flight() == 0
-        );
-        eprintln!(
-            "native prefetch model: {}",
-            serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
-        );
+        if predictive {
+            let pool = model.prefetcher.as_ref().unwrap();
+            pool.borrow_mut().drain()?;
+            ensure!(
+                pool.borrow().stats.submitted > 0
+                    && pool.borrow().stats.published > 0
+                    && pool.borrow().in_flight() == 0
+            );
+            ensure!(gpu.hc_gate_chain_pairs.get() == 0 && gpu.gate_commands.get() > 0);
+            eprintln!(
+                "native prefetch model: {}",
+                serde_json::json!({"state_words":count,"logits":first.len()+second.len(),"prefetch":pool.borrow().stats})
+            );
+        } else {
+            ensure!(gpu.hc_gate_chain_pairs.get() == 192 && gpu.gate_commands.get() == 0);
+        }
         let static_submissions = gpu
             .flash_static_submissions
             .each_ref()
             .map(std::cell::Cell::get);
         if gpu.flash_static_setting == Some(true) {
             ensure!(
-                static_submissions[0] > 0 && static_submissions[3] + static_submissions[4] > 0,
+                (static_submissions[0] > 0
+                    || gpu.flash_fixed_submissions.iter().all(|c| c.get() > 0))
+                    && static_submissions[3] + static_submissions[4] > 0,
                 "static K target did not execute both cold K2 and resident K4"
             );
         } else {
             ensure!(static_submissions == [0; 5]);
         }
+        let fixed_submissions = gpu
+            .flash_fixed_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
+        ensure!(
+            fixed_submissions
+                == if gpu.flash_fixed_setting == Some(true) {
+                    [3840, 1920]
+                } else {
+                    [0, 0]
+                }
+        );
+        ensure!(
+            gpu.flash_scratch_uses.get()
+                == if gpu.flash_expert_scratch_setting == Some(true) {
+                    5760
+                } else {
+                    0
+                }
+        );
         eprintln!(
             "NATIVE_FLASH_STATIC_SUBMISSIONS {}",
             serde_json::json!(static_submissions)
         );
         eprintln!(
             "NATIVE_FLASH_COMPOSED_FEATURES {}",
-            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"static_submissions":static_submissions})
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_gate_initially_enabled":hc_gate_initially_enabled,"fixed_initially_enabled":fixed_initially_enabled,"scratch_initially_enabled":scratch_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":fixed_submissions,"scratch_enabled":gpu.flash_expert_scratch_setting == Some(true),"scratch_uses":gpu.flash_scratch_uses.get()})
         );
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "physical Flash fixed K2 dimensions context4096 full states, indexer and continuation"]
+    fn fixed_dimensions_keep_context4096_states_logits_and_continuation() -> Result<()> {
+        let c =
+            crate::checkpoint::inspect(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        let mut gpu = Metal::new()?;
+        ensure!(
+            gpu.flash_fixed_setting == Some(true) && gpu.flash_fixed_qmv.is_some(),
+            "requires fixed dims1 on Apple M5"
+        );
+        let finite =
+            |x: &[u16]| x.len() == 248320 && x.iter().all(|&v| f16::from_bits(v).is_finite());
+        let initially_enabled = [
+            gpu.hc_gate_chain.get(),
+            gpu.flash_fixed_setting == Some(true),
+            gpu.flash_expert_scratch_setting == Some(true),
+        ];
+        eprintln!(
+            "NATIVE_FLASH_INITIAL_DEFAULTS {}",
+            serde_json::json!({"hc_gate":initially_enabled[0],"fixed_dims":initially_enabled[1],"scratch":initially_enabled[2]})
+        );
+        let mut expected = Vec::new();
+        let mut expected_continuation = None;
+        for enabled in [false, true] {
+            gpu.flash_fixed_setting = Some(enabled);
+            let before_scratch = gpu.flash_scratch_uses.get();
+            let before_gate = gpu.hc_gate_chain_pairs.get();
+            let before = gpu
+                .flash_fixed_submissions
+                .each_ref()
+                .map(std::cell::Cell::get);
+            let mut model = FlashNext::load(&gpu, &c, 4096)?;
+            for (step, token) in [248044, 1, 7].into_iter().enumerate() {
+                let (logits, states) = model.forward_trace(token)?;
+                ensure!(finite(&logits) && states.len() == 84);
+                let mut words = 0;
+                for state in &states {
+                    let count = state
+                        .shape
+                        .iter()
+                        .try_fold(1usize, |n, &v| n.checked_mul(v as usize))
+                        .context("fixed trace overflow")?;
+                    ensure!(
+                        count > 0
+                            && state.data.len() == count * 4
+                            && state
+                                .data
+                                .as_chunks::<4>()
+                                .0
+                                .iter()
+                                .all(|v| f32::from_le_bytes(*v).is_finite())
+                    );
+                    words += count;
+                }
+                ensure!(words == 28_803_072);
+                if enabled {
+                    let (ref_logits, ref_states): &(Vec<u16>, Vec<FlashTraceTensor>) =
+                        &expected[step];
+                    ensure!(logits == *ref_logits);
+                    ensure!(
+                        states.iter().zip(ref_states).all(|(a, b)| a.name == b.name
+                            && a.shape == b.shape
+                            && a.data == b.data)
+                    );
+                } else {
+                    expected.push((logits, states));
+                }
+            }
+            let saved = model.snapshot();
+            let next = model.forward(11)?;
+            ensure!(finite(&next));
+            if enabled {
+                ensure!(expected_continuation.as_ref() == Some(&next));
+            } else {
+                expected_continuation = Some(next.clone());
+            }
+            model.restore(&saved)?;
+            ensure!(model.forward(11)? == next);
+            if let Some(pool) = &model.prefetcher {
+                pool.borrow_mut().drain()?;
+                ensure!(pool.borrow().in_flight() == 0);
+            }
+            let gate_eligible = model.lookahead_depth == 0 && model.prefetcher.is_none();
+            drop(model);
+            let after = gpu
+                .flash_fixed_submissions
+                .each_ref()
+                .map(std::cell::Cell::get);
+            let delta: Vec<_> = after.iter().zip(before).map(|(a, b)| a - b).collect();
+            ensure!(
+                if enabled {
+                    delta == [4860, 2400]
+                } else {
+                    after == before
+                },
+                "fixed4096 did not execute all routed and12 resident indexer projections per row: {delta:?}"
+            );
+            let scratch_uses = gpu.flash_scratch_uses.get() - before_scratch;
+            let gate_pairs = gpu.hc_gate_chain_pairs.get() - before_gate;
+            ensure!(
+                scratch_uses
+                    == if gpu.flash_expert_scratch_setting == Some(true) {
+                        7200
+                    } else {
+                        0
+                    }
+            );
+            ensure!(
+                gate_pairs
+                    == if gpu.hc_gate_chain.get() && gpu.hc_chain.get() && gate_eligible {
+                        240
+                    } else {
+                        0
+                    }
+            );
+            eprintln!(
+                "NATIVE_FLASH_FIXED_4096 {}",
+                serde_json::json!({"enabled":enabled,"steps":3,"states":252,"state_words":86_409_216,"logits":744960,"fixed_submissions":delta,"scratch_uses":scratch_uses,"hc_gate_pairs":gate_pairs,"continuation":true})
+            );
+        }
         Ok(())
     }
 

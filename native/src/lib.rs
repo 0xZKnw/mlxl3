@@ -40,6 +40,8 @@ pub(crate) mod flash_draft_metadata;
     kani
 ))]
 mod flash_draft_options;
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+mod flash_expert_scratch;
 pub mod flash_memory;
 #[cfg(any(feature = "mlx", all(target_os = "macos", feature = "direct-metal")))]
 pub(crate) mod flash_ngrams;

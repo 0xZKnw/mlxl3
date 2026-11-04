@@ -46,11 +46,21 @@ pub use projection::{
     FlashExpert, FlashProjection, MappedSwitchGlu, ProjectionGroup, ProjectionOutput,
 };
 
+#[cfg(test)]
+thread_local! { static BUFFER_REQUESTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! {
+    static BUFFER_REQUESTED_BYTES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static BUFFER_ALLOCATION_NS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
 #[allow(
     unexpected_cfgs,
     reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
 )]
 fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
+    #[cfg(test)]
+    let observed = crate::flash_profile::active().then(std::time::Instant::now);
     ensure!(
         length > 0 && length <= device.max_buffer_length(),
         "invalid Metal buffer length {length}"
@@ -58,6 +68,21 @@ fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Result<Buffer> {
     // Metal may return nil on allocation failure. A successful new method returns +1.
     let ptr: *mut objc::runtime::Object =
         unsafe { msg_send![device, newBufferWithLength:length options:storage] };
+    #[cfg(test)]
+    BUFFER_REQUESTS.with(|count| count.set(count.get() + 1));
+    #[cfg(test)]
+    {
+        BUFFER_REQUESTED_BYTES.with(|v| v.set(v.get().saturating_add(length)));
+        if let Some(start) = observed {
+            BUFFER_ALLOCATION_NS.with(|v| {
+                v.set(
+                    v.get().saturating_add(
+                        u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX),
+                    ),
+                )
+            });
+        }
+    }
     ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
     Ok(unsafe { Buffer::from_ptr(ptr.cast()) })
 }
@@ -171,6 +196,12 @@ fn read_buffer(
 fn upload<T: Copy>(device: &DeviceRef, data: &[T]) -> Result<Buffer> {
     let bytes = std::mem::size_of_val(data);
     let dest = buffer(device, (bytes as u64).max(1), Storage::StorageModeShared)?;
+    #[cfg(test)]
+    let _copy = crate::flash_profile::span("native.upload_copy");
+    #[cfg(test)]
+    if let Some(span) = &_copy {
+        span.data(serde_json::json!({"bytes":bytes}));
+    }
     // The private-to-this-function allocation is shared-storage and unpublished.
     unsafe { std::ptr::copy_nonoverlapping(data.as_ptr(), dest.contents().cast(), data.len()) };
     Ok(dest)
@@ -180,10 +211,21 @@ pub struct Metal {
     device: Device,
     queue: CommandQueue,
     hc_chain: std::cell::Cell<bool>,
+    hc_gate_chain: std::cell::Cell<bool>,
     #[cfg(test)]
     helper_commands: std::cell::Cell<usize>,
     #[cfg(test)]
+    helper_commits: std::cell::Cell<usize>,
+    #[cfg(test)]
     hc_chain_pairs: std::cell::Cell<usize>,
+    #[cfg(test)]
+    hc_gate_chain_pairs: std::cell::Cell<usize>,
+    #[cfg(test)]
+    gate_commands: std::cell::Cell<usize>,
+    #[cfg(test)]
+    helper_waits: std::cell::Cell<usize>,
+    #[cfg(test)]
+    route_waits: std::rc::Rc<std::cell::Cell<usize>>,
     pack_pipeline: ComputePipelineState,
     decode_pipeline: ComputePipelineState,
     codebook_pipeline: ComputePipelineState,
@@ -194,6 +236,17 @@ pub struct Metal {
     flash_static_qmv: [ComputePipelineState; 5],
     flash_static_supported: [bool; 5],
     flash_static_setting: Option<bool>,
+    flash_fixed_qmv: Option<[ComputePipelineState; 2]>,
+    flash_fixed_setting: Option<bool>,
+    #[cfg(test)]
+    flash_fixed_submissions: [std::cell::Cell<u64>; 2],
+    flash_expert_scratch_setting: Option<bool>,
+    #[cfg(test)]
+    flash_scratch_bindings: std::cell::Cell<[[usize; 2]; 3]>,
+    #[cfg(test)]
+    flash_scratch_uses: std::cell::Cell<usize>,
+    #[cfg(test)]
+    flash_expert_outputs: std::cell::Cell<[usize; 4]>,
     #[cfg(test)]
     flash_static_submissions: [std::cell::Cell<u64>; 5],
     dense_qmv: [[ComputePipelineState; 3]; 2],
@@ -249,6 +302,14 @@ impl Metal {
                 Err(error) => return Err(error.into()),
             }
             .context("MLXL3_NATIVE_AR_HC_CHAIN must be 0 or 1")?;
+            let hc_gate_chain = match std::env::var("MLXL3_NATIVE_AR_HC_GATE_CHAIN") {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
+                }
+                Err(error) => return Err(error.into()),
+            }
+            .context("MLXL3_NATIVE_AR_HC_GATE_CHAIN must be 0 or 1")?;
             // Snapshot once; cold expert records never re-read this environment.
             // Defer malformed-setting errors to eligible projection loads.
             let flash_static_setting =
@@ -261,6 +322,24 @@ impl Metal {
                 } else {
                     Some(false)
                 };
+            let flash_fixed_setting = if qualified_m5 {
+                match std::env::var("MLXL3_NATIVE_FLASH_FIXED_DIMS") {
+                    Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                    Err(std::env::VarError::NotPresent) => {
+                        crate::flash_support::hc_chain_flag(None, qualified_m5)
+                    }
+                    Err(std::env::VarError::NotUnicode(_)) => None,
+                }
+            } else {
+                Some(false)
+            };
+            let flash_expert_scratch_setting = match std::env::var("MLXL3_NATIVE_ROUTED_SCRATCH") {
+                Ok(value) => crate::flash_support::hc_chain_flag(Some(&value), qualified_m5),
+                Err(std::env::VarError::NotPresent) => {
+                    crate::flash_support::hc_chain_flag(None, qualified_m5)
+                }
+                Err(std::env::VarError::NotUnicode(_)) => None,
+            };
             let options = CompileOptions::new();
             options.set_fast_math_enabled(false);
             let source = include_str!("../shaders/exl3.metal")
@@ -380,6 +459,23 @@ impl Metal {
             let flash_static_supported = flash_static_qmv.each_ref().map(|p| {
                 p.thread_execution_width() == 32 && p.max_total_threads_per_threadgroup() >= 128
             });
+            let flash_fixed_qmv = if flash_fixed_setting == Some(true) {
+                let fixed_pipeline = |shape: [u32; 2]| {
+                    pipeline(&format!("flash_fixed_k2_{}_{}", shape[0], shape[1]))
+                };
+                let states = [
+                    fixed_pipeline(crate::flash_qmv::FIXED_SHAPES[0])?,
+                    fixed_pipeline(crate::flash_qmv::FIXED_SHAPES[1])?,
+                ];
+                ensure!(
+                    states.iter().all(|p| p.thread_execution_width() == 32
+                        && p.max_total_threads_per_threadgroup() >= 128),
+                    "unsupported Flash fixed dimensions threadgroup"
+                );
+                Some(states)
+            } else {
+                None
+            };
             let dense_qmv = [
                 [
                     pipeline("dense_qmv_s4_n1")?,
@@ -436,10 +532,21 @@ impl Metal {
                 device,
                 queue,
                 hc_chain: std::cell::Cell::new(hc_chain),
+                hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
                 #[cfg(test)]
                 helper_commands: std::cell::Cell::new(0),
                 #[cfg(test)]
+                helper_commits: std::cell::Cell::new(0),
+                #[cfg(test)]
                 hc_chain_pairs: std::cell::Cell::new(0),
+                #[cfg(test)]
+                hc_gate_chain_pairs: std::cell::Cell::new(0),
+                #[cfg(test)]
+                gate_commands: std::cell::Cell::new(0),
+                #[cfg(test)]
+                helper_waits: std::cell::Cell::new(0),
+                #[cfg(test)]
+                route_waits: std::rc::Rc::new(std::cell::Cell::new(0)),
                 pack_pipeline,
                 decode_pipeline,
                 codebook_pipeline,
@@ -450,6 +557,17 @@ impl Metal {
                 flash_static_qmv,
                 flash_static_supported,
                 flash_static_setting,
+                flash_fixed_qmv,
+                flash_fixed_setting,
+                #[cfg(test)]
+                flash_fixed_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
+                flash_expert_scratch_setting,
+                #[cfg(test)]
+                flash_scratch_bindings: std::cell::Cell::new([[0; 2]; 3]),
+                #[cfg(test)]
+                flash_scratch_uses: std::cell::Cell::new(0),
+                #[cfg(test)]
+                flash_expert_outputs: std::cell::Cell::new([0; 4]),
                 #[cfg(test)]
                 flash_static_submissions: std::array::from_fn(|_| std::cell::Cell::new(0)),
                 dense_qmv,
@@ -486,16 +604,39 @@ impl Metal {
             let cmd = self.queue.new_command_buffer();
             #[cfg(test)]
             self.helper_commands.set(self.helper_commands.get() + 1);
+            #[cfg(test)]
+            let encoding = crate::flash_profile::span("native.central_encode");
             let value = encode(cmd)?;
+            #[cfg(test)]
+            drop(encoding);
             cmd.commit();
+            #[cfg(test)]
+            {
+                self.helper_commits.set(self.helper_commits.get() + 1);
+                self.helper_waits.set(self.helper_waits.get() + 1);
+            }
+            #[cfg(test)]
+            let _wait = crate::flash_profile::span("native.central_wait");
             cmd.wait_until_completed();
             ensure!(
                 cmd.status() == MTLCommandBufferStatus::Completed,
                 "Metal command failed ({:?})",
                 cmd.status()
             );
+            #[cfg(test)]
+            crate::flash_profile::native_gpu_interval(cmd, "central");
             Ok(value)
         })
+    }
+
+    #[allow(
+        unexpected_cfgs,
+        reason = "objc 0.2 selector macro tests the legacy cargo-clippy cfg"
+    )]
+    fn owns_command_queue(&self, cmd: &CommandBufferRef) -> bool {
+        // MTLCommandBuffer.commandQueue is a nonnull borrowed MTLCommandQueue.
+        let queue: *mut metal::MTLCommandQueue = unsafe { msg_send![cmd, commandQueue] };
+        queue == self.queue.as_ptr()
     }
 
     pub fn device_name(&self) -> &str {
@@ -580,6 +721,12 @@ impl Metal {
     }
 
     fn read(buffer: &Buffer, count: usize) -> Vec<u16> {
+        #[cfg(test)]
+        let _copy = crate::flash_profile::span("native.readback_copy");
+        #[cfg(test)]
+        if let Some(span) = &_copy {
+            span.data(serde_json::json!({"bytes":count*2}));
+        }
         // Called only after a successful wait. Shared storage is CPU-coherent,
         // buffer length was allocated from this count, and u16 is POD/aligned.
         unsafe { std::slice::from_raw_parts(buffer.contents().cast::<u16>(), count).to_vec() }

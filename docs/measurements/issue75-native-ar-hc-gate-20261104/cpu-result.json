@@ -1,0 +1,195 @@
+{
+  "status": "passed",
+  "environment": {
+    "CARGO_TARGET_DIR": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-gate/mix-stq1_0/build/hc-gate/cargo-target",
+    "MLXL3_MLX_ROOT": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+    "MACOSX_DEPLOYMENT_TARGET": "26.2"
+  },
+  "steps": [
+    {
+      "label": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "timeout_seconds": 30,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.553499958,
+      "joined": true
+    },
+    {
+      "label": "inventory",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "scripts/check_native_coverage.py"
+      ],
+      "timeout_seconds": 30,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.5471871249999999,
+      "joined": true
+    },
+    {
+      "label": "lint-cpu",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "timeout_seconds": 120,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.1540430410000004,
+      "joined": true
+    },
+    {
+      "label": "lint-direct",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "timeout_seconds": 120,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.461204833,
+      "joined": true
+    },
+    {
+      "label": "lint-compat",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--features",
+        "mlx,chat",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "timeout_seconds": 120,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 8.971797459,
+      "joined": true
+    },
+    {
+      "label": "test-cpu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "chat"
+      ],
+      "timeout_seconds": 180,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 32.488429874999994,
+      "joined": true
+    },
+    {
+      "label": "test-direct",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "timeout_seconds": 180,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 33.948550875,
+      "joined": true
+    },
+    {
+      "label": "test-compat",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--features",
+        "mlx,chat"
+      ],
+      "timeout_seconds": 180,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 53.52138016699999,
+      "joined": true
+    },
+    {
+      "label": "python",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_native_coverage.py",
+        "tests/test_kani_manifest.py",
+        "tests/test_kani_ci.py"
+      ],
+      "timeout_seconds": 120,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.6034533330000045,
+      "joined": true
+    },
+    {
+      "label": "build-cli",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--bin",
+        "mlxl3-rs"
+      ],
+      "timeout_seconds": 180,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 40.26810474999999,
+      "joined": true
+    },
+    {
+      "label": "build-libtest",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--release",
+        "--features",
+        "chat",
+        "--lib",
+        "--no-run",
+        "--message-format=json"
+      ],
+      "timeout_seconds": 180,
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 37.39766008299998,
+      "joined": true
+    }
+  ]
+}

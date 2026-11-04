@@ -67,6 +67,42 @@ class Nt2EvidenceTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             driver.static_counts(evidence(0, [1, 0, 0, 0, 0]), False)
 
+    def test_fixed_psos_reject_zero_path_wrong_identity_and_double_counting(self):
+        import copy
+
+        cases = [
+            {"fixed_key": 0, "prefix": "real.index_qk_proj"},
+            {"fixed_key": 1, "prefix": "real.down_proj"},
+        ]
+        result = {
+            "fixed_dims": True,
+            "fixed_submissions": [1, 1],
+            "cases": [
+                {
+                    "fixed_key": i,
+                    "fixed_submissions": [int(i == j) for j in range(2)],
+                    "static_key": None,
+                    "static_submissions": [0] * 5,
+                }
+                for i in range(2)
+            ],
+        }
+        self.assertEqual(driver.fixed_counts(result, cases, True), [1, 1])
+        for mutation in [
+            lambda r: r.update(fixed_submissions=[0, 0]),
+            lambda r: r["cases"][0].update(fixed_key=None, fixed_submissions=[0, 0]),
+            lambda r: r["cases"][0].update(static_key=0, static_submissions=[1, 0, 0, 0, 0]),
+            lambda r: r["cases"][0].update(fixed_key=1),
+            lambda r: r.update(fixed_dims=False),
+            lambda r: r.update(cases=[]),
+        ]:
+            changed = copy.deepcopy(result)
+            mutation(changed)
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError):
+                driver.fixed_counts(changed, cases, True)
+        with self.assertRaises(AssertionError):
+            driver.fixed_counts(result, [{"fixed_key": 0}, {"fixed_key": 1}], True)
+
     def invoke(self, mutation=None, *, default_off=False, static_k=None, static_default_off=False):
         root = self.root / f"invoke-{self.invocations}"
         self.invocations += 1

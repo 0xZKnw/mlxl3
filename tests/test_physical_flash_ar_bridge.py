@@ -80,6 +80,10 @@ for line in sys.stdin:
     original = subprocess.Popen
 
     def spawn(*args, **kwargs):
+        command = args[0]
+        assert command[command.index("--context-length") + 1] == (
+            "4096" if fault == "ok" else "256"
+        )
         p = original(*args, **kwargs)
         children.append(p)
         return p
@@ -87,7 +91,7 @@ for line in sys.stdin:
     report = {"status": "started", "parity": False}
     with patch("scripts.native_json_process.subprocess.Popen", side_effect=spawn):
         if fault == "ok":
-            driver.verify(engine, Path("model"), root, report, 2)
+            driver.verify(engine, Path("model"), root, report, 2, context_length=4096)
             assert report["parity"] and report["completed"] == 4 and len(report["cancelled"]) == 2
         else:
             with pytest.raises((AssertionError, ValueError, RuntimeError, TimeoutError)):
@@ -101,3 +105,10 @@ def test_completion_counter_type_is_strict():
     event = {"stats": {"generated_tokens": 2.0, "decode_tokens": 1}, "token_hash": driver.GOLDEN}
     with pytest.raises(AssertionError):
         driver.complete(copy.deepcopy(event), {}, "answer")
+
+
+@pytest.mark.parametrize("context", [0, 1, 255, 257, 4097, True, 4096.0])
+def test_invalid_context_rejected_before_process(tmp_path, context):
+    with patch.object(driver, "JsonProcess") as process, pytest.raises(AssertionError):
+        driver.verify(Path("unused"), Path("unused"), tmp_path, {}, context_length=context)
+    process.assert_not_called()

@@ -11,11 +11,15 @@ pub struct RouteOutput {
     indices: Buffer,
     pub(super) scores: MatrixView,
     count: usize,
+    #[cfg(test)]
+    waits: std::rc::Rc<std::cell::Cell<usize>>,
 }
 
 impl RouteOutput {
     /// Publish only after success; a different queue may immediately consume this view.
     pub fn completed_scores(&self) -> Result<&MatrixView> {
+        #[cfg(test)]
+        self.waits.set(self.waits.get() + 1);
         self.command.wait_until_completed();
         ensure!(
             self.command.status() == MTLCommandBufferStatus::Completed,
@@ -28,6 +32,12 @@ impl RouteOutput {
     /// SSD planning needs the expert IDs on the host while scores remain on the GPU.
     pub fn indices(&self) -> Result<Vec<u32>> {
         self.completed_scores()?;
+        #[cfg(test)]
+        let _copy = crate::flash_profile::span("native.route_readback_copy");
+        #[cfg(test)]
+        if let Some(span) = &_copy {
+            span.data(serde_json::json!({"bytes":self.count*4}));
+        }
         // The shared index buffer has exactly count aligned u32s after completion.
         Ok(unsafe {
             std::slice::from_raw_parts(self.indices.contents().cast::<u32>(), self.count).to_vec()
@@ -99,6 +109,8 @@ impl Metal {
             indices,
             scores,
             count: count as usize,
+            #[cfg(test)]
+            waits: self.route_waits.clone(),
         })
     }
 }

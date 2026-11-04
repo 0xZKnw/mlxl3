@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "kani",
+    "--lib",
+    "--no-default-features",
+    "-Z",
+    "stubbing",
+    "--harness",
+    "flash_support::hc_gate_chain_selection_requires_every_production_guard",
+    "--output-format",
+    "regular"
+  ],
+  "timeout_seconds": 60,
+  "scope": "Actual production eligibility helper: arbitrary enabled/hc/prefetch booleans and full usize depth, no assumptions. Default-off reuse parser; does not prove Metal.",
+  "status": "passed",
+  "returncode": 0,
+  "elapsed_seconds": 3.3946525000000003,
+  "joined": true
+}

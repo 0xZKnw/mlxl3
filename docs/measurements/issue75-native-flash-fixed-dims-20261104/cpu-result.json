@@ -1,0 +1,59 @@
+{
+  "status": "CPU-qualified, physical pending; experimental defaultOFF",
+  "suites": {
+    "direct": {
+      "passed": 343,
+      "ignored": 42
+    },
+    "cpu": {
+      "passed": 334,
+      "ignored": 9
+    },
+    "compat": {
+      "passed": 379,
+      "ignored": 260
+    }
+  },
+  "clippy": [
+    "CPU",
+    "direct",
+    "mlx+chat compatibility"
+  ],
+  "python": {
+    "passed": 30,
+    "skipped": 44,
+    "subtests": 26,
+    "extra_exact_obligation_policy": "passed direct invocation under rootvenv; systemPython lackedpytest first attempt unqualified"
+  },
+  "kani": {
+    "key": {
+      "checks": 75,
+      "covers": 7,
+      "failed": 0,
+      "domain": "all u32 shape/split/K/CB/NT, bool eligibility,3settings; noassume"
+    },
+    "flag": {
+      "checks": 226,
+      "covers": 5,
+      "failed": 0,
+      "unreachable": 7,
+      "domain": "arbitraryUTF8<=4bytes/presence,unwind10; noassume"
+    },
+    "package_inventory": "ICE intrinsics.rs243 on macOS, unverified; existing Linux CI exact manifest updated2 obligations, total377"
+  },
+  "mutation": {
+    "bad_split_exit": 101,
+    "original_exit": 0,
+    "actual_source": true,
+    "first_attempt": "omitted edition2024, did not run; retained as unqualified"
+  },
+  "crosshair": "fixed_counts2postconditions Notconfirmed at8s each; not proof",
+  "metal": "actual shader compiles via explicit Xcode; cbmc absent, no MSL source proof; canonical body byteunchanged",
+  "limitations": [
+    "No GPU/component/model numeric run yet",
+    "No startup/PSO memory measurement",
+    "No performance claim",
+    "No app installed/release/remotePR yet"
+  ],
+  "drain": "All local spawned processes joined; noGPU started"
+}

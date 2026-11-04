@@ -1,0 +1,110 @@
+{
+  "status": "short_screen_complete_decode_unchanged_latency_improved",
+  "source": "508b8260",
+  "reference": "main21cf frozen942d",
+  "ensemble": "composed789a threeflags1",
+  "protocol": "performance-protocol.json",
+  "tokens": 32,
+  "samples_per_variant_prompt": 2,
+  "all_warmup_and_measured_fulltext_hash_count_exact": true,
+  "prompts": {
+    "MAIN": {
+      "samples": {
+        "reference": {
+          "decode_tps": [
+            5.940528554216437,
+            5.813627344096155
+          ],
+          "ttft_seconds": [
+            15.292608249,
+            15.188048708
+          ],
+          "elapsed_seconds": [
+            20.511013791,
+            20.520361917
+          ],
+          "metal_allocated_bytes": [
+            6608617472,
+            6608617472
+          ]
+        },
+        "ensemble": {
+          "decode_tps": [
+            5.668174721120092,
+            6.054855329473399
+          ],
+          "ttft_seconds": [
+            13.807364583,
+            14.430224543
+          ],
+          "elapsed_seconds": [
+            19.276531208,
+            19.550303417
+          ],
+          "metal_allocated_bytes": [
+            6608617472,
+            6608617472
+          ]
+        }
+      },
+      "percent_change": {
+        "decode_tps": -0.2648071710838029,
+        "ttft_seconds": -7.358987813695639,
+        "elapsed_seconds": -5.372817861844615
+      },
+      "reference_decode_drift_percent": -2.1361939255423845,
+      "ensemble_decode_drift_percent": 6.821959932048349,
+      "both_candidate_TTFT_and_elapsed_below_both_references": true
+    },
+    "HOLD": {
+      "samples": {
+        "reference": {
+          "decode_tps": [
+            5.99034920964486,
+            5.9092428937783845
+          ],
+          "ttft_seconds": [
+            14.010067083,
+            14.171957292
+          ],
+          "elapsed_seconds": [
+            19.185069125,
+            19.4179905
+          ],
+          "metal_allocated_bytes": [
+            6608617472,
+            6608617472
+          ]
+        },
+        "ensemble": {
+          "decode_tps": [
+            6.051717391568707,
+            5.8205112068398766
+          ],
+          "ttft_seconds": [
+            13.525321958,
+            13.523950083
+          ],
+          "elapsed_seconds": [
+            18.647858166,
+            18.849982291
+          ],
+          "metal_allocated_bytes": [
+            6608617472,
+            6608617472
+          ]
+        }
+      },
+      "percent_change": {
+        "decode_tps": -0.2299533024059719,
+        "ttft_seconds": -4.019414357631634,
+        "elapsed_seconds": -2.8630351550793853
+      },
+      "reference_decode_drift_percent": -1.3539497119114285,
+      "ensemble_decode_drift_percent": -3.820505317233558,
+      "both_candidate_TTFT_and_elapsed_below_both_references": true
+    }
+  },
+  "integration": "three new paths defaultOFF; local candidate, not yet pushed; no app/release change",
+  "limits": "Two samples per variant/prompt; no sustained or sparse>512/long-context throughput claim. No established decode boost; keep all samples/negative and initial setup failure. Percentages are directly compared and never added."
+}

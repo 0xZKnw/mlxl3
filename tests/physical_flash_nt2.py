@@ -22,11 +22,11 @@ REAL = [
 ]
 
 
-def fixtures(root, model):
+def fixtures(root, model, *, fixed_dims=False):
     rng = np.random.default_rng(75112)
     native, stock = [], []
 
-    def add(folder, prefix, width, cols, nt, *, generic=False, batch=1):
+    def add(folder, prefix, width, cols, nt, *, generic=False, batch=1, fixed_key=None):
         x = rng.normal(0, 0.0625, (batch, width)).astype(np.float16)
         for fp32 in (False, True):
             packet = {
@@ -42,6 +42,7 @@ def fixtures(root, model):
                     candidate_nt=nt,
                     control_nt=4 if generic else 1,
                     words=batch * cols,
+                    fixed_key=fixed_key,
                 )
             )
             stock.append(
@@ -79,6 +80,14 @@ def fixtures(root, model):
         )
         nt = 4 if generic else 2 if k in (3, 4) and cb == 2 and cols >= 2560 else 1
         add(folder, "p", width, cols, nt, generic=generic, batch=3 if i % 2 else 1)
+    if fixed_dims:
+        for name, width, cols, key in [
+            ("model.language_model.layers.0.mlp.experts.0.gate_proj", 2560, 640, 0),
+            ("model.language_model.layers.0.mlp.experts.0.up_proj", 2560, 640, 0),
+            ("model.language_model.layers.0.mlp.experts.0.down_proj", 640, 2560, 1),
+            ("model.language_model.layers.3.self_attn.indexer.index_qk_proj", 2560, 640, 0),
+        ]:
+            add(model, name, width, cols, 1, batch=3, fixed_key=key)
     # Keep a real checkpoint last: the native fixture also checks fc_hidden exclusions.
     for prefix, width, cols in REAL:
         add(model, prefix, width, cols, 2)
@@ -138,12 +147,44 @@ def static_counts(result: dict, enabled: bool) -> list[int]:
     return total
 
 
+def fixed_counts(result: dict, cases: list[dict], enabled: bool) -> list[int]:
+    """Require real fixed-PSO submissions, including nonempty real indexer evidence.
+
+    raises: AssertionError, KeyError, TypeError
+    post: len(__return__) == 2
+    post: all(n >= 0 for n in __return__)
+    """
+    assert result["fixed_dims"] is enabled and len(result["cases"]) == len(cases) > 0
+    total = [0, 0]
+    indexer = False
+    for item, case in zip(result["cases"], cases, strict=True):
+        expected = case.get("fixed_key") if enabled else None
+        assert expected is None or (type(expected) is int and 0 <= expected < 2)
+        counts = item["fixed_submissions"]
+        assert item["fixed_key"] == expected
+        assert len(counts) == 2 and all(type(n) is int and n >= 0 for n in counts)
+        assert counts == [int(expected == i) for i in range(2)]
+        if expected is not None:
+            assert item["static_key"] is None and item["static_submissions"] == [0] * 5
+            indexer |= "index_qk_proj" in case.get("prefix", "")
+        total = [a + b for a, b in zip(total, counts, strict=True)]
+    assert result["fixed_submissions"] == total
+    assert len(result["fixed_submissions"]) == 2 and all(
+        type(n) is int and n >= 0 for n in result["fixed_submissions"]
+    )
+    assert all(n > 0 for n in total) and indexer if enabled else total == [0, 0]
+    return total
+
+
 def verify(args, root, report):
-    cases = fixtures(root, args.model.resolve())
+    fixed_dims = getattr(args, "fixed_dims", None)
+    cases = fixtures(root, args.model.resolve(), fixed_dims=fixed_dims is not None)
     env = {k: v for k, v in os.environ.items() if not k.startswith(("MLXL3_", "DYLD_"))}
     static_k = getattr(args, "static_k", None)
     if static_k is not None:
         env["MLXL3_NATIVE_FLASH_STATIC_K"] = str(static_k)
+    if fixed_dims is not None:
+        env["MLXL3_NATIVE_FLASH_FIXED_DIMS"] = str(fixed_dims)
     process(
         [
             str(args.stock),
@@ -209,11 +250,31 @@ def verify(args, root, report):
                     actual, np.fromfile(root / "mode-1" / f"native-1-{i}.bin", dtype="<u2").tolist()
                 )
         assert result["nt2_submissions"] == submissions and (submissions > 0) == bool(enabled)
+        if fixed_dims is not None:
+            fixed_counts(result, cases, bool(fixed_dims))
         counts = static_counts(result, static_k != 0)
         static_total = [a + b for a, b in zip(static_total, counts, strict=True)]
         report["modes"].append({**result, "setting": setting})
     assert all(n > 0 for n in static_total) if static_k != 0 else static_total == [0] * 5
     report["static_submissions"] = static_total
+    if fixed_dims is not None:
+        process(
+            [
+                str(args.native),
+                "gpu::projection::physical_flash_resident_nt2",
+                "--exact",
+                "--ignored",
+                "--test-threads=1",
+            ],
+            {**env, "MLXL3_NATIVE_FLASH_FIXED_DIMS": "true", "MLXL3_NT2_FIXTURES": str(root)},
+            root / "fixed-invalid-flag.log",
+        )
+        assert json.loads((root / "fixed-invalid-flag.json").read_text()) == {
+            "rejected": True,
+            "fc_hidden": True,
+            "fallback": True,
+        }
+        report["fixed_invalid_flag_recovery"] = True
     if static_k is not None:
         process(
             [
@@ -263,6 +324,12 @@ def main():
         parser.add_argument(name, type=Path)
     parser.add_argument(
         "--static-k", type=int, choices=(0, 1), help="override native enabled default"
+    )
+    parser.add_argument(
+        "--fixed-dims",
+        type=int,
+        choices=(0, 1),
+        help="qualify both exact K2 shapes and real indexer",
     )
     args = parser.parse_args()
     report = {

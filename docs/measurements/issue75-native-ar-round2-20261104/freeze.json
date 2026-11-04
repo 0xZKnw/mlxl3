@@ -1,0 +1,75 @@
+{
+  "status": "frozen_before_GPU_quality",
+  "created_utc": "2026-11-04T12:05:36.720945+00:00",
+  "base": "21cfc9ad0b6679f9e6975bf6f02bc7a5b7b96d47",
+  "source_parent": "99b4e29d2af7c357825d92a34c5d5b726e355273",
+  "working_source": "composed commits plus final45line cfgtest counter assertions; all compiled before this receipt",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/direct-cli",
+      "sha256": "789aa28db0267ec25369addc2752b7e3316e68323f7f5ecf7d81a954b4f50c46",
+      "bytes": 10120352,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/frozen/native-libtest",
+      "sha256": "d3f6018bc4d72ffd42215b4fd2d7bd1f543378cb6b72e09509b24553bd286ad2",
+      "bytes": 9187968,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "source_sha256": {
+    "native/shaders/flash_static_qmv.metal": "c4aafe7c2265292957d43ba75af523b519fd802c8b09572ff0db80a1ff51f22a",
+    "native/src/flash_expert_scratch.rs": "dbed12179c89ceb145a9f133d4f38c76d4548e545b7f1bad7d909161c7a2f21b",
+    "native/src/flash_qmv.rs": "54414481947bd9ae06817a7753c58dbf4763a9d65b7c5a1dfefc95b36d7cda66",
+    "native/src/flash_support.rs": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+    "native/src/gpu.rs": "7902ed87dd9492c8c5956d7ae389afb3cac817a9c6bf829564f1621e2363b0a7",
+    "native/src/gpu/flash.rs": "78eefaa26c60eafee0b464d4ab6c20932880e0438560b51977e834a552c52886",
+    "native/src/gpu/gate.rs": "a89c331329ccb87433d30a07da4fd694b50e00b2fbbfceacaabb503decb2c5f3",
+    "native/src/gpu/gdn.rs": "0b6c9d9d22dbc153117abdb7494f8e5453130eca266ff7741a88b2e8d59ad178",
+    "native/src/gpu/hc.rs": "332dae50175f16ed144be090f9c4ecccd20ee6df0832a6acf79cfe7d5a89dc6a",
+    "native/src/gpu/moe.rs": "bc61f50ea4372f99c8613b6b772bdef1e2ccf47f3c852e8228065804ecb21ae2",
+    "native/src/gpu/projection.rs": "a0ff89f0ea71435c7f11ccc1a92ff31145403ea42bcb3712065e24f078e80fab",
+    "native/src/gpu/routed_scratch_tests.rs": "e429a00c2b55ce67d48b81f82aaf91589603fbe96fecf6234d83a2ce9934ac9e",
+    "native/src/gpu/router.rs": "5aec15c0225f231cb8e1bd205b979952eef0b3090497bfabd19e0e6be8a37c80",
+    "native/src/lib.rs": "ac6afd45c480e2356f100c7e2da5e263460397a895a422d8794994282f73501d",
+    "scripts/kani_obligations.json": "c797bd535f85a114b4a8bcca96a5268938df445478785d2eaddc55e0fa70c516",
+    "tests/physical_flash_ar_bridge.py": "2bdcf1e914d6487767505711e4c7fccbfcee66c9466ca6f93e647d7af57ca930",
+    "tests/physical_flash_nt2.py": "fa5a2d4c70f60180f3648cbd817e261951317d97c4ae9806953b715d1f4d6d4a",
+    "tests/test_kani_ci.py": "b79f87d60f9588c12138496406e258cb7e18e5d666ad6e7a6b21f542cb00d348",
+    "tests/test_physical_flash_ar_bridge.py": "ea31e44c0e3edb9d4392b147564d363df2b80254541ca6c1462a957e26a7f3f2",
+    "tests/test_physical_flash_nt2.py": "3c61e0780620716350f0796897e089311d174fb40f713eafab718e5c16ff0788",
+    "Cargo.toml": "9c174e02d2400d3a958d887f984aa22439d77a275b7e0cd9edc046e8a9992b7c",
+    "Cargo.lock": "2d6fa14ba191d81a1d53e37783fdbbd97df064188ed8b351c8a58282f57c06e8",
+    "build.rs": "02c5f1f26c8f14cbb7576ff98484b99fedcd891ac453e6f79132fa58ad98f0c9"
+  },
+  "host_checks": "117Rust passed/8ignored/174filtered;61Python passed/44Linuxskipped/26subtests;strictdirectClippy;freshCLI+libtestrelease",
+  "proof_reuse": {
+    "kind": "source identity, not a new proof",
+    "checks": [
+      {
+        "path": "native/src/flash_qmv.rs",
+        "sha256": "54414481947bd9ae06817a7753c58dbf4763a9d65b7c5a1dfefc95b36d7cda66",
+        "unchanged_from": "issue75-native-flash-fixed-dims"
+      },
+      {
+        "path": "native/src/flash_expert_scratch.rs",
+        "sha256": "dbed12179c89ceb145a9f133d4f38c76d4548e545b7f1bad7d909161c7a2f21b",
+        "unchanged_from": "issue75-native-routed-scratch"
+      },
+      {
+        "path": "native/src/flash_support.rs",
+        "sha256": "02589a78f742810d2ac07e4f110195bd6bc53f7689e890b7682eb6b3e36a36db",
+        "unchanged_from": "issue75-native-flash-hc-gate"
+      },
+      {
+        "path": "native/shaders/flash_static_qmv.metal",
+        "sha256": "c4aafe7c2265292957d43ba75af523b519fd802c8b09572ff0db80a1ff51f22a",
+        "unchanged_from": "issue75-native-flash-fixed-dims"
+      }
+    ]
+  },
+  "limits": "No GPU/correctness/speed claim yet; existing exact helper Kani proofs do not prove Metal/concurrency. DefaultOFF newflags; app unchanged."
+}

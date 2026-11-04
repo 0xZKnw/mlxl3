@@ -1,0 +1,350 @@
+{
+  "status": "cpu_qualified_physical_unverified",
+  "base": "21cfc9ad0b6679f9e6975bf6f02bc7a5b7b96d47",
+  "native_baseline_equivalent": "34adade01c86c3b7aef406272a6936633d4d1c8c",
+  "macos_deployment_target": "26.2",
+  "mlx_root": "/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+  "tests": {
+    "cpu": {
+      "passed": 328,
+      "failed": 0,
+      "ignored": 8,
+      "groups": 8
+    },
+    "direct": {
+      "passed": 343,
+      "failed": 0,
+      "ignored": 42,
+      "groups": 8
+    },
+    "compat": {
+      "passed": 379,
+      "failed": 0,
+      "ignored": 260,
+      "groups": 8
+    }
+  },
+  "python": {
+    "passed": 2,
+    "skipped": 44,
+    "reason": "Linux process-limit tests skipped on macOS"
+  },
+  "proof": {
+    "method": "bounded model checking",
+    "harnesses": 3,
+    "checks": 577,
+    "covers": 9,
+    "unreachable_std_guards": 13,
+    "unwind": {
+      "selection": 40,
+      "flag_utf8": 10
+    },
+    "assumptions": 0,
+    "stubs": 0,
+    "domains": "all u32 extents, u64 capacities, routing bool, three flag states; UTF8 byte strings length0..4",
+    "result": "passed actual cargo package targeted harnesses",
+    "full_package": "not rerun: existing grouped-route/SpecFill baseline limits remain"
+  },
+  "source_sha256": {
+    "native/src/flash_expert_scratch.rs": "dbed12179c89ceb145a9f133d4f38c76d4548e545b7f1bad7d909161c7a2f21b",
+    "native/src/gpu.rs": "355469a433cfefe6b0f4d969e730110824755f0782a2c45af851cd8c9bda1704",
+    "native/src/gpu/projection.rs": "eea1bc2c5ef58264eb598e76be7dfdac6ed52009875cd31f6c1591adcf83e39c",
+    "native/src/gpu/routed_scratch_tests.rs": "459c896fa50ad6735767bc1a425af3e88e24e8a579533dffc8fa11edbe7ee70f",
+    "native/src/lib.rs": "ac6afd45c480e2356f100c7e2da5e263460397a895a422d8794994282f73501d",
+    "scripts/kani_obligations.json": "b61cb701a0d02fd393fdadb87f5b29d35897993892ccf0f1729cf7b3be049bbd",
+    "tests/test_kani_ci.py": "7543c8f2e285d2286390f3eafc88ac97ed206d922fe927429503cd51e26dbfcf"
+  },
+  "checks_initial": [
+    {
+      "label": "fmt",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "fmt",
+        "--all",
+        "--check"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 0.568861167,
+      "joined": true
+    },
+    {
+      "label": "clippy-direct-02",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 1.960549208,
+      "joined": true
+    },
+    {
+      "label": "clippy-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 2.6257341659999995,
+      "joined": true
+    },
+    {
+      "label": "tests-cpu",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 30.145709334,
+      "joined": true
+    },
+    {
+      "label": "clippy-compat",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "returncode": 101,
+      "elapsed": 6.867260209000001,
+      "joined": true
+    }
+  ],
+  "checks_final": [
+    {
+      "label": "clippy-compat-02",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "direct-metal,mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 9.864104584,
+      "joined": true
+    },
+    {
+      "label": "tests-compat-02",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "direct-metal,mlx,chat"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 41.226856084,
+      "joined": true
+    },
+    {
+      "label": "clippy-direct-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "clippy",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 1.6984140420000031,
+      "joined": true
+    },
+    {
+      "label": "direct-no-run-final",
+      "command": [
+        "/Users/justin/.cargo/bin/cargo",
+        "test",
+        "--locked",
+        "--no-default-features",
+        "--features",
+        "direct-metal,chat",
+        "--no-run"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "elapsed": 2.6092939589999986,
+      "joined": true
+    }
+  ],
+  "all_children_joined": true,
+  "physical": "not run; root will use composed executable",
+  "speed": "not measured",
+  "allocation_prediction": {
+    "calls_before": 10,
+    "calls_after": 6,
+    "requested_bytes_before": 35840,
+    "requested_bytes_after": 24320
+  },
+  "raw_logs": [
+    {
+      "source": "build/routed-scratch/check.log",
+      "archived": "logs/check.log.gz",
+      "bytes": 5857,
+      "sha256": "3f6bc1c41b49c17e9910f55ebbe417f8c09898fdbba06c70db664f51b96f9b69",
+      "gzip_sha256": "6c99f1d6d6c54b4ae1569e52e569850e979715f54ce3b32944a52eeca31949be"
+    },
+    {
+      "source": "build/routed-scratch/check-02.log",
+      "archived": "logs/check-02.log.gz",
+      "bytes": 422,
+      "sha256": "b9e2cf6a88d8dac21dac0335a59989c8ea2020d8f387bf6906798748ba3c9441",
+      "gzip_sha256": "98c2c642e5c4cce80677e3b06668243d515d240293cef112e0cb671b0d787262"
+    },
+    {
+      "source": "build/routed-scratch/clippy.log",
+      "archived": "logs/clippy.log.gz",
+      "bytes": 422,
+      "sha256": "830511ec8512c41c74dae72bacedd9b9fc76d928681d44f4104fdbebc3d2a87f",
+      "gzip_sha256": "1a502ca2b94acaff74616dda0d3b34e8fa819c2b3f9ab5d5fbe0073904725a73"
+    },
+    {
+      "source": "build/routed-scratch/tests-direct.log",
+      "archived": "logs/tests-direct.log.gz",
+      "bytes": 39232,
+      "sha256": "72989dbba86487b60b61fcc4ecc7174a3daef35aea4b5831859568dab39cb13d",
+      "gzip_sha256": "035244db5eeb5096bff6bf7fb779da8453c1b04d151ed857dfbef77fbbab35f2"
+    },
+    {
+      "source": "build/routed-scratch/tests-cpu.log",
+      "archived": "logs/tests-cpu.log.gz",
+      "bytes": 32049,
+      "sha256": "cc5c04b802e046e2d6e9706a4dcf44cbe6fc920c2a5177d8fb707f45d144153b",
+      "gzip_sha256": "2e6324aaf05a4066d7577f9295ce976aed1767546ed22fd2491cc745b4400ff7"
+    },
+    {
+      "source": "build/routed-scratch/clippy-cpu.log",
+      "archived": "logs/clippy-cpu.log.gz",
+      "bytes": 179,
+      "sha256": "af2c66051d937e81d622c9581fb9cb331e97f45491028ff9261c94a83e849881",
+      "gzip_sha256": "9b13768d8ad137f6eae5697575352d2a43a3fc607ed22711adab5180e299f80d"
+    },
+    {
+      "source": "build/routed-scratch/clippy-compat.log",
+      "archived": "logs/clippy-compat.log.gz",
+      "bytes": 763,
+      "sha256": "34ec700db220b0652a3985b3cabe9538c7df310975682f0e100ee4ba423e15b2",
+      "gzip_sha256": "a957cf3f7f1ea0e6e4e487c9adeb030fb1ea08d8a1cde3e58057899b35e63aec"
+    },
+    {
+      "source": "build/routed-scratch/clippy-compat-02.log",
+      "archived": "logs/clippy-compat-02.log.gz",
+      "bytes": 422,
+      "sha256": "8b5a83dbd9bb93f2adff124c730cc1ab1c516ef646cef0c359096bdfd6eee03b",
+      "gzip_sha256": "87020c4782e238b884813118b0d2ab07855381d2b84f7517a059e74674dbaaf8"
+    },
+    {
+      "source": "build/routed-scratch/tests-compat-02.log",
+      "archived": "logs/tests-compat-02.log.gz",
+      "bytes": 75308,
+      "sha256": "967299815bef10cc2b59d1089542545954a4216f89340574a2109a398c98130b",
+      "gzip_sha256": "0398735216ab84486dbe98e27e40c6224fd3d0d7d9031c505bf1f745e0c2e855"
+    },
+    {
+      "source": "build/routed-scratch/clippy-direct-final.log",
+      "archived": "logs/clippy-direct-final.log.gz",
+      "bytes": 422,
+      "sha256": "bf4a37d51b17af820369184f27ad4c9b6769cd10e04e5f5e9b694303058d5afc",
+      "gzip_sha256": "0b75206eba2273507486e126dbaad43d046b0336b587067612d87ee7f1339ecc"
+    },
+    {
+      "source": "build/routed-scratch/direct-no-run-final.log",
+      "archived": "logs/direct-no-run-final.log.gz",
+      "bytes": 1240,
+      "sha256": "37aae877f4eed3bd9a41d42e90cc5d33e363dcabbfe0c8d87c70ba0da0be05e5",
+      "gzip_sha256": "42130ad02a90f59f18aac9a195c07c42f974404985707993fc1287d5c657b72f"
+    },
+    {
+      "source": "build/routed-scratch/python.log",
+      "archived": "logs/python.log.gz",
+      "bytes": 1512,
+      "sha256": "c3b5d79d19e4b88b10a3b0c88dbef1d289b838d2738f4f599a3d35f4fb07776b",
+      "gzip_sha256": "2f9548b783d685db71389e7f590da4e0c775008ec296f1329f440f71c64693e6"
+    },
+    {
+      "source": "build/routed-scratch/proof/package.log",
+      "archived": "logs/proof-package.log.gz",
+      "bytes": 21337,
+      "sha256": "50bfb15186a6dc2d261967ac3adb4c0f0f7482858d8d3bde6e1b3e41534d2f06",
+      "gzip_sha256": "6d3109ac39e98c726ca252222427bb66b6176af6eeb93c68debba5510e63bc8f"
+    },
+    {
+      "source": "build/routed-scratch/proof/wrapper.log",
+      "archived": "logs/proof-wrapper.log.gz",
+      "bytes": 396691,
+      "sha256": "f555b3d76ba4b23bae57c81b231e27a4734abbeb119c97b5d994718b3863eadc",
+      "gzip_sha256": "0a3304dc4a1f694ee7489d16c2d3c9e44153200ee2818d626297750ce9eb9cf7"
+    },
+    {
+      "source": "build/routed-scratch/proof/package-all-02.log",
+      "archived": "logs/proof-package-all-02.log.gz",
+      "bytes": 405771,
+      "sha256": "adba28143b6e04a3f112919bb728101d5dda08f5df6f49da62d6576c8ea54243",
+      "gzip_sha256": "99a77214a555edcbe12040e44ee422b2cf8ee66d36f4a84ba32b5164543cad69"
+    },
+    {
+      "source": "build/routed-scratch/proof/original-tests.log",
+      "archived": "logs/proof-original-tests.log.gz",
+      "bytes": 173,
+      "sha256": "f0216da7e6cdb0001d7185cfe4d7293b41622915a302332a3db4cfdf48524729",
+      "gzip_sha256": "d750a0e80bddc99083601a52600b0fb1c9f660a095dafe41d71e24edef002af7"
+    },
+    {
+      "source": "build/routed-scratch/proof/mutation-tests.log",
+      "archived": "logs/proof-mutation-tests.log.gz",
+      "bytes": 656,
+      "sha256": "22adef5051c0c7b1b78c8fc64ac247b9539df2da7ee40062ba77a5ea80f6a9ec",
+      "gzip_sha256": "f469c3e1c42008984052a37ec6c59684b62adfa6db5b322d7dfc8066d140db6e"
+    }
+  ],
+  "post_cpu_fixture_only_change": {
+    "file": "native/src/gpu/routed_scratch_tests.rs",
+    "change": "Require distinct routed prefixes excluding shared; require cases0/1 differ before duplicate sequence0/1/0",
+    "sha256": "e429a00c2b55ce67d48b81f82aaf91589603fbe96fecf6234d83a2ce9934ac9e",
+    "product_unchanged": true,
+    "compile": "not rerun under root instruction; root composed rebuild required"
+  }
+}

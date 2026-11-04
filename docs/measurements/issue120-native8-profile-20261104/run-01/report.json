@@ -1,0 +1,29 @@
+{
+  "status": "validated_diagnostic_only",
+  "parity": true,
+  "command": [
+    "/Users/justin/.codex/worktrees/issue120-native-profile/mix-stq1_0/build/native8/frozen/native-libtest",
+    "gpu::flash::tests::native8_sampling_profile_preserves_outputs",
+    "--exact",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "timeout_seconds": 180,
+  "binary_sha256": "83ddec44896257efd4c26fb6ee648cd15843741c14549cb863d0aa85d52d7e38",
+  "controlled_environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1"
+  },
+  "returncode": 0,
+  "elapsed_seconds": 49.2533952909871,
+  "joined": true,
+  "pgid_empty": true,
+  "events": 7759,
+  "noMLX": true
+}

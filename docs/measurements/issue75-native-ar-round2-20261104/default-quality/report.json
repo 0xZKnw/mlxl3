@@ -1,0 +1,168 @@
+{
+  "status": "validated",
+  "parity": true,
+  "expected_phases": 3,
+  "phases": [
+    {
+      "label": "default-independent-depth0",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/native-libtest",
+        "gpu::flash::tests::hc_gate_depth_zero_matches_archived_full_states_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 180,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 4.788666375010507,
+      "evidence": {
+        "initial_markers_and_actual_counts": {
+          "fixed_dims": true,
+          "fixed_initially_enabled": true,
+          "fixed_submissions": [
+            3840,
+            1920
+          ],
+          "gate_commands": 0,
+          "hc_gate_initially_enabled": true,
+          "hc_gate_pairs": 192,
+          "hc_initially_enabled": true,
+          "hc_joint_pairs": 192,
+          "scratch_enabled": true,
+          "scratch_initially_enabled": true,
+          "scratch_uses": 5760,
+          "static_submissions": [
+            0,
+            0,
+            0,
+            480,
+            723
+          ]
+        },
+        "independent_states": 84,
+        "finite_F32_words": 28803072,
+        "finite_half_logits": 496640
+      }
+    },
+    {
+      "label": "default-context4096",
+      "argv": [
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/native-libtest",
+        "gpu::flash::tests::fixed_dimensions_keep_context4096_states_logits_and_continuation",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "overrides": {},
+      "timeout_seconds": 240,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 5.23841583399917,
+      "evidence": {
+        "initial_before_mutation": {
+          "fixed_dims": true,
+          "hc_gate": true,
+          "scratch": true
+        },
+        "actual_counts_per_branch": [
+          {
+            "continuation": true,
+            "enabled": false,
+            "fixed_submissions": [
+              0,
+              0
+            ],
+            "hc_gate_pairs": 240,
+            "logits": 744960,
+            "scratch_uses": 7200,
+            "state_words": 86409216,
+            "states": 252,
+            "steps": 3
+          },
+          {
+            "continuation": true,
+            "enabled": true,
+            "fixed_submissions": [
+              4860,
+              2400
+            ],
+            "hc_gate_pairs": 240,
+            "logits": 744960,
+            "scratch_uses": 7200,
+            "state_words": 86409216,
+            "states": 252,
+            "steps": 3
+          }
+        ]
+      }
+    },
+    {
+      "label": "default-cli4096-short",
+      "argv": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/build/ar-round2/default_cli_short.py",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/direct-cli",
+        "/Users/justin/.codex/worktrees/issue75-native-flash-ar-round2/mix-stq1_0/docs/measurements/issue75-native-ar-round2-20261104/default-quality/cli-short"
+      ],
+      "overrides": {},
+      "timeout_seconds": 240,
+      "status": "validated",
+      "parity": true,
+      "returncode": 0,
+      "joined": true,
+      "pgid_empty": true,
+      "elapsed_seconds": 13.082893874990987,
+      "evidence": {
+        "completions": 1,
+        "tokens": 2,
+        "golden": "9f850af1cbba074b",
+        "ledger48x53": true,
+        "noMLX": true,
+        "all_new_and_prior_variables_absent": [
+          "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+          "MLXL3_NATIVE_ROUTED_SCRATCH",
+          "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+          "MLXL3_NATIVE_FLASH_NT2",
+          "MLXL3_NATIVE_FLASH_STATIC_K",
+          "MLXL3_NATIVE_AR_HC_CHAIN"
+        ]
+      }
+    }
+  ],
+  "source": "1d1c59b6987fb620460914a1124c5d8982462d50",
+  "absent_environment_keys": [
+    "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+    "MLXL3_NATIVE_ROUTED_SCRATCH",
+    "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+    "MLXL3_NATIVE_FLASH_NT2",
+    "MLXL3_NATIVE_FLASH_STATIC_K",
+    "MLXL3_NATIVE_AR_HC_CHAIN"
+  ],
+  "actual_controlled_environment": {
+    "MLXL3_FLASH_MODEL": "/Users/justin/Documents/mix-stq1_0/models/Qwen3.8-Flash-Next-exl3-205-65c89531",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_SSD_READERS": "4",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0",
+    "MLXL3_PROMPT_CACHE_MIB": "0",
+    "DYLD_PRINT_LIBRARIES": "1"
+  },
+  "artifacts": {
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/direct-cli": "f4b592bc464d697ce5fa88492e837acf8df904d771323c1d240305f7245cb8c5",
+    "/Users/justin/.codex/worktrees/issue75-native-flash-ar-defaults/mix-stq1_0/build/ar-defaults/frozen/native-libtest": "af2c8eb3955d9f1362effb8f2dd382d52d37377146ca4e7ed1c44c2b09385f48"
+  },
+  "all_children_joined": true,
+  "log_manifest": "log-manifest.json",
+  "no_new_performance_measurement": true,
+  "installed_app_unchanged": true
+}

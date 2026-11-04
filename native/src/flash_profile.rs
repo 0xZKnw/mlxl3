@@ -223,6 +223,41 @@ pub(crate) fn span(name: &str) -> Option<Span> {
         Some(Span(index))
     })
 }
+pub(crate) fn active() -> bool {
+    TRACE.with_borrow(Option::is_some)
+}
+
+#[cfg(all(target_os = "macos", feature = "direct-metal"))]
+#[allow(
+    unexpected_cfgs,
+    reason = "objc 0.2 selector macro tests legacy cargo-clippy cfg"
+)]
+pub(crate) fn native_gpu_interval(command: &metal::CommandBufferRef, owner: &str) {
+    use metal::foreign_types::ForeignTypeRef;
+    use objc::{msg_send, sel, sel_impl};
+    if let Some(event) = span("native.gpu_interval") {
+        let start: f64 = unsafe { msg_send![command, GPUStartTime] };
+        let end: f64 = unsafe { msg_send![command, GPUEndTime] };
+        event.data(serde_json::json!({"owner":owner,"command_address":command.as_ptr() as usize,"gpu_start_seconds":start,"gpu_end_seconds":end,"valid":start.is_finite() && end.is_finite() && start>0.0 && end>=start,"clock":"Metal GPU seconds; not mapped to CPU Instant epoch"}));
+    }
+}
+
+#[test]
+fn native_observer_active_tracks_the_existing_lifecycle() -> Result<()> {
+    assert!(!active());
+    start(false)?;
+    assert!(active());
+    {
+        let row = span("row").unwrap();
+        row.data(serde_json::json!({"token":1}));
+        let _child = span("head").unwrap();
+    }
+    let events = finish()?;
+    assert!(!active() && events.len() == 2);
+    assert!(events[0].parent.is_none() && events[1].parent == Some(0));
+    assert!(events.iter().all(|e| e.end_ns >= e.start_ns));
+    Ok(())
+}
 impl Span {
     pub(crate) fn data(&self, data: Value) {
         TRACE.with_borrow_mut(|trace| {
