@@ -702,6 +702,21 @@ mod tests {
         ensure!(prompt.len() == 87);
         let c = crate::checkpoint::inspect(&path)?;
         let gpu = Metal::new()?;
+        ensure!(
+            [
+                "MLXL3_NATIVE_SSD_DIRECT",
+                "MLXL3_NATIVE_AR_HC_CHAIN",
+                "MLXL3_NATIVE_AR_HC_GATE_CHAIN",
+                "MLXL3_NATIVE_FLASH_STATIC_K",
+                "MLXL3_NATIVE_FLASH_NT2",
+                "MLXL3_NATIVE_FLASH_FIXED_DIMS",
+                "MLXL3_NATIVE_ROUTED_SCRATCH",
+            ]
+            .iter()
+            .all(|name| std::env::var_os(name).is_none()),
+            "native8 requires actual default policies, no explicit optimization flags"
+        );
+        ensure!(gpu.ssd_direct_enabled && gpu.hc_chain.get() && gpu.hc_gate_chain.get());
         let mut model = FlashNext::load(&gpu, &c, 4096)?;
         ensure!(model.lookahead_depth == 0 && model.prefetcher.is_none());
         let (first, first_states) = model.forward_trace(248044)?;
@@ -765,12 +780,45 @@ mod tests {
             ("native.logprobs", 7),
             ("native.cpu_select", 7),
             ("native.projection_readback_copy", 7),
+            ("native.hc.encode_read", 7 * 97),
+            ("native.hc.chain_write_read_gate", 7 * 48),
+            ("native.gdn.body", 7 * 36),
+            ("native.gdn.frame", 7 * 36),
         ] {
             ensure!(
                 events.iter().filter(|e| e["name"] == name).count() == count,
                 "wrong event coverage{name}"
             );
         }
+        for (exclusive, row_total) in [
+            ("allocation_requests", "metal_requests"),
+            ("allocation_requested_bytes", "metal_requested_bytes"),
+            ("allocation_api_ns", "metal_allocation_host_ns"),
+        ] {
+            let attributed = events
+                .iter()
+                .map(|e| e[exclusive].as_u64().unwrap())
+                .sum::<u64>();
+            let rows = events
+                .iter()
+                .filter(|e| e["name"] == "native.row")
+                .map(|e| e["data"][row_total].as_u64().unwrap())
+                .sum::<u64>();
+            ensure!(
+                attributed > 0 && attributed == rows,
+                "allocation attribution lost or double-counted {exclusive}"
+            );
+        }
+        let workspace_requests = events
+            .iter()
+            .filter(|e| {
+                e["name"]
+                    .as_str()
+                    .is_some_and(|name| name.starts_with("native.hc.workspace."))
+            })
+            .map(|e| e["allocation_requests"].as_u64().unwrap())
+            .sum::<u64>();
+        ensure!(workspace_requests == 7 * 97 * 4);
         ensure!(
             events
                 .iter()

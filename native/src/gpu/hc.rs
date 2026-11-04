@@ -174,6 +174,8 @@ impl<'a> FlashHc<'a> {
     }
 
     pub fn read(&self, x: &MatrixView, trace: bool) -> Result<FlashHcRead> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.read_separate");
         self.gpu
             .command(|cmd| self.encode_read(cmd, x, trace))?
             .finish(trace)
@@ -185,6 +187,8 @@ impl<'a> FlashHc<'a> {
         x: &MatrixView,
         trace: bool,
     ) -> Result<ReadBuffers> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.encode_read");
         let p = self.pipeline(x, 10240)?;
         let storage = if trace {
             Storage::StorageModeShared
@@ -192,10 +196,20 @@ impl<'a> FlashHc<'a> {
             Storage::StorageModePrivate
         };
         let output = |w, mode| MatrixView::output(self.gpu, x.dtype, 1, w, mode);
+        #[cfg(test)]
+        let norm_scope = crate::flash_profile::span("native.hc.workspace.norm");
         let normalized = self
             .gpu
             .encode_stream_norm(cmd, x, &self.gain, self.eps, storage)?;
+        #[cfg(test)]
+        drop(norm_scope);
         let gemv = |v: &MatrixView, weight: &Buffer, n: u32| -> Result<MatrixView> {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span(if n == 4 {
+                "native.hc.result.gate_gemv"
+            } else {
+                "native.hc.workspace.gemv"
+            });
             let width = v.shape()[1];
             let (count, threads) = crate::contracts::flash_hc_dispatch(width, n)
                 .context("invalid Flash HC matrix dimensions")?;
@@ -217,6 +231,12 @@ impl<'a> FlashHc<'a> {
             Ok(out)
         };
         let activate = |v: &MatrixView, gate: bool| -> Result<MatrixView> {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span(if gate {
+                "native.hc.result.gate_activation"
+            } else {
+                "native.hc.workspace.activation"
+            });
             let n = v.shape()[1];
             let a = output(
                 n,
@@ -239,7 +259,11 @@ impl<'a> FlashHc<'a> {
         let down = gemv(&normalized, &self.down, 320)?;
         let active = activate(&down, false)?;
         let up = gemv(&active, &self.up, 10240)?;
+        #[cfg(test)]
+        let mixed_scope = crate::flash_profile::span("native.hc.result.mixed");
         let mixed = output(2560, Storage::StorageModeShared)?;
+        #[cfg(test)]
+        drop(mixed_scope);
         Metal::encode(
             cmd,
             &p.mix,
@@ -279,6 +303,8 @@ impl<'a> FlashHc<'a> {
             let read = self.read(&written, false)?;
             return Ok((written, read));
         }
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.chain_write_read");
         ensure!(
             std::ptr::eq(self.gpu, writer.gpu),
             "HC chain requires the same Metal instance"
@@ -303,6 +329,8 @@ impl<'a> FlashHc<'a> {
         gate: &MatrixView,
         moe: &super::FlashMoeRow,
     ) -> Result<(MatrixView, FlashHcRead, super::RouteOutput)> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.chain_write_read_gate");
         ensure!(
             self.inject.is_some(),
             "Flash MLP requires an injection gate"
@@ -376,6 +404,8 @@ impl<'a> FlashHc<'a> {
         branch: &MatrixView,
         gate: &MatrixView,
     ) -> Result<MatrixView> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.write_separate");
         self.gpu
             .command(|cmd| self.encode_write(cmd, streams, branch, gate))
     }
@@ -386,6 +416,8 @@ impl<'a> FlashHc<'a> {
         branch: &MatrixView,
         gate: &MatrixView,
     ) -> Result<MatrixView> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.hc.encode_write");
         let p = self.pipeline(streams, 10240)?;
         self.pipeline(branch, 2560)?;
         self.pipeline(gate, 4)?;

@@ -108,6 +108,8 @@ impl<'a> FlashGdn<'a> {
     }
 
     pub fn forward(&mut self, x: &MatrixView, trace: bool) -> Result<FlashGdnOutput> {
+        #[cfg(test)]
+        let _scope = crate::flash_profile::span("native.gdn.body");
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -133,6 +135,8 @@ impl<'a> FlashGdn<'a> {
         let (value_groups, state_words) =
             crate::contracts::packed_gdn_grid(48, 128).context("invalid Flash GDN state extent")?;
         let frame = || -> Result<Frame> {
+            #[cfg(test)]
+            let _scope = crate::flash_profile::span("native.gdn.frame");
             Ok(Frame {
                 history: half(30720)?,
                 recurrent: matrix(FloatType::F32, state_words)?,

@@ -74,13 +74,9 @@ pub(crate) fn buffer(device: &DeviceRef, length: u64, storage: Storage) -> Resul
     {
         BUFFER_REQUESTED_BYTES.with(|v| v.set(v.get().saturating_add(length)));
         if let Some(start) = observed {
-            BUFFER_ALLOCATION_NS.with(|v| {
-                v.set(
-                    v.get().saturating_add(
-                        u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX),
-                    ),
-                )
-            });
+            let elapsed = u64::try_from(start.elapsed().as_nanos()).unwrap_or(u64::MAX);
+            BUFFER_ALLOCATION_NS.with(|v| v.set(v.get().saturating_add(elapsed)));
+            crate::flash_profile::native_allocation(length, elapsed);
         }
     }
     ensure!(!ptr.is_null(), "Metal could not allocate {length} bytes");
