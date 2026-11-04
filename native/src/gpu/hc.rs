@@ -419,11 +419,28 @@ impl<'a> FlashHc<'a> {
         branch: &MatrixView,
         gate: &MatrixView,
     ) -> Result<MatrixView> {
+        self.gpu.encode_hc_write(cmd, streams, branch, gate)
+    }
+}
+
+impl Metal {
+    pub(super) fn encode_hc_write(
+        &self,
+        cmd: &metal::CommandBufferRef,
+        streams: &MatrixView,
+        branch: &MatrixView,
+        gate: &MatrixView,
+    ) -> Result<MatrixView> {
         #[cfg(test)]
         let _scope = crate::flash_profile::span("native.hc.encode_write");
-        let p = self.pipeline(streams, 10240)?;
-        self.pipeline(branch, 2560)?;
-        self.pipeline(gate, 4)?;
+        for (view, width) in [(streams, 10240), (branch, 2560), (gate, 4)] {
+            ensure!(
+                view.shape() == [1, width]
+                    && view.buffer.device().registry_id() == self.device.registry_id(),
+                "invalid Flash HC input shape or device"
+            );
+        }
+        let p = &self.hc[usize::from(streams.dtype == FloatType::F32)];
         ensure!(
             gate.dtype == streams.dtype,
             "injection gate dtype disagrees with its streams"
@@ -433,7 +450,7 @@ impl<'a> FlashHc<'a> {
         } else {
             streams.dtype
         };
-        let out = MatrixView::output(self.gpu, dtype, 1, 10240, Storage::StorageModeShared)?;
+        let out = MatrixView::output(self, dtype, 1, 10240, Storage::StorageModeShared)?;
         Metal::encode(
             cmd,
             &p.write,

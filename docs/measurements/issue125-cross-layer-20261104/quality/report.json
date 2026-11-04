@@ -1,0 +1,91 @@
+{
+  "status": "validated",
+  "parity": true,
+  "all_children_joined": true,
+  "phases": [
+    {
+      "name": "model",
+      "command": [
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen/libtest",
+        "gpu::gdn::cross_layer_tests::physical_cross_layer_preserves_states_rollbacks_and_actual_boundaries",
+        "--exact",
+        "--ignored",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 57795,
+      "seconds": 8.960093667003093,
+      "evidence": {
+        "compared_logits": 1986560,
+        "compared_state_words": 115212288,
+        "encode_failure_no_commit": true,
+        "export_fallback": true,
+        "initial_archive_states": 84,
+        "late_failure_layer": 20,
+        "parity": true,
+        "recovery": true,
+        "retained_prefix": true,
+        "steps": [
+          {
+            "candidate_commands": 136,
+            "control_commands": 170,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 248044,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 1,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 42,
+            "triples": 34
+          },
+          {
+            "candidate_commands": 148,
+            "control_commands": 182,
+            "doubles": 2,
+            "final_writes": 14,
+            "token": 7,
+            "triples": 34
+          }
+        ]
+      }
+    },
+    {
+      "name": "cli",
+      "command": [
+        "/Users/justin/Documents/mix-stq1_0/.venv/bin/python",
+        "/Users/justin/.codex/worktrees/issue120-profile-next/mix-stq1_0/build/p01/essential/cli_short.py",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/build/issue125-l1/frozen/cli",
+        "/Users/justin/.codex/worktrees/issue125-cross-layer/mix-stq1_0/docs/measurements/issue125-cross-layer-20261104/quality"
+      ],
+      "status": "validated",
+      "parity": true,
+      "joined": true,
+      "pid": 57893,
+      "seconds": 11.968770875013433,
+      "evidence": {
+        "status": "verified",
+        "parity": true,
+        "completed": 1,
+        "context_length": 4096,
+        "token_hash": "9f850af1cbba074b",
+        "mlx_loaded": false,
+        "child_joined": true
+      }
+    }
+  ]
+}
