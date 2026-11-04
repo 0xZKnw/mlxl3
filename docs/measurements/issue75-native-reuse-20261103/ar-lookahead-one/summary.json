@@ -1,0 +1,579 @@
+{
+  "status": "completed_inconclusive_performance",
+  "quality_parity": true,
+  "decision": "Keep existing lookahead default0; no overall gain qualified. MAIN control drops24%, invalidating naive pooled attribution; HOLD candidate is lower than both controls. Preserve all samples, do not rerun merely for noise.",
+  "generated_utc": "2026-11-03T21:34:56.915682+00:00",
+  "source_sha": "89fdabbff6ef66ea131fab5ff95d28341959a061",
+  "binary_sha256": "f20ba847f97a643100b3f1ffc8357b95b1eecc99c45c6728248534dddb76778d",
+  "order": "ABBA",
+  "tokens": 32,
+  "warmups": 8,
+  "measured_responses": 8,
+  "expert_bank_capacity_bytes": 3174942528,
+  "slots_per_layer": 53,
+  "layers": 48,
+  "power": "AC100% before/after allarms",
+  "thermal": "notmeasured",
+  "all_children_reaped": true,
+  "resource_change": "Candidate includes4extra backgroundworkers,4ownedprefetchcap/predictiveLRU; demandworkers4andexpertcapacityunchanged.",
+  "by_prompt": {
+    "MAIN": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            4.740550801539212,
+            3.601370722357566
+          ],
+          "candidate": [
+            4.546452331748908,
+            4.368334282976327
+          ]
+        },
+        "median": {
+          "control": 4.170960761948389,
+          "candidate": 4.457393307362617
+        },
+        "range": {
+          "control": [
+            3.601370722357566,
+            4.740550801539212
+          ],
+          "candidate": [
+            4.368334282976327,
+            4.546452331748908
+          ]
+        },
+        "nominal_candidate_change_percent": 6.867303764335242,
+        "control_drift_percent": -24.030542586143465,
+        "paired_changes_percent": [
+          -4.094428641652403,
+          21.29643460078676
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            6.539324499999999,
+            8.607833625000001
+          ],
+          "candidate": [
+            6.818503249999999,
+            7.0965264999999995
+          ]
+        },
+        "median": {
+          "control": 7.5735790625,
+          "candidate": 6.957514874999999
+        },
+        "range": {
+          "control": [
+            6.539324499999999,
+            8.607833625000001
+          ],
+          "candidate": [
+            6.818503249999999,
+            7.0965264999999995
+          ]
+        },
+        "nominal_candidate_change_percent": -8.134386429665675,
+        "control_drift_percent": 31.63184706616107,
+        "paired_changes_percent": [
+          4.269229184145851,
+          -17.55734591117869
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.735247171404484,
+            4.5160652011844755
+          ],
+          "candidate": [
+            4.5809545599532475,
+            4.499250060423106
+          ]
+        },
+        "median": {
+          "control": 4.62565618629448,
+          "candidate": 4.540102310188177
+        },
+        "range": {
+          "control": [
+            4.5160652011844755,
+            4.735247171404484
+          ],
+          "candidate": [
+            4.499250060423106,
+            4.5809545599532475
+          ]
+        },
+        "nominal_candidate_change_percent": -1.849551126601101,
+        "control_drift_percent": -4.628733459651658,
+        "paired_changes_percent": [
+          -3.2583855893096425,
+          -0.3723405223857168
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            18.372852958,
+            19.264558
+          ],
+          "candidate": [
+            18.991674958,
+            19.336555833
+          ]
+        },
+        "median": {
+          "control": 18.818705479000002,
+          "candidate": 19.164115395499998
+        },
+        "range": {
+          "control": [
+            18.372852958,
+            19.264558
+          ],
+          "candidate": [
+            18.991674958,
+            19.336555833
+          ]
+        },
+        "nominal_candidate_change_percent": 1.8354605575045646,
+        "control_drift_percent": 4.853383652709908,
+        "paired_changes_percent": [
+          3.368132327704454,
+          0.3737320783586018
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            18.374079833,
+            19.266281375
+          ],
+          "candidate": [
+            18.993276792,
+            19.337763167
+          ]
+        },
+        "median": {
+          "control": 18.820180604,
+          "candidate": 19.165519979499997
+        },
+        "range": {
+          "control": [
+            18.374079833,
+            19.266281375
+          ],
+          "candidate": [
+            18.993276792,
+            19.337763167
+          ]
+        },
+        "nominal_candidate_change_percent": 1.8349418784355365,
+        "control_drift_percent": 4.8557617584614965,
+        "paired_changes_percent": [
+          3.369948125989519,
+          0.3710201808469149
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            18.374085333,
+            19.266292125
+          ],
+          "candidate": [
+            18.993288167,
+            19.337774417
+          ]
+        },
+        "median": {
+          "control": 18.820188729,
+          "candidate": 19.165531291999997
+        },
+        "range": {
+          "control": [
+            18.374085333,
+            19.266292125
+          ],
+          "candidate": [
+            18.993288167,
+            19.337774417
+          ]
+        },
+        "nominal_candidate_change_percent": 1.8349580228590234,
+        "control_drift_percent": 4.855788877814726,
+        "paired_changes_percent": [
+          3.3699790916280614,
+          0.37102256903518427
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            24.913425583,
+            27.874145084
+          ],
+          "candidate": [
+            25.811804584,
+            26.434333417
+          ]
+        },
+        "median": {
+          "control": 26.3937853335,
+          "candidate": 26.123069000500003
+        },
+        "range": {
+          "control": [
+            24.913425583,
+            27.874145084
+          ],
+          "candidate": [
+            25.811804584,
+            26.434333417
+          ]
+        },
+        "nominal_candidate_change_percent": -1.0256821050082299,
+        "control_drift_percent": 11.884032130131006,
+        "paired_changes_percent": [
+          3.606003510063349,
+          -5.165402069412561
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          7242028888,
+          7217928024
+        ],
+        "candidate": [
+          7201167168,
+          7191795544
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          7270438768,
+          7270455128
+        ],
+        "candidate": [
+          7263131456,
+          7257855832
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          2586017792,
+          3182362624
+        ],
+        "candidate": [
+          1985773568,
+          2366816256
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          1077608,
+          1199054
+        ],
+        "candidate": [
+          1040939,
+          1090977
+        ]
+      }
+    },
+    "HOLD": {
+      "decode_tps": {
+        "samples": {
+          "control": [
+            4.766512298937506,
+            4.603777897269742
+          ],
+          "candidate": [
+            4.411624645171072,
+            4.457817417361324
+          ]
+        },
+        "median": {
+          "control": 4.685145098103624,
+          "candidate": 4.434721031266198
+        },
+        "range": {
+          "control": [
+            4.603777897269742,
+            4.766512298937506
+          ],
+          "candidate": [
+            4.411624645171072,
+            4.457817417361324
+          ]
+        },
+        "nominal_candidate_change_percent": -5.34506534149366,
+        "control_drift_percent": -3.4141189922879067,
+        "paired_changes_percent": [
+          -7.445436652823534,
+          -3.170450077424014
+        ]
+      },
+      "decode_seconds": {
+        "samples": {
+          "control": [
+            6.503707125000002,
+            6.7336002499999985
+          ],
+          "candidate": [
+            7.026889750000002,
+            6.954075749999998
+          ]
+        },
+        "median": {
+          "control": 6.6186536875,
+          "candidate": 6.99048275
+        },
+        "range": {
+          "control": [
+            6.503707125000002,
+            6.7336002499999985
+          ],
+          "candidate": [
+            6.954075749999998,
+            7.026889750000002
+          ]
+        },
+        "nominal_candidate_change_percent": 5.617895724053934,
+        "control_drift_percent": 3.5348013153343905,
+        "paired_changes_percent": [
+          8.044375537590032,
+          3.2742588186757793
+        ]
+      },
+      "prefill_tps": {
+        "samples": {
+          "control": [
+            4.7691957529991935,
+            4.365449844988658
+          ],
+          "candidate": [
+            4.573019195868109,
+            4.481421995440137
+          ]
+        },
+        "median": {
+          "control": 4.567322798993926,
+          "candidate": 4.527220595654123
+        },
+        "range": {
+          "control": [
+            4.365449844988658,
+            4.7691957529991935
+          ],
+          "candidate": [
+            4.481421995440137,
+            4.573019195868109
+          ]
+        },
+        "nominal_candidate_change_percent": -0.8780242847875042,
+        "control_drift_percent": -8.465702162815047,
+        "paired_changes_percent": [
+          -4.113409624834874,
+          2.6565910632236456
+        ]
+      },
+      "prefill_seconds": {
+        "samples": {
+          "control": [
+            17.193674625,
+            18.783860292
+          ],
+          "candidate": [
+            17.931260834,
+            18.297763541
+          ]
+        },
+        "median": {
+          "control": 17.9887674585,
+          "candidate": 18.114512187499997
+        },
+        "range": {
+          "control": [
+            17.193674625,
+            18.783860292
+          ],
+          "candidate": [
+            17.931260834,
+            18.297763541
+          ]
+        },
+        "nominal_candidate_change_percent": 0.6990180360610498,
+        "control_drift_percent": 9.248666743337308,
+        "paired_changes_percent": [
+          4.289869531016555,
+          -2.587842666222495
+        ]
+      },
+      "ttft_seconds": {
+        "samples": {
+          "control": [
+            17.194658,
+            18.784917166
+          ],
+          "candidate": [
+            17.932544166,
+            18.299123708
+          ]
+        },
+        "median": {
+          "control": 17.989787583000002,
+          "candidate": 18.115833936999998
+        },
+        "range": {
+          "control": [
+            17.194658,
+            18.784917166
+          ],
+          "candidate": [
+            17.932544166,
+            18.299123708
+          ]
+        },
+        "nominal_candidate_change_percent": 0.7006550434153436,
+        "control_drift_percent": 9.248565257884156,
+        "paired_changes_percent": [
+          4.29136866810611,
+          -2.5860825134713328
+        ]
+      },
+      "end_to_end_ttft_seconds": {
+        "samples": {
+          "control": [
+            17.194662375,
+            18.784930041
+          ],
+          "candidate": [
+            17.932549833,
+            18.299144792
+          ]
+        },
+        "median": {
+          "control": 17.989796208,
+          "candidate": 18.1158473125
+        },
+        "range": {
+          "control": [
+            17.194662375,
+            18.784930041
+          ],
+          "candidate": [
+            17.932549833,
+            18.299144792
+          ]
+        },
+        "nominal_candidate_change_percent": 0.7006811141303748,
+        "control_drift_percent": 9.24861233862988,
+        "paired_changes_percent": [
+          4.291375090172411,
+          -2.5860370410734745
+        ]
+      },
+      "elapsed_seconds": {
+        "samples": {
+          "control": [
+            23.698387917,
+            25.518541208
+          ],
+          "candidate": [
+            24.959471667,
+            25.253232417
+          ]
+        },
+        "median": {
+          "control": 24.6084645625,
+          "candidate": 25.106352041999997
+        },
+        "range": {
+          "control": [
+            23.698387917,
+            25.518541208
+          ],
+          "candidate": [
+            24.959471667,
+            25.253232417
+          ]
+        },
+        "nominal_candidate_change_percent": 2.023236672225015,
+        "control_drift_percent": 7.680494122109938,
+        "paired_changes_percent": [
+          5.321390444011431,
+          -1.0396706803789568
+        ]
+      },
+      "native_metal_allocated_bytes": {
+        "control": [
+          6608617472,
+          6608617472
+        ],
+        "candidate": [
+          6608617472,
+          6608617472
+        ]
+      },
+      "process_footprint_bytes": {
+        "control": [
+          7229495128,
+          7236769624
+        ],
+        "candidate": [
+          7203723072,
+          7230625624
+        ]
+      },
+      "process_lifetime_peak_bytes": {
+        "control": [
+          7270799216,
+          7271831384
+        ],
+        "candidate": [
+          7263131456,
+          7258019672
+        ]
+      },
+      "process_compressed_logical_bytes": {
+        "control": [
+          2619523072,
+          3122200576
+        ],
+        "candidate": [
+          2164867072,
+          2614247424
+        ]
+      },
+      "process_decompressions": {
+        "control": [
+          1433122,
+          1570378
+        ],
+        "candidate": [
+          1347521,
+          1424615
+        ]
+      }
+    }
+  },
+  "limits": [
+    "Two measurements/kind/prompt, no sustained/statistical guarantee.",
+    "Large late MAIN control drift has no diagnosed cause; no causal attribution to GPU/thermal/SSD/compression.",
+    "Host/process/Metal memory retained separately.",
+    "NT2 prior separate experiment had stablecontrols; no addition of gains."
+  ]
+}
