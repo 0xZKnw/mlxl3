@@ -616,6 +616,9 @@ mod tests {
                 ensure!(finite(&model.prefill(&prompt[..prefix])?));
             }
             let saved = model.snapshot();
+            // Give both restored branches the same QSA copy-on-write cost.
+            ensure!(finite(&model.forward(11)?));
+            model.restore(&saved)?;
             let commands = gpu.helper_commands.get();
             let pairs = gpu.hc_chain_pairs.get();
             let expected = model.forward(11)?;

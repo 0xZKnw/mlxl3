@@ -24091,3 +24091,55 @@ Kani parser normal/mutant : std UTF8 rend le CBMC long, arrêt pratique après 1
 **AR-HC-CHAIN-01 — CPU complété, physique encore en attente.** Variante maintenue correcte `direct-metal + mlx,chat` : Clippy strict et suite **373 passés / 257 ignorés** passent. Les quatre Clippy (CPU/direct chat/direct sans chat/compat), format, Ruff et inventaire 244 fichiers / 4 tests passent. Les deux nouveaux appels `.finish` inventoriés sont ReadBuffers natifs, sans MLX. Mutation déterministe de la vraie source dans copie jetable acceptant `1 ` : régresseur exact échoue (Some(true) au lieu de None) ; original inchangé repasse, 1 sélection / 0 ignoré. Les premiers essais ratés restent conservés.
 
 Sélection Kani corrigée dans copie jetable : même corps du test HC, visibilité cfg(kani) et wrapper proof explicite, sans stub Metal/FS. Le compilateur atteint le chemin puis reproduit **ICE intrinsics.rs243** après 15,78 s, avant obligations. Cette tentative ne prouve pas le GPU/ownership/concurrence ; l'ancien échec de sélection n'est pas rebaptisé preuve. Parser normal/mutant interrompus restent sans verdict. Sources et binaires natifs inchangés depuis leur gel ; [reçu CPU final](docs/measurements/issue75-native-ar-hc-chain-20261103/cpu-final.json). Tous processus CPU joints ; aucun physique HC ni vitesse lancé, défaut OFF. Root privilégie le profil réel des kernels avant de choisir une nouvelle campagne longue.
+
+- I75-AR-HC-CURRENT CPU première passe:fmt/inventaire246/ClippyCPU+direct passent; Clippycompat interrompu build.rs108 faute MLXL3_MLX_ROOT dans nouveaucheckout. Pasdéfautdecode, diagnosticpréservé build/hc-current/clippy-stock.log; reprise avec MLX0.32.2 installé explicitement identifié. AucunGPUlancé.
+
+I75-AR-HC-CURRENT Kani actuel clos : commande réelle cargo kani --lib --no-default-features -Z stubbing --harness flash_support::hc_chain_flag_defaults_off_and_accepts_only_exact_literals --output-format terse ; compilation9.97s réussie, arrivée au harness, arrêt borné90.007s/tous enfants joints, aucun verdict CBMC. Ce contexte ne reproduit pas l’ancien ICE ; anciens ICE15.78s et interruptions187/97s conservés, aucune propriété GPU/concurrence prouvée. Reçu actuel et artéfacts figés dans docs/measurements/issue75-native-ar-hc-current-20261104/source-receipt.json ; physique et vitesse non exécutés, sourcef026dcd3/NT2défaut1/HCdéfaut0.
+
+I75-AR-HC-CURRENT physique préenregistré, NON LANCÉ : artéfacts currentf026 figés CLI1e282c47/lib7bde8343. Plan docs/measurements/issue75-native-ar-hc-current-20261104/physical-plan.json : HCcomposant4cas51216mots/2->1commandes ;6writesindépendants61440mots (fixture locale726e7e2a retrouvée/tousfichiersprésents) ;ARpréfixes0/2/9/86409216mots/48commandesréelleséconomisées ;oraclearchivé84états+496640logits avec lookahead1 requis ;réelARgolden/rejet/annulations/reprise ;ancienfixturebudgetfce0d5/sourcecb93fonctionbyteidentique qui invoqueexplicitementleCLIactuel. Unephase/modèleàlafois,délais180/240/360s+nettoyagepropriétaire,dyldMetal/noMLX,aucunMTP/DFlashinférence. Tousstatutsnot_run/parityfalse ; attentecréneauGPUrootaprèsstaticK.
+
+I75-AR-HC-CURRENT 2026-11-04T09:55:03.069051+00:00 phase hc-component lancée, artéfacts/hash+manifest indépendants vérifiés ; borne180s, exclusifGPUroot, aucunevitesse. Rapport physical-result.json.
+
+I75-AR-HC-CURRENT phase hc-component résultat=validated, parity=True, joint=True, durée1.48s ; preuves hc-component.stdout/stderr.log et physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT 2026-11-04T09:55:04.554692+00:00 phase hc-independent-writes lancée, artéfacts/hash+manifest indépendants vérifiés ; borne180s, exclusifGPUroot, aucunevitesse. Rapport physical-result.json.
+
+I75-AR-HC-CURRENT phase hc-independent-writes résultat=validated, parity=True, joint=True, durée0.77s ; preuves hc-independent-writes.stdout/stderr.log et physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT 2026-11-04T09:55:05.336269+00:00 phase hc-full-ar lancée, artéfacts/hash+manifest indépendants vérifiés ; borne180s, exclusifGPUroot, aucunevitesse. Rapport physical-result.json.
+
+I75-AR-HC-CURRENT phase hc-full-ar résultat=failed_or_interrupted, parity=False, joint=True, durée3.89s ; preuves hc-full-ar.stdout/stderr.log et physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT campagnequalité outcome=failed_or_interrupted, 3/6phases exécutées, all_owned_children_joined=True, vitesse non mesurée. Voir physical-result.json ; champsparitéfinaux fermés seulement après toutesphases.
+
+I75-AR-HC-CURRENT échec physique inspecté : composant1.48s et6writesindépendants0.77s validés ; ARprefix0 exact28803072mots/48pairs/242->194commandes. Prefix2 échoue surcompteurglobalhelper242->206 (36enmoins,48attendues), avantcomparaisonsnumériquesprefix2 ; autres3phasesnonlancées. TousPGIDspossédésvérifiésvides aprèsretour ; pasdequalitéARglobale/gainannoncé. Préenregistrement auditadaptation sourceavantreprise : tracerhelpercommandsnonHCautourrestore/snapshot etQSAKV/COWactuel, déterminer si assertioncompte économiesHC oucopiessupplémentaireslégitimes. Ne pas affaiblirl'oracle48pairs/valeurs pourmasquerunvraidéfaut. AucunGPU/build/proofavantcoordinationCPUroot.
+
+I75-AR-HC-CURRENT auditadaptation source clos (runtime recheck pending) : snapshotQSA partage Rc<Slab>/Cellpublished ; contrôleprefix2 faitoffset2->4,puisrestaureoffset2sansrembobinerpublished4. qsa_append(2,4) imposefork etunecommandeGPUdecopie pourchacune12QSA, absentecontrôlenonrestauré. Prédiction242-(194+12)=36coïncideéchec ; offset0necopiepasdonc48observé. Pluspetitcorrectifproposé TESTSEULEMENT : primerforward11puisrestore(saved)avantcompteurscontrôle, pourmêmeCOWdesdeuxcôtés, conserverassertions48etnumériquestoutes. Aucuneditexécutable/build/proof/GPUlancé ; qualitéfullARrestefailedjusqu'àrecontrôleprefix2/9. Rapport failure-adaptation-audit.json.
+
+I75-AR-HC-CURRENT-FIXTURE-02 préenregistré avant editexécutable, autorisationrootpendantABBAstaticK (sourceuniquement) : corrigerasymétrieCOWduharnessphysique, paslemoteur. Après saved snapshot, effectuerunforward11finipuisrestore(saved)avantcompteurscontrôle ; lesdeuxbranchesmesuréesforkentlemêmeslabdéjàpublié. Garderexact48jointpairs/48commandeséconomisées etchaquelogit/hidden/84états,prefix0/2/9,rollback. Ancienéchecphysical-result.json gardeparityfalseet3phasesnonlancées. ProchaincréneauCPU : format/Clippy/testssuitesaffectées/buildlibtestprivé/inventaire ; tentativedevérificationsourceKani survraicorpsGPUdanscopiejetable/sansstub, bornéeetaucunverdictinventé. AucunCPU/proof/GPUavantgrantroot. Aprèsnouveaugel, recontrôlerlaqualitéphysiquecomplète jusqu'auxprefix2/9/indépendants/bridge/budget avanttouttiming.
+
+I75-AR-HC-CURRENT-FIXTURE-02 CPUcréneaurootaccordé aprèsABBAstaticK/alljoined : lancerformat/inventaire/Clippystrictdirect+fullsuite directe pertinente puislibtestreleaseactualisé ; cibleCargoprivée conservée,CLIproduction1e282byteinchangé. TentativeKani vraicorpsfixture corrigé danscopiejetable/sansstub,hard45s(parentspec), pasderelanceduflag90s inchangé. MatricesCPU/nochat/compatanciencurrentconservéescarseul#[cfg(test)]directphysiquechange. AucunGPUavantnouveaugrant.
+
+I75-AR-HC-CURRENT-FIXTURE-02 Kani vraicorpscorrigé terminé9.88s/exit1/tousenfantsjoints : wrapperproof explicite appelsamefixturephysique (préfixesfixes0/2/9),visibilitétest/compteurscfgkaniuniquementdanscopiejetable,sansstubMetal/FS. CompilateuratteintcheminpuisICEintrinsics.rs243:17avantobligations ; aucunepropriétéGPU/sourcefixtureprouvée, pasdeverdictsymbolique. Commande+sourceSHA+diagnostic fixture-fix-kani.json, logbrut build/hc-current/fixture-fix-kani/kani.log ; flag90stimeoutnonrelancé.
+
+I75-AR-HC-CURRENT-FIXTURE-02 CPU clos : fmt/inventaire246/Clippystrictdirect passent, fullsuite directe341passés/41ignorés31.32s ; libtestreleasefresh52.91s, SHA2e9c7341e034fc76c8245c64b01f86691a7ab87c4c35624b81af848d395f0c2c figé build/hc-current/frozen-fixture-02/native-libtest. CLI1e282 etHC/shaders/gpu.runtime hashinchangés, phases1/2passéesconservées. Reprisepréenregistrée physical-resume-plan.json : seulementfullARcorrigé+3phasesnonlancées, nouveauxlogsquality-02 ; ancienmasterfailed/parityfalse intact. KaniICE9.88snonvérifié conservé. TousCPU/proofs joints, aucunGPUlancé ; attendgrantroot.
+
+I75-AR-HC-CURRENT-FIXTURE-02 2026-11-04T10:20:53.743108+00:00 phase hc-full-ar lancée, artéfacts2e9/1e282hashvérifiés, exclusifGPUroot ; borne180s,aucunevitesse. Anciennecampagnefailedconservée ; logsquality-02.
+
+I75-AR-HC-CURRENT-FIXTURE-02 phase hc-full-ar résultat=validated, parity=True, joint=True, groupevide=True, durée8.66s ;preuvesquality-02/hc-full-ar.stdout/stderr.log+physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT-FIXTURE-02 2026-11-04T10:21:02.417644+00:00 phase target-independent-states lancée, artéfacts2e9/1e282hashvérifiés, exclusifGPUroot ; borne180s,aucunevitesse. Anciennecampagnefailedconservée ; logsquality-02.
+
+I75-AR-HC-CURRENT-FIXTURE-02 phase target-independent-states résultat=validated, parity=True, joint=True, groupevide=True, durée3.28s ;preuvesquality-02/target-independent-states.stdout/stderr.log+physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT-FIXTURE-02 2026-11-04T10:21:05.704239+00:00 phase production-ar-bridge lancée, artéfacts2e9/1e282hashvérifiés, exclusifGPUroot ; borne240s,aucunevitesse. Anciennecampagnefailedconservée ; logsquality-02.
+
+I75-AR-HC-CURRENT-FIXTURE-02 phase production-ar-bridge résultat=validated, parity=True, joint=True, groupevide=True, durée61.01s ;preuvesquality-02/production-ar-bridge.stdout/stderr.log+physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT-FIXTURE-02 2026-11-04T10:22:06.721682+00:00 phase production-ar-budget lancée, artéfacts2e9/1e282hashvérifiés, exclusifGPUroot ; borne360s,aucunevitesse. Anciennecampagnefailedconservée ; logsquality-02.
+
+I75-AR-HC-CURRENT-FIXTURE-02 phase production-ar-budget résultat=validated, parity=True, joint=True, groupevide=True, durée25.77s ;preuvesquality-02/production-ar-budget.stdout/stderr.log+physical-result.json. Aucun gain de vitesse inféré.
+
+I75-AR-HC-CURRENT-FIXTURE-02 outcome=validated, 4/4phases exécutées +2oraclesinchangésréutilisés, allchildrenjoined/groupesvides=True, vitesse non mesurée. Voir quality-02/physical-result.json ; ancienéchecconservé.
+
+I75-AR-HC-CURRENT-FIXTURE-02 clôturequalité VALIDÉE :4/4phasescorrigées98.76s +2oraclesHCinchangésréutilisés ; fullAR8.66s confirme242->194prefix0et254->206prefix2/9,48pairs+86409216motsF32finis/84états×3/logits/hidden exacts,rollback/reprise. Oracleindépendant84états28803072mots+496640logits3.28s ; réelARbridge61.01s4completionsgolden/rejet/context+deltaannulations/reprise ;budget25.77s2goldens/memorysaver/ledger/rejetsavantdraft. Dyldnatif/noMLXpartout, tousprocessus/PGIDsvidesvérifiés10:22:41UTC,secteur100%auxbornes. Résumé quality-summary.json, brutsquality-02 ; ancienéchecfailed/parityfalse conservé. IntégrationlocaleflagHCdéfaut0, vitesseNONMESURÉE ; handbackGPUroot pourABBAHC, cetagentmetadataonly.

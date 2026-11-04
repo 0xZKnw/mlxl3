@@ -1,0 +1,95 @@
+{
+  "status": "correctness_validated_performance_not_measured",
+  "time_utc": "2026-11-04T10:23:50.216023+00:00",
+  "production_source": "f026dcd3710de58f129e4c2a6e3a1ca5187d6eef",
+  "test_only_correction": "3lines primer/restore in ignored fullAR fixture; exact48command/48pair/allnumerical assertions unchanged",
+  "changed_test_source_sha256": "c704fbdb73a6ddebdfa78d4cbf8eb67cc44f6635a463681e7cdbdd6bd262f216",
+  "production_CLI_sha256": "1e282c471a8e525191d69d5e2b1c7b11b21923dd3d747654d5c0d5f99a8608c4",
+  "corrected_libtest_sha256": "2e9c7341e034fc76c8245c64b01f86691a7ab87c4c35624b81af848d395f0c2c",
+  "runtime_flags": {
+    "MLXL3_NATIVE_AR_HC_CHAIN": "1",
+    "MLXL3_NATIVE_FLASH_NT2": "1",
+    "MLXL3_SSD_DYNAMIC_READERS": "0",
+    "MLXL3_SSD_LOOKAHEAD_DEPTH": "0 except independentstatefixture1",
+    "MLXL3_SSD_CACHE_GIB": "3 except budgetfixture0.6",
+    "MLXL3_SSD_READERS": "4"
+  },
+  "quality": {
+    "reused_unchanged_HC_component": {
+      "seconds": 1.4791821249818895,
+      "cases": 4,
+      "finite_F32_words_exact": 51216,
+      "helper_commands": "2->1",
+      "boundaries": "strided/F16-F32branch/invalid/recovery/foreignMetal"
+    },
+    "reused_unchanged_independent_HC_writes": {
+      "seconds": 0.7747794169990811,
+      "cases": 6,
+      "finite_F32_output_words_exact": 61440,
+      "manifest_sha256": "726e7e2a4c677d838a34a5faf655350b591be1f2e8154b3da964a19b65af789e"
+    },
+    "corrected_full_AR": {
+      "seconds": 8.663537957996596,
+      "prefixes": [
+        0,
+        2,
+        9
+      ],
+      "actual_helper_commands": [
+        "242->194",
+        "254->206",
+        "254->206"
+      ],
+      "actual_joint_pairs_per_forward": 48,
+      "finite_F32_states_exact": 86409216,
+      "state_tensors_per_prefix": 84,
+      "finite_logits_per_comparison": 248320,
+      "hidden_exact": true,
+      "late_IO_rollback_invalid_token_empty_prefill_recovery": "passed"
+    },
+    "independent_full_state": {
+      "seconds": 3.279565458011348,
+      "finite_F32_state_words_exact": 28803072,
+      "state_tensors": 84,
+      "half_logits_checked": 496640,
+      "reset_prefill_continuation_and_prefetch_drain": "passed"
+    },
+    "production_AR_bridge": {
+      "seconds": 61.005118500004755,
+      "report": "quality-02/ar-bridge.json",
+      "golden": "9f850af1cbba074b",
+      "completed": 4,
+      "rejected": 1,
+      "cancelled": [
+        "context_usage",
+        "delta"
+      ],
+      "exact_recovery": "passed"
+    },
+    "production_AR_budget": {
+      "seconds": 25.772059957991587,
+      "fixture_source_body": "byte-identicalcb93, explicitlycallsfreshCLI1e282",
+      "golden_completions": 2,
+      "request_budget_MiB": 8192,
+      "memory_saver_cleanup_readers_ledger_rejection_recovery": "passed",
+      "speculative_requests": "rejected before loading, no MTP/DFlash generation"
+    }
+  },
+  "all6selectedtests_or_phases_passed": true,
+  "ignored_within_selected_Rust_tests": 0,
+  "native_loaded_image_audits_no_MLX": true,
+  "all_owned_process_groups_empty": true,
+  "initial_failure_preserved": {
+    "report": "physical-result.json",
+    "status": "failed_or_interrupted/parityfalse",
+    "cause": "test compared ordinary control append against restored candidate QSA COW path;12extra legitimate prefix-copy helpercommands. Primer/restore makes both measured paths fork symmetrically.",
+    "fixed_recheck": "quality-02/physical-result.json fullARpreservesstrongassertionsandconfirms254->206atprefix2/9"
+  },
+  "verification_limits": [
+    "Kani actual corrected body reached compiler ICEintrinsics.rs243:17 after9.88s, before obligations; noGPU/queue/lifetime/concurrency proof.",
+    "Currentflag Kani90stimeout and historical187/97interruptions/oldICE preserved.",
+    "These are correctness replays, not throughput measurements.",
+    "Component/independentwrite results reused only because productionHC/gpu/shaders hashes unchanged;initialfailedcampaign never relabeled successful."
+  ],
+  "integration": "Local qualifieddefault-offHCcandidate;noappreplacement/mainmerge/release;speed left to root."
+}
