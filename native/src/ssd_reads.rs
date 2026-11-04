@@ -9,7 +9,7 @@ use std::{
     fs::File,
     os::unix::fs::FileExt,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
         mpsc::{self, Receiver, Sender, SyncSender},
     },
@@ -61,6 +61,10 @@ pub(crate) fn extra_wave(enabled: bool, remaining: usize, extra_used: bool) -> b
 
 pub(crate) fn ready_minimum_valid(minimum: usize, remaining: usize) -> bool {
     minimum <= remaining && (minimum > 0 || remaining == 0)
+}
+
+pub(crate) fn common_queue_flag(value: Option<&str>) -> Option<bool> {
+    crate::flash_support::hc_chain_flag(value, false)
 }
 
 #[cfg(test)]
@@ -185,8 +189,14 @@ impl Read {
 
 pub(crate) struct ReadService {
     next: Cell<usize>,
-    workers: Vec<(SyncSender<Read>, JoinHandle<()>)>,
+    senders: Vec<SyncSender<Read>>,
+    workers: Vec<JoinHandle<()>>,
+    dynamic: bool,
     active: Arc<AtomicUsize>,
+    #[cfg(test)]
+    pub(crate) dynamic_submissions: Cell<usize>,
+    #[cfg(test)]
+    held_first: std::cell::RefCell<Option<Arc<TestReadGate>>>,
     #[cfg(test)]
     gate: std::cell::RefCell<Option<Arc<std::sync::Barrier>>>,
     #[cfg(test)]
@@ -194,26 +204,67 @@ pub(crate) struct ReadService {
 }
 impl ReadService {
     pub(crate) fn new(readers: usize) -> Result<Self> {
+        let dynamic = match std::env::var("MLXL3_SSD_DYNAMIC_READERS") {
+            Ok(value) => common_queue_flag(Some(&value)),
+            Err(std::env::VarError::NotPresent) => common_queue_flag(None),
+            Err(error) => return Err(error.into()),
+        }
+        .context("MLXL3_SSD_DYNAMIC_READERS must be 0 or 1")?;
+        Self::new_with_schedule(readers, dynamic)
+    }
+    fn new_with_schedule(readers: usize, dynamic: bool) -> Result<Self> {
         ensure!((1..=4).contains(&readers), "SSD readers must be in 1..=4");
         let mut service = Self {
             next: Cell::new(0),
+            senders: Vec::new(),
             workers: Vec::new(),
+            dynamic,
             active: Arc::new(AtomicUsize::new(0)),
+            #[cfg(test)]
+            dynamic_submissions: Cell::new(0),
+            #[cfg(test)]
+            held_first: std::cell::RefCell::new(None),
             #[cfg(test)]
             gate: std::cell::RefCell::new(None),
             #[cfg(test)]
             wave_gates: std::cell::RefCell::new(None),
         };
-        for index in 0..readers {
+        if dynamic {
             let (sender, receiver) = mpsc::sync_channel::<Read>(10);
-            let thread = std::thread::Builder::new()
-                .name(format!("native-ssd-{index}"))
-                .spawn(move || {
-                    while let Ok(read) = receiver.recv() {
-                        read.run();
-                    }
-                })?;
-            service.workers.push((sender, thread));
+            service.senders.push(sender);
+            let receiver = Arc::new(Mutex::new(receiver));
+            for index in 0..readers {
+                let receiver = Arc::clone(&receiver);
+                service.workers.push(
+                    std::thread::Builder::new()
+                        .name(format!("native-ssd-{index}"))
+                        .spawn(move || {
+                            loop {
+                                let next = {
+                                    let queue = receiver.lock().unwrap_or_else(|e| e.into_inner());
+                                    queue.recv()
+                                };
+                                let Ok(read) = next else { break };
+                                // The queue lock never covers IO or destination ownership.
+                                read.run();
+                            }
+                        })?,
+                );
+            }
+        } else {
+            for index in 0..readers {
+                let (sender, receiver) = mpsc::sync_channel::<Read>(10);
+                service.senders.push(sender);
+                service.workers.push(
+                    std::thread::Builder::new()
+                        .name(format!("native-ssd-{index}"))
+                        .spawn(move || {
+                            while let Ok(read) = receiver.recv() {
+                                read.run();
+                            }
+                        })?,
+                );
+            }
         }
         Ok(service)
     }
@@ -383,20 +434,32 @@ impl ReadService {
                     .then(|| self.gate.borrow().clone())
                     .flatten(),
                 #[cfg(test)]
-                wave_gate: self.wave_gates.borrow().as_ref().and_then(|gates| {
-                    match batch.remaining {
-                        0 => None,
-                        1 | 2 => Some(gates[0].clone()),
-                        _ => Some(gates[1].clone()),
-                    }
-                }),
+                wave_gate: self
+                    .held_first
+                    .borrow()
+                    .clone()
+                    .filter(|_| batch.remaining == 0)
+                    .or_else(|| {
+                        self.wave_gates
+                            .borrow()
+                            .as_ref()
+                            .and_then(|gates| match batch.remaining {
+                                0 => None,
+                                1 | 2 => Some(gates[0].clone()),
+                                _ => Some(gates[1].clone()),
+                            })
+                    }),
             };
             let worker = self.next.get();
             self.next.set((worker + 1) % self.workers.len());
-            self.workers[worker]
-                .0
+            self.senders[if self.dynamic { 0 } else { worker }]
                 .try_send(read)
                 .map_err(|_| anyhow::anyhow!("native SSD reader unavailable"))?;
+            #[cfg(test)]
+            if self.dynamic {
+                self.dynamic_submissions
+                    .set(self.dynamic_submissions.get() + 1);
+            }
             batch.remaining += 1;
         }
         Ok(batch)
@@ -404,9 +467,10 @@ impl ReadService {
 }
 impl Drop for ReadService {
     fn drop(&mut self) {
+        // Disconnect the common queue before joining any idle receiver.
+        self.senders.clear();
         let workers = std::mem::take(&mut self.workers);
-        for (sender, thread) in workers {
-            drop(sender);
+        for thread in workers {
             if self.active.load(Ordering::Acquire) == 0 {
                 let _ = thread.join();
             }
@@ -501,37 +565,39 @@ mod tests {
     }
     #[test]
     fn reads_distinct_owned_ranges_and_drains_eof_before_reuse() -> Result<()> {
-        let pool = ReadService::new(4)?;
-        let mut file = tempfile::tempfile()?;
-        file.write_all(b"0123456789abcdef")?;
-        let token = lease()?;
-        let mut batch = pool.start(
-            vec![
-                (token, file.try_clone()?, 2, 5),
-                (token, file.try_clone()?, 9, 7),
-            ],
-            Duration::from_secs(2),
-        )?;
-        let mut words = batch
-            .ready(true)?
-            .into_iter()
-            .map(|(_, v)| v.legacy_bytes().to_vec())
-            .collect::<Vec<_>>();
-        words.sort();
-        assert_eq!(words, vec![b"23456".to_vec(), b"9abcdef".to_vec()]);
-        assert_eq!(batch.remaining(), 0);
-        let mut broken = pool.start(
-            vec![
-                (token, file.try_clone()?, 20, 1),
-                (token, file.try_clone()?, 0, 4),
-            ],
-            Duration::from_secs(2),
-        )?;
-        assert!(broken.ready(true).is_err());
-        drop(broken);
-        assert_eq!(pool.in_flight(), 0);
-        let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
-        assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"0123456789abcdef");
+        for dynamic in [false, true] {
+            let pool = ReadService::new_with_schedule(4, dynamic)?;
+            let mut file = tempfile::tempfile()?;
+            file.write_all(b"0123456789abcdef")?;
+            let token = lease()?;
+            let mut batch = pool.start(
+                vec![
+                    (token, file.try_clone()?, 2, 5),
+                    (token, file.try_clone()?, 9, 7),
+                ],
+                Duration::from_secs(2),
+            )?;
+            let mut words = batch
+                .ready(true)?
+                .into_iter()
+                .map(|(_, v)| v.legacy_bytes().to_vec())
+                .collect::<Vec<_>>();
+            words.sort();
+            assert_eq!(words, vec![b"23456".to_vec(), b"9abcdef".to_vec()]);
+            assert_eq!(batch.remaining(), 0);
+            let mut broken = pool.start(
+                vec![
+                    (token, file.try_clone()?, 20, 1),
+                    (token, file.try_clone()?, 0, 4),
+                ],
+                Duration::from_secs(2),
+            )?;
+            assert!(broken.ready(true).is_err());
+            drop(broken);
+            assert_eq!(pool.in_flight(), 0);
+            let mut retry = pool.start(vec![(token, file, 0, 16)], Duration::from_secs(2))?;
+            assert_eq!(retry.ready(true)?[0].1.legacy_bytes(), b"0123456789abcdef");
+        }
         Ok(())
     }
     #[test]
@@ -705,3 +771,7 @@ mod direct_tests;
 #[cfg(any(test, kani))]
 #[path = "ssd_reads/wave_tests.rs"]
 mod wave_tests;
+
+#[cfg(any(test, kani))]
+#[path = "ssd_reads/common_queue_tests.rs"]
+mod common_queue_tests;
