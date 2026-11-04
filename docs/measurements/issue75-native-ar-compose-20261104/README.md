@@ -150,3 +150,8 @@ hashes agree per prompt, every child/reader is joined, and native Metal allocati
 is 6,608,617,472 bytes in all eight measurements. Process footprint and compression
 remain separate raw metrics. AC is 100%; temperature is unmeasured. Sustained,
 long-context, speculative-mode and installed-app performance remain unqualified.
+
+
+Published as [PR118](https://github.com/0xZKnw/mlxl3/pull/118), stacked on PR117.
+[Publication receipt](publication.json) records the exact source, base and CI
+snapshot; queued or running workflows do not constitute a globally green CI.
