@@ -3644,3 +3644,43 @@ fn hc_kernel_flags_are_off_by_default_and_require_exact_m5_literals() {
         kani::cover!(value == "é" && result.is_none());
     }
 }
+
+#[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
+pub(crate) fn gdn_private_epilogue_eligible(
+    enabled: bool,
+    trace: bool,
+    private_f32_consumer: bool,
+) -> bool {
+    enabled && !trace && private_f32_consumer
+}
+
+#[test]
+fn gdn_private_epilogue_keeps_public_trace_and_half_stream_fallbacks() {
+    for enabled in [false, true] {
+        for trace in [false, true] {
+            for private_f32_consumer in [false, true] {
+                let actual = gdn_private_epilogue_eligible(enabled, trace, private_f32_consumer);
+                assert_eq!(actual, (enabled, trace, private_f32_consumer) == (true, false, true));
+            }
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn gdn_private_epilogue_requires_every_actual_consumer_guard() {
+    let enabled: bool = kani::any();
+    let trace: bool = kani::any();
+    let private_f32_consumer: bool = kani::any();
+    let actual = gdn_private_epilogue_eligible(enabled, trace, private_f32_consumer);
+    if actual {
+        assert!(enabled && !trace && private_f32_consumer);
+    }
+    if enabled && !trace && private_f32_consumer {
+        assert!(actual);
+    }
+    kani::cover!(actual);
+    kani::cover!(!enabled && !actual);
+    kani::cover!(trace && !actual);
+    kani::cover!(!private_f32_consumer && !actual);
+}

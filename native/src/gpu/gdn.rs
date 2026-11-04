@@ -176,6 +176,16 @@ impl<'a> FlashGdn<'a> {
     }
 
     fn encode(&self, cmd: &CommandBufferRef, x: &MatrixView, trace: bool) -> Result<PendingGdn> {
+        self.encode_for_consumer(cmd, x, trace, false)
+    }
+
+    fn encode_for_consumer(
+        &self,
+        cmd: &CommandBufferRef,
+        x: &MatrixView,
+        trace: bool,
+        private_f32_consumer: bool,
+    ) -> Result<PendingGdn> {
         let gpu = self.gpu;
         ensure!(
             x.shape() == [1, 2560] && x.buffer.device().registry_id() == gpu.device.registry_id(),
@@ -307,15 +317,17 @@ impl<'a> FlashGdn<'a> {
             32,
         );
         let out_half = self.out.encode_row(cmd, &gated, storage)?;
-        let values = MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
-        Metal::encode(
-            cmd,
-            &p.to_float,
-            &[&out_half.buffer, &values.buffer],
-            [2560u32],
-            g(80, 1, 1),
-            32,
-        );
+        let values = if crate::flash_support::gdn_private_epilogue_eligible(
+            gpu.gdn_half_elision.get(), trace, private_f32_consumer,
+        ) {
+            #[cfg(test)]
+            gpu.gdn_half_elisions.set(gpu.gdn_half_elisions.get() + 1);
+            out_half
+        } else {
+            let values = MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
+            Metal::encode(cmd, &p.to_float, &[&out_half.buffer, &values.buffer], [2560u32], g(80, 1, 1), 32);
+            values
+        };
         let steps = trace.then_some([
             ("qkv", qkv),
             ("z", z),
@@ -384,7 +396,7 @@ impl<'a> FlashGdn<'a> {
         let _scope = crate::flash_profile::span("native.hc_gdn.joined");
         let (read, pending) = gpu.command(|cmd| {
             let read = hc.encode_read(cmd, streams, false)?;
-            let pending = self.encode(cmd, read.mixed(), false)?;
+            let pending = self.encode_for_consumer(cmd, read.mixed(), false, streams.dtype == FloatType::F32)?;
             Ok((read, pending))
         })?;
         let read = read.finish(false)?;
@@ -615,7 +627,7 @@ impl<'a> FlashGdnLayer<'a> {
             let encoded = gpu.command(|cmd| {
                 let streams = write.encode(gpu, cmd)?;
                 let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
-                let pending = self.attention.encode(cmd, read.mixed(), false)?;
+                let pending = self.attention.encode_for_consumer(cmd, read.mixed(), false, streams.dtype == FloatType::F32)?;
                 Ok((streams, read, pending))
             });
             #[cfg(test)]
@@ -772,3 +784,7 @@ mod hc_gdn_tests;
 #[cfg(test)]
 #[path = "cross_layer_tests.rs"]
 mod cross_layer_tests;
+
+#[cfg(test)]
+#[path = "gdn_uar_tests.rs"]
+mod gdn_uar_tests;

@@ -210,6 +210,9 @@ pub struct Metal {
     hc_gate_chain: std::cell::Cell<bool>,
     hc_gdn_chain: std::cell::Cell<bool>,
     hc_up_mix: std::cell::Cell<bool>,
+    gdn_half_elision: std::cell::Cell<bool>,
+    #[cfg(test)]
+    gdn_half_elisions: std::cell::Cell<usize>,
     hc_down_inject: std::cell::Cell<bool>,
     #[cfg(test)]
     hc_up_mix_uses: std::cell::Cell<usize>,
@@ -352,6 +355,7 @@ impl Metal {
                     .with_context(|| format!("{name} must be 0 or 1"))
             };
             let hc_up_mix = hc_kernel_setting("MLXL3_NATIVE_HC_UP_MIX")?;
+            let gdn_half_elision = hc_kernel_setting("MLXL3_NATIVE_GDN_HALF_ELISION")?;
             let hc_down_inject = hc_kernel_setting("MLXL3_NATIVE_HC_DOWN_INJECT")?;
             let moe_deferred = hc_kernel_setting("MLXL3_NATIVE_MOE_DEFERRED")?;
             let hc_workspace_enabled = match std::env::var("MLXL3_NATIVE_HC_WORKSPACE") {
@@ -627,6 +631,9 @@ impl Metal {
                 hc_gate_chain: std::cell::Cell::new(hc_gate_chain),
                 hc_gdn_chain: std::cell::Cell::new(hc_gdn_chain),
                 hc_up_mix: std::cell::Cell::new(hc_up_mix),
+                gdn_half_elision: std::cell::Cell::new(gdn_half_elision),
+                #[cfg(test)]
+                gdn_half_elisions: std::cell::Cell::new(0),
                 hc_down_inject: std::cell::Cell::new(hc_down_inject),
                 #[cfg(test)]
                 hc_up_mix_uses: std::cell::Cell::new(0),
