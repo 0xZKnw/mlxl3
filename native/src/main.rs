@@ -1627,7 +1627,7 @@ fn run(cli: Cli) -> Result<()> {
             );
             let gpu = mlxl3_native::gpu::Metal::new()?;
             let c = checkpoint::inspect(&model)?;
-            let mut target = mlxl3_native::gpu::FlashNext::load(&gpu, &c, tokens.len() as u32)?;
+            let mut target = NativeChatModel::load(&gpu, &c, tokens.len() as u32)?;
             target.admit_request(tokens.len())?;
             let mut out = io::stdout().lock();
             #[derive(serde::Serialize)]
@@ -1703,6 +1703,10 @@ fn run(cli: Cli) -> Result<()> {
             for token in tokens {
                 let (logits, arrays) = match (&mut model, states) {
                     (NativeChatModel::Flash(model), true) => model.forward_trace(token)?,
+                    (NativeChatModel::Qwen(model), true) => {
+                        let logits = model.forward(token)?;
+                        (logits, model.state_trace()?)
+                    }
                     (NativeChatModel::Gemma4(model), true) => model.forward_trace(token)?,
                     (NativeChatModel::Lfm2(model), true) => {
                         let logits = model.forward(&[token])?;
@@ -3413,15 +3417,19 @@ fn bridge_generate_round(
             #[cfg(not(feature = "mlx"))]
             if let Some((session, head)) = mtp_session.as_mut().zip(mtp.as_deref_mut()) {
                 dflash_next = Some(session.advance(
-                    model,
+                    model.flash_mut()?,
                     head,
                     next,
                     u32::try_from(context_limit)?,
                     budget - generated.len(),
                 )?);
             } else if let Some(draft) = draft {
-                dflash_next =
-                    Some(draft.advance(model, next, context_limit, budget - generated.len())?);
+                dflash_next = Some(draft.advance(
+                    model.flash_mut()?,
+                    next,
+                    context_limit,
+                    budget - generated.len(),
+                )?);
             } else {
                 logits = model.forward(next)?;
             }
@@ -4440,11 +4448,11 @@ fn native_chat(path: &std::path::Path, prompt: Option<String>, max_tokens: usize
     #[cfg(not(feature = "mlx"))]
     let gpu = mlxl3_native::gpu::Metal::new()?;
     #[cfg(not(feature = "mlx"))]
-    let mut model = mlxl3_native::gpu::FlashNext::load(&gpu, &checkpoint::inspect(path)?, 0)?;
+    let mut model = NativeChatModel::load(&gpu, &checkpoint::inspect(path)?, 0)?;
     #[cfg(feature = "mlx")]
     let name = model.name();
     #[cfg(not(feature = "mlx"))]
-    let name = "Flash Next / direct Metal";
+    let name = model.name();
     eprintln!(
         "Loaded native {} engine (experimental, greedy sampling)",
         name

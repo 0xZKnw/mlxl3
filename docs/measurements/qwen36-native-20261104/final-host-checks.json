@@ -1,0 +1,94 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "label": "fmt",
+      "command": [
+        "cargo",
+        "fmt",
+        "--check"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "label": "clippy-cpu-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--all-targets",
+        "--no-default-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "label": "clippy-direct-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "label": "clippy-compat-final",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--all-targets",
+        "--features",
+        "mlx,chat",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "label": "suite-direct-delivered",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--features",
+        "chat"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    },
+    {
+      "label": "stock-cli-final-build",
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "--release",
+        "--features",
+        "mlx,chat",
+        "--bin",
+        "mlxl3-rs"
+      ],
+      "status": "passed",
+      "exit_code": 0
+    }
+  ]
+}
