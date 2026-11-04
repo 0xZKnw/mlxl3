@@ -3660,7 +3660,10 @@ fn gdn_private_epilogue_keeps_public_trace_and_half_stream_fallbacks() {
         for trace in [false, true] {
             for private_f32_consumer in [false, true] {
                 let actual = gdn_private_epilogue_eligible(enabled, trace, private_f32_consumer);
-                assert_eq!(actual, (enabled, trace, private_f32_consumer) == (true, false, true));
+                assert_eq!(
+                    actual,
+                    (enabled, trace, private_f32_consumer) == (true, false, true)
+                );
             }
         }
     }

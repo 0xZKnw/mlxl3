@@ -318,14 +318,24 @@ impl<'a> FlashGdn<'a> {
         );
         let out_half = self.out.encode_row(cmd, &gated, storage)?;
         let values = if crate::flash_support::gdn_private_epilogue_eligible(
-            gpu.gdn_half_elision.get(), trace, private_f32_consumer,
+            gpu.gdn_half_elision.get(),
+            trace,
+            private_f32_consumer,
         ) {
             #[cfg(test)]
             gpu.gdn_half_elisions.set(gpu.gdn_half_elisions.get() + 1);
             out_half
         } else {
-            let values = MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
-            Metal::encode(cmd, &p.to_float, &[&out_half.buffer, &values.buffer], [2560u32], g(80, 1, 1), 32);
+            let values =
+                MatrixView::output(gpu, FloatType::F32, 1, 2560, Storage::StorageModeShared)?;
+            Metal::encode(
+                cmd,
+                &p.to_float,
+                &[&out_half.buffer, &values.buffer],
+                [2560u32],
+                g(80, 1, 1),
+                32,
+            );
             values
         };
         let steps = trace.then_some([
@@ -396,7 +406,12 @@ impl<'a> FlashGdn<'a> {
         let _scope = crate::flash_profile::span("native.hc_gdn.joined");
         let (read, pending) = gpu.command(|cmd| {
             let read = hc.encode_read(cmd, streams, false)?;
-            let pending = self.encode_for_consumer(cmd, read.mixed(), false, streams.dtype == FloatType::F32)?;
+            let pending = self.encode_for_consumer(
+                cmd,
+                read.mixed(),
+                false,
+                streams.dtype == FloatType::F32,
+            )?;
             Ok((read, pending))
         })?;
         let read = read.finish(false)?;
@@ -627,7 +642,12 @@ impl<'a> FlashGdnLayer<'a> {
             let encoded = gpu.command(|cmd| {
                 let streams = write.encode(gpu, cmd)?;
                 let read = self.residual.attn_hc.encode_read(cmd, &streams, false)?;
-                let pending = self.attention.encode_for_consumer(cmd, read.mixed(), false, streams.dtype == FloatType::F32)?;
+                let pending = self.attention.encode_for_consumer(
+                    cmd,
+                    read.mixed(),
+                    false,
+                    streams.dtype == FloatType::F32,
+                )?;
                 Ok((streams, read, pending))
             });
             #[cfg(test)]
