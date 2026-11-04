@@ -917,13 +917,33 @@ mod tests {
         } else {
             ensure!(static_submissions == [0; 5]);
         }
+        let fixed_submissions = gpu
+            .flash_fixed_submissions
+            .each_ref()
+            .map(std::cell::Cell::get);
+        ensure!(
+            fixed_submissions
+                == if gpu.flash_fixed_setting == Some(true) {
+                    [3840, 1920]
+                } else {
+                    [0, 0]
+                }
+        );
+        ensure!(
+            gpu.flash_scratch_uses.get()
+                == if gpu.flash_expert_scratch_setting == Some(true) {
+                    5760
+                } else {
+                    0
+                }
+        );
         eprintln!(
             "NATIVE_FLASH_STATIC_SUBMISSIONS {}",
             serde_json::json!(static_submissions)
         );
         eprintln!(
             "NATIVE_FLASH_COMPOSED_FEATURES {}",
-            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":gpu.flash_fixed_submissions.each_ref().map(std::cell::Cell::get)})
+            serde_json::json!({"hc_initially_enabled":hc_initially_enabled,"hc_joint_pairs":gpu.hc_chain_pairs.get(),"hc_gate_pairs":gpu.hc_gate_chain_pairs.get(),"gate_commands":gpu.gate_commands.get(),"static_submissions":static_submissions,"fixed_dims":gpu.flash_fixed_setting == Some(true),"fixed_submissions":fixed_submissions,"scratch_enabled":gpu.flash_expert_scratch_setting == Some(true),"scratch_uses":gpu.flash_scratch_uses.get()})
         );
         Ok(())
     }
@@ -944,6 +964,8 @@ mod tests {
         let mut expected_continuation = None;
         for enabled in [false, true] {
             gpu.flash_fixed_setting = Some(enabled);
+            let before_scratch = gpu.flash_scratch_uses.get();
+            let before_gate = gpu.hc_gate_chain_pairs.get();
             let before = gpu
                 .flash_fixed_submissions
                 .each_ref()
@@ -999,6 +1021,7 @@ mod tests {
                 pool.borrow_mut().drain()?;
                 ensure!(pool.borrow().in_flight() == 0);
             }
+            let gate_eligible = model.lookahead_depth == 0 && model.prefetcher.is_none();
             drop(model);
             let after = gpu
                 .flash_fixed_submissions
@@ -1013,9 +1036,27 @@ mod tests {
                 },
                 "fixed4096 did not execute all routed and12 resident indexer projections per row: {delta:?}"
             );
+            let scratch_uses = gpu.flash_scratch_uses.get() - before_scratch;
+            let gate_pairs = gpu.hc_gate_chain_pairs.get() - before_gate;
+            ensure!(
+                scratch_uses
+                    == if gpu.flash_expert_scratch_setting == Some(true) {
+                        7200
+                    } else {
+                        0
+                    }
+            );
+            ensure!(
+                gate_pairs
+                    == if gpu.hc_gate_chain.get() && gpu.hc_chain.get() && gate_eligible {
+                        240
+                    } else {
+                        0
+                    }
+            );
             eprintln!(
                 "NATIVE_FLASH_FIXED_4096 {}",
-                serde_json::json!({"enabled":enabled,"steps":3,"states":252,"state_words":86_409_216,"logits":744960,"fixed_submissions":delta,"continuation":true})
+                serde_json::json!({"enabled":enabled,"steps":3,"states":252,"state_words":86_409_216,"logits":744960,"fixed_submissions":delta,"scratch_uses":scratch_uses,"hc_gate_pairs":gate_pairs,"continuation":true})
             );
         }
         Ok(())
