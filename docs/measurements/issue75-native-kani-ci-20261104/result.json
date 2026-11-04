@@ -310,7 +310,6 @@
     "git diff --check",
     "byte comparison of production/harness bodies and domains against base"
   ],
-  "integration": "local branch codex/issue75-native-kani-ci only; no PR/push, PR113 unchanged",
   "raw_evidence": "build/kani-ci-bounds contains original CI logs and every local failure/result; public summary preserves hashes; not all raw build files are committed",
   "delivery_base_sha": "17c66327a93af96f94d062f809d31b41e8fe5215",
   "rebase_check": "Delivery base17c; final actual three harnesses reverified after clean rebase; no production function/body/input/assumption/stub changes.",
@@ -489,5 +488,13 @@
     "SpecFill64 stopped after30s scheduling window, then timed out120s in extended window; source remains27",
     "Initial affected-module test wrapper lacked serde_json; corrected pinned1.0.151; final104 tests pass",
     "Baseline main17c inventory oracle failed exactly required-frozen==added; two existing NT2 names added and same function then passes"
-  ]
+  ],
+  "integration_at_validation_checkpoint": "local branch codex/issue75-native-kani-ci only; no PR/push, PR113 unchanged",
+  "publication": {
+    "url": "https://github.com/0xZKnw/mlxl3/pull/115",
+    "code_commit": "b11c4049d6fcebdf60658bd81473fb0478cf7d2c",
+    "base_sha": "17c66327a93af96f94d062f809d31b41e8fe5215",
+    "status": "open; final publication receipt is documentation only",
+    "ci": "Initial code-head runs queued/in progress; no green claim. Final receipt-head workflow status must be read separately."
+  }
 }
