@@ -1,9 +1,10 @@
 # Native Flash K/CB and HC composition
 
-Correctness is qualified for the composed candidate. Its performance pilot is
-pending in this source checkpoint; no isolated gains are added or presented as
-the composition result. The candidate is local and has not replaced an installed
-app, merged main or produced a release.
+Correctness and the short performance pilot qualify the composed candidate.
+The same final binary improves MAIN from 5.1271 to 5.9419 tok/s and HOLD from
+5.1363 to 5.6627 tok/s against the fixed reference with both options off.
+These are directly measured ensemble results; isolated gains are not added.
+The candidate has not replaced an installed app, merged main or produced a release.
 
 Base is PR117 head `b56df620f2c8e4bc18ceff0285c86a4af21b6460`. Existing HC runtime
 and its retained failed/corrected qualification were cherry-picked without
@@ -49,6 +50,43 @@ The earlier HC 90-second timeout and GPU-path compiler ICE remain preserved in
 the prior HC qualification; this bounded helper result does not prove Metal,
 queues, ownership, concurrency or complete generation.
 
+## Executed CPU and proof commands
+
+Exact subprocess argv, durations, outcomes and main environment are recorded in
+[cpu-result.json](cpu-result.json), [marker-cpu-result.json](marker-cpu-result.json),
+[kani-hc-default.json](kani-hc-default.json) and
+[kani-hc-expanded.json](kani-hc-expanded.json). These commands ran from this
+worktree, with the installed Rust tools on PATH:
+
+```sh
+export CARGO_TARGET_DIR="$PWD/build/hc-compose/cargo-target"
+export MLXL3_MLX_ROOT=/Users/justin/Documents/mix-stq1_0/.venv/lib/python3.12/site-packages/mlx
+export MACOSX_DEPLOYMENT_TARGET=26.2
+cargo clean --package mlxl3-native
+cargo fmt --all -- --check
+cargo clippy --locked --no-default-features --features chat --all-targets -- -D warnings
+cargo clippy --locked --features chat --all-targets -- -D warnings
+cargo clippy --locked --features mlx,chat --all-targets -- -D warnings
+cargo test --locked --no-default-features --features chat
+cargo test --locked --features chat
+cargo test --locked --features mlx,chat
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python scripts/check_native_coverage.py
+/Users/justin/Documents/mix-stq1_0/.venv/bin/python -m pytest -q tests/test_native_coverage.py tests/test_kani_manifest.py tests/test_kani_ci.py
+cargo build --locked --release --features chat --bin mlxl3-rs
+cargo test --locked --release --features chat --lib --no-run --message-format=json
+```
+
+After the test-only activation marker, format, direct strict Clippy, the release
+libtest command above and `cargo test --locked --features chat --lib` ran again.
+The actual helper proof used a separate private target and these exact options;
+the second run inspected the seven individual standard-library unreachable
+obligations without changing inputs, assumptions or unwind:
+
+```sh
+CARGO_TARGET_DIR="$PWD/build/hc-compose/kani-target" MACOSX_DEPLOYMENT_TARGET=26.2 cargo kani --lib --no-default-features -Z stubbing --harness flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals --output-format terse
+CARGO_TARGET_DIR="$PWD/build/hc-compose/kani-target" MACOSX_DEPLOYMENT_TARGET=26.2 cargo kani --lib --no-default-features -Z stubbing --harness flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals --output-format regular
+```
+
 ## Composed physical qualification
 
 Model: Qwen3.8-Flash-Next EXL3, checkpoint
@@ -92,6 +130,23 @@ do not validate the composed default candidate or a sum of gains.
 The [preregistered composed pilot](protocol.json) compares one fixed final binary
 with A = Static-K 0 / HC 0 against B = Static-K 1 / HC 1, NT2 1, ABBA, MAIN/HOLD,
 32 tokens, one warmup and one measurement per prompt/process, 3 GiB cache,
-four readers, lookahead 0 and prompt reuse off. Root owns that isolated GPU
-campaign. Sustained, long-context, speculative-mode and installed-app performance
-remain unmeasured here.
+four readers, lookahead 0 and prompt reuse off. The completed campaign and every raw report are in
+[COMPOSITION.md](composition/COMPOSITION.md) and
+[composition-summary.json](composition/composition-summary.json).
+
+
+The completed whole-ensemble screen observed:
+
+| Prompt | Fixed reference | Ensemble | Observed change | Median TTFT change |
+| --- | ---: | ---: | ---: | ---: |
+| MAIN | 5.127148 tok/s | 5.941885 tok/s | +15.891% | −13.070% |
+| HOLD | 5.136340 tok/s | 5.662650 tok/s | +10.247% | −12.932% |
+
+Each ensemble sample exceeds both reference samples for its prompt. Reference
+samples drift −1.408% MAIN / −1.478% HOLD; HOLD ensemble samples drift −3.791%,
+retained explicitly with all samples. There are only two measurements per
+variant/prompt, eight warmups and eight measured responses. All full texts and
+hashes agree per prompt, every child/reader is joined, and native Metal allocation
+is 6,608,617,472 bytes in all eight measurements. Process footprint and compression
+remain separate raw metrics. AC is 100%; temperature is unmeasured. Sustained,
+long-context, speculative-mode and installed-app performance remain unqualified.

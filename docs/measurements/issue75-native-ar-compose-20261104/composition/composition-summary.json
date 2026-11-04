@@ -1,0 +1,200 @@
+{
+  "status": "validated_short_composition_screen",
+  "decision": "retain both candidates and their qualified-M5 defaults; publish final composition",
+  "parity": true,
+  "generated_utc": "2026-11-04T11:02:28.796966+00:00",
+  "artifacts": {
+    "direct-cli": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/direct-cli",
+      "sha256": "942dbeee8ccb2c5907c2b071ae071707139e17f20fbeda4ecf326603f8d68d90",
+      "bytes": 10103056,
+      "minos": "26.2",
+      "sdk": "27.2"
+    },
+    "native-libtest": {
+      "path": "/Users/justin/.codex/worktrees/issue75-native-flash-hc-compose/mix-stq1_0/build/hc-compose/frozen/native-libtest",
+      "sha256": "425387869ada59192fac9edff50547782d8572c9504dba90c34fa8ad99c37527",
+      "bytes": 9075824,
+      "minos": "26.2",
+      "sdk": "27.2"
+    }
+  },
+  "protocol": "composition-protocol.json",
+  "order": [
+    "reference",
+    "ensemble",
+    "ensemble",
+    "reference"
+  ],
+  "tokens": 32,
+  "measured_responses": 8,
+  "warmups": 8,
+  "samples_per_prompt_per_kind": 2,
+  "expert_bank_capacity_bytes": 3174942528,
+  "slots_by_layer": [
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53,
+    53
+  ],
+  "all_children_reaped_and_readers_joined": true,
+  "by_prompt": {
+    "MAIN": {
+      "reference_samples_tps": [
+        5.163498681224448,
+        5.090796929157393
+      ],
+      "ensemble_samples_tps": [
+        5.942994556196665,
+        5.940775262348728
+      ],
+      "reference_median_tps": 5.127147805190921,
+      "ensemble_median_tps": 5.941884909272696,
+      "change_percent": 15.890649831801307,
+      "paired_change_percent": [
+        15.096273342852307,
+        16.696370824047378
+      ],
+      "reference_drift_percent": -1.4079940086246912,
+      "ensemble_drift_percent": -0.037343023402625075,
+      "reference_median_ttft_seconds": 17.0702851035,
+      "ensemble_median_ttft_seconds": 14.839226854,
+      "ttft_change_percent": -13.0698358930312,
+      "both_ensemble_above_both_references": true
+    },
+    "HOLD": {
+      "reference_samples_tps": [
+        5.174579640752747,
+        5.0980993897690485
+      ],
+      "ensemble_samples_tps": [
+        5.772072181331143,
+        5.553228482126535
+      ],
+      "reference_median_tps": 5.136339515260898,
+      "ensemble_median_tps": 5.662650331728839,
+      "change_percent": 10.246807379149804,
+      "paired_change_percent": [
+        11.546687500426177,
+        8.927426822451668
+      ],
+      "reference_drift_percent": -1.4779993022307258,
+      "ensemble_drift_percent": -3.7914234668170455,
+      "reference_median_ttft_seconds": 16.104309354,
+      "ensemble_median_ttft_seconds": 14.021736374500001,
+      "ttft_change_percent": -12.931774556247754,
+      "both_ensemble_above_both_references": true
+    }
+  },
+  "memory_values": {
+    "native_metal_allocated_bytes": [
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472,
+      6608617472
+    ],
+    "process_footprint_bytes": [
+      7230576472,
+      7237556056,
+      7237670768,
+      7237687152,
+      7228020568,
+      7234295640,
+      7240734528,
+      7234443072
+    ],
+    "process_lifetime_peak_bytes": [
+      7262902104,
+      7262902104,
+      7267735408,
+      7267735408,
+      7263065944,
+      7263065944,
+      7271405400,
+      7272208216
+    ],
+    "process_compressed_logical_bytes": [
+      5018877952,
+      5080793088,
+      2339274752,
+      2359885824,
+      2263744512,
+      2287058944,
+      2366062592,
+      2407874560
+    ]
+  },
+  "power": [
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    },
+    {
+      "before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n",
+      "after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36044899)\t100%; charged; 0:00 remaining present: true\n"
+    }
+  ],
+  "limits": [
+    "Only32-token MAIN/HOLD, two measured samples per variant/prompt.",
+    "HOLD ensemble samples drift by about3.8%; both exceed both references. All samples retained.",
+    "No sum or automatic attribution of isolated gains; this is a direct whole-ensemble comparison.",
+    "No sustained/long-context/MTP/DFlash performance qualification or installed-app update.",
+    "CPU bounded checks do not prove Metal or concurrency; known Kani GPU limits remain visible."
+  ]
+}
